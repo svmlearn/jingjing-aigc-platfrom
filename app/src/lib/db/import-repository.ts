@@ -210,7 +210,7 @@ export async function upsertSourceItems(input: {
   if (withExternalIds.length > 0) {
     const { data, error } = await supabase
       .from("source_items")
-      .upsert(withExternalIds, { onConflict: "platform,external_item_id" })
+      .upsert(withExternalIds, { onConflict: "merchant_id,platform,external_item_id" })
       .select(sourceItemSelect);
 
     if (error) {
@@ -223,7 +223,7 @@ export async function upsertSourceItems(input: {
   if (withoutExternalIds.length > 0) {
     const { data, error } = await supabase
       .from("source_items")
-      .upsert(withoutExternalIds, { onConflict: "source_url" })
+      .upsert(withoutExternalIds, { onConflict: "merchant_id,source_url" })
       .select(sourceItemSelect);
 
     if (error) {

@@ -213,11 +213,13 @@ on public.source_items (merchant_id, created_at desc);
 create index idx_source_items_import_job_id
 on public.source_items (import_job_id);
 
-create unique index ux_source_items_platform_external_item_id
-on public.source_items (platform, external_item_id);
+create unique index ux_source_items_merchant_platform_external_item_id
+on public.source_items (merchant_id, platform, external_item_id)
+where external_item_id is not null;
 
-create unique index ux_source_items_source_url
-on public.source_items (source_url);
+create unique index ux_source_items_merchant_source_url
+on public.source_items (merchant_id, source_url)
+where source_url is not null;
 
 create index idx_imported_comments_source_item_id
 on public.imported_comments (source_item_id);

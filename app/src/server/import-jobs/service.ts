@@ -403,6 +403,14 @@ async function assertImportCapacity(merchantId: string, currentJobId?: string) {
 }
 
 function normalizeImportRequest(request: ImportRequest): ImportRequest {
+  if (request.platform === "douyin" && request.importType === "creator") {
+    throw new ApiError(
+      400,
+      "IMPORT_TYPE_NOT_SUPPORTED",
+      "Douyin creator import is not supported in V0.1-A.",
+    );
+  }
+
   const maxComments = clamp(
     request.options?.maxComments,
     1,
