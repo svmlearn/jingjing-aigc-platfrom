@@ -29,8 +29,14 @@ export type ImportJobDto = {
   totalItems?: number | null;
   successItems: number;
   errorSummary?: string | null;
+  sourceItemIds?: string[];
+  commentCount?: number;
   createdAt: string;
   finishedAt?: string | null;
+};
+
+export type ImportJobResponse = {
+  job: ImportJobDto;
 };
 
 export type ImportErrorCode =

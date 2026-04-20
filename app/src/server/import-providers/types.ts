@@ -5,7 +5,15 @@ export type ProviderRun = {
   actorId: string;
   runId: string;
   datasetId: string;
-  status: "READY" | "RUNNING" | "SUCCEEDED" | "FAILED" | "ABORTED" | "TIMED-OUT";
+  status:
+    | "READY"
+    | "RUNNING"
+    | "SUCCEEDED"
+    | "FAILED"
+    | "ABORTING"
+    | "ABORTED"
+    | "TIMING-OUT"
+    | "TIMED-OUT";
   usageTotalUsd?: number;
   raw?: unknown;
 };
