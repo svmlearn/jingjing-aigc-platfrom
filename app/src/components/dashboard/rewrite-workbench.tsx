@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  commentSummary,
   getComments,
+  getCommentSummary,
   getSourceItem,
   merchantProfile,
   rewriteSourceItem,
@@ -25,6 +25,7 @@ const rewriteGoals = ["本地化种草", "活动引流", "抖音口播", "评论
 export function RewriteWorkbench({ sourceItemId }: { sourceItemId: string }) {
   const sourceItem = getSourceItem(sourceItemId);
   const comments = getComments(sourceItemId);
+  const sourceCommentSummary = getCommentSummary(sourceItemId);
   const [targetPlatform, setTargetPlatform] = useState<Platform>(sourceItem.platform);
   const [goal, setGoal] = useState(rewriteGoals[0]);
   const [prompt, setPrompt] = useState("突出低刺激、流程时长、不强制办卡，语气像真实门店顾问。");
@@ -119,7 +120,7 @@ export function RewriteWorkbench({ sourceItemId }: { sourceItemId: string }) {
                       保存为草稿
                     </Button>
                     <Button variant="outline" className="h-10 rounded-md" asChild>
-                      <Link href="/dashboard/drafts/draft-sensitive-repair">打开草稿详情</Link>
+                      <Link href={`/dashboard/drafts/${result.draft.id}`}>打开草稿详情</Link>
                     </Button>
                   </div>
                 </article>
@@ -206,7 +207,9 @@ export function RewriteWorkbench({ sourceItemId }: { sourceItemId: string }) {
 
             <div className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-3">
               <p className="text-sm font-medium">评论摘要</p>
-              <p className="mt-2 text-sm leading-6 text-[#5d6b7a]">{commentSummary}</p>
+              <p className="mt-2 text-sm leading-6 text-[#5d6b7a]">
+                {result?.commentSummary ?? sourceCommentSummary}
+              </p>
             </div>
 
             <Button onClick={handleRewrite} className="h-11 rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]">

@@ -215,6 +215,17 @@ export const contentDrafts: ContentDraftDto[] = [
     createdAt: "2026-04-20 10:39",
     updatedAt: "2026-04-20 10:39",
   },
+  {
+    id: "draft-douyin-acne-care",
+    sourceItemId: "source-dy-acne-care",
+    merchantId: merchantProfile.id,
+    workingTitle: "痘肌屏障检测口播",
+    rewriteGoal: "抖音口播",
+    status: "drafting",
+    selectedVariantId: "variant-douyin-acne-a",
+    createdAt: "2026-04-20 10:46",
+    updatedAt: "2026-04-20 10:46",
+  },
 ];
 
 export const contentVariants: ContentVariantDto[] = [
@@ -250,6 +261,38 @@ export const contentVariants: ContentVariantDto[] = [
     createdAt: "2026-04-20 10:40",
     updatedAt: "2026-04-20 10:40",
   },
+  {
+    id: "variant-douyin-acne-a",
+    draftId: "draft-douyin-acne-care",
+    platform: "douyin",
+    variantType: "video_script",
+    versionNo: 1,
+    title: "痘肌别急着猛刷酸",
+    bodyText: null,
+    scriptText:
+      "如果你一长痘就想刷酸，先别急。干到脱皮、刺痛泛红、闭口变多，这些都可能是在提醒你屏障已经扛不住了。到静境可以先做一次皮肤状态检测，再决定是清洁、舒缓，还是痘肌管理。我们不会一上来就推高刺激项目，先把皮肤稳住，后面才好谈改善。",
+    hashtags: ["杭州痘肌管理", "屏障修护", "皮肤检测", "别乱刷酸"],
+    ctaText: "不确定自己能不能刷酸，先来做一次皮肤状态检测。",
+    reviewStatus: "editing",
+    createdAt: "2026-04-20 10:46",
+    updatedAt: "2026-04-20 10:46",
+  },
+  {
+    id: "variant-douyin-acne-b",
+    draftId: "draft-douyin-acne-care",
+    platform: "douyin",
+    variantType: "video_script",
+    versionNo: 2,
+    title: "这 4 个信号出现，先别刷酸",
+    bodyText: null,
+    scriptText:
+      "脸上长痘，不代表每次都要刷酸。第一，脸颊干到起皮；第二，护肤品一上脸就刺痛；第三，红痒比痘更明显；第四，熬夜后反复爆痘。遇到这些情况，静境更建议先检测屏障和炎症状态，再做温和护理方案。",
+    hashtags: ["痘肌护理", "杭州皮肤管理", "屏障受损"],
+    ctaText: "把你的皮肤状态发来，我们先帮你判断适不适合做痘肌护理。",
+    reviewStatus: "editing",
+    createdAt: "2026-04-20 10:47",
+    updatedAt: "2026-04-20 10:47",
+  },
 ];
 
 export const sourceThumbnails: Record<string, string> = {
@@ -263,6 +306,54 @@ export const sourceThumbnails: Record<string, string> = {
 
 export const commentSummary =
   "评论集中在三个顾虑：护理是否刺痛、能否快速完成、是否会被强推办卡。改写时适合强调先检测、低刺激、流程时长和不强制办卡。";
+
+const commentSummaries: Record<string, string> = {
+  "source-xhs-sensitive-repair": commentSummary,
+  "source-dy-acne-care":
+    "评论集中在刷酸后泛红、是否适合做屏障检测、以及痘肌护理是否会过度刺激。改写时适合用短口播强调先检测、再护理、不要盲目刷酸。",
+};
+
+export function getCommentSummary(sourceItemId: string) {
+  return commentSummaries[sourceItemId] ?? commentSummary;
+}
+
+function createFallbackDraft(sourceItem: SourceItemDto): ContentDraftDto {
+  return {
+    id: `draft-${sourceItem.id}`,
+    sourceItemId: sourceItem.id,
+    merchantId: merchantProfile.id,
+    workingTitle: sourceItem.title ?? "导入内容改写草稿",
+    rewriteGoal: sourceItem.platform === "douyin" ? "抖音口播" : "本地化种草",
+    status: "drafting",
+    selectedVariantId: `variant-${sourceItem.id}-a`,
+    createdAt: "刚刚",
+    updatedAt: "刚刚",
+  };
+}
+
+function createFallbackVariant(sourceItem: SourceItemDto, draftId: string): ContentVariantDto {
+  const isDouyin = sourceItem.platform === "douyin";
+
+  return {
+    id: `variant-${sourceItem.id}-a`,
+    draftId,
+    platform: sourceItem.platform,
+    variantType: isDouyin ? "video_script" : "note",
+    versionNo: 1,
+    title: sourceItem.title ? `${sourceItem.title}｜本地化改写` : "导入内容改写草稿",
+    bodyText: isDouyin
+      ? null
+      : `结合 ${merchantProfile.name} 的服务项目，把这条来源内容改写成一篇更适合本地用户咨询的笔记。`,
+    scriptText: isDouyin
+      ? `结合 ${merchantProfile.name} 的服务项目，把这条来源内容改写成一段适合抖音的短口播。`
+      : null,
+    hashtags: isDouyin ? ["本地生活", "皮肤管理"] : ["本地种草", "皮肤管理"],
+    ctaText: "想了解自己适合哪种护理，可以先预约一次基础评估。",
+    reviewStatus: "editing",
+    createdAt: "刚刚",
+    updatedAt: "刚刚",
+  };
+}
 
 export function createImportJob(request: ImportRequest): ImportJobDto {
   return {
@@ -289,23 +380,28 @@ export function getComments(sourceItemId: string) {
 
 export function getDraftBundle(draftId: string): DraftBundle {
   const draft = contentDrafts.find((item) => item.id === draftId) ?? contentDrafts[0];
+  const sourceItem = getSourceItem(draft.sourceItemId);
   const variants = contentVariants.filter((variant) => variant.draftId === draft.id);
 
   return {
     draft,
-    variants,
-    sourceItem: getSourceItem(draft.sourceItemId),
+    variants: variants.length > 0 ? variants : [createFallbackVariant(sourceItem, draft.id)],
+    sourceItem,
   };
 }
 
 export function rewriteSourceItem(sourceItemId: string): RewriteResult {
   const sourceItem = getSourceItem(sourceItemId);
+  const draft =
+    contentDrafts.find((item) => item.sourceItemId === sourceItem.id) ??
+    createFallbackDraft(sourceItem);
+  const variants = contentVariants.filter((variant) => variant.draftId === draft.id);
 
   return {
-    draft: contentDrafts[0],
-    variants: contentVariants,
+    draft,
+    variants: variants.length > 0 ? variants : [createFallbackVariant(sourceItem, draft.id)],
     sourceItem,
-    commentSummary,
+    commentSummary: getCommentSummary(sourceItem.id),
   };
 }
 

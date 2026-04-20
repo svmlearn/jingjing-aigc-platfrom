@@ -38,6 +38,7 @@ export function ImportConsole() {
   const [submitted, setSubmitted] = useState(false);
 
   const activeJob = useMemo(() => jobs.find((job) => job.status === "running"), [jobs]);
+  const creatorImportDisabled = platform === "douyin";
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,7 +80,13 @@ export function ImportConsole() {
                 <button
                   key={item}
                   type="button"
-                  onClick={() => setPlatform(item)}
+                  onClick={() => {
+                    setPlatform(item);
+                    if (item === "douyin" && importType === "creator") {
+                      setImportType("detail");
+                      setIncludeComments(true);
+                    }
+                  }}
                   className={`min-h-11 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#2563eb]/30 ${
                     platform === item
                       ? "border-[#2563eb] bg-[#e8f1ff] text-[#1d4ed8]"
@@ -95,24 +102,38 @@ export function ImportConsole() {
           <fieldset className="grid gap-2">
             <legend className="text-sm font-medium">类型</legend>
             <div className="grid gap-2 sm:grid-cols-3">
-              {(["detail", "creator", "comments"] as ImportType[]).map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => {
-                    setImportType(item);
-                    setIncludeComments(item === "detail");
-                  }}
-                  className={`min-h-11 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#2563eb]/30 ${
-                    importType === item
-                      ? "border-[#0f766e] bg-[#e6fffb] text-[#0f766e]"
-                      : "border-[#dde3ea] bg-white text-[#435364] hover:bg-[#f8fafc]"
-                  }`}
-                >
-                  {importTypeLabel[item]}
-                </button>
-              ))}
+              {(["detail", "creator", "comments"] as ImportType[]).map((item) => {
+                const disabled = creatorImportDisabled && item === "creator";
+
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      if (disabled) {
+                        return;
+                      }
+                      setImportType(item);
+                      setIncludeComments(item === "detail");
+                    }}
+                    className={`min-h-11 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#2563eb]/30 disabled:cursor-not-allowed disabled:border-[#dde3ea] disabled:bg-[#f1f5f9] disabled:text-[#94a3b8] ${
+                      importType === item && !disabled
+                        ? "border-[#0f766e] bg-[#e6fffb] text-[#0f766e]"
+                        : "border-[#dde3ea] bg-white text-[#435364] hover:bg-[#f8fafc]"
+                    }`}
+                  >
+                    {importTypeLabel[item]}
+                  </button>
+                );
+              })}
             </div>
+            {creatorImportDisabled ? (
+              <p className="flex items-start gap-2 rounded-md border border-[#fde68a] bg-[#fffbeb] px-3 py-2 text-sm text-[#92400e]">
+                <CircleAlert className="mt-0.5 size-4" aria-hidden="true" />
+                V0.1 暂只支持小红书主页导入，抖音请先导入单条视频或评论。
+              </p>
+            ) : null}
           </fieldset>
 
           <div className="grid gap-2">
