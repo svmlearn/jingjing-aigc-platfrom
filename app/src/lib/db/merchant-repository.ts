@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 
 import type {
   InvitationCodeDto,
+  MerchantPlan,
   MerchantProfileDto,
   MerchantProfileInput,
 } from "@/contracts/merchant";
@@ -24,7 +25,8 @@ type MerchantProfileRow = {
   tone_style: string | null;
   default_cta: unknown;
   forbidden_words: unknown;
-  status: "active" | "archived";
+  status: "active" | "disabled" | "archived";
+  plan: MerchantPlan;
   created_at: string;
   updated_at: string;
 };
@@ -37,6 +39,7 @@ type InvitationCodeRow = {
   max_redemptions: number;
   redemption_count: number;
   expires_at: string | null;
+  note: string | null;
   created_at: string;
 };
 
@@ -44,6 +47,7 @@ export async function createInvitationCode(input: {
   code?: string;
   maxRedemptions?: number;
   expiresAt?: string | null;
+  note?: string | null;
 }): Promise<InvitationCodeDto> {
   const supabase = createSupabaseAdminClient();
   const code = input.code?.trim() || generateInvitationCode();
@@ -54,9 +58,10 @@ export async function createInvitationCode(input: {
       code,
       max_redemptions: input.maxRedemptions ?? 1,
       expires_at: input.expiresAt ?? null,
+      note: input.note ?? null,
     })
     .select(
-      "id, code, purpose, status, max_redemptions, redemption_count, expires_at, created_at",
+      "id, code, purpose, status, max_redemptions, redemption_count, expires_at, note, created_at",
     )
     .single();
 
@@ -122,6 +127,7 @@ export async function getMerchantProfileById(id: string): Promise<MerchantProfil
         "default_cta",
         "forbidden_words",
         "status",
+        "plan",
         "created_at",
         "updated_at",
       ].join(", "),
@@ -158,6 +164,7 @@ export async function getMerchantProfileByOwnerUserId(
         "default_cta",
         "forbidden_words",
         "status",
+        "plan",
         "created_at",
         "updated_at",
       ].join(", "),
@@ -215,6 +222,7 @@ export async function updateMerchantProfile(
         "default_cta",
         "forbidden_words",
         "status",
+        "plan",
         "created_at",
         "updated_at",
       ].join(", "),
@@ -244,6 +252,7 @@ export function mapMerchantProfile(row: MerchantProfileRow): MerchantProfileDto 
     defaultCta: toStringArray(row.default_cta),
     forbiddenWords: toStringArray(row.forbidden_words),
     status: row.status,
+    plan: row.plan,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -258,8 +267,35 @@ function mapInvitationCode(row: InvitationCodeRow): InvitationCodeDto {
     maxRedemptions: row.max_redemptions,
     redemptionCount: row.redemption_count,
     expiresAt: row.expires_at,
+    note: row.note,
     createdAt: row.created_at,
   };
+}
+
+export async function getOperationalMerchantProfileByOwnerUserId(
+  ownerUserId: string,
+): Promise<MerchantProfileDto> {
+  const profile = await getMerchantProfileByOwnerUserId(ownerUserId);
+  assertMerchantOperational(profile);
+  return profile;
+}
+
+export function assertMerchantOperational(profile: Pick<MerchantProfileDto, "status">) {
+  if (profile.status === "disabled") {
+    throw new ApiError(
+      403,
+      "MERCHANT_DISABLED",
+      "This merchant has been disabled by the platform administrator.",
+    );
+  }
+
+  if (profile.status === "archived") {
+    throw new ApiError(
+      403,
+      "MERCHANT_ARCHIVED",
+      "This merchant has been archived and cannot continue using the workspace.",
+    );
+  }
 }
 
 function mapInviteRedemptionError(message: string): ApiError {

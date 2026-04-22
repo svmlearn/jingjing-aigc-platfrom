@@ -27,6 +27,7 @@ export const createInvitationCodeSchema = z.object({
   code: z.string().trim().min(4).max(80).optional(),
   maxRedemptions: z.number().int().min(1).max(50).optional(),
   expiresAt: z.iso.datetime().nullish(),
+  note: z.string().trim().max(200).nullish(),
 });
 
 export const importRequestSchema = z.object({
@@ -43,3 +44,47 @@ export const importRequestSchema = z.object({
 });
 
 export const merchantProfilePatchSchema = merchantProfileInputSchema.partial();
+
+export const platformAdminMerchantPatchSchema = z
+  .object({
+    status: z.enum(["active", "disabled", "archived"]).optional(),
+    plan: z.enum(["free", "plus", "pro"]).optional(),
+  })
+  .refine((value) => value.status !== undefined || value.plan !== undefined, {
+    message: "At least one field must be provided.",
+  });
+
+const llmRuntimeSchema = z.object({
+  providerLabel: z.string().trim().min(1).max(80),
+  baseUrl: z.url().max(2000),
+  primaryModel: z.string().trim().min(1).max(120),
+  fallbackModel: z.string().trim().max(120).nullish(),
+  temperature: z.number().min(0).max(2),
+  maxTokens: z.number().int().min(128).max(20000),
+  timeoutSeconds: z.number().int().min(5).max(300),
+  retryCount: z.number().int().min(0).max(10),
+});
+
+const importRuntimeSchema = z.object({
+  importProvider: z.string().trim().min(1).max(80),
+  defaultMaxComments: z.number().int().min(1).max(200),
+  defaultCreatorPosts: z.number().int().min(1).max(100),
+  waitSeconds: z.number().int().min(5).max(600),
+});
+
+const membershipPlanRuleSchema = z.object({
+  dailyCredits: z.number().int().min(0).max(100000),
+  description: z.string().trim().min(1).max(300),
+});
+
+export const platformSettingsUpdateSchema = z.object({
+  llmRuntime: llmRuntimeSchema.optional(),
+  importRuntime: importRuntimeSchema.optional(),
+  membershipPlans: z
+    .object({
+      free: membershipPlanRuleSchema,
+      plus: membershipPlanRuleSchema,
+      pro: membershipPlanRuleSchema,
+    })
+    .optional(),
+});

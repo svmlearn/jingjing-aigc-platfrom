@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { ImportErrorCode, ImportJobDto, ImportRequest } from "@/contracts/import";
-import { getMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
+import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import {
   countRunningImportJobs,
   createImportJob,
@@ -43,7 +43,7 @@ export async function createAndRunImportJob(input: {
   userId: string;
   request: ImportRequest;
 }): Promise<ImportJobDto> {
-  const merchant = await getMerchantProfileByOwnerUserId(input.userId);
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   await assertImportCapacity(merchant.id);
 
   const normalizedRequest = normalizeImportRequest(input.request);
@@ -60,7 +60,7 @@ export async function createAndRunImportJob(input: {
 }
 
 export async function listUserImportJobs(userId: string): Promise<ImportJobDto[]> {
-  const merchant = await getMerchantProfileByOwnerUserId(userId);
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(userId);
   return listImportJobs(merchant.id);
 }
 
@@ -68,7 +68,7 @@ export async function getUserImportJob(input: {
   userId: string;
   jobId: string;
 }): Promise<ImportJobDto> {
-  const merchant = await getMerchantProfileByOwnerUserId(input.userId);
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const job = await getImportJobById({
     merchantId: merchant.id,
     jobId: input.jobId,
@@ -88,7 +88,7 @@ export async function runUserImportJob(input: {
   userId: string;
   jobId: string;
 }): Promise<ImportJobDto> {
-  const merchant = await getMerchantProfileByOwnerUserId(input.userId);
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const job = await getImportJobById({
     merchantId: merchant.id,
     jobId: input.jobId,

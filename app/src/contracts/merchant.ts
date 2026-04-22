@@ -1,3 +1,5 @@
+export type MerchantPlan = "free" | "plus" | "pro";
+
 export type MerchantProfileInput = {
   name: string;
   address?: string | null;
@@ -26,7 +28,8 @@ export type MerchantProfileDto = {
   toneStyle?: string | null;
   defaultCta: string[];
   forbiddenWords: string[];
-  status: "active" | "archived";
+  status: "active" | "disabled" | "archived";
+  plan: MerchantPlan;
   createdAt: string;
   updatedAt: string;
 };
@@ -39,5 +42,6 @@ export type InvitationCodeDto = {
   maxRedemptions: number;
   redemptionCount: number;
   expiresAt?: string | null;
+  note?: string | null;
   createdAt: string;
 };

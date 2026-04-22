@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, MessageSquare, PenLine, X } from "lucide-react";
+import { Eye, FileText, MessageSquare, PenLine, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { SourceItemDto } from "@/contracts/content";
@@ -100,8 +100,14 @@ export function ContentCenter() {
                         className="rounded-md"
                         onClick={() => setSelectedItem(item)}
                       >
-                        <FileText className="size-4" />
-                        查看
+                        <Eye className="size-4" />
+                        预览
+                      </Button>
+                      <Button variant="outline" size="sm" className="rounded-md" asChild>
+                        <Link href={`/dashboard/content/${item.id}`}>
+                          <FileText className="size-4" />
+                          详情
+                        </Link>
                       </Button>
                       <Button size="sm" className="rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]" asChild>
                         <Link href={`/dashboard/rewrite/${item.id}`}>
@@ -146,27 +152,37 @@ export function ContentCenter() {
       <aside className="rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-auto">
         <div className="mb-4 flex items-start justify-between gap-4 border-b border-[#dde3ea] pb-4">
           <div>
-            <h2 className="font-semibold">内容详情抽屉</h2>
-            <p className="mt-1 text-sm text-[#5d6b7a]">桌面端常驻，移动端在列表下方展示。</p>
+            <h2 className="font-semibold">内容预览抽屉</h2>
+            <p className="mt-1 text-sm text-[#5d6b7a]">桌面端常驻，移动端在列表下方展示。完整信息可进入详情页。</p>
           </div>
-          {selectedItem ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="rounded-md"
-              aria-label="关闭详情"
-              onClick={() => setSelectedItem(null)}
-            >
-              <X className="size-4" />
-            </Button>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {selectedItem ? (
+              <Button variant="outline" size="sm" className="rounded-md" asChild>
+                <Link href={`/dashboard/content/${selectedItem.id}`}>
+                  <Eye className="size-4" />
+                  详情页
+                </Link>
+              </Button>
+            ) : null}
+            {selectedItem ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="rounded-md"
+                aria-label="关闭详情"
+                onClick={() => setSelectedItem(null)}
+              >
+                <X className="size-4" />
+              </Button>
+            ) : null}
+          </div>
         </div>
         {selectedItem ? (
           <ContentDetail sourceItem={selectedItem} />
         ) : (
           <p className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4 text-sm text-[#5d6b7a]">
-            从左侧选择一条内容查看详情、评论和改写入口。
+            从左侧选择一条内容做快速预览，或进入详情页继续判断是否改写。
           </p>
         )}
       </aside>

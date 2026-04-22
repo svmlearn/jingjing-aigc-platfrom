@@ -1,6 +1,6 @@
 import { getAuthenticatedUser } from "@/lib/auth/current-user";
 import {
-  getMerchantProfileByOwnerUserId,
+  getOperationalMerchantProfileByOwnerUserId,
   updateMerchantProfile,
 } from "@/lib/db/merchant-repository";
 import { handleApiError } from "@/server/api/errors";
@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export async function GET() {
   try {
     const user = await getAuthenticatedUser();
-    const merchantProfile = await getMerchantProfileByOwnerUserId(user.id);
+    const merchantProfile = await getOperationalMerchantProfileByOwnerUserId(user.id);
 
     return Response.json({ merchantProfile });
   } catch (error) {
@@ -22,6 +22,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const user = await getAuthenticatedUser();
+    await getOperationalMerchantProfileByOwnerUserId(user.id);
     const payload = merchantProfilePatchSchema.parse(await request.json());
     const merchantProfile = await updateMerchantProfile(user.id, payload);
 

@@ -1,14 +1,28 @@
-import { createInvitationCodeSchema } from "@/server/api/schemas";
+import {
+  createPlatformInvitationCode,
+  listPlatformInvitationCodes,
+} from "@/lib/db/platform-admin-repository";
 import { assertPlatformAdminAccess, handleApiError } from "@/server/api/errors";
-import { createInvitationCode } from "@/lib/db/merchant-repository";
+import { createInvitationCodeSchema } from "@/server/api/schemas";
 
 export const runtime = "nodejs";
+
+export async function GET(request: Request) {
+  try {
+    assertPlatformAdminAccess(request);
+    const invitationCodes = await listPlatformInvitationCodes();
+
+    return Response.json({ invitationCodes });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
 
 export async function POST(request: Request) {
   try {
     assertPlatformAdminAccess(request);
     const payload = createInvitationCodeSchema.parse(await request.json());
-    const invitationCode = await createInvitationCode({
+    const invitationCode = await createPlatformInvitationCode({
       code: payload.code,
       maxRedemptions: payload.maxRedemptions,
       expiresAt: payload.expiresAt,

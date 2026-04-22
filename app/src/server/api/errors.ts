@@ -35,6 +35,10 @@ export function assertAdminSetupSecret(request: Request) {
   }
 }
 
+export function assertPlatformAdminAccess(request: Request) {
+  assertAdminSetupSecret(request);
+}
+
 export function handleApiError(error: unknown) {
   if (error instanceof ApiError) {
     return Response.json(
