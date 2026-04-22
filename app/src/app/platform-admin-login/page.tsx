@@ -84,7 +84,7 @@ export default async function PlatformAdminLoginPage({
               <ul className="mt-4 grid gap-3 text-sm leading-6 text-[#5d6b7a]">
                 <li>平台管理台页面不再从商家工作台直接暴露。</li>
                 <li>当前会话只用于内部演示，不替代正式平台管理员账号体系。</li>
-                <li>API 侧仍继续要求 `ADMIN_SETUP_SECRET`，页面访问和接口调用都需要单独保护。</li>
+                <li>当前登录会同时保护管理台页面和管理台内的接口调用，但还不是正式账号体系。</li>
               </ul>
             </div>
           </div>

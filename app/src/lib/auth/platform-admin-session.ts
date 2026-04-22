@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 
 import { cookies } from "next/headers";
 
-const platformAdminSessionCookieName = "platform_admin_session";
+export const platformAdminSessionCookieName = "platform_admin_session";
 const platformAdminSessionMaxAgeSeconds = 60 * 60 * 8;
 
 function getPlatformAdminSecret() {
@@ -13,6 +13,16 @@ function getPlatformAdminSecret() {
 
 function buildPlatformAdminSessionValue(secret: string) {
   return createHash("sha256").update(`platform-admin:${secret}`).digest("hex");
+}
+
+export function isValidPlatformAdminSessionValue(value: string | null | undefined) {
+  const secret = getPlatformAdminSecret();
+
+  if (!secret || !value) {
+    return false;
+  }
+
+  return value === buildPlatformAdminSessionValue(secret);
 }
 
 export function isPlatformAdminAccessConfigured() {
@@ -34,16 +44,10 @@ export function verifyPlatformAdminSecret(value: FormDataEntryValue | null) {
 }
 
 export async function hasPlatformAdminSession() {
-  const expected = getPlatformAdminSecret();
-
-  if (!expected) {
-    return false;
-  }
-
   const cookieStore = await cookies();
   const session = cookieStore.get(platformAdminSessionCookieName)?.value;
 
-  return session === buildPlatformAdminSessionValue(expected);
+  return isValidPlatformAdminSessionValue(session);
 }
 
 export async function createPlatformAdminSession() {

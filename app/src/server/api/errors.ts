@@ -2,6 +2,11 @@ import "server-only";
 
 import { z } from "zod";
 
+import {
+  isValidPlatformAdminSessionValue,
+  platformAdminSessionCookieName,
+} from "@/lib/auth/platform-admin-session";
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -11,6 +16,25 @@ export class ApiError extends Error {
   ) {
     super(message);
   }
+}
+
+function getCookieValue(request: Request, name: string) {
+  const cookieHeader = request.headers.get("cookie");
+
+  if (!cookieHeader) {
+    return undefined;
+  }
+
+  const cookie = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
+
+  if (!cookie) {
+    return undefined;
+  }
+
+  return decodeURIComponent(cookie.slice(name.length + 1));
 }
 
 export function assertAdminSetupSecret(request: Request) {
@@ -29,6 +53,11 @@ export function assertAdminSetupSecret(request: Request) {
     ? authorization.slice("Bearer ".length)
     : undefined;
   const provided = request.headers.get("x-admin-secret") ?? bearerToken;
+  const session = getCookieValue(request, platformAdminSessionCookieName);
+
+  if (isValidPlatformAdminSessionValue(session)) {
+    return;
+  }
 
   if (provided !== expected) {
     throw new ApiError(401, "UNAUTHORIZED", "Invalid admin setup secret.");

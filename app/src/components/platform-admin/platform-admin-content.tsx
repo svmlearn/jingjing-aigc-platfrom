@@ -9,14 +9,11 @@ import {
   ShieldBan,
   Sparkles,
   Store,
-  TicketPlus,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -25,18 +22,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
+import type { PlatformAdminInvitationCodeDto } from "@/contracts/platform-admin";
+import { CreateInvitationCodeForm } from "@/components/platform-admin/create-invitation-code-form";
 import {
   adminAlerts,
   adminAuditEvents,
-  adminInvitationCodes,
   adminMerchants,
   adminOverviewMetrics,
   importRuntimeConfig,
   llmProviderConfigs,
   membershipPlanConfigs,
   type AdminAlertLevel,
-  type AdminInvitationCode,
   type AdminMerchant,
   type AdminMerchantStatus,
   type MerchantPlan,
@@ -48,7 +44,7 @@ const metricToneClasses = {
   warning: "text-[#b45309]",
 } as const;
 
-const invitationToneClasses: Record<AdminInvitationCode["status"], string> = {
+const invitationToneClasses: Record<PlatformAdminInvitationCodeDto["status"], string> = {
   active: "border-[#bbf7d0] bg-[#f0fdf4] text-[#166534]",
   redeemed: "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]",
   expired: "border-[#e2e8f0] bg-[#f8fafc] text-[#475569]",
@@ -72,6 +68,39 @@ const planToneClasses: Record<MerchantPlan, string> = {
   plus: "border-[#fde68a] bg-[#fffbeb] text-[#92400e]",
   pro: "border-[#ddd6fe] bg-[#f5f3ff] text-[#6d28d9]",
 };
+
+const adminDateFormatter = new Intl.DateTimeFormat("zh-CN", {
+  dateStyle: "medium",
+});
+
+const adminDateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function formatAdminDate(value?: string | null) {
+  if (!value) {
+    return "不限";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return adminDateFormatter.format(date);
+}
+
+function formatAdminDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return adminDateTimeFormatter.format(date);
+}
 
 function SectionCard({
   title,
@@ -170,13 +199,19 @@ export function PlatformAdminOverviewPage() {
   );
 }
 
-export function InvitationCodesAdminPage() {
+export function InvitationCodesAdminPage({
+  invitationCodes,
+  createdCode,
+}: {
+  invitationCodes: PlatformAdminInvitationCodeDto[];
+  createdCode?: string;
+}) {
   return (
     <>
       <PageHeader
         eyebrow="Platform Admin"
         title="邀请码管理"
-        description="统一查看邀请码状态、使用情况和分发备注。生成入口放在这里，不再藏在脚本里。"
+        description="这里展示真实邀请码记录。生成成功后会直接回到列表，不再停留在只会展示 mock 的壳子里。"
         action={
           <Button asChild className="h-10 rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]">
             <Link href="/platform-admin/invitation-codes/new">
@@ -187,13 +222,12 @@ export function InvitationCodesAdminPage() {
         }
       />
 
-      <SectionCard title="邀请码列表" description="当前页面还是 mock 数据，但字段已经按后续真实管理动作对齐。">
-        <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto_auto_auto]">
-          <Input placeholder="搜索邀请码或渠道备注" />
-          <Button variant="outline" className="rounded-md">全部状态</Button>
-          <Button variant="outline" className="rounded-md">仅看未使用</Button>
-          <Button variant="outline" className="rounded-md">即将过期</Button>
-        </div>
+      <SectionCard title="邀请码列表" description="按创建时间倒序展示，名称字段就是你创建时填写的内部备注。">
+        {createdCode ? (
+          <div className="mb-4 rounded-md border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3 text-sm text-[#166534]">
+            邀请码 <span className="font-semibold">{createdCode}</span> 已生成，现在可以直接复制给要注册的商家。
+          </div>
+        ) : null}
 
         <div className="overflow-hidden rounded-md border border-[#dde3ea]">
           <Table>
@@ -202,24 +236,34 @@ export function InvitationCodesAdminPage() {
                 <TableHead>邀请码</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>使用情况</TableHead>
+                <TableHead>创建时间</TableHead>
                 <TableHead>过期时间</TableHead>
-                <TableHead>备注 / 渠道</TableHead>
+                <TableHead>名称 / 渠道备注</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {adminInvitationCodes.map((code) => (
-                <TableRow key={code.id}>
-                  <TableCell className="font-medium">{code.code}</TableCell>
-                  <TableCell>
-                    <StatusBadge label={code.status} className={invitationToneClasses[code.status]} />
+              {invitationCodes.length > 0 ? (
+                invitationCodes.map((code) => (
+                  <TableRow key={code.id}>
+                    <TableCell className="font-medium">{code.code}</TableCell>
+                    <TableCell>
+                      <StatusBadge label={code.status} className={invitationToneClasses[code.status]} />
+                    </TableCell>
+                    <TableCell>
+                      {code.redemptionCount} / {code.maxRedemptions}
+                    </TableCell>
+                    <TableCell>{formatAdminDateTime(code.createdAt)}</TableCell>
+                    <TableCell>{formatAdminDate(code.expiresAt)}</TableCell>
+                    <TableCell>{code.note ?? "未命名"}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-10 text-center text-sm text-[#5d6b7a]">
+                    还没有创建过邀请码。现在可以直接去生成第一条真实邀请码记录。
                   </TableCell>
-                  <TableCell>
-                    {code.redemptionCount} / {code.maxRedemptions}
-                  </TableCell>
-                  <TableCell>{code.expiresAt ?? "不限"}</TableCell>
-                  <TableCell>{code.note}</TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </div>
@@ -229,90 +273,7 @@ export function InvitationCodesAdminPage() {
 }
 
 export function CreateInvitationCodeAdminPage() {
-  return (
-    <>
-      <PageHeader
-        eyebrow="Platform Admin"
-        title="新建邀请码"
-        description="先定生成方式，再补使用次数、过期时间和渠道备注。当前是管理台 UI 演示，尚未接真实提交。"
-        action={
-          <Button asChild variant="outline" className="rounded-md">
-            <Link href="/platform-admin/invitation-codes">
-              <ArrowLeft className="size-4" />
-              返回邀请码管理
-            </Link>
-          </Button>
-        }
-      />
-
-      <SectionCard title="邀请码配置" description="平台第一版默认只用于 merchant_signup。">
-        <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label>邀请码生成方式</Label>
-              <div className="grid grid-cols-2 gap-2 max-w-sm">
-                <Button variant="outline" className="justify-center rounded-md border-[#2563eb] bg-[#e8f1ff] text-[#1d4ed8]">
-                  自动生成
-                </Button>
-                <Button variant="outline" className="justify-center rounded-md">
-                  手动填写
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="purpose">用途</Label>
-              <Input id="purpose" defaultValue="merchant_signup" readOnly />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="max-redemptions">最大兑换次数</Label>
-                <Input id="max-redemptions" type="number" defaultValue="1" min={1} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="expires-at">过期时间</Label>
-                <Input id="expires-at" type="date" defaultValue="2026-05-22" />
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="invite-note">备注 / 渠道标签</Label>
-              <Input id="invite-note" defaultValue="线下打样 - 深圳站" />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="invite-description">补充说明</Label>
-              <Textarea
-                id="invite-description"
-                rows={4}
-                defaultValue="用于深圳站新商户试点。当前默认每个邀请码只允许创建一个商户 owner。"
-              />
-            </div>
-          </div>
-
-          <aside className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
-            <div className="flex items-start gap-3">
-              <TicketPlus className="mt-0.5 size-4 text-[#1d4ed8]" aria-hidden="true" />
-              <div>
-                <p className="font-medium">生成规则提醒</p>
-                <ul className="mt-2 grid gap-2 text-sm leading-6 text-[#5d6b7a]">
-                  <li>邀请码用途当前固定为商户注册。</li>
-                  <li>默认建议 1 次兑换，后续可扩成活动批量码。</li>
-                  <li>真实提交时应写入审计日志，并记录创建人。</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="mt-6 flex gap-2">
-              <Button className="rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]">生成邀请码</Button>
-              <Button variant="outline" className="rounded-md">取消</Button>
-            </div>
-          </aside>
-        </div>
-      </SectionCard>
-    </>
-  );
+  return <CreateInvitationCodeForm />;
 }
 
 function MerchantPlanBadge({ plan }: { plan: MerchantPlan }) {
