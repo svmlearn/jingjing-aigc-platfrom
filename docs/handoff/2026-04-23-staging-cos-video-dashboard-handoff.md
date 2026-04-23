@@ -98,6 +98,7 @@ WARN  Local package.json exists, but node_modules missing, did you mean to insta
 - worktree: `/Users/wy/.codex/worktrees/19e4/小红书抖音矩阵获客平台`
 - branch: `b/staging-cos-video-dashboard-ui`
 - base commit: `449d1ff24e51faa21584718278d49f803f181bab`
+- implementation commit: `be3a48c` (`feat: hydrate video jobs and persist dashboard media state`)
 
 ## push / merge
 
