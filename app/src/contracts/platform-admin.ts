@@ -2,6 +2,22 @@ import type { InvitationCodeDto, MerchantPlan, MerchantProfileDto } from "./merc
 
 export type PlatformAdminInvitationCodeDto = InvitationCodeDto;
 
+export type PlatformAdminInvitationCodeStatusFilter =
+  | "all"
+  | PlatformAdminInvitationCodeDto["status"];
+
+export type PlatformAdminInvitationCodeUsageFilter = "all" | "unused" | "expiring";
+
+export type PlatformAdminInvitationCodeFilters = {
+  query?: string;
+  status?: PlatformAdminInvitationCodeStatusFilter;
+  usage?: PlatformAdminInvitationCodeUsageFilter;
+};
+
+export type PlatformAdminInvitationCodePatch = {
+  status: Extract<PlatformAdminInvitationCodeDto["status"], "active" | "disabled">;
+};
+
 export type PlatformAdminMerchantDto = MerchantProfileDto & {
   ownerEmail?: string | null;
   totalImports: number;

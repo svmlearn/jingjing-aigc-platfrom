@@ -11,7 +11,7 @@ export default function MerchantProfilePage() {
       />
       <MerchantProfileForm
         title="编辑商户资料"
-        description="当前为前端 mock 保存，A 分支接入真实 API 后可替换 adapter。"
+        description="这里现在直接连接真实商户资料 API，保存后会写入当前 owner 对应的商户记录。"
         nextHref="/dashboard/rewrite/source-xhs-sensitive-repair"
         nextLabel="去改写工作台"
       />

@@ -2,8 +2,10 @@ import "server-only";
 
 import type { MerchantProfileDto } from "@/contracts/merchant";
 import type {
+  PlatformAdminInvitationCodeFilters,
   ImportRuntimeSettingsDto,
   LlmRuntimeSettingsDto,
+  PlatformAdminInvitationCodePatch,
   MembershipPlanSettingsDto,
   PlatformAdminMerchantDto,
   PlatformAdminMerchantPatch,
@@ -95,7 +97,11 @@ const defaultMembershipPlans: MembershipPlanSettingsDto = {
   },
 };
 
-export async function listPlatformInvitationCodes(): Promise<PlatformAdminInvitationCodeDto[]> {
+const invitationCodeExpiringSoonWindowDays = 7;
+
+export async function listPlatformInvitationCodes(
+  filters: PlatformAdminInvitationCodeFilters = {},
+): Promise<PlatformAdminInvitationCodeDto[]> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("invitation_codes")
@@ -108,7 +114,9 @@ export async function listPlatformInvitationCodes(): Promise<PlatformAdminInvita
     throw new ApiError(500, "PLATFORM_INVITATION_CODES_FETCH_FAILED", error.message);
   }
 
-  return ((data ?? []) as InvitationCodeAdminRow[]).map(mapInvitationCodeAdmin);
+  const invitationCodes = ((data ?? []) as InvitationCodeAdminRow[]).map(mapInvitationCodeAdmin);
+
+  return filterPlatformInvitationCodes(invitationCodes, filters);
 }
 
 export async function createPlatformInvitationCode(input: {
@@ -130,6 +138,73 @@ export async function createPlatformInvitationCode(input: {
       status: invitationCode.status,
       maxRedemptions: invitationCode.maxRedemptions,
       expiresAt: invitationCode.expiresAt ?? null,
+    },
+  });
+
+  return invitationCode;
+}
+
+export async function updatePlatformInvitationCode(
+  invitationCodeId: string,
+  input: PlatformAdminInvitationCodePatch,
+  actorLabel = "admin",
+): Promise<PlatformAdminInvitationCodeDto> {
+  const supabase = createSupabaseAdminClient();
+  const current = await getPlatformInvitationCodeById(invitationCodeId);
+
+  if (current.status === input.status) {
+    return current;
+  }
+
+  if (
+    input.status === "disabled" &&
+    current.status !== "active"
+  ) {
+    throw new ApiError(
+      409,
+      "INVITATION_CODE_CANNOT_DISABLE",
+      "Only active invitation codes can be disabled.",
+    );
+  }
+
+  if (
+    input.status === "active" &&
+    current.status !== "disabled"
+  ) {
+    throw new ApiError(
+      409,
+      "INVITATION_CODE_CANNOT_ACTIVATE",
+      "Only disabled invitation codes can be re-enabled.",
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("invitation_codes")
+    .update({ status: input.status })
+    .eq("id", invitationCodeId)
+    .select(
+      "id, code, purpose, status, max_redemptions, redemption_count, expires_at, note, created_at",
+    )
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(500, "PLATFORM_INVITATION_CODE_UPDATE_FAILED", error?.message ?? "Update failed.");
+  }
+
+  const invitationCode = mapInvitationCodeAdmin(data as InvitationCodeAdminRow);
+
+  await recordPlatformAdminEvent({
+    actorLabel,
+    eventType: "invitation_code.updated",
+    targetType: "invitation_code",
+    targetId: invitationCodeId,
+    summary:
+      input.status === "disabled"
+        ? `停用邀请码 ${invitationCode.code}`
+        : `重新启用邀请码 ${invitationCode.code}`,
+    details: {
+      fromStatus: current.status,
+      toStatus: invitationCode.status,
     },
   });
 
@@ -427,6 +502,25 @@ async function recordPlatformAdminEvent(input: {
   }
 }
 
+async function getPlatformInvitationCodeById(
+  invitationCodeId: string,
+): Promise<PlatformAdminInvitationCodeDto> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("invitation_codes")
+    .select(
+      "id, code, purpose, status, max_redemptions, redemption_count, expires_at, note, created_at",
+    )
+    .eq("id", invitationCodeId)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(404, "PLATFORM_INVITATION_CODE_NOT_FOUND", "Invitation code not found.");
+  }
+
+  return mapInvitationCodeAdmin(data as InvitationCodeAdminRow);
+}
+
 function mapInvitationCodeAdmin(row: InvitationCodeAdminRow): PlatformAdminInvitationCodeDto {
   return {
     id: row.id,
@@ -439,6 +533,55 @@ function mapInvitationCodeAdmin(row: InvitationCodeAdminRow): PlatformAdminInvit
     note: row.note,
     createdAt: row.created_at,
   };
+}
+
+function filterPlatformInvitationCodes(
+  invitationCodes: PlatformAdminInvitationCodeDto[],
+  filters: PlatformAdminInvitationCodeFilters,
+) {
+  const query = filters.query?.trim().toLowerCase();
+  const status = filters.status ?? "all";
+  const usage = filters.usage ?? "all";
+  const now = Date.now();
+  const expiringSoonWindow = invitationCodeExpiringSoonWindowDays * 24 * 60 * 60 * 1000;
+
+  return invitationCodes.filter((invitationCode) => {
+    if (query) {
+      const haystacks = [invitationCode.code, invitationCode.note ?? ""].map((value) =>
+        value.toLowerCase(),
+      );
+
+      if (!haystacks.some((value) => value.includes(query))) {
+        return false;
+      }
+    }
+
+    if (status !== "all" && invitationCode.status !== status) {
+      return false;
+    }
+
+    if (usage === "unused" && invitationCode.redemptionCount > 0) {
+      return false;
+    }
+
+    if (usage === "expiring") {
+      if (invitationCode.status !== "active" || !invitationCode.expiresAt) {
+        return false;
+      }
+
+      const expiresAt = new Date(invitationCode.expiresAt).getTime();
+
+      if (
+        Number.isNaN(expiresAt) ||
+        expiresAt < now ||
+        expiresAt > now + expiringSoonWindow
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 }
 
 function toPlatformAdminMerchant(

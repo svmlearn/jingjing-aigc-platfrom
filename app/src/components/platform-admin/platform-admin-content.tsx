@@ -14,6 +14,7 @@ import {
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -22,8 +23,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { PlatformAdminInvitationCodeDto } from "@/contracts/platform-admin";
+import type {
+  PlatformAdminInvitationCodeDto,
+  PlatformAdminInvitationCodeFilters,
+  PlatformAdminInvitationCodeStatusFilter,
+  PlatformAdminInvitationCodeUsageFilter,
+} from "@/contracts/platform-admin";
 import { CreateInvitationCodeForm } from "@/components/platform-admin/create-invitation-code-form";
+import { InvitationCodeStatusAction } from "@/components/platform-admin/invitation-code-status-action";
 import {
   adminAlerts,
   adminAuditEvents,
@@ -69,6 +76,26 @@ const planToneClasses: Record<MerchantPlan, string> = {
   pro: "border-[#ddd6fe] bg-[#f5f3ff] text-[#6d28d9]",
 };
 
+const invitationCodeStatusFilters: Array<{
+  value: PlatformAdminInvitationCodeStatusFilter;
+  label: string;
+}> = [
+  { value: "all", label: "全部状态" },
+  { value: "active", label: "可使用" },
+  { value: "disabled", label: "已停用" },
+  { value: "redeemed", label: "已用完" },
+  { value: "expired", label: "已过期" },
+];
+
+const invitationCodeUsageFilters: Array<{
+  value: PlatformAdminInvitationCodeUsageFilter;
+  label: string;
+}> = [
+  { value: "all", label: "全部结果" },
+  { value: "unused", label: "仅看未使用" },
+  { value: "expiring", label: "即将过期" },
+];
+
 const adminDateFormatter = new Intl.DateTimeFormat("zh-CN", {
   dateStyle: "medium",
 });
@@ -100,6 +127,32 @@ function formatAdminDateTime(value: string) {
   }
 
   return adminDateTimeFormatter.format(date);
+}
+
+function buildInvitationCodeFilterHref(
+  filters: PlatformAdminInvitationCodeFilters,
+  next: Partial<PlatformAdminInvitationCodeFilters>,
+) {
+  const searchParams = new URLSearchParams();
+  const query = next.query ?? filters.query;
+  const status = next.status ?? filters.status ?? "all";
+  const usage = next.usage ?? filters.usage ?? "all";
+
+  if (query) {
+    searchParams.set("q", query);
+  }
+
+  if (status !== "all") {
+    searchParams.set("status", status);
+  }
+
+  if (usage !== "all") {
+    searchParams.set("usage", usage);
+  }
+
+  const queryString = searchParams.toString();
+
+  return `/platform-admin/invitation-codes${queryString ? `?${queryString}` : ""}`;
 }
 
 function SectionCard({
@@ -202,9 +255,11 @@ export function PlatformAdminOverviewPage() {
 export function InvitationCodesAdminPage({
   invitationCodes,
   createdCode,
+  filters,
 }: {
   invitationCodes: PlatformAdminInvitationCodeDto[];
   createdCode?: string;
+  filters: PlatformAdminInvitationCodeFilters;
 }) {
   return (
     <>
@@ -229,6 +284,75 @@ export function InvitationCodesAdminPage({
           </div>
         ) : null}
 
+        <div className="mb-4 grid gap-4 rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
+          <form action="/platform-admin/invitation-codes" className="grid gap-3 md:grid-cols-[1fr_auto]">
+            {(filters.status ?? "all") !== "all" ? (
+              <input type="hidden" name="status" value={filters.status} />
+            ) : null}
+            {(filters.usage ?? "all") !== "all" ? (
+              <input type="hidden" name="usage" value={filters.usage} />
+            ) : null}
+            <Input
+              name="q"
+              defaultValue={filters.query ?? ""}
+              placeholder="搜索邀请码或渠道备注"
+            />
+            <Button type="submit" variant="outline" className="rounded-md">
+              搜索
+            </Button>
+          </form>
+
+          <div className="flex flex-wrap gap-2">
+            {invitationCodeStatusFilters.map((filter) => {
+              const active = (filters.status ?? "all") === filter.value;
+
+              return (
+                <Button
+                  key={filter.value}
+                  asChild
+                  variant="outline"
+                  className={`rounded-md ${active ? "border-[#2563eb] bg-[#e8f1ff] text-[#1d4ed8]" : ""}`}
+                >
+                  <Link
+                    href={buildInvitationCodeFilterHref(filters, {
+                      status: filter.value,
+                    })}
+                  >
+                    {filter.label}
+                  </Link>
+                </Button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {invitationCodeUsageFilters.map((filter) => {
+              const active = (filters.usage ?? "all") === filter.value;
+
+              return (
+                <Button
+                  key={filter.value}
+                  asChild
+                  variant="outline"
+                  className={`rounded-md ${active ? "border-[#2563eb] bg-[#e8f1ff] text-[#1d4ed8]" : ""}`}
+                >
+                  <Link
+                    href={buildInvitationCodeFilterHref(filters, {
+                      usage: filter.value,
+                    })}
+                  >
+                    {filter.label}
+                  </Link>
+                </Button>
+              );
+            })}
+
+            <Button asChild variant="outline" className="rounded-md">
+              <Link href="/platform-admin/invitation-codes">清空筛选</Link>
+            </Button>
+          </div>
+        </div>
+
         <div className="overflow-hidden rounded-md border border-[#dde3ea]">
           <Table>
             <TableHeader>
@@ -239,6 +363,7 @@ export function InvitationCodesAdminPage({
                 <TableHead>创建时间</TableHead>
                 <TableHead>过期时间</TableHead>
                 <TableHead>名称 / 渠道备注</TableHead>
+                <TableHead>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -255,11 +380,14 @@ export function InvitationCodesAdminPage({
                     <TableCell>{formatAdminDateTime(code.createdAt)}</TableCell>
                     <TableCell>{formatAdminDate(code.expiresAt)}</TableCell>
                     <TableCell>{code.note ?? "未命名"}</TableCell>
+                    <TableCell>
+                      <InvitationCodeStatusAction invitationCode={code} />
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-sm text-[#5d6b7a]">
+                  <TableCell colSpan={7} className="py-10 text-center text-sm text-[#5d6b7a]">
                     还没有创建过邀请码。现在可以直接去生成第一条真实邀请码记录。
                   </TableCell>
                 </TableRow>

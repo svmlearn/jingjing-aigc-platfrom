@@ -30,6 +30,10 @@ export const createInvitationCodeSchema = z.object({
   note: z.string().trim().max(200).nullish(),
 });
 
+export const platformAdminInvitationCodePatchSchema = z.object({
+  status: z.enum(["active", "disabled"]),
+});
+
 export const importRequestSchema = z.object({
   platform: z.enum(["xiaohongshu", "douyin"]),
   importType: z.enum(["detail", "creator", "comments"]),
