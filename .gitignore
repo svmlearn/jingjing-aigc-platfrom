@@ -41,3 +41,6 @@ temp/
 # Keep the README tracked, but do not vendor full external repositories by default.
 references/open-source/*
 !references/open-source/README.md
+
+# Local personal reference drafts
+references/我自己用claudecode构建的内容营销系统/
