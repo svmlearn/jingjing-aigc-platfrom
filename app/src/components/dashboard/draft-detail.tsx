@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { CheckCircle2, Save } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { DraftVideoPanels } from "@/components/dashboard/draft-video-panels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +15,33 @@ import { platformLabel } from "@/lib/ui/format";
 
 export function DraftDetail({ draftId }: { draftId: string }) {
   const bundle = getDraftBundle(draftId);
-  const selectedVariant = bundle.variants[0];
+  const initialVariantId = bundle.draft.selectedVariantId ?? bundle.variants[0]?.id;
+  const [selectedVariantId, setSelectedVariantId] = useState(initialVariantId ?? "");
+  const selectedVariant =
+    bundle.variants.find((variant) => variant.id === selectedVariantId) ?? bundle.variants[0];
   const [title, setTitle] = useState(selectedVariant.title ?? "");
   const [body, setBody] = useState(selectedVariant.bodyText ?? selectedVariant.scriptText ?? "");
   const [hashtags, setHashtags] = useState(selectedVariant.hashtags.join(" "));
   const [cta, setCta] = useState(selectedVariant.ctaText ?? "");
   const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedVariantId(initialVariantId ?? bundle.variants[0]?.id ?? "");
+  }, [draftId, initialVariantId]);
+
+  useEffect(() => {
+    setTitle(selectedVariant.title ?? "");
+    setBody(selectedVariant.bodyText ?? selectedVariant.scriptText ?? "");
+    setHashtags(selectedVariant.hashtags.join(" "));
+    setCta(selectedVariant.ctaText ?? "");
+  }, [
+    selectedVariant.id,
+    selectedVariant.title,
+    selectedVariant.bodyText,
+    selectedVariant.scriptText,
+    selectedVariant.ctaText,
+    selectedVariant.hashtags,
+  ]);
 
   function handleSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,7 +49,7 @@ export function DraftDetail({ draftId }: { draftId: string }) {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+    <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
       <form className="rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm" onSubmit={handleSave}>
         <div className="flex flex-wrap items-center gap-2 border-b border-[#dde3ea] pb-4">
           <Badge className="rounded-md border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]">
@@ -35,6 +57,12 @@ export function DraftDetail({ draftId }: { draftId: string }) {
           </Badge>
           <Badge className="rounded-md border-[#cbd5e1] bg-[#f8fafc] text-[#475569]">
             {bundle.draft.status}
+          </Badge>
+          <Badge className="rounded-md border-[#cbd5e1] bg-[#f8fafc] text-[#475569]">
+            {selectedVariant.variantType === "video_script" ? "视频脚本" : "图文笔记"}
+          </Badge>
+          <Badge className="rounded-md border-[#cbd5e1] bg-[#f8fafc] text-[#475569]">
+            v{selectedVariant.versionNo}
           </Badge>
           {savedAt ? (
             <span className="flex items-center gap-1 text-sm text-[#166534]">
@@ -50,7 +78,9 @@ export function DraftDetail({ draftId }: { draftId: string }) {
             <Input id="draft-title" value={title} onChange={(event) => setTitle(event.target.value)} />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="draft-body">正文</Label>
+            <Label htmlFor="draft-body">
+              {selectedVariant.variantType === "video_script" ? "脚本内容" : "正文"}
+            </Label>
             <Textarea
               id="draft-body"
               value={body}
@@ -79,16 +109,25 @@ export function DraftDetail({ draftId }: { draftId: string }) {
         </div>
       </form>
 
-      <aside className="rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm xl:self-start">
-        <h2 className="font-semibold">来源内容</h2>
-        <p className="mt-3 text-sm font-medium">{bundle.sourceItem.title}</p>
-        <p className="mt-2 line-clamp-5 text-sm leading-6 text-[#5d6b7a]">
-          {bundle.sourceItem.bodyText ?? bundle.sourceItem.scriptText}
-        </p>
-        <div className="mt-5 rounded-md border border-[#dde3ea] bg-[#f8fafc] p-3 text-sm text-[#5d6b7a]">
-          发布账号、审核流和排期暂不进入 V0.1-A。当前只确认草稿可以编辑和保存。
-        </div>
-      </aside>
+      <div className="grid gap-6 xl:self-start">
+        <aside className="rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm">
+          <h2 className="font-semibold">来源内容</h2>
+          <p className="mt-3 text-sm font-medium">{bundle.sourceItem.title}</p>
+          <p className="mt-2 line-clamp-5 text-sm leading-6 text-[#5d6b7a]">
+            {bundle.sourceItem.bodyText ?? bundle.sourceItem.scriptText}
+          </p>
+          <div className="mt-5 rounded-md border border-[#dde3ea] bg-[#f8fafc] p-3 text-sm text-[#5d6b7a]">
+            发布账号、审核流和排期暂不进入 V0.1-A。本页先把素材上传、视频任务和结果预览挂到现有草稿详情里。
+          </div>
+        </aside>
+
+        <DraftVideoPanels
+          draftId={bundle.draft.id}
+          variants={bundle.variants}
+          selectedVariantId={selectedVariant.id}
+          onSelectVariant={setSelectedVariantId}
+        />
+      </div>
     </div>
   );
 }

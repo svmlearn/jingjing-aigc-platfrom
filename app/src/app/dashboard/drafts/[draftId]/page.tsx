@@ -15,7 +15,7 @@ export default async function DraftPage({
       <PageHeader
         eyebrow="Draft"
         title={draft.workingTitle ?? "改写草稿"}
-        description="继续编辑标题、正文、话题和行动引导。发布链路后置，本页只保存草稿体验。"
+        description="继续编辑标题、正文/脚本、话题和行动引导，并在同一页补素材、发起视频任务、查看成片结果。"
       />
       <DraftDetail draftId={draftId} />
     </>
