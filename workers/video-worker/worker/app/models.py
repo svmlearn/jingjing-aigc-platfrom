@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+
+@dataclass(frozen=True)
+class InputAsset:
+    asset_type: str
+    bucket_name: str
+    storage_key: str
+    file_name: str
+
+    @classmethod
+    def from_payload(cls, payload: dict[str, Any], default_bucket: str) -> "InputAsset":
+        storage_key = str(payload["storage_key"])
+        file_name = str(payload.get("file_name") or Path(storage_key).name)
+        return cls(
+            asset_type=str(payload.get("asset_type", "video")),
+            bucket_name=str(payload.get("bucket_name") or default_bucket),
+            storage_key=storage_key,
+            file_name=file_name,
+        )
+
+
+@dataclass(frozen=True)
+class UploadedAsset:
+    asset_type: str
+    bucket_name: str
+    storage_key: str
+    mime_type: str
+    file_size_bytes: int
+    etag: str | None
+    local_path: Path
+
+
+@dataclass(frozen=True)
+class EngineRunResult:
+    final_video_path: Path
+    cover_image_path: Path | None
+    subtitle_path: Path | None
+    metadata_path: Path
+    raw_response: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class VideoJob:
+    id: str
+    merchant_id: str
+    draft_id: str
+    content_variant_id: str
+    status: str
+    current_stage: str | None
+    instruction_text: str
+    input_payload: dict[str, Any]
+    runtime_payload: dict[str, Any]
+    retry_count: int
+
+    @classmethod
+    def from_record(cls, record: dict[str, Any]) -> "VideoJob":
+        return cls(
+            id=str(record["id"]),
+            merchant_id=str(record["merchant_id"]),
+            draft_id=str(record["draft_id"]),
+            content_variant_id=str(record["content_variant_id"]),
+            status=str(record["status"]),
+            current_stage=record.get("current_stage"),
+            instruction_text=str(record.get("instruction_text") or ""),
+            input_payload=record.get("input_payload") or {},
+            runtime_payload=record.get("runtime_payload") or {},
+            retry_count=int(record.get("retry_count") or 0),
+        )
+
+    def input_assets(self, default_bucket: str) -> list[InputAsset]:
+        raw_assets = self.input_payload.get("input_assets") or []
+        return [InputAsset.from_payload(item, default_bucket) for item in raw_assets]
+
+    def output_object_key(self, asset_type: str) -> str:
+        root = {
+            "video": "video-outputs",
+            "cover": "video-covers",
+            "subtitle": "video-subtitles",
+        }[asset_type]
+        filename = {
+            "video": "final.mp4",
+            "cover": "cover.jpg",
+            "subtitle": "subtitles.srt",
+        }[asset_type]
+        return (
+            f"{root}/{self.merchant_id}/{self.draft_id}/"
+            f"{self.content_variant_id}/{self.id}/{filename}"
+        )

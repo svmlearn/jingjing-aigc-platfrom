@@ -1,0 +1,46 @@
+# macOS
+.DS_Store
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+coverage/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local tooling
+.vercel/
+.turbo/
+
+# Editor
+.idea/
+.vscode/
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Local reference copies of third-party projects.
+# Keep the README tracked, but do not vendor full external repositories by default.
+references/open-source/*
+!references/open-source/README.md
+
+# Local personal reference drafts
+references/我自己用claudecode构建的内容营销系统/
