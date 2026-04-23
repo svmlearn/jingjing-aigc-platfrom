@@ -8,7 +8,8 @@ alter table public.asset_objects
 add column if not exists storage_provider text not null default 'supabase_storage',
 add column if not exists bucket_name text,
 add column if not exists file_size_bytes bigint,
-add column if not exists etag text;
+add column if not exists etag text,
+add column if not exists updated_at timestamptz not null default now();
 
 update public.asset_objects
 set storage_provider = 'supabase_storage'
@@ -57,6 +58,12 @@ using (
   )
 );
 
+drop trigger if exists trg_asset_objects_updated_at on public.asset_objects;
+
+create trigger trg_asset_objects_updated_at
+before update on public.asset_objects
+for each row execute function public.set_updated_at();
+
 create table public.video_edit_jobs (
   id uuid primary key default gen_random_uuid(),
   merchant_id uuid not null references public.merchant_profiles(id) on delete cascade,
@@ -64,6 +71,7 @@ create table public.video_edit_jobs (
   content_variant_id uuid not null references public.content_variants(id) on delete cascade,
   status text not null default 'pending',
   current_stage text,
+  trigger_source text not null default 'manual',
   instruction_text text,
   input_payload jsonb not null default '{}'::jsonb,
   runtime_payload jsonb not null default '{}'::jsonb,
@@ -88,6 +96,7 @@ create table public.video_edit_jobs (
       'cancelled'
     )
   ),
+  check (trigger_source in ('manual', 'regenerate', 'agent_auto')),
   check (progress_pct between 0 and 100),
   check (retry_count >= 0)
 );

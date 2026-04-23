@@ -24,6 +24,7 @@ type AssetObjectRow = {
   etag: string | null;
   sort_order: number;
   created_at: string;
+  updated_at: string | null;
 };
 
 type SourceItemOwnerRow = {
@@ -228,6 +229,7 @@ function mapAssetObject(row: AssetObjectRow): MediaAssetDto {
     etag: row.etag,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -245,4 +247,5 @@ const assetObjectSelect = [
   "etag",
   "sort_order",
   "created_at",
+  "updated_at",
 ].join(", ");

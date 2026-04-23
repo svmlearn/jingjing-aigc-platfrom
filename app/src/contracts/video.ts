@@ -1,5 +1,7 @@
 import type { MediaAssetDto } from "./media";
 
+export type VideoEditJobTriggerSource = "manual" | "regenerate" | "agent_auto";
+
 export type VideoEditJobStatus =
   | "pending"
   | "queued"
@@ -17,6 +19,7 @@ export type VideoEditJobDto = {
   contentVariantId: string;
   status: VideoEditJobStatus;
   currentStage?: string | null;
+  triggerSource: VideoEditJobTriggerSource;
   instructionText?: string | null;
   inputPayload: Record<string, unknown>;
   runtimePayload: Record<string, unknown>;

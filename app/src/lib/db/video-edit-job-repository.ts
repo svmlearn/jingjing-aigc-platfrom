@@ -1,7 +1,12 @@
 import "server-only";
 
 import type { ContentVariantDto } from "@/contracts/draft";
-import type { CreateVideoEditJobRequest, VideoEditJobDto, VideoEditJobStatus } from "@/contracts/video";
+import type {
+  CreateVideoEditJobRequest,
+  VideoEditJobDto,
+  VideoEditJobStatus,
+  VideoEditJobTriggerSource,
+} from "@/contracts/video";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -12,6 +17,7 @@ type VideoEditJobRow = {
   content_variant_id: string;
   status: VideoEditJobStatus;
   current_stage: string | null;
+  trigger_source: VideoEditJobTriggerSource;
   instruction_text: string | null;
   input_payload: Record<string, unknown>;
   runtime_payload: Record<string, unknown>;
@@ -93,6 +99,7 @@ export async function createVideoEditJob(input: {
   merchantId: string;
   draftId: string;
   contentVariantId: string;
+  triggerSource?: VideoEditJobTriggerSource;
   instructionText?: CreateVideoEditJobRequest["instructionText"];
   inputPayload?: CreateVideoEditJobRequest["inputPayload"];
 }): Promise<VideoEditJobDto> {
@@ -103,6 +110,7 @@ export async function createVideoEditJob(input: {
       merchant_id: input.merchantId,
       draft_id: input.draftId,
       content_variant_id: input.contentVariantId,
+      trigger_source: input.triggerSource ?? "manual",
       instruction_text: input.instructionText ?? null,
       input_payload: input.inputPayload ?? {},
       runtime_payload: {},
@@ -253,6 +261,7 @@ export function mapVideoEditJob(row: VideoEditJobRow): VideoEditJobDto {
     contentVariantId: row.content_variant_id,
     status: row.status,
     currentStage: row.current_stage,
+    triggerSource: row.trigger_source,
     instructionText: row.instruction_text,
     inputPayload: row.input_payload ?? {},
     runtimePayload: row.runtime_payload ?? {},
@@ -275,6 +284,7 @@ const videoEditJobSelect = [
   "content_variant_id",
   "status",
   "current_stage",
+  "trigger_source",
   "instruction_text",
   "input_payload",
   "runtime_payload",

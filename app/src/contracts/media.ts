@@ -18,6 +18,7 @@ export type MediaAssetDto = {
   etag?: string | null;
   sortOrder: number;
   createdAt: string;
+  updatedAt?: string | null;
   signedPreviewUrl?: string | null;
 };
 
