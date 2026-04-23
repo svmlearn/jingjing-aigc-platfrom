@@ -122,6 +122,7 @@
 
 ## 当前 commit
 
-- 当前 handoff 编写时基线 HEAD：`449d1ff24e51faa21584718278d49f803f181bab`
+- A 范围实现 commit：`fded4cece7de65d036c9337498eb9e3237c2d0a7`
+- handoff 文档晚于实现 commit 整理，若后续再补文档提交，请以实现 commit 为代码冻结点
 - 本分支尚未 push
 - 本分支尚未 merge
