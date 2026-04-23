@@ -92,3 +92,52 @@ export const platformSettingsUpdateSchema = z.object({
     })
     .optional(),
 });
+
+const mediaOwnerTypeSchema = z.enum(["source_item", "content_draft", "content_variant"]);
+
+const mediaAssetTypeSchema = z.enum(["image", "video", "cover", "subtitle"]);
+
+const videoEditJobStatusSchema = z.enum([
+  "pending",
+  "queued",
+  "preparing",
+  "running",
+  "succeeded",
+  "failed_retryable",
+  "failed_manual",
+  "cancelled",
+]);
+
+export const mediaUploadIntentSchema = z.object({
+  ownerType: mediaOwnerTypeSchema,
+  ownerId: z.uuid(),
+  assetType: z.enum(["image", "video"]),
+  fileName: z.string().trim().min(1).max(255),
+  mimeType: z.string().trim().min(1).max(200),
+  sizeBytes: z.number().int().positive().max(1024 * 1024 * 1024),
+});
+
+export const mediaCompleteSchema = z.object({
+  ownerType: mediaOwnerTypeSchema,
+  ownerId: z.uuid(),
+  assetType: mediaAssetTypeSchema,
+  storageProvider: z.enum(["tencent_cos", "supabase_storage"]),
+  bucketName: z.string().trim().max(120).nullish(),
+  storageKey: z.string().trim().min(1).max(1000),
+  mimeType: z.string().trim().max(200).nullish(),
+  sizeBytes: z.number().int().nonnegative().max(1024 * 1024 * 1024).nullish(),
+  etag: z.string().trim().max(200).nullish(),
+  originUrl: z.url().max(2000).nullish(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+});
+
+export const createVideoEditJobSchema = z.object({
+  contentVariantId: z.uuid(),
+  instructionText: z.string().trim().max(4000).nullish(),
+  inputPayload: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const listVideoEditJobsQuerySchema = z.object({
+  status: videoEditJobStatusSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
