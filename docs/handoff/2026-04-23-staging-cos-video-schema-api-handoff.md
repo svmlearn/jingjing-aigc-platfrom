@@ -15,9 +15,11 @@
 1. 新增 migration：`app/supabase/migrations/202604230001_v01_staging_cos_video_schema.sql`
    - 扩展 `asset_objects.owner_type` 为 `source_item | content_draft | content_variant`
    - 扩展 `asset_objects.asset_type` 为 `image | video | cover | subtitle`
-   - 新增 `storage_provider`、`bucket_name`、`file_size_bytes`、`etag`
+   - 新增 `storage_provider`、`bucket_name`、`file_size_bytes`、`etag`、`updated_at`
    - 新增 `video_edit_jobs`
+   - 补入 `video_edit_jobs.trigger_source`
    - 为 `video_edit_jobs` 增加 index、`updated_at` trigger、RLS select policy
+   - 为 `asset_objects` 增加 `updated_at` trigger
    - 更新 `asset_objects_owner_read` policy，加入 `content_draft`
 
 2. 新增 contract
@@ -48,10 +50,17 @@
    - `POST /api/video-edit-jobs/:id/retry`
    - `POST /api/video-edit-jobs/:id/cancel`
 
-7. 更新配置样例
+7. 补强任务数据可信边界
+   - `POST /api/video-edit-jobs` 不再信任浏览器传来的 `inputPayload`
+   - 服务端会从 `asset_objects(owner_type=content_draft)` 自动组装可信的 `input_payload.input_assets`
+   - 如果 draft 还没有任何已登记的图片/视频输入素材，会直接拒绝创建任务
+   - `GET /api/video-edit-jobs/:id` 不再返回同一 variant 下全部历史资产
+   - 现在只会按 `result_payload.uploaded_assets` 反查并返回当前 job 的结果资产
+
+8. 更新配置样例
    - `app/.env.example` 已加入 `COS_SECRET_ID`、`COS_SECRET_KEY`、`COS_BUCKET`、`COS_REGION`、`COS_STS_DURATION_SECONDS`、`COS_READ_URL_TTL_SECONDS`、`MEDIA_UPLOAD_MAX_BYTES`
 
-8. 更新依赖
+9. 更新依赖
    - `app/package.json` 新增 `qcloud-cos-sts`
    - `app/package.json` 新增 `cos-nodejs-sdk-v5`
 
@@ -65,6 +74,9 @@
    - `content_variant` 资产仍按既定方案留给 worker/后续服务端链路写入
 6. `GET /api/video-edit-jobs` 当前返回 job 列表，但没有给列表项批量附带签名资产 URL。
    - `GET /api/video-edit-jobs/:id` 已附带 `resultAssets[].signedPreviewUrl`
+7. 当前 `GET /api/video-edit-jobs/:id` 依赖 worker 在 `result_payload.uploaded_assets` 中回填资产引用。
+   - 已兼容 `asset_id / assetId / id / storage_key / storageKey / string`
+   - 但具体写入格式仍需和 C 分支最终统一
 
 ## 改动文件
 
@@ -122,7 +134,8 @@
 
 ## 当前 commit
 
-- A 范围实现 commit：`fded4cece7de65d036c9337498eb9e3237c2d0a7`
-- handoff 文档晚于实现 commit 整理，若后续再补文档提交，请以实现 commit 为代码冻结点
+- 第一轮实现 commit：`fded4cee99eee2afdfe0eb7da2cefb8b06300954`
+- 本轮加固实现 commit：`5034fc13a5e63320c676a10401e659d5f8ea5857`
+- handoff 文档晚于实现 commit 整理，若后续再补文档提交，请以最近一条实现 commit 为代码冻结点
 - 本分支尚未 push
 - 本分支尚未 merge
