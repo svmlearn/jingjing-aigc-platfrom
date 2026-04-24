@@ -63,3 +63,31 @@ export type KnowledgeIngestionJobDto = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type KnowledgeChunkDto = {
+  id: string;
+  documentId: string;
+  chunkIndex: number;
+  content: string;
+  tokenCount: number;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type KnowledgeDocumentWithStatsDto = KnowledgeDocumentDto & {
+  chunkCount: number;
+  latestJob?: KnowledgeIngestionJobDto | null;
+};
+
+export type KnowledgeSearchMatchDto = {
+  chunkId: string;
+  documentId: string;
+  documentTitle: string;
+  sourceName?: string | null;
+  scope: KnowledgeDocumentDto["scope"];
+  merchantId?: string | null;
+  content: string;
+  score: number;
+  chunkIndex: number;
+  metadata: Record<string, unknown>;
+};

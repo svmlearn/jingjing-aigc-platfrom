@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Files, LayoutDashboard, LogOut, Settings, Store, TicketPlus } from "lucide-react";
+import {
+  BookOpenText,
+  Files,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  Store,
+  TicketPlus,
+} from "lucide-react";
 
 import { signOutFromPlatformAdmin } from "@/app/platform-admin-login/actions";
 import { Button } from "@/components/ui/button";
@@ -12,6 +20,7 @@ const navItems = [
   { href: "/platform-admin", label: "总览", icon: LayoutDashboard },
   { href: "/platform-admin/invitation-codes", label: "邀请码管理", icon: TicketPlus },
   { href: "/platform-admin/merchants", label: "商户管理", icon: Store },
+  { href: "/platform-admin/knowledge", label: "知识库管理", icon: BookOpenText },
   { href: "/platform-admin/settings", label: "系统配置", icon: Settings },
 ];
 

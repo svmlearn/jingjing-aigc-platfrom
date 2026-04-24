@@ -2,7 +2,6 @@ import { getAuthenticatedUser } from "@/lib/auth/current-user";
 import { handleApiError } from "@/server/api/errors";
 import { listContentRecordsQuerySchema } from "@/server/api/schemas";
 import { listContentRecordsForUser } from "@/server/api/content-generation-service";
-import { listConsultationSessionsForUser } from "@/server/api/consultation-service";
 import { listVideoEditJobsForUser } from "@/server/api/video-edit-jobs-service";
 
 export const runtime = "nodejs";
@@ -13,8 +12,7 @@ export async function GET(request: Request) {
     const payload = listContentRecordsQuerySchema.parse(
       Object.fromEntries(new URL(request.url).searchParams.entries()),
     );
-    const [sessions, draftBundles, videoJobs] = await Promise.all([
-      listConsultationSessionsForUser(user.id),
+    const [draftBundles, videoJobs] = await Promise.all([
       listContentRecordsForUser({
         userId: user.id,
         limit: payload.limit,
@@ -26,7 +24,6 @@ export async function GET(request: Request) {
     ]);
 
     return Response.json({
-      sessions,
       draftBundles,
       videoJobs,
     });

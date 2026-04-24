@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, KeyRound, LoaderCircle, Mail, ShieldCheck } from "lucide-react";
+import { CheckCircle2, KeyRound, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
@@ -111,52 +111,89 @@ export function RegistrationFlow() {
   }
 
   return (
-    <section className="order-1 rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm lg:order-2">
-      <div className="flex items-center gap-3 border-b border-[#dde3ea] pb-4">
-        <div className="flex size-10 items-center justify-center rounded-md bg-[#e8f1ff] text-[#1d4ed8]">
-          <KeyRound className="size-5" aria-hidden="true" />
+    <section className="w-full rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.55)] backdrop-blur sm:p-7">
+      <div className="flex items-start gap-4 border-b border-white/10 pb-5">
+        <div className="flex size-12 rotate-45 items-center justify-center rounded-2xl border border-amber-200/30 bg-gradient-to-br from-amber-600 to-amber-200 text-black shadow-[0_0_36px_rgba(245,158,11,0.22)]">
+          <div className="-rotate-45">
+            <KeyRound className="size-5" aria-hidden="true" />
+          </div>
         </div>
-        <div>
-          <h2 className="font-semibold">邀请码注册</h2>
-          <p className="text-sm text-[#5d6b7a]">先创建 owner 账号，再进入商户资料补全。</p>
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-[0.28em] text-amber-200/70">
+            Merchant Access
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold text-white [font-family:var(--font-cormorant)]">
+            邀请码注册
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-white/45">
+            创建 owner 账号后，将直接进入商户资料补全。
+          </p>
         </div>
       </div>
 
-      <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
-        <div className="grid gap-2">
-          <Label htmlFor="merchantName">商户名称</Label>
-          <Input id="merchantName" name="merchantName" placeholder="例如：静境测试门店" required />
+      <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
+        <div className="grid gap-2.5">
+          <Label htmlFor="merchantName" className="text-white/70">
+            商户名称
+          </Label>
+          <Input
+            id="merchantName"
+            name="merchantName"
+            className="h-12 rounded-2xl border-white/10 bg-[#050505] px-4 text-white placeholder:text-white/25 focus-visible:border-amber-400/50 focus-visible:ring-amber-500/20"
+            placeholder="例如：静境测试门店"
+            required
+          />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="email">邮箱</Label>
-          <Input id="email" name="email" type="email" placeholder="owner@example.com" required />
+        <div className="grid gap-2.5">
+          <Label htmlFor="email" className="text-white/70">
+            邮箱
+          </Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            className="h-12 rounded-2xl border-white/10 bg-[#050505] px-4 text-white placeholder:text-white/25 focus-visible:border-amber-400/50 focus-visible:ring-amber-500/20"
+            placeholder="owner@example.com"
+            required
+          />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="password">密码</Label>
+        <div className="grid gap-2.5">
+          <Label htmlFor="password" className="text-white/70">
+            密码
+          </Label>
           <Input
             id="password"
             name="password"
             type="password"
+            className="h-12 rounded-2xl border-white/10 bg-[#050505] px-4 text-white placeholder:text-white/25 focus-visible:border-amber-400/50 focus-visible:ring-amber-500/20"
             placeholder="至少 8 位"
             minLength={8}
             required
           />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="inviteCode">邀请码</Label>
-          <Input id="inviteCode" name="inviteCode" placeholder="JJ-2026-001" required />
+        <div className="grid gap-2.5">
+          <Label htmlFor="inviteCode" className="text-white/70">
+            邀请码
+          </Label>
+          <Input
+            id="inviteCode"
+            name="inviteCode"
+            className="h-12 rounded-2xl border-white/10 bg-[#050505] px-4 text-white placeholder:text-white/25 focus-visible:border-amber-400/50 focus-visible:ring-amber-500/20"
+            placeholder="JJ-2026-001"
+            required
+          />
         </div>
 
         {errorMessage ? (
-          <p className="rounded-md border border-[#fecdd3] bg-[#fff1f2] px-3 py-2 text-sm text-[#be123c]">
+          <p className="rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-100">
             {errorMessage}
           </p>
         ) : null}
 
         {successMessage ? (
-          <div className="rounded-md border border-[#bbf7d0] bg-[#f0fdf4] px-3 py-3 text-sm text-[#166534]">
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 size-4" aria-hidden="true" />
+          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+            <div className="flex items-start gap-2.5">
+              <CheckCircle2 className="mt-0.5 size-4 text-emerald-200" aria-hidden="true" />
               <p>{successMessage}</p>
             </div>
           </div>
@@ -164,7 +201,7 @@ export function RegistrationFlow() {
 
         <Button
           type="submit"
-          className="h-11 rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]"
+          className="mt-1 h-12 rounded-2xl border border-amber-300/20 bg-amber-600 text-base font-semibold text-white shadow-[0_14px_34px_rgba(180,83,9,0.3)] hover:bg-amber-500"
           disabled={isSubmitting}
         >
           {isSubmitting ? (
@@ -177,17 +214,6 @@ export function RegistrationFlow() {
           )}
         </Button>
       </form>
-
-      <div className="mt-5 grid gap-3 border-t border-[#dde3ea] pt-4 text-sm text-[#5d6b7a] sm:grid-cols-2">
-        <div className="flex gap-2">
-          <ShieldCheck className="mt-0.5 size-4 text-[#0f766e]" aria-hidden="true" />
-          注册会真实校验邀请码
-        </div>
-        <div className="flex gap-2">
-          <Mail className="mt-0.5 size-4 text-[#0f766e]" aria-hidden="true" />
-          成功后直接进入资料补全
-        </div>
-      </div>
     </section>
   );
 }

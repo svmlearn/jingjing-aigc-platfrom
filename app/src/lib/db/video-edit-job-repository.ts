@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import type { ContentVariantDto } from "@/contracts/draft";
 import type {
   CreateVideoEditJobRequest,
@@ -7,7 +9,8 @@ import type {
   VideoEditJobStatus,
   VideoEditJobTriggerSource,
 } from "@/contracts/video";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getLocalDemoContentVariantContext } from "@/lib/db/content-draft-repository";
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
 type VideoEditJobRow = {
@@ -48,6 +51,8 @@ export type VideoEditJobListFilters = {
   limit?: number;
 };
 
+const demoVideoEditJobs = new Map<string, VideoEditJobDto>();
+
 export async function assertVideoScriptVariantAccess(input: {
   merchantId: string;
   contentVariantId: string;
@@ -56,6 +61,28 @@ export async function assertVideoScriptVariantAccess(input: {
   draftId: string;
   contentVariantId: string;
 }> {
+  if (!isSupabaseAdminConfigured()) {
+    const variant = getLocalDemoContentVariantContext(input.contentVariantId);
+
+    if (!variant || variant.merchantId !== input.merchantId) {
+      throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
+    }
+
+    if (variant.variantType !== "video_script") {
+      throw new ApiError(
+        409,
+        "CONTENT_VARIANT_NOT_VIDEO_SCRIPT",
+        "Only video_script variants can create video edit jobs.",
+      );
+    }
+
+    return {
+      merchantId: variant.merchantId,
+      draftId: variant.draftId,
+      contentVariantId: variant.contentVariantId,
+    };
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data: variantData, error: variantError } = await supabase
     .from("content_variants")
@@ -103,6 +130,37 @@ export async function createVideoEditJob(input: {
   instructionText?: CreateVideoEditJobRequest["instructionText"];
   inputPayload?: CreateVideoEditJobRequest["inputPayload"];
 }): Promise<VideoEditJobDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const now = new Date().toISOString();
+    const job: VideoEditJobDto = {
+      id: randomUUID(),
+      merchantId: input.merchantId,
+      draftId: input.draftId,
+      contentVariantId: input.contentVariantId,
+      status: "pending",
+      currentStage: "local_demo_pending_worker",
+      triggerSource: input.triggerSource ?? "manual",
+      instructionText: input.instructionText ?? null,
+      inputPayload: input.inputPayload ?? {},
+      runtimePayload: {
+        mode: "local_demo_memory",
+      },
+      progressPct: 0,
+      retryCount: 0,
+      failureReason: null,
+      resultPayload: {},
+      logPayload: {},
+      startedAt: null,
+      finishedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    demoVideoEditJobs.set(job.id, job);
+
+    return job;
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("video_edit_jobs")
@@ -138,6 +196,14 @@ export async function listVideoEditJobs(
   merchantId: string,
   filters: VideoEditJobListFilters = {},
 ): Promise<VideoEditJobDto[]> {
+  if (!isSupabaseAdminConfigured()) {
+    return Array.from(demoVideoEditJobs.values())
+      .filter((job) => job.merchantId === merchantId)
+      .filter((job) => !filters.status || job.status === filters.status)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, filters.limit ?? 50);
+  }
+
   const supabase = createSupabaseAdminClient();
   let query = supabase
     .from("video_edit_jobs")
@@ -163,6 +229,16 @@ export async function getVideoEditJobById(input: {
   merchantId: string;
   jobId: string;
 }): Promise<VideoEditJobDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const job = demoVideoEditJobs.get(input.jobId);
+
+    if (!job || job.merchantId !== input.merchantId) {
+      throw new ApiError(404, "VIDEO_EDIT_JOB_NOT_FOUND", "Video edit job not found.");
+    }
+
+    return job;
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("video_edit_jobs")
@@ -190,6 +266,27 @@ export async function retryVideoEditJob(input: {
       "VIDEO_EDIT_JOB_RETRY_NOT_ALLOWED",
       "Only failed_retryable jobs can be retried.",
     );
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    const updated: VideoEditJobDto = {
+      ...current,
+      status: "pending",
+      currentStage: "local_demo_pending_worker",
+      progressPct: 0,
+      failureReason: null,
+      runtimePayload: {},
+      resultPayload: {},
+      logPayload: {},
+      startedAt: null,
+      finishedAt: null,
+      retryCount: current.retryCount + 1,
+      updatedAt: new Date().toISOString(),
+    };
+
+    demoVideoEditJobs.set(input.jobId, updated);
+
+    return updated;
   }
 
   const supabase = createSupabaseAdminClient();
@@ -231,6 +328,21 @@ export async function cancelVideoEditJob(input: {
       "VIDEO_EDIT_JOB_CANCEL_NOT_ALLOWED",
       "Only in-flight jobs can be cancelled.",
     );
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    const now = new Date().toISOString();
+    const updated: VideoEditJobDto = {
+      ...current,
+      status: "cancelled",
+      currentStage: current.currentStage ?? "cancelled",
+      finishedAt: now,
+      updatedAt: now,
+    };
+
+    demoVideoEditJobs.set(input.jobId, updated);
+
+    return updated;
   }
 
   const supabase = createSupabaseAdminClient();

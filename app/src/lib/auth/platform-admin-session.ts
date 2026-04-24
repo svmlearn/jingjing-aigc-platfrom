@@ -2,7 +2,9 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+
+import { isLocalDemoRuntime } from "@/lib/demo/local-demo-runtime";
 
 export const platformAdminSessionCookieName = "platform_admin_session";
 const platformAdminSessionMaxAgeSeconds = 60 * 60 * 8;
@@ -44,6 +46,10 @@ export function verifyPlatformAdminSecret(value: FormDataEntryValue | null) {
 }
 
 export async function hasPlatformAdminSession() {
+  if (isLocalDemoRuntime() && (await isLocalhostRequest())) {
+    return true;
+  }
+
   const cookieStore = await cookies();
   const session = cookieStore.get(platformAdminSessionCookieName)?.value;
 
@@ -75,4 +81,11 @@ export async function createPlatformAdminSession() {
 export async function clearPlatformAdminSession() {
   const cookieStore = await cookies();
   cookieStore.delete(platformAdminSessionCookieName);
+}
+
+async function isLocalhostRequest() {
+  const headerStore = await headers();
+  const host = headerStore.get("host")?.split(":")[0];
+
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
 }

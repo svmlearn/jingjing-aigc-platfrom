@@ -4,6 +4,48 @@ import { useEffect, useState } from "react";
 
 import type { PlatformSettingsDto } from "@/contracts/platform-admin";
 
+const consultationSkillOptions: Array<{
+  key: PlatformSettingsDto["consultationAgent"]["enabledTools"][number];
+  label: string;
+  description: string;
+}> = [
+  {
+    key: "read_merchant_profile",
+    label: "读取商家资料",
+    description: "把门店、服务、CTA、禁忌词纳入上下文。",
+  },
+  {
+    key: "retrieve_knowledge_base",
+    label: "检索平台知识库",
+    description: "按 knowledge runtime 召回 indexed chunks。",
+  },
+  {
+    key: "read_history",
+    label: "读取历史内容",
+    description: "使用当前会话和历史内容做连续诊断。",
+  },
+  {
+    key: "update_strategy_snapshot",
+    label: "更新策略快照",
+    description: "沉淀定位、卖点、客群、场景和建议。",
+  },
+  {
+    key: "update_content_calendar",
+    label: "更新内容日历",
+    description: "生成图文/视频混合的一周内容草案。",
+  },
+  {
+    key: "generate_article_brief",
+    label: "生成图文草案",
+    description: "准备图文工作台的默认选题与标题方向。",
+  },
+  {
+    key: "generate_video_brief",
+    label: "生成视频草案",
+    description: "准备视频钩子、脚本方向和执行目标。",
+  },
+];
+
 export function PlatformSettingsEditor() {
   const [settings, setSettings] = useState<PlatformSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -179,24 +221,67 @@ export function PlatformSettingsEditor() {
               className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
             />
           </Field>
-          <Field label="Enabled Tools (comma separated)">
+          <Field label="Model">
             <input
-              value={settings.consultationAgent.enabledTools.join(", ")}
+              value={settings.consultationAgent.model}
               onChange={(event) =>
                 setSettings({
                   ...settings,
                   consultationAgent: {
                     ...settings.consultationAgent,
-                    enabledTools: event.target.value
-                      .split(",")
-                      .map((item) => item.trim())
-                      .filter(Boolean) as PlatformSettingsDto["consultationAgent"]["enabledTools"],
+                    model: event.target.value,
                   },
                 })
               }
               className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
             />
           </Field>
+          <div>
+            <p className="mb-2 text-sm font-medium text-[#17202a]">Enabled Skills / Tools</p>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {consultationSkillOptions.map((skill) => {
+                const enabled = settings.consultationAgent.enabledTools.includes(skill.key);
+
+                return (
+                  <label
+                    key={skill.key}
+                    className="flex cursor-pointer gap-3 rounded-md border border-[#dde3ea] bg-white p-3 text-sm transition-colors hover:border-[#93c5fd] hover:bg-[#f8fbff]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={enabled}
+                      onChange={(event) => {
+                        const nextTools = event.target.checked
+                          ? [...settings.consultationAgent.enabledTools, skill.key]
+                          : settings.consultationAgent.enabledTools.filter((tool) => tool !== skill.key);
+
+                        setSettings({
+                          ...settings,
+                          consultationAgent: {
+                            ...settings.consultationAgent,
+                            enabledTools:
+                              nextTools.length > 0
+                                ? nextTools
+                                : settings.consultationAgent.enabledTools,
+                          },
+                        });
+                      }}
+                      className="mt-1 size-4 accent-[#1d4ed8]"
+                    />
+                    <span>
+                      <span className="block font-medium text-[#17202a]">{skill.label}</span>
+                      <span className="mt-1 block text-xs leading-5 text-[#5d6b7a]">
+                        {skill.description}
+                      </span>
+                      <span className="mt-2 block font-mono text-[10px] uppercase tracking-[0.18em] text-[#7b8794]">
+                        {skill.key}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
           <div className="grid gap-4 md:grid-cols-4">
             <NumberField
               label="Max Rounds"

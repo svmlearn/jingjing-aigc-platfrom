@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2, RefreshCw, Video } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, PlayCircle, RefreshCw, Video } from "lucide-react";
 
 import type { ConsultationSessionDetailDto } from "@/contracts/consultation";
 import type { ContentDraftBundleDto } from "@/contracts/draft";
@@ -181,6 +181,10 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <span className="hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-400 md:inline-flex">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            SYS_AUTH: SUCCESS
+          </span>
           <button
             type="button"
             onClick={() => {
@@ -215,6 +219,24 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
       <div className="flex min-h-0 flex-1">
         <aside className="w-[360px] shrink-0 border-r border-white/10 bg-[#0a0a0a] p-6">
           <div className="space-y-5">
+            <section>
+              <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">AI 脚本协同</p>
+              <div className="mt-3 space-y-3">
+                <div className="flex gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-500">
+                    <PlayCircle className="h-4 w-4" />
+                  </div>
+                  <div className="rounded-2xl rounded-tl-none border border-white/10 bg-[#0d0d0d] p-3 text-sm leading-6 text-white/75">
+                    我会把咨询策略拆成镜头表、台词、素材要求，再交给视频任务执行。
+                  </div>
+                </div>
+                {draftBundle ? (
+                  <div className="ml-11 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs leading-6 text-amber-100">
+                    脚本草案已生成，可以继续创建视频任务。
+                  </div>
+                ) : null}
+              </div>
+            </section>
             <section>
               <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">脚本目标</p>
               <textarea

@@ -189,3 +189,37 @@ export const generateConsultationContentSchema = z.object({
 export const listContentRecordsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
+
+const materialPlatformSchema = z.enum(["xiaohongshu", "douyin"]);
+
+export const listMaterialLibraryQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+export const createMaterialLibraryItemSchema = z.object({
+  platform: materialPlatformSchema,
+  url: z.url().max(2000),
+});
+
+export const benchmarkMaterialSearchSchema = z
+  .object({
+    platform: materialPlatformSchema,
+    findMethod: z.enum(["keyword", "profile"]),
+    keyword: z.string().trim().max(120).optional(),
+    profileUrl: z.url().max(2000).optional(),
+    count: z.number().int().min(1).max(20).optional(),
+  })
+  .refine(
+    (value) =>
+      value.findMethod === "keyword"
+        ? Boolean(value.keyword?.trim())
+        : Boolean(value.profileUrl?.trim()),
+    {
+      message: "Search target is required.",
+      path: ["keyword"],
+    },
+  );
+
+export const materialWorkbenchReferenceSchema = z.object({
+  targetWorkbench: z.enum(["article", "video"]),
+});

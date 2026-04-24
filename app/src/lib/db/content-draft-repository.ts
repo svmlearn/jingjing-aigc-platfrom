@@ -1,8 +1,10 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import type { ContentDraftBundleDto, ContentDraftDto, ContentVariantDto } from "@/contracts/draft";
 import type { Platform } from "@/contracts/import";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
 type ContentDraftRow = {
@@ -33,6 +35,9 @@ type ContentVariantRow = {
   updated_at: string;
 };
 
+const demoSourceItems = new Map<string, { id: string; merchantId: string }>();
+const demoDraftBundles = new Map<string, ContentDraftBundleDto>();
+
 export async function createManualSourceItem(input: {
   merchantId: string;
   platform: Platform;
@@ -41,6 +46,16 @@ export async function createManualSourceItem(input: {
   scriptText?: string | null;
   tracePayload?: Record<string, unknown>;
 }) {
+  if (!isSupabaseAdminConfigured()) {
+    const id = randomUUID();
+    demoSourceItems.set(id, {
+      id,
+      merchantId: input.merchantId,
+    });
+
+    return { id };
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("source_items")
@@ -84,6 +99,47 @@ export async function createDraftWithVariants(input: {
     reviewStatus?: ContentVariantDto["reviewStatus"];
   }>;
 }): Promise<ContentDraftBundleDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const now = new Date().toISOString();
+    const draftId = randomUUID();
+    const variants: ContentVariantDto[] = input.variants.map((variant, index) => ({
+      id: randomUUID(),
+      draftId,
+      platform: variant.platform,
+      variantType: variant.variantType,
+      versionNo: index + 1,
+      title: variant.title ?? null,
+      bodyText: variant.bodyText ?? null,
+      scriptText: variant.scriptText ?? null,
+      hashtags: variant.hashtags ?? [],
+      ctaText: variant.ctaText ?? null,
+      reviewStatus: variant.reviewStatus ?? "editing",
+      createdAt: now,
+      updatedAt: now,
+    }));
+    const selectedVariant = variants[0] ?? null;
+    const draft: ContentDraftDto = {
+      id: draftId,
+      sourceItemId: input.sourceItemId,
+      merchantId: input.merchantId,
+      workingTitle: input.workingTitle,
+      rewriteGoal: input.rewriteGoal ?? null,
+      status: input.status ?? "review_pending",
+      selectedVariantId: selectedVariant?.id ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const bundle = {
+      draft,
+      variants,
+      selectedVariant,
+    };
+
+    demoDraftBundles.set(draft.id, bundle);
+
+    return bundle;
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data: draftData, error: draftError } = await supabase
     .from("content_drafts")
@@ -161,6 +217,13 @@ export async function listDraftBundlesByMerchant(input: {
   merchantId: string;
   limit?: number;
 }): Promise<ContentDraftBundleDto[]> {
+  if (!isSupabaseAdminConfigured()) {
+    return Array.from(demoDraftBundles.values())
+      .filter((bundle) => bundle.draft.merchantId === input.merchantId)
+      .sort((a, b) => b.draft.createdAt.localeCompare(a.draft.createdAt))
+      .slice(0, input.limit ?? 50);
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data: draftData, error: draftError } = await supabase
     .from("content_drafts")
@@ -212,6 +275,29 @@ export async function listDraftBundlesByMerchant(input: {
         variants.find((variant) => variant.id === draft.selectedVariantId) ?? variants[0] ?? null,
     };
   });
+}
+
+export function getLocalDemoContentVariantContext(contentVariantId: string) {
+  if (isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  for (const bundle of demoDraftBundles.values()) {
+    const variant = bundle.variants.find((item) => item.id === contentVariantId);
+
+    if (!variant) {
+      continue;
+    }
+
+    return {
+      merchantId: bundle.draft.merchantId,
+      draftId: bundle.draft.id,
+      contentVariantId: variant.id,
+      variantType: variant.variantType,
+    };
+  }
+
+  return null;
 }
 
 function mapContentDraft(row: ContentDraftRow): ContentDraftDto {

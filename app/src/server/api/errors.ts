@@ -6,6 +6,7 @@ import {
   isValidPlatformAdminSessionValue,
   platformAdminSessionCookieName,
 } from "@/lib/auth/platform-admin-session";
+import { isLocalDemoRuntime } from "@/lib/demo/local-demo-runtime";
 
 export class ApiError extends Error {
   constructor(
@@ -41,6 +42,10 @@ export function assertAdminSetupSecret(request: Request) {
   const expected = process.env.ADMIN_SETUP_SECRET;
 
   if (!expected) {
+    if (isLocalDemoRuntime() && isLocalhostRequest(request)) {
+      return;
+    }
+
     throw new ApiError(
       503,
       "ADMIN_SETUP_SECRET_NOT_CONFIGURED",
@@ -66,6 +71,11 @@ export function assertAdminSetupSecret(request: Request) {
 
 export function assertPlatformAdminAccess(request: Request) {
   assertAdminSetupSecret(request);
+}
+
+function isLocalhostRequest(request: Request) {
+  const hostname = new URL(request.url).hostname;
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 }
 
 export function handleApiError(error: unknown) {

@@ -17,6 +17,12 @@
 
 这不是自动化测试脚本，而是一份给真人联调用的点检清单。
 
+当前 staging 真实桶名固定为：
+
+- `jj-content-staging-1341668543`
+
+如果你在别的旧文档里还看到 `jingjing-content-staging-<APPID>`，以这里和最新 handoff 为准。
+
 ## 测试前提
 
 开始之前，先确认下面几件事都已经完成：
@@ -80,7 +86,7 @@
 
 控制台路径：
 
-`COS -> jingjing-content-staging-<APPID> -> 文件列表`
+`COS -> jj-content-staging-1341668543 -> 文件列表`
 
 应该能看到新对象，路径前缀必须是下面两种之一：
 
@@ -100,7 +106,7 @@
 | `owner_type` | `content_draft` |
 | `asset_type` | `video` 或 `image` |
 | `storage_provider` | `tencent_cos` |
-| `bucket_name` | `jingjing-content-staging-<APPID>` |
+| `bucket_name` | `jj-content-staging-1341668543` |
 | `storage_key` | 以 `draft-inputs/` 或 `source-assets/` 开头 |
 | `etag` | 非空 |
 
@@ -216,7 +222,7 @@ pending -> queued -> preparing -> running
 
 控制台路径：
 
-`COS -> jingjing-content-staging-<APPID> -> 文件列表`
+`COS -> jj-content-staging-1341668543 -> 文件列表`
 
 应该看到下面这些路径：
 
@@ -240,7 +246,7 @@ video-subtitles/{merchantId}/{draftId}/{variantId}/{jobId}/subtitles.srt
 | `owner_type` | `content_variant` |
 | `asset_type` | `video` / `cover` / `subtitle` |
 | `storage_provider` | `tencent_cos` |
-| `bucket_name` | `jingjing-content-staging-<APPID>` |
+| `bucket_name` | `jj-content-staging-1341668543` |
 | `storage_key` | 以 `video-outputs/`、`video-covers/`、`video-subtitles/` 开头 |
 
 #### 证据 C：任务表

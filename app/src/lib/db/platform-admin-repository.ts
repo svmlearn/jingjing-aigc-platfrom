@@ -17,7 +17,8 @@ import type {
   PlatformSettingsDto,
 } from "@/contracts/platform-admin";
 import { createInvitationCode, mapMerchantProfile } from "@/lib/db/merchant-repository";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { getAiRuntimeApiKeySource, maskAiRuntimeApiKey } from "@/server/api/ai-runtime";
 import { ApiError } from "@/server/api/errors";
 
 type MerchantAdminRow = {
@@ -132,9 +133,15 @@ const defaultKnowledgeRuntime: KnowledgeRuntimeSettingsDto = {
 
 const invitationCodeExpiringSoonWindowDays = 7;
 
+let demoPlatformSettings: PlatformSettingsDto | null = null;
+
 export async function listPlatformInvitationCodes(
   filters: PlatformAdminInvitationCodeFilters = {},
 ): Promise<PlatformAdminInvitationCodeDto[]> {
+  if (!isSupabaseAdminConfigured()) {
+    return filterPlatformInvitationCodes([], filters);
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("invitation_codes")
@@ -376,6 +383,10 @@ export async function updatePlatformMerchant(
 }
 
 export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
+  if (!isSupabaseAdminConfigured()) {
+    return demoPlatformSettings ?? getDefaultPlatformSettings();
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("platform_settings")
@@ -415,38 +426,14 @@ export async function updatePlatformSettings(
   actorLabel = "admin",
 ): Promise<PlatformSettingsDto> {
   const current = await getPlatformSettings();
+  const next = mergePlatformSettings(current, input);
+
+  if (!isSupabaseAdminConfigured()) {
+    demoPlatformSettings = next;
+    return next;
+  }
+
   const supabase = createSupabaseAdminClient();
-  const next: PlatformSettingsDto = {
-    llmRuntime: {
-      ...current.llmRuntime,
-      ...input.llmRuntime,
-      apiKeyMasked: current.llmRuntime.apiKeyMasked,
-      apiKeySource: current.llmRuntime.apiKeySource,
-    },
-    importRuntime: {
-      ...current.importRuntime,
-      ...input.importRuntime,
-    },
-    membershipPlans: input.membershipPlans
-      ? {
-          free: { ...current.membershipPlans.free, ...input.membershipPlans.free },
-          plus: { ...current.membershipPlans.plus, ...input.membershipPlans.plus },
-          pro: { ...current.membershipPlans.pro, ...input.membershipPlans.pro },
-        }
-      : current.membershipPlans,
-    consultationAgent: input.consultationAgent
-      ? {
-          ...current.consultationAgent,
-          ...input.consultationAgent,
-          enabledTools:
-            input.consultationAgent.enabledTools ?? current.consultationAgent.enabledTools,
-        }
-      : current.consultationAgent,
-    knowledgeRuntime: {
-      ...current.knowledgeRuntime,
-      ...input.knowledgeRuntime,
-    },
-  };
 
   const rows = [
     {
@@ -509,6 +496,53 @@ export async function updatePlatformSettings(
   });
 
   return getPlatformSettings();
+}
+
+function getDefaultPlatformSettings(): PlatformSettingsDto {
+  return {
+    llmRuntime: toLlmRuntimeSettings(undefined),
+    importRuntime: toImportRuntimeSettings(undefined),
+    membershipPlans: toMembershipPlans(undefined),
+    consultationAgent: toConsultationAgentSettings(undefined),
+    knowledgeRuntime: toKnowledgeRuntimeSettings(undefined),
+  };
+}
+
+function mergePlatformSettings(
+  current: PlatformSettingsDto,
+  input: PlatformSettingsUpdateInput,
+): PlatformSettingsDto {
+  return {
+    llmRuntime: {
+      ...current.llmRuntime,
+      ...input.llmRuntime,
+      apiKeyMasked: current.llmRuntime.apiKeyMasked,
+      apiKeySource: current.llmRuntime.apiKeySource,
+    },
+    importRuntime: {
+      ...current.importRuntime,
+      ...input.importRuntime,
+    },
+    membershipPlans: input.membershipPlans
+      ? {
+          free: { ...current.membershipPlans.free, ...input.membershipPlans.free },
+          plus: { ...current.membershipPlans.plus, ...input.membershipPlans.plus },
+          pro: { ...current.membershipPlans.pro, ...input.membershipPlans.pro },
+        }
+      : current.membershipPlans,
+    consultationAgent: input.consultationAgent
+      ? {
+          ...current.consultationAgent,
+          ...input.consultationAgent,
+          enabledTools:
+            input.consultationAgent.enabledTools ?? current.consultationAgent.enabledTools,
+        }
+      : current.consultationAgent,
+    knowledgeRuntime: {
+      ...current.knowledgeRuntime,
+      ...input.knowledgeRuntime,
+    },
+  };
 }
 
 async function countByMerchant(table: "import_jobs" | "content_drafts") {
@@ -671,7 +705,8 @@ function toPlatformAdminMerchant(
 
 function toLlmRuntimeSettings(value: unknown): LlmRuntimeSettingsDto {
   const record = toRecord(value);
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKeyMasked = maskAiRuntimeApiKey();
+  const apiKeySource = getAiRuntimeApiKeySource();
 
   return {
     providerLabel: getString(record.providerLabel, defaultLlmRuntime.providerLabel),
@@ -682,8 +717,8 @@ function toLlmRuntimeSettings(value: unknown): LlmRuntimeSettingsDto {
     maxTokens: getNumber(record.maxTokens, defaultLlmRuntime.maxTokens),
     timeoutSeconds: getNumber(record.timeoutSeconds, defaultLlmRuntime.timeoutSeconds),
     retryCount: getNumber(record.retryCount, defaultLlmRuntime.retryCount),
-    apiKeyMasked: apiKey ? maskSecret(apiKey) : null,
-    apiKeySource: apiKey ? "env" : "none",
+    apiKeyMasked,
+    apiKeySource: apiKeySource === "none" ? "none" : "env",
   };
 }
 
@@ -796,12 +831,4 @@ function toConsultationToolArray(value: unknown): ConsultationAgentSettingsDto["
   );
 
   return next.length > 0 ? next : defaultConsultationAgent.enabledTools;
-}
-
-function maskSecret(secret: string) {
-  if (secret.length <= 8) {
-    return "****";
-  }
-
-  return `${secret.slice(0, 3)}...${secret.slice(-4)}`;
 }

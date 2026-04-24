@@ -11,6 +11,7 @@ import {
   listVideoEditJobs,
   retryVideoEditJob,
 } from "@/lib/db/video-edit-job-repository";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { createCosSignedPreviewUrl } from "@/server/api/cos";
 
 export async function createVideoEditJobForUser(input: {
@@ -118,6 +119,17 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
 }
 
 async function buildServerManagedInputPayload(draftId: string) {
+  if (!isSupabaseAdminConfigured()) {
+    return {
+      input_assets: [],
+      assembled_from_owner_type: "content_draft",
+      assembled_from_owner_id: draftId,
+      assembled_at: new Date().toISOString(),
+      render_mode: "script_only_fallback",
+      storageMode: "local_demo_memory",
+    };
+  }
+
   const assets = await listAssetObjectsByOwner({
     ownerType: "content_draft",
     ownerId: draftId,

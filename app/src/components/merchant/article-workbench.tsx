@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, FileText, RefreshCw } from "lucide-react";
+import { ArrowLeft, FileText, ImageIcon, PenLine, RefreshCw } from "lucide-react";
 
 import type { ConsultationSessionDetailDto } from "@/contracts/consultation";
 import type { ContentDraftBundleDto } from "@/contracts/draft";
 
 export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
+  const [mode, setMode] = useState<"create" | "rewrite">("create");
   const [session, setSession] = useState<ConsultationSessionDetailDto | null>(null);
   const [goal, setGoal] = useState("");
   const [extraRequirement, setExtraRequirement] = useState("");
@@ -118,6 +119,25 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <div className="hidden rounded-xl bg-white/5 p-1 md:flex">
+            {[
+              ["create", "创作"],
+              ["rewrite", "改写"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setMode(value as "create" | "rewrite")}
+                className={
+                  mode === value
+                    ? "rounded-lg bg-[#0a0a0a] px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-amber-500"
+                    : "rounded-lg px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white/75"
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => {
@@ -155,6 +175,28 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
             </section>
 
             <section>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">参考素材</p>
+                <Link href="/dashboard/content" className="text-[10px] uppercase tracking-[0.2em] text-amber-500">
+                  打开素材库
+                </Link>
+              </div>
+              <div className="mt-3 flex gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-white/5 text-white/30">
+                  <ImageIcon className="h-6 w-6" />
+                </div>
+                <div className="min-w-0">
+                  <p className="line-clamp-1 text-sm font-serif text-white/80">
+                    【参考】高转化门店种草结构
+                  </p>
+                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/45">
+                    痛点切入、专业解释、真实场景、预约动作，作为图文生成的参考材料。
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section>
               <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">内容目标</p>
               <textarea
                 value={goal}
@@ -173,6 +215,24 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
                 placeholder="例如：更口语一点，末尾引导预约体验课，强调门店环境和信任感。"
                 className="mt-3 w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25"
               />
+            </section>
+
+            <section>
+              <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">平台风格与口吻</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {["专业干货", "知心闺蜜", "痛点唤醒"].map((tag, index) => (
+                  <span
+                    key={tag}
+                    className={
+                      index === 0
+                        ? "rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-amber-500"
+                        : "rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/55"
+                    }
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
             </section>
 
             <section>
@@ -257,6 +317,9 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
           ) : (
             <div className="flex h-full items-center justify-center">
               <div className="max-w-lg text-center">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/5 text-amber-500">
+                  <PenLine className="h-7 w-7" />
+                </div>
                 <p className="text-2xl text-white [font-family:var(--font-cormorant)]">图文草稿还没生成</p>
                 <p className="mt-3 text-sm leading-7 text-white/45">
                   这里会把咨询页沉淀下来的策略快照转换成真实的 `content_drafts / content_variants`

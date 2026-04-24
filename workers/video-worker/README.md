@@ -57,7 +57,7 @@ The worker assumes `video_edit_jobs.input_payload` can provide input assets like
   "input_assets": [
     {
       "asset_type": "video",
-      "bucket_name": "jingjing-content-staging-1234567890",
+      "bucket_name": "jj-content-staging-1341668543",
       "storage_key": "draft-inputs/merchant-1/draft-1/demo.mp4",
       "file_name": "demo.mp4"
     }

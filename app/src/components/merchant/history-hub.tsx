@@ -1,27 +1,28 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { FileText, MessageSquare, Video } from "lucide-react";
+import { ArrowUpRight, FileText, Search, Video } from "lucide-react";
 
-import type { ConsultationSessionSummaryDto } from "@/contracts/consultation";
 import type { ContentDraftBundleDto } from "@/contracts/draft";
 import type { VideoEditJobDto } from "@/contracts/video";
 import { cn } from "@/lib/utils";
 
 type HistoryRecord = {
   id: string;
-  type: "consultation" | "article" | "video_script" | "video_job";
+  type: "article" | "video_script" | "video_job";
   title: string;
   status: string;
   summary: string;
   createdAt: string;
-  detail: ConsultationSessionSummaryDto | ContentDraftBundleDto | VideoEditJobDto;
+  detail: ContentDraftBundleDto | VideoEditJobDto;
 };
 
 export function HistoryHub() {
   const [records, setRecords] = useState<HistoryRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<HistoryRecord["type"] | "all">("all");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +35,6 @@ export function HistoryHub() {
         cache: "no-store",
       });
       const data = (await response.json()) as {
-        sessions?: ConsultationSessionSummaryDto[];
         draftBundles?: ContentDraftBundleDto[];
         videoJobs?: VideoEditJobDto[];
         error?: { message?: string };
@@ -44,7 +44,7 @@ export function HistoryHub() {
         throw new Error(data.error?.message ?? "历史记录加载失败");
       }
 
-      const nextRecords = buildHistoryRecords(data.sessions ?? [], data.draftBundles ?? [], data.videoJobs ?? []);
+      const nextRecords = buildHistoryRecords(data.draftBundles ?? [], data.videoJobs ?? []);
       setRecords(nextRecords);
       if (nextRecords[0]) {
         setSelectedId(nextRecords[0].id);
@@ -62,12 +62,18 @@ export function HistoryHub() {
   }, []);
 
   const filteredRecords = useMemo(() => {
-    if (filterType === "all") {
-      return records;
-    }
+    const normalizedQuery = query.trim().toLowerCase();
+    return records.filter((record) => {
+      const typeMatched = filterType === "all" || record.type === filterType;
+      const queryMatched =
+        !normalizedQuery ||
+        [record.title, record.summary, record.status].some((value) =>
+          value.toLowerCase().includes(normalizedQuery),
+        );
 
-    return records.filter((record) => record.type === filterType);
-  }, [filterType, records]);
+      return typeMatched && queryMatched;
+    });
+  }, [filterType, query, records]);
 
   const selectedRecord =
     filteredRecords.find((record) => record.id === selectedId) ?? filteredRecords[0] ?? null;
@@ -89,7 +95,6 @@ export function HistoryHub() {
           <div className="mb-4 flex flex-wrap gap-2">
             {[
               ["all", "全部"],
-              ["consultation", "咨询"],
               ["article", "图文"],
               ["video_script", "脚本"],
               ["video_job", "视频任务"],
@@ -108,6 +113,15 @@ export function HistoryHub() {
                 {label}
               </button>
             ))}
+          </div>
+          <div className="relative mb-4">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search archive..."
+              className="h-10 w-full rounded-xl border border-white/10 bg-[#050505] pl-11 pr-4 text-xs text-white outline-none placeholder:text-white/25 focus:border-amber-500/50"
+            />
           </div>
 
           {loading ? (
@@ -128,9 +142,7 @@ export function HistoryHub() {
                 >
                   <div className="flex items-center gap-3">
                     <div className="rounded-xl bg-white/10 p-3 text-white/60">
-                      {record.type === "consultation" ? (
-                        <MessageSquare className="h-4 w-4" />
-                      ) : record.type === "article" ? (
+                      {record.type === "article" ? (
                         <FileText className="h-4 w-4" />
                       ) : (
                         <Video className="h-4 w-4" />
@@ -158,6 +170,13 @@ export function HistoryHub() {
                   {selectedRecord.title}
                 </h2>
                 <p className="mt-3 text-sm text-white/45">{selectedRecord.summary}</p>
+                <Link
+                  href={`/dashboard/history?record=${encodeURIComponent(selectedRecord.id)}`}
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white/65 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  查看详情
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
               </section>
               <section className="rounded-3xl border border-white/10 bg-[#111111] p-8 text-sm leading-7 text-white/80 whitespace-pre-wrap">
                 {renderHistoryDetail(selectedRecord)}
@@ -175,19 +194,9 @@ export function HistoryHub() {
 }
 
 function buildHistoryRecords(
-  sessions: ConsultationSessionSummaryDto[],
   draftBundles: ContentDraftBundleDto[],
   videoJobs: VideoEditJobDto[],
 ): HistoryRecord[] {
-  const consultationRecords = sessions.map((session) => ({
-    id: `consultation:${session.id}`,
-    type: "consultation" as const,
-    title: session.title ?? "咨询会话",
-    status: session.currentStage ?? session.status,
-    summary: session.summaryText ?? session.latestMessagePreview ?? "咨询记录",
-    createdAt: session.updatedAt,
-    detail: session,
-  }));
   const draftRecords = draftBundles.map((bundle) => ({
     id: `draft:${bundle.draft.id}`,
     type: bundle.selectedVariant?.variantType === "video_script" ? ("video_script" as const) : ("article" as const),
@@ -210,23 +219,12 @@ function buildHistoryRecords(
     detail: job,
   }));
 
-  return [...consultationRecords, ...draftRecords, ...videoJobRecords].sort((left, right) =>
+  return [...draftRecords, ...videoJobRecords].sort((left, right) =>
     right.createdAt.localeCompare(left.createdAt),
   );
 }
 
 function renderHistoryDetail(record: HistoryRecord) {
-  if (record.type === "consultation") {
-    const session = record.detail as ConsultationSessionSummaryDto;
-    return [
-      `定位：${session.strategySnapshot.positioning}`,
-      "",
-      `卖点：${session.strategySnapshot.coreSellingPoints.join("、")}`,
-      `客群：${session.strategySnapshot.targetAudiences.join("、")}`,
-      `建议：${session.strategySnapshot.currentSuggestion}`,
-    ].join("\n");
-  }
-
   if (record.type === "article" || record.type === "video_script") {
     const bundle = record.detail as ContentDraftBundleDto;
     return (

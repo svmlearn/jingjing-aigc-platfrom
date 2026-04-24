@@ -24,7 +24,7 @@ Supabase：数据库、任务表、业务数据
 | Supabase Project Ref | `jrveaabguddromjtibbs` |
 | Supabase URL | `https://jrveaabguddromjtibbs.supabase.co` |
 | COS 逻辑桶名 | `jingjing-content-staging` |
-| COS 实际桶名格式 | `jingjing-content-staging-<APPID>` |
+| COS 已创建真实桶名 | `jj-content-staging-1341668543` |
 | COS 地域 | `新加坡` |
 | COS 地域简称 | `ap-singapore` |
 | COS 访问级别 | `私有读写` |
@@ -52,6 +52,12 @@ Supabase：数据库、任务表、业务数据
 
 如果某一步看起来和界面小字不完全一样，以控制台里最接近的中文名称为准，不要自己改架构里的核心值。
 
+2026-04-24 补充：
+
+- 当前 staging 桶已经真实创建完成，不需要重新建桶
+- 后续真实配置一律以 `jj-content-staging-1341668543` 为准
+- `jingjing-content-staging` 只保留为早期方案里的逻辑命名，不再作为控制台实际输入值
+
 这里有一个很容易弄混的地方：
 
 - `APPID` 是一串数字，用在 COS 完整桶名和策略资源里
@@ -70,8 +76,8 @@ Supabase：数据库、任务表、业务数据
 | 字段 | 填写值 |
 | --- | --- |
 | 所属地域 | `新加坡` |
-| 存储桶名称输入框 | `jingjing-content-staging` |
-| 实际桶名 | 创建完成后确认显示为 `jingjing-content-staging-<APPID>` |
+| 存储桶名称输入框 | `jj-content-staging` |
+| 实际桶名 | `jj-content-staging-1341668543` |
 | 访问权限 | `私有读写` |
 | 存储类型 | `标准存储` |
 | 版本控制 | `关闭` |
@@ -84,7 +90,7 @@ Supabase：数据库、任务表、业务数据
 | 项目 | 你实际看到的值 |
 | --- | --- |
 | APPID | `<待填写>` |
-| 完整桶名 | `jingjing-content-staging-<APPID>` |
+| 完整桶名 | `jj-content-staging-1341668543` |
 | 地域简称 | `ap-singapore` |
 
 ### 1.2 不要开这些选项
@@ -105,7 +111,7 @@ Supabase：数据库、任务表、业务数据
 
 控制台路径：
 
-`COS -> 存储桶列表 -> jingjing-content-staging-<APPID> -> 安全管理 / 跨域访问 CORS`
+`COS -> 存储桶列表 -> jj-content-staging-1341668543 -> 安全管理 / 跨域访问 CORS`
 
 新增 1 条规则。如果控制台一次只允许填 1 个来源，就拆成 3 条同字段规则，只改来源这一列。
 
@@ -215,7 +221,8 @@ video-subtitles/{merchantId}/{draftId}/{variantId}/{jobId}/subtitles.srt
         "name/cos:AbortMultipartUpload"
       ],
       "resource": [
-        "qcs::cos:ap-singapore:uid/<APPID>:jingjing-content-staging-<APPID>/*"
+        "qcs::cos:ap-singapore:uid/1341668543:jj-content-staging-1341668543",
+        "qcs::cos:ap-singapore:uid/1341668543:jj-content-staging-1341668543/*"
       ]
     }
   ]
@@ -231,7 +238,7 @@ video-subtitles/{merchantId}/{draftId}/{variantId}/{jobId}/subtitles.srt
 
 ### 2.4 这条策略为什么这样配
 
-- 它只放行 `jingjing-content-staging-<APPID>` 这个桶
+- 它只放行 `jj-content-staging-1341668543` 这个桶
 - 它允许对象上传、下载、删除和分块上传
 - 它没有放 `cos:*`
 - 它没有把权限放到整个账号的全部桶
@@ -295,7 +302,7 @@ video-subtitles/{merchantId}/{draftId}/{variantId}/{jobId}/subtitles.srt
 | --- | --- | --- |
 | `COS_SECRET_ID` | `<CAM 子账号 SecretId>` | 服务端变量，不要加 `NEXT_PUBLIC_` |
 | `COS_SECRET_KEY` | `<CAM 子账号 SecretKey>` | 服务端变量，不要加 `NEXT_PUBLIC_` |
-| `COS_BUCKET` | `jingjing-content-staging-<APPID>` | 用完整桶名 |
+| `COS_BUCKET` | `jj-content-staging-1341668543` | 用真实完整桶名 |
 | `COS_REGION` | `ap-singapore` | 用地域简称 |
 | `COS_STS_DURATION_SECONDS` | `1800` | 固定值 |
 | `COS_READ_URL_TTL_SECONDS` | `3600` | 固定值 |
@@ -500,7 +507,7 @@ nano /srv/jingjing-video-worker/.env
 SUPABASE_DB_URL=<从 Supabase 控制台复制的 Postgres 连接串>
 COS_SECRET_ID=<CAM_SECRET_ID>
 COS_SECRET_KEY=<CAM_SECRET_KEY>
-COS_BUCKET=jingjing-content-staging-<APPID>
+COS_BUCKET=jj-content-staging-1341668543
 COS_REGION=ap-singapore
 WORKER_POLL_INTERVAL_SECONDS=10
 WORKER_MAX_CONCURRENCY=1

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import type {
   ConsultationEventDto,
   ConsultationMessageDto,
@@ -8,7 +10,7 @@ import type {
   ConsultationToolCardDto,
   StrategySnapshotDto,
 } from "@/contracts/consultation";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
 type ConsultationSessionRow = {
@@ -44,9 +46,26 @@ type ConsultationEventRow = {
   created_at: string;
 };
 
+const demoConsultationSessions = new Map<string, ConsultationSessionSummaryDto>();
+const demoConsultationMessages = new Map<string, ConsultationMessageDto[]>();
+const demoConsultationEvents = new Map<string, ConsultationEventDto[]>();
+
 export async function listConsultationSessions(
   merchantId: string,
 ): Promise<ConsultationSessionSummaryDto[]> {
+  if (!isSupabaseAdminConfigured()) {
+    return Array.from(demoConsultationSessions.values())
+      .filter((session) => session.merchantId === merchantId)
+      .sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt))
+      .map((session) => ({
+        ...session,
+        latestMessagePreview:
+          demoConsultationMessages.get(session.id)?.at(-1)?.content ??
+          session.latestMessagePreview ??
+          null,
+      }));
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("consultation_sessions")
@@ -77,6 +96,29 @@ export async function createConsultationSession(input: {
   strategySnapshot?: StrategySnapshotDto;
   summaryText?: string | null;
 }): Promise<ConsultationSessionSummaryDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const now = new Date().toISOString();
+    const session: ConsultationSessionSummaryDto = {
+      id: randomUUID(),
+      merchantId: input.merchantId,
+      title: input.title ?? null,
+      status: input.status ?? "active",
+      currentStage: input.currentStage ?? null,
+      strategySnapshot: input.strategySnapshot ?? emptyStrategySnapshot,
+      summaryText: input.summaryText ?? null,
+      latestMessagePreview: null,
+      lastMessageAt: now,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    demoConsultationSessions.set(session.id, session);
+    demoConsultationMessages.set(session.id, []);
+    demoConsultationEvents.set(session.id, []);
+
+    return session;
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("consultation_sessions")
@@ -102,6 +144,22 @@ export async function getConsultationSessionDetail(input: {
   merchantId: string;
   sessionId: string;
 }): Promise<ConsultationSessionDetailDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const session = demoConsultationSessions.get(input.sessionId);
+
+    if (!session || session.merchantId !== input.merchantId) {
+      throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+    }
+
+    const messages = demoConsultationMessages.get(input.sessionId) ?? [];
+    return {
+      ...session,
+      latestMessagePreview: messages.at(-1)?.content ?? null,
+      messages,
+      events: demoConsultationEvents.get(input.sessionId) ?? [],
+    };
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("consultation_sessions")
@@ -139,6 +197,37 @@ export async function createConsultationMessage(input: {
   visibleSummary?: Record<string, unknown>;
   touchLastMessageAt?: string;
 }): Promise<ConsultationMessageDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const session = demoConsultationSessions.get(input.sessionId);
+
+    if (!session) {
+      throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+    }
+
+    const now = new Date().toISOString();
+    const message: ConsultationMessageDto = {
+      id: randomUUID(),
+      sessionId: input.sessionId,
+      role: input.role,
+      content: input.content,
+      stageLabel: input.stageLabel ?? null,
+      toolCards: input.toolCards ?? [],
+      visibleSummary: input.visibleSummary ?? {},
+      createdAt: now,
+    };
+    const messages = demoConsultationMessages.get(input.sessionId) ?? [];
+    messages.push(message);
+    demoConsultationMessages.set(input.sessionId, messages);
+    demoConsultationSessions.set(input.sessionId, {
+      ...session,
+      latestMessagePreview: message.content,
+      lastMessageAt: input.touchLastMessageAt ?? message.createdAt,
+      updatedAt: now,
+    });
+
+    return message;
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("consultation_messages")
@@ -179,6 +268,26 @@ export async function createConsultationEvent(input: {
   stageLabel?: string | null;
   payload?: Record<string, unknown>;
 }): Promise<ConsultationEventDto> {
+  if (!isSupabaseAdminConfigured()) {
+    if (!demoConsultationSessions.has(input.sessionId)) {
+      throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+    }
+
+    const event: ConsultationEventDto = {
+      id: randomUUID(),
+      sessionId: input.sessionId,
+      eventType: input.eventType,
+      stageLabel: input.stageLabel ?? null,
+      payload: input.payload ?? {},
+      createdAt: new Date().toISOString(),
+    };
+    const events = demoConsultationEvents.get(input.sessionId) ?? [];
+    events.push(event);
+    demoConsultationEvents.set(input.sessionId, events);
+
+    return event;
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("consultation_events")
@@ -208,6 +317,30 @@ export async function updateConsultationSession(input: {
   summaryText?: string | null;
   lastMessageAt?: string;
 }): Promise<ConsultationSessionSummaryDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const current = demoConsultationSessions.get(input.sessionId);
+
+    if (!current || current.merchantId !== input.merchantId) {
+      throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+    }
+
+    const updated: ConsultationSessionSummaryDto = {
+      ...current,
+      title: input.title !== undefined ? input.title : current.title,
+      status: input.status ?? current.status,
+      currentStage:
+        input.currentStage !== undefined ? input.currentStage : current.currentStage,
+      strategySnapshot: input.strategySnapshot ?? current.strategySnapshot,
+      summaryText: input.summaryText !== undefined ? input.summaryText : current.summaryText,
+      lastMessageAt: input.lastMessageAt ?? current.lastMessageAt,
+      updatedAt: new Date().toISOString(),
+    };
+
+    demoConsultationSessions.set(input.sessionId, updated);
+
+    return updated;
+  }
+
   const supabase = createSupabaseAdminClient();
   const patch: Record<string, unknown> = {};
 
@@ -231,6 +364,39 @@ export async function updateConsultationSession(input: {
   }
 
   return mapConsultationSessionSummary(data as unknown as ConsultationSessionRow);
+}
+
+export async function deleteConsultationSession(input: {
+  merchantId: string;
+  sessionId: string;
+}) {
+  if (!isSupabaseAdminConfigured()) {
+    const current = demoConsultationSessions.get(input.sessionId);
+
+    if (!current || current.merchantId !== input.merchantId) {
+      throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+    }
+
+    demoConsultationSessions.delete(input.sessionId);
+    demoConsultationMessages.delete(input.sessionId);
+    demoConsultationEvents.delete(input.sessionId);
+    return;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { error, count } = await supabase
+    .from("consultation_sessions")
+    .delete({ count: "exact" })
+    .eq("id", input.sessionId)
+    .eq("merchant_id", input.merchantId);
+
+  if (error) {
+    throw new ApiError(500, "CONSULTATION_SESSION_DELETE_FAILED", error.message);
+  }
+
+  if (!count) {
+    throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+  }
 }
 
 async function listConsultationMessages(sessionId: string): Promise<ConsultationMessageDto[]> {

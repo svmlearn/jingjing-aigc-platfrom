@@ -8,7 +8,11 @@ import type {
   MerchantProfileDto,
   MerchantProfileInput,
 } from "@/contracts/merchant";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  getLocalDemoMerchantProfile,
+  updateLocalDemoMerchantProfile,
+} from "@/lib/demo/local-demo-runtime";
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
 type MerchantProfileRow = {
@@ -108,6 +112,16 @@ export async function redeemInvitationCode(input: {
 }
 
 export async function getMerchantProfileById(id: string): Promise<MerchantProfileDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const profile = getLocalDemoMerchantProfile();
+
+    if (id !== profile.id) {
+      throw new ApiError(404, "MERCHANT_PROFILE_NOT_FOUND", "Merchant profile not found.");
+    }
+
+    return profile;
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("merchant_profiles")
@@ -145,6 +159,10 @@ export async function getMerchantProfileById(id: string): Promise<MerchantProfil
 export async function getMerchantProfileByOwnerUserId(
   ownerUserId: string,
 ): Promise<MerchantProfileDto> {
+  if (!isSupabaseAdminConfigured()) {
+    return getLocalDemoMerchantProfile(ownerUserId);
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("merchant_profiles")
@@ -183,6 +201,10 @@ export async function updateMerchantProfile(
   ownerUserId: string,
   input: Partial<MerchantProfileInput>,
 ): Promise<MerchantProfileDto> {
+  if (!isSupabaseAdminConfigured()) {
+    return updateLocalDemoMerchantProfile(ownerUserId, input);
+  }
+
   const supabase = createSupabaseAdminClient();
   const update: Record<string, unknown> = {};
 

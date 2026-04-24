@@ -1,5 +1,6 @@
 import "server-only";
 
+import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 
 import COS from "cos-nodejs-sdk-v5";
@@ -13,6 +14,8 @@ const defaultCosReadUrlTtlSeconds = 3600;
 const defaultMediaUploadMaxBytes = 1024 * 1024 * 1024;
 
 type BrowserUploadOwnerType = "source_item" | "content_draft";
+
+type KnowledgeUploadScope = "platform" | "merchant";
 
 type CosConfig = {
   secretId: string;
@@ -93,6 +96,20 @@ export function buildCosUploadObjectKey(input: {
   return `${prefix}/${randomUUID()}-${sanitizeFileName(input.fileName)}`;
 }
 
+export function buildKnowledgeCosObjectKey(input: {
+  scope: KnowledgeUploadScope;
+  merchantId?: string | null;
+  documentId: string;
+  fileName: string;
+}): string {
+  const ownerSegment =
+    input.scope === "merchant" ? input.merchantId ?? "unknown-merchant" : "platform";
+
+  return `knowledge/${input.scope}/${ownerSegment}/${input.documentId}/${sanitizeFileName(
+    input.fileName,
+  )}`;
+}
+
 export function getCosUploadKeyPrefix(input: {
   merchantId: string;
   ownerType: BrowserUploadOwnerType;
@@ -149,6 +166,44 @@ export async function issueCosUploadCredentials(input: {
     StartTime: data.startTime,
     ExpiredTime: data.expiredTime,
     expiredTime: data.expiredTime,
+  };
+}
+
+export async function putCosObject(input: {
+  key: string;
+  body: Buffer;
+  contentType?: string | null;
+}): Promise<{ bucketName: string; storageKey: string; etag?: string | null }> {
+  const config = getCosConfig();
+  const client = new COS({
+    SecretId: config.secretId,
+    SecretKey: config.secretKey,
+  });
+
+  const result = await new Promise<{ etag?: string | null }>((resolve, reject) => {
+    client.putObject(
+      {
+        Bucket: config.bucket,
+        Region: config.region,
+        Key: input.key,
+        Body: input.body,
+        ContentType: input.contentType ?? undefined,
+      },
+      (error, data) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve({ etag: data?.ETag ?? null });
+      },
+    );
+  });
+
+  return {
+    bucketName: config.bucket,
+    storageKey: input.key,
+    etag: result.etag,
   };
 }
 

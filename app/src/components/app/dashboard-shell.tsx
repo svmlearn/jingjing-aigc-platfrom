@@ -17,7 +17,7 @@ const navItems = [
   { href: "/dashboard", label: "咨询诊断", icon: MessageSquare },
   { href: "/dashboard/article", label: "图文工作台", icon: FileText },
   { href: "/dashboard/video", label: "视频工作台", icon: Video },
-  { href: "/dashboard/content", label: "内容中心", icon: Library },
+  { href: "/dashboard/content", label: "素材中心", icon: Library },
   { href: "/dashboard/history", label: "我的内容", icon: FolderGit2 },
   { href: "/dashboard/settings", label: "商家设置", icon: Settings },
 ];
