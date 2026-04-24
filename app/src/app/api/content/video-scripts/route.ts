@@ -14,6 +14,9 @@ export async function POST(request: Request) {
       sessionId: payload.sessionId,
       goal: payload.goal,
       extraRequirement: payload.extraRequirement,
+      materialId: payload.materialId,
+      materialReferenceId: payload.materialReferenceId,
+      strategyTag: payload.strategyTag,
     });
 
     return Response.json({ draftBundle }, { status: 201 });

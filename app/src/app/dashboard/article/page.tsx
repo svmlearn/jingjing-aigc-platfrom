@@ -8,6 +8,7 @@ export default async function DashboardArticlePage({
     materialId?: string;
     materialReferenceId?: string;
     mode?: string;
+    strategy?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -17,6 +18,7 @@ export default async function DashboardArticlePage({
       materialId={params.materialId ?? null}
       materialReferenceId={params.materialReferenceId ?? null}
       initialMode={params.mode === "rewrite" ? "rewrite" : null}
+      strategyTag={params.strategy ?? null}
     />
   );
 }

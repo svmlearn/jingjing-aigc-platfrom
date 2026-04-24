@@ -32,5 +32,7 @@ export type MaterialWorkbenchReferenceDto = {
   materialItemId: string;
   targetWorkbench: MaterialWorkbenchTarget;
   status: "pending" | "consumed";
+  draftId?: string | null;
   createdAt: string;
+  consumedAt?: string | null;
 };

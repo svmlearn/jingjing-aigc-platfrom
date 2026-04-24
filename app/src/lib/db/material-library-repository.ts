@@ -31,6 +31,17 @@ type SourceItemMaterialRow = {
   created_at: string;
 };
 
+type MaterialWorkbenchReferenceRow = {
+  id: string;
+  merchant_id: string;
+  material_item_id: string;
+  target_workbench: MaterialWorkbenchTarget;
+  status: "pending" | "consumed";
+  draft_id: string | null;
+  created_at: string;
+  consumed_at: string | null;
+};
+
 const sourceItemMaterialSelect = [
   "id",
   "merchant_id",
@@ -46,6 +57,17 @@ const sourceItemMaterialSelect = [
   "trace_payload",
   "is_selected_for_rewrite",
   "created_at",
+].join(", ");
+
+const materialWorkbenchReferenceSelect = [
+  "id",
+  "merchant_id",
+  "material_item_id",
+  "target_workbench",
+  "status",
+  "draft_id",
+  "created_at",
+  "consumed_at",
 ].join(", ");
 
 const demoMaterialItems = new Map<string, MaterialLibraryItemDto>();
@@ -76,6 +98,36 @@ export async function listMaterialLibraryItems(input: {
   }
 
   return ((data ?? []) as unknown as SourceItemMaterialRow[]).map(mapSourceItemToMaterial);
+}
+
+export async function getMaterialLibraryItemById(input: {
+  merchantId: string;
+  materialItemId: string;
+}): Promise<MaterialLibraryItemDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const item = demoMaterialItems.get(input.materialItemId);
+
+    if (!item || item.merchantId !== input.merchantId) {
+      throw new ApiError(404, "MATERIAL_ITEM_NOT_FOUND", "Material item not found.");
+    }
+
+    return item;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("source_items")
+    .select(sourceItemMaterialSelect)
+    .eq("id", input.materialItemId)
+    .eq("merchant_id", input.merchantId)
+    .contains("trace_payload", { materialLibrary: true })
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(404, "MATERIAL_ITEM_NOT_FOUND", "Material item not found.");
+  }
+
+  return mapSourceItemToMaterial(data as unknown as SourceItemMaterialRow);
 }
 
 export async function createMaterialLibraryItem(input: {
@@ -185,6 +237,151 @@ export async function createMaterialWorkbenchReference(input: {
     return reference;
   }
 
+  await getMaterialLibraryItemById({
+    merchantId: input.merchantId,
+    materialItemId: input.materialItemId,
+  });
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("material_workbench_references")
+    .insert({
+      merchant_id: input.merchantId,
+      material_item_id: input.materialItemId,
+      target_workbench: input.targetWorkbench,
+      status: "pending",
+      created_by_user_id: input.createdByUserId,
+    })
+    .select(materialWorkbenchReferenceSelect)
+    .single();
+
+  if (error || !data) {
+    if (isMissingMaterialReferenceTable(error)) {
+      return createTracePayloadWorkbenchReference(input);
+    }
+
+    throw new ApiError(
+      500,
+      "MATERIAL_WORKBENCH_REFERENCE_CREATE_FAILED",
+      error?.message ?? "Create failed.",
+    );
+  }
+
+  await markMaterialSelectedForRewrite({
+    merchantId: input.merchantId,
+    materialItemId: input.materialItemId,
+  });
+
+  return mapWorkbenchReference(data as unknown as MaterialWorkbenchReferenceRow);
+}
+
+export async function getMaterialWorkbenchReference(input: {
+  merchantId: string;
+  referenceId: string;
+  targetWorkbench?: MaterialWorkbenchTarget;
+}): Promise<MaterialWorkbenchReferenceDto | null> {
+  if (!isSupabaseAdminConfigured()) {
+    const reference = demoWorkbenchReferences.get(input.referenceId);
+
+    if (!reference || reference.merchantId !== input.merchantId) {
+      return null;
+    }
+
+    if (input.targetWorkbench && reference.targetWorkbench !== input.targetWorkbench) {
+      return null;
+    }
+
+    return reference;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  let query = supabase
+    .from("material_workbench_references")
+    .select(materialWorkbenchReferenceSelect)
+    .eq("id", input.referenceId)
+    .eq("merchant_id", input.merchantId);
+
+  if (input.targetWorkbench) {
+    query = query.eq("target_workbench", input.targetWorkbench);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    if (isMissingMaterialReferenceTable(error)) {
+      return null;
+    }
+
+    throw new ApiError(500, "MATERIAL_WORKBENCH_REFERENCE_READ_FAILED", error.message);
+  }
+
+  return data ? mapWorkbenchReference(data as unknown as MaterialWorkbenchReferenceRow) : null;
+}
+
+export async function consumeMaterialWorkbenchReference(input: {
+  merchantId: string;
+  referenceId: string;
+  targetWorkbench: MaterialWorkbenchTarget;
+  draftId: string;
+  materialItemId?: string | null;
+}): Promise<MaterialWorkbenchReferenceDto | null> {
+  if (!isSupabaseAdminConfigured()) {
+    const reference = demoWorkbenchReferences.get(input.referenceId);
+
+    if (!reference || reference.merchantId !== input.merchantId) {
+      return null;
+    }
+
+    const consumedReference = {
+      ...reference,
+      status: "consumed" as const,
+      draftId: input.draftId,
+      consumedAt: new Date().toISOString(),
+    };
+
+    demoWorkbenchReferences.set(reference.id, consumedReference);
+    return consumedReference;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("material_workbench_references")
+    .update({
+      status: "consumed",
+      draft_id: input.draftId,
+      consumed_at: new Date().toISOString(),
+    })
+    .eq("id", input.referenceId)
+    .eq("merchant_id", input.merchantId)
+    .eq("target_workbench", input.targetWorkbench)
+    .select(materialWorkbenchReferenceSelect)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingMaterialReferenceTable(error)) {
+      if (input.materialItemId) {
+        await appendTracePayloadReferenceConsumption({
+          merchantId: input.merchantId,
+          materialItemId: input.materialItemId,
+          referenceId: input.referenceId,
+          draftId: input.draftId,
+        });
+      }
+
+      return null;
+    }
+
+    throw new ApiError(500, "MATERIAL_WORKBENCH_REFERENCE_CONSUME_FAILED", error.message);
+  }
+
+  return data ? mapWorkbenchReference(data as unknown as MaterialWorkbenchReferenceRow) : null;
+}
+
+async function createTracePayloadWorkbenchReference(input: {
+  merchantId: string;
+  materialItemId: string;
+  targetWorkbench: MaterialWorkbenchTarget;
+}): Promise<MaterialWorkbenchReferenceDto> {
   const supabase = createSupabaseAdminClient();
   const { data: itemData, error: itemError } = await supabase
     .from("source_items")
@@ -224,6 +421,63 @@ export async function createMaterialWorkbenchReference(input: {
   return reference;
 }
 
+async function markMaterialSelectedForRewrite(input: {
+  merchantId: string;
+  materialItemId: string;
+}) {
+  if (!isSupabaseAdminConfigured()) {
+    return;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  await supabase
+    .from("source_items")
+    .update({
+      is_selected_for_rewrite: true,
+    })
+    .eq("id", input.materialItemId)
+    .eq("merchant_id", input.merchantId);
+}
+
+async function appendTracePayloadReferenceConsumption(input: {
+  merchantId: string;
+  materialItemId: string;
+  referenceId: string;
+  draftId: string;
+}) {
+  const supabase = createSupabaseAdminClient();
+  const { data } = await supabase
+    .from("source_items")
+    .select("trace_payload")
+    .eq("id", input.materialItemId)
+    .eq("merchant_id", input.merchantId)
+    .maybeSingle();
+
+  const tracePayload = toRecord((data as { trace_payload?: unknown } | null)?.trace_payload);
+  const currentConsumptions = Array.isArray(tracePayload.materialReferenceConsumptions)
+    ? tracePayload.materialReferenceConsumptions
+    : [];
+
+  await supabase
+    .from("source_items")
+    .update({
+      is_selected_for_rewrite: true,
+      trace_payload: {
+        ...tracePayload,
+        materialReferenceConsumptions: [
+          ...currentConsumptions,
+          {
+            referenceId: input.referenceId,
+            draftId: input.draftId,
+            consumedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    })
+    .eq("id", input.materialItemId)
+    .eq("merchant_id", input.merchantId);
+}
+
 async function findExistingMaterialByUrl(input: {
   merchantId: string;
   originalUrl: string;
@@ -256,6 +510,21 @@ function buildWorkbenchReference(input: {
     targetWorkbench: input.targetWorkbench,
     status: "pending",
     createdAt: new Date().toISOString(),
+    draftId: null,
+    consumedAt: null,
+  };
+}
+
+function mapWorkbenchReference(row: MaterialWorkbenchReferenceRow): MaterialWorkbenchReferenceDto {
+  return {
+    id: row.id,
+    merchantId: row.merchant_id,
+    materialItemId: row.material_item_id,
+    targetWorkbench: row.target_workbench,
+    status: row.status,
+    draftId: row.draft_id,
+    createdAt: row.created_at,
+    consumedAt: row.consumed_at,
   };
 }
 
@@ -322,4 +591,11 @@ function toRecord(value: unknown): Record<string, unknown> {
   }
 
   return {};
+}
+
+function isMissingMaterialReferenceTable(error: { code?: string; message?: string } | null) {
+  return (
+    error?.code === "42P01" ||
+    Boolean(error?.message?.includes("material_workbench_references"))
+  );
 }

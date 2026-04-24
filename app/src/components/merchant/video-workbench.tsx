@@ -145,7 +145,7 @@ export function VideoWorkbench({
     }
 
     const nextGoal = overrides?.goal ?? goal;
-    const nextExtraRequirement = buildExtraRequirement(overrides?.extraRequirement ?? extraRequirement);
+    const nextExtraRequirement = overrides?.extraRequirement ?? extraRequirement;
 
     setGenerating(true);
     setError(null);
@@ -160,6 +160,9 @@ export function VideoWorkbench({
           sessionId,
           goal: nextGoal,
           extraRequirement: nextExtraRequirement,
+          materialId: referenceMaterial?.id ?? materialId ?? null,
+          materialReferenceId: materialReferenceId ?? null,
+          strategyTag,
         }),
       });
       const data = (await response.json()) as {
@@ -248,18 +251,6 @@ export function VideoWorkbench({
     } catch {
       // Ignore polling errors and keep the last visible state.
     }
-  }
-
-  function buildExtraRequirement(value: string) {
-    return [
-      strategyTag ? `内容策略：${strategyTag}` : null,
-      referenceMaterial ? `参考素材：${referenceMaterial.title}` : null,
-      referenceMaterial?.description ? `素材拆解：${referenceMaterial.description}` : null,
-      materialReferenceId ? `素材引用：${materialReferenceId}` : null,
-      value,
-    ]
-      .filter(Boolean)
-      .join("\n");
   }
 
   function submitChatMessage() {

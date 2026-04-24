@@ -15,11 +15,13 @@ export function ArticleWorkbench({
   materialId,
   materialReferenceId,
   initialMode,
+  strategyTag,
 }: {
   sessionId?: string | null;
   materialId?: string | null;
   materialReferenceId?: string | null;
   initialMode?: ArticleMode | null;
+  strategyTag?: string | null;
 }) {
   const [mode, setMode] = useState<ArticleMode>(
     materialId || initialMode === "rewrite" ? "rewrite" : "create",
@@ -98,17 +100,11 @@ export function ArticleWorkbench({
         body: JSON.stringify({
           sessionId,
           goal,
-          extraRequirement:
-            mode === "rewrite" && referenceMaterial
-              ? [
-                  `参考素材：${referenceMaterial.title}`,
-                  referenceMaterial.description ? `素材拆解：${referenceMaterial.description}` : null,
-                  materialReferenceId ? `素材引用：${materialReferenceId}` : null,
-                  extraRequirement,
-                ]
-                  .filter(Boolean)
-                  .join("\n")
-              : extraRequirement,
+          extraRequirement,
+          mode,
+          materialId: mode === "rewrite" ? referenceMaterial?.id ?? materialId ?? null : null,
+          materialReferenceId: mode === "rewrite" ? materialReferenceId ?? null : null,
+          strategyTag,
         }),
       });
       const data = (await response.json()) as {

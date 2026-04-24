@@ -184,6 +184,10 @@ export const generateConsultationContentSchema = z.object({
   sessionId: z.uuid(),
   goal: z.string().trim().max(300).nullish(),
   extraRequirement: z.string().trim().max(4000).nullish(),
+  mode: z.enum(["create", "rewrite"]).optional(),
+  materialId: z.uuid().nullish(),
+  materialReferenceId: z.uuid().nullish(),
+  strategyTag: z.string().trim().max(80).nullish(),
 });
 
 export const listContentRecordsQuerySchema = z.object({
