@@ -492,8 +492,7 @@ export function MerchantContentCenter() {
       {showFindModal ? (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
           <div className="flex w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0a0a0a] shadow-[0_24px_120px_rgba(0,0,0,0.55)]">
-            <ModalHeader title="找优质对标" onClose={() => setShowFindModal(false)} />
-            <div className="border-b border-white/10 bg-[#050505] px-8 pt-4">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 bg-[#050505] px-8 pt-4">
               <div className="flex">
                 {[
                   ["keyword", "搜关键词找"],
@@ -515,6 +514,14 @@ export function MerchantContentCenter() {
                   </button>
                 ))}
               </div>
+              <button
+                type="button"
+                onClick={() => setShowFindModal(false)}
+                className="mb-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/45 transition-colors hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-400"
+                aria-label="关闭找对标弹窗"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
             <div className="space-y-6 p-8">
