@@ -11,7 +11,8 @@
 3. 创建 staging 专用 CAM 子账号
 4. 创建并绑定最小权限自定义策略
 
-本轮在第 1、2、3 步已经完成后暂停，第 4 步还未完成。
+本轮目前已经完成第 1、2、3、4 步，接下来可以从 `Vercel staging` 环境变量配置继续。
+目前连 `Vercel staging` 环境变量配置和 redeploy 也已经做完，下一步可以从 `Supabase migration` 或 `轻量服务器部署` 继续。
 
 ## 2. 本轮已完成
 
@@ -45,13 +46,48 @@
 - 子账号 UIN：`100048364578`
 - 子账号 UID：`24988130`
 
+已真实创建并绑定自定义策略：
+
+- 策略名：`jj-content-staging-media-rw`
+- 关联目标：`staging-cos-video-worker`
+
+策略资源已按真实桶名收口为：
+
+```text
+qcs::cos:ap-singapore:uid/1341668543:jj-content-staging-1341668543
+qcs::cos:ap-singapore:uid/1341668543:jj-content-staging-1341668543/*
+```
+
+### 2.3 Vercel
+
+已在 `jingjing-content-platform-staging` 中新增：
+
+- `COS_SECRET_ID`
+- `COS_SECRET_KEY`
+- `COS_BUCKET`
+- `COS_REGION`
+- `COS_STS_DURATION_SECONDS`
+- `COS_READ_URL_TTL_SECONDS`
+- `MEDIA_UPLOAD_MAX_BYTES`
+
+配置范围：
+
+- `Production`
+- `Preview`
+
+环境变量保存后，已触发一次新的 production redeploy，新的 deployment：
+
+- 短 ID：`2uxaT2y7c`
+- 状态：`Ready`
+
 ## 3. 本轮未完成
 
 仍待完成：
 
-1. 创建自定义策略
-2. 把策略绑定到 `staging-cos-video-worker`
-3. 把真实 COS 信息同步到 Vercel / Worker 配置
+1. 跑 staging 的 Supabase migration
+2. 部署轻量服务器上的 `workers/video-worker`
+3. 把同一组 COS 变量同步到 Worker `.env`
+4. 跑 smoke test
 
 ## 4. 关键事实
 
@@ -77,15 +113,21 @@
 
 下一位继续前，必须先确认用户已经安全保存了这两个值。
 
+这是继续推进到 Vercel / Worker 的真实阻塞点：
+
+- 现在已经不再阻塞 Vercel，因为变量已经填完
+- 但 Worker `.env` 仍然要用到同一组密钥
+- 同时，这组密钥曾在聊天中明文出现，后续应视为已暴露凭证，建议在 Worker 联调完成后统一轮换
+
 ## 5. 下一步建议
 
 下一位接手时，建议严格按这个顺序继续：
 
-1. 先确认 `staging-cos-video-worker` 的 `SecretId / SecretKey` 已保存
-2. 到 `CAM -> 策略 -> 新建自定义策略`
-3. 以真实桶名 `jj-content-staging-1341668543` 创建最小权限 COS 策略
-4. 再把该策略绑定到 `staging-cos-video-worker`
-5. 完成后再继续 Vercel staging 环境变量配置
+1. 先跑 `app/supabase/migrations/202604230001_v01_staging_cos_video_schema.sql`
+2. 再把同一组 COS 变量写进轻量服务器上的 Worker `.env`
+3. 启动 `workers/video-worker` 对应的 compose
+4. 然后按 smoke checklist 联调
+5. 联调完成后，统一轮换 `staging-cos-video-worker` 的访问密钥
 
 建议使用的策略名：
 
@@ -115,11 +157,13 @@ qcs::cos:ap-singapore:uid/1341668543:jj-content-staging-1341668543/*
 - COS 桶创建成功
 - COS CORS 保存成功
 - CAM 子账号创建成功
+- CAM 自定义策略创建成功
+- CAM 策略绑定成功
+- Vercel staging 环境变量保存成功
+- Vercel 新 deployment 已 `Ready`
 
 未验证：
 
-- 自定义策略创建成功
-- 策略绑定成功
 - Vercel / Worker / Supabase 联调
 
 ## 8. 当前分支 / commit / push / merge
