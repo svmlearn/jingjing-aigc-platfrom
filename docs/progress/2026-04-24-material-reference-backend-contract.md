@@ -46,25 +46,44 @@
 
 ## Supabase 执行状态
 
-本机当前无法直接执行 `supabase db push`，原因：
+已在 staging Supabase Dashboard SQL Editor 中真实 apply。
 
-- 本机没有 `supabase` CLI 的登录 access token。
-- `app/supabase/config.toml` 不存在，项目未 link。
-- Vercel 环境变量只有 `NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY`，没有数据库连接串。
-- service role key 可以访问数据 API，但不能直接执行 `create table` 这类 DDL。
+- 执行时间：2026-04-24 23:07 CST
+- staging project ref：`jrveaabguddromjtibbs`
+- 执行文件：`app/supabase/migrations/202604240003_v01_material_workbench_references.sql`
+- 执行结果：`Success. No rows returned`
+- 备注：Dashboard 对 `drop policy if exists` 弹出 destructive-operation 安全确认，本次确认执行；该语句仅用于幂等重建同名 RLS policy，不删除业务数据。
 
-因此本轮已提交 migration 文件，但还没有真实 apply 到 staging Supabase。
+执行后验证 SQL：
 
-## 下一步执行 Supabase migration 的方式
+```sql
+select
+  exists (
+    select 1
+    from information_schema.tables
+    where table_schema = 'public'
+      and table_name = 'material_workbench_references'
+  ) as table_exists,
+  (
+    select count(*)::int
+    from pg_indexes
+    where schemaname = 'public'
+      and tablename = 'material_workbench_references'
+  ) as index_count,
+  (
+    select count(*)::int
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'material_workbench_references'
+      and policyname = 'material_workbench_refs_owner_read'
+  ) as owner_read_policy_count;
+```
 
-任选一种：
+验证结果：
 
-1. 在 Supabase Dashboard SQL Editor 中执行：
-   - `app/supabase/migrations/202604240003_v01_material_workbench_references.sql`
-2. 或补齐本地 Supabase CLI 登录与 link 后执行：
-   - `npx supabase login`
-   - `npx supabase link --project-ref <staging-project-ref>`
-   - `npx supabase db push`
+- `table_exists`: `true`
+- `index_count`: `4`
+- `owner_read_policy_count`: `1`
 
 ## 验证
 
