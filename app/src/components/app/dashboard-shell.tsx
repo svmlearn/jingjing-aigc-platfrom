@@ -3,93 +3,126 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  FilePenLine,
-  Files,
-  Import,
-  PanelLeft,
-  Store,
-  UserRoundPlus,
+  FileText,
+  FolderGit2,
+  Library,
+  MessageSquare,
+  Settings,
+  Video,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard/import", label: "导入", icon: Import },
-  { href: "/dashboard/content", label: "内容中心", icon: Files },
-  { href: "/dashboard/rewrite/source-xhs-sensitive-repair", label: "改写工作台", icon: FilePenLine },
-  { href: "/dashboard/drafts/draft-sensitive-repair", label: "草稿", icon: PanelLeft },
-  { href: "/dashboard/merchant-profile", label: "商户资料", icon: Store },
+  { href: "/dashboard", label: "咨询诊断", icon: MessageSquare },
+  { href: "/dashboard/article", label: "图文工作台", icon: FileText },
+  { href: "/dashboard/video", label: "视频工作台", icon: Video },
+  { href: "/dashboard/content", label: "内容中心", icon: Library },
+  { href: "/dashboard/history", label: "我的内容", icon: FolderGit2 },
+  { href: "/dashboard/settings", label: "商家设置", icon: Settings },
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-[#f7f8fa] text-[#17202a]">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-[#dde3ea] bg-white lg:flex lg:flex-col">
-        <div className="border-b border-[#dde3ea] p-5">
-          <Link href="/dashboard/import" className="block focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#2563eb]/30">
-            <p className="text-sm font-semibold text-[#17202a]">静境内容获客</p>
-            <p className="mt-1 text-xs text-[#5d6b7a]">V0.1-A 商家工作台</p>
-          </Link>
-        </div>
-        <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="工作台主导航">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-[#435364] transition-colors hover:bg-[#edf4ff] hover:text-[#1d4ed8] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#2563eb]/30",
-                  active && "bg-[#e8f1ff] text-[#1d4ed8]"
-                )}
-              >
-                <Icon className="size-4" aria-hidden="true" />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="grid gap-2 border-t border-[#dde3ea] p-4">
-          <Button asChild variant="outline" className="h-10 w-full justify-start rounded-md">
-            <Link href="/register">
-              <UserRoundPlus className="size-4" />
-              邀请注册演示
-            </Link>
-          </Button>
-        </div>
-      </aside>
-
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-10 border-b border-[#dde3ea] bg-white/90 px-4 py-3 backdrop-blur md:px-6 lg:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <Link href="/dashboard/import" className="font-semibold text-[#17202a]">
-              静境内容获客
-            </Link>
-            <Button asChild variant="outline" className="rounded-md">
-              <Link href="/register">注册演示</Link>
-            </Button>
+    <div className="min-h-screen bg-[#050505] text-white">
+      <div className="hidden min-h-screen lg:flex">
+        <aside className="w-64 shrink-0 border-r border-white/10 bg-[#0a0a0a]">
+          <div className="flex h-16 items-center gap-4 border-b border-white/10 px-6">
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-tr from-amber-600 to-amber-200 rotate-45">
+              <span className="-rotate-45 text-xs font-bold tracking-tight text-black">AI</span>
+            </div>
+            <div>
+              <p className="text-lg italic tracking-tight [font-family:var(--font-cormorant)]">
+                AI 咨询工作台
+              </p>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-white/35">
+                Merchant Demo
+              </p>
+            </div>
           </div>
-          <nav className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="移动端后台导航">
-            {navItems.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "min-h-10 shrink-0 rounded-md border border-[#dde3ea] px-3 py-2 text-sm text-[#435364]",
-                  (pathname === href || pathname.startsWith(`${href}/`)) &&
-                    "border-[#2563eb] bg-[#e8f1ff] text-[#1d4ed8]"
-                )}
-              >
-                {label}
-              </Link>
-            ))}
+          <nav className="flex flex-col gap-1 p-4">
+            {navItems.map((item) => {
+              const active =
+                pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "group flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors",
+                    active
+                      ? "bg-white/5 text-white"
+                      : "text-white/55 hover:bg-white/5 hover:text-white",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "h-2 w-2 rounded-full transition-colors",
+                      active ? "bg-amber-500" : "bg-transparent group-hover:bg-white/15",
+                    )}
+                  />
+                  <item.icon className="h-4 w-4 text-white/45" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="mt-auto border-t border-white/10 p-4">
+            <Link
+              href="/platform-admin"
+              className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs">
+                商
+              </div>
+              <div>
+                <p className="text-sm">演示商家</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">旗舰版</p>
+              </div>
+            </Link>
+          </div>
+        </aside>
+        <main className="flex-1 p-6 lg:p-10">
+          <div className="flex h-[calc(100vh-5rem)] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#0d0d0d] shadow-[0_24px_120px_rgba(0,0,0,0.45)]">
+            {children}
+          </div>
+        </main>
+      </div>
+
+      <div className="lg:hidden">
+        <header className="border-b border-white/10 bg-[#0a0a0a] px-4 py-4">
+          <p className="text-lg italic tracking-tight [font-family:var(--font-cormorant)]">
+            AI 咨询工作台
+          </p>
+          <nav className="mt-4 flex gap-2 overflow-x-auto pb-1">
+            {navItems.map((item) => {
+              const active =
+                pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "shrink-0 rounded-full border px-3 py-2 text-xs",
+                    active
+                      ? "border-amber-500/50 bg-amber-500/10 text-amber-500"
+                      : "border-white/10 bg-white/5 text-white/60",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
         </header>
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-          {children}
+        <main className="p-4">
+          <div className="min-h-[calc(100vh-8rem)] overflow-hidden rounded-[24px] border border-white/10 bg-[#0d0d0d]">
+            {children}
+          </div>
         </main>
       </div>
     </div>

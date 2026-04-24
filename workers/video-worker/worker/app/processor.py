@@ -48,8 +48,6 @@ class JobProcessor:
                     "local_path": str(local_path),
                 }
             )
-        if not downloaded_assets:
-            raise ValueError("job.input_payload.input_assets is empty")
         return downloaded_assets
 
     def _upload_outputs(

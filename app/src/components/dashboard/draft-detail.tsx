@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { CheckCircle2, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
+import type { ContentVariantDto } from "@/contracts/draft";
 import { DraftVideoPanels } from "@/components/dashboard/draft-video-panels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,35 +14,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { getDraftBundle, saveDraft } from "@/lib/ui/mock-api";
 import { platformLabel } from "@/lib/ui/format";
 
-export function DraftDetail({ draftId }: { draftId: string }) {
-  const bundle = getDraftBundle(draftId);
-  const initialVariantId = bundle.draft.selectedVariantId ?? bundle.variants[0]?.id;
-  const [selectedVariantId, setSelectedVariantId] = useState(initialVariantId ?? "");
-  const selectedVariant =
-    bundle.variants.find((variant) => variant.id === selectedVariantId) ?? bundle.variants[0];
-  const [title, setTitle] = useState(selectedVariant.title ?? "");
-  const [body, setBody] = useState(selectedVariant.bodyText ?? selectedVariant.scriptText ?? "");
-  const [hashtags, setHashtags] = useState(selectedVariant.hashtags.join(" "));
-  const [cta, setCta] = useState(selectedVariant.ctaText ?? "");
+type DraftBundle = ReturnType<typeof getDraftBundle>;
+
+function buildVariantEditorState(variant: ContentVariantDto) {
+  return {
+    title: variant.title ?? "",
+    body: variant.bodyText ?? variant.scriptText ?? "",
+    hashtags: variant.hashtags.join(" "),
+    cta: variant.ctaText ?? "",
+  };
+}
+
+function DraftVariantEditor({
+  bundle,
+  selectedVariant,
+}: {
+  bundle: DraftBundle;
+  selectedVariant: ContentVariantDto;
+}) {
   const [savedAt, setSavedAt] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSelectedVariantId(initialVariantId ?? bundle.variants[0]?.id ?? "");
-  }, [draftId, initialVariantId]);
-
-  useEffect(() => {
-    setTitle(selectedVariant.title ?? "");
-    setBody(selectedVariant.bodyText ?? selectedVariant.scriptText ?? "");
-    setHashtags(selectedVariant.hashtags.join(" "));
-    setCta(selectedVariant.ctaText ?? "");
-  }, [
-    selectedVariant.id,
-    selectedVariant.title,
-    selectedVariant.bodyText,
-    selectedVariant.scriptText,
-    selectedVariant.ctaText,
-    selectedVariant.hashtags,
-  ]);
+  const [editorState, setEditorState] = useState(() => buildVariantEditorState(selectedVariant));
 
   function handleSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,65 +41,116 @@ export function DraftDetail({ draftId }: { draftId: string }) {
   }
 
   return (
+    <form className="rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm" onSubmit={handleSave}>
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#dde3ea] pb-4">
+        <Badge className="rounded-md border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]">
+          {platformLabel[selectedVariant.platform]}
+        </Badge>
+        <Badge className="rounded-md border-[#cbd5e1] bg-[#f8fafc] text-[#475569]">
+          {bundle.draft.status}
+        </Badge>
+        <Badge className="rounded-md border-[#cbd5e1] bg-[#f8fafc] text-[#475569]">
+          {selectedVariant.variantType === "video_script" ? "视频脚本" : "图文笔记"}
+        </Badge>
+        <Badge className="rounded-md border-[#cbd5e1] bg-[#f8fafc] text-[#475569]">
+          v{selectedVariant.versionNo}
+        </Badge>
+        {savedAt ? (
+          <span className="flex items-center gap-1 text-sm text-[#166534]">
+            <CheckCircle2 className="size-4" aria-hidden="true" />
+            已保存于 {savedAt}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-5 grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="draft-title">标题</Label>
+          <Input
+            id="draft-title"
+            value={editorState.title}
+            onChange={(event) =>
+              setEditorState((current) => ({
+                ...current,
+                title: event.target.value,
+              }))
+            }
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="draft-body">
+            {selectedVariant.variantType === "video_script" ? "脚本内容" : "正文"}
+          </Label>
+          <Textarea
+            id="draft-body"
+            value={editorState.body}
+            onChange={(event) =>
+              setEditorState((current) => ({
+                ...current,
+                body: event.target.value,
+              }))
+            }
+            className="min-h-72"
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="draft-tags">话题</Label>
+          <Input
+            id="draft-tags"
+            value={editorState.hashtags}
+            onChange={(event) =>
+              setEditorState((current) => ({
+                ...current,
+                hashtags: event.target.value,
+              }))
+            }
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="draft-cta">行动引导</Label>
+          <Input
+            id="draft-cta"
+            value={editorState.cta}
+            onChange={(event) =>
+              setEditorState((current) => ({
+                ...current,
+                cta: event.target.value,
+              }))
+            }
+          />
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+        <Button type="submit" className="h-11 rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]">
+          <Save className="size-4" />
+          保存草稿
+        </Button>
+        <Button variant="outline" className="h-11 rounded-md" asChild>
+          <Link href={`/dashboard/rewrite/${bundle.sourceItem.id}`}>回到改写</Link>
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+export function DraftDetail({ draftId }: { draftId: string }) {
+  const bundle = getDraftBundle(draftId);
+  const initialVariantId = bundle.draft.selectedVariantId ?? bundle.variants[0]?.id;
+  const [selectedVariantId, setSelectedVariantId] = useState(initialVariantId ?? "");
+  const resolvedSelectedVariantId = bundle.variants.some((variant) => variant.id === selectedVariantId)
+    ? selectedVariantId
+    : initialVariantId ?? "";
+  const selectedVariant =
+    bundle.variants.find((variant) => variant.id === resolvedSelectedVariantId) ?? bundle.variants[0];
+
+  return (
     <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
-      <form className="rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm" onSubmit={handleSave}>
-        <div className="flex flex-wrap items-center gap-2 border-b border-[#dde3ea] pb-4">
-          <Badge className="rounded-md border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]">
-            {platformLabel[selectedVariant.platform]}
-          </Badge>
-          <Badge className="rounded-md border-[#cbd5e1] bg-[#f8fafc] text-[#475569]">
-            {bundle.draft.status}
-          </Badge>
-          <Badge className="rounded-md border-[#cbd5e1] bg-[#f8fafc] text-[#475569]">
-            {selectedVariant.variantType === "video_script" ? "视频脚本" : "图文笔记"}
-          </Badge>
-          <Badge className="rounded-md border-[#cbd5e1] bg-[#f8fafc] text-[#475569]">
-            v{selectedVariant.versionNo}
-          </Badge>
-          {savedAt ? (
-            <span className="flex items-center gap-1 text-sm text-[#166534]">
-              <CheckCircle2 className="size-4" aria-hidden="true" />
-              已保存于 {savedAt}
-            </span>
-          ) : null}
-        </div>
-
-        <div className="mt-5 grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="draft-title">标题</Label>
-            <Input id="draft-title" value={title} onChange={(event) => setTitle(event.target.value)} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="draft-body">
-              {selectedVariant.variantType === "video_script" ? "脚本内容" : "正文"}
-            </Label>
-            <Textarea
-              id="draft-body"
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              className="min-h-72"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="draft-tags">话题</Label>
-            <Input id="draft-tags" value={hashtags} onChange={(event) => setHashtags(event.target.value)} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="draft-cta">行动引导</Label>
-            <Input id="draft-cta" value={cta} onChange={(event) => setCta(event.target.value)} />
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <Button type="submit" className="h-11 rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]">
-            <Save className="size-4" />
-            保存草稿
-          </Button>
-          <Button variant="outline" className="h-11 rounded-md" asChild>
-            <Link href={`/dashboard/rewrite/${bundle.sourceItem.id}`}>回到改写</Link>
-          </Button>
-        </div>
-      </form>
+      <DraftVariantEditor
+        key={`${bundle.draft.id}:${selectedVariant.id}`}
+        bundle={bundle}
+        selectedVariant={selectedVariant}
+      />
 
       <div className="grid gap-6 xl:self-start">
         <aside className="rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm">
@@ -124,7 +167,7 @@ export function DraftDetail({ draftId }: { draftId: string }) {
         <DraftVideoPanels
           draftId={bundle.draft.id}
           variants={bundle.variants}
-          selectedVariantId={selectedVariant.id}
+          selectedVariantId={resolvedSelectedVariantId}
           onSelectVariant={setSelectedVariantId}
         />
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleAlert, Clapperboard, ImageIcon, Loader2, RefreshCw, RotateCcw, Upload, Video, XCircle } from "lucide-react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ContentVariantDto } from "@/contracts/draft";
 import { Badge } from "@/components/ui/badge";
@@ -85,10 +85,10 @@ function prependAssets(items: DraftMediaAsset[], nextItems: DraftMediaAsset[]) {
   });
 }
 
-function isRelatedJob(job: VideoEditJob, draftId: string, variants: ContentVariantDto[]) {
+function isRelatedJob(job: VideoEditJob, draftId: string, variantIds: string[]) {
   const sameDraft = job.draftId === draftId;
   const sameVariant = job.contentVariantId
-    ? variants.some((variant) => variant.id === job.contentVariantId)
+    ? variantIds.includes(job.contentVariantId)
     : false;
 
   return sameDraft || sameVariant;
@@ -173,16 +173,46 @@ export function DraftVideoPanels({
   selectedVariantId: string;
   onSelectVariant: (variantId: string) => void;
 }) {
+  const variantIdsKey = variants.map((variant) => variant.id).join("|");
+
+  return (
+    <DraftVideoPanelsContent
+      key={`${draftId}:${variantIdsKey}`}
+      draftId={draftId}
+      variants={variants}
+      variantIdsKey={variantIdsKey}
+      selectedVariantId={selectedVariantId}
+      onSelectVariant={onSelectVariant}
+    />
+  );
+}
+
+function DraftVideoPanelsContent({
+  draftId,
+  variants,
+  variantIdsKey,
+  selectedVariantId,
+  onSelectVariant,
+}: {
+  draftId: string;
+  variants: ContentVariantDto[];
+  variantIdsKey: string;
+  selectedVariantId: string;
+  onSelectVariant: (variantId: string) => void;
+}) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [assets, setAssets] = useState<DraftMediaAsset[]>([]);
+  const [assets, setAssets] = useState<DraftMediaAsset[]>(() => loadDraftMediaAssetsFallback(draftId));
   const [fileInputKey, setFileInputKey] = useState(0);
   const [instructionText, setInstructionText] = useState("");
-  const [jobs, setJobs] = useState<VideoEditJob[]>([]);
-  const [hydratedDraftId, setHydratedDraftId] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<VideoEditJob[]>(() =>
+    loadDraftVideoJobsFallback(draftId).filter((job) =>
+      isRelatedJob(job, draftId, variantIdsKey ? variantIdsKey.split("|") : []),
+    ),
+  );
   const [jobsError, setJobsError] = useState<string | null>(null);
   const [jobsHint, setJobsHint] = useState<string | null>(null);
   const [isRefreshingJobs, setIsRefreshingJobs] = useState(false);
@@ -192,20 +222,23 @@ export function DraftVideoPanels({
 
   const selectedVariant = variants.find((variant) => variant.id === selectedVariantId) ?? variants[0];
   const videoVariants = variants.filter((variant) => variant.variantType === "video_script");
-  const variantIdsKey = variants.map((variant) => variant.id).join("|");
   const hasActiveJobs = jobs.some((job) =>
     ["pending", "queued", "preparing", "running"].includes(job.status),
   );
 
-  const refreshJobs = useEffectEvent(async (silent = false) => {
+  const refreshJobs = useCallback(async (silent = false) => {
+    const variantIds = variantIdsKey ? variantIdsKey.split("|") : [];
+
     if (!silent) {
       setIsRefreshingJobs(true);
     }
     try {
       const fallbackJobs = loadDraftVideoJobsFallback(draftId).filter((job) =>
-        isRelatedJob(job, draftId, variants),
+        isRelatedJob(job, draftId, variantIds),
       );
-      const listedJobs = (await listVideoEditJobs()).filter((job) => isRelatedJob(job, draftId, variants));
+      const listedJobs = (await listVideoEditJobs()).filter((job) =>
+        isRelatedJob(job, draftId, variantIds),
+      );
       const jobsNeedingDetail = mergeJobCollections({
         listedJobs,
         fallbackJobs,
@@ -240,33 +273,25 @@ export function DraftVideoPanels({
         setIsRefreshingJobs(false);
       }
     }
-  });
+  }, [draftId, variantIdsKey]);
 
   useEffect(() => {
-    setAssets(loadDraftMediaAssetsFallback(draftId));
-    setJobs(
-      loadDraftVideoJobsFallback(draftId).filter((job) =>
-        isRelatedJob(job, draftId, variants),
-      ),
-    );
-    setHydratedDraftId(draftId);
-    setJobsHint(null);
-    void refreshJobs();
-  }, [draftId, refreshJobs, variantIdsKey]);
+    const timeoutId = window.setTimeout(() => {
+      void refreshJobs();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [refreshJobs]);
 
   useEffect(() => {
-    if (hydratedDraftId !== draftId) {
-      return;
-    }
     persistDraftMediaAssetsFallback(draftId, assets);
-  }, [assets, draftId, hydratedDraftId]);
+  }, [assets, draftId]);
 
   useEffect(() => {
-    if (hydratedDraftId !== draftId) {
-      return;
-    }
     persistDraftVideoJobsFallback(draftId, jobs);
-  }, [draftId, hydratedDraftId, jobs]);
+  }, [draftId, jobs]);
 
   useEffect(() => {
     if (!hasActiveJobs) {
@@ -281,14 +306,10 @@ export function DraftVideoPanels({
       window.clearInterval(intervalId);
     };
   }, [hasActiveJobs, refreshJobs]);
-
-  useEffect(() => {
-    if (selectedVariant.variantType !== "video_script") {
-      return;
-    }
-
-    setInstructionText((current) => current || defaultInstructionText(selectedVariant));
-  }, [selectedVariant.id, selectedVariant.variantType, selectedVariant.title]);
+  const instructionValue =
+    instructionText || (selectedVariant.variantType === "video_script"
+      ? defaultInstructionText(selectedVariant)
+      : "");
 
   async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -629,7 +650,7 @@ export function DraftVideoPanels({
               <Label htmlFor="video-instruction">补充执行说明</Label>
               <Textarea
                 id="video-instruction"
-                value={instructionText}
+                value={instructionValue}
                 onChange={(event) => setInstructionText(event.target.value)}
                 className="min-h-24"
                 placeholder="可选。比如补充镜头节奏、字幕风格、BGM 或时长要求。"

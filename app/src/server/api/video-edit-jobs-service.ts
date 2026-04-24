@@ -11,7 +11,6 @@ import {
   listVideoEditJobs,
   retryVideoEditJob,
 } from "@/lib/db/video-edit-job-repository";
-import { ApiError } from "@/server/api/errors";
 import { createCosSignedPreviewUrl } from "@/server/api/cos";
 
 export async function createVideoEditJobForUser(input: {
@@ -137,19 +136,12 @@ async function buildServerManagedInputPayload(draftId: string) {
       sort_order: asset.sortOrder,
     }));
 
-  if (inputAssets.length === 0) {
-    throw new ApiError(
-      409,
-      "VIDEO_EDIT_JOB_INPUT_ASSETS_REQUIRED",
-      "Please upload at least one image or video input asset to this draft first.",
-    );
-  }
-
   return {
     input_assets: inputAssets,
     assembled_from_owner_type: "content_draft",
     assembled_from_owner_id: draftId,
     assembled_at: new Date().toISOString(),
+    render_mode: inputAssets.length === 0 ? "script_only_fallback" : "asset_driven",
   };
 }
 

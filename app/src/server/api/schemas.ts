@@ -2,6 +2,16 @@ import "server-only";
 
 import { z } from "zod";
 
+const consultationAgentToolSchema = z.enum([
+  "read_merchant_profile",
+  "retrieve_knowledge_base",
+  "update_strategy_snapshot",
+  "update_content_calendar",
+  "generate_article_brief",
+  "generate_video_brief",
+  "read_history",
+]);
+
 export const merchantProfileInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   address: z.string().trim().max(300).nullish(),
@@ -81,6 +91,24 @@ const membershipPlanRuleSchema = z.object({
   description: z.string().trim().min(1).max(300),
 });
 
+const consultationAgentSchema = z.object({
+  systemPrompt: z.string().trim().min(1).max(5000),
+  enabledTools: z.array(consultationAgentToolSchema).min(1).max(20),
+  visibleExecutionMode: z.enum(["cards", "minimal"]),
+  maxRounds: z.number().int().min(1).max(12),
+  retrievalTopK: z.number().int().min(0).max(20),
+  model: z.string().trim().min(1).max(120),
+  temperature: z.number().min(0).max(2),
+});
+
+const knowledgeRuntimeSchema = z.object({
+  retrievalTopK: z.number().int().min(1).max(20),
+  chunkSize: z.number().int().min(200).max(4000),
+  chunkOverlap: z.number().int().min(0).max(1000),
+  embeddingModel: z.string().trim().min(1).max(120),
+  queryRewriteEnabled: z.boolean(),
+});
+
 export const platformSettingsUpdateSchema = z.object({
   llmRuntime: llmRuntimeSchema.optional(),
   importRuntime: importRuntimeSchema.optional(),
@@ -91,6 +119,8 @@ export const platformSettingsUpdateSchema = z.object({
       pro: membershipPlanRuleSchema,
     })
     .optional(),
+  consultationAgent: consultationAgentSchema.optional(),
+  knowledgeRuntime: knowledgeRuntimeSchema.optional(),
 });
 
 const mediaOwnerTypeSchema = z.enum(["source_item", "content_draft", "content_variant"]);
@@ -139,5 +169,23 @@ export const createVideoEditJobSchema = z.object({
 
 export const listVideoEditJobsQuerySchema = z.object({
   status: videoEditJobStatusSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+export const createConsultationSessionSchema = z.object({
+  title: z.string().trim().max(120).nullish(),
+});
+
+export const sendConsultationMessageSchema = z.object({
+  content: z.string().trim().min(1).max(8000),
+});
+
+export const generateConsultationContentSchema = z.object({
+  sessionId: z.uuid(),
+  goal: z.string().trim().max(300).nullish(),
+  extraRequirement: z.string().trim().max(4000).nullish(),
+});
+
+export const listContentRecordsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });

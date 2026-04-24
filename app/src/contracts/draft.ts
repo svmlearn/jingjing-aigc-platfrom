@@ -35,3 +35,9 @@ export type ContentVariantDto = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ContentDraftBundleDto = {
+  draft: ContentDraftDto;
+  variants: ContentVariantDto[];
+  selectedVariant?: ContentVariantDto | null;
+};

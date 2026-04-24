@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import subprocess
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -29,17 +30,31 @@ def ensure_parent(path: Path) -> None:
 
 def write_placeholder_video(path: Path, request: RunRequest) -> None:
     ensure_parent(path)
-    content = [
-        "OpenStoryline skeleton output",
-        f"job_id={request.job_id}",
-        f"merchant_id={request.merchant_id}",
-        f"draft_id={request.draft_id}",
-        f"content_variant_id={request.content_variant_id}",
-        f"inputs={len(request.input_assets)}",
-        "",
-        request.instruction_text.strip() or "(no instruction_text)",
-    ]
-    path.write_text("\n".join(content), encoding="utf-8")
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=#111111:s=1080x1920:d=4",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=channel_layout=stereo:sample_rate=44100",
+            "-shortest",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
 
 def write_placeholder_cover(path: Path) -> None:
@@ -106,5 +121,6 @@ def run_video_job(request: RunRequest) -> RunResponse:
             "engine": "openstoryline-skeleton",
             "http_port": settings.port,
             "mcp_port": settings.mcp_port,
+            "input_asset_count": len(request.input_assets),
         },
     )

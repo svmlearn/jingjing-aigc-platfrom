@@ -2,6 +2,10 @@ import "server-only";
 
 import type { MerchantProfileDto } from "@/contracts/merchant";
 import type {
+  ConsultationAgentSettingsDto,
+  KnowledgeRuntimeSettingsDto,
+} from "@/contracts/knowledge";
+import type {
   PlatformAdminInvitationCodeFilters,
   ImportRuntimeSettingsDto,
   LlmRuntimeSettingsDto,
@@ -50,7 +54,7 @@ type InvitationCodeAdminRow = {
 
 type PlatformSettingRow = {
   key: string;
-  category: "llm" | "import" | "membership";
+  category: "llm" | "import" | "membership" | "consultation" | "knowledge";
   value: unknown;
 };
 
@@ -62,6 +66,8 @@ type PlatformSettingsUpdateInput = {
   llmRuntime?: Omit<LlmRuntimeSettingsDto, "apiKeyMasked" | "apiKeySource">;
   importRuntime?: ImportRuntimeSettingsDto;
   membershipPlans?: MembershipPlanSettingsDto;
+  consultationAgent?: ConsultationAgentSettingsDto;
+  knowledgeRuntime?: KnowledgeRuntimeSettingsDto;
 };
 
 const defaultLlmRuntime: Omit<LlmRuntimeSettingsDto, "apiKeyMasked" | "apiKeySource"> = {
@@ -95,6 +101,33 @@ const defaultMembershipPlans: MembershipPlanSettingsDto = {
     dailyCredits: 300,
     description: "适合高频运营商户，预留更高改写额度。",
   },
+};
+
+const defaultConsultationAgent: ConsultationAgentSettingsDto = {
+  systemPrompt:
+    "你是静境商家平台里的 AI 商业顾问。目标是帮助本地生活商家快速沉淀定位、卖点、目标客群、关键场景、内容策略和一周内容日历，并把结论转成后续图文与视频创作输入。",
+  enabledTools: [
+    "read_merchant_profile",
+    "retrieve_knowledge_base",
+    "update_strategy_snapshot",
+    "update_content_calendar",
+    "generate_article_brief",
+    "generate_video_brief",
+    "read_history",
+  ],
+  visibleExecutionMode: "cards",
+  maxRounds: 6,
+  retrievalTopK: 5,
+  model: "gpt-4.1-mini",
+  temperature: 0.6,
+};
+
+const defaultKnowledgeRuntime: KnowledgeRuntimeSettingsDto = {
+  retrievalTopK: 5,
+  chunkSize: 900,
+  chunkOverlap: 120,
+  embeddingModel: "text-embedding-3-small",
+  queryRewriteEnabled: true,
 };
 
 const invitationCodeExpiringSoonWindowDays = 7;
@@ -347,7 +380,13 @@ export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
   const { data, error } = await supabase
     .from("platform_settings")
     .select("key, category, value")
-    .in("key", ["llm_runtime", "import_runtime", "membership_plans"]);
+    .in("key", [
+      "llm_runtime",
+      "import_runtime",
+      "membership_plans",
+      "consultation_agent",
+      "knowledge_runtime",
+    ]);
 
   if (error) {
     throw new ApiError(500, "PLATFORM_SETTINGS_FETCH_FAILED", error.message);
@@ -357,11 +396,17 @@ export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
   const llmRuntime = toLlmRuntimeSettings(rows.get("llm_runtime")?.value);
   const importRuntime = toImportRuntimeSettings(rows.get("import_runtime")?.value);
   const membershipPlans = toMembershipPlans(rows.get("membership_plans")?.value);
+  const consultationAgent = toConsultationAgentSettings(
+    rows.get("consultation_agent")?.value,
+  );
+  const knowledgeRuntime = toKnowledgeRuntimeSettings(rows.get("knowledge_runtime")?.value);
 
   return {
     llmRuntime,
     importRuntime,
     membershipPlans,
+    consultationAgent,
+    knowledgeRuntime,
   };
 }
 
@@ -389,6 +434,18 @@ export async function updatePlatformSettings(
           pro: { ...current.membershipPlans.pro, ...input.membershipPlans.pro },
         }
       : current.membershipPlans,
+    consultationAgent: input.consultationAgent
+      ? {
+          ...current.consultationAgent,
+          ...input.consultationAgent,
+          enabledTools:
+            input.consultationAgent.enabledTools ?? current.consultationAgent.enabledTools,
+        }
+      : current.consultationAgent,
+    knowledgeRuntime: {
+      ...current.knowledgeRuntime,
+      ...input.knowledgeRuntime,
+    },
   };
 
   const rows = [
@@ -418,6 +475,18 @@ export async function updatePlatformSettings(
       category: "membership",
       value: next.membershipPlans,
       description: "Membership plan defaults for merchant daily rewrite credits.",
+    },
+    {
+      key: "consultation_agent",
+      category: "consultation",
+      value: next.consultationAgent,
+      description: "Platform-level consultation agent settings.",
+    },
+    {
+      key: "knowledge_runtime",
+      category: "knowledge",
+      value: next.knowledgeRuntime,
+      description: "Platform-level knowledge retrieval runtime settings.",
     },
   ];
 
@@ -629,6 +698,41 @@ function toImportRuntimeSettings(value: unknown): ImportRuntimeSettingsDto {
   };
 }
 
+function toConsultationAgentSettings(value: unknown): ConsultationAgentSettingsDto {
+  const record = toRecord(value);
+
+  return {
+    systemPrompt: getString(record.systemPrompt, defaultConsultationAgent.systemPrompt),
+    enabledTools: toConsultationToolArray(record.enabledTools),
+    visibleExecutionMode:
+      getString(
+        record.visibleExecutionMode,
+        defaultConsultationAgent.visibleExecutionMode,
+      ) === "minimal"
+        ? "minimal"
+        : "cards",
+    maxRounds: getNumber(record.maxRounds, defaultConsultationAgent.maxRounds),
+    retrievalTopK: getNumber(record.retrievalTopK, defaultConsultationAgent.retrievalTopK),
+    model: getString(record.model, defaultConsultationAgent.model),
+    temperature: getNumber(record.temperature, defaultConsultationAgent.temperature),
+  };
+}
+
+function toKnowledgeRuntimeSettings(value: unknown): KnowledgeRuntimeSettingsDto {
+  const record = toRecord(value);
+
+  return {
+    retrievalTopK: getNumber(record.retrievalTopK, defaultKnowledgeRuntime.retrievalTopK),
+    chunkSize: getNumber(record.chunkSize, defaultKnowledgeRuntime.chunkSize),
+    chunkOverlap: getNumber(record.chunkOverlap, defaultKnowledgeRuntime.chunkOverlap),
+    embeddingModel: getString(record.embeddingModel, defaultKnowledgeRuntime.embeddingModel),
+    queryRewriteEnabled: getBoolean(
+      record.queryRewriteEnabled,
+      defaultKnowledgeRuntime.queryRewriteEnabled,
+    ),
+  };
+}
+
 function toMembershipPlans(value: unknown): MembershipPlanSettingsDto {
   const record = toRecord(value);
 
@@ -673,6 +777,25 @@ function getNullableString(value: unknown, fallback: string | null) {
 
 function getNumber(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function getBoolean(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function toConsultationToolArray(value: unknown): ConsultationAgentSettingsDto["enabledTools"] {
+  if (!Array.isArray(value)) {
+    return defaultConsultationAgent.enabledTools;
+  }
+
+  const allowed = new Set(defaultConsultationAgent.enabledTools);
+  const next = value.filter(
+    (item): item is ConsultationAgentSettingsDto["enabledTools"][number] =>
+      typeof item === "string" &&
+      allowed.has(item as ConsultationAgentSettingsDto["enabledTools"][number]),
+  );
+
+  return next.length > 0 ? next : defaultConsultationAgent.enabledTools;
 }
 
 function maskSecret(secret: string) {

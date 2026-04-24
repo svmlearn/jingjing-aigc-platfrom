@@ -1,4 +1,8 @@
 import type { InvitationCodeDto, MerchantPlan, MerchantProfileDto } from "./merchant";
+import type {
+  ConsultationAgentSettingsDto,
+  KnowledgeRuntimeSettingsDto,
+} from "./knowledge";
 
 export type PlatformAdminInvitationCodeDto = InvitationCodeDto;
 
@@ -68,6 +72,8 @@ export type PlatformSettingsDto = {
   llmRuntime: LlmRuntimeSettingsDto;
   importRuntime: ImportRuntimeSettingsDto;
   membershipPlans: MembershipPlanSettingsDto;
+  consultationAgent: ConsultationAgentSettingsDto;
+  knowledgeRuntime: KnowledgeRuntimeSettingsDto;
 };
 
 export type PlatformAdminMerchantPatch = {
