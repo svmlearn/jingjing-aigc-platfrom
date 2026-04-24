@@ -6,10 +6,26 @@ import { ArrowLeft, FileText, ImageIcon, PenLine, RefreshCw } from "lucide-react
 
 import type { ConsultationSessionDetailDto } from "@/contracts/consultation";
 import type { ContentDraftBundleDto } from "@/contracts/draft";
+import type { MaterialLibraryItemDto } from "@/contracts/material";
 
-export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
-  const [mode, setMode] = useState<"create" | "rewrite">("create");
+type ArticleMode = "create" | "rewrite";
+
+export function ArticleWorkbench({
+  sessionId,
+  materialId,
+  materialReferenceId,
+  initialMode,
+}: {
+  sessionId?: string | null;
+  materialId?: string | null;
+  materialReferenceId?: string | null;
+  initialMode?: ArticleMode | null;
+}) {
+  const [mode, setMode] = useState<ArticleMode>(
+    materialId || initialMode === "rewrite" ? "rewrite" : "create",
+  );
   const [session, setSession] = useState<ConsultationSessionDetailDto | null>(null);
+  const [referenceMaterial, setReferenceMaterial] = useState<MaterialLibraryItemDto | null>(null);
   const [goal, setGoal] = useState("");
   const [extraRequirement, setExtraRequirement] = useState("");
   const [draftBundle, setDraftBundle] = useState<ContentDraftBundleDto | null>(null);
@@ -44,6 +60,26 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
     }
   }
 
+  async function loadReferenceMaterial(nextMaterialId: string) {
+    try {
+      const response = await fetch("/api/materials", {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as {
+        materials?: MaterialLibraryItemDto[];
+        error?: { message?: string };
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error?.message ?? "参考素材加载失败");
+      }
+
+      setReferenceMaterial(data.materials?.find((item) => item.id === nextMaterialId) ?? null);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "参考素材加载失败");
+    }
+  }
+
   async function generateDraft() {
     if (!sessionId) {
       setError("请先从咨询页进入图文工作台。");
@@ -62,7 +98,17 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
         body: JSON.stringify({
           sessionId,
           goal,
-          extraRequirement,
+          extraRequirement:
+            mode === "rewrite" && referenceMaterial
+              ? [
+                  `参考素材：${referenceMaterial.title}`,
+                  referenceMaterial.description ? `素材拆解：${referenceMaterial.description}` : null,
+                  materialReferenceId ? `素材引用：${materialReferenceId}` : null,
+                  extraRequirement,
+                ]
+                  .filter(Boolean)
+                  .join("\n")
+              : extraRequirement,
         }),
       });
       const data = (await response.json()) as {
@@ -91,6 +137,15 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSession(sessionId);
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!materialId) {
+      return;
+    }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadReferenceMaterial(materialId);
+  }, [materialId]);
 
   const selectedVariant = useMemo(() => {
     if (!draftBundle) {
@@ -121,8 +176,8 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
         <div className="flex items-center gap-2">
           <div className="hidden rounded-xl bg-white/5 p-1 md:flex">
             {[
-              ["create", "创作"],
-              ["rewrite", "改写"],
+              ["create", "从 0 到 1创作"],
+              ["rewrite", "基于素材改写"],
             ].map(([value, label]) => (
               <button
                 key={value}
@@ -147,7 +202,7 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
             className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-amber-500 disabled:opacity-60"
           >
             {generating ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
-            {draftBundle ? "重新生成" : "生成草稿"}
+            {draftBundle ? "重新生成" : mode === "rewrite" ? "开始改写" : "开始创作"}
           </button>
           <Link
             href="/dashboard/history"
@@ -165,8 +220,8 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
       ) : null}
 
       <div className="flex min-h-0 flex-1">
-        <aside className="w-[380px] shrink-0 border-r border-white/10 bg-[#0a0a0a] p-6">
-          <div className="space-y-5">
+        <aside className="flex w-[380px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a0a]">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
             <section>
               <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">已带入策略</p>
               <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-white/75">
@@ -174,11 +229,12 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
               </div>
             </section>
 
-            <section>
+            {mode === "rewrite" ? (
+              <section>
               <div className="flex items-center justify-between">
                 <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">参考素材</p>
                 <Link href="/dashboard/content" className="text-[10px] uppercase tracking-[0.2em] text-amber-500">
-                  打开素材库
+                  {referenceMaterial ? "更换素材" : "打开素材库"}
                 </Link>
               </div>
               <div className="mt-3 flex gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
@@ -187,14 +243,16 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
                 </div>
                 <div className="min-w-0">
                   <p className="line-clamp-1 text-sm font-serif text-white/80">
-                    【参考】高转化门店种草结构
+                    {referenceMaterial?.title ?? "请先从素材库选择一条参考素材"}
                   </p>
                   <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/45">
-                    痛点切入、专业解释、真实场景、预约动作，作为图文生成的参考材料。
+                    {referenceMaterial?.description ??
+                      "改写模式会把素材拆解、原文结构和互动表现带入生成上下文。"}
                   </p>
                 </div>
               </div>
-            </section>
+              </section>
+            ) : null}
 
             <section>
               <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">内容目标</p>
@@ -248,6 +306,29 @@ export function ArticleWorkbench({ sessionId }: { sessionId?: string | null }) {
                 ))}
               </div>
             </section>
+          </div>
+          <div className="shrink-0 border-t border-white/10 bg-[#070707] p-5">
+            <button
+              type="button"
+              onClick={() => {
+                void generateDraft();
+              }}
+              disabled={generating || loadingSession}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600/80 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white shadow-[0_18px_60px_rgba(180,83,9,0.22)] transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {generating ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <PenLine className="h-4 w-4" />
+              )}
+              {generating
+                ? mode === "rewrite"
+                  ? "正在改写..."
+                  : "正在创作..."
+                : mode === "rewrite"
+                  ? "开始改写"
+                  : "开始创作"}
+            </button>
           </div>
         </aside>
 

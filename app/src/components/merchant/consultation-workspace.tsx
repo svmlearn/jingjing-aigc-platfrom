@@ -648,8 +648,8 @@ export function ConsultationWorkspace() {
                   key={item.id}
                   href={
                     item.contentType === "article"
-                      ? `/dashboard/article?sessionId=${session.id}`
-                      : `/dashboard/video?sessionId=${session.id}`
+                      ? `/dashboard/article?sessionId=${session.id}&strategy=${encodeURIComponent(item.strategyTag)}`
+                      : `/dashboard/video?sessionId=${session.id}&strategy=${encodeURIComponent(item.strategyTag)}`
                   }
                   className="block rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-amber-500/40 hover:bg-amber-500/5"
                 >

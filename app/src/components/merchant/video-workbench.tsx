@@ -1,15 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, Loader2, PlayCircle, RefreshCw, Video } from "lucide-react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  Film,
+  Loader2,
+  Maximize2,
+  Minimize2,
+  PanelRightClose,
+  PanelRightOpen,
+  PlayCircle,
+  RefreshCw,
+  Send,
+  Sparkles,
+  UploadCloud,
+  Video,
+  Wand2,
+} from "lucide-react";
 
 import type { ConsultationSessionDetailDto } from "@/contracts/consultation";
 import type { ContentDraftBundleDto } from "@/contracts/draft";
+import type { MaterialLibraryItemDto } from "@/contracts/material";
 import type { VideoEditJobDto } from "@/contracts/video";
 
-export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
+type ChatMessage = {
+  role: "agent" | "user";
+  content: string;
+};
+
+export function VideoWorkbench({
+  sessionId,
+  materialId,
+  materialReferenceId,
+  strategyTag,
+}: {
+  sessionId?: string | null;
+  materialId?: string | null;
+  materialReferenceId?: string | null;
+  strategyTag?: string | null;
+}) {
   const [session, setSession] = useState<ConsultationSessionDetailDto | null>(null);
+  const [referenceMaterial, setReferenceMaterial] = useState<MaterialLibraryItemDto | null>(null);
   const [goal, setGoal] = useState("");
   const [extraRequirement, setExtraRequirement] = useState("");
   const [draftBundle, setDraftBundle] = useState<ContentDraftBundleDto | null>(null);
@@ -18,6 +52,18 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
   const [generating, setGenerating] = useState(false);
   const [creatingJob, setCreatingJob] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [input, setInput] = useState("");
+  const [showCanvas, setShowCanvas] = useState(true);
+  const [canvasExpanded, setCanvasExpanded] = useState(false);
+  const [uploadedSegments, setUploadedSegments] = useState<Record<number, boolean>>({});
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      role: "agent",
+      content: `我已经准备好把咨询策略拆成镜头表、台词和素材要求。${
+        strategyTag ? `这次内容策略是「${strategyTag}」。` : ""
+      }你可以直接告诉我希望视频偏种草、转化，还是人设表达。`,
+    },
+  ]);
 
   async function loadSession(nextSessionId: string) {
     setLoadingSession(true);
@@ -36,8 +82,20 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
         throw new Error(data.error?.message ?? "咨询上下文加载失败");
       }
 
-      setSession(data.session);
-      setGoal(data.session.strategySnapshot.videoBrief?.hook ?? data.session.summaryText ?? "");
+      const loadedSession = data.session;
+      setSession(loadedSession);
+      setGoal(loadedSession.strategySnapshot.videoBrief?.hook ?? loadedSession.summaryText ?? "");
+      setMessages((current) => [
+        ...current,
+        {
+          role: "agent",
+          content: `已读取咨询策略：${
+            loadedSession.strategySnapshot.videoBrief?.workingTitle ??
+            loadedSession.strategySnapshot.currentSuggestion ??
+            "视频脚本任务"
+          }。右侧画布会根据后续对话实时沉淀脚本结构。`,
+        },
+      ]);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "咨询上下文加载失败");
     } finally {
@@ -45,11 +103,49 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
     }
   }
 
-  async function generateScript() {
+  async function loadReferenceMaterial(nextMaterialId: string) {
+    try {
+      const response = await fetch("/api/materials", {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as {
+        materials?: MaterialLibraryItemDto[];
+        error?: { message?: string };
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error?.message ?? "参考素材加载失败");
+      }
+
+      const material = data.materials?.find((item) => item.id === nextMaterialId) ?? null;
+      setReferenceMaterial(material);
+
+      if (material) {
+        setMessages((current) => [
+          ...current,
+          {
+            role: "agent",
+            content: `已带入参考素材「${material.title}」。我会优先借鉴它的开头钩子、镜头结构和转化动作。`,
+          },
+        ]);
+      }
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "参考素材加载失败");
+    }
+  }
+
+  async function generateScript(overrides?: {
+    goal?: string;
+    extraRequirement?: string;
+    fromChat?: boolean;
+  }) {
     if (!sessionId) {
       setError("请先从咨询页进入视频工作台。");
       return;
     }
+
+    const nextGoal = overrides?.goal ?? goal;
+    const nextExtraRequirement = buildExtraRequirement(overrides?.extraRequirement ?? extraRequirement);
 
     setGenerating(true);
     setError(null);
@@ -62,8 +158,8 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
         },
         body: JSON.stringify({
           sessionId,
-          goal,
-          extraRequirement,
+          goal: nextGoal,
+          extraRequirement: nextExtraRequirement,
         }),
       });
       const data = (await response.json()) as {
@@ -76,6 +172,16 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
       }
 
       setDraftBundle(data.draftBundle);
+      setShowCanvas(true);
+      setMessages((current) => [
+        ...current,
+        {
+          role: "agent",
+          content: overrides?.fromChat
+            ? "收到，我已经把你的补充意见更新到右侧脚本画布。你可以继续让我调整镜头节奏、台词风格或结尾转化动作。"
+            : "脚本草案已经生成。你可以继续在对话里微调，也可以上传分段素材后启动 AI 一键剪辑。",
+        },
+      ]);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "视频脚本生成失败");
     } finally {
@@ -113,6 +219,13 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
       }
 
       setJob(data.job);
+      setMessages((current) => [
+        ...current,
+        {
+          role: "agent",
+          content: "AI 剪辑任务已经创建。我会在右侧持续显示任务进度，完成后这里会出现可预览的成片结果。",
+        },
+      ]);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "视频任务创建失败");
     } finally {
@@ -137,6 +250,40 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
     }
   }
 
+  function buildExtraRequirement(value: string) {
+    return [
+      strategyTag ? `内容策略：${strategyTag}` : null,
+      referenceMaterial ? `参考素材：${referenceMaterial.title}` : null,
+      referenceMaterial?.description ? `素材拆解：${referenceMaterial.description}` : null,
+      materialReferenceId ? `素材引用：${materialReferenceId}` : null,
+      value,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  function submitChatMessage() {
+    const nextInput = input.trim();
+
+    if (!nextInput) {
+      return;
+    }
+
+    const nextExtraRequirement = [extraRequirement, nextInput].filter(Boolean).join("\n");
+    setMessages((current) => [...current, { role: "user", content: nextInput }]);
+    setExtraRequirement(nextExtraRequirement);
+    setInput("");
+    void generateScript({
+      extraRequirement: nextExtraRequirement,
+      fromChat: true,
+    });
+  }
+
+  function handleSend(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    submitChatMessage();
+  }
+
   useEffect(() => {
     if (!sessionId) {
       return;
@@ -145,6 +292,15 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSession(sessionId);
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!materialId) {
+      return;
+    }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadReferenceMaterial(materialId);
+  }, [materialId]);
 
   useEffect(() => {
     if (!job || !["pending", "queued", "preparing", "running"].includes(job.status)) {
@@ -165,25 +321,30 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
       .map((item) => item.trim())
       .filter(Boolean);
   }, [selectedVariant?.scriptText]);
+  const canvasSegments = scriptSections.length > 0 ? scriptSections : buildPlaceholderSegments(goal, strategyTag);
+  const jobIsRunning = job && ["pending", "queued", "preparing", "running"].includes(job.status);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-14 items-center justify-between border-b border-white/10 px-4">
+    <div className="relative flex h-full min-h-0 flex-col">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="rounded-lg p-2 text-white/45 hover:bg-white/5 hover:text-white">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
             <h1 className="text-xl tracking-tight [font-family:var(--font-cormorant)]">
-              视频工作台
+              视频脚本室
             </h1>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">脚本协同 + 视频任务</p>
+            <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">
+              AI 对话 + 脚本画布
+            </p>
           </div>
         </div>
+
         <div className="flex items-center gap-2">
           <span className="hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-400 md:inline-flex">
             <CheckCircle2 className="h-3.5 w-3.5" />
-            SYS_AUTH: SUCCESS
+            上下文已就绪
           </span>
           <button
             type="button"
@@ -191,10 +352,10 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
               void generateScript();
             }}
             disabled={generating || loadingSession}
-            className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-amber-500 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-amber-500 disabled:opacity-60"
           >
             {generating ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />}
-            {draftBundle ? "重新生成脚本" : "生成脚本"}
+            {draftBundle ? "重新生成脚本" : "生成视频脚本"}
           </button>
           <button
             type="button"
@@ -202,10 +363,14 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
               void createVideoJob();
             }}
             disabled={creatingJob || !selectedVariant}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-white disabled:opacity-60"
+            className="relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-white/70 transition-colors hover:bg-white/10 disabled:opacity-50"
           >
-            {creatingJob ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-            创建视频任务
+            {creatingJob || jobIsRunning ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
+            ) : (
+              <Wand2 className="h-3.5 w-3.5 text-amber-500" />
+            )}
+            {jobIsRunning ? "AI 剪辑中" : "AI 一键剪辑"}
           </button>
         </div>
       </div>
@@ -217,124 +382,287 @@ export function VideoWorkbench({ sessionId }: { sessionId?: string | null }) {
       ) : null}
 
       <div className="flex min-h-0 flex-1">
-        <aside className="w-[360px] shrink-0 border-r border-white/10 bg-[#0a0a0a] p-6">
-          <div className="space-y-5">
-            <section>
-              <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">AI 脚本协同</p>
-              <div className="mt-3 space-y-3">
-                <div className="flex gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-500">
-                    <PlayCircle className="h-4 w-4" />
-                  </div>
-                  <div className="rounded-2xl rounded-tl-none border border-white/10 bg-[#0d0d0d] p-3 text-sm leading-6 text-white/75">
-                    我会把咨询策略拆成镜头表、台词、素材要求，再交给视频任务执行。
-                  </div>
+        <section
+          className={
+            showCanvas && canvasExpanded
+              ? "hidden min-h-0 shrink-0 flex-col border-r border-white/10 bg-[#0a0a0a] lg:flex lg:w-[320px]"
+              : showCanvas
+                ? "flex min-h-0 w-[420px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a0a]"
+                : "mx-auto flex min-h-0 w-full max-w-3xl flex-col bg-[#0a0a0a]"
+          }
+        >
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
+            {messages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}`}
+                className={message.role === "user" ? "flex flex-row-reverse gap-3" : "flex gap-3"}
+              >
+                <div
+                  className={
+                    message.role === "agent"
+                      ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-500"
+                      : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs text-white/60"
+                  }
+                >
+                  {message.role === "agent" ? <PlayCircle className="h-4 w-4" /> : "商"}
                 </div>
-                {draftBundle ? (
-                  <div className="ml-11 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs leading-6 text-amber-100">
-                    脚本草案已生成，可以继续创建视频任务。
-                  </div>
-                ) : null}
+                <div
+                  className={
+                    message.role === "agent"
+                      ? "rounded-2xl rounded-tl-none border border-white/10 bg-[#0d0d0d] p-4 text-sm leading-7 text-white/75"
+                      : "rounded-2xl rounded-tr-none bg-amber-600/80 p-4 text-sm leading-7 text-white"
+                  }
+                >
+                  {message.content}
+                </div>
               </div>
-            </section>
-            <section>
-              <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">脚本目标</p>
-              <textarea
-                value={goal}
-                onChange={(event) => setGoal(event.target.value)}
-                rows={4}
-                className="mt-3 w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none"
-              />
-            </section>
-            <section>
-              <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">补充要求</p>
-              <textarea
-                value={extraRequirement}
-                onChange={(event) => setExtraRequirement(event.target.value)}
-                rows={5}
-                placeholder="例如：强调门店空间感，镜头节奏更快，结尾明确引导私信。"
-                className="mt-3 w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25"
-              />
-            </section>
-            <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">当前策略</p>
-              <p className="mt-3 text-sm leading-7 text-white/75">
-                {session?.strategySnapshot.currentSuggestion ?? "请先完成咨询后再进入视频工作台。"}
-              </p>
-            </section>
-            <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">任务状态</p>
-              <p className="mt-3 text-sm text-white/75">
-                {job ? `${job.status} · ${job.currentStage ?? "等待调度"}` : "脚本生成后可直接创建视频任务。"}
-              </p>
-              {job?.failureReason ? (
-                <p className="mt-3 text-sm leading-7 text-rose-200">{job.failureReason}</p>
-              ) : null}
-            </section>
+            ))}
+
+            {generating ? (
+              <div className="flex gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-500">
+                  <PlayCircle className="h-4 w-4" />
+                </div>
+                <div className="flex items-center gap-2 rounded-2xl rounded-tl-none border border-white/10 bg-[#0d0d0d] p-4 text-sm italic text-white/45">
+                  <RefreshCw className="h-4 w-4 animate-spin text-amber-500" />
+                  正在更新右侧脚本画布...
+                </div>
+              </div>
+            ) : null}
           </div>
-        </aside>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-8 lg:px-10">
-          {loadingSession ? (
-            <div className="flex h-full items-center justify-center text-sm text-white/40">
-              正在读取咨询上下文...
-            </div>
-          ) : selectedVariant ? (
-            <div className="mx-auto max-w-5xl space-y-6">
-              <section className="rounded-3xl border border-white/10 bg-[#111111] p-6">
-                <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">脚本标题</p>
-                <h2 className="mt-3 text-3xl text-white [font-family:var(--font-cormorant)]">
-                  {selectedVariant.title}
-                </h2>
-              </section>
+          <div className="shrink-0 border-t border-white/10 bg-[#080808] p-5">
+            <form onSubmit={handleSend} className="relative">
+              <textarea
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    submitChatMessage();
+                  }
+                }}
+                placeholder="告诉 AI：镜头节奏、台词风格、素材限制或转化目标..."
+                className="max-h-32 min-h-20 w-full resize-none rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 pr-14 text-sm text-white outline-none placeholder:text-white/25 focus:border-amber-500/50"
+              />
+              <button
+                type="submit"
+                disabled={generating || !input.trim()}
+                className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-600/80 text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
+                aria-label="发送脚本意见"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+        </section>
 
-              <section className="rounded-3xl border border-white/10 bg-[#111111]">
-                <div className="border-b border-white/10 px-6 py-4">
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">镜头画布</p>
-                </div>
-                <div className="space-y-4 p-6">
-                  {scriptSections.map((section) => (
-                    <div key={section} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-white/80 whitespace-pre-wrap">
-                      {section}
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="rounded-3xl border border-white/10 bg-[#111111] p-6">
-                <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">任务结果</p>
-                {!job ? (
-                  <p className="mt-3 text-sm leading-7 text-white/50">
-                    当前脚本已经真实保存到 `content_drafts / content_variants`。下一步创建视频任务后，这里会显示状态推进、失败原因与成片结果。
-                  </p>
-                ) : (
-                  <div className="mt-4 space-y-4">
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/75">
-                      当前状态: {job.status} · {job.currentStage ?? "等待中"} · {job.progressPct}%
-                    </div>
-                    {job.resultAssets?.[0]?.signedPreviewUrl || job.resultAssets?.[0]?.originUrl ? (
-                      <video
-                        controls
-                        className="aspect-video w-full rounded-2xl border border-white/10 bg-black"
-                        src={job.resultAssets?.[0]?.signedPreviewUrl ?? job.resultAssets?.[0]?.originUrl ?? undefined}
-                      />
+        {showCanvas ? (
+          <section className="flex min-h-0 flex-1 justify-center overflow-hidden p-5 lg:p-7">
+            <div className="flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0d0d0d] shadow-[0_24px_100px_rgba(0,0,0,0.35)]">
+              <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#050505] px-6 py-4">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h2 className="max-w-xl truncate text-base text-[#e0e0e0] [font-family:var(--font-cormorant)]">
+                      {selectedVariant?.title ??
+                        session?.strategySnapshot.videoBrief?.workingTitle ??
+                        referenceMaterial?.title ??
+                        "等待生成视频脚本"}
+                    </h2>
+                    {strategyTag ? (
+                      <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-500">
+                        {strategyTag}
+                      </span>
                     ) : null}
                   </div>
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-white/35">
+                    镜头画布 · 台词 · 素材要求
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCanvasExpanded((current) => !current)}
+                    className="rounded-xl border border-white/10 bg-white/5 p-2 text-white/45 transition-colors hover:text-amber-500"
+                    aria-label={canvasExpanded ? "缩小画布" : "放大画布"}
+                  >
+                    {canvasExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCanvas(false)}
+                    className="rounded-xl border border-white/10 bg-white/5 p-2 text-white/45 transition-colors hover:text-white"
+                    aria-label="收起画布"
+                  >
+                    <PanelRightClose className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto p-6">
+                {selectedVariant ? (
+                  <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#080808]">
+                    <div className="grid grid-cols-12 border-b border-white/10 bg-[#050505] text-[10px] uppercase tracking-[0.2em] text-white/35">
+                      <div className="col-span-2 border-r border-white/10 p-4 text-center">时长</div>
+                      <div className="col-span-4 border-r border-white/10 p-4">画面 / 镜头要求</div>
+                      <div className="col-span-4 border-r border-white/10 p-4">台词 / 旁白</div>
+                      <div className="col-span-2 p-4 text-center">素材</div>
+                    </div>
+                    {canvasSegments.map((segment, index) => (
+                      <ScriptSegmentRow
+                        key={`${segment}-${index}`}
+                        index={index}
+                        text={segment}
+                        uploaded={Boolean(uploadedSegments[index])}
+                        onUpload={() =>
+                          setUploadedSegments((current) => ({
+                            ...current,
+                            [index]: true,
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex h-full min-h-[420px] items-center justify-center">
+                    <div className="max-w-lg text-center">
+                      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5 text-amber-500">
+                        <Film className="h-8 w-8" />
+                      </div>
+                      <p className="text-3xl text-white [font-family:var(--font-cormorant)]">
+                        视频脚本还没生成
+                      </p>
+                      <p className="mt-4 text-sm leading-7 text-white/45">
+                        左侧继续和 AI 对话，或点击顶部「生成视频脚本」。脚本生成后，这里会变成可放大/收起的镜头画布。
+                      </p>
+                    </div>
+                  </div>
                 )}
-              </section>
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <div className="max-w-lg text-center">
-                <p className="text-2xl text-white [font-family:var(--font-cormorant)]">视频脚本还没生成</p>
-                <p className="mt-3 text-sm leading-7 text-white/45">
-                  这里会基于咨询策略快照生成真实 `video_script` 变体，并继续推进视频任务。
-                </p>
+
+                <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="rounded-xl bg-amber-500/15 p-2 text-amber-500">
+                      {jobIsRunning ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#e0e0e0] [font-family:var(--font-cormorant)]">
+                        {job
+                          ? `任务状态：${job.status} · ${job.currentStage ?? "等待调度"} · ${job.progressPct}%`
+                          : "AI 一键剪辑提示"}
+                      </p>
+                      <p className="mt-2 text-xs leading-6 text-white/50">
+                        {job
+                          ? "任务创建后会在这里持续更新状态；完成后展示成片预览。"
+                          : "脚本确认后点击顶部「AI 一键剪辑」，系统会按镜头顺序和素材要求创建视频任务。"}
+                      </p>
+                      {jobIsRunning ? (
+                        <div className="mt-4 inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-amber-500">
+                          <Clock className="mr-2 h-3.5 w-3.5" />
+                          预计 5-10 分钟
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  {job?.resultAssets?.[0]?.signedPreviewUrl || job?.resultAssets?.[0]?.originUrl ? (
+                    <video
+                      controls
+                      className="mt-5 aspect-video w-full rounded-2xl border border-white/10 bg-black"
+                      src={job.resultAssets?.[0]?.signedPreviewUrl ?? job.resultAssets?.[0]?.originUrl ?? undefined}
+                    />
+                  ) : null}
+                </div>
               </div>
             </div>
-          )}
-        </div>
+          </section>
+        ) : (
+          <section className="flex min-h-0 flex-1 items-center justify-center p-8">
+            <button
+              type="button"
+              onClick={() => setShowCanvas(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/65 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <PanelRightOpen className="h-4 w-4" />
+              展开脚本画布
+            </button>
+          </section>
+        )}
       </div>
     </div>
   );
+}
+
+function ScriptSegmentRow({
+  index,
+  text,
+  uploaded,
+  onUpload,
+}: {
+  index: number;
+  text: string;
+  uploaded: boolean;
+  onUpload: () => void;
+}) {
+  const labels = ["Hook", "Body", "CTA", "Backup"];
+  const timeRanges = ["00:00 - 00:05", "00:05 - 00:25", "00:25 - 00:45", "00:45 - 00:60"];
+
+  return (
+    <div className="grid grid-cols-12 border-b border-white/5 last:border-b-0 hover:bg-white/[0.02]">
+      <div className="col-span-2 flex flex-col items-center justify-center border-r border-white/5 p-5 text-center font-mono text-xs text-white/55">
+        {timeRanges[index] ?? `${index + 1}`.padStart(2, "0")}
+        <span className="mt-3 rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[9px] uppercase tracking-[0.18em] text-amber-500">
+          {labels[index] ?? "Shot"}
+        </span>
+      </div>
+      <div className="col-span-4 border-r border-white/5 p-5 text-sm leading-7 text-white/75 [font-family:var(--font-cormorant)]">
+        <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-amber-500/80">
+          镜头要求
+        </p>
+        {extractShotText(text)}
+      </div>
+      <div className="col-span-4 border-r border-white/5 p-5 text-sm leading-7 text-white/80 whitespace-pre-wrap [font-family:var(--font-cormorant)]">
+        <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-white/35">
+          台词 / 音效
+        </p>
+        {text}
+      </div>
+      <div className="col-span-2 flex items-center justify-center p-5">
+        {uploaded ? (
+          <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+            <Film className="h-5 w-5" />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onUpload}
+            className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 bg-[#050505] text-white/35 transition-colors hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-500"
+          >
+            <UploadCloud className="h-5 w-5" />
+            <span className="text-[10px] uppercase tracking-[0.16em]">传镜头</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function extractShotText(text: string) {
+  const firstSentence = text.split(/[。！？\n]/).find(Boolean)?.trim();
+  return firstSentence
+    ? `围绕「${firstSentence}」设计画面节奏，优先使用真实门店、人物动作和细节特写。`
+    : "根据策略生成画面、台词和素材要求。";
+}
+
+function buildPlaceholderSegments(goal: string, strategyTag?: string | null) {
+  const target = goal || "门店场景视频";
+  const strategy = strategyTag ?? "种草";
+
+  return [
+    `开头 3 秒用「${target}」相关痛点或场景钩子抓注意力，策略侧重「${strategy}」。`,
+    "中段展示门店真实空间、服务流程、专业资质或客户常见问题，建立信任。",
+    "结尾给出明确行动：私信咨询、预约体验、领取评估或到店了解。",
+  ];
 }
