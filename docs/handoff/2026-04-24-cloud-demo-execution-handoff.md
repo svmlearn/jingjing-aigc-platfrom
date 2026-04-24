@@ -274,8 +274,8 @@
 
 ## 9. Push / Merge / Commit 状态
 
-- 代码已整理到可提交的阶段性 checkpoint 状态
-- 适合按当前集成决策决定是否进入 `main`
+- `codex/cloud-demo-execution` 已冻结阶段性 checkpoint commit：`1c6ae66`
+- 该阶段性成果已同步进入 `main`：`82e6ada`
 - Completion Gate 仍未完成
 
 ## 10. 当前建议状态
@@ -286,7 +286,7 @@
 - `已具备阶段性 checkpoint 条件`
 - `待知识库闭环`
 - `待真实视频验收`
-- `是否继续在 main 推进取决于当前收口决策`
+- `默认直接在 main 推进`
 
 ## 11. 给下一个零记忆 Agent 的续跑提示
 
@@ -303,12 +303,16 @@
 
 ### 11.2 先确认工作区，不要跑错地方
 
-本轮改动不在主目录继续做，而是在独立 worktree：
+当前默认续跑工作区已经回到主目录：
 
-- worktree: `../小红书抖音矩阵获客平台-cloud-demo`
-- branch: `codex/cloud-demo-execution`
+- workspace: `/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台`
+- branch: `main`
 
-如果你回到了主目录，请先切回这个 worktree 再继续。
+补充说明：
+
+- 历史并行开发 worktree 仍存在：`/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台-cloud-demo`
+- 它对应的分支是：`codex/cloud-demo-execution`
+- 但当前这轮 cloud demo 第一阶段成果已经 cherry-pick 到 `main`，后续默认不要再切回 `-cloud-demo`，除非明确要对照旧 worktree 快照。
 
 ### 11.3 当前“已经成立”的事实
 

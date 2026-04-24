@@ -190,5 +190,7 @@
 - `代码已改`
 - `验证已通过 lint / tsc / build / Python compile`
 - `已整理到可提交的阶段性 checkpoint 状态`
+- `feature worktree commit: 1c6ae66`
+- `main commit: 82e6ada`
 - `待继续接知识库与真实视频验收`
-- `是否合入 main 取决于当前收口决策`
+- `后续默认在 main 继续推进`
