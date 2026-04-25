@@ -1,5 +1,21 @@
 # 2026-04-23 staging COS / CAM 控制台操作 Handoff
 
+## 2026-04-25 状态校正
+
+本 handoff 是 `2026-04-23` 当时的控制台操作交接。下面“未完成 / 下一步建议 / 未验证”的内容已经被后续执行记录覆盖。
+
+截至 `2026-04-25` 复核，当前最新状态为：
+
+- Supabase 视频链路 migration `202604230001_v01_staging_cos_video_schema.sql` 已执行。
+- 轻量服务器 worker 已部署并启动。
+- worker 已完成真实 smoke，成功 job 为 `d163e088-b0ae-4850-a476-4ce591a7124f`。
+
+最新事实来源：
+
+- `/Users/wy/.codex/worktrees/staging-video-worker-bootstrap/docs/progress/2026-04-24-staging-video-worker-server-bootstrap-and-smoke.md`
+- `docs/progress/2026-04-24-staging-full-deploy-current-target.md`
+- `docs/progress/2026-04-25-supabase-migration-current-state.md`
+
 ## 1. 当前目标
 
 在真实腾讯云控制台里完成 staging 的 `COS + CAM` 基础设施配置，为后续 `Vercel + Supabase + Video Worker` 联调做准备。
@@ -80,9 +96,9 @@ qcs::cos:ap-singapore:uid/1341668543:jj-content-staging-1341668543/*
 - 短 ID：`2uxaT2y7c`
 - 状态：`Ready`
 
-## 3. 本轮未完成
+## 3. 当时本轮未完成
 
-仍待完成：
+`2026-04-23` 当时仍待完成；截至 `2026-04-25` 已被后续执行补齐，见本文顶部“2026-04-25 状态校正”。
 
 1. 跑 staging 的 Supabase migration
 2. 部署轻量服务器上的 `workers/video-worker`
@@ -119,9 +135,9 @@ qcs::cos:ap-singapore:uid/1341668543:jj-content-staging-1341668543/*
 - 但 Worker `.env` 仍然要用到同一组密钥
 - 同时，这组密钥曾在聊天中明文出现，后续应视为已暴露凭证，建议在 Worker 联调完成后统一轮换
 
-## 5. 下一步建议
+## 5. 当时下一步建议
 
-下一位接手时，建议严格按这个顺序继续：
+`2026-04-23` 当时下一位接手时，建议严格按这个顺序继续：
 
 1. 先跑 `app/supabase/migrations/202604230001_v01_staging_cos_video_schema.sql`
 2. 再把同一组 COS 变量写进轻量服务器上的 Worker `.env`
@@ -162,7 +178,7 @@ qcs::cos:ap-singapore:uid/1341668543:jj-content-staging-1341668543/*
 - Vercel staging 环境变量保存成功
 - Vercel 新 deployment 已 `Ready`
 
-未验证：
+当时未验证：
 
 - Vercel / Worker / Supabase 联调
 

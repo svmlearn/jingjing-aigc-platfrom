@@ -1,5 +1,15 @@
 # 2026-04-22 Platform Admin Foundation Zero-Memory Handoff
 
+## 2026-04-25 状态校正
+
+本 handoff 是 `2026-04-22` 当时的零上下文交接。下面“未 commit / 未 push / migration 还没确认应用”等描述是当时状态，不代表当前 staging 状态。
+
+截至 `2026-04-25` 复核，当前最新状态为：
+
+- `202604220001_v01_platform_admin_foundation.sql` 对应的数据库结构已在 staging 生效。
+- 已确认存在：`platform_settings`、`platform_admin_events`、`merchant_profiles.plan`、`invitation_codes.note`、`idx_platform_admin_events_created_at`。
+- 最新 Supabase migration 总账见：`docs/progress/2026-04-25-supabase-migration-current-state.md`
+
 ## 1. 当前目标
 
 把“商家工作台 / 平台管理台”从纯页面规划推进到：
@@ -140,13 +150,15 @@
 - 没有成功保存出对应可继续编辑的 `v2.pen`
 - 原因是 Pencil CLI 在生成过程中撞到 `rate_limit`
 
-## 5. 还没完成的关键步骤
+## 5. 当时还没完成的关键步骤
 
-### 5.1 必做：应用 migration
+以下是 `2026-04-22` 当时还没完成的关键步骤；其中 migration 应用已在后续执行中补齐，见本文顶部“2026-04-25 状态校正”。
 
-当前 migration 只是落在仓库里，还没有确认应用到 Supabase。
+### 5.1 当时必做：应用 migration
 
-下一位需要：
+当时 migration 只是落在仓库里，还没有确认应用到 Supabase。
+
+当时下一位需要：
 
 1. 应用 `202604220001_v01_platform_admin_foundation.sql`
 2. 确认表和字段已创建成功
@@ -202,9 +214,9 @@
 - 总览指标真实计算
 - 系统告警事实源
 
-## 7. 推荐下一步顺序
+## 7. 当时推荐下一步顺序
 
-建议严格按这个顺序继续：
+`2026-04-22` 当时建议严格按这个顺序继续；截至 `2026-04-25`，第 1 项 migration 已补齐。
 
 1. 应用 migration 到 staging Supabase
 2. 直接调用新 platform-admin API 做最小联调
@@ -232,4 +244,3 @@
 - 未 commit
 - 未 push
 - 未 merge
-

@@ -1,5 +1,21 @@
 # 2026-04-24 staging COS / Video Worker Gap Check Handoff
 
+## 2026-04-25 状态校正
+
+本 handoff 是 `2026-04-24` 当时的缺口交接，下面“当前未完成 / 下一步建议”已经被后续执行记录覆盖。
+
+截至 `2026-04-25` 复核，当前最新状态为：
+
+- staging Supabase 已执行 `202604230001_v01_staging_cos_video_schema.sql`。
+- 轻量服务器 worker 已部署到 `openstoryline-test-sg`。
+- worker 已完成真实 smoke，成功 job 为 `d163e088-b0ae-4850-a476-4ce591a7124f`。
+
+最新事实来源：
+
+- `/Users/wy/.codex/worktrees/staging-video-worker-bootstrap/docs/progress/2026-04-24-staging-video-worker-server-bootstrap-and-smoke.md`
+- `docs/progress/2026-04-24-staging-full-deploy-current-target.md`
+- `docs/progress/2026-04-25-supabase-migration-current-state.md`
+
 ## 当前目标
 
 基于 `2026-04-24-staging-cos-video-worker-zero-memory-handoff.md` 继续复核：
@@ -59,9 +75,9 @@
 
 - `docs/progress/2026-04-24-staging-cos-video-worker-gap-check.md`
 
-## 当前未完成
+## 当时未完成
 
-真正还没完成的是：
+以下是 `2026-04-24` 当时真正还没完成的内容；截至 `2026-04-25` 已被后续执行补齐，见本文顶部“2026-04-25 状态校正”。
 
 1. 在 staging Supabase 执行视频链路 migration
 2. SSH 到轻量服务器并把 `workers/video-worker/` 部署上去
@@ -69,9 +85,9 @@
 4. 启动 compose
 5. 跑 smoke checklist
 
-## 下一步建议
+## 当时下一步建议
 
-建议严格按这个顺序继续：
+`2026-04-24` 当时建议严格按这个顺序继续：
 
 1. 打开 Supabase SQL Editor，执行 `202604230001_v01_staging_cos_video_schema.sql`
 2. 拿到轻量服务器公网 IP / SSH 入口

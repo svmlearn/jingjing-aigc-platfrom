@@ -1,5 +1,22 @@
 # 2026-04-24 staging COS / Video Worker 缺口复核
 
+## 2026-04-25 状态校正
+
+本文件记录的是 `2026-04-24` 当时的缺口复核，下面“migration 未执行 / worker 未部署 / smoke 未跑”的判断已经被后续执行记录覆盖。
+
+截至 `2026-04-25` 复核，当前最新状态为：
+
+- `app/supabase/migrations/202604230001_v01_staging_cos_video_schema.sql` 已在 staging Supabase 执行。
+- `public.video_edit_jobs` 已存在，`idx_video_edit_jobs_status_created_at` 已存在。
+- 轻量服务器 worker 已部署到 `openstoryline-test-sg`，并完成一次真实 COS 输入到输出的 smoke。
+- 成功 smoke job：`d163e088-b0ae-4850-a476-4ce591a7124f`。
+
+最新事实来源：
+
+- `/Users/wy/.codex/worktrees/staging-video-worker-bootstrap/docs/progress/2026-04-24-staging-video-worker-server-bootstrap-and-smoke.md`
+- `docs/progress/2026-04-24-staging-full-deploy-current-target.md`
+- `docs/progress/2026-04-25-supabase-migration-current-state.md`
+
 ## 背景
 
 本记录基于以下上下文继续复核当前 staging 视频链路的真实缺口：
@@ -33,9 +50,9 @@
 - 当前也不是“worker 目录还没准备好”
 - 如果现在继续推进，重点应放在外部环境落地，而不是再补 worker 骨架
 
-### 2. Supabase migration 仍然没有被执行
+### 2. Supabase migration 当时仍然没有被执行
 
-本地复核结果：
+以下是 `2026-04-24` 当时的本地复核结果；最新状态见本文顶部“2026-04-25 状态校正”。
 
 - migration 文件已存在：
   - `app/supabase/migrations/202604230001_v01_staging_cos_video_schema.sql`
@@ -73,9 +90,9 @@
 
 - `jj-content-staging-1341668543`
 
-## 当前建议顺序
+## 当时建议顺序
 
-按阻塞关系看，最稳的下一步顺序仍然是：
+按 `2026-04-24` 当时的阻塞关系看，最稳的下一步顺序是：
 
 1. 先在 Supabase SQL Editor 执行 `202604230001_v01_staging_cos_video_schema.sql`
 2. 再 SSH 到轻量服务器，创建 `/srv/jingjing-video-worker`
@@ -84,9 +101,9 @@
 5. 执行 `docker compose up -d --build`
 6. 按 smoke checklist 联调
 
-## 当前结论
+## 当时结论
 
-当前缺的不是“还要不要配置轻量服务器”这个决策，而是：
+`2026-04-24` 当时缺的不是“还要不要配置轻量服务器”这个决策，而是：
 
 1. 跑掉 staging migration
 2. 拿到服务器 SSH 入口并把 worker 真正部署上去

@@ -1,5 +1,21 @@
 # 2026-04-23 Staging COS / CAM 控制台实际操作记录
 
+## 2026-04-25 状态校正
+
+本文件记录的是 `2026-04-23` 当天 COS / CAM / Vercel 环境变量的真实控制台操作。当时“尚未完成”的 Supabase migration、worker 部署和 smoke test，已经被后续执行补齐。
+
+截至 `2026-04-25` 复核，当前最新状态为：
+
+- Supabase 视频链路 migration `202604230001_v01_staging_cos_video_schema.sql` 已执行。
+- 腾讯云轻量服务器 worker 已部署并启动。
+- 视频链路已完成一次成功 smoke，成功 job 为 `d163e088-b0ae-4850-a476-4ce591a7124f`。
+
+最新事实来源：
+
+- `/Users/wy/.codex/worktrees/staging-video-worker-bootstrap/docs/progress/2026-04-24-staging-video-worker-server-bootstrap-and-smoke.md`
+- `docs/progress/2026-04-24-staging-full-deploy-current-target.md`
+- `docs/progress/2026-04-25-supabase-migration-current-state.md`
+
 ## 背景
 
 本记录只描述 2026-04-23 在腾讯云控制台里已经真实完成的 `COS + CAM` 外部配置动作。
@@ -125,13 +141,13 @@
 - 这次 redeploy 的目的仅仅是让新增的 COS 环境变量进入当前运行版本
 - 不是新的代码发布
 
-## 尚未完成
+## 当时尚未完成
 
-以下动作在本次暂停前还没有做完：
+以下动作在 `2026-04-23` 本次暂停前还没有做完；截至 `2026-04-25` 已被后续执行补齐，见本文顶部“2026-04-25 状态校正”。
 
-1. 还没有跑 Supabase migration
-2. 还没有把 `workers/video-worker/**` 部署到轻量服务器
-3. 还没有做 staging smoke test
+1. 当时 Supabase migration 尚未执行
+2. 当时还没有把 `workers/video-worker/**` 部署到轻量服务器
+3. 当时还没有做 staging smoke test
 
 ## 敏感信息处理
 
@@ -168,15 +184,15 @@
 - Worker `.env`
 - 后续 smoke test 的检查目标
 
-## 下一步建议
+## 当时下一步建议
 
-建议后续按这个顺序继续：
+`2026-04-23` 当时建议后续按这个顺序继续：
 
-1. 先跑 Supabase migration
-2. 再去轻量服务器部署 `workers/video-worker`
-3. 把同一组 COS 变量写入 Worker `.env`
-4. 最后按 smoke checklist 联调
-5. 联调完成后统一轮换 `staging-cos-video-worker` 的访问密钥
+1. 当时先跑 Supabase migration
+2. 当时再去轻量服务器部署 `workers/video-worker`
+3. 当时把同一组 COS 变量写入 Worker `.env`
+4. 当时最后按 smoke checklist 联调
+5. 当时联调完成后统一轮换 `staging-cos-video-worker` 的访问密钥
 
 ## 验证方式
 
@@ -192,6 +208,6 @@
 - Vercel staging 已新增 7 个 COS 相关环境变量
 - Vercel 已完成一次新的 Production redeploy，且部署状态为 `Ready`
 
-本次未验证：
+当时未验证：
 
 - Vercel / Supabase / Worker 联调
