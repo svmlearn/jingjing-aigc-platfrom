@@ -39,9 +39,8 @@ temp/
 .cache/
 
 # Local reference copies of third-party projects.
-# Keep the README tracked, but do not vendor full external repositories by default.
+# Keep only lightweight index docs tracked; do not vendor full external repositories by default.
+references/*
+!references/open-source/
 references/open-source/*
 !references/open-source/README.md
-
-# Local personal reference drafts
-references/我自己用claudecode构建的内容营销系统/
