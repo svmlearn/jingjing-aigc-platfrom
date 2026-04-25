@@ -1,0 +1,77 @@
+# macOS
+.DS_Store
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+coverage/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local tooling
+.vercel/
+.turbo/
+app/supabase/.temp/
+
+# Editor
+.idea/
+.vscode/
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Local reference copies of third-party projects.
+# Do not vendor local reference projects or indexes to GitHub.
+references/
+
+# Gitee collaboration mirror hygiene
+# Keep this repository focused for W/M collaboration and AI context loading.
+docs/designs/
+docs/handoff/
+docs/test/
+docs/探索/
+docs/参考项目/
+docs/progress/*
+!docs/progress/
+!docs/progress/2026-04-25-supabase-migration-current-state.md
+docs/产品文档/V0.1-*
+docs/架构规范/V0.1-*
+
+# Secrets and private keys
+*.pem
+*.key
+*.p8
+*.p12
+*.crt
+*.cer
+id_rsa*
+id_ed25519*
+*.mobileprovision
+
+# Large local media and archives
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.zip
+*.tar
+*.tar.gz
+*.7z
