@@ -39,8 +39,5 @@ temp/
 .cache/
 
 # Local reference copies of third-party projects.
-# Keep only lightweight index docs tracked; do not vendor full external repositories by default.
-references/*
-!references/open-source/
-references/open-source/*
-!references/open-source/README.md
+# Do not vendor local reference projects or indexes to GitHub.
+references/
