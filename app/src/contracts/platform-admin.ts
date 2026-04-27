@@ -4,6 +4,8 @@ import type {
   KnowledgeRuntimeSettingsDto,
 } from "./knowledge";
 
+export type * from "./agent-console";
+
 export type PlatformAdminInvitationCodeDto = InvitationCodeDto;
 
 export type PlatformAdminInvitationCodeStatusFilter =
