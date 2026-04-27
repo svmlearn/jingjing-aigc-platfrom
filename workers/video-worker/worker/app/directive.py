@@ -52,11 +52,7 @@ def build_production_directive(job: VideoJob) -> ProductionDirective:
     raw_directive = _dict_value(payload, "productionDirective", "production_directive")
     raw_script = _dict_value(payload, "script")
 
-    script_text = _string_value(raw_script, "text", "scriptText", "script_text") or _string_value(
-        raw_directive,
-        "scriptText",
-        "script_text",
-    )
+    script_text = _string_value(raw_script, "text", "scriptText", "script_text")
     if not script_text:
         raise DirectiveValidationError(
             "video job requires locked script text in input_payload.script.text",

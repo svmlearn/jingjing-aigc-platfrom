@@ -37,6 +37,24 @@ class DirectiveContractTests(unittest.TestCase):
         self.assertEqual("failed_manual", exc.exception.failure_status)
         self.assertEqual("missing_script_text", exc.exception.failure_code)
 
+    def test_directive_rejects_legacy_directive_script_text_without_locked_script(self):
+        job = make_job(
+            {
+                "executionMode": "staging_worker",
+                "productionDirective": {
+                    "targetPlatform": "douyin",
+                    "desiredOutputs": ["final_video", "cover"],
+                    "scriptText": "legacy script should not bypass script.text",
+                },
+            }
+        )
+
+        with self.assertRaises(DirectiveValidationError) as exc:
+            build_production_directive(job)
+
+        self.assertEqual("failed_manual", exc.exception.failure_status)
+        self.assertEqual("missing_script_text", exc.exception.failure_code)
+
     def test_directive_normalizes_script_and_locked_fields(self):
         job = make_job(
             {

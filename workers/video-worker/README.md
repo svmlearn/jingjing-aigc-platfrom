@@ -89,7 +89,8 @@ video script and may include input assets:
 
 `script.text` is mandatory for the current worker contract. If it is missing,
 the worker marks the job as `failed_manual` with a directive validation failure
-instead of sending an underspecified task to the engine.
+instead of sending an underspecified task to the engine. Legacy script text
+inside `productionDirective` is not accepted as a substitute.
 
 Input asset `file_name` values must be plain file names only. Path fragments,
 absolute paths, Windows drive prefixes, and directory separators are rejected as
