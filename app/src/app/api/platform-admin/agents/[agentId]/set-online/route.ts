@@ -8,7 +8,7 @@ export async function POST(
   context: { params: Promise<{ agentId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { agentId } = await context.params;
     const routeBinding = await setConsultationDefaultAgent({ agentId });
 

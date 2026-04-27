@@ -9,7 +9,7 @@ export async function POST(
   context: { params: Promise<{ agentId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { agentId } = await context.params;
     const payload = publishAgentPromptSchema.parse(await request.json().catch(() => ({})));
     const promptVersion = await publishAgentPromptDraft({

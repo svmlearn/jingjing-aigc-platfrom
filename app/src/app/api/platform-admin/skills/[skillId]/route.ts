@@ -12,7 +12,7 @@ export async function GET(
   context: { params: Promise<{ skillId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { skillId } = await context.params;
     const skill = await getAgentSkillById(skillId);
 
@@ -27,7 +27,7 @@ export async function PATCH(
   context: { params: Promise<{ skillId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { skillId } = await context.params;
     const payload = updateAgentSkillSchema.parse(await request.json());
     const skill = await updateAgentSkill(skillId, payload);

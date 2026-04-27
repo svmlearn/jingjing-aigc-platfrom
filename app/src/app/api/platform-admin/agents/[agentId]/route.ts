@@ -12,7 +12,7 @@ export async function GET(
   context: { params: Promise<{ agentId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { agentId } = await context.params;
     const detail = await getAgentConfigDetail(agentId);
 
@@ -27,7 +27,7 @@ export async function PATCH(
   context: { params: Promise<{ agentId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { agentId } = await context.params;
     const payload = updateAgentConfigSchema.parse(await request.json());
     const agent = await updateAgentConfig(agentId, payload);

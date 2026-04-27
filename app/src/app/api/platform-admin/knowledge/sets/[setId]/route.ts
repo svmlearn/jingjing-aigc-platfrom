@@ -12,7 +12,7 @@ export async function GET(
   context: { params: Promise<{ setId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { setId } = await context.params;
     const detail = await getKnowledgeSetDetail(setId);
 
@@ -27,7 +27,7 @@ export async function PATCH(
   context: { params: Promise<{ setId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { setId } = await context.params;
     const payload = updateKnowledgeSetSchema.parse(await request.json());
     const knowledgeSet = await updateKnowledgeSet(setId, payload);

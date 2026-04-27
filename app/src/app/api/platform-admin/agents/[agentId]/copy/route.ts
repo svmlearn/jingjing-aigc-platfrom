@@ -9,7 +9,7 @@ export async function POST(
   context: { params: Promise<{ agentId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { agentId } = await context.params;
     const payload = copyAgentSchema.parse(await request.json());
     const detail = await copyAgentConfig(agentId, payload);

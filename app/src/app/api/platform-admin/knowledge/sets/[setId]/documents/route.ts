@@ -9,7 +9,7 @@ export async function PATCH(
   context: { params: Promise<{ setId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { setId } = await context.params;
     const payload = updateKnowledgeSetDocumentsSchema.parse(await request.json());
     const detail = await replaceKnowledgeSetDocuments({

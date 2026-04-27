@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const knowledgeSets = await listKnowledgeSets();
 
     return Response.json({ knowledgeSets });
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const payload = createKnowledgeSetSchema.parse(await request.json());
     const knowledgeSet = await createKnowledgeSet(payload);
 

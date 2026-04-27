@@ -9,7 +9,7 @@ export async function PATCH(
   context: { params: Promise<{ agentId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { agentId } = await context.params;
     const payload = updateAgentSkillBindingsSchema.parse(await request.json());
     const skillBindings = await replaceAgentSkillBindings({

@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const [agents, routeBindings] = await Promise.all([
       listAgentConfigs(),
       listAgentRouteBindings(),
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const payload = createAgentConfigSchema.parse(await request.json());
     const agent = await createAgentConfig(payload);
 
