@@ -139,3 +139,52 @@ test("buildVideoEditJobInputPayload rejects bad COS input assets", () => {
       error.code === "VIDEO_INPUT_ASSET_BUCKET_REQUIRED",
   );
 });
+
+test("buildVideoEditJobInputPayload rejects non-COS input assets", () => {
+  assert.throws(
+    () =>
+      buildVideoEditJobInputPayload({
+        draftId: "draft-1",
+        variant: approvedVariant,
+        materialReferences: [],
+        assets: [
+          {
+            id: "asset-supabase",
+            assetType: "video",
+            storageProvider: "supabase_storage",
+            bucketName: null,
+            storageKey: "draft-inputs/supabase.mp4",
+            mimeType: "video/mp4",
+            fileSizeBytes: 1,
+            etag: null,
+            sortOrder: 0,
+          },
+        ],
+      }),
+    (error) =>
+      error instanceof VideoJobPayloadValidationError &&
+      error.code === "VIDEO_INPUT_ASSET_PROVIDER_UNSUPPORTED" &&
+      error.status === 409,
+  );
+});
+
+test("buildVideoEditJobInputPayload rejects confirmed material references without input assets", () => {
+  assert.throws(
+    () =>
+      buildVideoEditJobInputPayload({
+        draftId: "draft-1",
+        variant: approvedVariant,
+        materialReferences: [
+          {
+            id: "reference-1",
+            materialItemId: "material-1",
+          },
+        ],
+        assets: [],
+      }),
+    (error) =>
+      error instanceof VideoJobPayloadValidationError &&
+      error.code === "VIDEO_CONFIRMED_MATERIAL_ASSET_REQUIRED" &&
+      error.status === 409,
+  );
+});

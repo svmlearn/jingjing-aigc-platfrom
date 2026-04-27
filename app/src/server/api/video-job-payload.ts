@@ -98,6 +98,14 @@ export function buildVideoEditJobInputPayload(input: {
   const materialReferenceIds = uniqueStrings(input.materialReferences.map((item) => item.id));
   const materialIds = uniqueStrings(input.materialReferences.map((item) => item.materialItemId));
 
+  if (materialReferenceIds.length > 0 && inputAssets.length === 0) {
+    throw new VideoJobPayloadValidationError(
+      409,
+      "VIDEO_CONFIRMED_MATERIAL_ASSET_REQUIRED",
+      "Confirmed video materials do not have downloadable input assets.",
+    );
+  }
+
   return {
     source: "video_workbench",
     executionMode: "staging_worker",
@@ -148,6 +156,14 @@ export function assertApprovedScript(variant: VideoJobPayloadVariant) {
 }
 
 function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
+  if (asset.storageProvider !== "tencent_cos") {
+    throw new VideoJobPayloadValidationError(
+      409,
+      "VIDEO_INPUT_ASSET_PROVIDER_UNSUPPORTED",
+      "Video worker input assets must use tencent_cos storage.",
+    );
+  }
+
   if (!asset.storageKey.trim()) {
     throw new VideoJobPayloadValidationError(
       409,
