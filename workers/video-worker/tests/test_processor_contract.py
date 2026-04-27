@@ -281,6 +281,38 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
         self.assertEqual([], cos_client.downloads)
 
+    def test_unsupported_input_asset_storage_provider_marks_failed_manual_without_download(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+            job = make_job(
+                {
+                    "script": {"text": "固定脚本", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_provider": "s3",
+                            "storage_key": "draft-inputs/demo.mp4",
+                            "file_name": "demo.mp4",
+                        }
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNotNone(repository.failed)
+        self.assertEqual("failed_manual", repository.failed["status"])
+        self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
+        self.assertEqual([], cos_client.downloads)
+
     def test_missing_requested_output_marks_failed_retryable_before_upload(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()

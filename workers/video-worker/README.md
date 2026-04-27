@@ -79,6 +79,7 @@ video script and may include input assets:
   "input_assets": [
     {
       "asset_type": "video",
+      "storage_provider": "tencent_cos",
       "bucket_name": "jj-content-staging-1341668543",
       "storage_key": "draft-inputs/merchant-1/draft-1/demo.mp4",
       "file_name": "demo.mp4"
@@ -96,7 +97,9 @@ underspecified task to the engine. Legacy script text inside
 
 Input asset `file_name` values must be plain file names only. Path fragments,
 absolute paths, Windows drive prefixes, and directory separators are rejected as
-`failed_manual` contract errors before COS download.
+`failed_manual` contract errors before COS download. If `storage_provider` is
+present, it must be `tencent_cos`; unsupported providers are rejected before COS
+download.
 
 `productionDirective` is intentionally lightweight in this stage. It records the
 parts of the upstream content decision that the worker and engine must not
@@ -122,7 +125,7 @@ as `failed_manual`. Current examples:
 - requested outputs do not include `final_video`
 - present but empty or malformed `desiredOutputs`
 - unsupported `desiredOutputs` values outside `final_video`, `cover`, and `subtitles`
-- malformed `input_assets`, including assets missing `storage_key`
+- malformed `input_assets`, including assets missing `storage_key` or using an unsupported storage provider
 
 Runtime or infrastructure failures stay `failed_retryable` through the existing
 processor path. Current examples:

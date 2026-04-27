@@ -20,6 +20,7 @@ class InputAsset:
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any], default_bucket: str) -> "InputAsset":
+        _validate_storage_provider(payload.get("storage_provider"))
         storage_key = _required_string(payload, "storage_key")
         file_name = _safe_file_name(payload.get("file_name") or Path(storage_key).name)
         return cls(
@@ -109,6 +110,15 @@ def _required_string(payload: dict[str, Any], key: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise InputAssetContractError(f"input asset requires {key}")
     return value.strip()
+
+
+def _validate_storage_provider(value: Any) -> None:
+    if value is None:
+        return
+    if not isinstance(value, str) or value.strip().lower() != "tencent_cos":
+        raise InputAssetContractError(
+            "input asset storage_provider must be tencent_cos"
+        )
 
 
 def _safe_file_name(value: Any) -> str:
