@@ -91,6 +91,10 @@ video script and may include input assets:
 the worker marks the job as `failed_manual` with a directive validation failure
 instead of sending an underspecified task to the engine.
 
+Input asset `file_name` values must be plain file names only. Path fragments,
+absolute paths, Windows drive prefixes, and directory separators are rejected as
+`failed_manual` contract errors before COS download.
+
 `productionDirective` is intentionally lightweight in this stage. It records the
 parts of the upstream content decision that the worker and engine must not
 silently rewrite. The worker currently normalizes it into an internal directive

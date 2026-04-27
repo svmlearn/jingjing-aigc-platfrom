@@ -21,7 +21,7 @@ class InputAsset:
     @classmethod
     def from_payload(cls, payload: dict[str, Any], default_bucket: str) -> "InputAsset":
         storage_key = _required_string(payload, "storage_key")
-        file_name = str(payload.get("file_name") or Path(storage_key).name)
+        file_name = _safe_file_name(payload.get("file_name") or Path(storage_key).name)
         return cls(
             asset_type=str(payload.get("asset_type", "video")),
             bucket_name=str(payload.get("bucket_name") or default_bucket),
@@ -109,3 +109,18 @@ def _required_string(payload: dict[str, Any], key: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise InputAssetContractError(f"input asset requires {key}")
     return value.strip()
+
+
+def _safe_file_name(value: Any) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise InputAssetContractError("input asset requires safe file_name")
+    file_name = value.strip()
+    if (
+        Path(file_name).name != file_name
+        or Path(file_name).is_absolute()
+        or "/" in file_name
+        or "\\" in file_name
+        or ":" in file_name
+    ):
+        raise InputAssetContractError("input asset file_name must not contain a path")
+    return file_name
