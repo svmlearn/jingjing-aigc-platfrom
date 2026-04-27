@@ -94,7 +94,12 @@ export function buildVideoEditJobInputPayload(input: {
 
   const inputAssets = input.assets
     .filter((asset) => asset.assetType === "image" || asset.assetType === "video")
-    .map(mapInputAsset);
+    .map(mapInputAsset)
+    .sort(
+      (left, right) =>
+        left.sort_order - right.sort_order ||
+        left.asset_id.localeCompare(right.asset_id),
+    );
   const materialReferenceIds = uniqueStrings(input.materialReferences.map((item) => item.id));
   const materialIds = uniqueStrings(input.materialReferences.map((item) => item.materialItemId));
 
@@ -156,7 +161,11 @@ export function assertApprovedScript(variant: VideoJobPayloadVariant) {
 }
 
 function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
-  if (asset.storageProvider !== "tencent_cos") {
+  const storageProvider = asset.storageProvider.trim();
+  const storageKey = asset.storageKey.trim();
+  const bucketName = asset.bucketName?.trim() ?? "";
+
+  if (storageProvider !== "tencent_cos") {
     throw new VideoJobPayloadValidationError(
       409,
       "VIDEO_INPUT_ASSET_PROVIDER_UNSUPPORTED",
@@ -164,7 +173,7 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
     );
   }
 
-  if (!asset.storageKey.trim()) {
+  if (!storageKey) {
     throw new VideoJobPayloadValidationError(
       409,
       "VIDEO_INPUT_ASSET_STORAGE_KEY_REQUIRED",
@@ -172,7 +181,7 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
     );
   }
 
-  if (asset.storageProvider === "tencent_cos" && !asset.bucketName?.trim()) {
+  if (!bucketName) {
     throw new VideoJobPayloadValidationError(
       409,
       "VIDEO_INPUT_ASSET_BUCKET_REQUIRED",
@@ -183,9 +192,9 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
   return {
     asset_id: asset.id,
     asset_type: asset.assetType,
-    storage_provider: asset.storageProvider,
-    bucket_name: asset.bucketName ?? null,
-    storage_key: asset.storageKey,
+    storage_provider: "tencent_cos",
+    bucket_name: bucketName,
+    storage_key: storageKey,
     mime_type: asset.mimeType ?? null,
     file_size_bytes: asset.fileSizeBytes ?? null,
     etag: asset.etag ?? null,
