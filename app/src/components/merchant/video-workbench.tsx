@@ -47,9 +47,11 @@ export function VideoWorkbench({
   const [goal, setGoal] = useState("");
   const [extraRequirement, setExtraRequirement] = useState("");
   const [draftBundle, setDraftBundle] = useState<ContentDraftBundleDto | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [job, setJob] = useState<VideoEditJobDto | null>(null);
   const [loadingSession, setLoadingSession] = useState(Boolean(sessionId));
   const [generating, setGenerating] = useState(false);
+  const [approvingScript, setApprovingScript] = useState(false);
   const [creatingJob, setCreatingJob] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -175,6 +177,7 @@ export function VideoWorkbench({
       }
 
       setDraftBundle(data.draftBundle);
+      setSelectedVariantId(data.draftBundle.selectedVariant?.id ?? data.draftBundle.variants[0]?.id ?? null);
       setShowCanvas(true);
       setMessages((current) => [
         ...current,
@@ -192,9 +195,70 @@ export function VideoWorkbench({
     }
   }
 
-  async function createVideoJob() {
+  async function approveSelectedScript() {
+    if (!selectedVariant) {
+      setError("请先选择一个脚本候选。");
+      return;
+    }
+
+    setApprovingScript(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/content/variants/${selectedVariant.id}/approve`, {
+        method: "POST",
+      });
+      const data = (await response.json()) as {
+        variant?: NonNullable<ContentDraftBundleDto["selectedVariant"]>;
+        error?: { message?: string };
+      };
+
+      if (!response.ok || !data.variant) {
+        throw new Error(data.error?.message ?? "脚本确认失败");
+      }
+
+      const approvedVariant = data.variant;
+      setDraftBundle((current) => {
+        if (!current) {
+          return current;
+        }
+
+        const variants = current.variants.map((variant) =>
+          variant.id === approvedVariant.id ? approvedVariant : variant,
+        );
+
+        return {
+          ...current,
+          draft: {
+            ...current.draft,
+            selectedVariantId: approvedVariant.id,
+          },
+          variants,
+          selectedVariant: approvedVariant,
+        };
+      });
+      setSelectedVariantId(approvedVariant.id);
+      setMessages((current) => [
+        ...current,
+        {
+          role: "agent",
+          content: `已确认脚本「${approvedVariant.title ?? "当前候选"}」。现在可以创建正式 AI 剪辑任务。`,
+        },
+      ]);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "脚本确认失败");
+    } finally {
+      setApprovingScript(false);
+    }
+  }
+
+  async function createVideoJob(sourceJobId?: string) {
     if (!selectedVariant) {
       setError("请先生成视频脚本。");
+      return;
+    }
+    if (selectedVariant.reviewStatus !== "approved") {
+      setError("请先确认脚本，再创建正式视频任务。");
       return;
     }
 
@@ -210,6 +274,7 @@ export function VideoWorkbench({
         body: JSON.stringify({
           contentVariantId: selectedVariant.id,
           instructionText: extraRequirement || goal || selectedVariant.title,
+          sourceJobId: sourceJobId ?? null,
         }),
       });
       const data = (await response.json()) as {
@@ -226,11 +291,38 @@ export function VideoWorkbench({
         ...current,
         {
           role: "agent",
-          content: "AI 剪辑任务已经创建。我会在右侧持续显示任务进度，完成后这里会出现可预览的成片结果。",
+          content: sourceJobId
+            ? "制作修订任务已经创建。我会保留原任务，并在右侧显示新任务进度。"
+            : "AI 剪辑任务已经创建。我会在右侧持续显示任务进度，完成后这里会出现可预览的成片结果。",
         },
       ]);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "视频任务创建失败");
+    } finally {
+      setCreatingJob(false);
+    }
+  }
+
+  async function retryVideoJob(jobId: string) {
+    setCreatingJob(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/video-edit-jobs/${jobId}/retry`, {
+        method: "POST",
+      });
+      const data = (await response.json()) as {
+        job?: VideoEditJobDto;
+        error?: { message?: string };
+      };
+
+      if (!response.ok || !data.job) {
+        throw new Error(data.error?.message ?? "视频任务重试失败");
+      }
+
+      setJob(data.job);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "视频任务重试失败");
     } finally {
       setCreatingJob(false);
     }
@@ -305,7 +397,11 @@ export function VideoWorkbench({
     return () => window.clearInterval(timer);
   }, [job]);
 
-  const selectedVariant = draftBundle?.selectedVariant ?? draftBundle?.variants[0] ?? null;
+  const selectedVariant =
+    draftBundle?.variants.find((variant) => variant.id === selectedVariantId) ??
+    draftBundle?.selectedVariant ??
+    draftBundle?.variants[0] ??
+    null;
   const scriptSections = useMemo(() => {
     return (selectedVariant?.scriptText ?? "")
       .split("\n\n")
@@ -314,6 +410,10 @@ export function VideoWorkbench({
   }, [selectedVariant?.scriptText]);
   const canvasSegments = scriptSections.length > 0 ? scriptSections : buildPlaceholderSegments(goal, strategyTag);
   const jobIsRunning = job && ["pending", "queued", "preparing", "running"].includes(job.status);
+  const scriptApproved = selectedVariant?.reviewStatus === "approved";
+  const jobCanRetry = job?.status === "failed_retryable";
+  const jobNeedsManualFix = job?.status === "failed_manual";
+  const jobSucceeded = job?.status === "succeeded";
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -351,9 +451,20 @@ export function VideoWorkbench({
           <button
             type="button"
             onClick={() => {
+              void approveSelectedScript();
+            }}
+            disabled={approvingScript || !selectedVariant || scriptApproved}
+            className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-emerald-400 disabled:opacity-50"
+          >
+            {approvingScript ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            {scriptApproved ? "脚本已确认" : "确认脚本"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               void createVideoJob();
             }}
-            disabled={creatingJob || !selectedVariant}
+            disabled={creatingJob || !selectedVariant || !scriptApproved}
             className="relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-white/70 transition-colors hover:bg-white/10 disabled:opacity-50"
           >
             {creatingJob || jobIsRunning ? (
@@ -361,7 +472,7 @@ export function VideoWorkbench({
             ) : (
               <Wand2 className="h-3.5 w-3.5 text-amber-500" />
             )}
-            {jobIsRunning ? "AI 剪辑中" : "AI 一键剪辑"}
+            {jobIsRunning ? "AI 剪辑中" : scriptApproved ? "AI 一键剪辑" : "待确认脚本"}
           </button>
         </div>
       </div>
@@ -491,6 +602,30 @@ export function VideoWorkbench({
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
+                {draftBundle && draftBundle.variants.length > 1 ? (
+                  <div className="mb-5 flex flex-wrap gap-2">
+                    {draftBundle.variants.map((variant) => {
+                      const isSelected = variant.id === selectedVariant?.id;
+                      const isApproved = variant.reviewStatus === "approved";
+
+                      return (
+                        <button
+                          key={variant.id}
+                          type="button"
+                          onClick={() => setSelectedVariantId(variant.id)}
+                          className={
+                            isSelected
+                              ? "rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-2 text-xs text-amber-300"
+                              : "rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                          }
+                        >
+                          候选 {variant.versionNo}
+                          {isApproved ? " · 已确认" : ""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
                 {selectedVariant ? (
                   <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#080808]">
                     <div className="grid grid-cols-12 border-b border-white/10 bg-[#050505] text-[10px] uppercase tracking-[0.2em] text-white/35">
@@ -555,6 +690,33 @@ export function VideoWorkbench({
                           <Clock className="mr-2 h-3.5 w-3.5" />
                           预计 5-10 分钟
                         </div>
+                      ) : null}
+                      {jobCanRetry ? (
+                        <button
+                          type="button"
+                          onClick={() => void retryVideoJob(job.id)}
+                          disabled={creatingJob}
+                          className="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-amber-500 disabled:opacity-50"
+                        >
+                          {creatingJob ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                          重试任务
+                        </button>
+                      ) : null}
+                      {jobNeedsManualFix ? (
+                        <p className="mt-4 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs leading-6 text-rose-100">
+                          当前失败需要人工处理，请先回到脚本或素材确认，不建议直接重试。
+                        </p>
+                      ) : null}
+                      {jobSucceeded && scriptApproved ? (
+                        <button
+                          type="button"
+                          onClick={() => void createVideoJob(job.id)}
+                          disabled={creatingJob}
+                          className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+                        >
+                          {creatingJob ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                          制作修订
+                        </button>
                       ) : null}
                     </div>
                   </div>

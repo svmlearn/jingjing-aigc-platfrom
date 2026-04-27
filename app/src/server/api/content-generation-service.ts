@@ -18,6 +18,10 @@ import {
   getMaterialWorkbenchReference,
 } from "@/lib/db/material-library-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
+import {
+  buildVideoGrowthContext,
+  buildVideoScriptCandidates,
+} from "@/server/api/video-growth-context";
 
 type GenerationMode = "create" | "rewrite";
 
@@ -178,6 +182,21 @@ export async function generateVideoScriptForUser(input: {
       material_reference_id: materialContext.reference?.id ?? input.materialReferenceId ?? null,
     },
   });
+  const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
+  const growthContext = buildVideoGrowthContext({
+    merchant,
+    session,
+    extraRequirement: input.extraRequirement ?? null,
+    materialContext: materialSnapshot,
+    strategyTag: input.strategyTag ?? null,
+  });
+  const scriptCandidates = buildVideoScriptCandidates({
+    merchantName: merchant.name,
+    session,
+    growthContext,
+    extraRequirement: input.extraRequirement ?? null,
+    material: materialContext.material,
+  });
 
   const draftBundle = await createDraftWithVariants({
     merchantId: merchant.id,
@@ -189,30 +208,25 @@ export async function generateVideoScriptForUser(input: {
       strategySnapshot: session.strategySnapshot,
       strategyTag: input.strategyTag ?? null,
       extraRequirement: input.extraRequirement ?? null,
-      materialContext: buildMaterialSnapshot(materialContext.material, materialContext.reference),
+      materialContext: materialSnapshot,
+      growthContext,
     },
     commentInsights: {
       audiences: session.strategySnapshot.targetAudiences,
       scenes: session.strategySnapshot.keyScenes,
       referenceMaterialTitle: materialContext.material?.title ?? null,
       referenceMaterialEngagement: materialContext.material?.engagementLabel ?? null,
+      scriptCandidateTypes: scriptCandidates.map((candidate) => candidate.candidateType),
     },
-    variants: [
-      {
+    variants: scriptCandidates.map((candidate) => ({
         platform: "douyin",
         variantType: "video_script",
-        title: workingTitle,
-        scriptText: buildVideoScript({
-          merchantName: merchant.name,
-          session,
-          extraRequirement: input.extraRequirement ?? null,
-          material: materialContext.material,
-          strategyTag: input.strategyTag ?? null,
-        }),
+        title: candidate.title,
+        scriptText: candidate.scriptText,
         hashtags: buildHashtags(session),
-        ctaText: merchant.defaultCta[0] ?? "结尾引导私信或预约体验",
-      },
-    ],
+        ctaText: candidate.ctaText,
+        reviewStatus: "review_pending",
+      })),
   });
 
   await consumeMaterialReferenceIfNeeded({
@@ -272,41 +286,6 @@ function buildArticleBody(input: {
   ]
     .filter((line) => line !== null)
     .join("\n");
-}
-
-function buildVideoScript(input: {
-  merchantName: string;
-  session: Awaited<ReturnType<typeof getConsultationSessionDetail>>;
-  extraRequirement?: string | null;
-  material?: MaterialLibraryItemDto | null;
-  strategyTag?: string | null;
-}) {
-  const audience = input.session.strategySnapshot.targetAudiences[0] ?? "高意向用户";
-  const scene = input.session.strategySnapshot.keyScenes[0] ?? "门店首次咨询前的信任建立";
-  const sellingPoint = input.session.strategySnapshot.coreSellingPoints[0] ?? input.merchantName;
-  const cta = input.session.strategySnapshot.videoBrief?.outcome ?? "结尾引导私信或预约体验";
-
-  return [
-    `Scene 1 | 00:00-00:05`,
-    `画面：门头或空间快速推进，第一秒就出现 ${scene} 的氛围。`,
-    `台词：如果你也是 ${audience}，这条视频一定要看完。${
-      input.strategyTag ? `这条内容主打「${input.strategyTag}」。` : ""
-    }`,
-    "",
-    `Scene 2 | 00:05-00:18`,
-    `画面：展示门店真实环境、服务细节和最能建立信任的镜头。`,
-    `台词：很多人真正卡住的，不是需不需要，而是不知道怎么判断一家店靠不靠谱。`,
-    "",
-    `Scene 3 | 00:18-00:32`,
-    `画面：放大 ${sellingPoint}，用细节镜头把差异讲明白。`,
-    `台词：我们这次重点想让你看到的，不是花哨包装，而是能不能把结果和体验稳定交付。${
-      input.material ? `参考素材「${input.material.title}」的结构，把可信细节讲得更具体。` : ""
-    }`,
-    "",
-    `Scene 4 | 00:32-00:45`,
-    `画面：落回咨询动作、预约动作或体验流程。`,
-    `台词：${cta}。${input.extraRequirement ? `补充要求：${input.extraRequirement}` : ""}`,
-  ].join("\n");
 }
 
 function buildHashtags(session: Awaited<ReturnType<typeof getConsultationSessionDetail>>) {

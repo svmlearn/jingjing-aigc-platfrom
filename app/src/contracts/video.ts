@@ -39,4 +39,5 @@ export type CreateVideoEditJobRequest = {
   contentVariantId: string;
   instructionText?: string | null;
   inputPayload?: Record<string, unknown>;
+  sourceJobId?: string | null;
 };

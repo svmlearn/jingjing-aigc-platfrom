@@ -318,6 +318,7 @@ export const createVideoEditJobSchema = z.object({
   contentVariantId: z.uuid(),
   instructionText: z.string().trim().max(4000).nullish(),
   inputPayload: z.record(z.string(), z.unknown()).optional(),
+  sourceJobId: z.uuid().nullish(),
 });
 
 export const listVideoEditJobsQuerySchema = z.object({

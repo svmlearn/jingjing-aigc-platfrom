@@ -277,6 +277,102 @@ export async function listDraftBundlesByMerchant(input: {
   });
 }
 
+export async function approveContentVariant(input: {
+  merchantId: string;
+  contentVariantId: string;
+}): Promise<ContentVariantDto> {
+  if (!isSupabaseAdminConfigured()) {
+    for (const [draftId, bundle] of demoDraftBundles.entries()) {
+      const variant = bundle.variants.find((item) => item.id === input.contentVariantId);
+
+      if (!variant || bundle.draft.merchantId !== input.merchantId) {
+        continue;
+      }
+
+      const now = new Date().toISOString();
+      const approvedVariant: ContentVariantDto = {
+        ...variant,
+        reviewStatus: "approved",
+        updatedAt: now,
+      };
+      const variants = bundle.variants.map((item) =>
+        item.id === approvedVariant.id ? approvedVariant : item,
+      );
+      demoDraftBundles.set(draftId, {
+        draft: {
+          ...bundle.draft,
+          selectedVariantId: approvedVariant.id,
+          updatedAt: now,
+        },
+        variants,
+        selectedVariant: approvedVariant,
+      });
+
+      return approvedVariant;
+    }
+
+    throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant not found.");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: variantData, error: variantError } = await supabase
+    .from("content_variants")
+    .select(contentVariantSelect)
+    .eq("id", input.contentVariantId)
+    .single();
+
+  if (variantError || !variantData) {
+    throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant not found.");
+  }
+
+  const currentVariant = mapContentVariant(variantData as unknown as ContentVariantRow);
+  const { data: draftData, error: draftError } = await supabase
+    .from("content_drafts")
+    .select("id, merchant_id")
+    .eq("id", currentVariant.draftId)
+    .eq("merchant_id", input.merchantId)
+    .single();
+
+  if (draftError || !draftData) {
+    throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
+  }
+
+  const { data: approvedData, error: approveError } = await supabase
+    .from("content_variants")
+    .update({
+      review_status: "approved",
+    })
+    .eq("id", input.contentVariantId)
+    .select(contentVariantSelect)
+    .single();
+
+  if (approveError || !approvedData) {
+    throw new ApiError(
+      500,
+      "CONTENT_VARIANT_APPROVE_FAILED",
+      approveError?.message ?? "Approve failed.",
+    );
+  }
+
+  const { error: selectVariantError } = await supabase
+    .from("content_drafts")
+    .update({
+      selected_variant_id: input.contentVariantId,
+    })
+    .eq("id", currentVariant.draftId)
+    .eq("merchant_id", input.merchantId);
+
+  if (selectVariantError) {
+    throw new ApiError(
+      500,
+      "CONTENT_DRAFT_SELECT_VARIANT_FAILED",
+      selectVariantError.message,
+    );
+  }
+
+  return mapContentVariant(approvedData as unknown as ContentVariantRow);
+}
+
 export function getLocalDemoContentVariantContext(contentVariantId: string) {
   if (isSupabaseAdminConfigured()) {
     return null;
@@ -294,6 +390,10 @@ export function getLocalDemoContentVariantContext(contentVariantId: string) {
       draftId: bundle.draft.id,
       contentVariantId: variant.id,
       variantType: variant.variantType,
+      title: variant.title,
+      scriptText: variant.scriptText,
+      ctaText: variant.ctaText,
+      reviewStatus: variant.reviewStatus,
     };
   }
 

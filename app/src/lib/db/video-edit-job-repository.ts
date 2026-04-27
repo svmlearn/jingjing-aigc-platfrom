@@ -39,6 +39,10 @@ type ContentVariantContextRow = {
   id: string;
   draft_id: string;
   variant_type: ContentVariantDto["variantType"];
+  title: string | null;
+  script_text: string | null;
+  cta_text: string | null;
+  review_status: ContentVariantDto["reviewStatus"];
 };
 
 type ContentDraftContextRow = {
@@ -60,6 +64,11 @@ export async function assertVideoScriptVariantAccess(input: {
   merchantId: string;
   draftId: string;
   contentVariantId: string;
+  variantType: ContentVariantDto["variantType"];
+  title?: string | null;
+  scriptText?: string | null;
+  ctaText?: string | null;
+  reviewStatus: ContentVariantDto["reviewStatus"];
 }> {
   if (!isSupabaseAdminConfigured()) {
     const variant = getLocalDemoContentVariantContext(input.contentVariantId);
@@ -80,13 +89,18 @@ export async function assertVideoScriptVariantAccess(input: {
       merchantId: variant.merchantId,
       draftId: variant.draftId,
       contentVariantId: variant.contentVariantId,
+      variantType: variant.variantType,
+      title: variant.title,
+      scriptText: variant.scriptText,
+      ctaText: variant.ctaText,
+      reviewStatus: variant.reviewStatus,
     };
   }
 
   const supabase = createSupabaseAdminClient();
   const { data: variantData, error: variantError } = await supabase
     .from("content_variants")
-    .select("id, draft_id, variant_type")
+    .select("id, draft_id, variant_type, title, script_text, cta_text, review_status")
     .eq("id", input.contentVariantId)
     .single();
 
@@ -119,6 +133,11 @@ export async function assertVideoScriptVariantAccess(input: {
     merchantId: draft.merchant_id,
     draftId: draft.id,
     contentVariantId: variant.id,
+    variantType: variant.variant_type,
+    title: variant.title,
+    scriptText: variant.script_text,
+    ctaText: variant.cta_text,
+    reviewStatus: variant.review_status,
   };
 }
 

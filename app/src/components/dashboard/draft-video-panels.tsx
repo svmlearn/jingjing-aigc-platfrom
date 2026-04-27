@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleAlert, Clapperboard, ImageIcon, Loader2, RefreshCw, RotateCcw, Upload, Video, XCircle } from "lucide-react";
+import { CheckCircle2, CircleAlert, Clapperboard, ImageIcon, Loader2, RefreshCw, RotateCcw, Upload, Video, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ContentVariantDto } from "@/contracts/draft";
@@ -217,6 +217,10 @@ function DraftVideoPanelsContent({
   const [jobsHint, setJobsHint] = useState<string | null>(null);
   const [isRefreshingJobs, setIsRefreshingJobs] = useState(false);
   const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
+  const [activeApprovalVariantId, setActiveApprovalVariantId] = useState<string | null>(null);
+  const [approvedVariantIds, setApprovedVariantIds] = useState<string[]>(() =>
+    variants.filter((variant) => variant.reviewStatus === "approved").map((variant) => variant.id),
+  );
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -224,6 +228,11 @@ function DraftVideoPanelsContent({
   const videoVariants = variants.filter((variant) => variant.variantType === "video_script");
   const hasActiveJobs = jobs.some((job) =>
     ["pending", "queued", "preparing", "running"].includes(job.status),
+  );
+  const isVariantApproved = useCallback(
+    (variant: ContentVariantDto) =>
+      variant.reviewStatus === "approved" || approvedVariantIds.includes(variant.id),
+    [approvedVariantIds],
   );
 
   const refreshJobs = useCallback(async (silent = false) => {
@@ -365,6 +374,11 @@ function DraftVideoPanelsContent({
   }
 
   async function handleCreateJob(variant: ContentVariantDto) {
+    if (!isVariantApproved(variant)) {
+      setJobsError("请先确认脚本，再创建正式视频任务。");
+      return;
+    }
+
     setActiveVariantId(variant.id);
     setJobsError(null);
     setJobsHint(null);
@@ -383,6 +397,36 @@ function DraftVideoPanelsContent({
       setJobsError(message);
     } finally {
       setActiveVariantId(null);
+    }
+  }
+
+  async function handleApproveVariant(variant: ContentVariantDto) {
+    setActiveApprovalVariantId(variant.id);
+    setJobsError(null);
+    setJobsHint(null);
+
+    try {
+      const response = await fetch(`/api/content/variants/${variant.id}/approve`, {
+        method: "POST",
+      });
+      const payload = (await response.json()) as {
+        variant?: ContentVariantDto;
+        error?: { message?: string };
+      };
+
+      if (!response.ok || !payload.variant) {
+        throw new Error(payload.error?.message ?? "脚本确认失败。");
+      }
+
+      setApprovedVariantIds((current) =>
+        current.includes(payload.variant!.id) ? current : [...current, payload.variant!.id],
+      );
+      setJobsHint(`已确认「${payload.variant.title ?? `版本 ${payload.variant.versionNo}`}」。`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "脚本确认失败。";
+      setJobsError(message);
+    } finally {
+      setActiveApprovalVariantId(null);
     }
   }
 
@@ -589,6 +633,7 @@ function DraftVideoPanelsContent({
               {variants.map((variant) => {
                 const isSelected = variant.id === selectedVariantId;
                 const isVideoVariant = variant.variantType === "video_script";
+                const isApproved = isVariantApproved(variant);
 
                 return (
                   <div
@@ -609,6 +654,15 @@ function DraftVideoPanelsContent({
                       <Badge className="rounded-md border-[#cbd5e1] bg-white text-[#475569]">
                         v{variant.versionNo}
                       </Badge>
+                      {isApproved ? (
+                        <Badge className="rounded-md border-[#bbf7d0] bg-[#f0fdf4] text-[#166534]">
+                          已确认
+                        </Badge>
+                      ) : (
+                        <Badge className="rounded-md border-[#fde68a] bg-[#fffbeb] text-[#92400e]">
+                          待确认
+                        </Badge>
+                      )}
                     </div>
                     <p className="mt-3 text-sm font-medium text-[#17202a]">
                       {variant.title ?? `版本 ${variant.versionNo}`}
@@ -626,19 +680,35 @@ function DraftVideoPanelsContent({
                         编辑此版本
                       </Button>
                       {isVideoVariant ? (
-                        <Button
-                          type="button"
-                          className="h-10 rounded-md bg-[#0f766e] text-white hover:bg-[#115e59]"
-                          onClick={() => void handleCreateJob(variant)}
-                          disabled={activeVariantId === variant.id}
-                        >
-                          {activeVariantId === variant.id ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <Clapperboard className="size-4" />
-                          )}
-                          生成视频
-                        </Button>
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 rounded-md"
+                            onClick={() => void handleApproveVariant(variant)}
+                            disabled={isApproved || activeApprovalVariantId === variant.id}
+                          >
+                            {activeApprovalVariantId === variant.id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="size-4" />
+                            )}
+                            {isApproved ? "已确认" : "确认脚本"}
+                          </Button>
+                          <Button
+                            type="button"
+                            className="h-10 rounded-md bg-[#0f766e] text-white hover:bg-[#115e59]"
+                            onClick={() => void handleCreateJob(variant)}
+                            disabled={!isApproved || activeVariantId === variant.id}
+                          >
+                            {activeVariantId === variant.id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Clapperboard className="size-4" />
+                            )}
+                            {isApproved ? "生成视频" : "待确认"}
+                          </Button>
+                        </>
                       ) : null}
                     </div>
                   </div>

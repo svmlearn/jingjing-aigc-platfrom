@@ -611,14 +611,17 @@ export async function createVideoEditJob(payload: {
   draftId: string;
   contentVariantId: string;
   instructionText?: string | null;
+  sourceJobId?: string | null;
 }) {
   const requestPayload = {
     draftId: payload.draftId,
     contentVariantId: payload.contentVariantId,
     instructionText: payload.instructionText ?? null,
+    sourceJobId: payload.sourceJobId ?? null,
     draft_id: payload.draftId,
     content_variant_id: payload.contentVariantId,
     instruction_text: payload.instructionText ?? null,
+    source_job_id: payload.sourceJobId ?? null,
   };
 
   const response = await requestJson<JsonRecord>("/api/video-edit-jobs", {
