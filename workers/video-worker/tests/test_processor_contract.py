@@ -89,6 +89,18 @@ class FakeRepository:
 
     def insert_output_assets(self, job, uploaded_assets):
         self.inserted_assets.extend(uploaded_assets)
+        return [
+            {
+                "asset_id": f"asset_{asset.asset_type}_1",
+                "asset_type": asset.asset_type,
+                "bucket_name": asset.bucket_name,
+                "storage_key": asset.storage_key,
+                "mime_type": asset.mime_type,
+                "etag": asset.etag,
+                "file_size_bytes": asset.file_size_bytes,
+            }
+            for asset in uploaded_assets
+        ]
 
 
 class FakeCosClient:
@@ -232,6 +244,7 @@ class ProcessorContractTests(unittest.TestCase):
             "video-subtitles/merchant_1/draft_1/variant_1/job_1/subtitles.srt",
             result_payload["outputs"]["subtitles"],
         )
+        self.assertEqual("asset_video_1", result_payload["uploaded_assets"][0]["asset_id"])
 
 
 if __name__ == "__main__":

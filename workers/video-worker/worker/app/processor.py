@@ -122,6 +122,25 @@ class JobProcessor:
             if asset.asset_type in output_keys
         }
 
+    def _uploaded_assets_payload(
+        self,
+        uploaded_assets: list[UploadedAsset],
+        persisted_assets: list[dict[str, Any]] | None,
+    ) -> list[dict[str, Any]]:
+        if persisted_assets is not None:
+            return persisted_assets
+        return [
+            {
+                "asset_type": asset.asset_type,
+                "bucket_name": asset.bucket_name,
+                "storage_key": asset.storage_key,
+                "mime_type": asset.mime_type,
+                "etag": asset.etag,
+                "file_size_bytes": asset.file_size_bytes,
+            }
+            for asset in uploaded_assets
+        ]
+
     def process(self, job: VideoJob) -> None:
         log_payload: dict[str, Any] = {"steps": []}
         try:
@@ -216,18 +235,11 @@ class JobProcessor:
                 cover_image_path=run_result.cover_image_path,
                 subtitle_path=run_result.subtitle_path,
             )
-            self._repository.insert_output_assets(job, uploaded_assets)
+            persisted_assets = self._repository.insert_output_assets(job, uploaded_assets)
             log_payload["steps"].append(
                 {
                     "stage": "uploading_outputs",
-                    "uploaded_assets": [
-                        {
-                            "asset_type": asset.asset_type,
-                            "storage_key": asset.storage_key,
-                            "bucket_name": asset.bucket_name,
-                        }
-                        for asset in uploaded_assets
-                    ],
+                    "uploaded_assets": persisted_assets,
                 }
             )
             self._repository.mark_succeeded(
@@ -241,17 +253,10 @@ class JobProcessor:
                     "script_locked": directive.script_locked,
                     "desired_outputs": list(directive.desired_outputs),
                     "outputs": self._outputs_payload(uploaded_assets),
-                    "uploaded_assets": [
-                        {
-                            "asset_type": asset.asset_type,
-                            "bucket_name": asset.bucket_name,
-                            "storage_key": asset.storage_key,
-                            "mime_type": asset.mime_type,
-                            "etag": asset.etag,
-                            "file_size_bytes": asset.file_size_bytes,
-                        }
-                        for asset in uploaded_assets
-                    ],
+                    "uploaded_assets": self._uploaded_assets_payload(
+                        uploaded_assets,
+                        persisted_assets,
+                    ),
                     "engine_response": run_result.raw_response,
                 },
                 log_payload=log_payload,

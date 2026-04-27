@@ -113,17 +113,22 @@ as `failed_manual`. Current examples:
 - missing locked script text
 - script explicitly marked unlocked
 - requested outputs do not include `final_video`
+- malformed `input_assets`, including assets missing `storage_key`
 
 Runtime or infrastructure failures stay `failed_retryable` through the existing
 processor path. Current examples:
 
 - COS download failures
 - temporary engine failures
+- missing files in requested engine outputs
 - upload failures
 - worker runtime exceptions
 
 The normalized directive is also written into the engine request so the skeleton
 engine and future real OpenStoryline adapter share the same contract surface.
+After engine execution, the worker checks the requested output files before any
+COS upload. Successful jobs include `engine_adapter`, storage-key `outputs`, and
+persisted `asset_objects.id` values in `result_payload.uploaded_assets`.
 
 ## Local setup
 

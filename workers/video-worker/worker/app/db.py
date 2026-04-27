@@ -9,6 +9,34 @@ from psycopg.types.json import Json
 from .models import UploadedAsset, VideoJob
 
 
+ALLOWED_VIDEO_JOB_STATUSES = frozenset(
+    {
+        "pending",
+        "queued",
+        "preparing",
+        "running",
+        "succeeded",
+        "failed_retryable",
+        "failed_manual",
+        "cancelled",
+    }
+)
+FAILURE_VIDEO_JOB_STATUSES = frozenset({"failed_retryable", "failed_manual"})
+
+
+def validate_video_job_status(
+    status: str,
+    *,
+    allowed_statuses: frozenset[str] = ALLOWED_VIDEO_JOB_STATUSES,
+) -> str:
+    if status not in allowed_statuses:
+        allowed = ", ".join(sorted(allowed_statuses))
+        raise ValueError(
+            f"invalid video_edit_jobs.status '{status}'; allowed values: {allowed}"
+        )
+    return status
+
+
 class VideoJobRepository:
     def __init__(self, db_url: str) -> None:
         self._db_url = db_url
@@ -76,6 +104,7 @@ class VideoJobRepository:
         runtime_payload: dict[str, Any] | None = None,
         log_payload: dict[str, Any] | None = None,
     ) -> None:
+        validate_video_job_status(status)
         with self._connect() as connection, connection.cursor() as cursor:
             cursor.execute(
                 """
@@ -130,6 +159,7 @@ class VideoJobRepository:
         log_payload: dict[str, Any],
         status: str = "failed_retryable",
     ) -> None:
+        validate_video_job_status(status, allowed_statuses=FAILURE_VIDEO_JOB_STATUSES)
         with self._connect() as connection, connection.cursor() as cursor:
             cursor.execute(
                 """
@@ -149,43 +179,55 @@ class VideoJobRepository:
         self,
         job: VideoJob,
         uploaded_assets: list[UploadedAsset],
-    ) -> None:
-        rows = [
-            (
-                "content_variant",
-                job.content_variant_id,
-                asset.asset_type,
-                "tencent_cos",
-                asset.bucket_name,
-                asset.storage_key,
-                asset.mime_type,
-                asset.file_size_bytes,
-                asset.etag,
-            )
-            for asset in uploaded_assets
-        ]
-        if not rows:
-            return
+    ) -> list[dict[str, Any]]:
+        if not uploaded_assets:
+            return []
+        inserted_assets: list[dict[str, Any]] = []
         with self._connect() as connection, connection.cursor() as cursor:
-            cursor.executemany(
-                """
-                insert into asset_objects (
-                  owner_type,
-                  owner_id,
-                  asset_type,
-                  storage_provider,
-                  bucket_name,
-                  storage_key,
-                  mime_type,
-                  file_size_bytes,
-                  etag,
-                  created_at,
-                  updated_at
-                ) values (
-                  %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                  timezone('utc', now()),
-                  timezone('utc', now())
+            for asset in uploaded_assets:
+                cursor.execute(
+                    """
+                    insert into asset_objects (
+                      owner_type,
+                      owner_id,
+                      asset_type,
+                      storage_provider,
+                      bucket_name,
+                      storage_key,
+                      mime_type,
+                      file_size_bytes,
+                      etag,
+                      created_at,
+                      updated_at
+                    ) values (
+                      %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                      timezone('utc', now()),
+                      timezone('utc', now())
+                    )
+                    returning id
+                    """,
+                    (
+                        "content_variant",
+                        job.content_variant_id,
+                        asset.asset_type,
+                        "tencent_cos",
+                        asset.bucket_name,
+                        asset.storage_key,
+                        asset.mime_type,
+                        asset.file_size_bytes,
+                        asset.etag,
+                    ),
                 )
-                """,
-                rows,
-            )
+                record = cursor.fetchone() or {}
+                inserted_assets.append(
+                    {
+                        "asset_id": str(record.get("id") or ""),
+                        "asset_type": asset.asset_type,
+                        "bucket_name": asset.bucket_name,
+                        "storage_key": asset.storage_key,
+                        "mime_type": asset.mime_type,
+                        "etag": asset.etag,
+                        "file_size_bytes": asset.file_size_bytes,
+                    }
+                )
+        return inserted_assets
