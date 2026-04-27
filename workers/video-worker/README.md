@@ -172,6 +172,19 @@ sudo mkdir -p /srv/jingjing-video-worker/{tmp,models,outputs}
 docker compose up --build
 ```
 
+To verify real staging dependencies without printing secrets, run:
+
+```powershell
+$env:PYTHONPATH='D:\codexplan\worktrees\jingjing-content-platform-worker\workers\video-worker'
+python -m worker.app.real_io_smoke
+```
+
+The smoke requires `SUPABASE_DB_URL`, `COS_SECRET_ID`, `COS_SECRET_KEY`,
+`COS_BUCKET`, and `COS_REGION`. It performs a read-only database check for
+`video_edit_jobs` and `asset_objects`, then uploads, downloads, verifies, and
+deletes one small object under `worker-real-smoke/` in Tencent COS. Missing
+environment variables are reported by name only; secret values are never echoed.
+
 ## Current scope
 
 This is a PoC execution skeleton, not the final production runtime. Today it gives us:
