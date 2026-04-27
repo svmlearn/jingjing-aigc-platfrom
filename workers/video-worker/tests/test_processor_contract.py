@@ -276,6 +276,49 @@ class ProcessorContractTests(unittest.TestCase):
         )
         self.assertEqual("asset_video_1", result_payload["uploaded_assets"][0]["asset_id"])
 
+    def test_final_video_only_job_does_not_upload_unrequested_cover_or_subtitles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+            job = make_job(
+                {
+                    "source": "video_workbench",
+                    "executionMode": "staging_worker",
+                    "script": {
+                        "text": "固定脚本，只需要成片。",
+                        "locked": True,
+                        "variantId": "variant_1",
+                    },
+                    "productionDirective": {
+                        "targetPlatform": "douyin",
+                        "aspectRatio": "9:16",
+                        "desiredOutputs": ["final_video"],
+                        "lockedFields": ["script", "cta"],
+                    },
+                    "input_assets": [],
+                }
+            )
+
+            processor.process(job)
+
+        uploaded_asset_types = [upload["asset_type"] for upload in cos_client.uploads]
+        inserted_asset_types = [asset.asset_type for asset in repository.inserted_assets]
+        result_payload = repository.succeeded["result_payload"]
+
+        self.assertEqual(["video"], uploaded_asset_types)
+        self.assertEqual(["video"], inserted_asset_types)
+        self.assertEqual(
+            {"final_video": "video-outputs/merchant_1/draft_1/variant_1/job_1/final.mp4"},
+            result_payload["outputs"],
+        )
+        self.assertEqual(["video"], [asset["asset_type"] for asset in result_payload["uploaded_assets"]])
+
 
 if __name__ == "__main__":
     unittest.main()

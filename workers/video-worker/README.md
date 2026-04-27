@@ -133,6 +133,8 @@ engine and future real OpenStoryline adapter share the same contract surface.
 After engine execution, the worker checks the requested output files before any
 COS upload. Successful jobs include `engine_adapter`, storage-key `outputs`, and
 persisted `asset_objects.id` values in `result_payload.uploaded_assets`.
+Only requested `desiredOutputs` are uploaded and written back; for example,
+`["final_video"]` ignores any cover or subtitle files produced by the engine.
 
 ## Local setup
 

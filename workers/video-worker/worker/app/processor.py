@@ -60,6 +60,7 @@ class JobProcessor:
     def _upload_outputs(
         self,
         job: VideoJob,
+        desired_outputs: tuple[str, ...],
         final_video_path: Path,
         cover_image_path: Path | None,
         subtitle_path: Path | None,
@@ -71,7 +72,7 @@ class JobProcessor:
                 asset_type="video",
             )
         ]
-        if cover_image_path and cover_image_path.exists():
+        if "cover" in desired_outputs and cover_image_path and cover_image_path.exists():
             uploaded_assets.append(
                 self._cos_client.upload_file(
                     local_path=cover_image_path,
@@ -79,7 +80,7 @@ class JobProcessor:
                     asset_type="cover",
                 )
             )
-        if subtitle_path and subtitle_path.exists():
+        if "subtitles" in desired_outputs and subtitle_path and subtitle_path.exists():
             uploaded_assets.append(
                 self._cos_client.upload_file(
                     local_path=subtitle_path,
@@ -231,6 +232,7 @@ class JobProcessor:
             )
             uploaded_assets = self._upload_outputs(
                 job=job,
+                desired_outputs=directive.desired_outputs,
                 final_video_path=run_result.final_video_path,
                 cover_image_path=run_result.cover_image_path,
                 subtitle_path=run_result.subtitle_path,
