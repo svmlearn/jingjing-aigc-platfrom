@@ -130,7 +130,10 @@ processor path. Current examples:
 
 Download and upload failures are recorded with stage-specific diagnostics:
 `downloading_inputs_failed` for COS input download failures and
-`uploading_outputs_failed` for generated output upload failures.
+`uploading_outputs_failed` for generated output upload failures. If generated
+files upload but `asset_objects` cannot be persisted, the job is marked
+`asset_objects_persistence_failed` with `asset_objects_insert_failed` in the
+failure reason.
 
 The normalized directive is also written into the engine request so the skeleton
 engine and future real OpenStoryline adapter share the same contract surface.

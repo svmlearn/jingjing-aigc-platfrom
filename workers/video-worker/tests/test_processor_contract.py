@@ -72,11 +72,12 @@ def make_job(input_payload=None):
 
 
 class FakeRepository:
-    def __init__(self) -> None:
+    def __init__(self, fail_insert_output_assets=False) -> None:
         self.stage_updates = []
         self.failed = None
         self.succeeded = None
         self.inserted_assets = []
+        self.fail_insert_output_assets = fail_insert_output_assets
 
     def update_stage(self, job_id, **kwargs):
         self.stage_updates.append({"job_id": job_id, **kwargs})
@@ -89,6 +90,8 @@ class FakeRepository:
         self.succeeded = {"job_id": job_id, **kwargs}
 
     def insert_output_assets(self, job, uploaded_assets):
+        if self.fail_insert_output_assets:
+            raise RuntimeError("asset_objects insert failed")
         self.inserted_assets.extend(uploaded_assets)
         return [
             {
@@ -320,6 +323,26 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual("uploading_outputs_failed", repository.failed["current_stage"])
         self.assertIn("output_upload_failed", repository.failed["failure_reason"])
         self.assertIsNone(repository.succeeded)
+
+    def test_asset_object_insert_failure_marks_failed_retryable_with_diagnostic_stage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository(fail_insert_output_assets=True)
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+
+            with self.assertRaises(RuntimeError):
+                processor.process(make_job())
+
+        self.assertEqual("failed_retryable", repository.failed["status"])
+        self.assertEqual("asset_objects_persistence_failed", repository.failed["current_stage"])
+        self.assertIn("asset_objects_insert_failed", repository.failed["failure_reason"])
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual(["video", "cover", "subtitle"], [upload["asset_type"] for upload in cos_client.uploads])
 
     def test_final_video_only_job_does_not_upload_unrequested_cover_or_subtitles(self):
         with tempfile.TemporaryDirectory() as tmp:

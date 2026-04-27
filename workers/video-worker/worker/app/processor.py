@@ -30,6 +30,11 @@ class OutputUploadError(RuntimeError):
         super().__init__(f"failed to upload output asset {storage_key}: {original_error}")
 
 
+class OutputAssetPersistenceError(RuntimeError):
+    def __init__(self, original_error: Exception) -> None:
+        super().__init__(f"failed to persist generated asset_objects: {original_error}")
+
+
 class JobProcessor:
     def __init__(
         self,
@@ -247,7 +252,10 @@ class JobProcessor:
                 cover_image_path=run_result.cover_image_path,
                 subtitle_path=run_result.subtitle_path,
             )
-            persisted_assets = self._repository.insert_output_assets(job, uploaded_assets)
+            try:
+                persisted_assets = self._repository.insert_output_assets(job, uploaded_assets)
+            except Exception as exc:
+                raise OutputAssetPersistenceError(exc) from exc
             log_payload["steps"].append(
                 {
                     "stage": "uploading_outputs",
@@ -340,6 +348,23 @@ class JobProcessor:
                 job.id,
                 current_stage="uploading_outputs_failed",
                 failure_reason=f"output_upload_failed: {exc}",
+                log_payload=log_payload,
+                status="failed_retryable",
+            )
+            raise
+        except OutputAssetPersistenceError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "asset_objects_persistence",
+                    "status": "failed",
+                    "failure_code": "asset_objects_insert_failed",
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="asset_objects_persistence_failed",
+                failure_reason=f"asset_objects_insert_failed: {exc}",
                 log_payload=log_payload,
                 status="failed_retryable",
             )
