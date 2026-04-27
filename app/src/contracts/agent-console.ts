@@ -224,3 +224,16 @@ export type AgentConsoleFoundationStateDto = {
   knowledgeSets: KnowledgeSetDto[];
   skills: AgentSkillDto[];
 };
+
+export type AgentConfigDetailDto = {
+  agent: AgentConfigDto;
+  promptVersions: AgentPromptVersionDto[];
+  activePromptVersion?: AgentPromptVersionDto | null;
+  skillBindings: AgentSkillBindingDto[];
+  knowledgeSetBindings: AgentKnowledgeSetBindingDto[];
+};
+
+export type KnowledgeSetDetailDto = {
+  knowledgeSet: KnowledgeSetDto;
+  documentIds: string[];
+};
