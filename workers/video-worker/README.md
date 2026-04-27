@@ -87,10 +87,12 @@ video script and may include input assets:
 }
 ```
 
-`script.text` is mandatory for the current worker contract. If it is missing,
-the worker marks the job as `failed_manual` with a directive validation failure
-instead of sending an underspecified task to the engine. Legacy script text
-inside `productionDirective` is not accepted as a substitute.
+`script.text` is mandatory for the current worker contract, and `script.locked`
+must be the boolean value `true` when present. If locked script text is missing,
+or if `script.locked` is false or malformed, the worker marks the job as
+`failed_manual` with a directive validation failure instead of sending an
+underspecified task to the engine. Legacy script text inside
+`productionDirective` is not accepted as a substitute.
 
 Input asset `file_name` values must be plain file names only. Path fragments,
 absolute paths, Windows drive prefixes, and directory separators are rejected as
@@ -116,7 +118,7 @@ Validation failures that require upstream product or content repair are marked
 as `failed_manual`. Current examples:
 
 - missing locked script text
-- script explicitly marked unlocked
+- script explicitly marked unlocked or malformed
 - requested outputs do not include `final_video`
 - malformed `input_assets`, including assets missing `storage_key`
 

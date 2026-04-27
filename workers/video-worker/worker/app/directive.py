@@ -124,9 +124,10 @@ def _bool_value(
     default: bool,
 ) -> bool:
     for key in keys:
-        value = payload.get(key)
-        if isinstance(value, bool):
-            return value
+        if key not in payload:
+            continue
+        value = payload[key]
+        return value if isinstance(value, bool) else False
     return default
 
 

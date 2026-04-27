@@ -55,6 +55,27 @@ class DirectiveContractTests(unittest.TestCase):
         self.assertEqual("failed_manual", exc.exception.failure_status)
         self.assertEqual("missing_script_text", exc.exception.failure_code)
 
+    def test_directive_rejects_non_boolean_script_locked_value(self):
+        job = make_job(
+            {
+                "executionMode": "staging_worker",
+                "script": {
+                    "text": "locked flag must be a real boolean",
+                    "locked": "false",
+                },
+                "productionDirective": {
+                    "targetPlatform": "douyin",
+                    "desiredOutputs": ["final_video", "cover"],
+                },
+            }
+        )
+
+        with self.assertRaises(DirectiveValidationError) as exc:
+            build_production_directive(job)
+
+        self.assertEqual("failed_manual", exc.exception.failure_status)
+        self.assertEqual("script_not_locked", exc.exception.failure_code)
+
     def test_directive_normalizes_script_and_locked_fields(self):
         job = make_job(
             {
