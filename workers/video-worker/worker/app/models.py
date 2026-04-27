@@ -5,6 +5,12 @@ from pathlib import Path
 from typing import Any
 
 
+class InputAssetContractError(ValueError):
+    def __init__(self, message: str, *, failure_code: str = "invalid_input_assets") -> None:
+        super().__init__(message)
+        self.failure_code = failure_code
+
+
 @dataclass(frozen=True)
 class InputAsset:
     asset_type: str
@@ -14,7 +20,7 @@ class InputAsset:
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any], default_bucket: str) -> "InputAsset":
-        storage_key = str(payload["storage_key"])
+        storage_key = _required_string(payload, "storage_key")
         file_name = str(payload.get("file_name") or Path(storage_key).name)
         return cls(
             asset_type=str(payload.get("asset_type", "video")),
@@ -74,6 +80,11 @@ class VideoJob:
 
     def input_assets(self, default_bucket: str) -> list[InputAsset]:
         raw_assets = self.input_payload.get("input_assets") or []
+        if not isinstance(raw_assets, list):
+            raise InputAssetContractError("input_payload.input_assets must be a list")
+        for item in raw_assets:
+            if not isinstance(item, dict):
+                raise InputAssetContractError("each input asset must be an object")
         return [InputAsset.from_payload(item, default_bucket) for item in raw_assets]
 
     def output_object_key(self, asset_type: str) -> str:
@@ -91,3 +102,10 @@ class VideoJob:
             f"{root}/{self.merchant_id}/{self.draft_id}/"
             f"{self.content_variant_id}/{self.id}/{filename}"
         )
+
+
+def _required_string(payload: dict[str, Any], key: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise InputAssetContractError(f"input asset requires {key}")
+    return value.strip()

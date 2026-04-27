@@ -8,8 +8,14 @@ from .config import Settings
 from .cos_client import TencentCosClient
 from .db import VideoJobRepository
 from .directive import DirectiveValidationError, build_production_directive
-from .models import UploadedAsset, VideoJob
+from .models import EngineRunResult, InputAssetContractError, UploadedAsset, VideoJob
 from .openstoryline_client import OpenStorylineClient
+
+
+class OutputValidationError(RuntimeError):
+    def __init__(self, missing_outputs: list[str]) -> None:
+        self.missing_outputs = missing_outputs
+        super().__init__(f"missing output files: {', '.join(missing_outputs)}")
 
 
 class JobProcessor:
@@ -82,6 +88,39 @@ class JobProcessor:
                 )
             )
         return uploaded_assets
+
+    def _validate_outputs(
+        self,
+        directive: Any,
+        run_result: EngineRunResult,
+    ) -> None:
+        required_paths = {
+            "final_video": run_result.final_video_path,
+        }
+        if "cover" in directive.desired_outputs:
+            required_paths["cover"] = run_result.cover_image_path
+        if "subtitles" in directive.desired_outputs:
+            required_paths["subtitles"] = run_result.subtitle_path
+
+        missing_outputs = [
+            output_name
+            for output_name, output_path in required_paths.items()
+            if output_path is None or not output_path.is_file()
+        ]
+        if missing_outputs:
+            raise OutputValidationError(missing_outputs)
+
+    def _outputs_payload(self, uploaded_assets: list[UploadedAsset]) -> dict[str, str]:
+        output_keys = {
+            "video": "final_video",
+            "cover": "cover",
+            "subtitle": "subtitles",
+        }
+        return {
+            output_keys[asset.asset_type]: asset.storage_key
+            for asset in uploaded_assets
+            if asset.asset_type in output_keys
+        }
 
     def process(self, job: VideoJob) -> None:
         log_payload: dict[str, Any] = {"steps": []}
@@ -156,6 +195,14 @@ class JobProcessor:
                     "metadata_path": str(run_result.metadata_path),
                 }
             )
+            self._validate_outputs(directive, run_result)
+            log_payload["steps"].append(
+                {
+                    "stage": "output_validation",
+                    "status": "succeeded",
+                    "checked_outputs": list(directive.desired_outputs),
+                }
+            )
             self._repository.update_stage(
                 job.id,
                 status="running",
@@ -186,10 +233,14 @@ class JobProcessor:
             self._repository.mark_succeeded(
                 job.id,
                 result_payload={
-                    "engine": "openstoryline-skeleton",
+                    "engine": run_result.raw_response.get("engine")
+                    or "openstoryline-skeleton",
+                    "engine_adapter": run_result.raw_response.get("engine_adapter")
+                    or "unknown",
                     "execution_mode": directive.execution_mode,
                     "script_locked": directive.script_locked,
                     "desired_outputs": list(directive.desired_outputs),
+                    "outputs": self._outputs_payload(uploaded_assets),
                     "uploaded_assets": [
                         {
                             "asset_type": asset.asset_type,
@@ -205,6 +256,41 @@ class JobProcessor:
                 },
                 log_payload=log_payload,
             )
+        except InputAssetContractError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "input_asset_validation",
+                    "status": "failed",
+                    "failure_code": exc.failure_code,
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="input_asset_validation_failed",
+                failure_reason=f"{exc.failure_code}: {exc}",
+                log_payload=log_payload,
+                status="failed_manual",
+            )
+            return
+        except OutputValidationError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "output_validation",
+                    "status": "failed",
+                    "failure_code": "missing_output_files",
+                    "missing_outputs": exc.missing_outputs,
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="output_validation_failed",
+                failure_reason=f"missing_output_files: {exc}",
+                log_payload=log_payload,
+                status="failed_retryable",
+            )
+            return
         except Exception as exc:
             log_payload["steps"].append(
                 {
