@@ -22,6 +22,7 @@ The service now has an explicit engine adapter boundary:
 
 - `OPENSTORYLINE_ENGINE_ADAPTER=skeleton` keeps the current contract-preserving placeholder runtime.
 - `OPENSTORYLINE_ENGINE_ADAPTER=fire_red` is reserved for the full FireRed integration and fails closed with HTTP 501 until the session/chat/output mapping is implemented.
+- `FIRERED_OPENSTORYLINE_BASE_URL`, `FIRERED_RUN_TIMEOUT_SECONDS`, and `FIRERED_PROVIDER_KEY` are server-only preflight settings for that future adapter; health checks expose only whether the provider key is configured, never the key value.
 
 This is deliberate. The worker owns a synchronous `/v1/runs` job contract, while the full FireRed project is a session/chat/WebSocket style application. Do not replace the current `openstoryline/` directory with FireRed source directly; add a real adapter when that mapping is ready.
 

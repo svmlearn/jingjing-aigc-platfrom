@@ -103,6 +103,16 @@ class FireRedEngineAdapter:
         self._settings = settings
 
     def run(self, request: RunRequest) -> RunResponse:
+        if not self._settings.fire_red_base_url:
+            raise UnsupportedEngineAdapterError(
+                "FireRed adapter requires FIRERED_OPENSTORYLINE_BASE_URL before "
+                "it can serve /v1/runs."
+            )
+        if not self._settings.fire_red_provider_key_configured:
+            raise UnsupportedEngineAdapterError(
+                "FireRed adapter requires FIRERED_PROVIDER_KEY before it can "
+                "serve /v1/runs."
+            )
         raise UnsupportedEngineAdapterError(
             "FireRed adapter for /v1/runs is not enabled yet; add the "
             "session/chat/output mapping before switching OPENSTORYLINE_ENGINE_ADAPTER."

@@ -26,6 +26,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="skeleton",
             fire_red_base_url="",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=False,
         )
         try:
             response = TestClient(app).get("/health")
@@ -38,6 +40,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
         self.assertEqual("openstoryline-engine", body["service"])
         self.assertEqual("skeleton", body["engine_adapter"])
         self.assertFalse(body["fire_red_base_url_configured"])
+        self.assertEqual(900, body["fire_red_run_timeout_seconds"])
+        self.assertFalse(body["fire_red_provider_key_configured"])
         self.assertEqual(8000, body["http_port"])
         self.assertEqual(8001, body["mcp_port"])
 
@@ -47,6 +51,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             {
                 "OPENSTORYLINE_ENGINE_ADAPTER": "fire_red",
                 "FIRERED_OPENSTORYLINE_BASE_URL": "http://fire-red:7860",
+                "FIRERED_RUN_TIMEOUT_SECONDS": "123",
+                "FIRERED_PROVIDER_KEY": "secret-provider-key",
             },
             clear=False,
         ):
@@ -54,6 +60,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
 
         self.assertEqual("fire_red", settings.engine_adapter)
         self.assertEqual("http://fire-red:7860", settings.fire_red_base_url)
+        self.assertEqual(123, settings.fire_red_run_timeout_seconds)
+        self.assertTrue(settings.fire_red_provider_key_configured)
 
     def test_skeleton_adapter_writes_run_outputs(self):
         settings = Settings(
@@ -64,6 +72,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="skeleton",
             fire_red_base_url="",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=False,
         )
         adapter = create_engine_adapter(settings)
 
@@ -101,6 +111,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="skeleton",
             fire_red_base_url="",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=False,
         )
         try:
             with TemporaryDirectory() as tmp:
@@ -140,6 +152,66 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
         finally:
             app.state.settings = original_settings
 
+    def test_fire_red_adapter_requires_base_url_before_mapping(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+        )
+        adapter = create_engine_adapter(settings)
+
+        with self.assertRaises(UnsupportedEngineAdapterError) as raised:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir="/tmp/workspace",
+                    output_dir="/tmp/output",
+                    script_text="locked script",
+                    production_directive={"script_locked": True},
+                )
+            )
+
+        self.assertIn("FIRERED_OPENSTORYLINE_BASE_URL", str(raised.exception))
+
+    def test_fire_red_adapter_requires_provider_key_before_mapping(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=False,
+        )
+        adapter = create_engine_adapter(settings)
+
+        with self.assertRaises(UnsupportedEngineAdapterError) as raised:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir="/tmp/workspace",
+                    output_dir="/tmp/output",
+                    script_text="locked script",
+                    production_directive={"script_locked": True},
+                )
+            )
+
+        self.assertIn("FIRERED_PROVIDER_KEY", str(raised.exception))
+
     def test_fire_red_adapter_fails_closed_until_mapping_exists(self):
         settings = Settings(
             host="127.0.0.1",
@@ -149,6 +221,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
         )
         adapter = create_engine_adapter(settings)
 
@@ -179,6 +253,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
         )
         try:
             response = TestClient(app).post(
