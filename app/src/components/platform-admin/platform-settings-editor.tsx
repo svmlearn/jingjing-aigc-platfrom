@@ -1,8 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Save } from "lucide-react";
 
 import type { PlatformSettingsDto } from "@/contracts/platform-admin";
+import {
+  AdminEmptyState,
+  AdminField,
+  AdminNotice,
+  AdminPanel,
+  AdminPanelHeader,
+  adminButtonClassName,
+  adminButtonVariants,
+  adminInputClassName,
+  adminSelectClassName,
+  adminTextareaClassName,
+} from "@/components/platform-admin/platform-admin-ui";
+import { cn } from "@/lib/utils";
 
 const consultationSkillOptions: Array<{
   key: PlatformSettingsDto["consultationAgent"]["enabledTools"][number];
@@ -116,43 +130,47 @@ export function PlatformSettingsEditor() {
   }, []);
 
   if (loading) {
-    return <div className="text-sm text-[#5d6b7a]">正在读取平台配置...</div>;
+    return (
+      <AdminPanel className="p-6">
+        <div className="text-sm text-white/40">正在读取平台配置...</div>
+      </AdminPanel>
+    );
   }
 
   if (!settings) {
-    return <div className="text-sm text-[#b91c1c]">平台配置读取失败。</div>;
+    return (
+      <AdminEmptyState
+        title="平台配置读取失败"
+        description="请确认当前登录状态和平台配置 API 是否可用。"
+      />
+    );
   }
 
   return (
-    <div className="grid gap-6">
-      {error ? (
-        <div className="rounded-md border border-[#fecaca] bg-[#fef2f2] px-4 py-3 text-sm text-[#b91c1c]">
-          {error}
-        </div>
-      ) : null}
+    <div className="grid max-w-5xl gap-6">
+      {error ? <AdminNotice tone="danger">{error}</AdminNotice> : null}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-[#17202a]">系统配置</p>
-          <p className="mt-1 text-sm leading-6 text-[#5d6b7a]">
-            这里直接读写真实 `platform_settings`，会影响下一轮咨询与内容生成。
-          </p>
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-2xl text-sm leading-6 text-white/40">
+          这里直接读写真实 platform settings。V2.2 Agent 容器配置在「Agent 配置」中管理，系统页保留 runtime 与全局默认参数。
+        </p>
         <button
           type="button"
           onClick={() => {
             void saveSettings();
           }}
           disabled={saving}
-          className="rounded-md bg-[#1d4ed8] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          className={cn(adminButtonClassName, adminButtonVariants.primary)}
         >
-          {saving ? "保存中..." : "保存配置"}
+          <Save className="size-3.5" aria-hidden="true" />
+          {saving ? "保存中" : "保存配置"}
         </button>
       </div>
 
-      <Section title="LLM Runtime">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Provider Label">
+      <AdminPanel>
+        <AdminPanelHeader eyebrow="LLM Runtime" />
+        <div className="grid gap-4 p-5 md:grid-cols-2">
+          <AdminField label="Provider Label">
             <input
               value={settings.llmRuntime.providerLabel}
               onChange={(event) =>
@@ -161,10 +179,10 @@ export function PlatformSettingsEditor() {
                   llmRuntime: { ...settings.llmRuntime, providerLabel: event.target.value },
                 })
               }
-              className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+              className={adminInputClassName}
             />
-          </Field>
-          <Field label="Base URL">
+          </AdminField>
+          <AdminField label="Base URL">
             <input
               value={settings.llmRuntime.baseUrl}
               onChange={(event) =>
@@ -173,10 +191,10 @@ export function PlatformSettingsEditor() {
                   llmRuntime: { ...settings.llmRuntime, baseUrl: event.target.value },
                 })
               }
-              className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+              className={adminInputClassName}
             />
-          </Field>
-          <Field label="Primary Model">
+          </AdminField>
+          <AdminField label="Primary Model">
             <input
               value={settings.llmRuntime.primaryModel}
               onChange={(event) =>
@@ -185,10 +203,10 @@ export function PlatformSettingsEditor() {
                   llmRuntime: { ...settings.llmRuntime, primaryModel: event.target.value },
                 })
               }
-              className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+              className={adminInputClassName}
             />
-          </Field>
-          <Field label="Fallback Model">
+          </AdminField>
+          <AdminField label="Fallback Model">
             <input
               value={settings.llmRuntime.fallbackModel ?? ""}
               onChange={(event) =>
@@ -197,15 +215,19 @@ export function PlatformSettingsEditor() {
                   llmRuntime: { ...settings.llmRuntime, fallbackModel: event.target.value || null },
                 })
               }
-              className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+              className={adminInputClassName}
             />
-          </Field>
+          </AdminField>
         </div>
-      </Section>
+      </AdminPanel>
 
-      <Section title="Consultation Agent">
-        <div className="grid gap-4">
-          <Field label="System Prompt">
+      <AdminPanel>
+        <AdminPanelHeader
+          eyebrow="Consultation Agent Legacy Runtime"
+          description="这里仍是旧 consultation_agent settings。V2.2 Agent 容器上线前保留兼容。"
+        />
+        <div className="grid gap-5 p-5">
+          <AdminField label="System Prompt">
             <textarea
               value={settings.consultationAgent.systemPrompt}
               onChange={(event) =>
@@ -217,72 +239,26 @@ export function PlatformSettingsEditor() {
                   },
                 })
               }
-              rows={5}
-              className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+              rows={6}
+              className={cn(adminTextareaClassName, "font-mono text-xs")}
             />
-          </Field>
-          <Field label="Model">
-            <input
-              value={settings.consultationAgent.model}
-              onChange={(event) =>
-                setSettings({
-                  ...settings,
-                  consultationAgent: {
-                    ...settings.consultationAgent,
-                    model: event.target.value,
-                  },
-                })
-              }
-              className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
-            />
-          </Field>
-          <div>
-            <p className="mb-2 text-sm font-medium text-[#17202a]">Enabled Skills / Tools</p>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {consultationSkillOptions.map((skill) => {
-                const enabled = settings.consultationAgent.enabledTools.includes(skill.key);
-
-                return (
-                  <label
-                    key={skill.key}
-                    className="flex cursor-pointer gap-3 rounded-md border border-[#dde3ea] bg-white p-3 text-sm transition-colors hover:border-[#93c5fd] hover:bg-[#f8fbff]"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={(event) => {
-                        const nextTools = event.target.checked
-                          ? [...settings.consultationAgent.enabledTools, skill.key]
-                          : settings.consultationAgent.enabledTools.filter((tool) => tool !== skill.key);
-
-                        setSettings({
-                          ...settings,
-                          consultationAgent: {
-                            ...settings.consultationAgent,
-                            enabledTools:
-                              nextTools.length > 0
-                                ? nextTools
-                                : settings.consultationAgent.enabledTools,
-                          },
-                        });
-                      }}
-                      className="mt-1 size-4 accent-[#1d4ed8]"
-                    />
-                    <span>
-                      <span className="block font-medium text-[#17202a]">{skill.label}</span>
-                      <span className="mt-1 block text-xs leading-5 text-[#5d6b7a]">
-                        {skill.description}
-                      </span>
-                      <span className="mt-2 block font-mono text-[10px] uppercase tracking-[0.18em] text-[#7b8794]">
-                        {skill.key}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-4">
+          </AdminField>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <AdminField label="Model">
+              <input
+                value={settings.consultationAgent.model}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    consultationAgent: {
+                      ...settings.consultationAgent,
+                      model: event.target.value,
+                    },
+                  })
+                }
+                className={adminInputClassName}
+              />
+            </AdminField>
             <NumberField
               label="Max Rounds"
               value={settings.consultationAgent.maxRounds}
@@ -303,24 +279,6 @@ export function PlatformSettingsEditor() {
                 })
               }
             />
-            <Field label="Visible Mode">
-              <select
-                value={settings.consultationAgent.visibleExecutionMode}
-                onChange={(event) =>
-                  setSettings({
-                    ...settings,
-                    consultationAgent: {
-                      ...settings.consultationAgent,
-                      visibleExecutionMode: event.target.value as PlatformSettingsDto["consultationAgent"]["visibleExecutionMode"],
-                    },
-                  })
-                }
-                className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
-              >
-                <option value="cards">cards</option>
-                <option value="minimal">minimal</option>
-              </select>
-            </Field>
             <NumberField
               label="Temperature x100"
               value={Math.round(settings.consultationAgent.temperature * 100)}
@@ -335,11 +293,80 @@ export function PlatformSettingsEditor() {
               }
             />
           </div>
-        </div>
-      </Section>
 
-      <Section title="Knowledge Runtime">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <AdminField label="Visible Mode">
+            <select
+              value={settings.consultationAgent.visibleExecutionMode}
+              onChange={(event) =>
+                setSettings({
+                  ...settings,
+                  consultationAgent: {
+                    ...settings.consultationAgent,
+                    visibleExecutionMode: event.target.value as PlatformSettingsDto["consultationAgent"]["visibleExecutionMode"],
+                  },
+                })
+              }
+              className={adminSelectClassName}
+            >
+              <option value="cards">cards</option>
+              <option value="minimal">minimal</option>
+            </select>
+          </AdminField>
+
+          <div>
+            <p className="mb-3 text-[10px] font-medium uppercase tracking-widest text-white/40">
+              Enabled Tools
+            </p>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {consultationSkillOptions.map((skill) => {
+                const enabled = settings.consultationAgent.enabledTools.includes(skill.key);
+
+                return (
+                  <label
+                    key={skill.key}
+                    className="flex cursor-pointer gap-3 rounded-md border border-white/10 bg-white/[0.03] p-3 text-sm transition-colors hover:border-amber-500/25 hover:bg-amber-500/[0.04]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={enabled}
+                      onChange={(event) => {
+                        const nextTools = event.target.checked
+                          ? [...settings.consultationAgent.enabledTools, skill.key]
+                          : settings.consultationAgent.enabledTools.filter((tool) => tool !== skill.key);
+
+                        setSettings({
+                          ...settings,
+                          consultationAgent: {
+                            ...settings.consultationAgent,
+                            enabledTools:
+                              nextTools.length > 0
+                                ? nextTools
+                                : settings.consultationAgent.enabledTools,
+                          },
+                        });
+                      }}
+                      className="mt-1 size-4 accent-amber-500"
+                    />
+                    <span className="min-w-0">
+                      <span className="block font-medium text-white/75">{skill.label}</span>
+                      <span className="mt-1 block text-xs leading-5 text-white/38">
+                        {skill.description}
+                      </span>
+                      <span className="mt-2 block break-all font-mono text-[10px] uppercase tracking-widest text-white/25">
+                        {skill.key}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </AdminPanel>
+
+      <AdminPanel>
+        <AdminPanelHeader eyebrow="Knowledge Runtime" />
+        <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-5">
           <NumberField
             label="Retrieval Top K"
             value={settings.knowledgeRuntime.retrievalTopK}
@@ -370,7 +397,7 @@ export function PlatformSettingsEditor() {
               })
             }
           />
-          <Field label="Embedding Model">
+          <AdminField label="Embedding Model">
             <input
               value={settings.knowledgeRuntime.embeddingModel}
               onChange={(event) =>
@@ -382,10 +409,10 @@ export function PlatformSettingsEditor() {
                   },
                 })
               }
-              className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+              className={adminInputClassName}
             />
-          </Field>
-          <Field label="Query Rewrite">
+          </AdminField>
+          <AdminField label="Query Rewrite">
             <select
               value={String(settings.knowledgeRuntime.queryRewriteEnabled)}
               onChange={(event) =>
@@ -397,33 +424,15 @@ export function PlatformSettingsEditor() {
                   },
                 })
               }
-              className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+              className={adminSelectClassName}
             >
               <option value="true">enabled</option>
               <option value="false">disabled</option>
             </select>
-          </Field>
+          </AdminField>
         </div>
-      </Section>
+      </AdminPanel>
     </div>
-  );
-}
-
-function Section(props: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-md border border-[#dde3ea] bg-white p-5">
-      <h2 className="text-base font-semibold text-[#17202a]">{props.title}</h2>
-      <div className="mt-4">{props.children}</div>
-    </section>
-  );
-}
-
-function Field(props: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <p className="mb-2 text-sm font-medium text-[#17202a]">{props.label}</p>
-      {props.children}
-    </label>
   );
 }
 
@@ -433,13 +442,13 @@ function NumberField(props: {
   onChange: (value: number) => void;
 }) {
   return (
-    <Field label={props.label}>
+    <AdminField label={props.label}>
       <input
         type="number"
         value={props.value}
         onChange={(event) => props.onChange(Number.parseInt(event.target.value || "0", 10))}
-        className="w-full rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+        className={adminInputClassName}
       />
-    </Field>
+    </AdminField>
   );
 }

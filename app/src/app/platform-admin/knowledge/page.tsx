@@ -1,15 +1,19 @@
-import { PageHeader } from "@/components/app/page-header";
 import { PlatformKnowledgeManager } from "@/components/platform-admin/platform-knowledge-manager";
+import { AdminPageHeader } from "@/components/platform-admin/platform-admin-ui";
+import { getAgentConsoleFoundationState } from "@/lib/db/agent-console-repository";
 
-export default function PlatformKnowledgePage() {
+export const dynamic = "force-dynamic";
+
+export default async function PlatformKnowledgePage() {
+  const foundationState = await getAgentConsoleFoundationState();
+
   return (
-    <>
-      <PageHeader
-        eyebrow="Platform Admin"
-        title="知识库管理"
-        description="上传平台级方法论与行业素材，入库后会作为受控上下文影响下一轮咨询诊断。"
+    <div className="grid gap-6">
+      <AdminPageHeader
+        title="知识管理"
+        description="上传平台级方法论与行业素材，并预览 V2.2 Knowledge Set 结构。真实文档操作继续走现有 knowledge API。"
       />
-      <PlatformKnowledgeManager />
-    </>
+      <PlatformKnowledgeManager knowledgeSets={foundationState.knowledgeSets} />
+    </div>
   );
 }

@@ -1,20 +1,32 @@
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   Clock3,
   Plus,
-  Server,
-  Settings2,
+  Search,
   ShieldBan,
   Sparkles,
   Store,
+  Ticket,
+  Users,
+  WalletCards,
 } from "lucide-react";
 
-import { PageHeader } from "@/components/app/page-header";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { CreateInvitationCodeForm } from "@/components/platform-admin/create-invitation-code-form";
+import { InvitationCodeStatusAction } from "@/components/platform-admin/invitation-code-status-action";
+import {
+  AdminEmptyState,
+  AdminNotice,
+  AdminPageHeader,
+  AdminPanel,
+  AdminPanelHeader,
+  AdminStatusBadge,
+  adminButtonClassName,
+  adminButtonVariants,
+  adminInputClassName,
+} from "@/components/platform-admin/platform-admin-ui";
 import {
   Table,
   TableBody,
@@ -24,21 +36,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type {
+  AgentConsoleFoundationStateDto,
   PlatformAdminInvitationCodeDto,
   PlatformAdminInvitationCodeFilters,
   PlatformAdminInvitationCodeStatusFilter,
   PlatformAdminInvitationCodeUsageFilter,
 } from "@/contracts/platform-admin";
-import { CreateInvitationCodeForm } from "@/components/platform-admin/create-invitation-code-form";
-import { InvitationCodeStatusAction } from "@/components/platform-admin/invitation-code-status-action";
+import { cn } from "@/lib/utils";
 import {
   adminAlerts,
   adminAuditEvents,
   adminMerchants,
-  adminOverviewMetrics,
-  importRuntimeConfig,
-  llmProviderConfigs,
-  membershipPlanConfigs,
   type AdminAlertLevel,
   type AdminMerchant,
   type AdminMerchantStatus,
@@ -46,34 +54,17 @@ import {
 } from "@/lib/ui/platform-admin-mock";
 
 const metricToneClasses = {
-  neutral: "text-[#17202a]",
-  positive: "text-[#166534]",
-  warning: "text-[#b45309]",
+  neutral: "text-white",
+  positive: "text-emerald-300",
+  warning: "text-amber-300",
+  sky: "text-sky-300",
+  violet: "text-violet-300",
 } as const;
 
-const invitationToneClasses: Record<PlatformAdminInvitationCodeDto["status"], string> = {
-  active: "border-[#bbf7d0] bg-[#f0fdf4] text-[#166534]",
-  redeemed: "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]",
-  expired: "border-[#e2e8f0] bg-[#f8fafc] text-[#475569]",
-  disabled: "border-[#fecdd3] bg-[#fff1f2] text-[#be123c]",
-};
-
-const merchantToneClasses: Record<AdminMerchantStatus, string> = {
-  active: "border-[#bbf7d0] bg-[#f0fdf4] text-[#166534]",
-  disabled: "border-[#fecdd3] bg-[#fff1f2] text-[#be123c]",
-  archived: "border-[#e2e8f0] bg-[#f8fafc] text-[#475569]",
-};
-
 const alertToneClasses: Record<AdminAlertLevel, string> = {
-  critical: "border-[#fecaca] bg-[#fff1f2] text-[#be123c]",
-  warning: "border-[#fde68a] bg-[#fffbeb] text-[#92400e]",
-  info: "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]",
-};
-
-const planToneClasses: Record<MerchantPlan, string> = {
-  free: "border-[#e2e8f0] bg-[#f8fafc] text-[#475569]",
-  plus: "border-[#fde68a] bg-[#fffbeb] text-[#92400e]",
-  pro: "border-[#ddd6fe] bg-[#f5f3ff] text-[#6d28d9]",
+  critical: "border-red-500/25 bg-red-950/35 text-red-200/85",
+  warning: "border-amber-500/25 bg-amber-500/[0.08] text-amber-200/85",
+  info: "border-sky-500/20 bg-sky-500/[0.07] text-sky-200/80",
 };
 
 const invitationCodeStatusFilters: Array<{
@@ -155,100 +146,238 @@ function buildInvitationCodeFilterHref(
   return `/platform-admin/invitation-codes${queryString ? `?${queryString}` : ""}`;
 }
 
-function SectionCard({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm">
-      <div className="border-b border-[#dde3ea] pb-4">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        {description ? <p className="mt-1 text-sm text-[#5d6b7a]">{description}</p> : null}
-      </div>
-      <div className="mt-5">{children}</div>
-    </section>
+function tableHeadClassName(className?: string) {
+  return cn(
+    "h-11 px-5 text-[10px] font-medium uppercase tracking-widest text-white/35",
+    className,
   );
 }
 
-function StatusBadge({
-  label,
-  className,
-}: {
-  label: string;
-  className: string;
-}) {
-  return <Badge className={`rounded-md ${className}`}>{label}</Badge>;
+function tableCellClassName(className?: string) {
+  return cn("px-5 py-3 text-sm text-white/55", className);
 }
 
-export function PlatformAdminOverviewPage() {
+function AdminActionLink({
+  href,
+  children,
+  variant = "secondary",
+}: {
+  href: string;
+  children: React.ReactNode;
+  variant?: keyof typeof adminButtonVariants;
+}) {
   return (
-    <>
-      <PageHeader
-        eyebrow="Platform Admin"
+    <Link
+      href={href}
+      className={cn(adminButtonClassName, adminButtonVariants[variant])}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function ToggleLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "inline-flex min-h-8 items-center rounded-md border px-3 py-1.5 text-xs font-medium text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white/80",
+        active
+          ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+          : "border-white/10 bg-white/[0.03]",
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function MerchantPlanBadge({ plan }: { plan: MerchantPlan }) {
+  return <AdminStatusBadge status={plan} />;
+}
+
+function MerchantStatusBadge({ status }: { status: AdminMerchantStatus }) {
+  return <AdminStatusBadge status={status} />;
+}
+
+function getOnlineAgent(foundationState?: AgentConsoleFoundationStateDto) {
+  const onlineBinding = foundationState?.routeBindings.find(
+    (binding) => binding.routeKey === "consultation_default" && binding.status === "active",
+  );
+
+  return foundationState?.agents.find((agent) => agent.id === onlineBinding?.agentId) ?? null;
+}
+
+export function PlatformAdminOverviewPage({
+  foundationState,
+}: {
+  foundationState?: AgentConsoleFoundationStateDto;
+}) {
+  const onlineAgent = getOnlineAgent(foundationState);
+  const enabledSkillCount =
+    foundationState?.skills.filter((skill) => skill.status === "enabled").length ?? 0;
+  const enabledKnowledgeSetCount =
+    foundationState?.knowledgeSets.filter((set) => set.status === "enabled").length ?? 0;
+  const stats = [
+    {
+      label: "商户总数",
+      value: adminMerchants.length,
+      sub: "当前运营样本",
+      tone: "neutral",
+    },
+    {
+      label: "线上 Agent",
+      value: onlineAgent ? 1 : 0,
+      sub: onlineAgent?.displayName ?? "未绑定",
+      tone: onlineAgent ? "warning" : "neutral",
+    },
+    {
+      label: "已启用技能",
+      value: enabledSkillCount,
+      sub: `共 ${foundationState?.skills.length ?? 0} 个技能`,
+      tone: "positive",
+    },
+    {
+      label: "知识集",
+      value: foundationState?.knowledgeSets.length ?? 0,
+      sub: `${enabledKnowledgeSetCount} 个已启用`,
+      tone: "sky",
+    },
+    {
+      label: "本月咨询",
+      value: 194,
+      sub: "运行快照分支接入后替换",
+      tone: "neutral",
+    },
+    {
+      label: "积分消耗",
+      value: "4,280",
+      sub: "会员积分底座预留",
+      tone: "violet",
+    },
+  ] satisfies Array<{
+    label: string;
+    value: number | string;
+    sub: string;
+    tone: keyof typeof metricToneClasses;
+  }>;
+
+  const systemRows = [
+    {
+      label: "线上咨询 Agent",
+      value: onlineAgent?.displayName ?? "未配置",
+      ok: Boolean(onlineAgent),
+    },
+    {
+      label: "Agent 生命周期",
+      value: onlineAgent?.serviceStatus ?? "unknown",
+      ok: onlineAgent?.serviceStatus === "enabled",
+    },
+    {
+      label: "知识检索",
+      value: enabledKnowledgeSetCount > 0 ? "服务正常" : "暂无启用知识集",
+      ok: enabledKnowledgeSetCount > 0,
+    },
+    {
+      label: "积分 Gate",
+      value: "已预留",
+      ok: true,
+    },
+  ];
+
+  return (
+    <div className="grid gap-6">
+      <AdminPageHeader
         title="总览"
-        description="先看平台的运行状态，再区分业务摘要、管理员操作和系统告警。"
+        description="先看平台运行状态，再进入运营管理、Agent 能力和系统配置。V2.2 的 Agent foundation 数据在这里做只读汇总。"
       />
 
-      <div className="grid gap-6">
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {adminOverviewMetrics.map((metric) => (
-            <article key={metric.label} className="rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm">
-              <p className="text-sm text-[#5d6b7a]">{metric.label}</p>
-              <p className="mt-2 text-3xl font-semibold text-[#17202a]">{metric.value}</p>
-              <p className={`mt-2 text-sm ${metricToneClasses[metric.tone]}`}>{metric.delta}</p>
-            </article>
+      {adminAlerts.length > 0 ? (
+        <div className="grid gap-2">
+          {adminAlerts.slice(0, 2).map((alert) => (
+            <div
+              key={alert.id}
+              className={cn(
+                "flex items-start gap-3 rounded-lg border px-4 py-3 text-sm",
+                alertToneClasses[alert.level],
+              )}
+            >
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="font-medium">{alert.title}</p>
+                <p className="mt-1 leading-6 opacity-80">{alert.description}</p>
+              </div>
+              <span className="ml-auto shrink-0 text-xs opacity-60">{alert.happenedAt}</span>
+            </div>
           ))}
-        </section>
-
-        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <SectionCard title="管理员操作日志" description="记录谁动了邀请码、商户状态和平台级配置。">
-            <div className="overflow-hidden rounded-md border border-[#dde3ea]">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-[#f8fafc]">
-                    <TableHead>时间</TableHead>
-                    <TableHead>操作人</TableHead>
-                    <TableHead>类型</TableHead>
-                    <TableHead>事件</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {adminAuditEvents.map((event) => (
-                    <TableRow key={event.id}>
-                      <TableCell>{event.happenedAt}</TableCell>
-                      <TableCell>{event.actorName}</TableCell>
-                      <TableCell>{event.type}</TableCell>
-                      <TableCell>{event.summary}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </SectionCard>
-
-          <SectionCard title="系统告警" description="这些不是管理员操作，而是平台当前需要跟进的异常信号。">
-            <div className="grid gap-3">
-              {adminAlerts.map((alert) => (
-                <article key={alert.id} className={`rounded-md border px-4 py-3 ${alertToneClasses[alert.level]}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">{alert.title}</p>
-                      <p className="mt-1 text-sm leading-6">{alert.description}</p>
-                    </div>
-                    <span className="shrink-0 text-xs">{alert.happenedAt}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </SectionCard>
         </div>
+      ) : null}
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {stats.map((metric) => (
+          <AdminPanel key={metric.label} className="p-5">
+            <p className="text-sm text-white/45">{metric.label}</p>
+            <p className={cn("mt-2 text-3xl font-semibold", metricToneClasses[metric.tone])}>
+              {metric.value}
+            </p>
+            <p className="mt-2 truncate text-xs text-white/35">{metric.sub}</p>
+          </AdminPanel>
+        ))}
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <AdminPanel>
+          <AdminPanelHeader eyebrow="系统状态" />
+          <div className="grid gap-3 p-5">
+            {systemRows.map((row) => (
+              <div key={row.label} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-white/45">{row.label}</span>
+                <div
+                  className={cn(
+                    "flex min-w-0 items-center gap-1.5",
+                    row.ok ? "text-emerald-300" : "text-amber-300",
+                  )}
+                >
+                  {row.ok ? (
+                    <CheckCircle2 className="size-3.5 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
+                  )}
+                  <span className="truncate text-xs">{row.value}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </AdminPanel>
+
+        <AdminPanel>
+          <AdminPanelHeader
+            eyebrow="操作日志"
+            action={<span className="text-[10px] text-white/30">今日</span>}
+          />
+          <div className="grid gap-1 p-2">
+            {adminAuditEvents.map((event) => (
+              <div
+                key={event.id}
+                className="grid grid-cols-[5.5rem_4.5rem_minmax(0,1fr)] gap-3 rounded-md px-3 py-2 text-xs transition-colors hover:bg-white/[0.04]"
+              >
+                <span className="font-mono text-white/30">{event.happenedAt}</span>
+                <span className="text-amber-300/80">{event.type}</span>
+                <span className="truncate text-white/45">{event.summary}</span>
+              </div>
+            ))}
+          </div>
+        </AdminPanel>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -262,29 +391,30 @@ export function InvitationCodesAdminPage({
   filters: PlatformAdminInvitationCodeFilters;
 }) {
   return (
-    <>
-      <PageHeader
-        eyebrow="Platform Admin"
+    <div className="grid gap-6">
+      <AdminPageHeader
         title="邀请码管理"
-        description="这里展示真实邀请码记录。生成成功后会直接回到列表，不再停留在只会展示 mock 的壳子里。"
+        description="邀请码列表读取真实平台记录。创建、启停操作继续走现有 API，不在 UI 层做假状态。"
         action={
-          <Button asChild className="h-10 rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]">
-            <Link href="/platform-admin/invitation-codes/new">
-              <Plus className="size-4" />
-              生成邀请码
-            </Link>
-          </Button>
+          <AdminActionLink href="/platform-admin/invitation-codes/new" variant="primary">
+            <Plus className="size-3.5" aria-hidden="true" />
+            新建邀请码
+          </AdminActionLink>
         }
       />
 
-      <SectionCard title="邀请码列表" description="按创建时间倒序展示，名称字段就是你创建时填写的内部备注。">
-        {createdCode ? (
-          <div className="mb-4 rounded-md border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3 text-sm text-[#166534]">
-            邀请码 <span className="font-semibold">{createdCode}</span> 已生成，现在可以直接复制给要注册的商家。
-          </div>
-        ) : null}
+      {createdCode ? (
+        <AdminNotice tone="success">
+          邀请码 <span className="font-mono font-semibold">{createdCode}</span> 已生成，现在可以复制给要注册的商家。
+        </AdminNotice>
+      ) : null}
 
-        <div className="mb-4 grid gap-4 rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
+      <AdminPanel>
+        <AdminPanelHeader
+          eyebrow="邀请码列表"
+          action={<span className="text-xs text-white/30">{invitationCodes.length} 条记录</span>}
+        />
+        <div className="grid gap-4 border-b border-white/[0.06] p-4">
           <form action="/platform-admin/invitation-codes" className="grid gap-3 md:grid-cols-[1fr_auto]">
             {(filters.status ?? "all") !== "all" ? (
               <input type="hidden" name="status" value={filters.status} />
@@ -292,111 +422,119 @@ export function InvitationCodesAdminPage({
             {(filters.usage ?? "all") !== "all" ? (
               <input type="hidden" name="usage" value={filters.usage} />
             ) : null}
-            <Input
+            <input
               name="q"
               defaultValue={filters.query ?? ""}
               placeholder="搜索邀请码或渠道备注"
+              className={adminInputClassName}
             />
-            <Button type="submit" variant="outline" className="rounded-md">
+            <button
+              type="submit"
+              className={cn(adminButtonClassName, adminButtonVariants.secondary)}
+            >
+              <Search className="size-3.5" aria-hidden="true" />
               搜索
-            </Button>
+            </button>
           </form>
 
           <div className="flex flex-wrap gap-2">
-            {invitationCodeStatusFilters.map((filter) => {
-              const active = (filters.status ?? "all") === filter.value;
-
-              return (
-                <Button
-                  key={filter.value}
-                  asChild
-                  variant="outline"
-                  className={`rounded-md ${active ? "border-[#2563eb] bg-[#e8f1ff] text-[#1d4ed8]" : ""}`}
-                >
-                  <Link
-                    href={buildInvitationCodeFilterHref(filters, {
-                      status: filter.value,
-                    })}
-                  >
-                    {filter.label}
-                  </Link>
-                </Button>
-              );
-            })}
+            {invitationCodeStatusFilters.map((filter) => (
+              <ToggleLink
+                key={filter.value}
+                href={buildInvitationCodeFilterHref(filters, { status: filter.value })}
+                active={(filters.status ?? "all") === filter.value}
+              >
+                {filter.label}
+              </ToggleLink>
+            ))}
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {invitationCodeUsageFilters.map((filter) => {
-              const active = (filters.usage ?? "all") === filter.value;
-
-              return (
-                <Button
-                  key={filter.value}
-                  asChild
-                  variant="outline"
-                  className={`rounded-md ${active ? "border-[#2563eb] bg-[#e8f1ff] text-[#1d4ed8]" : ""}`}
-                >
-                  <Link
-                    href={buildInvitationCodeFilterHref(filters, {
-                      usage: filter.value,
-                    })}
-                  >
-                    {filter.label}
-                  </Link>
-                </Button>
-              );
-            })}
-
-            <Button asChild variant="outline" className="rounded-md">
-              <Link href="/platform-admin/invitation-codes">清空筛选</Link>
-            </Button>
+            {invitationCodeUsageFilters.map((filter) => (
+              <ToggleLink
+                key={filter.value}
+                href={buildInvitationCodeFilterHref(filters, { usage: filter.value })}
+                active={(filters.usage ?? "all") === filter.value}
+              >
+                {filter.label}
+              </ToggleLink>
+            ))}
+            <ToggleLink href="/platform-admin/invitation-codes" active={false}>
+              清空筛选
+            </ToggleLink>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-md border border-[#dde3ea]">
+        {invitationCodes.length > 0 ? (
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#f8fafc]">
-                <TableHead>邀请码</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>使用情况</TableHead>
-                <TableHead>创建时间</TableHead>
-                <TableHead>过期时间</TableHead>
-                <TableHead>名称 / 渠道备注</TableHead>
-                <TableHead>操作</TableHead>
+              <TableRow className="border-white/[0.06] hover:bg-transparent">
+                <TableHead className={tableHeadClassName()}>邀请码</TableHead>
+                <TableHead className={tableHeadClassName()}>状态</TableHead>
+                <TableHead className={tableHeadClassName()}>使用量</TableHead>
+                <TableHead className={tableHeadClassName()}>创建时间</TableHead>
+                <TableHead className={tableHeadClassName()}>过期时间</TableHead>
+                <TableHead className={tableHeadClassName("min-w-52")}>名称 / 渠道备注</TableHead>
+                <TableHead className={tableHeadClassName()}>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invitationCodes.length > 0 ? (
-                invitationCodes.map((code) => (
-                  <TableRow key={code.id}>
-                    <TableCell className="font-medium">{code.code}</TableCell>
-                    <TableCell>
-                      <StatusBadge label={code.status} className={invitationToneClasses[code.status]} />
-                    </TableCell>
-                    <TableCell>
-                      {code.redemptionCount} / {code.maxRedemptions}
-                    </TableCell>
-                    <TableCell>{formatAdminDateTime(code.createdAt)}</TableCell>
-                    <TableCell>{formatAdminDate(code.expiresAt)}</TableCell>
-                    <TableCell>{code.note ?? "未命名"}</TableCell>
-                    <TableCell>
-                      <InvitationCodeStatusAction invitationCode={code} />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-sm text-[#5d6b7a]">
-                    还没有创建过邀请码。现在可以直接去生成第一条真实邀请码记录。
+              {invitationCodes.map((code) => (
+                <TableRow
+                  key={code.id}
+                  className="border-white/[0.06] hover:bg-white/[0.03]"
+                >
+                  <TableCell className={tableCellClassName("font-mono font-medium text-white/80")}>
+                    {code.code}
+                  </TableCell>
+                  <TableCell className={tableCellClassName()}>
+                    <AdminStatusBadge status={code.status} label={code.status} />
+                  </TableCell>
+                  <TableCell className={tableCellClassName("font-mono")}>
+                    <span
+                      className={cn(
+                        code.redemptionCount >= code.maxRedemptions
+                          ? "text-red-300"
+                          : "text-white/70",
+                      )}
+                    >
+                      {code.redemptionCount}
+                    </span>
+                    <span className="text-white/28"> / {code.maxRedemptions}</span>
+                  </TableCell>
+                  <TableCell className={tableCellClassName("font-mono text-xs")}>
+                    {formatAdminDateTime(code.createdAt)}
+                  </TableCell>
+                  <TableCell className={tableCellClassName("font-mono text-xs")}>
+                    {formatAdminDate(code.expiresAt)}
+                  </TableCell>
+                  <TableCell className={tableCellClassName("max-w-64 whitespace-normal text-white/45")}>
+                    {code.note ?? "未命名"}
+                  </TableCell>
+                  <TableCell className={tableCellClassName()}>
+                    <InvitationCodeStatusAction invitationCode={code} />
                   </TableCell>
                 </TableRow>
-              )}
+              ))}
             </TableBody>
           </Table>
-        </div>
-      </SectionCard>
-    </>
+        ) : (
+          <div className="p-5">
+            <AdminEmptyState
+              icon={Ticket}
+              title="还没有邀请码"
+              description="现在可以生成第一条真实邀请码记录，创建后会立即写入平台邀请码表。"
+              action={
+                <AdminActionLink href="/platform-admin/invitation-codes/new" variant="primary">
+                  <Plus className="size-3.5" aria-hidden="true" />
+                  新建邀请码
+                </AdminActionLink>
+              }
+            />
+          </div>
+        )}
+      </AdminPanel>
+    </div>
   );
 }
 
@@ -404,336 +542,257 @@ export function CreateInvitationCodeAdminPage() {
   return <CreateInvitationCodeForm />;
 }
 
-function MerchantPlanBadge({ plan }: { plan: MerchantPlan }) {
-  return <StatusBadge label={plan} className={planToneClasses[plan]} />;
-}
-
-function MerchantStatusBadge({ status }: { status: AdminMerchantStatus }) {
-  return <StatusBadge label={status} className={merchantToneClasses[status]} />;
-}
-
 export function MerchantsAdminPage() {
+  const previewMerchant = adminMerchants[0];
+
   return (
-    <>
-      <PageHeader
-        eyebrow="Platform Admin"
+    <div className="grid gap-6">
+      <AdminPageHeader
         title="商户管理"
-        description="这里看商户启停、会员等级和今日剩余积分。后续接真实额度系统时，这页会成为最重要的运营入口之一。"
+        description="按商户维度查看状态、会员档位、积分余额和咨询活跃度。当前商户列表仍在 UI adapter 边界，后续接真实商户/会员 contract。"
+        action={<span className="text-xs text-white/30">{adminMerchants.length} 个商户</span>}
       />
 
-      <SectionCard title="商户列表" description="先以商户维度看状态、套餐和活跃度，细节再进详情。">
-        <div className="overflow-hidden rounded-md border border-[#dde3ea]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
+        <AdminPanel className="overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#f8fafc]">
-                <TableHead>商户名</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>会员等级</TableHead>
-                <TableHead>今日剩余积分</TableHead>
-                <TableHead>最近活跃</TableHead>
-                <TableHead>操作</TableHead>
+              <TableRow className="border-white/[0.06] hover:bg-transparent">
+                <TableHead className={tableHeadClassName("min-w-44")}>商户名称</TableHead>
+                <TableHead className={tableHeadClassName()}>会员档位</TableHead>
+                <TableHead className={tableHeadClassName()}>状态</TableHead>
+                <TableHead className={tableHeadClassName()}>积分余额</TableHead>
+                <TableHead className={tableHeadClassName()}>咨询次数</TableHead>
+                <TableHead className={tableHeadClassName()}>加入时间</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {adminMerchants.map((merchant) => (
-                <TableRow key={merchant.id}>
-                  <TableCell className="font-medium">{merchant.name}</TableCell>
-                  <TableCell>
-                    <div className="grid gap-1">
-                      <span>{merchant.ownerName}</span>
-                      <span className="text-xs text-[#5d6b7a]">{merchant.ownerEmail}</span>
-                    </div>
+                <TableRow
+                  key={merchant.id}
+                  className="border-white/[0.06] hover:bg-white/[0.03]"
+                >
+                  <TableCell className={tableCellClassName("font-medium text-white/85")}>
+                    <Link
+                      href={`/platform-admin/merchants/${merchant.id}`}
+                      className="underline-offset-4 hover:text-amber-300 hover:underline"
+                    >
+                      {merchant.name}
+                    </Link>
+                    <div className="mt-1 truncate text-xs text-white/30">{merchant.ownerEmail}</div>
                   </TableCell>
-                  <TableCell>
-                    <MerchantStatusBadge status={merchant.status} />
-                  </TableCell>
-                  <TableCell>
+                  <TableCell className={tableCellClassName()}>
                     <MerchantPlanBadge plan={merchant.plan} />
                   </TableCell>
-                  <TableCell>
-                    {merchant.remainingCredits} / {merchant.dailyCredits}
+                  <TableCell className={tableCellClassName()}>
+                    <MerchantStatusBadge status={merchant.status} />
                   </TableCell>
-                  <TableCell>{merchant.lastActiveAt}</TableCell>
-                  <TableCell>
-                    <Button variant="outline" size="sm" className="rounded-md" asChild>
-                      <Link href={`/platform-admin/merchants/${merchant.id}`}>详情</Link>
-                    </Button>
+                  <TableCell className={tableCellClassName("font-mono")}>
+                    {merchant.remainingCredits.toLocaleString()}
+                    <span className="text-white/28"> / {merchant.dailyCredits}</span>
+                  </TableCell>
+                  <TableCell className={tableCellClassName()}>
+                    {merchant.totalDrafts + merchant.totalImports}
+                  </TableCell>
+                  <TableCell className={tableCellClassName("font-mono text-xs")}>
+                    {merchant.joinedAt}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </div>
-      </SectionCard>
-    </>
+        </AdminPanel>
+
+        {previewMerchant ? (
+          <AdminPanel>
+            <AdminPanelHeader eyebrow="商户详情" />
+            <div className="grid gap-5 p-5">
+              <div>
+                <div className="mb-2 truncate text-base font-semibold text-white">
+                  {previewMerchant.name}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <MerchantPlanBadge plan={previewMerchant.plan} />
+                  <MerchantStatusBadge status={previewMerchant.status} />
+                </div>
+              </div>
+              <div className="grid gap-3 text-sm">
+                {[
+                  { label: "Owner", value: previewMerchant.ownerName },
+                  { label: "积分余额", value: `${previewMerchant.remainingCredits} / ${previewMerchant.dailyCredits}` },
+                  { label: "最近活跃", value: previewMerchant.lastActiveAt },
+                  { label: "服务范围", value: previewMerchant.serviceSummary },
+                ].map((row) => (
+                  <div key={row.label} className="min-w-0">
+                    <p className="mb-1 text-[10px] uppercase tracking-widest text-white/35">
+                      {row.label}
+                    </p>
+                    <p className="break-words text-white/65">{row.value}</p>
+                  </div>
+                ))}
+              </div>
+              <AdminActionLink href={`/platform-admin/merchants/${previewMerchant.id}`}>
+                查看完整详情
+              </AdminActionLink>
+            </div>
+          </AdminPanel>
+        ) : (
+          <AdminEmptyState
+            icon={Users}
+            title="选择商户查看详情"
+            className="min-h-full"
+          />
+        )}
+      </div>
+    </div>
   );
 }
 
-function MerchantSummaryCard({
-  icon,
+function MerchantSummaryTile({
+  icon: Icon,
   label,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: typeof Sparkles;
   label: string;
   value: string | number;
 }) {
   return (
-    <article className="rounded-md border border-[#dde3ea] bg-white p-4">
-      <div className="flex items-center gap-2 text-[#5d6b7a]">
-        {icon}
+    <AdminPanel className="p-4">
+      <div className="flex items-center gap-2 text-white/40">
+        <Icon className="size-4" aria-hidden="true" />
         <span className="text-sm">{label}</span>
       </div>
-      <p className="mt-3 text-2xl font-semibold text-[#17202a]">{value}</p>
-    </article>
+      <p className="mt-3 text-2xl font-semibold text-white">{value}</p>
+    </AdminPanel>
   );
 }
 
 export function MerchantDetailAdminPage({ merchant }: { merchant: AdminMerchant }) {
   return (
-    <>
-      <PageHeader
-        eyebrow="Platform Admin"
+    <div className="grid gap-6">
+      <AdminPageHeader
         title={merchant.name}
-        description="商户详情页聚合基础信息、状态切换、会员等级和最近任务概况。当前为演示数据，后续接真实商户与积分模型。"
+        description="商户详情聚合基础信息、会员积分和最近任务概况。状态切换操作先保持权限禁用态，等待商户 API 分支接入。"
         action={
-          <Button asChild variant="outline" className="rounded-md">
-            <Link href="/platform-admin/merchants">
-              <ArrowLeft className="size-4" />
-              返回商户管理
-            </Link>
-          </Button>
+          <AdminActionLink href="/platform-admin/merchants">
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            返回商户管理
+          </AdminActionLink>
         }
       />
 
-      <div className="grid gap-6">
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MerchantSummaryCard icon={<Sparkles className="size-4" />} label="今日改写" value={merchant.todayRewrites} />
-          <MerchantSummaryCard icon={<Clock3 className="size-4" />} label="运行中任务" value={merchant.runningTasks} />
-          <MerchantSummaryCard icon={<ShieldBan className="size-4" />} label="失败任务" value={merchant.failedTasks} />
-          <MerchantSummaryCard icon={<Store className="size-4" />} label="剩余积分" value={`${merchant.remainingCredits} / ${merchant.dailyCredits}`} />
-        </section>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MerchantSummaryTile icon={Sparkles} label="今日改写" value={merchant.todayRewrites} />
+        <MerchantSummaryTile icon={Clock3} label="运行中任务" value={merchant.runningTasks} />
+        <MerchantSummaryTile icon={ShieldBan} label="失败任务" value={merchant.failedTasks} />
+        <MerchantSummaryTile
+          icon={WalletCards}
+          label="剩余积分"
+          value={`${merchant.remainingCredits} / ${merchant.dailyCredits}`}
+        />
+      </section>
 
-        <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-          <SectionCard title="商户基础信息" description="后续这里会接真实 merchant_profiles 与 owner 信息。">
-            <dl className="grid gap-4 md:grid-cols-2">
-              <div>
-                <dt className="text-sm text-[#5d6b7a]">Owner</dt>
-                <dd className="mt-1 font-medium">{merchant.ownerName}</dd>
-                <dd className="text-sm text-[#5d6b7a]">{merchant.ownerEmail}</dd>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <AdminPanel>
+          <AdminPanelHeader eyebrow="商户基础信息" />
+          <dl className="grid gap-4 p-5 md:grid-cols-2">
+            {[
+              { label: "Owner", value: merchant.ownerName, sub: merchant.ownerEmail },
+              { label: "联系电话", value: merchant.contactPhone },
+              { label: "地址", value: merchant.address },
+              { label: "加入时间", value: merchant.joinedAt },
+              { label: "服务范围", value: merchant.serviceSummary, wide: true },
+              { label: "运营备注", value: merchant.note, wide: true },
+            ].map((row) => (
+              <div key={row.label} className={cn("min-w-0", row.wide && "md:col-span-2")}>
+                <dt className="text-[10px] font-medium uppercase tracking-widest text-white/35">
+                  {row.label}
+                </dt>
+                <dd className="mt-2 break-words text-sm font-medium text-white/75">{row.value}</dd>
+                {"sub" in row && row.sub ? (
+                  <dd className="mt-1 break-words text-sm text-white/35">{row.sub}</dd>
+                ) : null}
               </div>
-              <div>
-                <dt className="text-sm text-[#5d6b7a]">联系电话</dt>
-                <dd className="mt-1 font-medium">{merchant.contactPhone}</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-[#5d6b7a]">地址</dt>
-                <dd className="mt-1 font-medium">{merchant.address}</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-[#5d6b7a]">加入时间</dt>
-                <dd className="mt-1 font-medium">{merchant.joinedAt}</dd>
-              </div>
-              <div className="md:col-span-2">
-                <dt className="text-sm text-[#5d6b7a]">服务范围</dt>
-                <dd className="mt-1 font-medium">{merchant.serviceSummary}</dd>
-              </div>
-              <div className="md:col-span-2">
-                <dt className="text-sm text-[#5d6b7a]">运营备注</dt>
-                <dd className="mt-1 font-medium">{merchant.note}</dd>
-              </div>
-            </dl>
-          </SectionCard>
-
-          <SectionCard title="状态与会员策略" description="这部分 UI 已补齐，但真实生效还需要接商户状态和积分规则表。">
-            <div className="grid gap-5">
-              <div>
-                <p className="text-sm font-medium">状态切换</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button variant="outline" className="rounded-md border-[#2563eb] bg-[#e8f1ff] text-[#1d4ed8]">
-                    <CheckCircle2 className="size-4" />
-                    启用
-                  </Button>
-                  <Button variant="outline" className="rounded-md">
-                    <ShieldBan className="size-4" />
-                    禁用
-                  </Button>
-                  <Button variant="outline" className="rounded-md">
-                    归档
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium">会员等级</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {membershipPlanConfigs.map((plan) => (
-                    <Button
-                      key={plan.plan}
-                      variant="outline"
-                      className={`rounded-md ${merchant.plan === plan.plan ? "border-[#2563eb] bg-[#e8f1ff] text-[#1d4ed8]" : ""}`}
-                    >
-                      {plan.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
-                <p className="text-sm font-medium">积分规则摘要</p>
-                <p className="mt-2 text-sm leading-6 text-[#5d6b7a]">
-                  当前商户为 <span className="font-medium text-[#17202a]">{merchant.plan}</span> 档，每日默认{" "}
-                  <span className="font-medium text-[#17202a]">{merchant.dailyCredits}</span> 点，
-                  当前剩余 <span className="font-medium text-[#17202a]">{merchant.remainingCredits}</span> 点。
-                </p>
-              </div>
-            </div>
-          </SectionCard>
-        </div>
-
-        <SectionCard title="最近任务概况" description="先用任务摘要替代完整作业中心，避免管理台首页过早膨胀。">
-          <div className="grid gap-4 md:grid-cols-3">
-            <article className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
-              <p className="text-sm text-[#5d6b7a]">累计导入</p>
-              <p className="mt-2 text-2xl font-semibold">{merchant.totalImports}</p>
-            </article>
-            <article className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
-              <p className="text-sm text-[#5d6b7a]">累计草稿</p>
-              <p className="mt-2 text-2xl font-semibold">{merchant.totalDrafts}</p>
-            </article>
-            <article className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
-              <p className="text-sm text-[#5d6b7a]">最近活跃</p>
-              <p className="mt-2 text-2xl font-semibold">{merchant.lastActiveAt}</p>
-            </article>
-          </div>
-        </SectionCard>
-      </div>
-    </>
-  );
-}
-
-export function PlatformSettingsAdminPage() {
-  return (
-    <>
-      <PageHeader
-        eyebrow="Platform Admin"
-        title="系统配置"
-        description="把平台级 LLM Provider、导入默认值和会员积分规则都放在这里。机密值先只做掩码展示。"
-      />
-
-      <div className="grid gap-6">
-        <SectionCard title="LLM Provider 配置" description="这部分是平台级统一配置，不放到商户工作台里。">
-          <div className="grid gap-4 xl:grid-cols-2">
-            {llmProviderConfigs.map((provider) => (
-              <article key={provider.id} className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="font-semibold">{provider.name}</h3>
-                    <p className="mt-1 text-sm text-[#5d6b7a]">{provider.providerLabel}</p>
-                  </div>
-                  <StatusBadge
-                    label={provider.enabled ? "启用中" : "备用"}
-                    className={provider.enabled ? "border-[#bbf7d0] bg-[#f0fdf4] text-[#166534]" : "border-[#e2e8f0] bg-white text-[#475569]"}
-                  />
-                </div>
-
-                <dl className="mt-4 grid gap-3 text-sm">
-                  <div className="grid gap-1">
-                    <dt className="text-[#5d6b7a]">Base URL</dt>
-                    <dd className="font-medium">{provider.baseUrl}</dd>
-                  </div>
-                  <div className="grid gap-1">
-                    <dt className="text-[#5d6b7a]">API Key</dt>
-                    <dd className="font-medium">{provider.apiKeyMasked}</dd>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <dt className="text-[#5d6b7a]">默认主模型</dt>
-                      <dd className="mt-1 font-medium">{provider.primaryModel}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[#5d6b7a]">备用模型</dt>
-                      <dd className="mt-1 font-medium">{provider.fallbackModel}</dd>
-                    </div>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-4">
-                    <div>
-                      <dt className="text-[#5d6b7a]">temperature</dt>
-                      <dd className="mt-1 font-medium">{provider.temperature}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[#5d6b7a]">max tokens</dt>
-                      <dd className="mt-1 font-medium">{provider.maxTokens}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[#5d6b7a]">timeout</dt>
-                      <dd className="mt-1 font-medium">{provider.timeoutSeconds}s</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[#5d6b7a]">重试次数</dt>
-                      <dd className="mt-1 font-medium">{provider.retryCount}</dd>
-                    </div>
-                  </div>
-                </dl>
-              </article>
             ))}
+          </dl>
+        </AdminPanel>
+
+        <AdminPanel>
+          <AdminPanelHeader eyebrow="状态与会员策略" />
+          <div className="grid gap-5 p-5">
+            <div>
+              <p className="mb-2 text-[10px] font-medium uppercase tracking-widest text-white/35">
+                状态切换
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={cn(adminButtonClassName, adminButtonVariants.secondary)}
+                  disabled
+                >
+                  <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                  启用
+                </button>
+                <button
+                  type="button"
+                  className={cn(adminButtonClassName, adminButtonVariants.danger)}
+                  disabled
+                >
+                  <ShieldBan className="size-3.5" aria-hidden="true" />
+                  禁用
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-[10px] font-medium uppercase tracking-widest text-white/35">
+                会员档位
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(["free", "plus", "pro"] satisfies MerchantPlan[]).map((plan) => (
+                  <span
+                    key={plan}
+                    className={cn(
+                      "rounded-md border px-3 py-2 text-xs font-medium uppercase tracking-widest",
+                      merchant.plan === plan
+                        ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                        : "border-white/10 bg-white/[0.04] text-white/35",
+                    )}
+                  >
+                    {plan}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <AdminNotice tone="info">
+              当前商户为 <span className="font-medium text-white">{merchant.plan}</span> 档，每日默认{" "}
+              <span className="font-medium text-white">{merchant.dailyCredits}</span> 点。
+              这里是权限禁用态，等商户状态和积分规则 API 接入后再开放写操作。
+            </AdminNotice>
           </div>
-        </SectionCard>
-
-        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <SectionCard title="导入默认值" description="这些值和当前环境变量思路保持一致，后续可切到真正配置表。">
-            <div className="grid gap-4">
-              <div className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
-                <div className="flex items-center gap-2 text-[#5d6b7a]">
-                  <Server className="size-4" />
-                  <p className="text-sm font-medium">导入 Provider</p>
-                </div>
-                <p className="mt-2 text-xl font-semibold">{importRuntimeConfig.importProvider}</p>
-              </div>
-              <div className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
-                <p className="text-sm text-[#5d6b7a]">默认评论抓取数</p>
-                <p className="mt-2 text-xl font-semibold">{importRuntimeConfig.defaultMaxComments}</p>
-              </div>
-              <div className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
-                <p className="text-sm text-[#5d6b7a]">主页默认抓取条数</p>
-                <p className="mt-2 text-xl font-semibold">{importRuntimeConfig.defaultCreatorPosts}</p>
-              </div>
-              <div className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
-                <p className="text-sm text-[#5d6b7a]">Apify 等待时长</p>
-                <p className="mt-2 text-xl font-semibold">{importRuntimeConfig.waitSeconds}s</p>
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard title="会员与积分规则" description="先按套餐默认值配置，后续再加单商户覆写。">
-            <div className="grid gap-4">
-              {membershipPlanConfigs.map((plan) => (
-                <article key={plan.plan} className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Settings2 className="size-4 text-[#0f766e]" />
-                        <h3 className="font-semibold">{plan.label}</h3>
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-[#5d6b7a]">{plan.description}</p>
-                    </div>
-                    <div className="rounded-md border border-[#dde3ea] bg-white px-4 py-3 text-center">
-                      <p className="text-xs text-[#5d6b7a]">每日积分</p>
-                      <p className="mt-1 text-2xl font-semibold text-[#17202a]">{plan.dailyCredits}</p>
-                    </div>
-                  </div>
-                </article>
-              ))}
-
-              <div className="rounded-md border border-[#bfdbfe] bg-[#eff6ff] p-4 text-sm leading-6 text-[#1d4ed8]">
-                当前先按 <span className="font-medium">1 次改写 = 1 点</span> 理解。后续如果要区分导入积分、改写积分或按模型成本扣点，
-                这块可以继续往下拆，不需要推翻页面结构。
-              </div>
-            </div>
-          </SectionCard>
-        </div>
+        </AdminPanel>
       </div>
-    </>
+
+      <AdminPanel>
+        <AdminPanelHeader eyebrow="最近任务概况" />
+        <div className="grid gap-4 p-5 md:grid-cols-3">
+          {[
+            { label: "累计导入", value: merchant.totalImports, icon: Store },
+            { label: "累计草稿", value: merchant.totalDrafts, icon: Sparkles },
+            { label: "最近活跃", value: merchant.lastActiveAt, icon: Clock3 },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="flex items-center gap-3 border-l border-white/10 pl-4">
+              <Icon className="size-4 text-white/35" aria-hidden="true" />
+              <div>
+                <p className="text-sm text-white/40">{label}</p>
+                <p className="mt-1 text-xl font-semibold text-white/80">{value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </AdminPanel>
+    </div>
   );
 }
