@@ -27,25 +27,27 @@ class VideoWorkerPoller:
         if stale_count:
             self._logger.warning("Marked %s stale jobs as failed_retryable", stale_count)
 
+    def run_once(self) -> bool:
+        self._sweep_stale_jobs()
+        job = self._repository.claim_next_job()
+        if job is None:
+            self._logger.debug("No pending video jobs found")
+            return False
+
+        self._logger.info("Claimed video job %s", job.id)
+        try:
+            self._processor.process(job)
+            self._logger.info("Completed video job %s", job.id)
+        except Exception:
+            self._logger.exception("Video job %s failed", job.id)
+        return True
+
     def run_forever(self) -> None:
         self._logger.info(
             "Starting poll loop with interval=%ss concurrency=%s",
             self._settings.worker_poll_interval_seconds,
             self._settings.worker_max_concurrency,
         )
-        self._sweep_stale_jobs()
         while True:
-            self._sweep_stale_jobs()
-            job = self._repository.claim_next_job()
-            if job is None:
-                self._logger.debug("No pending video jobs found")
-                time.sleep(self._settings.worker_poll_interval_seconds)
-                continue
-
-            self._logger.info("Claimed video job %s", job.id)
-            try:
-                self._processor.process(job)
-                self._logger.info("Completed video job %s", job.id)
-            except Exception:
-                self._logger.exception("Video job %s failed", job.id)
+            self.run_once()
             time.sleep(self._settings.worker_poll_interval_seconds)
