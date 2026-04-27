@@ -151,10 +151,14 @@ class FakeCosClient:
 
 
 class FakeOpenStorylineClient:
-    def __init__(self, missing_outputs=None) -> None:
+    def __init__(self, missing_outputs=None, fail_run=False) -> None:
         self.missing_outputs = set(missing_outputs or [])
+        self.fail_run = fail_run
 
     def run_job(self, job, directive, input_assets, workspace_dir, output_dir):
+        if self.fail_run:
+            raise RuntimeError("engine unavailable")
+
         output_dir.mkdir(parents=True, exist_ok=True)
         final_video_path = output_dir / "final.mp4"
         cover_image_path = output_dir / "cover.jpg"
@@ -226,6 +230,26 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual("downloading_inputs_failed", repository.failed["current_stage"])
         self.assertIn("input_download_failed", repository.failed["failure_reason"])
         self.assertIsNone(repository.succeeded)
+
+    def test_engine_run_failure_marks_failed_retryable_with_diagnostic_stage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(fail_run=True),
+            )
+
+            with self.assertRaises(RuntimeError):
+                processor.process(make_job())
+
+        self.assertEqual("failed_retryable", repository.failed["status"])
+        self.assertEqual("openstoryline_rendering_failed", repository.failed["current_stage"])
+        self.assertIn("engine_run_failed", repository.failed["failure_reason"])
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual([], cos_client.uploads)
 
     def test_unsafe_input_asset_file_name_marks_failed_manual_without_download(self):
         with tempfile.TemporaryDirectory() as tmp:

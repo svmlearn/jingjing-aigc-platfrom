@@ -24,6 +24,11 @@ class InputDownloadError(RuntimeError):
         super().__init__(f"failed to download input asset {storage_key}: {original_error}")
 
 
+class EngineRunError(RuntimeError):
+    def __init__(self, original_error: Exception) -> None:
+        super().__init__(f"failed to run OpenStoryline engine: {original_error}")
+
+
 class OutputUploadError(RuntimeError):
     def __init__(self, storage_key: str, original_error: Exception) -> None:
         self.storage_key = storage_key
@@ -217,13 +222,16 @@ class JobProcessor:
                 },
                 log_payload=log_payload,
             )
-            run_result = self._openstoryline_client.run_job(
-                job=job,
-                directive=directive,
-                input_assets=input_assets,
-                workspace_dir=workspace_dir,
-                output_dir=output_dir,
-            )
+            try:
+                run_result = self._openstoryline_client.run_job(
+                    job=job,
+                    directive=directive,
+                    input_assets=input_assets,
+                    workspace_dir=workspace_dir,
+                    output_dir=output_dir,
+                )
+            except Exception as exc:
+                raise EngineRunError(exc) from exc
             log_payload["steps"].append(
                 {
                     "stage": "openstoryline_rendering",
@@ -330,6 +338,23 @@ class JobProcessor:
                 job.id,
                 current_stage="downloading_inputs_failed",
                 failure_reason=f"input_download_failed: {exc}",
+                log_payload=log_payload,
+                status="failed_retryable",
+            )
+            raise
+        except EngineRunError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "openstoryline_rendering",
+                    "status": "failed",
+                    "failure_code": "engine_run_failed",
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="openstoryline_rendering_failed",
+                failure_reason=f"engine_run_failed: {exc}",
                 log_payload=log_payload,
                 status="failed_retryable",
             )
