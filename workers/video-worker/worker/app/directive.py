@@ -52,6 +52,11 @@ class ProductionDirective:
 
 def build_production_directive(job: VideoJob) -> ProductionDirective:
     payload = job.input_payload
+    if not isinstance(payload, dict):
+        raise DirectiveValidationError(
+            "video job input_payload must be an object",
+            failure_code="invalid_input_payload",
+        )
     raw_directive = _dict_value(payload, "productionDirective", "production_directive")
     raw_script = _dict_value(payload, "script")
 

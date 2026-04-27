@@ -80,7 +80,13 @@ class VideoJob:
         )
 
     def input_assets(self, default_bucket: str) -> list[InputAsset]:
-        raw_assets = self.input_payload.get("input_assets") or []
+        if not isinstance(self.input_payload, dict):
+            raise InputAssetContractError("input_payload must be an object")
+        raw_assets = (
+            self.input_payload.get("input_assets")
+            if "input_assets" in self.input_payload
+            else []
+        )
         if not isinstance(raw_assets, list):
             raise InputAssetContractError("input_payload.input_assets must be a list")
         for item in raw_assets:

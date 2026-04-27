@@ -58,8 +58,8 @@ The values below follow the staging task doc and are baked into `.env.example`:
 ## Expected job payload shape
 
 The worker now treats `video_edit_jobs.input_payload` as a small production
-contract, not just a loose render payload. A valid job must include a locked
-video script and may include input assets:
+contract object, not just a loose render payload. A valid job must include a
+locked video script and may include input assets:
 
 ```json
 {
@@ -126,7 +126,8 @@ as `failed_manual`. Current examples:
 - requested outputs do not include `final_video`
 - present but empty or malformed `desiredOutputs`
 - unsupported `desiredOutputs` values outside `final_video`, `cover`, and `subtitles`
-- malformed `input_assets`, including assets missing `storage_key`, malformed bucket names, or unsupported storage providers
+- non-object `input_payload`
+- malformed `input_assets`, including non-list values, assets missing `storage_key`, malformed bucket names, or unsupported storage providers
 
 Runtime or infrastructure failures stay `failed_retryable` through the existing
 processor path. Current examples:

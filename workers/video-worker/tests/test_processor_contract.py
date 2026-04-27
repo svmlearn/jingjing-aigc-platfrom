@@ -34,16 +34,8 @@ class Settings:
 
 
 def make_job(input_payload=None):
-    return VideoJob(
-        id="job_1",
-        merchant_id="merchant_1",
-        draft_id="draft_1",
-        content_variant_id="variant_1",
-        status="pending",
-        current_stage=None,
-        instruction_text="make a video",
-        input_payload=input_payload
-        or {
+    if input_payload is None:
+        input_payload = {
             "source": "video_workbench",
             "executionMode": "staging_worker",
             "script": {
@@ -65,7 +57,16 @@ def make_job(input_payload=None):
                     "file_name": "demo.mp4",
                 }
             ],
-        },
+        }
+    return VideoJob(
+        id="job_1",
+        merchant_id="merchant_1",
+        draft_id="draft_1",
+        content_variant_id="variant_1",
+        status="pending",
+        current_stage=None,
+        instruction_text="make a video",
+        input_payload=input_payload,
         runtime_payload={},
         retry_count=0,
     )
@@ -187,6 +188,23 @@ class FakeOpenStorylineClient:
 
 
 class ProcessorContractTests(unittest.TestCase):
+    def test_non_object_input_payload_marks_failed_manual_without_download(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+
+            processor.process(make_job([]))
+
+        self.assertEqual("failed_manual", repository.failed["status"])
+        self.assertIn("invalid_input_payload", repository.failed["failure_reason"])
+        self.assertEqual([], cos_client.downloads)
+
     def test_invalid_input_asset_contract_marks_failed_manual_without_engine_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
@@ -211,6 +229,32 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual("failed_manual", repository.failed["status"])
         self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
         self.assertEqual([], cos_client.downloads)
+
+    def test_falsey_non_list_input_assets_marks_failed_manual_without_download(self):
+        for input_assets in ("", 0, False):
+            with self.subTest(input_assets=input_assets):
+                with tempfile.TemporaryDirectory() as tmp:
+                    repository = FakeRepository()
+                    cos_client = FakeCosClient()
+                    processor = JobProcessor(
+                        Settings(Path(tmp)),
+                        repository,
+                        cos_client,
+                        FakeOpenStorylineClient(),
+                    )
+                    job = make_job(
+                        {
+                            "script": {"text": "固定脚本", "locked": True},
+                            "productionDirective": {"desiredOutputs": ["final_video"]},
+                            "input_assets": input_assets,
+                        }
+                    )
+
+                    processor.process(job)
+
+                self.assertEqual("failed_manual", repository.failed["status"])
+                self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
+                self.assertEqual([], cos_client.downloads)
 
     def test_download_failure_marks_failed_retryable_with_diagnostic_stage(self):
         with tempfile.TemporaryDirectory() as tmp:
