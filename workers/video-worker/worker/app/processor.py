@@ -7,6 +7,7 @@ from typing import Any
 from .config import Settings
 from .cos_client import TencentCosClient
 from .db import VideoJobRepository
+from .directive import DirectiveValidationError, build_production_directive
 from .models import UploadedAsset, VideoJob
 from .openstoryline_client import OpenStorylineClient
 
@@ -84,7 +85,36 @@ class JobProcessor:
 
     def process(self, job: VideoJob) -> None:
         log_payload: dict[str, Any] = {"steps": []}
+        try:
+            directive = build_production_directive(job)
+        except DirectiveValidationError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "directive_validation",
+                    "status": "failed",
+                    "failure_code": exc.failure_code,
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="directive_validation_failed",
+                failure_reason=f"{exc.failure_code}: {exc}",
+                log_payload=log_payload,
+                status=exc.failure_status,
+            )
+            return
+
         workspace_dir, input_dir, output_dir = self._workspace_for(job)
+        log_payload["steps"].append(
+            {
+                "stage": "directive_validation",
+                "status": "succeeded",
+                "execution_mode": directive.execution_mode,
+                "desired_outputs": list(directive.desired_outputs),
+                "locked_fields": list(directive.locked_fields),
+            }
+        )
         self._repository.update_stage(
             job.id,
             status="preparing",
@@ -115,6 +145,7 @@ class JobProcessor:
             )
             run_result = self._openstoryline_client.run_job(
                 job=job,
+                directive=directive,
                 input_assets=input_assets,
                 workspace_dir=workspace_dir,
                 output_dir=output_dir,
@@ -156,6 +187,9 @@ class JobProcessor:
                 job.id,
                 result_payload={
                     "engine": "openstoryline-skeleton",
+                    "execution_mode": directive.execution_mode,
+                    "script_locked": directive.script_locked,
+                    "desired_outputs": list(directive.desired_outputs),
                     "uploaded_assets": [
                         {
                             "asset_type": asset.asset_type,

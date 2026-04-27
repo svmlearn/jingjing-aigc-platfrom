@@ -12,6 +12,8 @@ class Settings:
     mcp_port: int
     outputs_dir: Path
     models_dir: Path
+    engine_adapter: str
+    fire_red_base_url: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -31,4 +33,14 @@ class Settings:
                     "/srv/jingjing-video-worker/models",
                 )
             ),
+            engine_adapter=(
+                os.getenv("OPENSTORYLINE_ENGINE_ADAPTER", "skeleton").strip().lower()
+                or "skeleton"
+            ),
+            fire_red_base_url=os.getenv(
+                "FIRERED_OPENSTORYLINE_BASE_URL",
+                "",
+            )
+            .strip()
+            .rstrip("/"),
         )

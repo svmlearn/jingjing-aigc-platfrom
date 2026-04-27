@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from .config import Settings
+from .directive import ProductionDirective
 from .models import EngineRunResult, VideoJob
 
 
@@ -22,6 +23,7 @@ class OpenStorylineClient:
     def run_job(
         self,
         job: VideoJob,
+        directive: ProductionDirective,
         input_assets: list[dict[str, str]],
         workspace_dir: Path,
         output_dir: Path,
@@ -35,6 +37,9 @@ class OpenStorylineClient:
             "workspace_dir": str(workspace_dir),
             "output_dir": str(output_dir),
             "input_assets": input_assets,
+            "execution_mode": directive.execution_mode,
+            "script_text": directive.script_text,
+            "production_directive": directive.to_payload(),
             "runtime_payload": job.runtime_payload,
         }
         response = httpx.post(

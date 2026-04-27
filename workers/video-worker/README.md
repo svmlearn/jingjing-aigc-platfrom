@@ -18,6 +18,13 @@ This directory intentionally owns only the worker-side responsibilities. It does
 
 `openstoryline-engine` is a local HTTP skeleton that stands in for the real OpenStoryline runtime. It keeps the contract shape stable for this worktree and stays reachable only on the private Docker network.
 
+The service now has an explicit engine adapter boundary:
+
+- `OPENSTORYLINE_ENGINE_ADAPTER=skeleton` keeps the current contract-preserving placeholder runtime.
+- `OPENSTORYLINE_ENGINE_ADAPTER=fire_red` is reserved for the full FireRed integration and fails closed with HTTP 501 until the session/chat/output mapping is implemented.
+
+This is deliberate. The worker owns a synchronous `/v1/runs` job contract, while the full FireRed project is a session/chat/WebSocket style application. Do not replace the current `openstoryline/` directory with FireRed source directly; add a real adapter when that mapping is ready.
+
 `video-worker` is the polling worker. It:
 
 1. sweeps stale jobs on boot and before each polling pass
@@ -50,10 +57,25 @@ The values below follow the staging task doc and are baked into `.env.example`:
 
 ## Expected job payload shape
 
-The worker assumes `video_edit_jobs.input_payload` can provide input assets like:
+The worker now treats `video_edit_jobs.input_payload` as a small production
+contract, not just a loose render payload. A valid job must include a locked
+video script and may include input assets:
 
 ```json
 {
+  "source": "video_workbench",
+  "executionMode": "staging_worker",
+  "script": {
+    "text": "Confirmed narration or script text used for this video task.",
+    "locked": true,
+    "variantId": "content-variant-id"
+  },
+  "productionDirective": {
+    "targetPlatform": "douyin",
+    "aspectRatio": "9:16",
+    "desiredOutputs": ["final_video", "cover", "subtitles"],
+    "lockedFields": ["script", "cta", "target_user", "claims"]
+  },
   "input_assets": [
     {
       "asset_type": "video",
@@ -65,11 +87,43 @@ The worker assumes `video_edit_jobs.input_payload` can provide input assets like
 }
 ```
 
+`script.text` is mandatory for the current worker contract. If it is missing,
+the worker marks the job as `failed_manual` with a directive validation failure
+instead of sending an underspecified task to the engine.
+
+`productionDirective` is intentionally lightweight in this stage. It records the
+parts of the upstream content decision that the worker and engine must not
+silently rewrite. The worker currently normalizes it into an internal directive
+and forwards the normalized directive to `openstoryline-engine`.
+
 The worker also derives output object keys from the staging task rules:
 
 - `video-outputs/{merchantId}/{draftId}/{variantId}/{jobId}/final.mp4`
 - `video-covers/{merchantId}/{draftId}/{variantId}/{jobId}/cover.jpg`
 - `video-subtitles/{merchantId}/{draftId}/{variantId}/{jobId}/subtitles.srt`
+
+## Directive validation and failure mapping
+
+Before downloading assets or calling the engine, `video-worker` validates the
+production directive.
+
+Validation failures that require upstream product or content repair are marked
+as `failed_manual`. Current examples:
+
+- missing locked script text
+- script explicitly marked unlocked
+- requested outputs do not include `final_video`
+
+Runtime or infrastructure failures stay `failed_retryable` through the existing
+processor path. Current examples:
+
+- COS download failures
+- temporary engine failures
+- upload failures
+- worker runtime exceptions
+
+The normalized directive is also written into the engine request so the skeleton
+engine and future real OpenStoryline adapter share the same contract surface.
 
 ## Local setup
 
