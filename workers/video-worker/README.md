@@ -128,6 +128,10 @@ processor path. Current examples:
 - upload failures
 - worker runtime exceptions
 
+Download and upload failures are recorded with stage-specific diagnostics:
+`downloading_inputs_failed` for COS input download failures and
+`uploading_outputs_failed` for generated output upload failures.
+
 The normalized directive is also written into the engine request so the skeleton
 engine and future real OpenStoryline adapter share the same contract surface.
 After engine execution, the worker checks the requested output files before any

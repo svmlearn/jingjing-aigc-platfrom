@@ -82,6 +82,7 @@ class FakeRepository:
         self.stage_updates.append({"job_id": job_id, **kwargs})
 
     def mark_failed(self, job_id, **kwargs):
+        kwargs.setdefault("status", "failed_retryable")
         self.failed = {"job_id": job_id, **kwargs}
 
     def mark_succeeded(self, job_id, **kwargs):
@@ -104,9 +105,11 @@ class FakeRepository:
 
 
 class FakeCosClient:
-    def __init__(self) -> None:
+    def __init__(self, fail_download=False, fail_upload_asset_type=None) -> None:
         self.downloads = []
         self.uploads = []
+        self.fail_download = fail_download
+        self.fail_upload_asset_type = fail_upload_asset_type
 
     def download_file(self, storage_key, destination, bucket_name=None):
         self.downloads.append(
@@ -116,6 +119,8 @@ class FakeCosClient:
                 "bucket_name": bucket_name,
             }
         )
+        if self.fail_download:
+            raise RuntimeError(f"download failed for {storage_key}")
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(b"input")
         return destination
@@ -129,6 +134,8 @@ class FakeCosClient:
                 "bucket_name": bucket_name,
             }
         )
+        if self.fail_upload_asset_type == asset_type:
+            raise RuntimeError(f"upload failed for {storage_key}")
         return UploadedAsset(
             asset_type=asset_type,
             bucket_name=bucket_name or "output-bucket",
@@ -197,6 +204,25 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual("failed_manual", repository.failed["status"])
         self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
         self.assertEqual([], cos_client.downloads)
+
+    def test_download_failure_marks_failed_retryable_with_diagnostic_stage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient(fail_download=True)
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+
+            with self.assertRaises(RuntimeError):
+                processor.process(make_job())
+
+        self.assertEqual("failed_retryable", repository.failed["status"])
+        self.assertEqual("downloading_inputs_failed", repository.failed["current_stage"])
+        self.assertIn("input_download_failed", repository.failed["failure_reason"])
+        self.assertIsNone(repository.succeeded)
 
     def test_unsafe_input_asset_file_name_marks_failed_manual_without_download(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -275,6 +301,25 @@ class ProcessorContractTests(unittest.TestCase):
             result_payload["outputs"]["subtitles"],
         )
         self.assertEqual("asset_video_1", result_payload["uploaded_assets"][0]["asset_id"])
+
+    def test_upload_failure_marks_failed_retryable_with_diagnostic_stage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient(fail_upload_asset_type="cover")
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+
+            with self.assertRaises(RuntimeError):
+                processor.process(make_job())
+
+        self.assertEqual("failed_retryable", repository.failed["status"])
+        self.assertEqual("uploading_outputs_failed", repository.failed["current_stage"])
+        self.assertIn("output_upload_failed", repository.failed["failure_reason"])
+        self.assertIsNone(repository.succeeded)
 
     def test_final_video_only_job_does_not_upload_unrequested_cover_or_subtitles(self):
         with tempfile.TemporaryDirectory() as tmp:

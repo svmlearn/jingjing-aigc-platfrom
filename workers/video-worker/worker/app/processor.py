@@ -18,6 +18,18 @@ class OutputValidationError(RuntimeError):
         super().__init__(f"missing output files: {', '.join(missing_outputs)}")
 
 
+class InputDownloadError(RuntimeError):
+    def __init__(self, storage_key: str, original_error: Exception) -> None:
+        self.storage_key = storage_key
+        super().__init__(f"failed to download input asset {storage_key}: {original_error}")
+
+
+class OutputUploadError(RuntimeError):
+    def __init__(self, storage_key: str, original_error: Exception) -> None:
+        self.storage_key = storage_key
+        super().__init__(f"failed to upload output asset {storage_key}: {original_error}")
+
+
 class JobProcessor:
     def __init__(
         self,
@@ -43,11 +55,14 @@ class JobProcessor:
         downloaded_assets: list[dict[str, str]] = []
         for asset in job.input_assets(self._settings.cos_bucket):
             local_path = input_dir / asset.file_name
-            self._cos_client.download_file(
-                storage_key=asset.storage_key,
-                destination=local_path,
-                bucket_name=asset.bucket_name,
-            )
+            try:
+                self._cos_client.download_file(
+                    storage_key=asset.storage_key,
+                    destination=local_path,
+                    bucket_name=asset.bucket_name,
+                )
+            except Exception as exc:
+                raise InputDownloadError(asset.storage_key, exc) from exc
             downloaded_assets.append(
                 {
                     "asset_type": asset.asset_type,
@@ -65,29 +80,24 @@ class JobProcessor:
         cover_image_path: Path | None,
         subtitle_path: Path | None,
     ) -> list[UploadedAsset]:
+        def upload(local_path: Path, asset_type: str) -> UploadedAsset:
+            storage_key = job.output_object_key(asset_type)
+            try:
+                return self._cos_client.upload_file(
+                    local_path=local_path,
+                    storage_key=storage_key,
+                    asset_type=asset_type,
+                )
+            except Exception as exc:
+                raise OutputUploadError(storage_key, exc) from exc
+
         uploaded_assets = [
-            self._cos_client.upload_file(
-                local_path=final_video_path,
-                storage_key=job.output_object_key("video"),
-                asset_type="video",
-            )
+            upload(final_video_path, "video")
         ]
         if "cover" in desired_outputs and cover_image_path and cover_image_path.exists():
-            uploaded_assets.append(
-                self._cos_client.upload_file(
-                    local_path=cover_image_path,
-                    storage_key=job.output_object_key("cover"),
-                    asset_type="cover",
-                )
-            )
+            uploaded_assets.append(upload(cover_image_path, "cover"))
         if "subtitles" in desired_outputs and subtitle_path and subtitle_path.exists():
-            uploaded_assets.append(
-                self._cos_client.upload_file(
-                    local_path=subtitle_path,
-                    storage_key=job.output_object_key("subtitle"),
-                    asset_type="subtitle",
-                )
-            )
+            uploaded_assets.append(upload(subtitle_path, "subtitle"))
         return uploaded_assets
 
     def _validate_outputs(
@@ -298,6 +308,42 @@ class JobProcessor:
                 status="failed_retryable",
             )
             return
+        except InputDownloadError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "downloading_inputs",
+                    "status": "failed",
+                    "failure_code": "input_download_failed",
+                    "storage_key": exc.storage_key,
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="downloading_inputs_failed",
+                failure_reason=f"input_download_failed: {exc}",
+                log_payload=log_payload,
+                status="failed_retryable",
+            )
+            raise
+        except OutputUploadError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "uploading_outputs",
+                    "status": "failed",
+                    "failure_code": "output_upload_failed",
+                    "storage_key": exc.storage_key,
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="uploading_outputs_failed",
+                failure_reason=f"output_upload_failed: {exc}",
+                log_payload=log_payload,
+                status="failed_retryable",
+            )
+            raise
         except Exception as exc:
             log_payload["steps"].append(
                 {
