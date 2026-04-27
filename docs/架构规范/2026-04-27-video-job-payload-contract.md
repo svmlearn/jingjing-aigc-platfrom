@@ -183,4 +183,3 @@ worker 成功后，`result_payload` 至少记录：
 3. worker 单测覆盖合同失败和成功路径。
 4. 视频工作台刷新后能通过 `jobId` 恢复任务状态。
 5. 结果资产能从 `result_payload` 和 `asset_objects` 关联回 `content_variant`。
-

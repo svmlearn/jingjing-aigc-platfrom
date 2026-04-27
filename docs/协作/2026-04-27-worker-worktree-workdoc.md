@@ -206,4 +206,3 @@ docker compose -f workers\video-worker\docker-compose.yml build openstoryline-en
 4. 输出缺失是否不会误判成功。
 5. FireRed adapter 是否仍 fail closed。
 6. 是否误把增长、素材业务判断或审核逻辑放进 worker。
-

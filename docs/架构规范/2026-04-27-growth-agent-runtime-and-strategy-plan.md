@@ -424,4 +424,3 @@ Revision
 - `docs/架构规范/2026-04-27-preview-revision-work-plan.md`
 - `docs/架构规范/2026-04-24-consultation-agent-runtime-rag-spec.md`
 - `docs/产品文档/V2.1-内容日历到图文视频工作台协作PRD.md`
-

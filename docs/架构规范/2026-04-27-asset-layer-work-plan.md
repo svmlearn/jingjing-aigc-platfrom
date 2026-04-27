@@ -204,4 +204,3 @@ flowchart LR
 4. `input_payload.input_assets` 只包含 worker 可下载的 COS 素材。
 5. 素材未确认时，不创建依赖素材的正式作业。
 6. worker 不承担素材业务匹配职责。
-

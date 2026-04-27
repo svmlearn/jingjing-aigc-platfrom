@@ -230,4 +230,3 @@ video_edit_jobs.input_payload
 - `docs/架构规范/2026-04-25-video-worker-openstoryline-main-implementation-plan.md`
 - `docs/架构规范/2026-04-26-video-worker-execution-work-plan.md`
 - `docs/产品文档/V2.1-内容日历到图文视频工作台协作PRD.md`
-
