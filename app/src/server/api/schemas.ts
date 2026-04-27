@@ -68,6 +68,34 @@ export const platformAdminMerchantPatchSchema = z
     message: "At least one field must be provided.",
   });
 
+export const platformAdminBootstrapSchema = z.object({
+  setupSecret: z.string().trim().min(1).max(200),
+  email: z.email().max(254),
+  password: z.string().min(8).max(128),
+  displayName: z.string().trim().max(80).nullish(),
+});
+
+export const platformAdminUserCreateSchema = z.object({
+  email: z.email().max(254),
+  password: z.string().min(8).max(128),
+  displayName: z.string().trim().max(80).nullish(),
+  role: z.enum(["super_admin", "admin"]).optional(),
+});
+
+export const platformAdminUserPatchSchema = z
+  .object({
+    displayName: z.string().trim().max(80).nullish(),
+    role: z.enum(["super_admin", "admin"]).optional(),
+    status: z.enum(["active", "disabled"]).optional(),
+  })
+  .refine(
+    (value) =>
+      value.displayName !== undefined || value.role !== undefined || value.status !== undefined,
+    {
+      message: "At least one field must be provided.",
+    },
+  );
+
 const llmRuntimeSchema = z.object({
   providerLabel: z.string().trim().min(1).max(80),
   baseUrl: z.url().max(2000),

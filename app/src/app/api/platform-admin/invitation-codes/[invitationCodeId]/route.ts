@@ -9,10 +9,14 @@ export async function PATCH(
   context: { params: Promise<{ invitationCodeId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    const adminUser = await assertPlatformAdminAccess(request, { roles: ["super_admin"] });
     const { invitationCodeId } = await context.params;
     const payload = platformAdminInvitationCodePatchSchema.parse(await request.json());
-    const invitationCode = await updatePlatformInvitationCode(invitationCodeId, payload);
+    const invitationCode = await updatePlatformInvitationCode(
+      invitationCodeId,
+      payload,
+      adminUser.email,
+    );
 
     return Response.json({ invitationCode });
   } catch (error) {

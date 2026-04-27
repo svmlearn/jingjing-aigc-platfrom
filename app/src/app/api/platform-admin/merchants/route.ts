@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const merchants = await listPlatformMerchants();
 
     return Response.json({ merchants });

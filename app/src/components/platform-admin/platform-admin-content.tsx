@@ -256,10 +256,12 @@ export function InvitationCodesAdminPage({
   invitationCodes,
   createdCode,
   filters,
+  canManageInvitationCodes,
 }: {
   invitationCodes: PlatformAdminInvitationCodeDto[];
   createdCode?: string;
   filters: PlatformAdminInvitationCodeFilters;
+  canManageInvitationCodes: boolean;
 }) {
   return (
     <>
@@ -268,16 +270,24 @@ export function InvitationCodesAdminPage({
         title="邀请码管理"
         description="这里展示真实邀请码记录。生成成功后会直接回到列表，不再停留在只会展示 mock 的壳子里。"
         action={
-          <Button asChild className="h-10 rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]">
-            <Link href="/platform-admin/invitation-codes/new">
-              <Plus className="size-4" />
-              生成邀请码
-            </Link>
-          </Button>
+          canManageInvitationCodes ? (
+            <Button asChild className="h-10 rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]">
+              <Link href="/platform-admin/invitation-codes/new">
+                <Plus className="size-4" />
+                生成邀请码
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
 
       <SectionCard title="邀请码列表" description="按创建时间倒序展示，名称字段就是你创建时填写的内部备注。">
+        {!canManageInvitationCodes ? (
+          <div className="mb-4 rounded-md border border-[#fde68a] bg-[#fffbeb] px-4 py-3 text-sm text-[#92400e]">
+            当前 admin 角色只能查看邀请码；生成、停用和重新启用邀请码需要 super_admin。
+          </div>
+        ) : null}
+
         {createdCode ? (
           <div className="mb-4 rounded-md border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3 text-sm text-[#166534]">
             邀请码 <span className="font-semibold">{createdCode}</span> 已生成，现在可以直接复制给要注册的商家。
@@ -381,7 +391,10 @@ export function InvitationCodesAdminPage({
                     <TableCell>{formatAdminDate(code.expiresAt)}</TableCell>
                     <TableCell>{code.note ?? "未命名"}</TableCell>
                     <TableCell>
-                      <InvitationCodeStatusAction invitationCode={code} />
+                      <InvitationCodeStatusAction
+                        invitationCode={code}
+                        canManage={canManageInvitationCodes}
+                      />
                     </TableCell>
                   </TableRow>
                 ))

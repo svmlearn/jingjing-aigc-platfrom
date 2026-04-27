@@ -11,7 +11,7 @@ export async function GET(
   context: { params: Promise<{ documentId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { documentId } = await context.params;
     const document = await getKnowledgeDocumentForPlatformAdmin(documentId);
 
@@ -26,7 +26,7 @@ export async function DELETE(
   context: { params: Promise<{ documentId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { documentId } = await context.params;
     await deleteKnowledgeDocumentForPlatformAdmin(documentId);
 

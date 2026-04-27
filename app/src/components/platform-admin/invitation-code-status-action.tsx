@@ -8,6 +8,7 @@ import type { PlatformAdminInvitationCodeDto } from "@/contracts/platform-admin"
 import { Button } from "@/components/ui/button";
 
 const actionErrorMessages: Record<string, string> = {
+  FORBIDDEN: "当前账号没有调整邀请码状态的权限。",
   INVITATION_CODE_CANNOT_DISABLE: "当前状态下不能停用这条邀请码。",
   INVITATION_CODE_CANNOT_ACTIVATE: "当前状态下不能重新启用这条邀请码。",
   PLATFORM_INVITATION_CODE_NOT_FOUND: "邀请码记录不存在，刷新后再试。",
@@ -38,8 +39,10 @@ function getActionErrorMessage(payload: unknown) {
 
 export function InvitationCodeStatusAction({
   invitationCode,
+  canManage,
 }: {
   invitationCode: PlatformAdminInvitationCodeDto;
+  canManage: boolean;
 }) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
@@ -74,6 +77,10 @@ export function InvitationCodeStatusAction({
     } finally {
       setIsPending(false);
     }
+  }
+
+  if (!canManage) {
+    return <span className="text-sm text-[#5d6b7a]">仅超管可操作</span>;
   }
 
   if (invitationCode.status === "active") {

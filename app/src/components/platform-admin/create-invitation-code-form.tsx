@@ -15,6 +15,7 @@ type GenerationMode = "auto" | "manual";
 
 const apiErrorMessages: Record<string, string> = {
   ADMIN_SETUP_SECRET_NOT_CONFIGURED: "当前环境还没有配置管理员口令，暂时不能生成邀请码。",
+  FORBIDDEN: "当前账号没有生成邀请码的权限。",
   INVITATION_CODE_EXISTS: "这个手动邀请码已经存在了，请换一个新的。",
   UNAUTHORIZED: "当前登录已失效，请重新进入管理员后台。",
   VALIDATION_FAILED: "表单内容还不完整，请检查后再试。",
