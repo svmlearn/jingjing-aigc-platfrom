@@ -25,7 +25,7 @@ class InputAsset:
         file_name = _safe_file_name(payload.get("file_name") or Path(storage_key).name)
         return cls(
             asset_type=str(payload.get("asset_type", "video")),
-            bucket_name=str(payload.get("bucket_name") or default_bucket),
+            bucket_name=_bucket_name(payload, default_bucket),
             storage_key=storage_key,
             file_name=file_name,
         )
@@ -119,6 +119,15 @@ def _validate_storage_provider(value: Any) -> None:
         raise InputAssetContractError(
             "input asset storage_provider must be tencent_cos"
         )
+
+
+def _bucket_name(payload: dict[str, Any], default_bucket: str) -> str:
+    if "bucket_name" not in payload or payload.get("bucket_name") is None:
+        return default_bucket
+    value = payload["bucket_name"]
+    if not isinstance(value, str) or not value.strip():
+        raise InputAssetContractError("input asset bucket_name must be a string")
+    return value.strip()
 
 
 def _safe_file_name(value: Any) -> str:

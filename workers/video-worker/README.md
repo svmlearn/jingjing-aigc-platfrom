@@ -99,7 +99,8 @@ Input asset `file_name` values must be plain file names only. Path fragments,
 absolute paths, Windows drive prefixes, and directory separators are rejected as
 `failed_manual` contract errors before COS download. If `storage_provider` is
 present, it must be `tencent_cos`; unsupported providers are rejected before COS
-download.
+download. If `bucket_name` is present, it must be a non-empty string; otherwise
+the worker uses its configured default COS bucket.
 
 `productionDirective` is intentionally lightweight in this stage. It records the
 parts of the upstream content decision that the worker and engine must not
@@ -125,7 +126,7 @@ as `failed_manual`. Current examples:
 - requested outputs do not include `final_video`
 - present but empty or malformed `desiredOutputs`
 - unsupported `desiredOutputs` values outside `final_video`, `cover`, and `subtitles`
-- malformed `input_assets`, including assets missing `storage_key` or using an unsupported storage provider
+- malformed `input_assets`, including assets missing `storage_key`, malformed bucket names, or unsupported storage providers
 
 Runtime or infrastructure failures stay `failed_retryable` through the existing
 processor path. Current examples:
