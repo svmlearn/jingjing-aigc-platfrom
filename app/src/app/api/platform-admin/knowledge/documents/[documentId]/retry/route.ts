@@ -8,7 +8,7 @@ export async function POST(
   context: { params: Promise<{ documentId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { documentId } = await context.params;
     const document = await retryKnowledgeDocumentIngestionForPlatformAdmin(documentId);
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
-import type { PlatformSettingsDto } from "@/contracts/platform-admin";
+import type { PlatformAdminUserDto, PlatformSettingsDto } from "@/contracts/platform-admin";
 
 const consultationSkillOptions: Array<{
   key: PlatformSettingsDto["consultationAgent"]["enabledTools"][number];
@@ -46,11 +46,49 @@ const consultationSkillOptions: Array<{
   },
 ];
 
-export function PlatformSettingsEditor() {
+const adminUserApiErrorMessages: Record<string, string> = {
+  FORBIDDEN: "当前账号没有管理员账号管理权限。",
+  LAST_SUPER_ADMIN_REQUIRED: "至少要保留一个 active 状态的 super_admin。",
+  PLATFORM_ADMIN_AUTH_USER_CREATE_FAILED: "Supabase Auth 用户创建失败，请检查邮箱或密码。",
+  PLATFORM_ADMIN_USER_CREATE_FAILED: "后台管理员身份创建失败，请检查是否已存在同邮箱账号。",
+  PLATFORM_ADMIN_USER_NOT_FOUND: "后台管理员记录不存在，请刷新后再试。",
+  PLATFORM_ADMIN_USER_UPDATE_FAILED: "后台管理员更新失败，请稍后重试。",
+  UNAUTHORIZED: "当前登录已失效，请重新登录。",
+  VALIDATION_FAILED: "表单内容还不完整，请检查后再试。",
+};
+
+function getAdminUserApiErrorMessage(payload: unknown) {
+  if (!payload || typeof payload !== "object") {
+    return "管理员账号操作失败，请稍后重试。";
+  }
+
+  const error = "error" in payload ? payload.error : undefined;
+
+  if (!error || typeof error !== "object") {
+    return "管理员账号操作失败，请稍后重试。";
+  }
+
+  const code = "code" in error && typeof error.code === "string" ? error.code : undefined;
+  const message =
+    "message" in error && typeof error.message === "string" ? error.message : undefined;
+
+  if (code && adminUserApiErrorMessages[code]) {
+    return adminUserApiErrorMessages[code];
+  }
+
+  return message ?? "管理员账号操作失败，请稍后重试。";
+}
+
+export function PlatformSettingsEditor({
+  currentAdmin,
+}: {
+  currentAdmin: PlatformAdminUserDto;
+}) {
   const [settings, setSettings] = useState<PlatformSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const canManageSettings = currentAdmin.role === "super_admin";
 
   async function loadSettings() {
     setLoading(true);
@@ -79,6 +117,11 @@ export function PlatformSettingsEditor() {
 
   async function saveSettings() {
     if (!settings) {
+      return;
+    }
+
+    if (!canManageSettings) {
+      setError("当前账号没有修改系统配置的权限。");
       return;
     }
 
@@ -143,13 +186,20 @@ export function PlatformSettingsEditor() {
           onClick={() => {
             void saveSettings();
           }}
-          disabled={saving}
+          disabled={saving || !canManageSettings}
           className="rounded-md bg-[#1d4ed8] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
         >
           {saving ? "保存中..." : "保存配置"}
         </button>
       </div>
 
+      {!canManageSettings ? (
+        <div className="rounded-md border border-[#fde68a] bg-[#fffbeb] px-4 py-3 text-sm leading-6 text-[#92400e]">
+          当前为 admin 角色，只能查看系统配置；修改配置和管理员账号管理仅限 super_admin。
+        </div>
+      ) : null}
+
+      <fieldset disabled={!canManageSettings} className="grid gap-6 disabled:opacity-75">
       <Section title="LLM Runtime">
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Provider Label">
@@ -405,7 +455,264 @@ export function PlatformSettingsEditor() {
           </Field>
         </div>
       </Section>
+      </fieldset>
+
+      {canManageSettings ? <PlatformAdminUsersPanel currentAdmin={currentAdmin} /> : null}
     </div>
+  );
+}
+
+function PlatformAdminUsersPanel({
+  currentAdmin,
+}: {
+  currentAdmin: PlatformAdminUserDto;
+}) {
+  const [adminUsers, setAdminUsers] = useState<PlatformAdminUserDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [createForm, setCreateForm] = useState<{
+    email: string;
+    password: string;
+    displayName: string;
+    role: PlatformAdminUserDto["role"];
+  }>({
+    email: "",
+    password: "",
+    displayName: "",
+    role: "admin",
+  });
+
+  async function loadAdminUsers() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/platform-admin/admin-users", {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as {
+        adminUsers?: PlatformAdminUserDto[];
+        error?: { message?: string };
+      };
+
+      if (!response.ok || !data.adminUsers) {
+        throw new Error(data.error?.message ?? "管理员账号加载失败");
+      }
+
+      setAdminUsers(data.adminUsers);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "管理员账号加载失败");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createAdminUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCreating(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/platform-admin/admin-users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: createForm.email,
+          password: createForm.password,
+          displayName: createForm.displayName || null,
+          role: createForm.role,
+        }),
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(getAdminUserApiErrorMessage(data));
+      }
+
+      setCreateForm({
+        email: "",
+        password: "",
+        displayName: "",
+        role: "admin",
+      });
+      await loadAdminUsers();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "管理员账号创建失败");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function updateAdminUser(
+    adminUserId: string,
+    patch: Partial<Pick<PlatformAdminUserDto, "displayName" | "role" | "status">>,
+  ) {
+    setSavingId(adminUserId);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/platform-admin/admin-users/${adminUserId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(patch),
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(getAdminUserApiErrorMessage(data));
+      }
+
+      await loadAdminUsers();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "管理员账号更新失败");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadAdminUsers();
+  }, []);
+
+  return (
+    <Section title="管理员账号">
+      <div className="grid gap-5">
+        <p className="text-sm leading-6 text-[#5d6b7a]">
+          密码由 Supabase Auth 管理；这里的角色和状态写入 `platform_admin_users`，用于后台页面和 API 的 RBAC。
+        </p>
+
+        {error ? (
+          <div className="rounded-md border border-[#fecaca] bg-[#fef2f2] px-4 py-3 text-sm text-[#b91c1c]">
+            {error}
+          </div>
+        ) : null}
+
+        <form
+          onSubmit={createAdminUser}
+          className="grid gap-3 rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4 md:grid-cols-[1fr_1fr_1fr_150px_auto]"
+        >
+          <input
+            type="email"
+            value={createForm.email}
+            onChange={(event) => setCreateForm({ ...createForm, email: event.target.value })}
+            placeholder="邮箱"
+            className="rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+            required
+          />
+          <input
+            value={createForm.displayName}
+            onChange={(event) =>
+              setCreateForm({ ...createForm, displayName: event.target.value })
+            }
+            placeholder="显示名称"
+            className="rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+          />
+          <input
+            type="password"
+            value={createForm.password}
+            onChange={(event) => setCreateForm({ ...createForm, password: event.target.value })}
+            placeholder="初始密码"
+            minLength={8}
+            className="rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+            required
+          />
+          <select
+            value={createForm.role}
+            onChange={(event) =>
+              setCreateForm({
+                ...createForm,
+                role: event.target.value as PlatformAdminUserDto["role"],
+              })
+            }
+            className="rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
+          >
+            <option value="admin">admin</option>
+            <option value="super_admin">super_admin</option>
+          </select>
+          <button
+            type="submit"
+            disabled={creating}
+            className="rounded-md bg-[#1d4ed8] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          >
+            {creating ? "创建中..." : "新增"}
+          </button>
+        </form>
+
+        {loading ? (
+          <div className="text-sm text-[#5d6b7a]">正在读取管理员账号...</div>
+        ) : (
+          <div className="overflow-hidden rounded-md border border-[#dde3ea]">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead className="bg-[#f8fafc] text-[#435364]">
+                <tr>
+                  <th className="px-4 py-3 font-medium">账号</th>
+                  <th className="px-4 py-3 font-medium">角色</th>
+                  <th className="px-4 py-3 font-medium">状态</th>
+                  <th className="px-4 py-3 font-medium">最近登录</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#dde3ea]">
+                {adminUsers.map((adminUser) => (
+                  <tr key={adminUser.id} className="bg-white">
+                    <td className="px-4 py-3">
+                      <div className="grid gap-1">
+                        <span className="font-medium text-[#17202a]">
+                          {adminUser.displayName || adminUser.email}
+                          {adminUser.id === currentAdmin.id ? "（当前账号）" : ""}
+                        </span>
+                        <span className="text-xs text-[#5d6b7a]">{adminUser.email}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={adminUser.role}
+                        disabled={savingId === adminUser.id}
+                        onChange={(event) => {
+                          void updateAdminUser(adminUser.id, {
+                            role: event.target.value as PlatformAdminUserDto["role"],
+                          });
+                        }}
+                        className="rounded-md border border-[#dde3ea] px-2 py-1 text-sm"
+                      >
+                        <option value="admin">admin</option>
+                        <option value="super_admin">super_admin</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={adminUser.status}
+                        disabled={savingId === adminUser.id}
+                        onChange={(event) => {
+                          void updateAdminUser(adminUser.id, {
+                            status: event.target.value as PlatformAdminUserDto["status"],
+                          });
+                        }}
+                        className="rounded-md border border-[#dde3ea] px-2 py-1 text-sm"
+                      >
+                        <option value="active">active</option>
+                        <option value="disabled">disabled</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 text-[#5d6b7a]">
+                      {adminUser.lastLoginAt
+                        ? new Date(adminUser.lastLoginAt).toLocaleString("zh-CN")
+                        : "未登录"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </Section>
   );
 }
 

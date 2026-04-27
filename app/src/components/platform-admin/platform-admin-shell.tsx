@@ -14,6 +14,7 @@ import {
 
 import { signOutFromPlatformAdmin } from "@/app/platform-admin-login/actions";
 import { Button } from "@/components/ui/button";
+import type { PlatformAdminUserDto } from "@/contracts/platform-admin";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -24,7 +25,13 @@ const navItems = [
   { href: "/platform-admin/settings", label: "系统配置", icon: Settings },
 ];
 
-export function PlatformAdminShell({ children }: { children: React.ReactNode }) {
+export function PlatformAdminShell({
+  children,
+  currentAdmin,
+}: {
+  children: React.ReactNode;
+  currentAdmin: PlatformAdminUserDto;
+}) {
   const pathname = usePathname();
   const isNavItemActive = (href: string) =>
     href === "/platform-admin"
@@ -60,6 +67,12 @@ export function PlatformAdminShell({ children }: { children: React.ReactNode }) 
           })}
         </nav>
         <div className="grid gap-2 border-t border-[#dde3ea] p-4">
+          <div className="rounded-md border border-[#dde3ea] bg-[#f8fafc] px-3 py-2">
+            <p className="truncate text-sm font-medium text-[#17202a]">
+              {currentAdmin.displayName || currentAdmin.email}
+            </p>
+            <p className="mt-1 text-xs text-[#5d6b7a]">{currentAdmin.role}</p>
+          </div>
           <form action={signOutFromPlatformAdmin}>
             <Button type="submit" variant="outline" className="h-10 w-full justify-start rounded-md">
               <LogOut className="size-4" />
@@ -102,7 +115,7 @@ export function PlatformAdminShell({ children }: { children: React.ReactNode }) 
           </nav>
           <form action={signOutFromPlatformAdmin} className="mt-3">
             <Button type="submit" variant="outline" className="rounded-md">
-              退出平台管理台
+              退出 {currentAdmin.role}
             </Button>
           </form>
         </header>

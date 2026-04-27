@@ -4,7 +4,9 @@ import type {
   PlatformAdminInvitationCodeStatusFilter,
   PlatformAdminInvitationCodeUsageFilter,
 } from "@/contracts/platform-admin";
+import { getCurrentPlatformAdmin } from "@/lib/auth/platform-admin-session";
 import { listPlatformInvitationCodes } from "@/lib/db/platform-admin-repository";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +52,12 @@ export default async function InvitationCodesPage({
       ? (pickFirstValue(params.usage) as PlatformAdminInvitationCodeUsageFilter)
       : "all",
   };
+  const currentAdmin = await getCurrentPlatformAdmin();
+
+  if (!currentAdmin) {
+    redirect("/platform-admin-login");
+  }
+
   const invitationCodes = await listPlatformInvitationCodes(filters);
   const createdCode = pickFirstValue(params.created);
 
@@ -58,6 +66,7 @@ export default async function InvitationCodesPage({
       invitationCodes={invitationCodes}
       createdCode={createdCode}
       filters={filters}
+      canManageInvitationCodes={currentAdmin.role === "super_admin"}
     />
   );
 }
