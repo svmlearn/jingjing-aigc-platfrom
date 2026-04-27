@@ -6,6 +6,9 @@ from typing import Any
 from .models import VideoJob
 
 
+ALLOWED_DESIRED_OUTPUTS = frozenset({"final_video", "cover", "subtitles"})
+
+
 class DirectiveValidationError(ValueError):
     def __init__(
         self,
@@ -77,6 +80,13 @@ def build_production_directive(job: VideoJob) -> ProductionDirective:
         raise DirectiveValidationError(
             "video job desired_outputs must include final_video",
             failure_code="missing_final_video_output",
+        )
+    unsupported_outputs = sorted(set(desired_outputs) - ALLOWED_DESIRED_OUTPUTS)
+    if unsupported_outputs:
+        raise DirectiveValidationError(
+            "video job desired_outputs contains unsupported outputs: "
+            + ", ".join(unsupported_outputs),
+            failure_code="unsupported_desired_outputs",
         )
 
     locked_fields = _tuple_value(
