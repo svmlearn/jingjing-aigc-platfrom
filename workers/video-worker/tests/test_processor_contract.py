@@ -440,6 +440,40 @@ class ProcessorContractTests(unittest.TestCase):
         )
         self.assertEqual("asset_video_1", result_payload["uploaded_assets"][0]["asset_id"])
 
+    def test_success_cleans_local_workspace_and_output_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(root),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(),
+            )
+
+            processor.process(make_job())
+
+            self.assertFalse((root / "tmp" / "jobs" / "job_1").exists())
+            self.assertFalse((root / "outputs" / "jobs" / "job_1").exists())
+            self.assertIsNotNone(repository.succeeded)
+
+    def test_retryable_failure_cleans_local_workspace_and_output_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(root),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(missing_outputs={"subtitles"}),
+            )
+
+            processor.process(make_job())
+
+            self.assertFalse((root / "tmp" / "jobs" / "job_1").exists())
+            self.assertFalse((root / "outputs" / "jobs" / "job_1").exists())
+            self.assertEqual("failed_retryable", repository.failed["status"])
+
     def test_upload_failure_marks_failed_retryable_with_diagnostic_stage(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()

@@ -410,3 +410,4 @@ class JobProcessor:
             raise
         finally:
             shutil.rmtree(workspace_dir, ignore_errors=True)
+            shutil.rmtree(output_dir, ignore_errors=True)
