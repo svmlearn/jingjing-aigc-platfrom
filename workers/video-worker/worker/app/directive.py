@@ -71,6 +71,7 @@ def build_production_directive(job: VideoJob) -> ProductionDirective:
         "desiredOutputs",
         "desired_outputs",
         default=("final_video", "cover", "subtitles"),
+        default_on_invalid=False,
     )
     if "final_video" not in desired_outputs:
         raise DirectiveValidationError(
@@ -135,11 +136,16 @@ def _tuple_value(
     payload: dict[str, Any],
     *keys: str,
     default: tuple[str, ...],
+    default_on_invalid: bool = True,
 ) -> tuple[str, ...]:
     for key in keys:
-        value = payload.get(key)
-        if isinstance(value, list | tuple):
-            cleaned = tuple(str(item) for item in value if str(item).strip())
-            if cleaned:
-                return cleaned
+        if key not in payload:
+            continue
+        value = payload[key]
+        if not isinstance(value, list | tuple):
+            return default if default_on_invalid else ()
+        cleaned = tuple(str(item) for item in value if str(item).strip())
+        if cleaned:
+            return cleaned
+        return default if default_on_invalid else ()
     return default

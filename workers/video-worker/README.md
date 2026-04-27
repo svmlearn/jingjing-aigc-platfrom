@@ -120,6 +120,7 @@ as `failed_manual`. Current examples:
 - missing locked script text
 - script explicitly marked unlocked or malformed
 - requested outputs do not include `final_video`
+- present but empty or malformed `desiredOutputs`
 - malformed `input_assets`, including assets missing `storage_key`
 
 Runtime or infrastructure failures stay `failed_retryable` through the existing

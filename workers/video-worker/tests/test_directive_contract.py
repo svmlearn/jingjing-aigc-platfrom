@@ -76,6 +76,29 @@ class DirectiveContractTests(unittest.TestCase):
         self.assertEqual("failed_manual", exc.exception.failure_status)
         self.assertEqual("script_not_locked", exc.exception.failure_code)
 
+    def test_directive_rejects_present_but_invalid_desired_outputs(self):
+        for desired_outputs in ([], "final_video"):
+            with self.subTest(desired_outputs=desired_outputs):
+                job = make_job(
+                    {
+                        "executionMode": "staging_worker",
+                        "script": {
+                            "text": "fixed script",
+                            "locked": True,
+                        },
+                        "productionDirective": {
+                            "targetPlatform": "douyin",
+                            "desiredOutputs": desired_outputs,
+                        },
+                    }
+                )
+
+                with self.assertRaises(DirectiveValidationError) as exc:
+                    build_production_directive(job)
+
+                self.assertEqual("failed_manual", exc.exception.failure_status)
+                self.assertEqual("missing_final_video_output", exc.exception.failure_code)
+
     def test_directive_normalizes_script_and_locked_fields(self):
         job = make_job(
             {
