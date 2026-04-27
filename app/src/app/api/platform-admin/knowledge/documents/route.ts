@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const documents = await listKnowledgeDocumentsForPlatformAdmin();
 
     return Response.json({ documents });
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const formData = await request.formData();
     const fileValue = formData.get("file");
     const file = fileValue instanceof File && fileValue.size > 0 ? fileValue : null;

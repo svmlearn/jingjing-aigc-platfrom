@@ -3,10 +3,10 @@ import "server-only";
 import { z } from "zod";
 
 import {
-  isValidPlatformAdminSessionValue,
-  platformAdminSessionCookieName,
+  getCurrentPlatformAdmin,
+  isPlatformAdminRoleAllowed,
 } from "@/lib/auth/platform-admin-session";
-import { isLocalDemoRuntime } from "@/lib/demo/local-demo-runtime";
+import type { PlatformAdminRole, PlatformAdminUserDto } from "@/contracts/platform-admin";
 
 export class ApiError extends Error {
   constructor(
@@ -19,63 +19,21 @@ export class ApiError extends Error {
   }
 }
 
-function getCookieValue(request: Request, name: string) {
-  const cookieHeader = request.headers.get("cookie");
+export async function assertPlatformAdminAccess(
+  _request: Request,
+  options: { roles?: PlatformAdminRole[] } = {},
+): Promise<PlatformAdminUserDto> {
+  const adminUser = await getCurrentPlatformAdmin();
 
-  if (!cookieHeader) {
-    return undefined;
+  if (!adminUser) {
+    throw new ApiError(401, "UNAUTHORIZED", "Platform admin login is required.");
   }
 
-  const cookie = cookieHeader
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${name}=`));
-
-  if (!cookie) {
-    return undefined;
+  if (!isPlatformAdminRoleAllowed(adminUser, options.roles)) {
+    throw new ApiError(403, "FORBIDDEN", "Current platform admin role cannot perform this operation.");
   }
 
-  return decodeURIComponent(cookie.slice(name.length + 1));
-}
-
-export function assertAdminSetupSecret(request: Request) {
-  const expected = process.env.ADMIN_SETUP_SECRET;
-
-  if (!expected) {
-    if (isLocalDemoRuntime() && isLocalhostRequest(request)) {
-      return;
-    }
-
-    throw new ApiError(
-      503,
-      "ADMIN_SETUP_SECRET_NOT_CONFIGURED",
-      "Invitation code creation is not configured.",
-    );
-  }
-
-  const authorization = request.headers.get("authorization");
-  const bearerToken = authorization?.startsWith("Bearer ")
-    ? authorization.slice("Bearer ".length)
-    : undefined;
-  const provided = request.headers.get("x-admin-secret") ?? bearerToken;
-  const session = getCookieValue(request, platformAdminSessionCookieName);
-
-  if (isValidPlatformAdminSessionValue(session)) {
-    return;
-  }
-
-  if (provided !== expected) {
-    throw new ApiError(401, "UNAUTHORIZED", "Invalid admin setup secret.");
-  }
-}
-
-export function assertPlatformAdminAccess(request: Request) {
-  assertAdminSetupSecret(request);
-}
-
-function isLocalhostRequest(request: Request) {
-  const hostname = new URL(request.url).hostname;
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  return adminUser;
 }
 
 export function handleApiError(error: unknown) {

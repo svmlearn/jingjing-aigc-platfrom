@@ -12,7 +12,7 @@ export async function GET(
   context: { params: Promise<{ merchantId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const { merchantId } = await context.params;
     const merchant = await getPlatformMerchantById(merchantId);
 
@@ -27,10 +27,10 @@ export async function PATCH(
   context: { params: Promise<{ merchantId: string }> },
 ) {
   try {
-    assertPlatformAdminAccess(request);
+    const adminUser = await assertPlatformAdminAccess(request, { roles: ["super_admin"] });
     const { merchantId } = await context.params;
     const payload = platformAdminMerchantPatchSchema.parse(await request.json());
-    const merchant = await updatePlatformMerchant(merchantId, payload);
+    const merchant = await updatePlatformMerchant(merchantId, payload, adminUser.email);
 
     return Response.json({ merchant });
   } catch (error) {

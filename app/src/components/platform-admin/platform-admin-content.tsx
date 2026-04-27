@@ -385,10 +385,12 @@ export function InvitationCodesAdminPage({
   invitationCodes,
   createdCode,
   filters,
+  canManageInvitationCodes,
 }: {
   invitationCodes: PlatformAdminInvitationCodeDto[];
   createdCode?: string;
   filters: PlatformAdminInvitationCodeFilters;
+  canManageInvitationCodes: boolean;
 }) {
   return (
     <div className="grid gap-6">
@@ -396,12 +398,20 @@ export function InvitationCodesAdminPage({
         title="邀请码管理"
         description="邀请码列表读取真实平台记录。创建、启停操作继续走现有 API，不在 UI 层做假状态。"
         action={
-          <AdminActionLink href="/platform-admin/invitation-codes/new" variant="primary">
-            <Plus className="size-3.5" aria-hidden="true" />
-            新建邀请码
-          </AdminActionLink>
+          canManageInvitationCodes ? (
+            <AdminActionLink href="/platform-admin/invitation-codes/new" variant="primary">
+              <Plus className="size-3.5" aria-hidden="true" />
+              新建邀请码
+            </AdminActionLink>
+          ) : undefined
         }
       />
+
+      {!canManageInvitationCodes ? (
+        <AdminNotice tone="warning">
+          当前 admin 角色只能查看邀请码；生成、停用和重新启用邀请码需要 super_admin。
+        </AdminNotice>
+      ) : null}
 
       {createdCode ? (
         <AdminNotice tone="success">
@@ -512,7 +522,10 @@ export function InvitationCodesAdminPage({
                     {code.note ?? "未命名"}
                   </TableCell>
                   <TableCell className={tableCellClassName()}>
-                    <InvitationCodeStatusAction invitationCode={code} />
+                    <InvitationCodeStatusAction
+                      invitationCode={code}
+                      canManage={canManageInvitationCodes}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -525,10 +538,12 @@ export function InvitationCodesAdminPage({
               title="还没有邀请码"
               description="现在可以生成第一条真实邀请码记录，创建后会立即写入平台邀请码表。"
               action={
-                <AdminActionLink href="/platform-admin/invitation-codes/new" variant="primary">
-                  <Plus className="size-3.5" aria-hidden="true" />
-                  新建邀请码
-                </AdminActionLink>
+                canManageInvitationCodes ? (
+                  <AdminActionLink href="/platform-admin/invitation-codes/new" variant="primary">
+                    <Plus className="size-3.5" aria-hidden="true" />
+                    新建邀请码
+                  </AdminActionLink>
+                ) : null
               }
             />
           </div>

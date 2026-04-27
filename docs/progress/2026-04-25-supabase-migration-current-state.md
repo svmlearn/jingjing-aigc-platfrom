@@ -20,7 +20,7 @@
 
 ## 当前结论
 
-截至本次复核，仓库当前 `app/supabase/migrations/` 下 6 个 migration 对应的核心表、字段、索引、策略或函数均已在 staging 生效。
+截至本次复核，仓库当前 `app/supabase/migrations/` 下 7 个 migration 对应的核心表、字段、索引、策略或函数均已在 staging 生效。
 
 | Migration | 当前状态 | 本次只读验证点 |
 | --- | --- | --- |
@@ -30,6 +30,18 @@
 | `202604240001_v01_cloud_demo_consultation_foundation.sql` | 已生效 | `consultation_sessions`、`consultation_messages`、`consultation_events`、`knowledge_documents`、`knowledge_chunks`、`knowledge_ingestion_jobs`、`platform_settings.consultation_agent`、`platform_settings.knowledge_runtime` |
 | `202604240002_v01_ai_runtime_vector_search.sql` | 已生效 | `knowledge_chunks.embedding`、`idx_knowledge_chunks_embedding_hnsw`、`match_knowledge_chunks` |
 | `202604240003_v01_material_workbench_references.sql` | 已生效 | `material_workbench_references`、`idx_material_workbench_refs_merchant_created_at`、`material_workbench_refs_owner_read` |
+| `202604270001_v22_agent_console_foundation.sql` | 已生效 | `platform_admin_users`、`agent_configs`、`agent_prompt_versions`、`agent_skills`、`agent_skill_bindings`、`knowledge_sets`、`knowledge_set_documents`、`agent_knowledge_set_bindings`、`agent_route_bindings`、`merchant_memberships`、`merchant_credit_accounts`、`merchant_usage_events`、`merchant_credit_ledger`、`agent_test_runs`、`agent_runtime_snapshots` |
+
+## 2026-04-27 V2.2 staging apply 记录
+
+- Branch：`codex/v2.2-admin-auth-rbac`
+- 执行文件：`app/supabase/migrations/202604270001_v22_agent_console_foundation.sql`
+- 目标环境：`jingjing-content-platform-staging` / `jrveaabguddromjtibbs`
+- apply 方式：通过已登录 Supabase Dashboard 浏览器会话调用 Supabase Management API / pg-meta SQL query channel 执行。
+- 安全说明：未操作 production，未输出 Supabase token、数据库连接串或 `ADMIN_SETUP_SECRET`。
+- 验证结果：关键表全部存在；后台 `super_admin` 初始化、`admin` 登录、disabled 拒绝登录、`admin` 超管接口 403 均通过。
+- 测试数据：临时测试管理员账号已清理，staging 保持可用真实邮箱重新初始化首个 `super_admin` 的状态。
+- push / merge：本轮未 push，未 merge main。
 
 ## 已校正的旧文档
 

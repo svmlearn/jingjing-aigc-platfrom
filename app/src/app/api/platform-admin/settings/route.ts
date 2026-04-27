@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const settings = await getPlatformSettings();
 
     return Response.json({ settings });
@@ -20,9 +20,9 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    assertPlatformAdminAccess(request);
+    const adminUser = await assertPlatformAdminAccess(request, { roles: ["super_admin"] });
     const payload = platformSettingsUpdateSchema.parse(await request.json());
-    const settings = await updatePlatformSettings(payload);
+    const settings = await updatePlatformSettings(payload, adminUser.email);
 
     return Response.json({ settings });
   } catch (error) {

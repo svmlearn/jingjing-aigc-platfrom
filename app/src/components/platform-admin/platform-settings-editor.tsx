@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Save } from "lucide-react";
+import { type FormEvent, useEffect, useState } from "react";
+import { Save, UserPlus } from "lucide-react";
 
-import type { PlatformSettingsDto } from "@/contracts/platform-admin";
+import type { PlatformAdminUserDto, PlatformSettingsDto } from "@/contracts/platform-admin";
 import {
   AdminEmptyState,
   AdminField,
   AdminNotice,
   AdminPanel,
   AdminPanelHeader,
+  AdminStatusBadge,
   adminButtonClassName,
   adminButtonVariants,
   adminInputClassName,
@@ -60,11 +61,49 @@ const consultationSkillOptions: Array<{
   },
 ];
 
-export function PlatformSettingsEditor() {
+const adminUserApiErrorMessages: Record<string, string> = {
+  FORBIDDEN: "当前账号没有管理员账号管理权限。",
+  LAST_SUPER_ADMIN_REQUIRED: "至少要保留一个 active 状态的 super_admin。",
+  PLATFORM_ADMIN_AUTH_USER_CREATE_FAILED: "Supabase Auth 用户创建失败，请检查邮箱或密码。",
+  PLATFORM_ADMIN_USER_CREATE_FAILED: "后台管理员身份创建失败，请检查是否已存在同邮箱账号。",
+  PLATFORM_ADMIN_USER_NOT_FOUND: "后台管理员记录不存在，请刷新后再试。",
+  PLATFORM_ADMIN_USER_UPDATE_FAILED: "后台管理员更新失败，请稍后重试。",
+  UNAUTHORIZED: "当前登录已失效，请重新登录。",
+  VALIDATION_FAILED: "表单内容还不完整，请检查后再试。",
+};
+
+function getAdminUserApiErrorMessage(payload: unknown) {
+  if (!payload || typeof payload !== "object") {
+    return "管理员账号操作失败，请稍后重试。";
+  }
+
+  const error = "error" in payload ? payload.error : undefined;
+
+  if (!error || typeof error !== "object") {
+    return "管理员账号操作失败，请稍后重试。";
+  }
+
+  const code = "code" in error && typeof error.code === "string" ? error.code : undefined;
+  const message =
+    "message" in error && typeof error.message === "string" ? error.message : undefined;
+
+  if (code && adminUserApiErrorMessages[code]) {
+    return adminUserApiErrorMessages[code];
+  }
+
+  return message ?? "管理员账号操作失败，请稍后重试。";
+}
+
+export function PlatformSettingsEditor({
+  currentAdmin,
+}: {
+  currentAdmin: PlatformAdminUserDto;
+}) {
   const [settings, setSettings] = useState<PlatformSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const canManageSettings = currentAdmin.role === "super_admin";
 
   async function loadSettings() {
     setLoading(true);
@@ -93,6 +132,11 @@ export function PlatformSettingsEditor() {
 
   async function saveSettings() {
     if (!settings) {
+      return;
+    }
+
+    if (!canManageSettings) {
+      setError("当前账号没有修改系统配置的权限。");
       return;
     }
 
@@ -159,7 +203,7 @@ export function PlatformSettingsEditor() {
           onClick={() => {
             void saveSettings();
           }}
-          disabled={saving}
+          disabled={saving || !canManageSettings}
           className={cn(adminButtonClassName, adminButtonVariants.primary)}
         >
           <Save className="size-3.5" aria-hidden="true" />
@@ -167,272 +211,543 @@ export function PlatformSettingsEditor() {
         </button>
       </div>
 
-      <AdminPanel>
-        <AdminPanelHeader eyebrow="LLM Runtime" />
-        <div className="grid gap-4 p-5 md:grid-cols-2">
-          <AdminField label="Provider Label">
-            <input
-              value={settings.llmRuntime.providerLabel}
-              onChange={(event) =>
-                setSettings({
-                  ...settings,
-                  llmRuntime: { ...settings.llmRuntime, providerLabel: event.target.value },
-                })
-              }
-              className={adminInputClassName}
-            />
-          </AdminField>
-          <AdminField label="Base URL">
-            <input
-              value={settings.llmRuntime.baseUrl}
-              onChange={(event) =>
-                setSettings({
-                  ...settings,
-                  llmRuntime: { ...settings.llmRuntime, baseUrl: event.target.value },
-                })
-              }
-              className={adminInputClassName}
-            />
-          </AdminField>
-          <AdminField label="Primary Model">
-            <input
-              value={settings.llmRuntime.primaryModel}
-              onChange={(event) =>
-                setSettings({
-                  ...settings,
-                  llmRuntime: { ...settings.llmRuntime, primaryModel: event.target.value },
-                })
-              }
-              className={adminInputClassName}
-            />
-          </AdminField>
-          <AdminField label="Fallback Model">
-            <input
-              value={settings.llmRuntime.fallbackModel ?? ""}
-              onChange={(event) =>
-                setSettings({
-                  ...settings,
-                  llmRuntime: { ...settings.llmRuntime, fallbackModel: event.target.value || null },
-                })
-              }
-              className={adminInputClassName}
-            />
-          </AdminField>
-        </div>
-      </AdminPanel>
+      {!canManageSettings ? (
+        <AdminNotice tone="warning">
+          当前为 admin 角色，只能查看系统配置；修改配置和管理员账号管理仅限 super_admin。
+        </AdminNotice>
+      ) : null}
 
-      <AdminPanel>
-        <AdminPanelHeader
-          eyebrow="Consultation Agent Legacy Runtime"
-          description="这里仍是旧 consultation_agent settings。V2.2 Agent 容器上线前保留兼容。"
-        />
-        <div className="grid gap-5 p-5">
-          <AdminField label="System Prompt">
-            <textarea
-              value={settings.consultationAgent.systemPrompt}
-              onChange={(event) =>
-                setSettings({
-                  ...settings,
-                  consultationAgent: {
-                    ...settings.consultationAgent,
-                    systemPrompt: event.target.value,
-                  },
-                })
-              }
-              rows={6}
-              className={cn(adminTextareaClassName, "font-mono text-xs")}
-            />
-          </AdminField>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <AdminField label="Model">
+      <fieldset disabled={!canManageSettings} className="grid gap-6 disabled:opacity-75">
+        <AdminPanel>
+          <AdminPanelHeader eyebrow="LLM Runtime" />
+          <div className="grid gap-4 p-5 md:grid-cols-2">
+            <AdminField label="Provider Label">
               <input
-                value={settings.consultationAgent.model}
+                value={settings.llmRuntime.providerLabel}
                 onChange={(event) =>
                   setSettings({
                     ...settings,
-                    consultationAgent: {
-                      ...settings.consultationAgent,
-                      model: event.target.value,
+                    llmRuntime: { ...settings.llmRuntime, providerLabel: event.target.value },
+                  })
+                }
+                className={adminInputClassName}
+              />
+            </AdminField>
+            <AdminField label="Base URL">
+              <input
+                value={settings.llmRuntime.baseUrl}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    llmRuntime: { ...settings.llmRuntime, baseUrl: event.target.value },
+                  })
+                }
+                className={adminInputClassName}
+              />
+            </AdminField>
+            <AdminField label="Primary Model">
+              <input
+                value={settings.llmRuntime.primaryModel}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    llmRuntime: { ...settings.llmRuntime, primaryModel: event.target.value },
+                  })
+                }
+                className={adminInputClassName}
+              />
+            </AdminField>
+            <AdminField label="Fallback Model">
+              <input
+                value={settings.llmRuntime.fallbackModel ?? ""}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    llmRuntime: {
+                      ...settings.llmRuntime,
+                      fallbackModel: event.target.value || null,
                     },
                   })
                 }
                 className={adminInputClassName}
               />
             </AdminField>
-            <NumberField
-              label="Max Rounds"
-              value={settings.consultationAgent.maxRounds}
-              onChange={(value) =>
-                setSettings({
-                  ...settings,
-                  consultationAgent: { ...settings.consultationAgent, maxRounds: value },
-                })
-              }
-            />
-            <NumberField
-              label="Retrieval Top K"
-              value={settings.consultationAgent.retrievalTopK}
-              onChange={(value) =>
-                setSettings({
-                  ...settings,
-                  consultationAgent: { ...settings.consultationAgent, retrievalTopK: value },
-                })
-              }
-            />
-            <NumberField
-              label="Temperature x100"
-              value={Math.round(settings.consultationAgent.temperature * 100)}
-              onChange={(value) =>
-                setSettings({
-                  ...settings,
-                  consultationAgent: {
-                    ...settings.consultationAgent,
-                    temperature: value / 100,
-                  },
-                })
-              }
-            />
           </div>
+        </AdminPanel>
 
-          <AdminField label="Visible Mode">
-            <select
-              value={settings.consultationAgent.visibleExecutionMode}
-              onChange={(event) =>
-                setSettings({
-                  ...settings,
-                  consultationAgent: {
-                    ...settings.consultationAgent,
-                    visibleExecutionMode: event.target.value as PlatformSettingsDto["consultationAgent"]["visibleExecutionMode"],
-                  },
-                })
-              }
-              className={adminSelectClassName}
-            >
-              <option value="cards">cards</option>
-              <option value="minimal">minimal</option>
-            </select>
-          </AdminField>
+        <AdminPanel>
+          <AdminPanelHeader
+            eyebrow="Consultation Agent Legacy Runtime"
+            description="这里仍是旧 consultation_agent settings。V2.2 Agent 容器上线前保留兼容。"
+          />
+          <div className="grid gap-5 p-5">
+            <AdminField label="System Prompt">
+              <textarea
+                value={settings.consultationAgent.systemPrompt}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    consultationAgent: {
+                      ...settings.consultationAgent,
+                      systemPrompt: event.target.value,
+                    },
+                  })
+                }
+                rows={6}
+                className={cn(adminTextareaClassName, "font-mono text-xs")}
+              />
+            </AdminField>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <AdminField label="Model">
+                <input
+                  value={settings.consultationAgent.model}
+                  onChange={(event) =>
+                    setSettings({
+                      ...settings,
+                      consultationAgent: {
+                        ...settings.consultationAgent,
+                        model: event.target.value,
+                      },
+                    })
+                  }
+                  className={adminInputClassName}
+                />
+              </AdminField>
+              <NumberField
+                label="Max Rounds"
+                value={settings.consultationAgent.maxRounds}
+                onChange={(value) =>
+                  setSettings({
+                    ...settings,
+                    consultationAgent: { ...settings.consultationAgent, maxRounds: value },
+                  })
+                }
+              />
+              <NumberField
+                label="Retrieval Top K"
+                value={settings.consultationAgent.retrievalTopK}
+                onChange={(value) =>
+                  setSettings({
+                    ...settings,
+                    consultationAgent: { ...settings.consultationAgent, retrievalTopK: value },
+                  })
+                }
+              />
+              <NumberField
+                label="Temperature x100"
+                value={Math.round(settings.consultationAgent.temperature * 100)}
+                onChange={(value) =>
+                  setSettings({
+                    ...settings,
+                    consultationAgent: {
+                      ...settings.consultationAgent,
+                      temperature: value / 100,
+                    },
+                  })
+                }
+              />
+            </div>
 
-          <div>
-            <p className="mb-3 text-[10px] font-medium uppercase tracking-widest text-white/40">
-              Enabled Tools
-            </p>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {consultationSkillOptions.map((skill) => {
-                const enabled = settings.consultationAgent.enabledTools.includes(skill.key);
+            <AdminField label="Visible Mode">
+              <select
+                value={settings.consultationAgent.visibleExecutionMode}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    consultationAgent: {
+                      ...settings.consultationAgent,
+                      visibleExecutionMode:
+                        event.target.value as PlatformSettingsDto["consultationAgent"]["visibleExecutionMode"],
+                    },
+                  })
+                }
+                className={adminSelectClassName}
+              >
+                <option value="cards">cards</option>
+                <option value="minimal">minimal</option>
+              </select>
+            </AdminField>
 
-                return (
-                  <label
-                    key={skill.key}
-                    className="flex cursor-pointer gap-3 rounded-md border border-white/10 bg-white/[0.03] p-3 text-sm transition-colors hover:border-amber-500/25 hover:bg-amber-500/[0.04]"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={(event) => {
-                        const nextTools = event.target.checked
-                          ? [...settings.consultationAgent.enabledTools, skill.key]
-                          : settings.consultationAgent.enabledTools.filter((tool) => tool !== skill.key);
+            <div>
+              <p className="mb-3 text-[10px] font-medium uppercase tracking-widest text-white/40">
+                Enabled Tools
+              </p>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {consultationSkillOptions.map((skill) => {
+                  const enabled = settings.consultationAgent.enabledTools.includes(skill.key);
 
-                        setSettings({
-                          ...settings,
-                          consultationAgent: {
-                            ...settings.consultationAgent,
-                            enabledTools:
-                              nextTools.length > 0
-                                ? nextTools
-                                : settings.consultationAgent.enabledTools,
-                          },
-                        });
-                      }}
-                      className="mt-1 size-4 accent-amber-500"
-                    />
-                    <span className="min-w-0">
-                      <span className="block font-medium text-white/75">{skill.label}</span>
-                      <span className="mt-1 block text-xs leading-5 text-white/38">
-                        {skill.description}
+                  return (
+                    <label
+                      key={skill.key}
+                      className="flex cursor-pointer gap-3 rounded-md border border-white/10 bg-white/[0.03] p-3 text-sm transition-colors hover:border-amber-500/25 hover:bg-amber-500/[0.04]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={(event) => {
+                          const nextTools = event.target.checked
+                            ? [...settings.consultationAgent.enabledTools, skill.key]
+                            : settings.consultationAgent.enabledTools.filter(
+                                (tool) => tool !== skill.key,
+                              );
+
+                          setSettings({
+                            ...settings,
+                            consultationAgent: {
+                              ...settings.consultationAgent,
+                              enabledTools:
+                                nextTools.length > 0
+                                  ? nextTools
+                                  : settings.consultationAgent.enabledTools,
+                            },
+                          });
+                        }}
+                        className="mt-1 size-4 accent-amber-500"
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-medium text-white/75">{skill.label}</span>
+                        <span className="mt-1 block text-xs leading-5 text-white/38">
+                          {skill.description}
+                        </span>
+                        <span className="mt-2 block break-all font-mono text-[10px] uppercase tracking-widest text-white/25">
+                          {skill.key}
+                        </span>
                       </span>
-                      <span className="mt-2 block break-all font-mono text-[10px] uppercase tracking-widest text-white/25">
-                        {skill.key}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      </AdminPanel>
+        </AdminPanel>
 
-      <AdminPanel>
-        <AdminPanelHeader eyebrow="Knowledge Runtime" />
-        <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-5">
-          <NumberField
-            label="Retrieval Top K"
-            value={settings.knowledgeRuntime.retrievalTopK}
-            onChange={(value) =>
-              setSettings({
-                ...settings,
-                knowledgeRuntime: { ...settings.knowledgeRuntime, retrievalTopK: value },
-              })
-            }
-          />
-          <NumberField
-            label="Chunk Size"
-            value={settings.knowledgeRuntime.chunkSize}
-            onChange={(value) =>
-              setSettings({
-                ...settings,
-                knowledgeRuntime: { ...settings.knowledgeRuntime, chunkSize: value },
-              })
-            }
-          />
-          <NumberField
-            label="Chunk Overlap"
-            value={settings.knowledgeRuntime.chunkOverlap}
-            onChange={(value) =>
-              setSettings({
-                ...settings,
-                knowledgeRuntime: { ...settings.knowledgeRuntime, chunkOverlap: value },
-              })
-            }
-          />
-          <AdminField label="Embedding Model">
-            <input
-              value={settings.knowledgeRuntime.embeddingModel}
-              onChange={(event) =>
+        <AdminPanel>
+          <AdminPanelHeader eyebrow="Knowledge Runtime" />
+          <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-5">
+            <NumberField
+              label="Retrieval Top K"
+              value={settings.knowledgeRuntime.retrievalTopK}
+              onChange={(value) =>
                 setSettings({
                   ...settings,
-                  knowledgeRuntime: {
-                    ...settings.knowledgeRuntime,
-                    embeddingModel: event.target.value,
-                  },
+                  knowledgeRuntime: { ...settings.knowledgeRuntime, retrievalTopK: value },
                 })
               }
-              className={adminInputClassName}
             />
-          </AdminField>
-          <AdminField label="Query Rewrite">
-            <select
-              value={String(settings.knowledgeRuntime.queryRewriteEnabled)}
-              onChange={(event) =>
+            <NumberField
+              label="Chunk Size"
+              value={settings.knowledgeRuntime.chunkSize}
+              onChange={(value) =>
                 setSettings({
                   ...settings,
-                  knowledgeRuntime: {
-                    ...settings.knowledgeRuntime,
-                    queryRewriteEnabled: event.target.value === "true",
-                  },
+                  knowledgeRuntime: { ...settings.knowledgeRuntime, chunkSize: value },
                 })
               }
-              className={adminSelectClassName}
-            >
-              <option value="true">enabled</option>
-              <option value="false">disabled</option>
-            </select>
-          </AdminField>
-        </div>
-      </AdminPanel>
+            />
+            <NumberField
+              label="Chunk Overlap"
+              value={settings.knowledgeRuntime.chunkOverlap}
+              onChange={(value) =>
+                setSettings({
+                  ...settings,
+                  knowledgeRuntime: { ...settings.knowledgeRuntime, chunkOverlap: value },
+                })
+              }
+            />
+            <AdminField label="Embedding Model">
+              <input
+                value={settings.knowledgeRuntime.embeddingModel}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    knowledgeRuntime: {
+                      ...settings.knowledgeRuntime,
+                      embeddingModel: event.target.value,
+                    },
+                  })
+                }
+                className={adminInputClassName}
+              />
+            </AdminField>
+            <AdminField label="Query Rewrite">
+              <select
+                value={String(settings.knowledgeRuntime.queryRewriteEnabled)}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    knowledgeRuntime: {
+                      ...settings.knowledgeRuntime,
+                      queryRewriteEnabled: event.target.value === "true",
+                    },
+                  })
+                }
+                className={adminSelectClassName}
+              >
+                <option value="true">enabled</option>
+                <option value="false">disabled</option>
+              </select>
+            </AdminField>
+          </div>
+        </AdminPanel>
+      </fieldset>
+
+      {canManageSettings ? <PlatformAdminUsersPanel currentAdmin={currentAdmin} /> : null}
     </div>
+  );
+}
+
+function PlatformAdminUsersPanel({
+  currentAdmin,
+}: {
+  currentAdmin: PlatformAdminUserDto;
+}) {
+  const [adminUsers, setAdminUsers] = useState<PlatformAdminUserDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [createForm, setCreateForm] = useState<{
+    email: string;
+    password: string;
+    displayName: string;
+    role: PlatformAdminUserDto["role"];
+  }>({
+    email: "",
+    password: "",
+    displayName: "",
+    role: "admin",
+  });
+
+  async function loadAdminUsers() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/platform-admin/admin-users", {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as {
+        adminUsers?: PlatformAdminUserDto[];
+        error?: { message?: string };
+      };
+
+      if (!response.ok || !data.adminUsers) {
+        throw new Error(data.error?.message ?? "管理员账号加载失败");
+      }
+
+      setAdminUsers(data.adminUsers);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "管理员账号加载失败");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createAdminUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCreating(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/platform-admin/admin-users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: createForm.email,
+          password: createForm.password,
+          displayName: createForm.displayName || null,
+          role: createForm.role,
+        }),
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(getAdminUserApiErrorMessage(data));
+      }
+
+      setCreateForm({
+        email: "",
+        password: "",
+        displayName: "",
+        role: "admin",
+      });
+      await loadAdminUsers();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "管理员账号创建失败");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function updateAdminUser(
+    adminUserId: string,
+    patch: Partial<Pick<PlatformAdminUserDto, "displayName" | "role" | "status">>,
+  ) {
+    setSavingId(adminUserId);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/platform-admin/admin-users/${adminUserId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(patch),
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(getAdminUserApiErrorMessage(data));
+      }
+
+      await loadAdminUsers();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "管理员账号更新失败");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadAdminUsers();
+  }, []);
+
+  return (
+    <AdminPanel>
+      <AdminPanelHeader
+        eyebrow="管理员账号"
+        description="密码由 Supabase Auth 管理；这里的角色和状态写入 platform_admin_users，用于后台页面和 API 的 RBAC。"
+      />
+      <div className="grid gap-5 p-5">
+        {error ? <AdminNotice tone="danger">{error}</AdminNotice> : null}
+
+        <form onSubmit={createAdminUser} className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_150px_auto]">
+          <input
+            type="email"
+            value={createForm.email}
+            onChange={(event) => setCreateForm({ ...createForm, email: event.target.value })}
+            placeholder="邮箱"
+            className={adminInputClassName}
+            required
+          />
+          <input
+            value={createForm.displayName}
+            onChange={(event) =>
+              setCreateForm({ ...createForm, displayName: event.target.value })
+            }
+            placeholder="显示名称"
+            className={adminInputClassName}
+          />
+          <input
+            type="password"
+            value={createForm.password}
+            onChange={(event) => setCreateForm({ ...createForm, password: event.target.value })}
+            placeholder="初始密码"
+            minLength={8}
+            className={adminInputClassName}
+            required
+          />
+          <select
+            value={createForm.role}
+            onChange={(event) =>
+              setCreateForm({
+                ...createForm,
+                role: event.target.value as PlatformAdminUserDto["role"],
+              })
+            }
+            className={adminSelectClassName}
+          >
+            <option value="admin">admin</option>
+            <option value="super_admin">super_admin</option>
+          </select>
+          <button
+            type="submit"
+            disabled={creating}
+            className={cn(adminButtonClassName, adminButtonVariants.primary)}
+          >
+            <UserPlus className="size-3.5" aria-hidden="true" />
+            {creating ? "创建中" : "新增"}
+          </button>
+        </form>
+
+        {loading ? (
+          <div className="text-sm text-white/40">正在读取管理员账号...</div>
+        ) : adminUsers.length === 0 ? (
+          <AdminEmptyState title="暂无管理员账号" />
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-white/10">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead className="bg-[#080808] text-white/35">
+                <tr>
+                  <th className="px-4 py-3 text-[10px] font-medium uppercase tracking-widest">账号</th>
+                  <th className="px-4 py-3 text-[10px] font-medium uppercase tracking-widest">角色</th>
+                  <th className="px-4 py-3 text-[10px] font-medium uppercase tracking-widest">状态</th>
+                  <th className="px-4 py-3 text-[10px] font-medium uppercase tracking-widest">最近登录</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.06]">
+                {adminUsers.map((adminUser) => (
+                  <tr key={adminUser.id} className="bg-[#0d0d0d]">
+                    <td className="px-4 py-3">
+                      <div className="grid gap-1">
+                        <span className="font-medium text-white/78">
+                          {adminUser.displayName || adminUser.email}
+                          {adminUser.id === currentAdmin.id ? "（当前账号）" : ""}
+                        </span>
+                        <span className="text-xs text-white/35">{adminUser.email}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={adminUser.role}
+                        disabled={savingId === adminUser.id}
+                        onChange={(event) => {
+                          void updateAdminUser(adminUser.id, {
+                            role: event.target.value as PlatformAdminUserDto["role"],
+                          });
+                        }}
+                        className={cn(adminSelectClassName, "h-8")}
+                      >
+                        <option value="admin">admin</option>
+                        <option value="super_admin">super_admin</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={adminUser.status}
+                        disabled={savingId === adminUser.id}
+                        onChange={(event) => {
+                          void updateAdminUser(adminUser.id, {
+                            status: event.target.value as PlatformAdminUserDto["status"],
+                          });
+                        }}
+                        className={cn(adminSelectClassName, "h-8")}
+                      >
+                        <option value="active">active</option>
+                        <option value="disabled">disabled</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 text-white/40">
+                      <div className="grid gap-1">
+                        <AdminStatusBadge status={adminUser.status} label={adminUser.status} />
+                        <span>
+                          {adminUser.lastLoginAt
+                            ? new Date(adminUser.lastLoginAt).toLocaleString("zh-CN")
+                            : "未登录"}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </AdminPanel>
   );
 }
 

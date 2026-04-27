@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { signOutFromPlatformAdmin } from "@/app/platform-admin-login/actions";
+import type { PlatformAdminUserDto } from "@/contracts/platform-admin";
 import { cn } from "@/lib/utils";
 
 const navGroups = [
@@ -45,7 +46,13 @@ const navGroups = [
 
 const navItems = navGroups.flatMap((group) => group.items);
 
-export function PlatformAdminShell({ children }: { children: React.ReactNode }) {
+export function PlatformAdminShell({
+  children,
+  currentAdmin,
+}: {
+  children: React.ReactNode;
+  currentAdmin: PlatformAdminUserDto;
+}) {
   const pathname = usePathname();
   const isNavItemActive = (href: string) =>
     href === "/platform-admin"
@@ -103,6 +110,12 @@ export function PlatformAdminShell({ children }: { children: React.ReactNode }) 
         </nav>
 
         <div className="grid gap-2 border-t border-white/[0.06] p-4">
+          <div className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2">
+            <p className="truncate text-sm font-medium text-white/80">
+              {currentAdmin.displayName || currentAdmin.email}
+            </p>
+            <p className="mt-1 truncate text-xs text-amber-300/75">{currentAdmin.role}</p>
+          </div>
           <Link
             href="/dashboard/import"
             className="inline-flex min-h-10 items-center gap-2 rounded-md border border-white/10 bg-white/[0.04] px-3 text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-white/10"
@@ -125,9 +138,14 @@ export function PlatformAdminShell({ children }: { children: React.ReactNode }) 
       <div className="lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-white/10 bg-[#050505]/95 px-4 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between gap-3">
-            <Link href="/platform-admin" className="min-w-0 font-semibold text-white">
-              静境平台管理台
-            </Link>
+            <div className="min-w-0">
+              <Link href="/platform-admin" className="block truncate font-semibold text-white">
+                静境平台管理台
+              </Link>
+              <p className="mt-1 truncate text-xs text-white/35">
+                {currentAdmin.displayName || currentAdmin.email} · {currentAdmin.role}
+              </p>
+            </div>
             <div className="flex shrink-0 items-center gap-2">
               <Link
                 href="/dashboard/import"
