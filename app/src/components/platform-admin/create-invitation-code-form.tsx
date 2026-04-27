@@ -5,11 +5,17 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, LoaderCircle, TicketPlus } from "lucide-react";
 import { type FormEvent, useState } from "react";
 
-import { PageHeader } from "@/components/app/page-header";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  AdminField,
+  AdminNotice,
+  AdminPageHeader,
+  AdminPanel,
+  AdminStatusBadge,
+  adminButtonClassName,
+  adminButtonVariants,
+  adminInputClassName,
+} from "@/components/platform-admin/platform-admin-ui";
+import { cn } from "@/lib/utils";
 
 type GenerationMode = "auto" | "manual";
 
@@ -133,188 +139,155 @@ export function CreateInvitationCodeForm() {
     }
   }
 
-  const modeButtonClassName =
-    "h-11 justify-center rounded-md border text-sm font-medium transition-colors";
-
   return (
-    <>
-      <PageHeader
-        eyebrow="Platform Admin"
+    <div className="grid gap-6">
+      <AdminPageHeader
         title="生成邀请码"
-        description="这里只保留真正需要填的内容：邀请码名称、可使用次数，以及是否手动指定邀请码。用途固定为商户注册，不再单独填写。"
+        description="这里只保留真正需要填的内容：邀请码名称、可使用次数，以及是否手动指定邀请码。用途固定为商户注册。"
         action={
-          <Button asChild variant="outline" className="rounded-md">
-            <Link href="/platform-admin/invitation-codes">
-              <ArrowLeft className="size-4" />
-              返回邀请码管理
-            </Link>
-          </Button>
+          <Link
+            href="/platform-admin/invitation-codes"
+            className={cn(adminButtonClassName, adminButtonVariants.secondary)}
+          >
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            返回邀请码管理
+          </Link>
         }
       />
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm md:p-6"
-        >
-          <div className="grid gap-5">
-            <div className="grid gap-2">
-              <Label>生成方式</Label>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <AdminPanel>
+          <form onSubmit={handleSubmit} className="grid gap-5 p-5 md:p-6">
+            <AdminField label="生成方式">
               <div className="grid max-w-md grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={`${modeButtonClassName} ${mode === "auto" ? "border-[#2563eb] bg-[#e8f1ff] text-[#1d4ed8]" : ""}`}
-                  onClick={() => setMode("auto")}
-                >
-                  自动生成
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={`${modeButtonClassName} ${mode === "manual" ? "border-[#2563eb] bg-[#e8f1ff] text-[#1d4ed8]" : ""}`}
-                  onClick={() => setMode("manual")}
-                >
-                  手动填写
-                </Button>
+                {(["auto", "manual"] as const).map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className={cn(
+                      adminButtonClassName,
+                      mode === item
+                        ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                        : adminButtonVariants.secondary,
+                    )}
+                    onClick={() => setMode(item)}
+                  >
+                    {item === "auto" ? "自动生成" : "手动填写"}
+                  </button>
+                ))}
               </div>
-              <p className="text-sm leading-6 text-[#5d6b7a]">
-                自动生成会在提交时给你一串随机邀请码；如果这批要发固定码，再切到手动填写。
-              </p>
-            </div>
+            </AdminField>
 
-            <div className="rounded-md border border-[#dbeafe] bg-[#eff6ff] px-4 py-3 text-sm leading-6 text-[#1e3a8a]">
-              当前这批邀请码固定用于 <Badge className="ml-1 rounded-md bg-white text-[#1d4ed8]">商户注册</Badge>，
-              这里不再额外填写“用途”字段。
-            </div>
+            <AdminNotice tone="info">
+              当前这批邀请码固定用于 <AdminStatusBadge status="active" label="商户注册" />，
+              提交后会直接写入真实邀请码记录。
+            </AdminNotice>
 
-            <div className="grid gap-2">
-              <Label htmlFor="invite-note">邀请码名称 / 渠道备注</Label>
-              <Input
-                id="invite-note"
+            <AdminField label="邀请码名称 / 渠道备注" hint="这个字段就是后面在列表里识别来源用的名字。">
+              <input
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
                 placeholder="例如：深圳线下打样"
                 maxLength={200}
+                className={adminInputClassName}
               />
-              <p className="text-sm leading-6 text-[#5d6b7a]">
-                这个字段就是你后面在列表里识别来源用的“名字”。
-              </p>
-            </div>
+            </AdminField>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="max-redemptions">可使用次数</Label>
-                <Input
-                  id="max-redemptions"
+              <AdminField label="可使用次数">
+                <input
                   type="number"
                   min={1}
                   max={50}
                   value={maxRedemptions}
                   onChange={(event) => setMaxRedemptions(event.target.value)}
+                  className={adminInputClassName}
                 />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="expires-at">过期时间</Label>
-                <Input
-                  id="expires-at"
+              </AdminField>
+              <AdminField label="过期时间">
+                <input
                   type="date"
                   value={expiresAt}
                   onChange={(event) => setExpiresAt(event.target.value)}
+                  className={adminInputClassName}
                 />
-              </div>
+              </AdminField>
             </div>
 
             {mode === "manual" ? (
-              <div className="grid gap-2">
-                <Label htmlFor="manual-code">手动邀请码</Label>
-                <Input
-                  id="manual-code"
+              <AdminField label="手动邀请码">
+                <input
                   value={manualCode}
                   onChange={(event) => setManualCode(event.target.value)}
                   placeholder="例如：SZTEST2026"
                   minLength={4}
                   maxLength={80}
+                  className={adminInputClassName}
                 />
-              </div>
+              </AdminField>
             ) : null}
 
-            {errorMessage ? (
-              <div className="rounded-md border border-[#fecaca] bg-[#fff1f2] px-4 py-3 text-sm text-[#be123c]">
-                {errorMessage}
-              </div>
-            ) : null}
+            {errorMessage ? <AdminNotice tone="danger">{errorMessage}</AdminNotice> : null}
 
             <div className="flex flex-wrap gap-2">
-              <Button
+              <button
                 type="submit"
-                className="h-10 rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]"
+                className={cn(adminButtonClassName, adminButtonVariants.primary)}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
                   <>
-                    <LoaderCircle className="size-4 animate-spin" />
+                    <LoaderCircle className="size-3.5 animate-spin" />
                     生成中
                   </>
                 ) : (
                   "生成邀请码"
                 )}
-              </Button>
-              <Button asChild variant="outline" className="rounded-md">
-                <Link href="/platform-admin/invitation-codes">取消</Link>
-              </Button>
+              </button>
+              <Link
+                href="/platform-admin/invitation-codes"
+                className={cn(adminButtonClassName, adminButtonVariants.secondary)}
+              >
+                取消
+              </Link>
             </div>
-          </div>
-        </form>
+          </form>
+        </AdminPanel>
 
-        <aside className="rounded-md border border-[#dde3ea] bg-[#f8fafc] p-5 shadow-sm">
+        <AdminPanel className="p-5">
           <div className="flex items-start gap-3">
-            <TicketPlus className="mt-0.5 size-4 text-[#1d4ed8]" aria-hidden="true" />
-            <div>
-              <p className="font-medium text-[#17202a]">当前生成规则</p>
-              <ul className="mt-3 grid gap-2 text-sm leading-6 text-[#5d6b7a]">
+            <TicketPlus className="mt-0.5 size-4 shrink-0 text-amber-300" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="font-medium text-white/80">当前生成规则</p>
+              <ul className="mt-3 grid gap-2 text-sm leading-6 text-white/40">
                 <li>名称字段用于内部识别来源，不会暴露给商家。</li>
                 <li>不填过期时间就表示长期有效，直到被用完或手动停用。</li>
-                <li>提交后会直接写入真实邀请码记录，不再只是演示页面。</li>
+                <li>提交后写入真实邀请码 API，不做本地假列表。</li>
               </ul>
             </div>
           </div>
 
-          <div className="mt-6 rounded-md border border-[#dde3ea] bg-white p-4 text-sm">
-            <p className="font-medium text-[#17202a]">当前设置预览</p>
-            <dl className="mt-3 grid gap-3 text-[#5d6b7a]">
-              <div className="flex items-center justify-between gap-3">
-                <dt>生成方式</dt>
-                <dd className="font-medium text-[#17202a]">
-                  {mode === "auto" ? "自动生成" : "手动填写"}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt>邀请码名称</dt>
-                <dd className="text-right font-medium text-[#17202a]">
-                  {note.trim() || "未填写"}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt>可使用次数</dt>
-                <dd className="font-medium text-[#17202a]">{maxRedemptions || "1"}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt>过期时间</dt>
-                <dd className="font-medium text-[#17202a]">{expiresAt || "不限"}</dd>
-              </div>
-              {mode === "manual" ? (
-                <div className="flex items-center justify-between gap-3">
-                  <dt>手动邀请码</dt>
-                  <dd className="text-right font-medium text-[#17202a]">
-                    {manualCode.trim() || "未填写"}
-                  </dd>
+          <div className="mt-6 border-t border-white/[0.06] pt-5 text-sm">
+            <p className="font-medium text-white/80">当前设置预览</p>
+            <dl className="mt-3 grid gap-3 text-white/40">
+              {[
+                { label: "生成方式", value: mode === "auto" ? "自动生成" : "手动填写" },
+                { label: "邀请码名称", value: note.trim() || "未填写" },
+                { label: "可使用次数", value: maxRedemptions || "1" },
+                { label: "过期时间", value: expiresAt || "不限" },
+                ...(mode === "manual"
+                  ? [{ label: "手动邀请码", value: manualCode.trim() || "未填写" }]
+                  : []),
+              ].map((row) => (
+                <div key={row.label} className="flex items-start justify-between gap-3">
+                  <dt>{row.label}</dt>
+                  <dd className="break-words text-right font-medium text-white/75">{row.value}</dd>
                 </div>
-              ) : null}
+              ))}
             </dl>
           </div>
-        </aside>
+        </AdminPanel>
       </div>
-    </>
+    </div>
   );
 }

@@ -1,5 +1,10 @@
 import { PlatformAdminOverviewPage } from "@/components/platform-admin/platform-admin-content";
+import { getAgentConsoleFoundationState } from "@/lib/db/agent-console-repository";
 
-export default function PlatformAdminHomePage() {
-  return <PlatformAdminOverviewPage />;
+export const dynamic = "force-dynamic";
+
+export default async function PlatformAdminHomePage() {
+  const foundationState = await getAgentConsoleFoundationState();
+
+  return <PlatformAdminOverviewPage foundationState={foundationState} />;
 }

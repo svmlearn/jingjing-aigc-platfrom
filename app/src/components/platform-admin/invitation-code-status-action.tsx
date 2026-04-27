@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { PlatformAdminInvitationCodeDto } from "@/contracts/platform-admin";
-import { Button } from "@/components/ui/button";
+import {
+  adminButtonClassName,
+  adminButtonVariants,
+} from "@/components/platform-admin/platform-admin-ui";
+import { cn } from "@/lib/utils";
 
 const actionErrorMessages: Record<string, string> = {
   FORBIDDEN: "当前账号没有调整邀请码状态的权限。",
@@ -80,17 +84,15 @@ export function InvitationCodeStatusAction({
   }
 
   if (!canManage) {
-    return <span className="text-sm text-[#5d6b7a]">仅超管可操作</span>;
+    return <span className="text-sm text-white/30">仅超管可操作</span>;
   }
 
   if (invitationCode.status === "active") {
     return (
       <div className="grid gap-2">
-        <Button
+        <button
           type="button"
-          variant="outline"
-          size="sm"
-          className="rounded-md"
+          className={cn(adminButtonClassName, adminButtonVariants.secondary, "min-h-8 px-2 py-1")}
           disabled={isPending}
           onClick={() => handleToggle("disabled")}
         >
@@ -102,8 +104,8 @@ export function InvitationCodeStatusAction({
           ) : (
             "停用"
           )}
-        </Button>
-        {errorMessage ? <p className="text-xs text-[#be123c]">{errorMessage}</p> : null}
+        </button>
+        {errorMessage ? <p className="text-xs text-red-300">{errorMessage}</p> : null}
       </div>
     );
   }
@@ -111,11 +113,9 @@ export function InvitationCodeStatusAction({
   if (invitationCode.status === "disabled") {
     return (
       <div className="grid gap-2">
-        <Button
+        <button
           type="button"
-          variant="outline"
-          size="sm"
-          className="rounded-md"
+          className={cn(adminButtonClassName, adminButtonVariants.secondary, "min-h-8 px-2 py-1")}
           disabled={isPending}
           onClick={() => handleToggle("active")}
         >
@@ -127,11 +127,11 @@ export function InvitationCodeStatusAction({
           ) : (
             "重新启用"
           )}
-        </Button>
-        {errorMessage ? <p className="text-xs text-[#be123c]">{errorMessage}</p> : null}
+        </button>
+        {errorMessage ? <p className="text-xs text-red-300">{errorMessage}</p> : null}
       </div>
     );
   }
 
-  return <span className="text-sm text-[#5d6b7a]">不可操作</span>;
+  return <span className="text-sm text-white/30">不可操作</span>;
 }
