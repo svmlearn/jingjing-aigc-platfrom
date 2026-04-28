@@ -104,6 +104,8 @@ export type VideoGrowthContext = {
   }>;
 };
 
+export type VideoScriptContext = VideoGrowthContext;
+
 export type VideoScriptCandidate = VideoGrowthContext["scriptCandidates"][number] & {
   scriptText: string;
   ctaText: string;
@@ -143,7 +145,7 @@ export function buildVideoGrowthContext(input: {
       : [
           {
             level: "medium" as const,
-            code: "growth_context_too_thin",
+            code: "consultation_context_too_thin",
             message: "咨询上下文里的用户、卖点或场景还不够具体。",
           },
         ],
@@ -193,10 +195,16 @@ export function buildVideoGrowthContext(input: {
   };
 }
 
+export function buildVideoScriptContext(
+  input: Parameters<typeof buildVideoGrowthContext>[0],
+): VideoScriptContext {
+  return buildVideoGrowthContext(input);
+}
+
 export function buildVideoScriptCandidates(input: {
   merchantName: string;
   session: VideoGrowthSession;
-  growthContext: VideoGrowthContext;
+  scriptContext: VideoScriptContext;
   extraRequirement?: string | null;
   material?: {
     title: string;
@@ -204,10 +212,10 @@ export function buildVideoScriptCandidates(input: {
   } | null;
 }): VideoScriptCandidate[] {
   const snapshot = input.session.strategySnapshot;
-  const audience = input.growthContext.strategy.targetAudience;
+  const audience = input.scriptContext.strategy.targetAudience;
   const scene = first(snapshot.keyScenes, "到店前决策");
   const sellingPoint = first(snapshot.coreSellingPoints, input.merchantName);
-  const cta = input.growthContext.strategy.ctaStrategy;
+  const cta = input.scriptContext.strategy.ctaStrategy;
   const materialLine = input.material
     ? `参考素材「${input.material.title}」的结构，把可信细节讲得更具体。`
     : "使用真实门店、人物动作和细节特写承接信任。";
@@ -218,7 +226,7 @@ export function buildVideoScriptCandidates(input: {
       title: `${audience}最关心的，不是价格`,
       hook: `如果你也在比较门店，先别急着看价格。`,
       whyThisWorks: "先降低决策压力，再用服务细节承接咨询，适合稳妥转化。",
-      strategyTrace: strategyTrace(input.growthContext),
+      strategyTrace: strategyTrace(input.scriptContext),
       ctaText: cta,
       scriptText: [
         "Scene 1 | 00:00-00:05",
@@ -243,7 +251,7 @@ export function buildVideoScriptCandidates(input: {
       title: `别被门店宣传词骗了，先看这 3 个细节`,
       hook: `一家店靠不靠谱，别只听宣传词。`,
       whyThisWorks: "开头冲突更强，适合提高停留，但仍保留专业边界。",
-      strategyTrace: strategyTrace(input.growthContext),
+      strategyTrace: strategyTrace(input.scriptContext),
       ctaText: cta,
       scriptText: [
         "Scene 1 | 00:00-00:04",
@@ -268,7 +276,7 @@ export function buildVideoScriptCandidates(input: {
       title: snapshot.videoBrief?.workingTitle || "第一次到店前，先看这 3 个细节",
       hook: snapshot.videoBrief?.hook || "如果你不知道怎么判断一家店靠不靠谱，先看这 3 个细节。",
       whyThisWorks: "用专家式拆解回应信任顾虑，适合提高咨询质量。",
-      strategyTrace: strategyTrace(input.growthContext),
+      strategyTrace: strategyTrace(input.scriptContext),
       ctaText: cta,
       scriptText: [
         "Scene 1 | 00:00-00:05",
@@ -334,11 +342,11 @@ function buildCandidateSummaries(input: {
   ];
 }
 
-function strategyTrace(growthContext: VideoGrowthContext) {
+function strategyTrace(scriptContext: VideoScriptContext) {
   return {
-    acquisitionGoal: growthContext.strategy.acquisitionGoal,
-    audienceStage: growthContext.strategy.audienceStage,
-    contentHypothesis: growthContext.strategy.contentHypothesis,
+    acquisitionGoal: scriptContext.strategy.acquisitionGoal,
+    audienceStage: scriptContext.strategy.audienceStage,
+    contentHypothesis: scriptContext.strategy.contentHypothesis,
   };
 }
 

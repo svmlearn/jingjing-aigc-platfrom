@@ -18,9 +18,24 @@ import {
   getMaterialWorkbenchReference,
 } from "@/lib/db/material-library-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
+import { getPlatformSettings } from "@/lib/db/platform-admin-repository";
 import {
-  buildVideoGrowthContext,
+  AiRuntimeError,
+  createChatCompletion,
+  getAiRuntimeApiKey,
+} from "@/server/api/ai-runtime";
+import { ApiError } from "@/server/api/errors";
+import {
+  SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION,
+  buildScriptProductionAgentMessages,
+  parseScriptProductionAgentResponse,
+  validateScriptProductionBrief,
+  type ScriptProductionBrief,
+} from "@/server/api/video-script-production-agent";
+import {
+  buildVideoScriptContext,
   buildVideoScriptCandidates,
+  type VideoScriptCandidate,
 } from "@/server/api/video-growth-context";
 
 type GenerationMode = "create" | "rewrite";
@@ -183,20 +198,47 @@ export async function generateVideoScriptForUser(input: {
     },
   });
   const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
-  const growthContext = buildVideoGrowthContext({
+  const scriptContext = buildVideoScriptContext({
     merchant,
     session,
     extraRequirement: input.extraRequirement ?? null,
     materialContext: materialSnapshot,
     strategyTag: input.strategyTag ?? null,
   });
-  const scriptCandidates = buildVideoScriptCandidates({
+  const fallbackScriptCandidates = buildVideoScriptCandidates({
     merchantName: merchant.name,
     session,
-    growthContext,
+    scriptContext,
     extraRequirement: input.extraRequirement ?? null,
     material: materialContext.material,
   });
+  const scriptProductionBrief = buildVideoScriptProductionBrief({
+    merchant,
+    session,
+    materialSnapshot,
+    goal: input.goal ?? null,
+    extraRequirement: input.extraRequirement ?? null,
+    strategyTag: input.strategyTag ?? null,
+  });
+  const briefValidation = validateScriptProductionBrief(scriptProductionBrief);
+
+  if (!briefValidation.ready) {
+    throw new ApiError(
+      409,
+      "SCRIPT_PRODUCTION_BRIEF_INCOMPLETE",
+      "咨询台信息还不足以生成正式视频脚本。",
+      {
+        missingFields: briefValidation.missingFields,
+        questions: briefValidation.questions,
+      },
+    );
+  }
+
+  const scriptAgent = await generateVideoScriptCandidatesWithAgent({
+    brief: scriptProductionBrief,
+    fallbackCandidates: fallbackScriptCandidates,
+  });
+  const scriptCandidates = scriptAgent.candidates;
 
   const draftBundle = await createDraftWithVariants({
     merchantId: merchant.id,
@@ -209,7 +251,9 @@ export async function generateVideoScriptForUser(input: {
       strategyTag: input.strategyTag ?? null,
       extraRequirement: input.extraRequirement ?? null,
       materialContext: materialSnapshot,
-      growthContext,
+      scriptContext,
+      scriptProductionBrief,
+      scriptProductionAgent: scriptAgent.trace,
     },
     commentInsights: {
       audiences: session.strategySnapshot.targetAudiences,
@@ -217,6 +261,7 @@ export async function generateVideoScriptForUser(input: {
       referenceMaterialTitle: materialContext.material?.title ?? null,
       referenceMaterialEngagement: materialContext.material?.engagementLabel ?? null,
       scriptCandidateTypes: scriptCandidates.map((candidate) => candidate.candidateType),
+      scriptAgentMode: scriptAgent.trace.mode,
     },
     variants: scriptCandidates.map((candidate) => ({
         platform: "douyin",
@@ -238,6 +283,161 @@ export async function generateVideoScriptForUser(input: {
   });
 
   return draftBundle;
+}
+
+async function generateVideoScriptCandidatesWithAgent(input: {
+  brief: ScriptProductionBrief;
+  fallbackCandidates: VideoScriptCandidate[];
+}): Promise<{
+  candidates: VideoScriptCandidate[];
+  trace: {
+    promptVersion: typeof SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION;
+    mode: "llm" | "fallback_no_key" | "fallback_error" | "fallback_parse_error";
+    model?: string;
+    error?: string;
+    productionGoal?: string | null;
+    evidenceSummary?: string[];
+    riskNotes?: string[];
+    confirmQuestions?: string[];
+  };
+}> {
+  const promptVersion = SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION;
+
+  if (!getAiRuntimeApiKey()) {
+    return {
+      candidates: input.fallbackCandidates,
+      trace: {
+        promptVersion,
+        mode: "fallback_no_key",
+      },
+    };
+  }
+
+  try {
+    const { llmRuntime } = await getPlatformSettings();
+    const response = await createChatCompletion({
+      runtime: llmRuntime,
+      model: llmRuntime.primaryModel,
+      messages: buildScriptProductionAgentMessages({
+        brief: input.brief,
+      }),
+    });
+    const parsed = parseScriptProductionAgentResponse(
+      response.content,
+      input.fallbackCandidates,
+    );
+
+    if (parsed.mode === "needs_more_info") {
+      throw new ApiError(
+        409,
+        "SCRIPT_PRODUCTION_BRIEF_INCOMPLETE",
+        "脚本制作 Agent 判断当前信息还不足以生成正式视频脚本。",
+        {
+          missingFields: parsed.missingFields,
+          questions: parsed.questions,
+          reason: parsed.reason,
+        },
+      );
+    }
+
+    if (parsed.mode === "fallback_parse_error") {
+      return {
+        candidates: parsed.candidates,
+        trace: {
+          promptVersion,
+          mode: "fallback_parse_error",
+          model: response.model,
+          error: parsed.error,
+        },
+      };
+    }
+
+    return {
+      candidates: parsed.candidates,
+      trace: {
+        promptVersion,
+        mode: "llm",
+        model: response.model,
+        productionGoal: parsed.productionGoal,
+        evidenceSummary: parsed.evidenceSummary,
+        riskNotes: parsed.riskNotes,
+        confirmQuestions: parsed.confirmQuestions,
+      },
+    };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    return {
+      candidates: input.fallbackCandidates,
+      trace: {
+        promptVersion,
+        mode: "fallback_error",
+        error:
+          error instanceof AiRuntimeError
+            ? `${error.message}${error.status ? ` (${error.status})` : ""}`
+            : error instanceof Error
+              ? error.message
+              : "Unknown AI runtime error.",
+      },
+    };
+  }
+}
+
+function buildVideoScriptProductionBrief(input: {
+  merchant: Awaited<ReturnType<typeof getOperationalMerchantProfileByOwnerUserId>>;
+  session: Awaited<ReturnType<typeof getConsultationSessionDetail>>;
+  materialSnapshot: ReturnType<typeof buildMaterialSnapshot>;
+  goal?: string | null;
+  extraRequirement?: string | null;
+  strategyTag?: string | null;
+}): ScriptProductionBrief {
+  const snapshot = input.session.strategySnapshot;
+  const material = input.materialSnapshot;
+  const topicDirection =
+    input.goal ??
+    snapshot.videoBrief?.workingTitle ??
+    snapshot.videoBrief?.hook ??
+    snapshot.currentSuggestion;
+
+  return {
+    platform: "douyin",
+    contentForm: "video",
+    topicDirection,
+    targetAudiences: snapshot.targetAudiences,
+    accountPositioning: snapshot.positioning,
+    businessScope: input.merchant.industry ?? null,
+    contentScope: snapshot.videoBrief?.outcome ?? snapshot.currentSuggestion,
+    productOrServiceInfo: compactStrings([
+      ...input.merchant.serviceItems,
+      ...snapshot.coreSellingPoints,
+    ]),
+    customerAdvantages: snapshot.coreSellingPoints,
+    forbiddenExpressions: input.merchant.forbiddenWords,
+    brandTone: input.merchant.toneStyle ?? null,
+    availableMaterials: material
+      ? [
+          {
+            title: material.title ?? "",
+            description: material.description ?? null,
+            platform: material.platform ?? null,
+            materialType: material.materialType ?? null,
+            sourceKind: material.sourceKind ?? null,
+            engagementLabel: material.engagementLabel ?? null,
+          },
+        ]
+      : [],
+    availableScenes: snapshot.keyScenes,
+    customerRequirement: input.extraRequirement ?? null,
+    consultationConclusion: {
+      summaryText: input.session.summaryText ?? null,
+      currentSuggestion: snapshot.currentSuggestion,
+      videoHook: snapshot.videoBrief?.hook ?? null,
+      videoOutcome: snapshot.videoBrief?.outcome ?? null,
+      contentCalendarTag: input.strategyTag ?? snapshot.strategyTags[0] ?? null,
+    },
+  };
 }
 
 export async function listContentRecordsForUser(input: {
@@ -377,4 +577,8 @@ function buildMaterialSnapshot(
     engagementLabel: material?.engagementLabel ?? null,
     description: material?.description ?? null,
   };
+}
+
+function compactStrings(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }

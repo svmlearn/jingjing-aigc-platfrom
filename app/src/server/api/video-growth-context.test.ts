@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  buildVideoGrowthContext,
+  buildVideoScriptContext,
   buildVideoScriptCandidates,
 } from "./video-growth-context.ts";
 
@@ -35,8 +35,8 @@ const merchant = {
   forbiddenWords: ["包瘦"],
 };
 
-test("buildVideoGrowthContext includes the four required growth layers", () => {
-  const growthContext = buildVideoGrowthContext({
+test("buildVideoScriptContext includes consultation context for video drafting", () => {
+  const scriptContext = buildVideoScriptContext({
     merchant,
     session,
     extraRequirement: "更强调专业信任感",
@@ -48,17 +48,17 @@ test("buildVideoGrowthContext includes the four required growth layers", () => {
     strategyTag: "信任建立",
   });
 
-  assert.ok(growthContext.contextDigest);
-  assert.ok(growthContext.strategy);
-  assert.ok(growthContext.critique);
-  assert.ok(Array.isArray(growthContext.scriptCandidates));
-  assert.equal(growthContext.strategy.platformStrategy.platform, "douyin");
-  assert.equal(growthContext.strategy.platformStrategy.format, "vertical_short_video");
-  assert.equal(growthContext.critique.passForDrafting, true);
+  assert.ok(scriptContext.contextDigest);
+  assert.ok(scriptContext.strategy);
+  assert.ok(scriptContext.critique);
+  assert.ok(Array.isArray(scriptContext.scriptCandidates));
+  assert.equal(scriptContext.strategy.platformStrategy.platform, "douyin");
+  assert.equal(scriptContext.strategy.platformStrategy.format, "vertical_short_video");
+  assert.equal(scriptContext.critique.passForDrafting, true);
 });
 
 test("buildVideoScriptCandidates creates three traceable video script variants", () => {
-  const growthContext = buildVideoGrowthContext({
+  const scriptContext = buildVideoScriptContext({
     merchant,
     session,
     extraRequirement: null,
@@ -69,7 +69,7 @@ test("buildVideoScriptCandidates creates three traceable video script variants",
   const candidates = buildVideoScriptCandidates({
     merchantName: merchant.name,
     session,
-    growthContext,
+    scriptContext,
     extraRequirement: null,
     material: null,
   });
@@ -79,7 +79,7 @@ test("buildVideoScriptCandidates creates three traceable video script variants",
     ["safe_conversion", "strong_hook", "trust_expert"],
   );
   for (const candidate of candidates) {
-    assert.equal(candidate.strategyTrace.acquisitionGoal, growthContext.strategy.acquisitionGoal);
+    assert.equal(candidate.strategyTrace.acquisitionGoal, scriptContext.strategy.acquisitionGoal);
     assert.match(candidate.scriptText, /Scene 1/);
     assert.ok(candidate.whyThisWorks.length > 0);
   }
