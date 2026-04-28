@@ -422,6 +422,89 @@ export function PlatformSettingsEditor({
         </AdminPanel>
 
         <AdminPanel>
+          <AdminPanelHeader eyebrow="Script Production Agent" />
+          <div className="grid gap-5 p-5">
+            <AdminField label="System Prompt">
+              <textarea
+                value={settings.scriptProductionAgent.systemPrompt}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    scriptProductionAgent: {
+                      ...settings.scriptProductionAgent,
+                      systemPrompt: event.target.value,
+                    },
+                  })
+                }
+                rows={6}
+                className={cn(adminTextareaClassName, "font-mono text-xs")}
+              />
+            </AdminField>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <AdminField label="Model">
+                <input
+                  value={settings.scriptProductionAgent.model}
+                  onChange={(event) =>
+                    setSettings({
+                      ...settings,
+                      scriptProductionAgent: {
+                        ...settings.scriptProductionAgent,
+                        model: event.target.value,
+                      },
+                    })
+                  }
+                  className={adminInputClassName}
+                />
+              </AdminField>
+              <NumberField
+                label="Temperature x100"
+                value={Math.round(settings.scriptProductionAgent.temperature * 100)}
+                onChange={(value) =>
+                  setSettings({
+                    ...settings,
+                    scriptProductionAgent: {
+                      ...settings.scriptProductionAgent,
+                      temperature: value / 100,
+                    },
+                  })
+                }
+              />
+              <NumberField
+                label="Evidence Top K"
+                value={settings.scriptProductionAgent.retrievalTopK}
+                onChange={(value) =>
+                  setSettings({
+                    ...settings,
+                    scriptProductionAgent: {
+                      ...settings.scriptProductionAgent,
+                      retrievalTopK: value,
+                    },
+                  })
+                }
+              />
+              <AdminField label="Revision Flow">
+                <select
+                  value={String(settings.scriptProductionAgent.revisionEnabled)}
+                  onChange={(event) =>
+                    setSettings({
+                      ...settings,
+                      scriptProductionAgent: {
+                        ...settings.scriptProductionAgent,
+                        revisionEnabled: event.target.value === "true",
+                      },
+                    })
+                  }
+                  className={adminSelectClassName}
+                >
+                  <option value="true">enabled</option>
+                  <option value="false">disabled</option>
+                </select>
+              </AdminField>
+            </div>
+          </div>
+        </AdminPanel>
+
+        <AdminPanel>
           <AdminPanelHeader eyebrow="Knowledge Runtime" />
           <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-5">
             <NumberField

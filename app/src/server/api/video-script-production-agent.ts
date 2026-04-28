@@ -51,11 +51,26 @@ export type ScriptProductionBrief = {
     videoOutcome: string | null;
     contentCalendarTag: string | null;
   };
+  evidenceReferences?: Array<{
+    title: string;
+    content: string;
+    source: "knowledge_base" | "material" | "consultation" | "manual";
+    score?: number | null;
+  }>;
 };
 
 export type ScriptProductionAgentMessage = {
   role: "system" | "user";
   content: string;
+};
+
+export type VideoScriptRevisionIntent = "semantic" | "production";
+
+export type VideoScriptRevisionContext = {
+  currentVariantId: string;
+  currentScriptText: string;
+  revisionInstruction: string;
+  revisionIntent: VideoScriptRevisionIntent;
 };
 
 export type ScriptProductionBriefValidation =
@@ -95,17 +110,23 @@ export type ScriptProductionAgentParseResult =
 
 export function buildScriptProductionAgentMessages(input: {
   brief: ScriptProductionBrief;
+  systemPrompt?: string | null;
+  revisionContext?: VideoScriptRevisionContext | null;
 }): ScriptProductionAgentMessage[] {
+  const systemPrompt = input.systemPrompt?.trim() || SCRIPT_PRODUCTION_AGENT_SYSTEM_PROMPT;
+
   return [
     {
       role: "system",
-      content: SCRIPT_PRODUCTION_AGENT_SYSTEM_PROMPT,
+      content: systemPrompt,
     },
     {
       role: "user",
       content: JSON.stringify(
         {
-          task: "generate_video_script_candidates",
+          task: input.revisionContext
+            ? "revise_video_script_candidates"
+            : "generate_video_script_candidates",
           promptVersion: SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION,
           expectedCandidateTypes: SCRIPT_PRODUCTION_AGENT_CANDIDATE_TYPES,
           outputSchema: {
@@ -129,12 +150,36 @@ export function buildScriptProductionAgentMessages(input: {
             confirmQuestions: "string[]",
           },
           scriptProductionBrief: input.brief,
+          revisionContext: input.revisionContext ?? null,
         },
         null,
         2,
       ),
     },
   ];
+}
+
+export function classifyVideoScriptRevisionIntent(
+  instruction: string | null | undefined,
+): VideoScriptRevisionIntent {
+  const text = instruction?.trim() ?? "";
+
+  if (!text) {
+    return "semantic";
+  }
+
+  const productionPatterns = [
+    /字幕/,
+    /音乐|bgm|BGM/i,
+    /剪辑|转场|运镜|镜头顺序/,
+    /封面/,
+    /画幅|比例|尺寸/,
+    /音量|配音|音效/,
+    /节奏.*快|节奏.*慢/,
+    /素材顺序|素材位置|画面顺序/,
+  ];
+
+  return productionPatterns.some((pattern) => pattern.test(text)) ? "production" : "semantic";
 }
 
 export function validateScriptProductionBrief(

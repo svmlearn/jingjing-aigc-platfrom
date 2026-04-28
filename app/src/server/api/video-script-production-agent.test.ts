@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildScriptProductionAgentMessages,
+  classifyVideoScriptRevisionIntent,
   parseScriptProductionAgentResponse,
   validateScriptProductionBrief,
   type ScriptProductionBrief,
@@ -36,6 +37,13 @@ const completeBrief: ScriptProductionBrief = {
     videoOutcome: "私信预约体验",
     contentCalendarTag: "信任建立",
   },
+  evidenceReferences: [
+    {
+      title: "平台短视频拍摄规则",
+      content: "门店类短视频优先使用真实环境和服务动作，不使用无依据效果承诺。",
+      source: "knowledge_base",
+    },
+  ],
 };
 
 test("script production agent prompt is bounded to consultation brief and JSON output", () => {
@@ -58,6 +66,34 @@ test("script production agent prompt is bounded to consultation brief and JSON o
     "trust_expert",
   ]);
   assert.deepEqual(userPayload.scriptProductionBrief, completeBrief);
+});
+
+test("script production agent supports configurable prompt and revision context", () => {
+  const messages = buildScriptProductionAgentMessages({
+    brief: completeBrief,
+    systemPrompt: "你是门店视频脚本制作 Agent，只输出 JSON。",
+    revisionContext: {
+      currentVariantId: "variant-1",
+      currentScriptText: "Scene 1 | 00:00-00:05\n旧脚本",
+      revisionInstruction: "开头更温柔一点，CTA 不变",
+      revisionIntent: "semantic",
+    },
+  });
+  const userPayload = JSON.parse(messages[1].content);
+
+  assert.equal(messages[0].content, "你是门店视频脚本制作 Agent，只输出 JSON。");
+  assert.deepEqual(userPayload.revisionContext, {
+    currentVariantId: "variant-1",
+    currentScriptText: "Scene 1 | 00:00-00:05\n旧脚本",
+    revisionInstruction: "开头更温柔一点，CTA 不变",
+    revisionIntent: "semantic",
+  });
+  assert.equal(userPayload.task, "revise_video_script_candidates");
+});
+
+test("classifyVideoScriptRevisionIntent splits semantic and production revisions", () => {
+  assert.equal(classifyVideoScriptRevisionIntent("开头话术更温柔一点，CTA 保持不变"), "semantic");
+  assert.equal(classifyVideoScriptRevisionIntent("字幕位置上移，音乐节奏更快一点"), "production");
 });
 
 test("validateScriptProductionBrief blocks incomplete confirmed information", () => {

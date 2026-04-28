@@ -31,6 +31,15 @@ type ChatMessage = {
   content: string;
 };
 
+type ApiErrorPayload = {
+  message?: string;
+  details?: {
+    questions?: string[];
+    missingFields?: string[];
+    [key: string]: unknown;
+  };
+};
+
 export function VideoWorkbench({
   sessionId,
   materialId,
@@ -169,11 +178,11 @@ export function VideoWorkbench({
       });
       const data = (await response.json()) as {
         draftBundle?: ContentDraftBundleDto;
-        error?: { message?: string };
+        error?: ApiErrorPayload;
       };
 
       if (!response.ok || !data.draftBundle) {
-        throw new Error(data.error?.message ?? "视频脚本生成失败");
+        throw new Error(formatApiError(data.error, "视频脚本生成失败"));
       }
 
       setDraftBundle(data.draftBundle);
@@ -252,7 +261,7 @@ export function VideoWorkbench({
     }
   }
 
-  async function createVideoJob(sourceJobId?: string) {
+  async function createVideoJob(sourceJobId?: string, instructionOverride?: string) {
     if (!selectedVariant) {
       setError("请先生成视频脚本。");
       return;
@@ -273,7 +282,7 @@ export function VideoWorkbench({
         },
         body: JSON.stringify({
           contentVariantId: selectedVariant.id,
-          instructionText: extraRequirement || goal || selectedVariant.title,
+          instructionText: instructionOverride || extraRequirement || goal || selectedVariant.title,
           sourceJobId: sourceJobId ?? null,
         }),
       });
@@ -356,10 +365,100 @@ export function VideoWorkbench({
     setMessages((current) => [...current, { role: "user", content: nextInput }]);
     setExtraRequirement(nextExtraRequirement);
     setInput("");
+
+    if (selectedVariant && draftBundle && sessionId) {
+      void reviseScriptFromChat(nextInput, nextExtraRequirement);
+      return;
+    }
+
     void generateScript({
       extraRequirement: nextExtraRequirement,
       fromChat: true,
     });
+  }
+
+  async function reviseScriptFromChat(revisionInstruction: string, nextExtraRequirement: string) {
+    if (!selectedVariant || !sessionId) {
+      return;
+    }
+
+    setGenerating(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/content/video-scripts/revisions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contentVariantId: selectedVariant.id,
+          sessionId,
+          revisionInstruction,
+          materialId: referenceMaterial?.id ?? materialId ?? null,
+          materialReferenceId: materialReferenceId ?? null,
+          strategyTag,
+        }),
+      });
+      const data = (await response.json()) as {
+        revisionIntent?: "semantic" | "production";
+        variant?: NonNullable<ContentDraftBundleDto["selectedVariant"]>;
+        contentVariantId?: string;
+        instructionText?: string;
+        error?: ApiErrorPayload;
+      };
+
+      if (!response.ok || data.error) {
+        throw new Error(formatApiError(data.error, "脚本修订失败"));
+      }
+
+      if (data.revisionIntent === "production" && data.instructionText) {
+        setMessages((current) => [
+          ...current,
+          {
+            role: "agent",
+            content: "这属于制作修订，我会保留已确认脚本语义，并创建新的制作任务。",
+          },
+        ]);
+        await createVideoJob(job?.id, data.instructionText);
+        return;
+      }
+
+      if (data.revisionIntent !== "semantic" || !data.variant) {
+        throw new Error("脚本修订失败");
+      }
+
+      const revisedVariant = data.variant;
+      setDraftBundle((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          draft: {
+            ...current.draft,
+            selectedVariantId: revisedVariant.id,
+          },
+          variants: [...current.variants, revisedVariant],
+          selectedVariant: revisedVariant,
+        };
+      });
+      setSelectedVariantId(revisedVariant.id);
+      setShowCanvas(true);
+      setMessages((current) => [
+        ...current,
+        {
+          role: "agent",
+          content: "收到，这属于脚本语义修订。我已经生成一个新脚本版本，旧版本保留，右侧已切到新版本。",
+        },
+      ]);
+      setExtraRequirement(nextExtraRequirement);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "脚本修订失败");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   function handleSend(event: FormEvent<HTMLFormElement>) {
@@ -478,7 +577,7 @@ export function VideoWorkbench({
       </div>
 
       {error ? (
-        <div className="border-b border-rose-500/20 bg-rose-500/10 px-6 py-3 text-sm text-rose-200">
+        <div className="whitespace-pre-line border-b border-rose-500/20 bg-rose-500/10 px-6 py-3 text-sm leading-6 text-rose-200">
           {error}
         </div>
       ) : null}
@@ -818,4 +917,15 @@ function buildPlaceholderSegments(goal: string, strategyTag?: string | null) {
     "中段展示门店真实空间、服务流程、专业资质或客户常见问题，建立信任。",
     "结尾给出明确行动：私信咨询、预约体验、领取评估或到店了解。",
   ];
+}
+
+function formatApiError(error: ApiErrorPayload | undefined, fallback: string) {
+  const message = error?.message ?? fallback;
+  const questions = error?.details?.questions;
+
+  if (!questions || questions.length === 0) {
+    return message;
+  }
+
+  return `${message}\n${questions.map((question) => `· ${question}`).join("\n")}`;
 }

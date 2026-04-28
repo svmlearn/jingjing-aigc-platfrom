@@ -8,6 +8,7 @@ import type {
 } from "@/contracts/material";
 import { getConsultationSessionDetail } from "@/lib/db/consultation-repository";
 import {
+  appendContentVariantToDraft,
   createDraftWithVariants,
   createManualSourceItem,
   listDraftBundlesByMerchant,
@@ -18,6 +19,7 @@ import {
   getMaterialWorkbenchReference,
 } from "@/lib/db/material-library-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
+import { searchKnowledgeChunks } from "@/lib/db/knowledge-repository";
 import { getPlatformSettings } from "@/lib/db/platform-admin-repository";
 import {
   AiRuntimeError,
@@ -28,10 +30,12 @@ import { ApiError } from "@/server/api/errors";
 import {
   SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION,
   buildScriptProductionAgentMessages,
+  classifyVideoScriptRevisionIntent,
   parseScriptProductionAgentResponse,
   validateScriptProductionBrief,
   type ScriptProductionBrief,
 } from "@/server/api/video-script-production-agent";
+import { assertVideoScriptVariantAccess } from "@/lib/db/video-edit-job-repository";
 import {
   buildVideoScriptContext,
   buildVideoScriptCandidates,
@@ -212,7 +216,8 @@ export async function generateVideoScriptForUser(input: {
     extraRequirement: input.extraRequirement ?? null,
     material: materialContext.material,
   });
-  const scriptProductionBrief = buildVideoScriptProductionBrief({
+  const platformSettings = await getPlatformSettings();
+  const scriptProductionBriefBase = buildVideoScriptProductionBrief({
     merchant,
     session,
     materialSnapshot,
@@ -220,6 +225,15 @@ export async function generateVideoScriptForUser(input: {
     extraRequirement: input.extraRequirement ?? null,
     strategyTag: input.strategyTag ?? null,
   });
+  const scriptEvidenceReferences = await collectScriptProductionEvidence({
+    merchantId: merchant.id,
+    brief: scriptProductionBriefBase,
+    retrievalTopK: platformSettings.scriptProductionAgent.retrievalTopK,
+  });
+  const scriptProductionBrief = {
+    ...scriptProductionBriefBase,
+    evidenceReferences: scriptEvidenceReferences,
+  };
   const briefValidation = validateScriptProductionBrief(scriptProductionBrief);
 
   if (!briefValidation.ready) {
@@ -237,6 +251,8 @@ export async function generateVideoScriptForUser(input: {
   const scriptAgent = await generateVideoScriptCandidatesWithAgent({
     brief: scriptProductionBrief,
     fallbackCandidates: fallbackScriptCandidates,
+    llmRuntime: platformSettings.llmRuntime,
+    agentSettings: platformSettings.scriptProductionAgent,
   });
   const scriptCandidates = scriptAgent.candidates;
 
@@ -285,9 +301,148 @@ export async function generateVideoScriptForUser(input: {
   return draftBundle;
 }
 
+export async function reviseVideoScriptForUser(input: {
+  userId: string;
+  contentVariantId: string;
+  sessionId: string;
+  revisionInstruction: string;
+  materialId?: string | null;
+  materialReferenceId?: string | null;
+  strategyTag?: string | null;
+}): Promise<
+  | {
+      revisionIntent: "semantic";
+      variant: NonNullable<ContentDraftBundleDto["selectedVariant"]>;
+      agentTrace: Record<string, unknown>;
+    }
+  | {
+      revisionIntent: "production";
+      contentVariantId: string;
+      instructionText: string;
+    }
+> {
+  const revisionIntent = classifyVideoScriptRevisionIntent(input.revisionInstruction);
+
+  if (revisionIntent === "production") {
+    return {
+      revisionIntent,
+      contentVariantId: input.contentVariantId,
+      instructionText: input.revisionInstruction,
+    };
+  }
+
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  const currentVariant = await assertVideoScriptVariantAccess({
+    merchantId: merchant.id,
+    contentVariantId: input.contentVariantId,
+  });
+
+  if (!currentVariant.scriptText?.trim()) {
+    throw new ApiError(
+      409,
+      "VIDEO_SCRIPT_TEXT_REQUIRED",
+      "视频脚本缺少正文，无法修订。",
+    );
+  }
+
+  const session = await getConsultationSessionDetail({
+    merchantId: merchant.id,
+    sessionId: input.sessionId,
+  });
+  const materialContext = await resolveMaterialContext({
+    merchantId: merchant.id,
+    materialId: input.materialId,
+    materialReferenceId: input.materialReferenceId,
+    targetWorkbench: "video",
+  });
+  const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
+  const scriptContext = buildVideoScriptContext({
+    merchant,
+    session,
+    extraRequirement: input.revisionInstruction,
+    materialContext: materialSnapshot,
+    strategyTag: input.strategyTag ?? null,
+  });
+  const fallbackScriptCandidates = buildVideoScriptCandidates({
+    merchantName: merchant.name,
+    session,
+    scriptContext,
+    extraRequirement: input.revisionInstruction,
+    material: materialContext.material,
+  });
+  const platformSettings = await getPlatformSettings();
+
+  if (!platformSettings.scriptProductionAgent.revisionEnabled) {
+    throw new ApiError(
+      409,
+      "SCRIPT_PRODUCTION_REVISION_DISABLED",
+      "脚本制作 Agent 修订入口未启用。",
+    );
+  }
+
+  const scriptProductionBriefBase = buildVideoScriptProductionBrief({
+    merchant,
+    session,
+    materialSnapshot,
+    goal: currentVariant.title ?? null,
+    extraRequirement: input.revisionInstruction,
+    strategyTag: input.strategyTag ?? null,
+  });
+  const scriptProductionBrief = {
+    ...scriptProductionBriefBase,
+    evidenceReferences: await collectScriptProductionEvidence({
+      merchantId: merchant.id,
+      brief: scriptProductionBriefBase,
+      retrievalTopK: platformSettings.scriptProductionAgent.retrievalTopK,
+    }),
+  };
+  const scriptAgent = await generateVideoScriptCandidatesWithAgent({
+    brief: scriptProductionBrief,
+    fallbackCandidates: fallbackScriptCandidates,
+    llmRuntime: platformSettings.llmRuntime,
+    agentSettings: platformSettings.scriptProductionAgent,
+    revisionContext: {
+      currentVariantId: input.contentVariantId,
+      currentScriptText: currentVariant.scriptText,
+      revisionInstruction: input.revisionInstruction,
+      revisionIntent,
+    },
+  });
+  const revisedCandidate = scriptAgent.candidates[0];
+
+  if (!revisedCandidate) {
+    throw new ApiError(
+      500,
+      "SCRIPT_PRODUCTION_REVISION_EMPTY",
+      "脚本制作 Agent 没有返回可用修订稿。",
+    );
+  }
+
+  const variant = await appendContentVariantToDraft({
+    merchantId: merchant.id,
+    draftId: currentVariant.draftId,
+    platform: "douyin",
+    variantType: "video_script",
+    title: revisedCandidate.title,
+    scriptText: revisedCandidate.scriptText,
+    hashtags: buildHashtags(session),
+    ctaText: revisedCandidate.ctaText,
+    reviewStatus: "review_pending",
+  });
+
+  return {
+    revisionIntent,
+    variant,
+    agentTrace: scriptAgent.trace,
+  };
+}
+
 async function generateVideoScriptCandidatesWithAgent(input: {
   brief: ScriptProductionBrief;
   fallbackCandidates: VideoScriptCandidate[];
+  llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
+  agentSettings: Awaited<ReturnType<typeof getPlatformSettings>>["scriptProductionAgent"];
+  revisionContext?: Parameters<typeof buildScriptProductionAgentMessages>[0]["revisionContext"];
 }): Promise<{
   candidates: VideoScriptCandidate[];
   trace: {
@@ -299,9 +454,11 @@ async function generateVideoScriptCandidatesWithAgent(input: {
     evidenceSummary?: string[];
     riskNotes?: string[];
     confirmQuestions?: string[];
+    evidenceReferenceCount?: number;
   };
 }> {
   const promptVersion = SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION;
+  const evidenceReferenceCount = input.brief.evidenceReferences?.length ?? 0;
 
   if (!getAiRuntimeApiKey()) {
     return {
@@ -309,17 +466,22 @@ async function generateVideoScriptCandidatesWithAgent(input: {
       trace: {
         promptVersion,
         mode: "fallback_no_key",
+        evidenceReferenceCount,
       },
     };
   }
 
   try {
-    const { llmRuntime } = await getPlatformSettings();
     const response = await createChatCompletion({
-      runtime: llmRuntime,
-      model: llmRuntime.primaryModel,
+      runtime: {
+        ...input.llmRuntime,
+        temperature: input.agentSettings.temperature,
+      },
+      model: input.agentSettings.model,
       messages: buildScriptProductionAgentMessages({
         brief: input.brief,
+        systemPrompt: input.agentSettings.systemPrompt,
+        revisionContext: input.revisionContext,
       }),
     });
     const parsed = parseScriptProductionAgentResponse(
@@ -348,6 +510,7 @@ async function generateVideoScriptCandidatesWithAgent(input: {
           mode: "fallback_parse_error",
           model: response.model,
           error: parsed.error,
+          evidenceReferenceCount,
         },
       };
     }
@@ -362,6 +525,7 @@ async function generateVideoScriptCandidatesWithAgent(input: {
         evidenceSummary: parsed.evidenceSummary,
         riskNotes: parsed.riskNotes,
         confirmQuestions: parsed.confirmQuestions,
+        evidenceReferenceCount,
       },
     };
   } catch (error) {
@@ -374,6 +538,7 @@ async function generateVideoScriptCandidatesWithAgent(input: {
       trace: {
         promptVersion,
         mode: "fallback_error",
+        evidenceReferenceCount,
         error:
           error instanceof AiRuntimeError
             ? `${error.message}${error.status ? ` (${error.status})` : ""}`
@@ -438,6 +603,62 @@ function buildVideoScriptProductionBrief(input: {
       contentCalendarTag: input.strategyTag ?? snapshot.strategyTags[0] ?? null,
     },
   };
+}
+
+async function collectScriptProductionEvidence(input: {
+  merchantId: string;
+  brief: ScriptProductionBrief;
+  retrievalTopK: number;
+}): Promise<NonNullable<ScriptProductionBrief["evidenceReferences"]>> {
+  const references: NonNullable<ScriptProductionBrief["evidenceReferences"]> = [];
+
+  for (const material of input.brief.availableMaterials) {
+    if (!material.title && !material.description) {
+      continue;
+    }
+
+    references.push({
+      title: material.title || "参考素材",
+      content: material.description ?? material.title,
+      source: "material",
+      score: null,
+    });
+  }
+
+  if (input.brief.consultationConclusion.summaryText) {
+    references.push({
+      title: "咨询台摘要",
+      content: input.brief.consultationConclusion.summaryText,
+      source: "consultation",
+      score: null,
+    });
+  }
+
+  if (input.retrievalTopK > 0) {
+    const query = compactStrings([
+      input.brief.topicDirection,
+      ...input.brief.targetAudiences,
+      ...input.brief.productOrServiceInfo,
+      ...input.brief.customerAdvantages,
+      ...input.brief.availableScenes,
+    ]).join(" ");
+    const matches = await searchKnowledgeChunks({
+      merchantId: input.merchantId,
+      query,
+      limit: input.retrievalTopK,
+    });
+
+    for (const match of matches) {
+      references.push({
+        title: match.documentTitle,
+        content: match.content.slice(0, 800),
+        source: "knowledge_base",
+        score: match.score,
+      });
+    }
+  }
+
+  return references.slice(0, Math.max(3, input.retrievalTopK + 3));
 }
 
 export async function listContentRecordsForUser(input: {

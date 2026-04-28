@@ -17,6 +17,14 @@ export type ConsultationAgentSettingsDto = {
   temperature: number;
 };
 
+export type ScriptProductionAgentSettingsDto = {
+  systemPrompt: string;
+  model: string;
+  temperature: number;
+  retrievalTopK: number;
+  revisionEnabled: boolean;
+};
+
 export type KnowledgeRuntimeSettingsDto = {
   retrievalTopK: number;
   chunkSize: number;

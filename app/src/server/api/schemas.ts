@@ -254,6 +254,14 @@ const consultationAgentSchema = z.object({
   temperature: z.number().min(0).max(2),
 });
 
+const scriptProductionAgentSchema = z.object({
+  systemPrompt: z.string().trim().min(1).max(5000),
+  model: z.string().trim().min(1).max(120),
+  temperature: z.number().min(0).max(2),
+  retrievalTopK: z.number().int().min(0).max(20),
+  revisionEnabled: z.boolean(),
+});
+
 const knowledgeRuntimeSchema = z.object({
   retrievalTopK: z.number().int().min(1).max(20),
   chunkSize: z.number().int().min(200).max(4000),
@@ -273,6 +281,7 @@ export const platformSettingsUpdateSchema = z.object({
     })
     .optional(),
   consultationAgent: consultationAgentSchema.optional(),
+  scriptProductionAgent: scriptProductionAgentSchema.optional(),
   knowledgeRuntime: knowledgeRuntimeSchema.optional(),
 });
 
@@ -339,6 +348,15 @@ export const generateConsultationContentSchema = z.object({
   goal: z.string().trim().max(300).nullish(),
   extraRequirement: z.string().trim().max(4000).nullish(),
   mode: z.enum(["create", "rewrite"]).optional(),
+  materialId: z.uuid().nullish(),
+  materialReferenceId: z.uuid().nullish(),
+  strategyTag: z.string().trim().max(80).nullish(),
+});
+
+export const reviseVideoScriptSchema = z.object({
+  contentVariantId: z.uuid(),
+  sessionId: z.uuid(),
+  revisionInstruction: z.string().trim().min(1).max(4000),
   materialId: z.uuid().nullish(),
   materialReferenceId: z.uuid().nullish(),
   strategyTag: z.string().trim().max(80).nullish(),
