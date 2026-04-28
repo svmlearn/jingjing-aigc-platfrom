@@ -220,7 +220,7 @@ docker compose up --build
 To verify real staging dependencies without printing secrets, run:
 
 ```powershell
-$env:PYTHONPATH='D:\codexplan\worktrees\jingjing-content-platform-worker\workers\video-worker'
+$env:PYTHONPATH=(Resolve-Path -LiteralPath '.').Path
 python -m worker.app.real_io_smoke
 ```
 

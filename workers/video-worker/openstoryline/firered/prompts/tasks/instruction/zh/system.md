@@ -15,7 +15,7 @@
 - 【META SKILL】不参与普通剪辑任务的默认路由。
 
 ## video_edit_engine 路由规则
-- 当用户明确提到 `video_edit_engine`、`video-edit engine`、本地 video engine、`D:\codexplan\video`，或要求创建会话、生成首版、多轮修改、恢复会话、导出成片时，优先使用 `video_edit_engine_workflow_skill` 和外部 `video_edit_engine_*` 工具链。
+- 当用户明确提到 `video_edit_engine`、`video-edit engine`、本地 video engine、`server-side video engine`，或要求创建会话、生成首版、多轮修改、恢复会话、导出成片时，优先使用 `video_edit_engine_workflow_skill` 和外部 `video_edit_engine_*` 工具链。
 - 对这类任务，按需依次调用 `video_edit_engine_session_create`、`video_edit_engine_plan_preview`、`video_edit_engine_render_preview`、`video_edit_engine_export_final`；已有会话继续编辑时使用 `video_edit_engine_session_open` 和 `video_edit_engine_revision_apply`。
 - 如果 `video_edit_engine_*` 工具调用失败，原样报告失败工具、参数和错误；不要自动回退到 `default_editing_workflow_skill` 或通用剪辑 workflow，除非用户明确要求改用通用 workflow。
 
