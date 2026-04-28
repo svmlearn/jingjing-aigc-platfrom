@@ -16,6 +16,7 @@ class Settings:
     fire_red_base_url: str
     fire_red_run_timeout_seconds: int = 900
     fire_red_provider_key_configured: bool = False
+    fire_red_provider_key: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -51,4 +52,5 @@ class Settings:
             fire_red_provider_key_configured=bool(
                 os.getenv("FIRERED_PROVIDER_KEY", "").strip()
             ),
+            fire_red_provider_key=os.getenv("FIRERED_PROVIDER_KEY", "").strip(),
         )

@@ -2566,6 +2566,349 @@ async def cancel_session_turn(session_id: str):
     set_ai_transition_cancelled(_ai_transition_cancel_cache_root(app.state.cfg), session_id)
     return JSONResponse({"ok": True})
 
+
+# -------------------------
+# Worker run API
+# -------------------------
+def _authorize_worker_run(request: Request) -> None:
+    expected = _s(os.getenv("FIRERED_PROVIDER_KEY"))
+    if not expected:
+        return
+    supplied = _s(request.headers.get("x-firered-provider-key"))
+    if supplied != expected:
+        raise HTTPException(status_code=401, detail="invalid worker provider key")
+
+
+async def _copy_worker_media_from_path(
+    sess: ChatSession,
+    asset: Dict[str, Any],
+    *,
+    store_filename: str,
+) -> MediaMeta:
+    src_path = _s(asset.get("local_path"))
+    if not src_path:
+        raise HTTPException(status_code=400, detail="input asset local_path is required")
+    src_path = os.path.abspath(src_path)
+    if not os.path.isfile(src_path):
+        raise HTTPException(status_code=400, detail=f"input asset not found: {src_path}")
+
+    display_name = sanitize_filename(
+        _s(asset.get("file_name")) or os.path.basename(src_path) or "input_asset"
+    )
+    store_filename = sanitize_filename(store_filename or display_name)
+    save_path = os.path.abspath(os.path.join(sess.media_store.media_dir, store_filename))
+    if not _is_under_dir(save_path, sess.media_store.media_dir):
+        raise HTTPException(status_code=400, detail="invalid worker media target path")
+    if os.path.exists(save_path):
+        raise HTTPException(status_code=409, detail=f"media filename exists: {store_filename}")
+
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    await anyio.to_thread.run_sync(shutil.copy2, src_path, save_path)
+
+    media_id = uuid.uuid4().hex[:10]
+    kind = detect_media_kind(display_name)
+    thumb_path: Optional[str] = None
+    if kind in ("image", "video"):
+        thumb_path = os.path.join(sess.media_store.thumbs_dir, f"{media_id}.jpg")
+        if kind == "image":
+            ok = await anyio.to_thread.run_sync(make_image_thumbnail_sync, save_path, thumb_path)
+        else:
+            ok = await make_video_thumbnail_async(save_path, thumb_path)
+        if not ok:
+            thumb_path = save_path if kind == "image" else None
+
+    return MediaMeta(
+        id=media_id,
+        name=os.path.basename(display_name),
+        kind=kind,
+        path=os.path.abspath(save_path),
+        thumb_path=os.path.abspath(thumb_path) if thumb_path else None,
+        ts=time.time(),
+    )
+
+
+async def _register_worker_input_assets(
+    sess: ChatSession,
+    input_assets: Any,
+) -> List[MediaMeta]:
+    if input_assets is None:
+        input_assets = []
+    if not isinstance(input_assets, list):
+        raise HTTPException(status_code=400, detail="input_assets must be a list")
+
+    display_names = [
+        sanitize_filename(
+            _s(asset.get("file_name")) or os.path.basename(_s(asset.get("local_path"))) or "input_asset"
+        )
+        for asset in input_assets
+        if isinstance(asset, dict)
+    ]
+    if len(display_names) != len(input_assets):
+        raise HTTPException(status_code=400, detail="input_assets must contain objects")
+
+    async with sess.media_lock:
+        sess._cleanup_stale_uploads_locked()
+        sess._check_media_caps_locked(add=len(input_assets))
+        store_filenames = sess._reserve_store_filenames_locked(display_names)
+
+    metas: List[MediaMeta] = []
+    for asset, store_filename in zip(input_assets, store_filenames):
+        metas.append(
+            await _copy_worker_media_from_path(
+                sess,
+                asset,
+                store_filename=store_filename,
+            )
+        )
+
+    async with sess.media_lock:
+        for meta in metas:
+            sess.load_media[meta.id] = meta
+            sess.pending_media_ids.append(meta.id)
+        sess.pending_media_ids.sort(
+            key=lambda aid: os.path.basename(sess.load_media[aid].path or "")
+            if aid in sess.load_media else ""
+        )
+
+    return metas
+
+
+def _merge_worker_lc_messages(messages: List[BaseMessage]) -> List[BaseMessage]:
+    system_parts: List[str] = []
+    non_system: List[BaseMessage] = []
+    for msg in messages:
+        if isinstance(msg, SystemMessage):
+            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+            system_parts.append(content)
+        else:
+            non_system.append(msg)
+    if not system_parts:
+        return non_system
+    return [SystemMessage(content="\n\n".join(system_parts))] + non_system
+
+
+async def _run_worker_session_prompt(
+    store: SessionStore,
+    sess: ChatSession,
+    *,
+    prompt: str,
+    service_config: Any = None,
+) -> str:
+    async with sess.chat_lock:
+        if service_config is not None:
+            ok_cfg, err_cfg = sess.apply_service_config(service_config)
+            if not ok_cfg:
+                raise HTTPException(status_code=400, detail=err_cfg or "service_config invalid")
+
+        await sess.ensure_agent()
+        sess._ensure_system_prompt()
+
+        attachments = await sess.take_pending_media_for_message(None)
+        stats = {
+            "Number of media carried in this message sent by the user": len(attachments),
+            "Total number of media sent by the user in all conversations": int(getattr(sess, "sent_media_total", 0)) + len(attachments),
+            "Total number of media in user's media library": scan_media_dir(resolve_media_dir(app.state.cfg.project.media_dir, session_id=sess.session_id)),
+        }
+        sess.sent_media_total = stats["Total number of media sent by the user in all conversations"]
+
+        idx = int(getattr(sess, "_attach_stats_msg_idx", 1))
+        while len(sess.lc_messages) <= idx:
+            sess.lc_messages.append(SystemMessage(content=""))
+        sess.lc_messages[idx] = SystemMessage(
+            content=UPLOAD_STATUS_SYSTEM_PREFIX + json.dumps(stats, ensure_ascii=False)
+        )
+
+        user_msg = {
+            "id": uuid.uuid4().hex[:12],
+            "role": "user",
+            "content": prompt,
+            "attachments": [sess.public_media(meta) for meta in attachments],
+            "ts": time.time(),
+        }
+        sess.history.append(user_msg)
+        sess.lc_messages.append(HumanMessage(content=prompt))
+        await store.save_session_state(sess)
+
+        sess._sanitize_tool_protocol_in_lc_messages()
+        merged_messages = _merge_worker_lc_messages(sess.lc_messages)
+        new_messages: List[BaseMessage] = []
+        text_parts: List[str] = []
+
+        async with mcp_sink_context(lambda _event: None):
+            stream = sess.agent.astream(
+                {"messages": merged_messages},
+                context=sess.client_context,
+                stream_mode=["messages", "updates"],
+            )
+            async for mode, chunk in stream:
+                if mode == "messages":
+                    msg_chunk, meta = chunk
+                    if meta.get("langgraph_node") == "model":
+                        delta = extract_text_delta(msg_chunk)
+                        if delta:
+                            text_parts.append(delta)
+                elif mode == "updates" and isinstance(chunk, dict):
+                    for _step, data in chunk.items():
+                        msgs = (data or {}).get("messages") or []
+                        new_messages.extend(msgs)
+
+        final_text = "".join(text_parts).strip()
+        if new_messages:
+            sess.lc_messages.extend(new_messages)
+        if final_text:
+            sess.history.append({
+                "id": uuid.uuid4().hex[:12],
+                "role": "assistant",
+                "content": final_text,
+                "ts": time.time(),
+            })
+        await store.save_session_state(sess)
+        return final_text
+
+
+def _extract_render_video_path(render_payload: Dict[str, Any]) -> Optional[str]:
+    payload = render_payload.get("payload") if isinstance(render_payload, dict) else None
+    if not isinstance(payload, dict):
+        return None
+    direct = _s(payload.get("output_path"))
+    if direct:
+        return direct
+    nested = payload.get("render_video")
+    if isinstance(nested, dict):
+        nested_path = _s(nested.get("output_path"))
+        if nested_path:
+            return nested_path
+    return None
+
+
+def _latest_render_video_result(session_id: str) -> Tuple[ArtifactStore, Any, Dict[str, Any]]:
+    artifact_store = ArtifactStore(app.state.cfg.project.outputs_dir, session_id=session_id)
+    meta = artifact_store.get_latest_meta(node_id="render_video", session_id=session_id)
+    if meta is None:
+        raise HTTPException(status_code=500, detail="render_video artifact not found")
+    _loaded_meta, data = artifact_store.load_result(meta.artifact_id)
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=500, detail="render_video artifact payload is invalid")
+    render_path = _extract_render_video_path(data)
+    if not render_path:
+        raise HTTPException(status_code=500, detail="render_video output_path not found")
+    return artifact_store, render_path, data
+
+
+def _copy_worker_final_video(render_path: str, output_dir: Path) -> Path:
+    source = Path(render_path)
+    if not source.is_absolute():
+        source = Path(os.getcwd()) / source
+    source = source.resolve()
+    if not source.is_file():
+        raise HTTPException(status_code=500, detail=f"render_video output file not found: {source}")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    target = (output_dir / "final.mp4").resolve()
+    if source != target:
+        shutil.copy2(source, target)
+    return target
+
+
+def _write_worker_run_metadata(
+    metadata_path: Path,
+    *,
+    payload: Dict[str, Any],
+    session_id: str,
+    final_text: str,
+    render_payload: Dict[str, Any],
+    final_video_path: Path,
+) -> None:
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata_path.write_text(
+        json.dumps(
+            {
+                "job_id": payload.get("job_id"),
+                "engine": "fire_red-openstoryline",
+                "session_id": session_id,
+                "final_video_path": str(final_video_path),
+                "assistant_text": final_text,
+                "render_video": render_payload,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _fallback_worker_prompt(payload: Dict[str, Any]) -> str:
+    script_text = _s(payload.get("script_text"))
+    instruction_text = _s(payload.get("instruction_text"))
+    return "\n".join(
+        [
+            "Use the uploaded media to render a final video.",
+            "The final step must call render_video.",
+            "",
+            "Locked script:",
+            script_text or "(empty)",
+            "",
+            "Instruction:",
+            instruction_text or "(empty)",
+        ]
+    )
+
+
+@api.post("/worker/runs")
+async def run_worker_video_job(request: Request):
+    _authorize_worker_run(request)
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"invalid JSON payload: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="payload must be an object")
+
+    output_dir_raw = _s(payload.get("output_dir"))
+    if not output_dir_raw:
+        raise HTTPException(status_code=400, detail="output_dir is required")
+    output_dir = Path(output_dir_raw)
+
+    store: SessionStore = app.state.sessions
+    sess = await store.create()
+    try:
+        await _register_worker_input_assets(sess, payload.get("input_assets") or [])
+        prompt = _s(payload.get("prompt")) or _fallback_worker_prompt(payload)
+        final_text = await _run_worker_session_prompt(
+            store,
+            sess,
+            prompt=prompt,
+            service_config=payload.get("service_config"),
+        )
+        _artifact_store, render_path, render_payload = _latest_render_video_result(sess.session_id)
+        final_video_path = _copy_worker_final_video(render_path, output_dir)
+        metadata_path = output_dir / "firered-run-metadata.json"
+        _write_worker_run_metadata(
+            metadata_path,
+            payload=payload,
+            session_id=sess.session_id,
+            final_text=final_text,
+            render_payload=render_payload,
+            final_video_path=final_video_path,
+        )
+        return JSONResponse(
+            {
+                "job_id": payload.get("job_id"),
+                "session_id": sess.session_id,
+                "final_video_path": str(final_video_path),
+                "metadata_path": str(metadata_path),
+                "raw_response": {
+                    "engine": "fire_red-openstoryline",
+                    "render_video": render_payload,
+                },
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(_format_exc(exc))
+        raise HTTPException(status_code=500, detail=f"worker run failed: {type(exc).__name__}: {exc}") from exc
+
 # -------------------------
 # media (REST, session-scoped)
 # -------------------------

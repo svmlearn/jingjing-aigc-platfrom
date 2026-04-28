@@ -14,6 +14,10 @@ services:
       OPENSTORYLINE_MCP_PORT: 8001
       OPENSTORYLINE_MODELS_DIR: /srv/jingjing-video-worker/models
       OPENSTORYLINE_OUTPUTS_DIR: /srv/jingjing-video-worker/outputs
+      OPENSTORYLINE_ENGINE_ADAPTER: ${OPENSTORYLINE_ENGINE_ADAPTER:-skeleton}
+      FIRERED_OPENSTORYLINE_BASE_URL: ${FIRERED_OPENSTORYLINE_BASE_URL:-}
+      FIRERED_RUN_TIMEOUT_SECONDS: ${FIRERED_RUN_TIMEOUT_SECONDS:-900}
+      FIRERED_PROVIDER_KEY: ${FIRERED_PROVIDER_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
@@ -56,6 +60,7 @@ services:
       OPENSTORYLINE_VLM_MODEL: ${OPENSTORYLINE_VLM_MODEL:-}
       OPENSTORYLINE_VLM_BASE_URL: ${OPENSTORYLINE_VLM_BASE_URL:-}
       OPENSTORYLINE_VLM_API_KEY: ${OPENSTORYLINE_VLM_API_KEY:-}
+      FIRERED_PROVIDER_KEY: ${FIRERED_PROVIDER_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
@@ -63,6 +68,8 @@ services:
       MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
       FISH_AUDIO_API_KEY: ${FISH_AUDIO_API_KEY:-}
     volumes:
+      - ${VIDEO_WORKER_HOST_ROOT:-/srv/jingjing-video-worker}/tmp:/srv/jingjing-video-worker/tmp
+      - ${VIDEO_WORKER_HOST_ROOT:-/srv/jingjing-video-worker}/outputs:/srv/jingjing-video-worker/outputs
       - ${VIDEO_WORKER_HOST_ROOT:-/srv/jingjing-video-worker}/firered/.storyline:/app/.storyline
       - ${VIDEO_WORKER_HOST_ROOT:-/srv/jingjing-video-worker}/firered/resource:/app/resource
       - ${VIDEO_WORKER_HOST_ROOT:-/srv/jingjing-video-worker}/firered/outputs:/app/outputs

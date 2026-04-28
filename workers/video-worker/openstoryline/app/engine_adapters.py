@@ -6,6 +6,8 @@ import subprocess
 from pathlib import Path
 from typing import Protocol
 
+import httpx
+
 from .config import Settings
 from .schemas import RunRequest, RunResponse
 
@@ -113,9 +115,69 @@ class FireRedEngineAdapter:
                 "FireRed adapter requires FIRERED_PROVIDER_KEY before it can "
                 "serve /v1/runs."
             )
-        raise UnsupportedEngineAdapterError(
-            "FireRed adapter for /v1/runs is not enabled yet; add the "
-            "session/chat/output mapping before switching OPENSTORYLINE_ENGINE_ADAPTER."
+
+        output_dir = Path(request.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        payload = _build_fire_red_run_payload(request)
+        headers = (
+            {"X-FIRERED-PROVIDER-KEY": self._settings.fire_red_provider_key}
+            if self._settings.fire_red_provider_key
+            else {}
+        )
+        response = httpx.post(
+            f"{self._settings.fire_red_base_url}/api/worker/runs",
+            json=payload,
+            headers=headers,
+            timeout=self._settings.fire_red_run_timeout_seconds,
+        )
+        response.raise_for_status()
+        fire_red_response = response.json()
+
+        final_video_path = Path(
+            fire_red_response.get("final_video_path") or output_dir / "final.mp4"
+        )
+        cover_image_path = _resolve_optional_path(
+            fire_red_response.get("cover_image_path")
+        )
+        subtitle_path = _resolve_optional_path(fire_red_response.get("subtitle_path"))
+
+        desired_outputs = set(
+            request.production_directive.get("desired_outputs") or ["final_video"]
+        )
+        if "cover" in desired_outputs and cover_image_path is None:
+            cover_image_path = output_dir / "cover.jpg"
+            _write_video_cover_thumbnail(final_video_path, cover_image_path)
+        if "subtitles" in desired_outputs and subtitle_path is None:
+            subtitle_path = output_dir / "subtitles.srt"
+            _write_script_subtitle(subtitle_path, request.script_text)
+
+        metadata_path = _resolve_optional_path(fire_red_response.get("metadata_path"))
+        if metadata_path is None:
+            metadata_path = output_dir / "run-metadata.json"
+        _write_fire_red_metadata(
+            metadata_path=metadata_path,
+            request=request,
+            mapped_payload=payload,
+            fire_red_response=fire_red_response,
+        )
+
+        raw_response = {
+            "engine": "fire_red-openstoryline",
+            "engine_adapter": self._settings.engine_adapter,
+            "fire_red": fire_red_response,
+        }
+        if isinstance(fire_red_response.get("raw_response"), dict):
+            raw_response["fire_red_raw_response"] = fire_red_response["raw_response"]
+
+        return RunResponse(
+            job_id=request.job_id,
+            final_video_path=str(final_video_path),
+            cover_image_path=str(cover_image_path) if cover_image_path else None,
+            subtitle_path=str(subtitle_path) if subtitle_path else None,
+            metadata_path=str(metadata_path),
+            engine="fire_red-openstoryline",
+            raw_response=raw_response,
         )
 
 
@@ -161,5 +223,131 @@ def _write_placeholder_subtitle(path: Path) -> None:
     _ensure_parent(path)
     path.write_text(
         "1\n00:00:00,000 --> 00:00:02,000\nOpenStoryline skeleton subtitle\n",
+        encoding="utf-8",
+    )
+
+
+def _build_fire_red_run_payload(request: RunRequest) -> dict[str, object]:
+    directive = request.production_directive or {}
+    desired_outputs = list(directive.get("desired_outputs") or ["final_video"])
+    payload = {
+        "job_id": request.job_id,
+        "merchant_id": request.merchant_id,
+        "draft_id": request.draft_id,
+        "content_variant_id": request.content_variant_id,
+        "instruction_text": request.instruction_text,
+        "workspace_dir": request.workspace_dir,
+        "output_dir": request.output_dir,
+        "execution_mode": request.execution_mode,
+        "script_text": request.script_text,
+        "production_directive": directive,
+        "runtime_payload": request.runtime_payload,
+        "desired_outputs": desired_outputs,
+        "input_assets": [asset.model_dump() for asset in request.input_assets],
+        "prompt": _build_fire_red_prompt(request, desired_outputs),
+    }
+    return payload
+
+
+def _build_fire_red_prompt(
+    request: RunRequest,
+    desired_outputs: list[str],
+) -> str:
+    directive_json = json.dumps(
+        request.production_directive or {},
+        ensure_ascii=False,
+        indent=2,
+    )
+    assets_json = json.dumps(
+        [asset.model_dump() for asset in request.input_assets],
+        ensure_ascii=False,
+        indent=2,
+    )
+    script_text = (request.script_text or "").strip()
+    instruction_text = (request.instruction_text or "").strip()
+    return "\n".join(
+        [
+            "You are the FireRed OpenStoryline production engine for a locked worker job.",
+            "Use the uploaded media in this session and render a final video.",
+            "Do not rewrite the locked script unless ProductionDirective explicitly allows it.",
+            "The final step must produce a render_video artifact.",
+            f"Desired outputs: {', '.join(desired_outputs)}",
+            "",
+            "Locked script:",
+            script_text or "(empty)",
+            "",
+            "Worker instruction:",
+            instruction_text or "(empty)",
+            "",
+            "Input assets:",
+            assets_json,
+            "",
+            "ProductionDirective:",
+            directive_json,
+        ]
+    )
+
+
+def _resolve_optional_path(value: object) -> Path | None:
+    if not value:
+        return None
+    return Path(str(value))
+
+
+def _write_video_cover_thumbnail(video_path: Path, cover_path: Path) -> None:
+    _ensure_parent(cover_path)
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-ss",
+                "0",
+                "-i",
+                str(video_path),
+                "-frames:v",
+                "1",
+                str(cover_path),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        _write_placeholder_cover(cover_path)
+
+
+def _write_script_subtitle(path: Path, script_text: str) -> None:
+    text = " ".join((script_text or "Generated video").split())
+    _ensure_parent(path)
+    path.write_text(
+        f"1\n00:00:00,000 --> 00:00:04,000\n{text}\n",
+        encoding="utf-8",
+    )
+
+
+def _write_fire_red_metadata(
+    *,
+    metadata_path: Path,
+    request: RunRequest,
+    mapped_payload: dict[str, object],
+    fire_red_response: dict[str, object],
+) -> None:
+    _ensure_parent(metadata_path)
+    metadata_path.write_text(
+        json.dumps(
+            {
+                "job_id": request.job_id,
+                "engine": "fire_red-openstoryline",
+                "engine_adapter": "fire_red",
+                "mapped_payload": mapped_payload,
+                "fire_red_response": fire_red_response,
+            },
+            ensure_ascii=True,
+            indent=2,
+        ),
         encoding="utf-8",
     )

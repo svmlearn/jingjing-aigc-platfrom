@@ -1,5 +1,6 @@
 import os
 import unittest
+from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -13,6 +14,18 @@ from openstoryline.app.engine_adapters import (
 )
 from openstoryline.app.main import app
 from openstoryline.app.schemas import RunRequest
+
+
+@dataclass
+class MockHttpResponse:
+    data: dict
+    status_code: int = 200
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.data
 
 
 class OpenStorylineEngineAdapterTests(unittest.TestCase):
@@ -62,6 +75,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
         self.assertEqual("http://fire-red:7860", settings.fire_red_base_url)
         self.assertEqual(123, settings.fire_red_run_timeout_seconds)
         self.assertTrue(settings.fire_red_provider_key_configured)
+        self.assertEqual("secret-provider-key", settings.fire_red_provider_key)
 
     def test_skeleton_adapter_writes_run_outputs(self):
         settings = Settings(
@@ -212,7 +226,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
 
         self.assertIn("FIRERED_PROVIDER_KEY", str(raised.exception))
 
-    def test_fire_red_adapter_fails_closed_until_mapping_exists(self):
+    def test_fire_red_adapter_posts_worker_run_payload_and_returns_outputs(self):
         settings = Settings(
             host="127.0.0.1",
             port=8000,
@@ -223,27 +237,75 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_base_url="http://fire-red:7860",
             fire_red_run_timeout_seconds=900,
             fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
         )
         adapter = create_engine_adapter(settings)
 
-        with self.assertRaises(UnsupportedEngineAdapterError) as raised:
-            adapter.run(
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {"engine": "fire_red-openstoryline"},
+                }
+            ),
+        ) as post:
+            output_dir = Path(tmp) / "outputs"
+            response = adapter.run(
                 RunRequest(
                     job_id="fire-red-job",
                     merchant_id="merchant-1",
                     draft_id="draft-1",
                     content_variant_id="variant-1",
-                    workspace_dir="/tmp/workspace",
-                    output_dir="/tmp/output",
+                    instruction_text="render a locked commercial video",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(output_dir),
+                    input_assets=[
+                        {
+                            "local_path": str(Path(tmp) / "inputs" / "clip.mp4"),
+                            "asset_type": "video",
+                            "file_name": "clip.mp4",
+                        }
+                    ],
+                    execution_mode="staging_worker",
                     script_text="locked script",
-                    production_directive={"script_locked": True},
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                    runtime_payload={"source": "test"},
                 )
             )
 
-        self.assertIn("/v1/runs", str(raised.exception))
-        self.assertIn("FireRed", str(raised.exception))
+            self.assertEqual("fire-red-job", response.job_id)
+            self.assertEqual(str(output_dir / "final.mp4"), response.final_video_path)
+            self.assertTrue(Path(response.metadata_path).is_file())
+            self.assertEqual("fire_red-openstoryline", response.engine)
+            self.assertEqual("fire_red", response.raw_response["engine_adapter"])
+            self.assertEqual("fire-red-session", response.raw_response["fire_red"]["session_id"])
 
-    def test_fire_red_adapter_returns_501_from_run_endpoint(self):
+            post.assert_called_once()
+            args, kwargs = post.call_args
+            self.assertEqual("http://fire-red:7860/api/worker/runs", args[0])
+            self.assertEqual(900, kwargs["timeout"])
+            self.assertEqual(
+                {"X-FIRERED-PROVIDER-KEY": "provider-secret"},
+                kwargs["headers"],
+            )
+            payload = kwargs["json"]
+            self.assertEqual("fire-red-job", payload["job_id"])
+            self.assertEqual(str(output_dir), payload["output_dir"])
+            self.assertEqual("locked script", payload["script_text"])
+            self.assertEqual(["final_video"], payload["desired_outputs"])
+            self.assertEqual(
+                [{"local_path": str(Path(tmp) / "inputs" / "clip.mp4"), "asset_type": "video", "file_name": "clip.mp4"}],
+                payload["input_assets"],
+            )
+            self.assertIn("ProductionDirective", payload["prompt"])
+            self.assertIn("locked script", payload["prompt"])
+
+    def test_fire_red_adapter_run_endpoint_uses_worker_mapping(self):
         original_settings = app.state.settings
         app.state.settings = Settings(
             host="127.0.0.1",
@@ -255,26 +317,41 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_base_url="http://fire-red:7860",
             fire_red_run_timeout_seconds=900,
             fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
         )
         try:
-            response = TestClient(app).post(
-                "/v1/runs",
-                json={
-                    "job_id": "fire-red-job",
-                    "merchant_id": "merchant-1",
-                    "draft_id": "draft-1",
-                    "content_variant_id": "variant-1",
-                    "workspace_dir": "/tmp/workspace",
-                    "output_dir": "/tmp/output",
-                    "script_text": "locked script",
-                    "production_directive": {"script_locked": True},
-                },
-            )
+            with TemporaryDirectory() as tmp, patch(
+                "openstoryline.app.engine_adapters.httpx.post",
+                return_value=MockHttpResponse(
+                    {
+                        "session_id": "fire-red-session",
+                        "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                        "raw_response": {"engine": "fire_red-openstoryline"},
+                    }
+                ),
+            ):
+                response = TestClient(app).post(
+                    "/v1/runs",
+                    json={
+                        "job_id": "fire-red-job",
+                        "merchant_id": "merchant-1",
+                        "draft_id": "draft-1",
+                        "content_variant_id": "variant-1",
+                        "workspace_dir": str(Path(tmp) / "workspace"),
+                        "output_dir": str(Path(tmp) / "outputs"),
+                        "script_text": "locked script",
+                        "production_directive": {
+                            "script_locked": True,
+                            "desired_outputs": ["final_video"],
+                        },
+                    },
+                )
         finally:
             app.state.settings = original_settings
 
-        self.assertEqual(501, response.status_code)
-        self.assertIn("FireRed", response.json()["detail"])
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("fire-red-job", response.json()["job_id"])
+        self.assertEqual("fire_red-openstoryline", response.json()["engine"])
 
 
 if __name__ == "__main__":
