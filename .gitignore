@@ -11,9 +11,6 @@ out/
 dist/
 build/
 coverage/
-__pycache__/
-*.pyc
-
 # Environment files
 .env
 .env.*
@@ -39,11 +36,6 @@ app/supabase/.temp/
 tmp/
 temp/
 .cache/
-
-# Codex branch event runtime state. Hook scripts and docs are tracked; inboxes are local queues.
-.codex/branch-events/inbox/
-.codex/branch-events/processed/
-.codex/branch-events/runtime/
 
 # Local reference copies of third-party projects.
 # Do not vendor local reference projects or indexes to GitHub.
