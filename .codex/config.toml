@@ -1,0 +1,10 @@
+[features]
+codex_hooks = true
+
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = 'python3 "$(git rev-parse --show-toplevel)/.codex/skills/long-task-gate/scripts/stop_gate.py"'
+timeout = 5
+statusMessage = "Checking long-task gate"

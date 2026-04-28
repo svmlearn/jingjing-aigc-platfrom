@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["status", "taskId", "checkedAt", "hardGates", "verifier", "nextInstruction"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["complete", "failed"]
+    },
+    "taskId": {
+      "type": "string"
+    },
+    "checkedAt": {
+      "type": "string"
+    },
+    "hardGates": {
+      "type": "array"
+    },
+    "verifier": {
+      "type": "object"
+    },
+    "nextInstruction": {
+      "type": "string"
+    }
+  }
+}

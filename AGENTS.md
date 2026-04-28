@@ -363,3 +363,31 @@
 一句话说：
 
 在 `小红书抖音矩阵获客平台`，Agent 的价值不是“多写一点代码”，而是**把探索、实现、交接、收口都做得让产品经理和后续执行者接得住**。
+
+## 12. 长任务门禁 Skill
+
+本项目新增项目级 Skill：
+
+- `.codex/skills/long-task-gate/`
+
+用途：
+
+- 当用户明确要求“持续执行直到 Completion Gate 通过”时使用
+- 防止 Agent 凭主观感觉过早停止
+- 通过硬校验 + 独立 Codex 验收共同判断是否完成
+
+基本规则：
+
+1. 普通对话不启用长任务模式。
+2. 只有存在 `.codex/long-task/active.json` 且状态为 `active` 时，Stop hook 才会拦截停止。
+3. 主 Agent 可以启动、暂停、恢复或标记外部阻塞，但不能直接标记 `complete`。
+4. `complete` 只能由 `.codex/skills/long-task-gate/scripts/check.py` 在硬校验和独立验收都通过后写入。
+5. `.codex/long-task/` 是本地运行态，已在 `.gitignore` 中忽略，不提交远端。
+
+常用入口：
+
+```bash
+python3 .codex/skills/long-task-gate/scripts/start.py --task-id <id> --completion-promise <TOKEN> --source-doc docs/handoff/<file>.md
+python3 .codex/skills/long-task-gate/scripts/check.py
+python3 .codex/skills/long-task-gate/scripts/status.py show
+```

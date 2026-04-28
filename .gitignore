@@ -22,11 +22,15 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+__pycache__/
+*.py[cod]
 
 # Local tooling
 .vercel/
 .turbo/
 app/supabase/.temp/
+.codex/long-task/
+.codex/branch-events/
 
 # Editor
 .idea/
@@ -39,4 +43,4 @@ temp/
 
 # Local reference copies of third-party projects.
 # Do not vendor local reference projects or indexes to GitHub.
-references/
+/references/
