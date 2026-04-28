@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Building2, KeyRound, ShieldCheck } from "lucide-react";
+import { ArrowRight, Building2, KeyRound, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -10,13 +10,6 @@ const entryCards = [
     href: "/login",
     icon: KeyRound,
     primary: true,
-  },
-  {
-    title: "邀请码注册",
-    description: "新商家使用平台发放的邀请码创建账号和商户主体。",
-    href: "/register",
-    icon: BadgeCheck,
-    primary: false,
   },
   {
     title: "平台管理",
@@ -42,11 +35,11 @@ export default function Home() {
             静境内容获客平台
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-white/55">
-            请选择要进入的身份入口。商家工作台需要先登录或完成邀请码注册，平台后台使用独立管理员账号。
+            请选择要进入的身份入口。商家工作台先登录进入，没有商家账号时可在登录页使用邀请码注册。
           </p>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid max-w-4xl gap-4 md:grid-cols-2">
           {entryCards.map((item) => (
             <Link
               key={item.href}
@@ -86,7 +79,7 @@ export default function Home() {
             className="h-11 rounded-2xl border-white/10 bg-white/5 px-5 text-white/70 hover:bg-white/10 hover:text-white"
             asChild
           >
-            <Link href="/register">邀请码注册</Link>
+            <Link href="/platform-admin-login">平台管理</Link>
           </Button>
         </div>
       </div>

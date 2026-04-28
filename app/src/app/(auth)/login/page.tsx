@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LogIn, Store } from "lucide-react";
 
+import { AuthBackButton } from "@/components/app/auth-back-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +32,8 @@ export default async function MerchantLoginPage({
   const errorMessage = params.error ? errorMessages[params.error] : undefined;
 
   return (
-    <main className="min-h-screen bg-[#050505] px-4 py-6 text-white md:px-6">
+    <main className="relative min-h-screen bg-[#050505] px-4 py-6 text-white md:px-6">
+      <AuthBackButton />
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-xl items-center justify-center py-10">
         <section className="w-full rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.55)] sm:p-7">
           <div className="flex items-start gap-4 border-b border-white/10 pb-5">

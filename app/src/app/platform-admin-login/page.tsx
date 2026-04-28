@@ -1,7 +1,8 @@
-import { Shield, ShieldAlert, UserPlus } from "lucide-react";
+import { Shield, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AuthBackButton } from "@/components/app/auth-back-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,46 +45,46 @@ export default async function PlatformAdminLoginPage({
   const errorMessage = params.error ? errorMessages[params.error] : undefined;
 
   return (
-    <main className="min-h-screen bg-[#f7f8fa] px-4 py-10 text-[#17202a]">
-      <div className="mx-auto grid w-full max-w-5xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-md border border-[#dde3ea] bg-white p-6 shadow-sm md:p-8">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-full bg-[#e8f1ff] text-[#1d4ed8]">
+    <main className="relative min-h-screen bg-[#050505] px-4 py-6 text-white md:px-6">
+      <AuthBackButton />
+      <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-xl items-center justify-center py-10">
+        <section className="w-full rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.55)] sm:p-7">
+          <div className="flex items-start gap-4 border-b border-white/10 pb-5">
+            <div className="flex size-12 rotate-45 items-center justify-center rounded-2xl border border-sky-200/30 bg-gradient-to-br from-sky-700 to-sky-200 text-black shadow-[0_0_36px_rgba(56,189,248,0.18)]">
               {showBootstrap ? (
                 showBootstrapForm ? (
-                  <UserPlus className="size-5" aria-hidden="true" />
+                  <UserPlus className="-rotate-45 size-5" aria-hidden="true" />
                 ) : (
-                  <Shield className="size-5" aria-hidden="true" />
+                  <Shield className="-rotate-45 size-5" aria-hidden="true" />
                 )
               ) : (
-                <Shield className="size-5" aria-hidden="true" />
+                <Shield className="-rotate-45 size-5" aria-hidden="true" />
               )}
             </div>
-            <div>
-              <p className="text-sm font-semibold text-[#1d4ed8]">Platform Admin</p>
-              <h1 className="mt-1 text-2xl font-semibold">
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-[0.28em] text-sky-200/75">
+                Platform Admin
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold text-white [font-family:var(--font-cormorant)]">
                 {showBootstrapForm ? "初始化首个超级管理员" : "进入平台管理台"}
               </h1>
+              <p className="mt-1 text-sm leading-6 text-white/45">
+                使用平台管理员邮箱和密码登录。
+              </p>
             </div>
           </div>
 
-          <p className="mt-5 text-sm leading-6 text-[#5d6b7a]">
-            平台后台使用独立管理员账号登录。邮箱和密码由 Supabase Auth 管理，后台权限由
-            `platform_admin_users` 中的 super_admin / admin 角色决定。
-          </p>
-
           {errorMessage ? (
-            <div className="mt-5 rounded-md border border-[#fecaca] bg-[#fff1f2] px-4 py-3 text-sm text-[#be123c]">
+            <div className="mt-5 rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-100">
               {errorMessage}
             </div>
           ) : null}
 
           {showBootstrap && !showBootstrapForm ? (
-            <div className="mt-5 rounded-md border border-[#fed7aa] bg-[#fff7ed] px-4 py-3 text-sm leading-6 text-[#9a3412]">
-              当前 staging 还没有任何平台管理员账号。日常入口仍然是邮箱密码登录；首次部署初始化请由部署负责人使用
-              ADMIN_SETUP_SECRET 创建第一个 super_admin。
+            <div className="mt-5 rounded-2xl border border-sky-300/20 bg-sky-400/10 px-4 py-3 text-sm leading-6 text-sky-100">
+              当前环境还没有平台管理员账号。首次部署初始化请由部署负责人创建第一个 super_admin。
               <div className="mt-3">
-                <Link className="font-semibold text-[#1d4ed8]" href="/platform-admin-login?mode=bootstrap">
+                <Link className="font-semibold text-sky-200 hover:text-sky-100" href="/platform-admin-login?mode=bootstrap">
                   打开首次初始化入口
                 </Link>
               </div>
@@ -91,45 +92,57 @@ export default async function PlatformAdminLoginPage({
           ) : null}
 
           {showBootstrapForm ? (
-            <form action={initializePlatformAdmin} className="mt-6 grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="setupSecret">初始化口令</Label>
+            <form action={initializePlatformAdmin} className="mt-6 grid gap-5">
+              <div className="grid gap-2.5">
+                <Label htmlFor="setupSecret" className="text-white/70">
+                  初始化口令
+                </Label>
                 <Input
                   id="setupSecret"
                   name="setupSecret"
                   type="password"
+                  className="h-12 rounded-2xl border-white/10 bg-[#050505] px-4 text-white placeholder:text-white/25 focus-visible:border-sky-400/50 focus-visible:ring-sky-500/20"
                   placeholder="输入 ADMIN_SETUP_SECRET"
                   autoComplete="one-time-code"
                   disabled={!bootstrapSecretConfigured}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="displayName">显示名称</Label>
+              <div className="grid gap-2.5">
+                <Label htmlFor="displayName" className="text-white/70">
+                  显示名称
+                </Label>
                 <Input
                   id="displayName"
                   name="displayName"
+                  className="h-12 rounded-2xl border-white/10 bg-[#050505] px-4 text-white placeholder:text-white/25 focus-visible:border-sky-400/50 focus-visible:ring-sky-500/20"
                   placeholder="例如：平台超管"
                   autoComplete="name"
                   disabled={!bootstrapSecretConfigured}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="email">邮箱</Label>
+              <div className="grid gap-2.5">
+                <Label htmlFor="email" className="text-white/70">
+                  邮箱
+                </Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
+                  className="h-12 rounded-2xl border-white/10 bg-[#050505] px-4 text-white placeholder:text-white/25 focus-visible:border-sky-400/50 focus-visible:ring-sky-500/20"
                   placeholder="admin@example.com"
                   autoComplete="username"
                   disabled={!bootstrapSecretConfigured}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">密码</Label>
+              <div className="grid gap-2.5">
+                <Label htmlFor="password" className="text-white/70">
+                  密码
+                </Label>
                 <Input
                   id="password"
                   name="password"
                   type="password"
+                  className="h-12 rounded-2xl border-white/10 bg-[#050505] px-4 text-white placeholder:text-white/25 focus-visible:border-sky-400/50 focus-visible:ring-sky-500/20"
                   minLength={8}
                   autoComplete="new-password"
                   disabled={!bootstrapSecretConfigured}
@@ -138,35 +151,41 @@ export default async function PlatformAdminLoginPage({
 
               <Button
                 type="submit"
-                className="h-11 rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]"
+                className="mt-1 h-12 rounded-2xl border border-sky-300/20 bg-sky-700 text-base font-semibold text-white shadow-[0_14px_34px_rgba(3,105,161,0.28)] hover:bg-sky-600"
                 disabled={!bootstrapSecretConfigured}
               >
                 创建 super_admin 并进入后台
               </Button>
-              <Link className="text-center text-sm font-medium text-[#1d4ed8]" href="/platform-admin-login">
+              <Link className="text-center text-sm font-medium text-sky-200 hover:text-sky-100" href="/platform-admin-login">
                 返回账号密码登录
               </Link>
             </form>
           ) : (
-            <form action={signInToPlatformAdmin} className="mt-6 grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">邮箱</Label>
+            <form action={signInToPlatformAdmin} className="mt-6 grid gap-5">
+              <div className="grid gap-2.5">
+                <Label htmlFor="email" className="text-white/70">
+                  邮箱
+                </Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
+                  className="h-12 rounded-2xl border-white/10 bg-[#050505] px-4 text-white placeholder:text-white/25 focus-visible:border-sky-400/50 focus-visible:ring-sky-500/20"
                   placeholder="admin@example.com"
                   autoComplete="username"
                   disabled={!accessConfigured}
                   required
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">密码</Label>
+              <div className="grid gap-2.5">
+                <Label htmlFor="password" className="text-white/70">
+                  密码
+                </Label>
                 <Input
                   id="password"
                   name="password"
                   type="password"
+                  className="h-12 rounded-2xl border-white/10 bg-[#050505] px-4 text-white placeholder:text-white/25 focus-visible:border-sky-400/50 focus-visible:ring-sky-500/20"
                   autoComplete="current-password"
                   disabled={!accessConfigured}
                   required
@@ -175,7 +194,7 @@ export default async function PlatformAdminLoginPage({
 
               <Button
                 type="submit"
-                className="h-11 rounded-md bg-[#2563eb] text-white hover:bg-[#1d4ed8]"
+                className="mt-1 h-12 rounded-2xl border border-sky-300/20 bg-sky-700 text-base font-semibold text-white shadow-[0_14px_34px_rgba(3,105,161,0.28)] hover:bg-sky-600"
                 disabled={!accessConfigured}
               >
                 登录平台管理台
@@ -183,24 +202,6 @@ export default async function PlatformAdminLoginPage({
             </form>
           )}
         </section>
-
-        <aside className="rounded-md border border-[#dde3ea] bg-white p-6 shadow-sm md:p-8">
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 size-5 text-[#92400e]" aria-hidden="true" />
-            <div>
-              <h2 className="text-lg font-semibold">当前访问规则</h2>
-              <ul className="mt-4 grid gap-3 text-sm leading-6 text-[#5d6b7a]">
-                <li>super_admin 拥有系统配置、管理员账号和商户治理等全部权限。</li>
-                <li>admin 可查看后台、维护知识、编辑草稿类能力并运行调试。</li>
-                <li>disabled 管理员即使 Supabase Auth 仍有效，也不能进入后台或调用后台接口。</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-6 rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4 text-sm leading-6 text-[#5d6b7a]">
-            首个 super_admin 只在管理员表为空时开放初始化；创建完成后，本页只保留邮箱密码登录，后续管理员统一在「系统配置」里由超级管理员维护。
-          </div>
-        </aside>
       </div>
     </main>
   );
