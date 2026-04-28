@@ -46,6 +46,14 @@ test("buildVideoScriptContext includes consultation context for video drafting",
       title: "门店环境视频",
     },
     strategyTag: "信任建立",
+    selectedCalendarItem: {
+      id: "calendar-video-1",
+      dayLabel: "周三",
+      contentType: "video",
+      strategyTag: "信任建立",
+      title: "门店一镜到底体验",
+      summary: "展示门店环境、真实体验流程和用户会感知到的安全感。",
+    },
   });
 
   assert.ok(scriptContext.contextDigest);
@@ -55,6 +63,14 @@ test("buildVideoScriptContext includes consultation context for video drafting",
   assert.equal(scriptContext.strategy.platformStrategy.platform, "douyin");
   assert.equal(scriptContext.strategy.platformStrategy.format, "vertical_short_video");
   assert.equal(scriptContext.critique.passForDrafting, true);
+  assert.deepEqual(scriptContext.contextDigest.selectedCalendarItem, {
+    id: "calendar-video-1",
+    contentType: "video",
+    strategyTag: "信任建立",
+    title: "门店一镜到底体验",
+    dayLabel: "周三",
+    summary: "展示门店环境、真实体验流程和用户会感知到的安全感。",
+  });
 });
 
 test("buildVideoScriptCandidates creates three traceable video script variants", () => {

@@ -222,11 +222,16 @@ export function MerchantContentCenter() {
         throw new Error(data.error?.message ?? "素材送入工作台失败");
       }
 
-      router.push(
-        targetWorkbench === "article"
-          ? `/dashboard/article?materialId=${material.id}&materialReferenceId=${data.reference.id}`
-          : `/dashboard/video?materialId=${material.id}&materialReferenceId=${data.reference.id}`,
-      );
+      const params = new URLSearchParams({
+        source: "material_center",
+        materialId: material.id,
+        materialReferenceId: data.reference.id,
+      });
+      if (targetWorkbench === "article") {
+        params.set("mode", "rewrite");
+      }
+
+      router.push(`/dashboard/${targetWorkbench}?${params.toString()}`);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "素材送入工作台失败");
     } finally {

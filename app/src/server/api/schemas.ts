@@ -396,6 +396,8 @@ export const sendConsultationMessageSchema = z.object({
 
 export const generateConsultationContentSchema = z.object({
   sessionId: z.uuid(),
+  source: z.enum(["consultation_calendar", "material_center", "manual"]).nullish(),
+  calendarItemId: z.string().trim().max(120).nullish(),
   goal: z.string().trim().max(300).nullish(),
   extraRequirement: z.string().trim().max(4000).nullish(),
   mode: z.enum(["create", "rewrite"]).optional(),

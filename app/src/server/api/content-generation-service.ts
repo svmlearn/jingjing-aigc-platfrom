@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { ContentCalendarItemDto } from "@/contracts/consultation";
 import type { ContentDraftBundleDto } from "@/contracts/draft";
 import type {
   MaterialLibraryItemDto,
@@ -47,6 +48,12 @@ import {
 } from "@/server/api/video-chain-test-draft";
 
 type GenerationMode = "create" | "rewrite";
+type GenerationSource = "consultation_calendar" | "material_center" | "manual";
+type WorkbenchKind = "article" | "video";
+type SelectedCalendarItemSnapshot = ContentCalendarItemDto & {
+  targetPlatform: "xiaohongshu" | "douyin";
+  contentGoal: string | null;
+};
 
 export async function generateArticleDraftForUser(input: {
   userId: string;
@@ -54,6 +61,8 @@ export async function generateArticleDraftForUser(input: {
   goal?: string | null;
   extraRequirement?: string | null;
   mode?: GenerationMode | null;
+  source?: GenerationSource | null;
+  calendarItemId?: string | null;
   materialId?: string | null;
   materialReferenceId?: string | null;
   strategyTag?: string | null;
@@ -69,13 +78,22 @@ export async function generateArticleDraftForUser(input: {
     materialReferenceId: input.materialReferenceId,
     targetWorkbench: "article",
   });
+  const generationContext = resolveGenerationContext({
+    source: input.source,
+    calendarItemId: input.calendarItemId,
+    strategyTag: input.strategyTag,
+    session,
+    material: materialContext.material,
+    targetWorkbench: "article",
+  });
   const mode: GenerationMode =
     input.mode ?? (materialContext.material ? "rewrite" : "create");
   const workingTitle =
     materialContext.material
       ? `改写：${materialContext.material.title}`
-      : session.strategySnapshot.articleBrief?.workingTitle ??
-    `${merchant.name} 的图文内容草稿`;
+      : generationContext.selectedCalendarItem?.title ??
+        session.strategySnapshot.articleBrief?.workingTitle ??
+        `${merchant.name} 的图文内容草稿`;
   const sourceItem = await createManualSourceItem({
     merchantId: merchant.id,
     platform: "xiaohongshu",
@@ -90,13 +108,20 @@ export async function generateArticleDraftForUser(input: {
       consultation_session_id: session.id,
       generated_kind: "article",
       generation_mode: mode,
-      strategy_tag: input.strategyTag ?? null,
+      generation_source: generationContext.source,
+      calendar_item_id: generationContext.calendarItemId,
+      selected_calendar_item: generationContext.selectedCalendarItem,
+      strategy_tag: generationContext.strategyTag,
       material_item_id: materialContext.material?.id ?? null,
       material_reference_id: materialContext.reference?.id ?? input.materialReferenceId ?? null,
     },
   });
   const cta = merchant.defaultCta[0] ?? "私信我领取体验方案或预约到店咨询";
-  const angle = input.goal ?? session.strategySnapshot.articleBrief?.angle ?? "专业干货 + 场景信任";
+  const angle =
+    input.goal ??
+    generationContext.selectedCalendarItem?.summary ??
+    session.strategySnapshot.articleBrief?.angle ??
+    "专业干货 + 场景信任";
 
   const draftBundle = await createDraftWithVariants({
     merchantId: merchant.id,
@@ -104,10 +129,14 @@ export async function generateArticleDraftForUser(input: {
     workingTitle,
     rewriteGoal: angle,
     inputSnapshot: {
+      source: generationContext.source,
       consultationSessionId: session.id,
+      calendarItemId: generationContext.calendarItemId,
+      selectedCalendarItem: generationContext.selectedCalendarItem,
       strategySnapshot: session.strategySnapshot,
+      merchantProfile: buildMerchantSnapshot(merchant),
       generationMode: mode,
-      strategyTag: input.strategyTag ?? null,
+      strategyTag: generationContext.strategyTag,
       extraRequirement: input.extraRequirement ?? null,
       materialContext: buildMaterialSnapshot(materialContext.material, materialContext.reference),
     },
@@ -169,6 +198,8 @@ export async function generateVideoScriptForUser(input: {
   extraRequirement?: string | null;
   materialId?: string | null;
   materialReferenceId?: string | null;
+  source?: GenerationSource | null;
+  calendarItemId?: string | null;
   strategyTag?: string | null;
 }): Promise<ContentDraftBundleDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
@@ -182,18 +213,39 @@ export async function generateVideoScriptForUser(input: {
     materialReferenceId: input.materialReferenceId,
     targetWorkbench: "video",
   });
+  const generationContext = resolveGenerationContext({
+    source: input.source,
+    calendarItemId: input.calendarItemId,
+    strategyTag: input.strategyTag,
+    session,
+    material: materialContext.material,
+    targetWorkbench: "video",
+  });
   const workingTitle =
     materialContext.material
       ? `视频脚本：${materialContext.material.title}`
-      : session.strategySnapshot.videoBrief?.workingTitle ??
-    `${merchant.name} 的视频脚本`;
+      : generationContext.selectedCalendarItem?.title ??
+        session.strategySnapshot.videoBrief?.workingTitle ??
+        `${merchant.name} 的视频脚本`;
   const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
+  const selectedVideoCalendarItem =
+    generationContext.selectedCalendarItem?.contentType === "video"
+      ? {
+          id: generationContext.selectedCalendarItem.id,
+          dayLabel: generationContext.selectedCalendarItem.dayLabel,
+          contentType: "video" as const,
+          strategyTag: generationContext.selectedCalendarItem.strategyTag,
+          title: generationContext.selectedCalendarItem.title,
+          summary: generationContext.selectedCalendarItem.summary,
+        }
+      : null;
   const scriptContext = buildVideoScriptContext({
     merchant,
     session,
     extraRequirement: input.extraRequirement ?? null,
     materialContext: materialSnapshot,
-    strategyTag: input.strategyTag ?? null,
+    strategyTag: generationContext.strategyTag,
+    selectedCalendarItem: selectedVideoCalendarItem,
   });
   const fallbackScriptCandidates = buildVideoScriptCandidates({
     merchantName: merchant.name,
@@ -207,9 +259,9 @@ export async function generateVideoScriptForUser(input: {
     merchant,
     session,
     materialSnapshot,
-    goal: input.goal ?? null,
+    goal: input.goal ?? generationContext.selectedCalendarItem?.title ?? null,
     extraRequirement: input.extraRequirement ?? null,
-    strategyTag: input.strategyTag ?? null,
+    strategyTag: generationContext.strategyTag,
   });
   const scriptEvidenceReferences = await collectScriptProductionEvidence({
     merchantId: merchant.id,
@@ -254,7 +306,10 @@ export async function generateVideoScriptForUser(input: {
     tracePayload: {
       consultation_session_id: session.id,
       generated_kind: "video_script",
-      strategy_tag: input.strategyTag ?? null,
+      generation_source: generationContext.source,
+      calendar_item_id: generationContext.calendarItemId,
+      selected_calendar_item: generationContext.selectedCalendarItem,
+      strategy_tag: generationContext.strategyTag,
       material_item_id: materialContext.material?.id ?? null,
       material_reference_id: materialContext.reference?.id ?? input.materialReferenceId ?? null,
       script_agent_mode: scriptAgent.trace.mode,
@@ -267,9 +322,13 @@ export async function generateVideoScriptForUser(input: {
     workingTitle,
     rewriteGoal: input.goal ?? session.strategySnapshot.videoBrief?.hook ?? "门店场景视频脚本",
     inputSnapshot: {
+      source: generationContext.source,
       consultationSessionId: session.id,
+      calendarItemId: generationContext.calendarItemId,
+      selectedCalendarItem: generationContext.selectedCalendarItem,
       strategySnapshot: session.strategySnapshot,
-      strategyTag: input.strategyTag ?? null,
+      merchantProfile: buildMerchantSnapshot(merchant),
+      strategyTag: generationContext.strategyTag,
       extraRequirement: input.extraRequirement ?? null,
       materialContext: materialSnapshot,
       scriptContext,
@@ -369,6 +428,11 @@ export async function reviseVideoScriptForUser(input: {
       instructionText: string;
     }
 > {
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  const currentVariant = await assertVideoScriptVariantAccess({
+    merchantId: merchant.id,
+    contentVariantId: input.contentVariantId,
+  });
   const revisionIntent = classifyVideoScriptRevisionIntent(input.revisionInstruction);
 
   if (revisionIntent === "production") {
@@ -378,12 +442,6 @@ export async function reviseVideoScriptForUser(input: {
       instructionText: input.revisionInstruction,
     };
   }
-
-  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const currentVariant = await assertVideoScriptVariantAccess({
-    merchantId: merchant.id,
-    contentVariantId: input.contentVariantId,
-  });
 
   if (!currentVariant.scriptText?.trim()) {
     throw new ApiError(
@@ -836,6 +894,105 @@ async function consumeMaterialReferenceIfNeeded(input: {
     draftId: input.draftId,
     materialItemId: input.materialId,
   });
+}
+
+function resolveGenerationContext(input: {
+  source?: GenerationSource | null;
+  calendarItemId?: string | null;
+  strategyTag?: string | null;
+  session: Awaited<ReturnType<typeof getConsultationSessionDetail>>;
+  material?: MaterialLibraryItemDto | null;
+  targetWorkbench: WorkbenchKind;
+}) {
+  const source =
+    input.source ??
+    (input.calendarItemId
+      ? "consultation_calendar"
+      : input.material
+        ? "material_center"
+        : "manual");
+
+  if (source !== "consultation_calendar") {
+    return {
+      source,
+      calendarItemId: null,
+      selectedCalendarItem: null,
+      strategyTag: input.strategyTag ?? null,
+    };
+  }
+
+  const calendarItemId = input.calendarItemId?.trim();
+  if (!calendarItemId) {
+    throw new ApiError(
+      400,
+      "CONTENT_CALENDAR_ITEM_REQUIRED",
+      "从内容日历进入工作台时，必须携带 calendarItemId。",
+    );
+  }
+
+  const selectedCalendarItem =
+    input.session.strategySnapshot.contentCalendarDraft.find(
+      (item) => item.id === calendarItemId,
+    ) ?? null;
+  if (!selectedCalendarItem) {
+    throw new ApiError(
+      409,
+      "CONTENT_CALENDAR_ITEM_NOT_FOUND",
+      "没有在当前咨询会话中找到对应的内容日历卡片。",
+      { calendarItemId },
+    );
+  }
+
+  if (selectedCalendarItem.contentType !== input.targetWorkbench) {
+    throw new ApiError(
+      409,
+      "CONTENT_CALENDAR_WORKBENCH_MISMATCH",
+      "内容日历卡片类型和当前工作台不一致。",
+      {
+        calendarItemId,
+        calendarContentType: selectedCalendarItem.contentType,
+        targetWorkbench: input.targetWorkbench,
+      },
+    );
+  }
+
+  return {
+    source,
+    calendarItemId,
+    selectedCalendarItem: buildSelectedCalendarItemSnapshot(selectedCalendarItem),
+    strategyTag: input.strategyTag ?? selectedCalendarItem.strategyTag ?? null,
+  };
+}
+
+function buildSelectedCalendarItemSnapshot(
+  item: ContentCalendarItemDto,
+): SelectedCalendarItemSnapshot {
+  return {
+    id: item.id,
+    dayLabel: item.dayLabel,
+    contentType: item.contentType,
+    strategyTag: item.strategyTag,
+    title: item.title,
+    summary: item.summary,
+    targetPlatform: item.contentType === "video" ? "douyin" : "xiaohongshu",
+    contentGoal: null,
+  };
+}
+
+function buildMerchantSnapshot(
+  merchant: Awaited<ReturnType<typeof getOperationalMerchantProfileByOwnerUserId>>,
+) {
+  return {
+    id: merchant.id,
+    name: merchant.name,
+    industry: merchant.industry ?? null,
+    serviceItems: merchant.serviceItems,
+    brandSummary: merchant.brandSummary ?? null,
+    regionSummary: merchant.regionSummary ?? null,
+    toneStyle: merchant.toneStyle ?? null,
+    defaultCta: merchant.defaultCta,
+    forbiddenWords: merchant.forbiddenWords,
+  };
 }
 
 function buildSourceText(input: {

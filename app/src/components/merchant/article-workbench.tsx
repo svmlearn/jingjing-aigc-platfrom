@@ -12,12 +12,16 @@ type ArticleMode = "create" | "rewrite";
 
 export function ArticleWorkbench({
   sessionId,
+  source,
+  calendarItemId,
   materialId,
   materialReferenceId,
   initialMode,
   strategyTag,
 }: {
   sessionId?: string | null;
+  source?: string | null;
+  calendarItemId?: string | null;
   materialId?: string | null;
   materialReferenceId?: string | null;
   initialMode?: ArticleMode | null;
@@ -99,6 +103,8 @@ export function ArticleWorkbench({
         },
         body: JSON.stringify({
           sessionId,
+          source,
+          calendarItemId,
           goal,
           extraRequirement,
           mode,

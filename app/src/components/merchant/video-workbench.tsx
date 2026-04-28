@@ -55,12 +55,16 @@ type SegmentUploadState = {
 
 export function VideoWorkbench({
   sessionId,
+  source,
+  calendarItemId,
   materialId,
   materialReferenceId,
   strategyTag,
   testMode,
 }: {
   sessionId?: string | null;
+  source?: string | null;
+  calendarItemId?: string | null;
   materialId?: string | null;
   materialReferenceId?: string | null;
   strategyTag?: string | null;
@@ -190,6 +194,8 @@ export function VideoWorkbench({
         },
         body: JSON.stringify({
           sessionId,
+          source,
+          calendarItemId,
           goal: nextGoal,
           extraRequirement: nextExtraRequirement,
           materialId: referenceMaterial?.id ?? materialId ?? null,
