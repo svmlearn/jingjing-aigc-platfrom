@@ -34,5 +34,15 @@ https://jingjing-content-platform-staging-lptrbpz4q.vercel.app/api/consultation/
 
 ## 状态
 
-- 待 commit / push / Vercel staging 部署。
-- 本次无 Supabase migration。
+- 修复提交：`8362caf fix: keep staging auth on canonical host`。
+- Gitee：已推送 `main`，`c26a033..8362caf`。
+- Vercel Project：`jingjing-content-platform-staging`。
+- Vercel production alias：`https://jingjing-content-platform-staging.vercel.app`。
+- Vercel deployment URL：`https://jingjing-content-platform-staging-iqu5t4udo.vercel.app`。
+- Vercel 云端构建：通过，构建输出包含 `ƒ Proxy (Middleware)`。
+- Vercel inspect：alias 当前指向 `dpl_FuKtkG21auuWDrqU6QXzLBC9hVew`，状态 `Ready`。
+- 线上 smoke：
+  - `https://jingjing-content-platform-staging.vercel.app/login` 返回 `HTTP/2 200`。
+  - 未登录访问 `https://jingjing-content-platform-staging.vercel.app/dashboard` 返回 `307` 到 `/login?error=unauthenticated&next=/dashboard`。
+  - 未登录访问 `https://jingjing-content-platform-staging.vercel.app/api/consultation/sessions` 返回 `401`，由前端捕获后跳转登录页。
+- 本次无 Supabase migration，未执行 DDL。
