@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import type {
+  ContentCalendarItemDto,
   ConsultationSessionDetailDto,
   ConsultationSessionSummaryDto,
 } from "@/contracts/consultation";
@@ -29,6 +30,7 @@ export function ConsultationWorkspace() {
   const [session, setSession] = useState<ConsultationSessionDetailDto | null>(null);
   const [input, setInput] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -189,6 +191,25 @@ export function ConsultationWorkspace() {
     if (nextHistoryOpen) {
       void loadSessions(sessionId ?? undefined);
     }
+  }
+
+  function getCalendarItemHref(item: ContentCalendarItemDto) {
+    if (!session) {
+      return "#";
+    }
+
+    const params = new URLSearchParams({
+      source: "consultation_calendar",
+      sessionId: session.id,
+      calendarItemId: item.id,
+      strategyTag: item.strategyTag,
+    });
+
+    if (item.contentType === "article") {
+      params.set("mode", "create");
+    }
+
+    return `/dashboard/${item.contentType === "article" ? "article" : "video"}?${params.toString()}`;
   }
 
   async function deleteHistorySession(nextSessionId: string) {
@@ -399,6 +420,81 @@ export function ConsultationWorkspace() {
               ) : (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-white/55">
                   还没有咨询聊天记录。新开对话后，会在这里显示。
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {calendarOpen ? (
+        <>
+          <button
+            type="button"
+            aria-label="关闭内容日历"
+            onClick={() => setCalendarOpen(false)}
+            className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          />
+          <div className="absolute inset-4 z-50 flex flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0a0a0a] shadow-[0_24px_90px_rgba(0,0,0,0.65)] md:inset-8">
+            <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-amber-500/80">
+                  Content Marketing Calendar
+                </p>
+                <h2 className="mt-2 text-xl italic tracking-tight text-white [font-family:var(--font-cormorant)]">
+                  营销内容日历
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCalendarOpen(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="关闭内容日历"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              {session?.strategySnapshot.contentCalendarDraft.length ? (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {session.strategySnapshot.contentCalendarDraft.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={getCalendarItemHref(item)}
+                      onClick={() => setCalendarOpen(false)}
+                      className="group flex min-h-44 flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition-colors hover:border-amber-500/40 hover:bg-amber-500/5"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.22em] text-white/55">
+                          {item.dayLabel}
+                        </span>
+                        <span
+                          className={cn(
+                            "rounded-full px-2.5 py-1 text-[10px] uppercase tracking-[0.22em]",
+                            item.contentType === "article"
+                              ? "bg-orange-500/15 text-orange-300"
+                              : "bg-sky-500/15 text-sky-300",
+                          )}
+                        >
+                          {item.contentType === "article" ? "图文" : "视频"}
+                        </span>
+                      </div>
+                      <p className="mt-4 text-[10px] uppercase tracking-[0.25em] text-amber-500/80">
+                        {item.strategyTag}
+                      </p>
+                      <h3 className="mt-2 text-sm font-medium leading-6 text-white">{item.title}</h3>
+                      <p className="mt-2 line-clamp-3 text-xs leading-6 text-white/50">{item.summary}</p>
+                      <span className="mt-auto inline-flex items-center gap-1 pt-4 text-[10px] uppercase tracking-[0.22em] text-white/35 transition-colors group-hover:text-amber-500">
+                        去{item.contentType === "article" ? "图文" : "视频"}工作台生成
+                        <ChevronRight className="h-3 w-3" />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm leading-7 text-white/55">
+                  暂无内容日历。继续和 AI 咨询诊断沟通后，这里会同步生成可执行的图文和视频任务。
                 </div>
               )}
             </div>
@@ -635,22 +731,19 @@ export function ConsultationWorkspace() {
                 <CalendarDays className="h-4 w-4 text-amber-500" />
                 营销内容日历
               </h2>
-              <Link
-                href="/dashboard/history"
+              <button
+                type="button"
+                onClick={() => setCalendarOpen(true)}
                 className="text-[10px] uppercase tracking-[0.25em] text-amber-500"
               >
-                查看全部
-              </Link>
+                查看全部内容
+              </button>
             </div>
             <div className="mt-4 space-y-3">
               {session?.strategySnapshot.contentCalendarDraft.map((item) => (
                 <Link
                   key={item.id}
-                  href={
-                    item.contentType === "article"
-                      ? `/dashboard/article?sessionId=${session.id}&strategy=${encodeURIComponent(item.strategyTag)}`
-                      : `/dashboard/video?sessionId=${session.id}&strategy=${encodeURIComponent(item.strategyTag)}`
-                  }
+                  href={getCalendarItemHref(item)}
                   className="block rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-amber-500/40 hover:bg-amber-500/5"
                 >
                   <div className="flex items-center justify-between">
