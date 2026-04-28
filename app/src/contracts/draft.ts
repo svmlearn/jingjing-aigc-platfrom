@@ -20,6 +20,19 @@ export type ContentDraftDto = {
   updatedAt: string;
 };
 
+export type VideoScriptSceneDto = {
+  sceneNo: number;
+  timeRange: string;
+  shotRequirement: string;
+  visual: string;
+  voiceover: string;
+  subtitle: string;
+  materials: string[];
+  cameraMovement: string;
+  purpose: string;
+  fallbackShot: string;
+};
+
 export type ContentVariantDto = {
   id: string;
   draftId: string;
@@ -31,6 +44,7 @@ export type ContentVariantDto = {
   scriptText?: string | null;
   hashtags: string[];
   ctaText?: string | null;
+  productionScenes?: VideoScriptSceneDto[];
   reviewStatus: "editing" | "review_pending" | "approved" | "rejected";
   createdAt: string;
   updatedAt: string;

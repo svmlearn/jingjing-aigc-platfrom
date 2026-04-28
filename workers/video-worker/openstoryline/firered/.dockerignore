@@ -1,0 +1,28 @@
+.git/
+.venv/
+venv/
+env/
+.conda/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# Local runtime artifacts. These must be mounted or downloaded at runtime.
+.downloads/
+.tools/
+.logs/
+.tmp/
+.storyline/
+resource/
+outputs/
+renders/
+checkpoints/
+models/
+project/
+
+# Not copied by the Dockerfile.
+tests/
+docs/

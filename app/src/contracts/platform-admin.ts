@@ -2,6 +2,7 @@ import type { InvitationCodeDto, MerchantPlan, MerchantProfileDto } from "./merc
 import type {
   ConsultationAgentSettingsDto,
   KnowledgeRuntimeSettingsDto,
+  ScriptProductionAgentSettingsDto,
 } from "./knowledge";
 
 export type * from "./agent-console";
@@ -75,6 +76,7 @@ export type PlatformSettingsDto = {
   importRuntime: ImportRuntimeSettingsDto;
   membershipPlans: MembershipPlanSettingsDto;
   consultationAgent: ConsultationAgentSettingsDto;
+  scriptProductionAgent: ScriptProductionAgentSettingsDto;
   knowledgeRuntime: KnowledgeRuntimeSettingsDto;
 };
 

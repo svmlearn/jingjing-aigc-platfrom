@@ -4,6 +4,7 @@ import type { MerchantProfileDto } from "@/contracts/merchant";
 import type {
   ConsultationAgentSettingsDto,
   KnowledgeRuntimeSettingsDto,
+  ScriptProductionAgentSettingsDto,
 } from "@/contracts/knowledge";
 import type {
   PlatformAdminInvitationCodeFilters,
@@ -58,7 +59,7 @@ type InvitationCodeAdminRow = {
 
 type PlatformSettingRow = {
   key: string;
-  category: "llm" | "import" | "membership" | "consultation" | "knowledge";
+  category: "llm" | "import" | "membership" | "consultation" | "script_production" | "knowledge";
   value: unknown;
 };
 
@@ -84,6 +85,7 @@ type PlatformSettingsUpdateInput = {
   importRuntime?: ImportRuntimeSettingsDto;
   membershipPlans?: MembershipPlanSettingsDto;
   consultationAgent?: ConsultationAgentSettingsDto;
+  scriptProductionAgent?: ScriptProductionAgentSettingsDto;
   knowledgeRuntime?: KnowledgeRuntimeSettingsDto;
 };
 
@@ -137,6 +139,15 @@ const defaultConsultationAgent: ConsultationAgentSettingsDto = {
   retrievalTopK: 5,
   model: "gpt-4.1-mini",
   temperature: 0.6,
+};
+
+const defaultScriptProductionAgent: ScriptProductionAgentSettingsDto = {
+  systemPrompt:
+    "你是「脚本制作 Agent」，只把咨询台已确认信息转成可确认、可拍摄、可交给制作层执行的视频脚本候选。你不是咨询台 Agent，不重新诊断商家，不重新定义目标用户、账号定位或商业方向。信息不足时输出 needs_more_info；信息充分时只输出 JSON。",
+  model: "gpt-4.1-mini",
+  temperature: 0.65,
+  retrievalTopK: 4,
+  revisionEnabled: true,
 };
 
 const defaultKnowledgeRuntime: KnowledgeRuntimeSettingsDto = {
@@ -620,6 +631,7 @@ export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
       "import_runtime",
       "membership_plans",
       "consultation_agent",
+      "script_production_agent",
       "knowledge_runtime",
     ]);
 
@@ -634,6 +646,9 @@ export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
   const consultationAgent = toConsultationAgentSettings(
     rows.get("consultation_agent")?.value,
   );
+  const scriptProductionAgent = toScriptProductionAgentSettings(
+    rows.get("script_production_agent")?.value,
+  );
   const knowledgeRuntime = toKnowledgeRuntimeSettings(rows.get("knowledge_runtime")?.value);
 
   return {
@@ -641,6 +656,7 @@ export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
     importRuntime,
     membershipPlans,
     consultationAgent,
+    scriptProductionAgent,
     knowledgeRuntime,
   };
 }
@@ -694,6 +710,12 @@ export async function updatePlatformSettings(
       description: "Platform-level consultation agent settings.",
     },
     {
+      key: "script_production_agent",
+      category: "script_production",
+      value: next.scriptProductionAgent,
+      description: "Platform-level script production agent settings.",
+    },
+    {
       key: "knowledge_runtime",
       category: "knowledge",
       value: next.knowledgeRuntime,
@@ -728,6 +750,7 @@ function getDefaultPlatformSettings(): PlatformSettingsDto {
     importRuntime: toImportRuntimeSettings(undefined),
     membershipPlans: toMembershipPlans(undefined),
     consultationAgent: toConsultationAgentSettings(undefined),
+    scriptProductionAgent: toScriptProductionAgentSettings(undefined),
     knowledgeRuntime: toKnowledgeRuntimeSettings(undefined),
   };
 }
@@ -762,6 +785,10 @@ function mergePlatformSettings(
             input.consultationAgent.enabledTools ?? current.consultationAgent.enabledTools,
         }
       : current.consultationAgent,
+    scriptProductionAgent: {
+      ...current.scriptProductionAgent,
+      ...input.scriptProductionAgent,
+    },
     knowledgeRuntime: {
       ...current.knowledgeRuntime,
       ...input.knowledgeRuntime,
@@ -1021,6 +1048,21 @@ function toConsultationAgentSettings(value: unknown): ConsultationAgentSettingsD
     retrievalTopK: getNumber(record.retrievalTopK, defaultConsultationAgent.retrievalTopK),
     model: getString(record.model, defaultConsultationAgent.model),
     temperature: getNumber(record.temperature, defaultConsultationAgent.temperature),
+  };
+}
+
+function toScriptProductionAgentSettings(value: unknown): ScriptProductionAgentSettingsDto {
+  const record = toRecord(value);
+
+  return {
+    systemPrompt: getString(record.systemPrompt, defaultScriptProductionAgent.systemPrompt),
+    model: getString(record.model, defaultScriptProductionAgent.model),
+    temperature: getNumber(record.temperature, defaultScriptProductionAgent.temperature),
+    retrievalTopK: getNumber(record.retrievalTopK, defaultScriptProductionAgent.retrievalTopK),
+    revisionEnabled: getBoolean(
+      record.revisionEnabled,
+      defaultScriptProductionAgent.revisionEnabled,
+    ),
   };
 }
 

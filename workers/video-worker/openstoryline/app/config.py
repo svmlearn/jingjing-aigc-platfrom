@@ -12,6 +12,22 @@ class Settings:
     mcp_port: int
     outputs_dir: Path
     models_dir: Path
+    engine_adapter: str
+    fire_red_base_url: str
+    fire_red_run_timeout_seconds: int = 900
+    fire_red_provider_key_configured: bool = False
+    fire_red_provider_key: str = ""
+    tts_provider: str = "bytedance_bigtts"
+    tts_302_base_url: str = "https://api.302.ai"
+    tts_302_api_key: str = ""
+    tts_minimax_base_url: str = "https://api.minimax.io"
+    tts_minimax_api_key: str = ""
+    tts_bytedance_bigtts_base_url: str = "https://openspeech.bytedance.com"
+    tts_bytedance_bigtts_uid: str = "openstoryline"
+    tts_bytedance_bigtts_appid: str = ""
+    tts_bytedance_bigtts_access_key: str = ""
+    tts_bytedance_bigtts_resource_id: str = ""
+    tts_bytedance_bigtts_speaker: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -31,4 +47,59 @@ class Settings:
                     "/srv/jingjing-video-worker/models",
                 )
             ),
+            engine_adapter=(
+                os.getenv("OPENSTORYLINE_ENGINE_ADAPTER", "skeleton").strip().lower()
+                or "skeleton"
+            ),
+            fire_red_base_url=os.getenv(
+                "FIRERED_OPENSTORYLINE_BASE_URL",
+                "",
+            )
+            .strip()
+            .rstrip("/"),
+            fire_red_run_timeout_seconds=int(
+                os.getenv("FIRERED_RUN_TIMEOUT_SECONDS", "900")
+            ),
+            fire_red_provider_key_configured=bool(
+                os.getenv("FIRERED_PROVIDER_KEY", "").strip()
+            ),
+            fire_red_provider_key=os.getenv("FIRERED_PROVIDER_KEY", "").strip(),
+            tts_provider=os.getenv(
+                "OPENSTORYLINE_TTS_PROVIDER",
+                "bytedance_bigtts",
+            ).strip() or "bytedance_bigtts",
+            tts_302_base_url=os.getenv(
+                "TTS_302_BASE_URL",
+                "https://api.302.ai",
+            ).strip(),
+            tts_302_api_key=os.getenv("TTS_302_API_KEY", "").strip(),
+            tts_minimax_base_url=os.getenv(
+                "TTS_MINIMAX_BASE_URL",
+                "https://api.minimax.io",
+            ).strip(),
+            tts_minimax_api_key=os.getenv("TTS_MINIMAX_API_KEY", "").strip(),
+            tts_bytedance_bigtts_base_url=os.getenv(
+                "TTS_BYTEDANCE_BIGTTS_BASE_URL",
+                "https://openspeech.bytedance.com",
+            ).strip(),
+            tts_bytedance_bigtts_uid=os.getenv(
+                "TTS_BYTEDANCE_BIGTTS_UID",
+                "openstoryline",
+            ).strip(),
+            tts_bytedance_bigtts_appid=os.getenv(
+                "TTS_BYTEDANCE_BIGTTS_APPID",
+                "",
+            ).strip(),
+            tts_bytedance_bigtts_access_key=os.getenv(
+                "TTS_BYTEDANCE_BIGTTS_ACCESS_KEY",
+                "",
+            ).strip(),
+            tts_bytedance_bigtts_resource_id=os.getenv(
+                "TTS_BYTEDANCE_BIGTTS_RESOURCE_ID",
+                "",
+            ).strip(),
+            tts_bytedance_bigtts_speaker=os.getenv(
+                "TTS_BYTEDANCE_BIGTTS_SPEAKER",
+                "",
+            ).strip(),
         )

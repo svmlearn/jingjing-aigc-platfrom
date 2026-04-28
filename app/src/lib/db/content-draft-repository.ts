@@ -35,8 +35,23 @@ type ContentVariantRow = {
   updated_at: string;
 };
 
-const demoSourceItems = new Map<string, { id: string; merchantId: string }>();
-const demoDraftBundles = new Map<string, ContentDraftBundleDto>();
+type LocalDemoContentDraftStore = {
+  sourceItems: Map<string, { id: string; merchantId: string }>;
+  draftBundles: Map<string, ContentDraftBundleDto>;
+};
+
+const globalDemoContentDraftStore = globalThis as typeof globalThis & {
+  __jingjingLocalDemoContentDraftStore?: LocalDemoContentDraftStore;
+};
+
+const demoContentDraftStore =
+  globalDemoContentDraftStore.__jingjingLocalDemoContentDraftStore ??
+  (globalDemoContentDraftStore.__jingjingLocalDemoContentDraftStore = {
+    sourceItems: new Map<string, { id: string; merchantId: string }>(),
+    draftBundles: new Map<string, ContentDraftBundleDto>(),
+  });
+const demoSourceItems = demoContentDraftStore.sourceItems;
+const demoDraftBundles = demoContentDraftStore.draftBundles;
 
 export async function createManualSourceItem(input: {
   merchantId: string;
@@ -96,6 +111,7 @@ export async function createDraftWithVariants(input: {
     scriptText?: string | null;
     hashtags?: string[];
     ctaText?: string | null;
+    productionScenes?: ContentVariantDto["productionScenes"];
     reviewStatus?: ContentVariantDto["reviewStatus"];
   }>;
 }): Promise<ContentDraftBundleDto> {
@@ -113,6 +129,7 @@ export async function createDraftWithVariants(input: {
       scriptText: variant.scriptText ?? null,
       hashtags: variant.hashtags ?? [],
       ctaText: variant.ctaText ?? null,
+      productionScenes: variant.productionScenes ?? [],
       reviewStatus: variant.reviewStatus ?? "editing",
       createdAt: now,
       updatedAt: now,
@@ -277,6 +294,221 @@ export async function listDraftBundlesByMerchant(input: {
   });
 }
 
+export async function approveContentVariant(input: {
+  merchantId: string;
+  contentVariantId: string;
+}): Promise<ContentVariantDto> {
+  if (!isSupabaseAdminConfigured()) {
+    for (const [draftId, bundle] of demoDraftBundles.entries()) {
+      const variant = bundle.variants.find((item) => item.id === input.contentVariantId);
+
+      if (!variant || bundle.draft.merchantId !== input.merchantId) {
+        continue;
+      }
+
+      const now = new Date().toISOString();
+      const approvedVariant: ContentVariantDto = {
+        ...variant,
+        reviewStatus: "approved",
+        updatedAt: now,
+      };
+      const variants = bundle.variants.map((item) =>
+        item.id === approvedVariant.id ? approvedVariant : item,
+      );
+      demoDraftBundles.set(draftId, {
+        draft: {
+          ...bundle.draft,
+          selectedVariantId: approvedVariant.id,
+          updatedAt: now,
+        },
+        variants,
+        selectedVariant: approvedVariant,
+      });
+
+      return approvedVariant;
+    }
+
+    throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant not found.");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: variantData, error: variantError } = await supabase
+    .from("content_variants")
+    .select(contentVariantSelect)
+    .eq("id", input.contentVariantId)
+    .single();
+
+  if (variantError || !variantData) {
+    throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant not found.");
+  }
+
+  const currentVariant = mapContentVariant(variantData as unknown as ContentVariantRow);
+  const { data: draftData, error: draftError } = await supabase
+    .from("content_drafts")
+    .select("id, merchant_id")
+    .eq("id", currentVariant.draftId)
+    .eq("merchant_id", input.merchantId)
+    .single();
+
+  if (draftError || !draftData) {
+    throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
+  }
+
+  const { data: approvedData, error: approveError } = await supabase
+    .from("content_variants")
+    .update({
+      review_status: "approved",
+    })
+    .eq("id", input.contentVariantId)
+    .select(contentVariantSelect)
+    .single();
+
+  if (approveError || !approvedData) {
+    throw new ApiError(
+      500,
+      "CONTENT_VARIANT_APPROVE_FAILED",
+      approveError?.message ?? "Approve failed.",
+    );
+  }
+
+  const { error: selectVariantError } = await supabase
+    .from("content_drafts")
+    .update({
+      selected_variant_id: input.contentVariantId,
+    })
+    .eq("id", currentVariant.draftId)
+    .eq("merchant_id", input.merchantId);
+
+  if (selectVariantError) {
+    throw new ApiError(
+      500,
+      "CONTENT_DRAFT_SELECT_VARIANT_FAILED",
+      selectVariantError.message,
+    );
+  }
+
+  return mapContentVariant(approvedData as unknown as ContentVariantRow);
+}
+
+export async function appendContentVariantToDraft(input: {
+  merchantId: string;
+  draftId: string;
+  platform: Platform;
+  variantType: ContentVariantDto["variantType"];
+  title?: string | null;
+  bodyText?: string | null;
+  scriptText?: string | null;
+  hashtags?: string[];
+  ctaText?: string | null;
+  productionScenes?: ContentVariantDto["productionScenes"];
+  reviewStatus?: ContentVariantDto["reviewStatus"];
+}): Promise<ContentVariantDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const bundle = demoDraftBundles.get(input.draftId);
+
+    if (!bundle || bundle.draft.merchantId !== input.merchantId) {
+      throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
+    }
+
+    const now = new Date().toISOString();
+    const variant: ContentVariantDto = {
+      id: randomUUID(),
+      draftId: input.draftId,
+      platform: input.platform,
+      variantType: input.variantType,
+      versionNo: Math.max(0, ...bundle.variants.map((item) => item.versionNo)) + 1,
+      title: input.title ?? null,
+      bodyText: input.bodyText ?? null,
+      scriptText: input.scriptText ?? null,
+      hashtags: input.hashtags ?? [],
+      ctaText: input.ctaText ?? null,
+      productionScenes: input.productionScenes ?? [],
+      reviewStatus: input.reviewStatus ?? "review_pending",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const nextBundle = {
+      ...bundle,
+      draft: {
+        ...bundle.draft,
+        selectedVariantId: variant.id,
+        updatedAt: now,
+      },
+      variants: [...bundle.variants, variant],
+      selectedVariant: variant,
+    };
+
+    demoDraftBundles.set(input.draftId, nextBundle);
+
+    return variant;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: draftData, error: draftError } = await supabase
+    .from("content_drafts")
+    .select("id, merchant_id")
+    .eq("id", input.draftId)
+    .eq("merchant_id", input.merchantId)
+    .single();
+
+  if (draftError || !draftData) {
+    throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
+  }
+
+  const { data: existingData, error: existingError } = await supabase
+    .from("content_variants")
+    .select("version_no")
+    .eq("draft_id", input.draftId)
+    .order("version_no", { ascending: false })
+    .limit(1);
+
+  if (existingError) {
+    throw new ApiError(500, "CONTENT_VARIANT_VERSION_LOOKUP_FAILED", existingError.message);
+  }
+
+  const nextVersion =
+    Number((existingData?.[0] as { version_no?: number } | undefined)?.version_no ?? 0) + 1;
+  const { data: variantData, error: variantError } = await supabase
+    .from("content_variants")
+    .insert({
+      draft_id: input.draftId,
+      platform: input.platform,
+      variant_type: input.variantType,
+      version_no: nextVersion,
+      title: input.title ?? null,
+      body_text: input.bodyText ?? null,
+      script_text: input.scriptText ?? null,
+      hashtags: input.hashtags ?? [],
+      cta_text: input.ctaText ?? null,
+      review_status: input.reviewStatus ?? "review_pending",
+    })
+    .select(contentVariantSelect)
+    .single();
+
+  if (variantError || !variantData) {
+    throw new ApiError(
+      500,
+      "CONTENT_VARIANT_APPEND_FAILED",
+      variantError?.message ?? "Create failed.",
+    );
+  }
+
+  const variant = mapContentVariant(variantData as unknown as ContentVariantRow);
+  const { error: selectError } = await supabase
+    .from("content_drafts")
+    .update({
+      selected_variant_id: variant.id,
+    })
+    .eq("id", input.draftId)
+    .eq("merchant_id", input.merchantId);
+
+  if (selectError) {
+    throw new ApiError(500, "CONTENT_DRAFT_SELECT_VARIANT_FAILED", selectError.message);
+  }
+
+  return variant;
+}
+
 export function getLocalDemoContentVariantContext(contentVariantId: string) {
   if (isSupabaseAdminConfigured()) {
     return null;
@@ -293,6 +525,68 @@ export function getLocalDemoContentVariantContext(contentVariantId: string) {
       merchantId: bundle.draft.merchantId,
       draftId: bundle.draft.id,
       contentVariantId: variant.id,
+      variantType: variant.variantType,
+      title: variant.title,
+      scriptText: variant.scriptText,
+      ctaText: variant.ctaText,
+      productionScenes: variant.productionScenes,
+      reviewStatus: variant.reviewStatus,
+    };
+  }
+
+  return null;
+}
+
+export function getLocalDemoMediaOwnerContext(input: {
+  merchantId: string;
+  ownerType: "source_item" | "content_draft" | "content_variant";
+  ownerId: string;
+}) {
+  if (isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  if (input.ownerType === "source_item") {
+    const sourceItem = demoSourceItems.get(input.ownerId);
+
+    if (!sourceItem || sourceItem.merchantId !== input.merchantId) {
+      return null;
+    }
+
+    return {
+      ownerType: input.ownerType,
+      ownerId: sourceItem.id,
+      merchantId: sourceItem.merchantId,
+    };
+  }
+
+  if (input.ownerType === "content_draft") {
+    const bundle = demoDraftBundles.get(input.ownerId);
+
+    if (!bundle || bundle.draft.merchantId !== input.merchantId) {
+      return null;
+    }
+
+    return {
+      ownerType: input.ownerType,
+      ownerId: bundle.draft.id,
+      merchantId: bundle.draft.merchantId,
+      draftId: bundle.draft.id,
+    };
+  }
+
+  for (const bundle of demoDraftBundles.values()) {
+    const variant = bundle.variants.find((item) => item.id === input.ownerId);
+
+    if (!variant || bundle.draft.merchantId !== input.merchantId) {
+      continue;
+    }
+
+    return {
+      ownerType: input.ownerType,
+      ownerId: variant.id,
+      merchantId: bundle.draft.merchantId,
+      draftId: bundle.draft.id,
       variantType: variant.variantType,
     };
   }

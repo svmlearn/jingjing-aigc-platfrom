@@ -1,0 +1,13 @@
+.git/
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# The contract service is built from this directory, but the full FireRed
+# engine has its own Docker build context.
+firered/

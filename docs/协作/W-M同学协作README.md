@@ -371,7 +371,7 @@ M 同学做视频 / worker 前，建议按顺序读：
 ```text
 docs/协作/W-M同学协作README.md
 docs/产品文档/V2.1-内容日历到图文视频工作台协作PRD.md
-docs/架构规范/2026-04-25-AI视频图文数据与系统架构补充决策.md
+docs/架构规范/2026-04-28-current-architecture.md
 docs/progress/2026-04-25-supabase-migration-current-state.md
 ```
 

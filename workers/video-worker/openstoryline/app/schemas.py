@@ -20,6 +20,10 @@ class RunRequest(BaseModel):
     workspace_dir: str
     output_dir: str
     input_assets: list[InputAsset] = Field(default_factory=list)
+    execution_mode: str = "staging_worker"
+    script_text: str = ""
+    production_directive: dict[str, Any] = Field(default_factory=dict)
+    production_config: dict[str, Any] = Field(default_factory=dict)
     runtime_payload: dict[str, Any] = Field(default_factory=dict)
 
 

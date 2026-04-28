@@ -254,6 +254,14 @@ const consultationAgentSchema = z.object({
   temperature: z.number().min(0).max(2),
 });
 
+const scriptProductionAgentSchema = z.object({
+  systemPrompt: z.string().trim().min(1).max(5000),
+  model: z.string().trim().min(1).max(120),
+  temperature: z.number().min(0).max(2),
+  retrievalTopK: z.number().int().min(0).max(20),
+  revisionEnabled: z.boolean(),
+});
+
 const knowledgeRuntimeSchema = z.object({
   retrievalTopK: z.number().int().min(1).max(20),
   chunkSize: z.number().int().min(200).max(4000),
@@ -273,6 +281,7 @@ export const platformSettingsUpdateSchema = z.object({
     })
     .optional(),
   consultationAgent: consultationAgentSchema.optional(),
+  scriptProductionAgent: scriptProductionAgentSchema.optional(),
   knowledgeRuntime: knowledgeRuntimeSchema.optional(),
 });
 
@@ -314,10 +323,62 @@ export const mediaCompleteSchema = z.object({
   sortOrder: z.number().int().min(0).max(9999).optional(),
 });
 
+const productionConfigFilterSchema = z
+  .object({
+    mood: z.array(z.union([z.string(), z.number()])).optional(),
+    scene: z.array(z.union([z.string(), z.number()])).optional(),
+    genre: z.array(z.union([z.string(), z.number()])).optional(),
+    lang: z.array(z.union([z.string(), z.number()])).optional(),
+    id: z.array(z.union([z.string(), z.number()])).optional(),
+  })
+  .strict();
+
+const productionConfigSchema = z
+  .object({
+    voiceover: z
+      .object({
+        enabled: z.boolean().optional(),
+        provider: z.enum(["bytedance_bigtts", "minimax", "302"]).optional(),
+        voiceStyle: z.string().trim().max(120).nullish(),
+        speed: z.number().min(0.5).max(2).nullish(),
+        volume: z.number().min(0).max(3).nullish(),
+      })
+      .strict()
+      .optional(),
+    bgm: z
+      .object({
+        enabled: z.boolean().optional(),
+        userRequest: z.string().trim().max(300).nullish(),
+        include: productionConfigFilterSchema.optional(),
+        exclude: productionConfigFilterSchema.optional(),
+        volume: z.number().min(0).max(3).nullish(),
+      })
+      .strict()
+      .optional(),
+    subtitles: z
+      .object({
+        enabled: z.boolean().optional(),
+        style: z.enum(["platform_default", "bold_caption"]).optional(),
+      })
+      .strict()
+      .optional(),
+    render: z
+      .object({
+        aspectRatio: z.literal("9:16").optional(),
+        maxDurationSeconds: z.number().int().min(15).max(180).nullish(),
+        includeOriginalAudio: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
 export const createVideoEditJobSchema = z.object({
   contentVariantId: z.uuid(),
   instructionText: z.string().trim().max(4000).nullish(),
   inputPayload: z.record(z.string(), z.unknown()).optional(),
+  productionConfig: productionConfigSchema.nullish(),
+  sourceJobId: z.uuid().nullish(),
 });
 
 export const listVideoEditJobsQuerySchema = z.object({
@@ -338,6 +399,15 @@ export const generateConsultationContentSchema = z.object({
   goal: z.string().trim().max(300).nullish(),
   extraRequirement: z.string().trim().max(4000).nullish(),
   mode: z.enum(["create", "rewrite"]).optional(),
+  materialId: z.uuid().nullish(),
+  materialReferenceId: z.uuid().nullish(),
+  strategyTag: z.string().trim().max(80).nullish(),
+});
+
+export const reviseVideoScriptSchema = z.object({
+  contentVariantId: z.uuid(),
+  sessionId: z.uuid(),
+  revisionInstruction: z.string().trim().min(1).max(4000),
   materialId: z.uuid().nullish(),
   materialReferenceId: z.uuid().nullish(),
   strategyTag: z.string().trim().max(80).nullish(),

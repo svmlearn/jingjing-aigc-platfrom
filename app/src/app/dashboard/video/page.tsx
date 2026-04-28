@@ -8,6 +8,7 @@ export default async function DashboardVideoPage({
     materialId?: string;
     materialReferenceId?: string;
     strategy?: string;
+    testMode?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -17,6 +18,7 @@ export default async function DashboardVideoPage({
       materialId={params.materialId ?? null}
       materialReferenceId={params.materialReferenceId ?? null}
       strategyTag={params.strategy ?? null}
+      testMode={params.testMode ?? null}
     />
   );
 }

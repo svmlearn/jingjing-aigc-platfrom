@@ -318,6 +318,44 @@ export async function getMaterialWorkbenchReference(input: {
   return data ? mapWorkbenchReference(data as unknown as MaterialWorkbenchReferenceRow) : null;
 }
 
+export async function listMaterialWorkbenchReferencesByDraft(input: {
+  merchantId: string;
+  draftId: string;
+  targetWorkbench?: MaterialWorkbenchTarget;
+}): Promise<MaterialWorkbenchReferenceDto[]> {
+  if (!isSupabaseAdminConfigured()) {
+    return Array.from(demoWorkbenchReferences.values()).filter(
+      (reference) =>
+        reference.merchantId === input.merchantId &&
+        reference.draftId === input.draftId &&
+        (!input.targetWorkbench || reference.targetWorkbench === input.targetWorkbench),
+    );
+  }
+
+  const supabase = createSupabaseAdminClient();
+  let query = supabase
+    .from("material_workbench_references")
+    .select(materialWorkbenchReferenceSelect)
+    .eq("merchant_id", input.merchantId)
+    .eq("draft_id", input.draftId);
+
+  if (input.targetWorkbench) {
+    query = query.eq("target_workbench", input.targetWorkbench);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: true });
+
+  if (error) {
+    if (isMissingMaterialReferenceTable(error)) {
+      return [];
+    }
+
+    throw new ApiError(500, "MATERIAL_WORKBENCH_REFERENCE_LIST_FAILED", error.message);
+  }
+
+  return ((data ?? []) as unknown as MaterialWorkbenchReferenceRow[]).map(mapWorkbenchReference);
+}
+
 export async function consumeMaterialWorkbenchReference(input: {
   merchantId: string;
   referenceId: string;
