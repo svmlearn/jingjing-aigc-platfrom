@@ -35,6 +35,33 @@ This is deliberate. The worker owns a synchronous `/v1/runs` job contract, while
 the full FireRed project remains a session/chat-oriented application behind the
 adapter.
 
+## Real OpenStoryline Docker result
+
+The production path for this project is Docker-first:
+
+```text
+video-worker
+-> openstoryline-engine
+-> firered-openstoryline
+```
+
+Use `firered.env.example` when the server should run the real FireRed
+OpenStoryline engine:
+
+```bash
+cp firered.env.example .env
+# Set SUPABASE_DB_URL, COS_*, FIRERED_PROVIDER_KEY,
+# OPENSTORYLINE_LLM_*, OPENSTORYLINE_VLM_*, and selected TTS_* secrets.
+sudo mkdir -p /srv/jingjing-video-worker/{tmp,models,outputs}
+sudo mkdir -p /srv/jingjing-video-worker/firered/{.storyline,resource/bgms,resource/tts,outputs}
+docker compose --profile firered up --build
+```
+
+The main app still writes `video_edit_jobs`; it does not call FireRed directly.
+That keeps merchant permissions, script locking, retries, COS upload, and result
+metadata in the platform contract while the real rendering engine runs in
+Docker.
+
 The FireRed source is now vendored under `openstoryline/firered/` so the server
 deployment has the same engine source as development. The vendored copy includes
 source code, prompts, web assets, scripts, config templates, and dependency
@@ -222,7 +249,7 @@ Only requested `desiredOutputs` are uploaded and written back; for example,
 ## Local setup
 
 1. Copy `.env.example` to `.env`.
-2. Fill in `SUPABASE_DB_URL`, `COS_SECRET_ID`, `COS_SECRET_KEY`, `COS_BUCKET`, `OPENAI_API_KEY`, and any extra provider keys you need.
+2. Set `SUPABASE_DB_URL`, `COS_SECRET_ID`, `COS_SECRET_KEY`, `COS_BUCKET`, `OPENAI_API_KEY`, and any extra provider keys you need.
 3. Make sure the host directories exist on the worker machine:
 
 ```bash
