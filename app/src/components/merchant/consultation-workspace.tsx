@@ -24,6 +24,12 @@ import type {
 } from "@/contracts/consultation";
 import { cn } from "@/lib/utils";
 
+type ApiErrorPayload = {
+  error?: {
+    message?: string;
+  };
+};
+
 export function ConsultationWorkspace() {
   const [sessions, setSessions] = useState<ConsultationSessionSummaryDto[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -34,30 +40,60 @@ export function ConsultationWorkspace() {
   const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [creating, setCreating] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toolCardsCollapsed, setToolCardsCollapsed] = useState(true);
 
+  function redirectToLogin() {
+    const next = `${window.location.pathname}${window.location.search}`;
+    window.location.assign(`/login?error=unauthenticated&next=${encodeURIComponent(next)}`);
+  }
+
+  async function readApiJson<T>(response: Response, fallbackMessage: string): Promise<T> {
+    const data = (await response.json().catch(() => null)) as (T & ApiErrorPayload) | null;
+
+    if (response.status === 401) {
+      redirectToLogin();
+      throw new Error("登录状态已失效，请重新登录。");
+    }
+
+    if (!response.ok) {
+      throw new Error(data?.error?.message ?? fallbackMessage);
+    }
+
+    return (data ?? {}) as T;
+  }
+
+  function assertApiResponseOk(response: Response, fallbackMessage: string) {
+    if (response.status === 401) {
+      redirectToLogin();
+      throw new Error("登录状态已失效，请重新登录。");
+    }
+
+    if (!response.ok) {
+      throw new Error(fallbackMessage);
+    }
+  }
+
   async function loadSessions(preferredId?: string) {
     setLoading(true);
+    setSessionsLoaded(false);
     setError(null);
 
     try {
       const response = await fetch("/api/consultation/sessions", {
         cache: "no-store",
+        credentials: "same-origin",
       });
-      const data = (await response.json()) as {
+      const data = await readApiJson<{
         sessions?: ConsultationSessionSummaryDto[];
-        error?: { message?: string };
-      };
-
-      if (!response.ok) {
-        throw new Error(data.error?.message ?? "咨询会话加载失败");
-      }
+      }>(response, "咨询会话加载失败");
 
       const nextSessions = data.sessions ?? [];
       setSessions(nextSessions);
+      setSessionsLoaded(true);
       setSessionId((currentSessionId) => {
         if (preferredId) {
           return preferredId;
@@ -70,6 +106,7 @@ export function ConsultationWorkspace() {
         return nextSessions[0]?.id ?? null;
       });
     } catch (requestError) {
+      setSessionsLoaded(false);
       setError(requestError instanceof Error ? requestError.message : "咨询会话加载失败");
     } finally {
       setLoading(false);
@@ -80,15 +117,11 @@ export function ConsultationWorkspace() {
     try {
       const response = await fetch(`/api/consultation/sessions/${nextSessionId}`, {
         cache: "no-store",
+        credentials: "same-origin",
       });
-      const data = (await response.json()) as {
+      const data = await readApiJson<{
         session?: ConsultationSessionDetailDto;
-        error?: { message?: string };
-      };
-
-      if (!response.ok) {
-        throw new Error(data.error?.message ?? "咨询详情加载失败");
-      }
+      }>(response, "咨询详情加载失败");
 
       setSession(data.session ?? null);
     } catch (requestError) {
@@ -107,14 +140,14 @@ export function ConsultationWorkspace() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({}),
+        credentials: "same-origin",
       });
-      const data = (await response.json()) as {
+      const data = await readApiJson<{
         session?: ConsultationSessionDetailDto;
-        error?: { message?: string };
-      };
+      }>(response, "新建咨询失败");
 
-      if (!response.ok || !data.session) {
-        throw new Error(data.error?.message ?? "新建咨询失败");
+      if (!data.session) {
+        throw new Error("新建咨询失败");
       }
 
       setSession(data.session);
@@ -150,7 +183,7 @@ export function ConsultationWorkspace() {
   }, []);
 
   useEffect(() => {
-    if (!loading && sessions.length === 0 && !creating) {
+    if (sessionsLoaded && !loading && sessions.length === 0 && !creating) {
       const timeoutId = window.setTimeout(() => {
         void createSessionFromEffect();
       }, 0);
@@ -159,7 +192,7 @@ export function ConsultationWorkspace() {
         window.clearTimeout(timeoutId);
       };
     }
-  }, [creating, loading, sessions.length]);
+  }, [creating, loading, sessions.length, sessionsLoaded]);
 
   useEffect(() => {
     if (!sessionId) {
@@ -224,11 +257,10 @@ export function ConsultationWorkspace() {
     try {
       const response = await fetch(`/api/consultation/sessions/${nextSessionId}`, {
         method: "DELETE",
+        credentials: "same-origin",
       });
 
-      if (!response.ok) {
-        throw new Error("聊天记录删除失败，请稍后重试。");
-      }
+      assertApiResponseOk(response, "聊天记录删除失败，请稍后重试。");
 
       setPendingDeleteSessionId(null);
 
@@ -262,14 +294,14 @@ export function ConsultationWorkspace() {
         body: JSON.stringify({
           content: input.trim(),
         }),
+        credentials: "same-origin",
       });
-      const data = (await response.json()) as {
+      const data = await readApiJson<{
         session?: ConsultationSessionDetailDto;
-        error?: { message?: string };
-      };
+      }>(response, "发送消息失败");
 
-      if (!response.ok || !data.session) {
-        throw new Error(data.error?.message ?? "发送消息失败");
+      if (!data.session) {
+        throw new Error("发送消息失败");
       }
 
       setSession(data.session);
