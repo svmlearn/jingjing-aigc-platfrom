@@ -62,6 +62,25 @@
 - AllowedHeader: `*`
 - ExposeHeader: `ETag`, `x-cos-request-id`
 - MaxAgeSeconds: `600`
+
+后续用户已在腾讯云控制台处理 staging COS bucket：
+
+- Bucket: `jj-content-staging-1341668543`
+- Region: `ap-singapore`
+- CORS Origins: `http://localhost:3000`, `http://localhost:3001`, `https://jingjing-content-platform-staging.vercel.app`, `https://*.vercel.app`
+- Methods: `PUT`, `GET`, `POST`, `HEAD`
+- Allow-Headers: `*`
+- Expose-Headers: `ETag`, `Content-Length`, `x-cos-request-id`
+- Max-Age: `600`
+- Vary: 已开启
+
+复测结果：
+
+- `Origin = http://localhost:3001`
+- `Access-Control-Request-Method = PUT`
+- `Access-Control-Request-Headers = authorization,x-cos-security-token,content-type`
+- COS 预检返回 `200 OK`
+- 页面刷新后旧的 `CORS blocked or network error` 横幅不再出现，可继续由浏览器重新选择素材上传。
 - `node --test src/server/api/video-job-payload.test.ts`
 - `git diff --check app/src/components/merchant/video-workbench.tsx app/src/lib/ui/video-workflow.ts`
 
@@ -275,3 +294,29 @@
 - `corepack pnpm lint`
 - `corepack pnpm typecheck`
 - `corepack pnpm build`
+
+## 2026-04-28 21:55 补充：Gitee 目标分支整合验证
+
+用户要求将当前项目验证并推送到 Gitee：
+
+- 仓库：`https://gitee.com/jingjing_2025/jingjing-content-platform.git`
+- 目标分支：`孟_4.28_video-work`
+
+整合判断：
+
+- 远端目标分支与本地视频工作历史没有共同祖先，不能普通 merge，也不应强推覆盖。
+- 本轮以 `origin/孟_4.28_video-work` 为基线，新建 `codex/integrate-video-work-20260428`，再把本地视频工作提交链 cherry-pick 上去。
+- 仅 `app/src/components/platform-admin/platform-settings-editor.tsx` 有冲突；处理为保留远端 V2.2 后台设置页和管理员账号管理，同时补入脚本制作 agent 配置面板。
+
+整合后验证：
+
+- `node --test src/server/api/video-chain-test-draft.test.ts src/server/api/video-job-payload.test.ts src/server/api/video-script-production-agent.test.ts src/server/api/video-growth-context.test.ts`：22 passed
+- `python -m pytest tests -q`：46 passed
+- `docker compose -f docker-compose.yml -f docker-compose.firered.yml --profile firered config --quiet`：通过
+- `corepack pnpm lint`：通过
+- `corepack pnpm typecheck`：通过
+- `corepack pnpm build`：通过
+
+交接记录：
+
+- `docs/handoff/2026-04-28-video-work-gitee-push-handoff.md`
