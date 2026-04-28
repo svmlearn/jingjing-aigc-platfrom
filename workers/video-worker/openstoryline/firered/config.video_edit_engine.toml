@@ -20,18 +20,18 @@ outputs_dir = "./outputs"
 
 # ============= 模型配置 for user / Model Config for User =============
 [llm]
-model = "glm-4.6v"
-base_url = "https://open.bigmodel.cn/api/paas/v4/"
+model = "${OPENSTORYLINE_LLM_MODEL:-glm-4.6v}"
+base_url = "${OPENSTORYLINE_LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4/}"
 api_key = "${OPENSTORYLINE_LLM_API_KEY:-}"
-timeout = 30.0 # 单位：秒
+timeout = 30.0
 temperature = 0.1
 max_retries = 2
 
 [vlm]
-model = "glm-4.6v"
-base_url = "https://open.bigmodel.cn/api/paas/v4/"
+model = "${OPENSTORYLINE_VLM_MODEL:-glm-4.6v}"
+base_url = "${OPENSTORYLINE_VLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4/}"
 api_key = "${OPENSTORYLINE_VLM_API_KEY:-}"
-timeout = 20.0 # 单位：秒
+timeout = 60.0
 temperature = 0.1
 max_retries = 2
 
@@ -75,7 +75,7 @@ skill_dir = "./.storyline/skills"
 
 # =========== pexels ==========
 [search_media]
-pexels_api_key = "${PEXELS_API_KEY:-YOUR_PEXELS_API_KEY}"
+pexels_api_key = "${PEXELS_API_KEY:-}"
 
 # ============= 镜头分割 / Shot Segmentation =============
 [split_shots]
@@ -105,7 +105,7 @@ script_template_info_path = "./resource/script_templates/meta.json"
 tts_provider_params_path = "./resource/tts/tts_providers.json"
 
 [generate_voiceover.providers.302]
-base_url = ""
+base_url = "${TTS_302_BASE_URL:-https://api.302.ai}"
 api_key = "${TTS_302_API_KEY:-}"
 
 [generate_voiceover.providers.bytedance]
@@ -115,16 +115,16 @@ access_token = "${TTS_BYTEDANCE_ACCESS_TOKEN:-YOUR_BYTEDANCE_ACCESS_TOKEN}"
 
 [generate_voiceover.providers.bytedance_bigtts]
 label = "ByteDance Big Model"
-base_url = "https://openspeech.bytedance.com"
-uid = "${TTS_BYTEDANCE_BIGTTS_UID:-YOUR_BIGTTS_UID}"
-appid = "${TTS_BYTEDANCE_BIGTTS_APPID:-YOUR_BIGTTS_APPID}"
-access_key = "${TTS_BYTEDANCE_BIGTTS_ACCESS_KEY:-YOUR_BIGTTS_ACCESS_KEY}"
-resource_id = "${TTS_BYTEDANCE_BIGTTS_RESOURCE_ID:-YOUR_BIGTTS_RESOURCE_ID}"
-speaker = "${TTS_BYTEDANCE_BIGTTS_SPEAKER:-YOUR_BIGTTS_SPEAKER_ID}"
+base_url = "${TTS_BYTEDANCE_BIGTTS_BASE_URL:-https://openspeech.bytedance.com}"
+uid = "${TTS_BYTEDANCE_BIGTTS_UID:-openstoryline}"
+appid = "${TTS_BYTEDANCE_BIGTTS_APPID:-}"
+access_key = "${TTS_BYTEDANCE_BIGTTS_ACCESS_KEY:-}"
+resource_id = "${TTS_BYTEDANCE_BIGTTS_RESOURCE_ID:-}"
+speaker = "${TTS_BYTEDANCE_BIGTTS_SPEAKER:-}"
 
 [generate_voiceover.providers.minimax]
-base_url = "YOUR_MINIMAX_BASE_URL"
-api_key = "${TTS_MINIMAX_API_KEY:-YOUR_MINIMAX_API_KEY}"
+base_url = "${TTS_MINIMAX_BASE_URL:-https://api.minimax.io}"
+api_key = "${TTS_MINIMAX_API_KEY:-}"
 
 
 # ============= AI 转场生成 / AI transition generation ===================
@@ -132,11 +132,11 @@ api_key = "${TTS_MINIMAX_API_KEY:-YOUR_MINIMAX_API_KEY}"
 
 [generate_ai_transition.providers.dashscope] # 阿里通义万相 / Alibaba’s Tongyi Wanxiang (Wan) video model
 model_name = "wan2.2-kf2v-flash"
-api_key = "${AI_TRANSITION_DASHSCOPE_API_KEY:-YOUR_DASHSCOPE_API_KEY}"
+api_key = "${AI_TRANSITION_DASHSCOPE_API_KEY:-}"
 
 [generate_ai_transition.providers.minimax] # Minimax 海螺 / Hailuo
 model_name = "MiniMax-Hailuo-02"
-api_key = "${AI_TRANSITION_MINIMAX_API_KEY:-YOUR_MINIMAX_AI_TRANSITION_API_KEY}"
+api_key = "${AI_TRANSITION_MINIMAX_API_KEY:-}"
 
 
 # ============= BGM选择 / BGM Selection ====================

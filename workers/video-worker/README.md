@@ -67,6 +67,24 @@ FIRERED_PROVIDER_KEY=<private shared key>
 docker compose --profile firered up --build
 ```
 
+### FireRed production assets
+
+FireRed mode requires runtime assets that are not committed to git:
+
+- `/srv/jingjing-video-worker/firered/.storyline`
+- `/srv/jingjing-video-worker/firered/resource/bgms`
+- `/srv/jingjing-video-worker/firered/resource/tts/tts_providers.json`
+- `/srv/jingjing-video-worker/firered/outputs`
+
+Use one of two setup paths:
+
+1. Build with `DOWNLOAD_FIRERED_ASSETS=true`.
+2. Prepare the host directories before starting compose and keep
+   `DOWNLOAD_FIRERED_ASSETS=false`.
+
+Provider secrets must stay in `.env` or the deployment secret manager. Do not
+write concrete provider keys into FireRed config files.
+
 The FireRed worker API uses shared host mounts so it can read worker-downloaded
 input files under `/srv/jingjing-video-worker/tmp` and write `final.mp4` back to
 the requested `/srv/jingjing-video-worker/outputs/...` job directory.
