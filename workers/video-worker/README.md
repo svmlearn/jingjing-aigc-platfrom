@@ -26,6 +26,34 @@ The service now has an explicit engine adapter boundary:
 
 This is deliberate. The worker owns a synchronous `/v1/runs` job contract, while the full FireRed project is a session/chat/WebSocket style application. Do not replace the current `openstoryline/` directory with FireRed source directly; add a real adapter when that mapping is ready.
 
+The FireRed source is now vendored under `openstoryline/firered/` so the server
+deployment has the same engine source as development. The vendored copy includes
+source code, prompts, web assets, scripts, config templates, and dependency
+manifests. It intentionally excludes local runtime artifacts such as `.venv/`,
+`.downloads/`, `.storyline/`, `resource/`, `outputs/`, logs, and caches. Those
+large assets must be installed on the server image or mounted under
+`${VIDEO_WORKER_HOST_ROOT}/firered`.
+
+To start the FireRed web/MCP service on the server for integration work:
+
+```bash
+docker compose --profile firered up --build firered-openstoryline
+```
+
+If the server should download FireRed models/resources while building the image,
+set `DOWNLOAD_FIRERED_ASSETS=true` before building. Otherwise prepare these host
+directories and mount them into the container:
+
+```bash
+sudo mkdir -p /srv/jingjing-video-worker/firered/{.storyline,resource,outputs}
+```
+
+Important: this profile makes the FireRed service deployable, but it does not
+yet make worker jobs use FireRed for `/v1/runs`. The adapter still needs an
+explicit mapping from the worker run contract to FireRed session/media/chat and
+output retrieval before `OPENSTORYLINE_ENGINE_ADAPTER=fire_red` can replace the
+skeleton path.
+
 `video-worker` is the polling worker. It:
 
 1. sweeps stale jobs on boot and before each polling pass
@@ -195,4 +223,7 @@ This is a PoC execution skeleton, not the final production runtime. Today it giv
 - Tencent COS download/upload wrappers
 - an internal OpenStoryline HTTP contract we can swap for the real engine later
 
-It does not yet bundle the upstream `FireRed-OpenStoryline` project in this worktree. The current `openstoryline-engine` service is a local contract-preserving stub so the worker implementation can proceed independently.
+It now bundles a trimmed `FireRed-OpenStoryline` source copy for server deployment
+and adapter development. The current `openstoryline-engine` service is still a
+local contract-preserving stub until the FireRed `/v1/runs` adapter mapping is
+implemented and verified.

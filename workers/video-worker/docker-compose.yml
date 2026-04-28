@@ -36,6 +36,40 @@ services:
       retries: 5
       start_period: 10s
 
+  firered-openstoryline:
+    profiles:
+      - firered
+    build:
+      context: ./openstoryline/firered
+      args:
+        DOWNLOAD_FIRERED_ASSETS: ${DOWNLOAD_FIRERED_ASSETS:-false}
+    container_name: firered-openstoryline
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 7860
+      OPENSTORYLINE_LLM_MODEL: ${OPENSTORYLINE_LLM_MODEL:-}
+      OPENSTORYLINE_LLM_BASE_URL: ${OPENSTORYLINE_LLM_BASE_URL:-}
+      OPENSTORYLINE_LLM_API_KEY: ${OPENSTORYLINE_LLM_API_KEY:-}
+      OPENSTORYLINE_VLM_MODEL: ${OPENSTORYLINE_VLM_MODEL:-}
+      OPENSTORYLINE_VLM_BASE_URL: ${OPENSTORYLINE_VLM_BASE_URL:-}
+      OPENSTORYLINE_VLM_API_KEY: ${OPENSTORYLINE_VLM_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
+      FISH_AUDIO_API_KEY: ${FISH_AUDIO_API_KEY:-}
+    volumes:
+      - ${VIDEO_WORKER_HOST_ROOT:-/srv/jingjing-video-worker}/firered/.storyline:/app/.storyline
+      - ${VIDEO_WORKER_HOST_ROOT:-/srv/jingjing-video-worker}/firered/resource:/app/resource
+      - ${VIDEO_WORKER_HOST_ROOT:-/srv/jingjing-video-worker}/firered/outputs:/app/outputs
+    expose:
+      - "7860"
+      - "8001"
+
   video-worker:
     build:
       context: ./worker
@@ -71,4 +105,3 @@ services:
       - ${VIDEO_WORKER_HOST_ROOT:-/srv/jingjing-video-worker}/tmp:/srv/jingjing-video-worker/tmp
       - ${VIDEO_WORKER_HOST_ROOT:-/srv/jingjing-video-worker}/models:/srv/jingjing-video-worker/models
       - ${VIDEO_WORKER_HOST_ROOT:-/srv/jingjing-video-worker}/outputs:/srv/jingjing-video-worker/outputs
-
