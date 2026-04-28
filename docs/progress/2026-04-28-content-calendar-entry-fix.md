@@ -16,7 +16,15 @@
 - `pnpm exec tsc --noEmit`：通过。
 - `git diff --check -- app/src/components/merchant/consultation-workspace.tsx`：通过。
 
-## 状态
+## 发布记录
 
 - 当前分支：`main`。
-- 本次未 commit、未 push、未 merge。
+- 修复提交：`3876a85 fix: correct content calendar entry`。
+- Gitee：已推送 `main`，`c7dbb1d..3876a85`。
+- Vercel Project：`jingjing-content-platform-staging`。
+- Vercel production alias：`https://jingjing-content-platform-staging.vercel.app`。
+- Vercel deployment URL：`https://jingjing-content-platform-staging-lptrbpz4q.vercel.app`。
+- Vercel 云端构建：通过。
+- Supabase：本次没有新增 migration 或 Edge Function，未执行 DDL。
+- Supabase 只读确认：`consultation_sessions`、`content_drafts`、`video_edit_jobs`、`agent_configs` 均存在。
+- 本轮未 push 到 GitHub `origin`，未 merge 其他分支。
