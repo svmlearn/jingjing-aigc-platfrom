@@ -24,6 +24,11 @@ Supabase SSR 文档和本地依赖类型说明都明确提示：如果 pages / r
   - 在 proxy 中通过 `request.cookies.getAll()` 读取 Supabase cookie。
   - 在 `setAll` 中同步更新 request cookies 和 response cookies。
   - 每次请求调用 `supabase.auth.getUser()`，让 Supabase SSR 有机会刷新并写回 session cookie。
+- 追加修改商家登录入口：
+  - 新增 `app/src/components/app/merchant-login-form.tsx`。
+  - `/login` 页面保留原视觉结构，但登录提交改为浏览器端 `signInWithPassword`。
+  - 登录成功后调用 `/api/merchant-profile` 校验商户绑定，再进入目标页面。
+  - 这样 session cookie 由当前浏览器直接写入，避免 Server Action 写 cookie 在部分浏览器上下文中没有稳定传给后续 API 的问题。
 
 ## 验证
 
@@ -33,5 +38,6 @@ Supabase SSR 文档和本地依赖类型说明都明确提示：如果 pages / r
 
 ## 状态
 
-- 待 commit / push / Vercel staging 部署。
+- `59d9c15 fix: refresh supabase session in proxy` 已 push 到 Gitee `main`，并部署到 Vercel staging。
+- 追加的浏览器端商家登录修复待 commit / push / Vercel staging 部署。
 - 本次无 Supabase migration。
