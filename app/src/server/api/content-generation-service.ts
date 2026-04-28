@@ -487,6 +487,9 @@ async function generateVideoScriptCandidatesWithAgent(input: {
     const parsed = parseScriptProductionAgentResponse(
       response.content,
       input.fallbackCandidates,
+      {
+        brief: input.brief,
+      },
     );
 
     if (parsed.mode === "needs_more_info") {

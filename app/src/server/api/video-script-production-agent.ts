@@ -233,6 +233,9 @@ export function validateScriptProductionBrief(
 export function parseScriptProductionAgentResponse(
   content: string,
   fallbackCandidates: VideoScriptCandidate[],
+  options?: {
+    brief?: ScriptProductionBrief | null;
+  },
 ): ScriptProductionAgentParseResult {
   try {
     const payload = parseJsonObject(content);
@@ -253,10 +256,18 @@ export function parseScriptProductionAgentResponse(
     }
 
     const rawCandidates = Array.isArray(payload.candidates) ? payload.candidates : [];
-    const normalizedCandidates = normalizeCandidates(rawCandidates, fallbackCandidates);
+    const normalizedCandidates = normalizeCandidates(
+      rawCandidates,
+      fallbackCandidates,
+      options?.brief ?? null,
+    );
 
     if (normalizedCandidates.length === 0) {
-      throw new Error("No usable script production candidates returned by LLM.");
+      throw new Error(
+        options?.brief
+          ? "No usable script production candidates matched the brief."
+          : "No usable script production candidates returned by LLM.",
+      );
     }
 
     return {
@@ -280,6 +291,7 @@ export function parseScriptProductionAgentResponse(
 function normalizeCandidates(
   rawCandidates: unknown[],
   fallbackCandidates: VideoScriptCandidate[],
+  brief: ScriptProductionBrief | null,
 ): VideoScriptCandidate[] {
   const fallbackByType = new Map(
     fallbackCandidates.map((candidate) => [candidate.candidateType, candidate]),
@@ -305,6 +317,10 @@ function normalizeCandidates(
       continue;
     }
 
+    if (brief && !candidateMatchesBrief({ title, hook, whyThisWorks, ctaText, scriptText }, brief)) {
+      continue;
+    }
+
     normalized.push({
       candidateType,
       title,
@@ -317,6 +333,82 @@ function normalizeCandidates(
   }
 
   return normalized;
+}
+
+function candidateMatchesBrief(
+  candidate: Pick<VideoScriptCandidate, "title" | "hook" | "whyThisWorks" | "ctaText" | "scriptText">,
+  brief: ScriptProductionBrief,
+) {
+  const text = [
+    candidate.title,
+    candidate.hook,
+    candidate.whyThisWorks,
+    candidate.ctaText,
+    candidate.scriptText,
+  ].join("\n");
+  const anchors = extractBriefAnchors(brief);
+
+  if (anchors.length === 0) {
+    return true;
+  }
+
+  return anchors.some((anchor) => text.includes(anchor));
+}
+
+function extractBriefAnchors(brief: ScriptProductionBrief) {
+  const rawAnchors = [
+    ...brief.productOrServiceInfo,
+    ...brief.customerAdvantages,
+    ...brief.availableScenes,
+    ...brief.availableMaterials.flatMap((material) => [
+      material.title,
+      material.description ?? "",
+      material.materialType ?? "",
+    ]),
+  ];
+  const generic = new Set([
+    "专业",
+    "温柔",
+    "可信",
+    "可信赖",
+    "本地",
+    "门店",
+    "方案",
+    "体验",
+    "服务",
+    "视频",
+    "真实",
+  ]);
+  const anchors = new Set<string>();
+
+  for (const rawAnchor of rawAnchors) {
+    for (const term of splitAnchorTerms(rawAnchor)) {
+      if (term.length >= 2 && !generic.has(term)) {
+        anchors.add(term);
+      }
+    }
+  }
+
+  return [...anchors].sort((a, b) => b.length - a.length).slice(0, 30);
+}
+
+function splitAnchorTerms(value: string) {
+  return value
+    .split(/[，,、。；;：:\s/|()（）【】「」]+/u)
+    .flatMap((part) => {
+      const trimmed = part.trim();
+
+      if (!trimmed) {
+        return [];
+      }
+
+      const terms = [trimmed];
+      for (const match of trimmed.match(/\p{Script=Han}{2,8}/gu) ?? []) {
+        terms.push(match);
+      }
+
+      return terms;
+    });
 }
 
 function completeCandidateSet(

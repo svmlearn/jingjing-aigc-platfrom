@@ -184,6 +184,33 @@ test("parseScriptProductionAgentResponse falls back when JSON is unusable", () =
   assert.match(result.error, /candidate/i);
 });
 
+test("parseScriptProductionAgentResponse rejects candidates that do not match the brief", () => {
+  const fallbackCandidates = buildFallbackCandidates();
+  const result = parseScriptProductionAgentResponse(
+    JSON.stringify({
+      status: "ready",
+      candidates: [
+        {
+          candidateType: "safe_conversion",
+          title: "3 个护肤坏习惯",
+          hook: "每天洗脸还长痘？",
+          whyThisWorks: "护肤痛点共鸣。",
+          ctaText: "领取护肤方案",
+          scriptText: "画面：展示洁面、精华、面膜。台词：烟酰胺和神经酰胺温和修护。",
+        },
+      ],
+    }),
+    fallbackCandidates,
+    {
+      brief: completeBrief,
+    },
+  );
+
+  assert.equal(result.mode, "fallback_parse_error");
+  assert.deepEqual(result.candidates, fallbackCandidates);
+  assert.match(result.error, /brief/i);
+});
+
 function buildFallbackCandidates(): VideoScriptCandidate[] {
   return [
     buildFallbackCandidate("safe_conversion"),
