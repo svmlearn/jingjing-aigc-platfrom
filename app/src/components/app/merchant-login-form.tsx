@@ -1,91 +1,19 @@
-"use client";
-
 import Link from "next/link";
-import { LogIn, LoaderCircle, Store } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { LogIn, Store } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type MerchantLoginFormProps = {
   initialErrorMessage?: string;
   nextPath: string;
 };
 
-const invalidCredentialsMessage = "邮箱或密码不正确，请重新输入。";
-const noMerchantProfileMessage =
-  "这个账号还没有绑定商户，请使用邀请码注册，或联系平台管理员处理。";
-
-type ApiErrorPayload = {
-  error?: {
-    code?: string;
-    message?: string;
-  };
-};
-
 export function MerchantLoginForm({
   initialErrorMessage,
   nextPath,
 }: MerchantLoginFormProps) {
-  const router = useRouter();
-  const [errorMessage, setErrorMessage] = useState(initialErrorMessage);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const form = new FormData(event.currentTarget);
-    const email = String(form.get("email") ?? "").trim().toLowerCase();
-    const password = String(form.get("password") ?? "");
-
-    if (!email || !password) {
-      setErrorMessage(invalidCredentialsMessage);
-      return;
-    }
-
-    setIsSubmitting(true);
-    setErrorMessage(undefined);
-
-    try {
-      const supabase = createSupabaseBrowserClient();
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (error || !data.user) {
-        setErrorMessage(invalidCredentialsMessage);
-        return;
-      }
-
-      const profileResponse = await fetch("/api/merchant-profile", {
-        cache: "no-store",
-        credentials: "same-origin",
-      });
-
-      if (!profileResponse.ok) {
-        const payload = (await profileResponse.json().catch(() => null)) as ApiErrorPayload | null;
-
-        await supabase.auth.signOut();
-
-        if (payload?.error?.code === "MERCHANT_PROFILE_NOT_FOUND") {
-          setErrorMessage(noMerchantProfileMessage);
-          return;
-        }
-
-        setErrorMessage(payload?.error?.message ?? "登录状态建立失败，请刷新后重试。");
-        return;
-      }
-
-      router.push(nextPath);
-      router.refresh();
-    } catch {
-      setErrorMessage("登录失败，请确认网络后重试。");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
   return (
     <section className="w-full rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.55)] sm:p-7">
       <div className="flex items-start gap-4 border-b border-white/10 pb-5">
@@ -105,13 +33,14 @@ export function MerchantLoginForm({
         </div>
       </div>
 
-      {errorMessage ? (
+      {initialErrorMessage ? (
         <div className="mt-5 rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-          {errorMessage}
+          {initialErrorMessage}
         </div>
       ) : null}
 
-      <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
+      <form action="/api/auth/merchant-login" method="post" className="mt-6 grid gap-5">
+        <input type="hidden" name="next" value={nextPath} />
         <div className="grid gap-2.5">
           <Label htmlFor="email" className="text-white/70">
             邮箱
@@ -143,19 +72,9 @@ export function MerchantLoginForm({
         <Button
           type="submit"
           className="mt-1 h-12 rounded-2xl border border-amber-300/20 bg-amber-600 text-base font-semibold text-white shadow-[0_14px_34px_rgba(180,83,9,0.3)] hover:bg-amber-500"
-          disabled={isSubmitting}
         >
-          {isSubmitting ? (
-            <>
-              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-              登录中
-            </>
-          ) : (
-            <>
-              <LogIn className="size-4" aria-hidden="true" />
-              登录
-            </>
-          )}
+          <LogIn className="size-4" aria-hidden="true" />
+          登录
         </Button>
       </form>
 
