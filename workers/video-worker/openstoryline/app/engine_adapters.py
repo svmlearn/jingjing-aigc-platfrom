@@ -119,7 +119,7 @@ class FireRedEngineAdapter:
         output_dir = Path(request.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        payload = _build_fire_red_run_payload(request)
+        payload = _build_fire_red_run_payload(self._settings, request)
         headers = (
             {"X-FIRERED-PROVIDER-KEY": self._settings.fire_red_provider_key}
             if self._settings.fire_red_provider_key
@@ -162,10 +162,18 @@ class FireRedEngineAdapter:
             fire_red_response=fire_red_response,
         )
 
+        production_config = request.production_config or {}
         raw_response = {
             "engine": "fire_red-openstoryline",
             "engine_adapter": self._settings.engine_adapter,
             "fire_red": fire_red_response,
+            "openstoryline": {
+                "engine_adapter": self._settings.engine_adapter,
+                "session_id": fire_red_response.get("session_id"),
+                "production_config_used": production_config,
+                "selected_bgm": _first_dict(fire_red_response, "selected_bgm", "bgm"),
+                "voiceover": _first_dict(fire_red_response, "voiceover"),
+            },
         }
         if isinstance(fire_red_response.get("raw_response"), dict):
             raw_response["fire_red_raw_response"] = fire_red_response["raw_response"]
@@ -227,9 +235,13 @@ def _write_placeholder_subtitle(path: Path) -> None:
     )
 
 
-def _build_fire_red_run_payload(request: RunRequest) -> dict[str, object]:
+def _build_fire_red_run_payload(
+    settings: Settings,
+    request: RunRequest,
+) -> dict[str, object]:
     directive = request.production_directive or {}
     desired_outputs = list(directive.get("desired_outputs") or ["final_video"])
+    production_config = request.production_config or {}
     payload = {
         "job_id": request.job_id,
         "merchant_id": request.merchant_id,
@@ -241,20 +253,72 @@ def _build_fire_red_run_payload(request: RunRequest) -> dict[str, object]:
         "execution_mode": request.execution_mode,
         "script_text": request.script_text,
         "production_directive": directive,
+        "production_config": production_config,
+        "service_config": _build_fire_red_service_config(settings, production_config),
         "runtime_payload": request.runtime_payload,
         "desired_outputs": desired_outputs,
         "input_assets": [asset.model_dump() for asset in request.input_assets],
-        "prompt": _build_fire_red_prompt(request, desired_outputs),
+        "prompt": _build_fire_red_prompt(request, desired_outputs, production_config),
     }
     return payload
+
+
+def _build_fire_red_service_config(
+    settings: Settings,
+    production_config: dict[str, object],
+) -> dict[str, object]:
+    voiceover = production_config.get("voiceover")
+    if not isinstance(voiceover, dict) or voiceover.get("enabled") is False:
+        return {}
+
+    provider = str(voiceover.get("provider") or settings.tts_provider).strip()
+    if provider == "minimax":
+        provider_config = _compact_dict(
+            {
+                "base_url": settings.tts_minimax_base_url,
+                "api_key": settings.tts_minimax_api_key,
+            }
+        )
+    elif provider == "302":
+        provider_config = _compact_dict(
+            {
+                "base_url": settings.tts_302_base_url,
+                "api_key": settings.tts_302_api_key,
+            }
+        )
+    else:
+        provider = "bytedance_bigtts"
+        provider_config = _compact_dict(
+            {
+                "base_url": settings.tts_bytedance_bigtts_base_url,
+                "uid": settings.tts_bytedance_bigtts_uid,
+                "appid": settings.tts_bytedance_bigtts_appid,
+                "access_key": settings.tts_bytedance_bigtts_access_key,
+                "resource_id": settings.tts_bytedance_bigtts_resource_id,
+                "speaker": settings.tts_bytedance_bigtts_speaker,
+            }
+        )
+
+    return {
+        "tts": {
+            "provider": provider,
+            provider: provider_config,
+        }
+    }
 
 
 def _build_fire_red_prompt(
     request: RunRequest,
     desired_outputs: list[str],
+    production_config: dict[str, object],
 ) -> str:
     directive_json = json.dumps(
         request.production_directive or {},
+        ensure_ascii=False,
+        indent=2,
+    )
+    production_config_json = json.dumps(
+        production_config,
         ensure_ascii=False,
         indent=2,
     )
@@ -271,6 +335,12 @@ def _build_fire_red_prompt(
             "Use the uploaded media in this session and render a final video.",
             "Do not rewrite the locked script unless ProductionDirective explicitly allows it.",
             "The final step must produce a render_video artifact.",
+            "Required production nodes:",
+            "- Use generate_voiceover when productionConfig.voiceover.enabled is true.",
+            "- Use generate_voiceover when voiceover.enabled is true.",
+            "- Use select_bgm when productionConfig.bgm.enabled is true.",
+            "- Use select_bgm when bgm.enabled is true.",
+            "- Use render_video as the final node and include BGM/TTS tracks according to productionConfig.",
             f"Desired outputs: {', '.join(desired_outputs)}",
             "",
             "Locked script:",
@@ -284,8 +354,23 @@ def _build_fire_red_prompt(
             "",
             "ProductionDirective:",
             directive_json,
+            "",
+            "ProductionConfig:",
+            production_config_json,
         ]
     )
+
+
+def _compact_dict(payload: dict[str, str]) -> dict[str, str]:
+    return {key: value for key, value in payload.items() if value}
+
+
+def _first_dict(payload: dict[str, object], *keys: str) -> dict[str, object]:
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, dict):
+            return value
+    return {}
 
 
 def _resolve_optional_path(value: object) -> Path | None:
@@ -343,7 +428,7 @@ def _write_fire_red_metadata(
                 "job_id": request.job_id,
                 "engine": "fire_red-openstoryline",
                 "engine_adapter": "fire_red",
-                "mapped_payload": mapped_payload,
+                "mapped_payload": _mask_sensitive_payload(mapped_payload),
                 "fire_red_response": fire_red_response,
             },
             ensure_ascii=True,
@@ -351,3 +436,18 @@ def _write_fire_red_metadata(
         ),
         encoding="utf-8",
     )
+
+
+def _mask_sensitive_payload(value: object) -> object:
+    if isinstance(value, dict):
+        masked: dict[str, object] = {}
+        for key, item in value.items():
+            normalized_key = key.lower()
+            if any(token in normalized_key for token in ("api_key", "access_key", "token", "secret")):
+                masked[key] = "***"
+            else:
+                masked[key] = _mask_sensitive_payload(item)
+        return masked
+    if isinstance(value, list):
+        return [_mask_sensitive_payload(item) for item in value]
+    return value

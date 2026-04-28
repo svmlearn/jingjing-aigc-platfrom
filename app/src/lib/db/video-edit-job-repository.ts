@@ -56,6 +56,43 @@ export type VideoEditJobListFilters = {
 };
 
 const demoVideoEditJobs = new Map<string, VideoEditJobDto>();
+const LOCAL_DEMO_JOB_TIMELINE = [
+  {
+    elapsedMs: 0,
+    status: "pending",
+    currentStage: "local_demo_pending_worker",
+    progressPct: 0,
+  },
+  {
+    elapsedMs: 1500,
+    status: "queued",
+    currentStage: "local_demo_claimed",
+    progressPct: 20,
+  },
+  {
+    elapsedMs: 3000,
+    status: "preparing",
+    currentStage: "local_demo_preparing_inputs",
+    progressPct: 45,
+  },
+  {
+    elapsedMs: 5000,
+    status: "running",
+    currentStage: "local_demo_rendering_placeholder",
+    progressPct: 80,
+  },
+  {
+    elapsedMs: 8000,
+    status: "succeeded",
+    currentStage: "local_demo_completed",
+    progressPct: 100,
+  },
+] as const satisfies Array<{
+  elapsedMs: number;
+  status: VideoEditJobStatus;
+  currentStage: string;
+  progressPct: number;
+}>;
 
 export async function assertVideoScriptVariantAccess(input: {
   merchantId: string;
@@ -169,7 +206,7 @@ export async function createVideoEditJob(input: {
       failureReason: null,
       resultPayload: {},
       logPayload: {},
-      startedAt: null,
+      startedAt: now,
       finishedAt: null,
       createdAt: now,
       updatedAt: now,
@@ -217,6 +254,7 @@ export async function listVideoEditJobs(
 ): Promise<VideoEditJobDto[]> {
   if (!isSupabaseAdminConfigured()) {
     return Array.from(demoVideoEditJobs.values())
+      .map(advanceLocalDemoVideoJob)
       .filter((job) => job.merchantId === merchantId)
       .filter((job) => !filters.status || job.status === filters.status)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -255,7 +293,7 @@ export async function getVideoEditJobById(input: {
       throw new ApiError(404, "VIDEO_EDIT_JOB_NOT_FOUND", "Video edit job not found.");
     }
 
-    return job;
+    return advanceLocalDemoVideoJob(job);
   }
 
   const supabase = createSupabaseAdminClient();
@@ -288,6 +326,7 @@ export async function retryVideoEditJob(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
+    const now = new Date().toISOString();
     const updated: VideoEditJobDto = {
       ...current,
       status: "pending",
@@ -297,10 +336,10 @@ export async function retryVideoEditJob(input: {
       runtimePayload: {},
       resultPayload: {},
       logPayload: {},
-      startedAt: null,
+      startedAt: now,
       finishedAt: null,
       retryCount: current.retryCount + 1,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     };
 
     demoVideoEditJobs.set(input.jobId, updated);
@@ -406,6 +445,86 @@ export function mapVideoEditJob(row: VideoEditJobRow): VideoEditJobDto {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function advanceLocalDemoVideoJob(job: VideoEditJobDto): VideoEditJobDto {
+  if (!["pending", "queued", "preparing", "running"].includes(job.status)) {
+    return job;
+  }
+
+  const startedAt = Date.parse(job.startedAt ?? job.updatedAt ?? job.createdAt);
+  if (!Number.isFinite(startedAt)) {
+    return job;
+  }
+
+  const elapsedMs = Date.now() - startedAt;
+  const step =
+    [...LOCAL_DEMO_JOB_TIMELINE]
+      .reverse()
+      .find((item) => elapsedMs >= item.elapsedMs) ?? LOCAL_DEMO_JOB_TIMELINE[0];
+  if (
+    job.status === step.status &&
+    job.currentStage === step.currentStage &&
+    job.progressPct === step.progressPct
+  ) {
+    return job;
+  }
+
+  const now = new Date().toISOString();
+  const succeeded = step.status === "succeeded";
+  const updated: VideoEditJobDto = {
+    ...job,
+    status: step.status,
+    currentStage: step.currentStage,
+    progressPct: step.progressPct,
+    runtimePayload: {
+      ...job.runtimePayload,
+      mode: "local_demo_memory",
+      simulatedWorker: true,
+    },
+    resultPayload: succeeded
+      ? buildLocalDemoResultPayload(job)
+      : job.resultPayload,
+    logPayload: {
+      ...job.logPayload,
+      local_demo: {
+        simulated: true,
+        stage: step.currentStage,
+        note: "Local demo mode simulates worker progress without rendering media.",
+      },
+    },
+    finishedAt: succeeded ? (job.finishedAt ?? now) : null,
+    updatedAt: now,
+  };
+
+  demoVideoEditJobs.set(job.id, updated);
+
+  return updated;
+}
+
+function buildLocalDemoResultPayload(job: VideoEditJobDto): Record<string, unknown> {
+  const directive = readRecord(job.inputPayload.productionDirective);
+  const desiredOutputs = Array.isArray(directive.desiredOutputs)
+    ? directive.desiredOutputs
+    : ["final_video"];
+
+  return {
+    engine: "local-demo-worker",
+    engine_adapter: "local_demo",
+    execution_mode: "local_demo_memory",
+    script_locked: readRecord(job.inputPayload.script).locked === true,
+    desired_outputs: desiredOutputs,
+    outputs: {},
+    uploaded_assets: [],
+    preview_notice:
+      "Local demo mode does not render media. Configure Supabase, COS, and video-worker for real output assets.",
+  };
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 const videoEditJobSelect = [

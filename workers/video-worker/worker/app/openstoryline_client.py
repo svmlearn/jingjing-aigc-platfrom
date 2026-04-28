@@ -40,6 +40,7 @@ class OpenStorylineClient:
             "execution_mode": directive.execution_mode,
             "script_text": directive.script_text,
             "production_directive": directive.to_payload(),
+            "production_config": directive.production_config,
             "runtime_payload": job.runtime_payload,
         }
         response = httpx.post(

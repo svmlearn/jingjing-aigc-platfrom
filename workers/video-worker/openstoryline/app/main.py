@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import httpx
 from fastapi import FastAPI, HTTPException
 
 from .config import Settings
@@ -27,6 +28,52 @@ def health() -> dict[str, object]:
         "mcp_port": settings.mcp_port,
         "outputs_dir": str(settings.outputs_dir),
     }
+
+
+@app.get("/ready")
+def ready() -> dict[str, object]:
+    settings: Settings = app.state.settings
+    payload: dict[str, object] = {
+        "status": "ready",
+        "service": "openstoryline-engine",
+        "engine_adapter": settings.engine_adapter,
+    }
+
+    if settings.engine_adapter != "fire_red":
+        return payload
+
+    missing = []
+    if not settings.fire_red_base_url:
+        missing.append("FIRERED_OPENSTORYLINE_BASE_URL")
+    if not settings.fire_red_provider_key_configured:
+        missing.append("FIRERED_PROVIDER_KEY")
+    if missing:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "engine_adapter": settings.engine_adapter,
+                "missing": missing,
+            },
+        )
+
+    try:
+        response = httpx.get(f"{settings.fire_red_base_url}/health", timeout=2.0)
+        response.raise_for_status()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "engine_adapter": settings.engine_adapter,
+                "fire_red_base_url": settings.fire_red_base_url,
+                "reason": f"{type(exc).__name__}: {exc}",
+            },
+        ) from exc
+
+    payload["fire_red_base_url_configured"] = True
+    payload["fire_red_provider_key_configured"] = True
+    return payload
 
 
 @app.post("/v1/runs", response_model=RunResponse)

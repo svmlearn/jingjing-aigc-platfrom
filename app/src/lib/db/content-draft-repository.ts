@@ -35,8 +35,23 @@ type ContentVariantRow = {
   updated_at: string;
 };
 
-const demoSourceItems = new Map<string, { id: string; merchantId: string }>();
-const demoDraftBundles = new Map<string, ContentDraftBundleDto>();
+type LocalDemoContentDraftStore = {
+  sourceItems: Map<string, { id: string; merchantId: string }>;
+  draftBundles: Map<string, ContentDraftBundleDto>;
+};
+
+const globalDemoContentDraftStore = globalThis as typeof globalThis & {
+  __jingjingLocalDemoContentDraftStore?: LocalDemoContentDraftStore;
+};
+
+const demoContentDraftStore =
+  globalDemoContentDraftStore.__jingjingLocalDemoContentDraftStore ??
+  (globalDemoContentDraftStore.__jingjingLocalDemoContentDraftStore = {
+    sourceItems: new Map<string, { id: string; merchantId: string }>(),
+    draftBundles: new Map<string, ContentDraftBundleDto>(),
+  });
+const demoSourceItems = demoContentDraftStore.sourceItems;
+const demoDraftBundles = demoContentDraftStore.draftBundles;
 
 export async function createManualSourceItem(input: {
   merchantId: string;
@@ -96,6 +111,7 @@ export async function createDraftWithVariants(input: {
     scriptText?: string | null;
     hashtags?: string[];
     ctaText?: string | null;
+    productionScenes?: ContentVariantDto["productionScenes"];
     reviewStatus?: ContentVariantDto["reviewStatus"];
   }>;
 }): Promise<ContentDraftBundleDto> {
@@ -113,6 +129,7 @@ export async function createDraftWithVariants(input: {
       scriptText: variant.scriptText ?? null,
       hashtags: variant.hashtags ?? [],
       ctaText: variant.ctaText ?? null,
+      productionScenes: variant.productionScenes ?? [],
       reviewStatus: variant.reviewStatus ?? "editing",
       createdAt: now,
       updatedAt: now,
@@ -383,6 +400,7 @@ export async function appendContentVariantToDraft(input: {
   scriptText?: string | null;
   hashtags?: string[];
   ctaText?: string | null;
+  productionScenes?: ContentVariantDto["productionScenes"];
   reviewStatus?: ContentVariantDto["reviewStatus"];
 }): Promise<ContentVariantDto> {
   if (!isSupabaseAdminConfigured()) {
@@ -404,6 +422,7 @@ export async function appendContentVariantToDraft(input: {
       scriptText: input.scriptText ?? null,
       hashtags: input.hashtags ?? [],
       ctaText: input.ctaText ?? null,
+      productionScenes: input.productionScenes ?? [],
       reviewStatus: input.reviewStatus ?? "review_pending",
       createdAt: now,
       updatedAt: now,
@@ -510,7 +529,65 @@ export function getLocalDemoContentVariantContext(contentVariantId: string) {
       title: variant.title,
       scriptText: variant.scriptText,
       ctaText: variant.ctaText,
+      productionScenes: variant.productionScenes,
       reviewStatus: variant.reviewStatus,
+    };
+  }
+
+  return null;
+}
+
+export function getLocalDemoMediaOwnerContext(input: {
+  merchantId: string;
+  ownerType: "source_item" | "content_draft" | "content_variant";
+  ownerId: string;
+}) {
+  if (isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  if (input.ownerType === "source_item") {
+    const sourceItem = demoSourceItems.get(input.ownerId);
+
+    if (!sourceItem || sourceItem.merchantId !== input.merchantId) {
+      return null;
+    }
+
+    return {
+      ownerType: input.ownerType,
+      ownerId: sourceItem.id,
+      merchantId: sourceItem.merchantId,
+    };
+  }
+
+  if (input.ownerType === "content_draft") {
+    const bundle = demoDraftBundles.get(input.ownerId);
+
+    if (!bundle || bundle.draft.merchantId !== input.merchantId) {
+      return null;
+    }
+
+    return {
+      ownerType: input.ownerType,
+      ownerId: bundle.draft.id,
+      merchantId: bundle.draft.merchantId,
+      draftId: bundle.draft.id,
+    };
+  }
+
+  for (const bundle of demoDraftBundles.values()) {
+    const variant = bundle.variants.find((item) => item.id === input.ownerId);
+
+    if (!variant || bundle.draft.merchantId !== input.merchantId) {
+      continue;
+    }
+
+    return {
+      ownerType: input.ownerType,
+      ownerId: variant.id,
+      merchantId: bundle.draft.merchantId,
+      draftId: bundle.draft.id,
+      variantType: variant.variantType,
     };
   }
 

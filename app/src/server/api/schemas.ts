@@ -323,10 +323,61 @@ export const mediaCompleteSchema = z.object({
   sortOrder: z.number().int().min(0).max(9999).optional(),
 });
 
+const productionConfigFilterSchema = z
+  .object({
+    mood: z.array(z.union([z.string(), z.number()])).optional(),
+    scene: z.array(z.union([z.string(), z.number()])).optional(),
+    genre: z.array(z.union([z.string(), z.number()])).optional(),
+    lang: z.array(z.union([z.string(), z.number()])).optional(),
+    id: z.array(z.union([z.string(), z.number()])).optional(),
+  })
+  .strict();
+
+const productionConfigSchema = z
+  .object({
+    voiceover: z
+      .object({
+        enabled: z.boolean().optional(),
+        provider: z.enum(["bytedance_bigtts", "minimax", "302"]).optional(),
+        voiceStyle: z.string().trim().max(120).nullish(),
+        speed: z.number().min(0.5).max(2).nullish(),
+        volume: z.number().min(0).max(3).nullish(),
+      })
+      .strict()
+      .optional(),
+    bgm: z
+      .object({
+        enabled: z.boolean().optional(),
+        userRequest: z.string().trim().max(300).nullish(),
+        include: productionConfigFilterSchema.optional(),
+        exclude: productionConfigFilterSchema.optional(),
+        volume: z.number().min(0).max(3).nullish(),
+      })
+      .strict()
+      .optional(),
+    subtitles: z
+      .object({
+        enabled: z.boolean().optional(),
+        style: z.enum(["platform_default", "bold_caption"]).optional(),
+      })
+      .strict()
+      .optional(),
+    render: z
+      .object({
+        aspectRatio: z.literal("9:16").optional(),
+        maxDurationSeconds: z.number().int().min(15).max(180).nullish(),
+        includeOriginalAudio: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
 export const createVideoEditJobSchema = z.object({
   contentVariantId: z.uuid(),
   instructionText: z.string().trim().max(4000).nullish(),
   inputPayload: z.record(z.string(), z.unknown()).optional(),
+  productionConfig: productionConfigSchema.nullish(),
   sourceJobId: z.uuid().nullish(),
 });
 

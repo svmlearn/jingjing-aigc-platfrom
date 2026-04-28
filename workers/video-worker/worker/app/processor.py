@@ -40,6 +40,48 @@ class OutputAssetPersistenceError(RuntimeError):
         super().__init__(f"failed to persist generated asset_objects: {original_error}")
 
 
+def _dict_or_empty(value: object) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _nested_dict(source: dict[str, Any], *keys: str) -> dict[str, Any]:
+    for key in keys:
+        value = source.get(key)
+        if isinstance(value, dict):
+            return value
+    return {}
+
+
+def _openstoryline_result_payload(
+    raw_response: dict[str, Any],
+    production_config: dict[str, Any],
+) -> dict[str, Any]:
+    openstoryline = _nested_dict(raw_response, "openstoryline")
+    fire_red = _nested_dict(raw_response, "fire_red")
+    selected_bgm = _nested_dict(openstoryline, "selected_bgm", "bgm") or _nested_dict(
+        fire_red,
+        "selected_bgm",
+        "bgm",
+    )
+    voiceover = _nested_dict(openstoryline, "voiceover") or _nested_dict(
+        fire_red,
+        "voiceover",
+    )
+    production_config_used = _dict_or_empty(
+        openstoryline.get("production_config_used")
+    ) or production_config
+
+    return {
+        "engine_adapter": openstoryline.get("engine_adapter")
+        or raw_response.get("engine_adapter")
+        or "unknown",
+        "session_id": openstoryline.get("session_id") or fire_red.get("session_id"),
+        "production_config_used": production_config_used,
+        "selected_bgm": selected_bgm,
+        "voiceover": voiceover,
+    }
+
+
 class JobProcessor:
     def __init__(
         self,
@@ -284,6 +326,10 @@ class JobProcessor:
                     "uploaded_assets": self._uploaded_assets_payload(
                         uploaded_assets,
                         persisted_assets,
+                    ),
+                    "openstoryline": _openstoryline_result_payload(
+                        run_result.raw_response,
+                        directive.production_config,
                     ),
                     "engine_response": run_result.raw_response,
                 },

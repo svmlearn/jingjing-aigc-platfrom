@@ -40,6 +40,19 @@ type VideoGrowthMaterialContext = {
 
 export type VideoScriptCandidateType = "safe_conversion" | "strong_hook" | "trust_expert";
 
+export type VideoScriptScene = {
+  sceneNo: number;
+  timeRange: string;
+  shotRequirement: string;
+  visual: string;
+  voiceover: string;
+  subtitle: string;
+  materials: string[];
+  cameraMovement: string;
+  purpose: string;
+  fallbackShot: string;
+};
+
 export type VideoGrowthContext = {
   contextDigest: {
     merchantProfile: {
@@ -109,6 +122,7 @@ export type VideoScriptContext = VideoGrowthContext;
 export type VideoScriptCandidate = VideoGrowthContext["scriptCandidates"][number] & {
   scriptText: string;
   ctaText: string;
+  scenes: VideoScriptScene[];
 };
 
 export function buildVideoGrowthContext(input: {
@@ -228,6 +242,14 @@ export function buildVideoScriptCandidates(input: {
       whyThisWorks: "先降低决策压力，再用服务细节承接咨询，适合稳妥转化。",
       strategyTrace: strategyTrace(input.scriptContext),
       ctaText: cta,
+      scenes: buildFallbackScenes({
+        scene,
+        sellingPoint,
+        cta,
+        materialLine,
+        hook: `如果你也在比较门店，先别急着看价格，先看这几个细节。`,
+        candidateType: "safe_conversion",
+      }),
       scriptText: [
         "Scene 1 | 00:00-00:05",
         `画面：${scene} 的真实门店镜头，字幕直接点出用户正在比较。`,
@@ -253,6 +275,14 @@ export function buildVideoScriptCandidates(input: {
       whyThisWorks: "开头冲突更强，适合提高停留，但仍保留专业边界。",
       strategyTrace: strategyTrace(input.scriptContext),
       ctaText: cta,
+      scenes: buildFallbackScenes({
+        scene,
+        sellingPoint,
+        cta,
+        materialLine,
+        hook: `一家店靠不靠谱，别只听宣传词，先看这 3 个细节。`,
+        candidateType: "strong_hook",
+      }),
       scriptText: [
         "Scene 1 | 00:00-00:04",
         `画面：快速切 3 个门店细节特写。`,
@@ -278,6 +308,16 @@ export function buildVideoScriptCandidates(input: {
       whyThisWorks: "用专家式拆解回应信任顾虑，适合提高咨询质量。",
       strategyTrace: strategyTrace(input.scriptContext),
       ctaText: cta,
+      scenes: buildFallbackScenes({
+        scene,
+        sellingPoint,
+        cta,
+        materialLine,
+        hook:
+          snapshot.videoBrief?.hook ||
+          "如果你不知道怎么判断一家店靠不靠谱，先看这 3 个细节。",
+        candidateType: "trust_expert",
+      }),
       scriptText: [
         "Scene 1 | 00:00-00:05",
         `画面：门店空间推进，出现${scene}相关字幕。`,
@@ -348,6 +388,69 @@ function strategyTrace(scriptContext: VideoScriptContext) {
     audienceStage: scriptContext.strategy.audienceStage,
     contentHypothesis: scriptContext.strategy.contentHypothesis,
   };
+}
+
+function buildFallbackScenes(input: {
+  scene: string;
+  sellingPoint: string;
+  cta: string;
+  materialLine: string;
+  hook: string;
+  candidateType: VideoScriptCandidateType;
+}): VideoScriptScene[] {
+  const openingMovement =
+    input.candidateType === "strong_hook" ? "快速切入细节特写" : "稳定推进到门店场景";
+
+  return [
+    {
+      sceneNo: 1,
+      timeRange: "00:00-00:05",
+      shotRequirement: "开头必须建立观看理由，直接让用户知道这条视频要解决什么判断问题。",
+      visual: `${input.scene} 的真实门店画面，优先使用门头、环境、人物动作或服务前准备镜头。`,
+      voiceover: input.hook,
+      subtitle: input.hook,
+      materials: ["门店环境", "人物动作", "服务准备细节"],
+      cameraMovement: openingMovement,
+      purpose: "建立钩子和场景可信度。",
+      fallbackShot: "如果没有人物出镜，用门店环境特写加字幕完成开头。",
+    },
+    {
+      sceneNo: 2,
+      timeRange: "00:05-00:18",
+      shotRequirement: "用具体动作证明服务标准，不要只说抽象形容词。",
+      visual: `展示${input.sellingPoint}相关的服务动作、环境细节或老师讲解过程。`,
+      voiceover: `真正影响体验的，是${input.sellingPoint}这些细节能不能稳定交付。`,
+      subtitle: `先看细节，再判断是否适合自己。`,
+      materials: ["服务动作", "环境细节", "老师讲解"],
+      cameraMovement: "中景到近景切换",
+      purpose: "承接用户顾虑，给出可信证据。",
+      fallbackShot: "如果没有完整服务流程，用手部动作、器械、环境细节组合替代。",
+    },
+    {
+      sceneNo: 3,
+      timeRange: "00:18-00:35",
+      shotRequirement: "把参考素材转成客户可拍的证明镜头，避免照搬对标内容。",
+      visual: input.materialLine,
+      voiceover: "我们更希望你先知道怎么判断，再决定要不要来体验。",
+      subtitle: "先判断，再体验。",
+      materials: ["参考素材", "门店细节", "可拍证明镜头"],
+      cameraMovement: "固定机位加细节切换",
+      purpose: "把卖点落到可见证据。",
+      fallbackShot: "如果参考素材不足，用门店真实细节和字幕说明替代。",
+    },
+    {
+      sceneNo: 4,
+      timeRange: "00:35-00:45",
+      shotRequirement: "结尾必须给出明确动作，不能只停在品牌露出。",
+      visual: "回到咨询、预约或私信动作，画面保持简洁。",
+      voiceover: input.cta,
+      subtitle: input.cta,
+      materials: ["预约入口", "私信提示", "门店收尾镜头"],
+      cameraMovement: "固定机位或轻微推进",
+      purpose: "完成转化引导。",
+      fallbackShot: "如果不能展示界面，用口播加字幕明确 CTA。",
+    },
+  ];
 }
 
 function first<T>(values: T[], fallback: T): T {

@@ -147,6 +147,78 @@ class DirectiveContractTests(unittest.TestCase):
         self.assertIn("script", directive.locked_fields)
         self.assertEqual("douyin", directive.target_platform)
 
+    def test_directive_normalizes_production_config(self):
+        job = make_job(
+            {
+                "executionMode": "staging_worker",
+                "script": {
+                    "text": "locked script",
+                    "locked": True,
+                },
+                "productionConfig": {
+                    "voiceover": {
+                        "enabled": True,
+                        "provider": "minimax",
+                        "voiceStyle": "warm",
+                        "speed": 1.05,
+                        "volume": 1.5,
+                    },
+                    "bgm": {
+                        "enabled": True,
+                        "userRequest": "light upbeat",
+                        "include": {"mood": "warm"},
+                        "exclude": {"genre": "heavy"},
+                        "volume": 0.35,
+                    },
+                    "subtitles": {
+                        "enabled": True,
+                        "style": "platform_default",
+                    },
+                    "render": {
+                        "aspectRatio": "9:16",
+                        "includeOriginalAudio": True,
+                    },
+                },
+                "productionDirective": {
+                    "targetPlatform": "douyin",
+                    "desiredOutputs": ["final_video"],
+                },
+            }
+        )
+
+        directive = build_production_directive(job)
+
+        self.assertEqual("minimax", directive.production_config["voiceover"]["provider"])
+        self.assertEqual("warm", directive.production_config["voiceover"]["voice_style"])
+        self.assertEqual("light upbeat", directive.production_config["bgm"]["user_request"])
+        self.assertEqual({"mood": "warm"}, directive.production_config["bgm"]["include"])
+        self.assertEqual(0.35, directive.production_config["bgm"]["volume"])
+        self.assertTrue(directive.production_config["render"]["include_original_audio"])
+
+    def test_directive_rejects_unsupported_voiceover_provider(self):
+        job = make_job(
+            {
+                "executionMode": "staging_worker",
+                "script": {
+                    "text": "locked script",
+                    "locked": True,
+                },
+                "productionConfig": {
+                    "voiceover": {"enabled": True, "provider": "unknown"},
+                },
+                "productionDirective": {
+                    "targetPlatform": "douyin",
+                    "desiredOutputs": ["final_video"],
+                },
+            }
+        )
+
+        with self.assertRaises(DirectiveValidationError) as exc:
+            build_production_directive(job)
+
+        self.assertEqual("failed_manual", exc.exception.failure_status)
+        self.assertEqual("invalid_production_config", exc.exception.failure_code)
+
 
 if __name__ == "__main__":
     unittest.main()

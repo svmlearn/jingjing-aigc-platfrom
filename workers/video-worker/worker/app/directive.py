@@ -7,6 +7,9 @@ from .models import VideoJob
 
 
 ALLOWED_DESIRED_OUTPUTS = frozenset({"final_video", "cover", "subtitles"})
+ALLOWED_VOICEOVER_PROVIDERS = frozenset({"bytedance_bigtts", "minimax", "302"})
+ALLOWED_SUBTITLE_STYLES = frozenset({"platform_default", "bold_caption"})
+ALLOWED_BGM_FILTER_KEYS = frozenset({"mood", "scene", "genre", "lang", "id"})
 
 
 class DirectiveValidationError(ValueError):
@@ -34,6 +37,7 @@ class ProductionDirective:
     locked_fields: tuple[str, ...]
     source: str
     material_context: dict[str, Any]
+    production_config: dict[str, Any]
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -47,6 +51,7 @@ class ProductionDirective:
             "locked_fields": list(self.locked_fields),
             "source": self.source,
             "material_context": self.material_context,
+            "production_config": self.production_config,
         }
 
 
@@ -115,6 +120,148 @@ def build_production_directive(job: VideoJob) -> ProductionDirective:
         locked_fields=locked_fields,
         source=str(payload.get("source") or "video_edit_job"),
         material_context=_dict_value(payload, "materialContext", "material_context"),
+        production_config=_normalize_production_config(
+            _dict_value(payload, "productionConfig", "production_config")
+        ),
+    )
+
+
+def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
+    voiceover = _dict_value(payload, "voiceover")
+    bgm = _dict_value(payload, "bgm")
+    subtitles = _dict_value(payload, "subtitles")
+    render = _dict_value(payload, "render")
+
+    provider = _string_value(voiceover, "provider") or "bytedance_bigtts"
+    if provider not in ALLOWED_VOICEOVER_PROVIDERS:
+        _raise_invalid_production_config("unsupported voiceover provider")
+
+    subtitle_style = _string_value(subtitles, "style") or "platform_default"
+    if subtitle_style not in ALLOWED_SUBTITLE_STYLES:
+        _raise_invalid_production_config("unsupported subtitle style")
+
+    aspect_ratio = _string_value(render, "aspectRatio", "aspect_ratio") or "9:16"
+    if aspect_ratio != "9:16":
+        _raise_invalid_production_config("unsupported render aspect ratio")
+
+    normalized_voiceover: dict[str, Any] = {
+        "enabled": _optional_bool_value(voiceover, "enabled", default=True),
+        "provider": provider,
+        "volume": _optional_number_value(
+            voiceover,
+            "volume",
+            default=2,
+            min_value=0,
+            max_value=3,
+        ),
+    }
+    voice_style = _string_value(voiceover, "voiceStyle", "voice_style")
+    if voice_style:
+        normalized_voiceover["voice_style"] = voice_style
+    speed = _optional_number_value(
+        voiceover,
+        "speed",
+        default=None,
+        min_value=0.5,
+        max_value=2,
+    )
+    if speed is not None:
+        normalized_voiceover["speed"] = speed
+
+    normalized_render: dict[str, Any] = {
+        "aspect_ratio": aspect_ratio,
+        "include_original_audio": _optional_bool_value(
+            render,
+            "includeOriginalAudio",
+            "include_original_audio",
+            default=False,
+        ),
+    }
+    max_duration_seconds = _optional_number_value(
+        render,
+        "maxDurationSeconds",
+        "max_duration_seconds",
+        default=None,
+        min_value=15,
+        max_value=180,
+        integer=True,
+    )
+    if max_duration_seconds is not None:
+        normalized_render["max_duration_seconds"] = int(max_duration_seconds)
+
+    return {
+        "voiceover": normalized_voiceover,
+        "bgm": {
+            "enabled": _optional_bool_value(bgm, "enabled", default=True),
+            "user_request": _string_value(bgm, "userRequest", "user_request"),
+            "include": _normalize_bgm_filter(_dict_value(bgm, "include"), "include"),
+            "exclude": _normalize_bgm_filter(_dict_value(bgm, "exclude"), "exclude"),
+            "volume": _optional_number_value(
+                bgm,
+                "volume",
+                default=0.25,
+                min_value=0,
+                max_value=3,
+            ),
+        },
+        "subtitles": {
+            "enabled": _optional_bool_value(subtitles, "enabled", default=True),
+            "style": subtitle_style,
+        },
+        "render": normalized_render,
+    }
+
+
+def _normalize_bgm_filter(payload: dict[str, Any], field_name: str) -> dict[str, Any]:
+    for key in payload:
+        if key not in ALLOWED_BGM_FILTER_KEYS:
+            _raise_invalid_production_config(
+                f"unsupported bgm {field_name} filter: {key}"
+            )
+    return dict(payload)
+
+
+def _optional_bool_value(
+    payload: dict[str, Any],
+    *keys: str,
+    default: bool,
+) -> bool:
+    for key in keys:
+        if key not in payload:
+            continue
+        value = payload[key]
+        if not isinstance(value, bool):
+            _raise_invalid_production_config(f"{key} must be boolean")
+        return value
+    return default
+
+
+def _optional_number_value(
+    payload: dict[str, Any],
+    *keys: str,
+    default: float | int | None,
+    min_value: float,
+    max_value: float,
+    integer: bool = False,
+) -> float | int | None:
+    for key in keys:
+        if key not in payload:
+            continue
+        value = payload[key]
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            _raise_invalid_production_config(f"{key} must be numeric")
+        if value < min_value or value > max_value:
+            _raise_invalid_production_config(f"{key} is out of range")
+        if integer and int(value) != value:
+            _raise_invalid_production_config(f"{key} must be an integer")
+        return int(value) if integer else value
+    return default
+
+
+def _raise_invalid_production_config(message: str) -> None:
+    raise DirectiveValidationError(
+        message,
+        failure_code="invalid_production_config",
     )
 
 

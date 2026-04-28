@@ -14,8 +14,8 @@ services:
       OPENSTORYLINE_MCP_PORT: 8001
       OPENSTORYLINE_MODELS_DIR: /srv/jingjing-video-worker/models
       OPENSTORYLINE_OUTPUTS_DIR: /srv/jingjing-video-worker/outputs
-      OPENSTORYLINE_ENGINE_ADAPTER: ${OPENSTORYLINE_ENGINE_ADAPTER:-skeleton}
-      FIRERED_OPENSTORYLINE_BASE_URL: ${FIRERED_OPENSTORYLINE_BASE_URL:-}
+      OPENSTORYLINE_ENGINE_ADAPTER: ${OPENSTORYLINE_ENGINE_ADAPTER:-fire_red}
+      FIRERED_OPENSTORYLINE_BASE_URL: ${FIRERED_OPENSTORYLINE_BASE_URL:-http://firered-openstoryline:7860}
       FIRERED_RUN_TIMEOUT_SECONDS: ${FIRERED_RUN_TIMEOUT_SECONDS:-900}
       FIRERED_PROVIDER_KEY: ${FIRERED_PROVIDER_KEY:-}
       OPENSTORYLINE_TTS_PROVIDER: ${OPENSTORYLINE_TTS_PROVIDER:-bytedance_bigtts}
@@ -48,7 +48,7 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()"
+        - python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready').read()"
       interval: 15s
       timeout: 5s
       retries: 5
@@ -60,7 +60,7 @@ services:
     build:
       context: ./openstoryline/firered
       args:
-        DOWNLOAD_FIRERED_ASSETS: ${DOWNLOAD_FIRERED_ASSETS:-false}
+        DOWNLOAD_FIRERED_ASSETS: ${DOWNLOAD_FIRERED_BUILD_ASSETS:-false}
     container_name: firered-openstoryline
     restart: unless-stopped
     env_file:
@@ -68,6 +68,7 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 7860
+      DOWNLOAD_FIRERED_ASSETS: ${DOWNLOAD_FIRERED_ASSETS:-true}
       OPENSTORYLINE_LLM_MODEL: ${OPENSTORYLINE_LLM_MODEL:-}
       OPENSTORYLINE_LLM_BASE_URL: ${OPENSTORYLINE_LLM_BASE_URL:-}
       OPENSTORYLINE_LLM_API_KEY: ${OPENSTORYLINE_LLM_API_KEY:-}
@@ -104,6 +105,14 @@ services:
     expose:
       - "7860"
       - "8001"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/health').read()"
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   video-worker:
     build:

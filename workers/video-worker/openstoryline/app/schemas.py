@@ -23,6 +23,7 @@ class RunRequest(BaseModel):
     execution_mode: str = "staging_worker"
     script_text: str = ""
     production_directive: dict[str, Any] = Field(default_factory=dict)
+    production_config: dict[str, Any] = Field(default_factory=dict)
     runtime_payload: dict[str, Any] = Field(default_factory=dict)
 
 

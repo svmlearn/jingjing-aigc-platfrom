@@ -1,0 +1,10 @@
+name: jingjing-video-worker
+
+services:
+  openstoryline-engine:
+    depends_on:
+      firered-openstoryline:
+        condition: service_healthy
+    environment:
+      OPENSTORYLINE_ENGINE_ADAPTER: fire_red
+      FIRERED_OPENSTORYLINE_BASE_URL: http://firered-openstoryline:7860

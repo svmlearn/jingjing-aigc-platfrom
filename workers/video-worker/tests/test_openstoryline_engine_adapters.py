@@ -58,6 +58,83 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
         self.assertEqual(8000, body["http_port"])
         self.assertEqual(8001, body["mcp_port"])
 
+    def test_ready_endpoint_returns_ready_for_skeleton_adapter(self):
+        original_settings = app.state.settings
+        app.state.settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="skeleton",
+            fire_red_base_url="",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=False,
+        )
+        try:
+            response = TestClient(app).get("/ready")
+        finally:
+            app.state.settings = original_settings
+
+        self.assertEqual(200, response.status_code)
+        body = response.json()
+        self.assertEqual("ready", body["status"])
+        self.assertEqual("skeleton", body["engine_adapter"])
+
+    def test_ready_endpoint_rejects_missing_fire_red_runtime_config(self):
+        original_settings = app.state.settings
+        app.state.settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=False,
+        )
+        try:
+            response = TestClient(app).get("/ready")
+        finally:
+            app.state.settings = original_settings
+
+        self.assertEqual(503, response.status_code)
+        self.assertEqual(
+            [
+                "FIRERED_OPENSTORYLINE_BASE_URL",
+                "FIRERED_PROVIDER_KEY",
+            ],
+            response.json()["detail"]["missing"],
+        )
+
+    def test_ready_endpoint_checks_fire_red_health(self):
+        original_settings = app.state.settings
+        app.state.settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+        )
+        try:
+            with patch(
+                "openstoryline.app.main.httpx.get",
+                return_value=MockHttpResponse({"status": "ok"}),
+            ) as get:
+                response = TestClient(app).get("/ready")
+        finally:
+            app.state.settings = original_settings
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("ready", response.json()["status"])
+        get.assert_called_once_with("http://fire-red:7860/health", timeout=2.0)
+
     def test_settings_reads_engine_adapter_environment(self):
         with patch.dict(
             os.environ,
@@ -274,6 +351,25 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
                         "script_locked": True,
                         "desired_outputs": ["final_video"],
                     },
+                    production_config={
+                        "voiceover": {
+                            "enabled": True,
+                            "provider": "minimax",
+                            "volume": 1.5,
+                        },
+                        "bgm": {
+                            "enabled": True,
+                            "user_request": "light upbeat",
+                            "include": {},
+                            "exclude": {},
+                            "volume": 0.35,
+                        },
+                        "subtitles": {"enabled": True, "style": "platform_default"},
+                        "render": {
+                            "aspect_ratio": "9:16",
+                            "include_original_audio": False,
+                        },
+                    },
                     runtime_payload={"source": "test"},
                 )
             )
@@ -298,12 +394,79 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertEqual(str(output_dir), payload["output_dir"])
             self.assertEqual("locked script", payload["script_text"])
             self.assertEqual(["final_video"], payload["desired_outputs"])
+            self.assertEqual("minimax", payload["production_config"]["voiceover"]["provider"])
+            self.assertEqual("light upbeat", payload["production_config"]["bgm"]["user_request"])
+            self.assertEqual("minimax", payload["service_config"]["tts"]["provider"])
+            self.assertIn("Use generate_voiceover when voiceover.enabled is true.", payload["prompt"])
+            self.assertIn("Use select_bgm when bgm.enabled is true.", payload["prompt"])
             self.assertEqual(
                 [{"local_path": str(Path(tmp) / "inputs" / "clip.mp4"), "asset_type": "video", "file_name": "clip.mp4"}],
                 payload["input_assets"],
             )
             self.assertIn("ProductionDirective", payload["prompt"])
             self.assertIn("locked script", payload["prompt"])
+
+    def test_fire_red_payload_contains_production_config_and_service_config(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            tts_provider="minimax",
+            tts_minimax_base_url="https://api.minimax.io",
+            tts_minimax_api_key="minimax-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {"engine": "fire_red-openstoryline"},
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                    production_config={
+                        "voiceover": {"enabled": True, "provider": "minimax"},
+                        "bgm": {
+                            "enabled": True,
+                            "user_request": "light upbeat",
+                            "include": {},
+                            "exclude": {},
+                            "volume": 0.25,
+                        },
+                    },
+                )
+            )
+
+            payload = post.call_args.kwargs["json"]
+            self.assertEqual("minimax", payload["production_config"]["voiceover"]["provider"])
+            self.assertEqual("light upbeat", payload["production_config"]["bgm"]["user_request"])
+            self.assertEqual("minimax", payload["service_config"]["tts"]["provider"])
+            self.assertEqual("minimax-secret", payload["service_config"]["tts"]["minimax"]["api_key"])
+            self.assertIn("generate_voiceover", payload["prompt"])
+            self.assertIn("select_bgm", payload["prompt"])
 
     def test_fire_red_adapter_run_endpoint_uses_worker_mapping(self):
         original_settings = app.state.settings

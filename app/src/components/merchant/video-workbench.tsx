@@ -22,9 +22,14 @@ import {
 } from "lucide-react";
 
 import type { ConsultationSessionDetailDto } from "@/contracts/consultation";
-import type { ContentDraftBundleDto } from "@/contracts/draft";
+import type { ContentDraftBundleDto, VideoScriptSceneDto } from "@/contracts/draft";
 import type { MaterialLibraryItemDto } from "@/contracts/material";
 import type { VideoEditJobDto } from "@/contracts/video";
+import {
+  type DraftMediaAsset,
+  formatAssetSize,
+  uploadDraftMediaFile,
+} from "@/lib/ui/video-workflow";
 
 type ChatMessage = {
   role: "agent" | "user";
@@ -40,16 +45,26 @@ type ApiErrorPayload = {
   };
 };
 
+type SegmentUploadState = {
+  status: "uploading" | "uploaded" | "failed";
+  progressPct: number;
+  fileName?: string;
+  asset?: DraftMediaAsset;
+  error?: string;
+};
+
 export function VideoWorkbench({
   sessionId,
   materialId,
   materialReferenceId,
   strategyTag,
+  testMode,
 }: {
   sessionId?: string | null;
   materialId?: string | null;
   materialReferenceId?: string | null;
   strategyTag?: string | null;
+  testMode?: string | null;
 }) {
   const [session, setSession] = useState<ConsultationSessionDetailDto | null>(null);
   const [referenceMaterial, setReferenceMaterial] = useState<MaterialLibraryItemDto | null>(null);
@@ -62,11 +77,12 @@ export function VideoWorkbench({
   const [generating, setGenerating] = useState(false);
   const [approvingScript, setApprovingScript] = useState(false);
   const [creatingJob, setCreatingJob] = useState(false);
+  const [creatingTestDraft, setCreatingTestDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [showCanvas, setShowCanvas] = useState(true);
   const [canvasExpanded, setCanvasExpanded] = useState(false);
-  const [uploadedSegments, setUploadedSegments] = useState<Record<number, boolean>>({});
+  const [segmentUploads, setSegmentUploads] = useState<Record<number, SegmentUploadState>>({});
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "agent",
@@ -75,6 +91,7 @@ export function VideoWorkbench({
       }你可以直接告诉我希望视频偏种草、转化，还是人设表达。`,
     },
   ]);
+  const videoChainTestMode = testMode === "video_chain";
 
   async function loadSession(nextSessionId: string) {
     setLoadingSession(true);
@@ -151,7 +168,11 @@ export function VideoWorkbench({
     fromChat?: boolean;
   }) {
     if (!sessionId) {
-      setError("请先从咨询页进入视频工作台。");
+      setError(
+        videoChainTestMode
+          ? "请先创建链路测试脚本，再上传素材并启动 AI 剪辑。"
+          : "请先从咨询页进入视频工作台。",
+      );
       return;
     }
 
@@ -187,6 +208,7 @@ export function VideoWorkbench({
 
       setDraftBundle(data.draftBundle);
       setSelectedVariantId(data.draftBundle.selectedVariant?.id ?? data.draftBundle.variants[0]?.id ?? null);
+      setSegmentUploads({});
       setShowCanvas(true);
       setMessages((current) => [
         ...current,
@@ -312,6 +334,121 @@ export function VideoWorkbench({
     }
   }
 
+  async function createVideoChainTestDraft() {
+    setCreatingTestDraft(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/content/video-scripts/test-draft", {
+        method: "POST",
+      });
+      const data = (await response.json()) as {
+        draftBundle?: ContentDraftBundleDto;
+        error?: { message?: string };
+      };
+
+      if (!response.ok || !data.draftBundle) {
+        throw new Error(data.error?.message ?? "测试脚本创建失败");
+      }
+
+      setDraftBundle(data.draftBundle);
+      setSelectedVariantId(
+        data.draftBundle.selectedVariant?.id ?? data.draftBundle.variants[0]?.id ?? null,
+      );
+      setGoal("视频链路测试：上传素材、生成视频、预览结果、发起制作修订");
+      setExtraRequirement("");
+      setSegmentUploads({});
+      setJob(null);
+      setShowCanvas(true);
+      setMessages((current) => [
+        ...current,
+        {
+          role: "agent",
+          content:
+            "已创建并确认链路测试占位脚本。现在可以上传任意图片或视频素材，然后点击 AI 一键剪辑验证后续链路。",
+        },
+      ]);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "测试脚本创建失败");
+    } finally {
+      setCreatingTestDraft(false);
+    }
+  }
+
+  async function uploadSegmentAsset(index: number, file: File) {
+    if (!draftBundle) {
+      setError("请先生成视频脚本，再上传镜头素材。");
+      return;
+    }
+
+    if (!isSupportedSegmentMediaFile(file)) {
+      setError("镜头素材只支持图片或视频文件。");
+      return;
+    }
+
+    setError(null);
+    setSegmentUploads((current) => ({
+      ...current,
+      [index]: {
+        status: "uploading",
+        progressPct: 0,
+        fileName: file.name,
+      },
+    }));
+
+    try {
+      const asset = await uploadDraftMediaFile({
+        draftId: draftBundle.draft.id,
+        file,
+        sortOrder: index,
+        onProgress(progress) {
+          setSegmentUploads((current) => ({
+            ...current,
+            [index]: {
+              ...(current[index] ?? {
+                status: "uploading",
+                progressPct: 0,
+                fileName: file.name,
+              }),
+              status: "uploading",
+              progressPct: normalizeUploadPercent(progress.percent),
+              fileName: file.name,
+            },
+          }));
+        },
+      });
+
+      setSegmentUploads((current) => ({
+        ...current,
+        [index]: {
+          status: "uploaded",
+          progressPct: 100,
+          fileName: file.name,
+          asset,
+        },
+      }));
+      setMessages((current) => [
+        ...current,
+        {
+          role: "agent",
+          content: `镜头 ${index + 1} 的素材已上传并绑定到当前视频草稿，创建剪辑任务时会交给 worker 使用。`,
+        },
+      ]);
+    } catch (uploadError) {
+      const message = uploadError instanceof Error ? uploadError.message : "镜头素材上传失败";
+      setSegmentUploads((current) => ({
+        ...current,
+        [index]: {
+          status: "failed",
+          progressPct: 0,
+          fileName: file.name,
+          error: message,
+        },
+      }));
+      setError(message);
+    }
+  }
+
   async function retryVideoJob(jobId: string) {
     setCreatingJob(true);
     setError(null);
@@ -371,10 +508,45 @@ export function VideoWorkbench({
       return;
     }
 
+    if (selectedVariant && draftBundle && videoChainTestMode) {
+      void reviseProductionFromTestMode(nextInput, nextExtraRequirement);
+      return;
+    }
+
+    if (videoChainTestMode) {
+      const message = "请先点击顶部「创建测试脚本」，再上传素材并启动 AI 剪辑。";
+      setError(message);
+      setMessages((current) => [...current, { role: "agent", content: message }]);
+      return;
+    }
+
     void generateScript({
       extraRequirement: nextExtraRequirement,
       fromChat: true,
     });
+  }
+
+  async function reviseProductionFromTestMode(
+    revisionInstruction: string,
+    nextExtraRequirement: string,
+  ) {
+    setExtraRequirement(nextExtraRequirement);
+
+    if (!job?.id || job.status !== "succeeded") {
+      const message = "链路测试模式只跳过脚本生成。制作修订需要先有一版已完成的视频任务。";
+      setError(message);
+      setMessages((current) => [...current, { role: "agent", content: message }]);
+      return;
+    }
+
+    setMessages((current) => [
+      ...current,
+      {
+        role: "agent",
+        content: "收到，这条测试指令会作为制作修订创建新任务，用来验证修改版本回写。",
+      },
+    ]);
+    await createVideoJob(job.id, revisionInstruction);
   }
 
   async function reviseScriptFromChat(revisionInstruction: string, nextExtraRequirement: string) {
@@ -413,14 +585,27 @@ export function VideoWorkbench({
       }
 
       if (data.revisionIntent === "production" && data.instructionText) {
+        if (!job?.id || job.status !== "succeeded") {
+          const message = "制作修订需要先有一版已完成的视频任务。请先创建并完成 AI 剪辑任务，再提出字幕、节奏、封面等制作修订。";
+          setError(message);
+          setMessages((current) => [
+            ...current,
+            {
+              role: "agent",
+              content: message,
+            },
+          ]);
+          return;
+        }
+
         setMessages((current) => [
           ...current,
           {
             role: "agent",
-            content: "这属于制作修订，我会保留已确认脚本语义，并创建新的制作任务。",
+            content: "这属于制作修订，我会基于当前已完成视频创建新的制作任务，并保留已确认脚本语义。",
           },
         ]);
-        await createVideoJob(job?.id, data.instructionText);
+        await createVideoJob(job.id, data.instructionText);
         return;
       }
 
@@ -501,18 +686,25 @@ export function VideoWorkbench({
     draftBundle?.selectedVariant ??
     draftBundle?.variants[0] ??
     null;
-  const scriptSections = useMemo(() => {
-    return (selectedVariant?.scriptText ?? "")
-      .split("\n\n")
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }, [selectedVariant?.scriptText]);
-  const canvasSegments = scriptSections.length > 0 ? scriptSections : buildPlaceholderSegments(goal, strategyTag);
+  const canvasScenes = useMemo(() => {
+    const structuredScenes = selectedVariant?.productionScenes ?? [];
+
+    if (structuredScenes.length > 0) {
+      return structuredScenes;
+    }
+
+    const parsedScenes = parseScriptTextToScenes(selectedVariant?.scriptText ?? "");
+
+    return parsedScenes.length > 0 ? parsedScenes : buildPlaceholderScenes(goal, strategyTag);
+  }, [goal, selectedVariant, strategyTag]);
   const jobIsRunning = job && ["pending", "queued", "preparing", "running"].includes(job.status);
   const scriptApproved = selectedVariant?.reviewStatus === "approved";
   const jobCanRetry = job?.status === "failed_retryable";
   const jobNeedsManualFix = job?.status === "failed_manual";
   const jobSucceeded = job?.status === "succeeded";
+  const resultVideoAsset =
+    job?.resultAssets?.find((asset) => asset.assetType === "video") ?? job?.resultAssets?.[0] ?? null;
+  const resultVideoPreviewUrl = resultVideoAsset?.signedPreviewUrl ?? resultVideoAsset?.originUrl ?? null;
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -532,21 +724,45 @@ export function VideoWorkbench({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-400 md:inline-flex">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            上下文已就绪
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              void generateScript();
-            }}
-            disabled={generating || loadingSession}
-            className="inline-flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-amber-500 disabled:opacity-60"
+          <span
+            className={
+              videoChainTestMode
+                ? "hidden items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-sky-300 md:inline-flex"
+                : "hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-400 md:inline-flex"
+            }
           >
-            {generating ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />}
-            {draftBundle ? "重新生成脚本" : "生成视频脚本"}
-          </button>
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {videoChainTestMode ? "链路测试模式" : "上下文已就绪"}
+          </span>
+          {videoChainTestMode && !sessionId ? (
+            <button
+              type="button"
+              onClick={() => {
+                void createVideoChainTestDraft();
+              }}
+              disabled={creatingTestDraft}
+              className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-sky-300 disabled:opacity-60"
+            >
+              {creatingTestDraft ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Video className="h-3.5 w-3.5" />
+              )}
+              {draftBundle ? "重建测试脚本" : "创建测试脚本"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                void generateScript();
+              }}
+              disabled={generating || loadingSession}
+              className="inline-flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-amber-500 disabled:opacity-60"
+            >
+              {generating ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />}
+              {draftBundle ? "重新生成脚本" : "生成视频脚本"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -733,18 +949,13 @@ export function VideoWorkbench({
                       <div className="col-span-4 border-r border-white/10 p-4">台词 / 旁白</div>
                       <div className="col-span-2 p-4 text-center">素材</div>
                     </div>
-                    {canvasSegments.map((segment, index) => (
+                    {canvasScenes.map((scene, index) => (
                       <ScriptSegmentRow
-                        key={`${segment}-${index}`}
+                        key={`${scene.sceneNo}-${scene.timeRange}-${index}`}
                         index={index}
-                        text={segment}
-                        uploaded={Boolean(uploadedSegments[index])}
-                        onUpload={() =>
-                          setUploadedSegments((current) => ({
-                            ...current,
-                            [index]: true,
-                          }))
-                        }
+                        scene={scene}
+                        uploadState={segmentUploads[index]}
+                        onUpload={(file) => void uploadSegmentAsset(index, file)}
                       />
                     ))}
                   </div>
@@ -819,11 +1030,11 @@ export function VideoWorkbench({
                       ) : null}
                     </div>
                   </div>
-                  {job?.resultAssets?.[0]?.signedPreviewUrl || job?.resultAssets?.[0]?.originUrl ? (
+                  {resultVideoPreviewUrl ? (
                     <video
                       controls
                       className="mt-5 aspect-video w-full rounded-2xl border border-white/10 bg-black"
-                      src={job.resultAssets?.[0]?.signedPreviewUrl ?? job.resultAssets?.[0]?.originUrl ?? undefined}
+                      src={resultVideoPreviewUrl}
                     />
                   ) : null}
                 </div>
@@ -849,73 +1060,248 @@ export function VideoWorkbench({
 
 function ScriptSegmentRow({
   index,
-  text,
-  uploaded,
+  scene,
+  uploadState,
   onUpload,
 }: {
   index: number;
-  text: string;
-  uploaded: boolean;
-  onUpload: () => void;
+  scene: VideoScriptSceneDto;
+  uploadState?: SegmentUploadState;
+  onUpload: (file: File) => void;
 }) {
-  const labels = ["Hook", "Body", "CTA", "Backup"];
-  const timeRanges = ["00:00 - 00:05", "00:05 - 00:25", "00:25 - 00:45", "00:45 - 00:60"];
+  const isUploading = uploadState?.status === "uploading";
+  const isUploaded = uploadState?.status === "uploaded";
+  const sceneNo = scene.sceneNo || index + 1;
+  const materials = scene.materials.filter(Boolean);
 
   return (
     <div className="grid grid-cols-12 border-b border-white/5 last:border-b-0 hover:bg-white/[0.02]">
-      <div className="col-span-2 flex flex-col items-center justify-center border-r border-white/5 p-5 text-center font-mono text-xs text-white/55">
-        {timeRanges[index] ?? `${index + 1}`.padStart(2, "0")}
+      <div className="col-span-2 flex flex-col items-center justify-start border-r border-white/5 p-5 text-center font-mono text-xs text-white/55">
+        {scene.timeRange}
         <span className="mt-3 rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[9px] uppercase tracking-[0.18em] text-amber-500">
-          {labels[index] ?? "Shot"}
+          镜头 {sceneNo}
         </span>
       </div>
       <div className="col-span-4 border-r border-white/5 p-5 text-sm leading-7 text-white/75 [font-family:var(--font-cormorant)]">
         <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-amber-500/80">
           镜头要求
         </p>
-        {extractShotText(text)}
+        <p className="text-white/85">{scene.shotRequirement}</p>
+        <p className="mt-3 text-white/70">{scene.visual}</p>
+        <dl className="mt-4 space-y-2 text-xs leading-5 text-white/45">
+          <div>
+            <dt className="inline text-amber-500/70">运镜：</dt>
+            <dd className="inline">{scene.cameraMovement}</dd>
+          </div>
+          <div>
+            <dt className="inline text-amber-500/70">目的：</dt>
+            <dd className="inline">{scene.purpose}</dd>
+          </div>
+          <div>
+            <dt className="inline text-amber-500/70">备选：</dt>
+            <dd className="inline">{scene.fallbackShot}</dd>
+          </div>
+        </dl>
       </div>
       <div className="col-span-4 border-r border-white/5 p-5 text-sm leading-7 text-white/80 whitespace-pre-wrap [font-family:var(--font-cormorant)]">
         <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-white/35">
-          台词 / 音效
+          台词 / 旁白
         </p>
-        {text}
+        <p>{scene.voiceover}</p>
+        {scene.subtitle ? (
+          <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-6 text-white/55">
+            字幕：{scene.subtitle}
+          </p>
+        ) : null}
       </div>
-      <div className="col-span-2 flex items-center justify-center p-5">
-        {uploaded ? (
-          <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
-            <Film className="h-5 w-5" />
+      <div className="col-span-2 flex flex-col items-center justify-center gap-3 p-5">
+        {materials.length > 0 ? (
+          <div className="w-full space-y-1 text-center text-[10px] leading-5 text-white/45">
+            {materials.map((material) => (
+              <div
+                key={material}
+                className="truncate rounded-full border border-white/10 bg-white/[0.03] px-2 py-1"
+                title={material}
+              >
+                {material}
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {isUploading ? (
+          <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-2 text-amber-300">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-[10px] uppercase tracking-[0.16em]">
+              {uploadState.progressPct}%
+            </span>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={onUpload}
-            className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 bg-[#050505] text-white/35 transition-colors hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-500"
+          <label
+            className={
+              isUploaded
+                ? "flex aspect-video w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2 text-center text-emerald-400 transition-colors hover:border-emerald-400/50 hover:bg-emerald-500/15"
+                : "flex aspect-video w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 bg-[#050505] px-2 text-center text-white/35 transition-colors hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-500"
+            }
           >
-            <UploadCloud className="h-5 w-5" />
-            <span className="text-[10px] uppercase tracking-[0.16em]">传镜头</span>
-          </button>
+            <input
+              type="file"
+              accept="image/*,video/*"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (file) {
+                  onUpload(file);
+                }
+              }}
+            />
+            {isUploaded ? <Film className="h-5 w-5" /> : <UploadCloud className="h-5 w-5" />}
+            <span className="max-w-full truncate text-[10px] uppercase tracking-[0.16em]">
+              {isUploaded ? uploadState.fileName ?? "已上传" : uploadState?.status === "failed" ? "重传" : "传镜头"}
+            </span>
+            {isUploaded && uploadState.asset ? (
+              <span className="max-w-full truncate text-[9px] text-emerald-200/65">
+                {formatAssetSize(uploadState.asset.fileSizeBytes)}
+              </span>
+            ) : null}
+            {uploadState?.status === "failed" && uploadState.error ? (
+              <span className="max-w-full truncate text-[9px] text-rose-300/75">
+                上传失败
+              </span>
+            ) : null}
+          </label>
         )}
       </div>
     </div>
   );
 }
 
-function extractShotText(text: string) {
-  const firstSentence = text.split(/[。！？\n]/).find(Boolean)?.trim();
-  return firstSentence
-    ? `围绕「${firstSentence}」设计画面节奏，优先使用真实门店、人物动作和细节特写。`
-    : "根据策略生成画面、台词和素材要求。";
+function parseScriptTextToScenes(scriptText: string): VideoScriptSceneDto[] {
+  const text = scriptText.trim();
+
+  if (!text) {
+    return [];
+  }
+
+  const sceneBlocks = text
+    .split(/(?=^Scene\s+\d+\s*\|)|(?=^镜头\s*\d+[：:])/gim)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  if (sceneBlocks.length > 1 || /^Scene\s+\d+\s*\|/i.test(sceneBlocks[0] ?? "")) {
+    return sceneBlocks.map((block, index) => parseSceneBlock(block, index));
+  }
+
+  const taggedBlocks = text
+    .split(/(?=【镜头\s*\d*】)|(?=镜头\s*\d+[：:])/g)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  if (taggedBlocks.length > 1) {
+    return taggedBlocks.map((block, index) => parseSceneBlock(block, index));
+  }
+
+  return [];
 }
 
-function buildPlaceholderSegments(goal: string, strategyTag?: string | null) {
+function parseSceneBlock(block: string, index: number): VideoScriptSceneDto {
+  const header = block.match(/(?:Scene\s+(\d+)\s*\|\s*([^\n]+))|(?:镜头\s*(\d+)[：:]\s*([^\n]+)?)/i);
+  const sceneNo = Number(header?.[1] ?? header?.[3] ?? index + 1);
+  const timeRange = normalizeSceneTime(header?.[2]) ?? fallbackTimeRange(index);
+  const visual = readTaggedText(block, ["画面", "镜头", "视觉"]) ?? stripSceneHeader(block).split("\n")[0]?.trim() ?? "";
+  const voiceover = readTaggedText(block, ["台词", "口播", "旁白"]) ?? "";
+  const subtitle = readTaggedText(block, ["字幕"]) ?? voiceover;
+  const shotRequirement =
+    readTaggedText(block, ["镜头要求", "要求"]) ||
+    (visual ? `拍清楚：${visual}` : "按本镜头台词安排可拍画面。");
+  const materials = readTaggedText(block, ["素材", "所需素材"])
+    ?.split(/[、,，/]/)
+    .map((item) => item.trim())
+    .filter(Boolean) ?? [];
+
+  return {
+    sceneNo: Number.isFinite(sceneNo) ? sceneNo : index + 1,
+    timeRange,
+    shotRequirement,
+    visual: visual || shotRequirement,
+    voiceover: voiceover || stripSceneHeader(block),
+    subtitle,
+    materials,
+    cameraMovement: readTaggedText(block, ["运镜"]) ?? "按现场素材选择固定机位或轻微推进",
+    purpose: readTaggedText(block, ["目的"]) ?? "服务本镜头的信息表达",
+    fallbackShot: readTaggedText(block, ["备选", "替代拍法"]) ?? "素材不足时使用同场景近景替代",
+  };
+}
+
+function readTaggedText(text: string, tags: string[]) {
+  for (const tag of tags) {
+    const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = text.match(
+      new RegExp(`(?:【${escapedTag}】|${escapedTag}[：:])\\s*([\\s\\S]*?)(?=\\n\\s*(?:【[^】]+】|[\\u4e00-\\u9fa5]{2,8}[：:])|$)`, "i"),
+    );
+
+    if (match?.[1]?.trim()) {
+      return match[1].trim();
+    }
+  }
+
+  return null;
+}
+
+function stripSceneHeader(text: string) {
+  return text.replace(/^Scene\s+\d+\s*\|[^\n]*\n?/i, "").replace(/^镜头\s*\d+[：:]\s*/i, "").trim();
+}
+
+function normalizeSceneTime(value: string | undefined) {
+  return value?.replace(/\s+/g, "").replace("-", " - ") ?? null;
+}
+
+function fallbackTimeRange(index: number) {
+  const ranges = ["00:00 - 00:05", "00:05 - 00:18", "00:18 - 00:35", "00:35 - 00:45"];
+  return ranges[index] ?? `镜头 ${index + 1}`;
+}
+
+function buildPlaceholderScenes(goal: string, strategyTag?: string | null): VideoScriptSceneDto[] {
   const target = goal || "门店场景视频";
   const strategy = strategyTag ?? "种草";
 
   return [
-    `开头 3 秒用「${target}」相关痛点或场景钩子抓注意力，策略侧重「${strategy}」。`,
-    "中段展示门店真实空间、服务流程、专业资质或客户常见问题，建立信任。",
-    "结尾给出明确行动：私信咨询、预约体验、领取评估或到店了解。",
+    {
+      sceneNo: 1,
+      timeRange: "00:00 - 00:05",
+      shotRequirement: `开头用「${target}」相关痛点或场景钩子抓注意力。`,
+      visual: "真实门店、人物动作或细节特写。",
+      voiceover: `这条内容先围绕「${strategy}」建立观看理由。`,
+      subtitle: `先看这个细节`,
+      materials: ["门店环境", "人物动作"],
+      cameraMovement: "固定机位或轻微推进",
+      purpose: "建立钩子",
+      fallbackShot: "没有人物时用门店细节特写替代。",
+    },
+    {
+      sceneNo: 2,
+      timeRange: "00:05 - 00:25",
+      shotRequirement: "中段展示服务流程、专业资质或客户常见问题。",
+      visual: "门店空间、服务过程和老师讲解。",
+      voiceover: "真正影响体验的，是这些细节是否稳定、清楚、可验证。",
+      subtitle: "看细节，不只看宣传词",
+      materials: ["服务流程", "讲解镜头"],
+      cameraMovement: "中景切近景",
+      purpose: "建立信任",
+      fallbackShot: "没有完整流程时用细节镜头组合替代。",
+    },
+    {
+      sceneNo: 3,
+      timeRange: "00:25 - 00:45",
+      shotRequirement: "结尾给出明确行动，承接咨询或预约。",
+      visual: "回到预约、私信或门店收尾画面。",
+      voiceover: "想了解自己是否适合，可以私信咨询或预约体验。",
+      subtitle: "私信咨询 / 预约体验",
+      materials: ["预约入口", "门店收尾"],
+      cameraMovement: "固定机位",
+      purpose: "完成 CTA",
+      fallbackShot: "不能展示界面时，用口播加字幕说明。",
+    },
   ];
 }
 
@@ -928,4 +1314,21 @@ function formatApiError(error: ApiErrorPayload | undefined, fallback: string) {
   }
 
   return `${message}\n${questions.map((question) => `· ${question}`).join("\n")}`;
+}
+
+function normalizeUploadPercent(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  const percent = value <= 1 ? value * 100 : value;
+  return Math.max(0, Math.min(100, Math.round(percent)));
+}
+
+function isSupportedSegmentMediaFile(file: File) {
+  if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+    return true;
+  }
+
+  return /\.(avif|bmp|gif|jpe?g|m4v|mov|mp4|png|webm|webp)$/i.test(file.name);
 }

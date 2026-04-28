@@ -2307,6 +2307,31 @@ if os.path.isdir(NODE_MAP_DIR):
 
 api = APIRouter(prefix="/api")
 
+
+def _runtime_asset_status() -> Dict[str, bool]:
+    root = Path(os.getcwd())
+    return {
+        "transnet_weights": (root / ".storyline" / "models" / "transnetv2-pytorch-weights.pth").is_file(),
+        "bgms": (root / "resource" / "bgms").is_dir(),
+        "fonts": (root / "resource" / "fonts").is_dir(),
+        "outputs": (root / "outputs").is_dir(),
+    }
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "service": "firered-openstoryline",
+        "provider_key_configured": bool(_s(os.getenv("FIRERED_PROVIDER_KEY"))),
+        "runtime_assets": _runtime_asset_status(),
+    }
+
+
+@api.get("/health")
+def api_health():
+    return health()
+
 def _rate_limit_reject_json(retry_after: float) -> JSONResponse:
     ra = int(math.ceil(float(retry_after or 0.0)))
     return JSONResponse(

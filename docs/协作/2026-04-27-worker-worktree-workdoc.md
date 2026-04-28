@@ -26,7 +26,7 @@ D:\codexplan\worktrees\jingjing-content-platform-worker
 
 1. 主仓当前成果已经 commit，或已经导出 patch 并明确纳入本工作树。
 2. app 和 worker 两个工作树从同一个基线创建。
-3. 共享合同以 `docs/架构规范/2026-04-27-video-job-payload-contract.md` 为准。
+3. 共享合同以 `docs/架构规范/2026-04-28-current-architecture.md` 为准。
 4. 如需改共享合同，先交给审核者确认，不要单边改。
 
 ## 3. 负责范围

@@ -181,8 +181,17 @@ class FakeOpenStorylineClient:
             subtitle_path=subtitle_path,
             metadata_path=metadata_path,
             raw_response={
-                "engine": "openstoryline-skeleton",
-                "engine_adapter": "skeleton",
+                "engine": "fire_red-openstoryline",
+                "engine_adapter": "fire_red",
+                "fire_red": {"session_id": "fire-red-session"},
+                "openstoryline": {
+                    "session_id": "fire-red-session",
+                    "production_config_used": {
+                        "voiceover": {"provider": "bytedance_bigtts"},
+                    },
+                    "selected_bgm": {"name": "light_upbeat_01"},
+                    "voiceover": {"provider": "bytedance_bigtts"},
+                },
             },
         )
 
@@ -423,8 +432,8 @@ class ProcessorContractTests(unittest.TestCase):
             processor.process(make_job())
 
         result_payload = repository.succeeded["result_payload"]
-        self.assertEqual("openstoryline-skeleton", result_payload["engine"])
-        self.assertEqual("skeleton", result_payload["engine_adapter"])
+        self.assertEqual("fire_red-openstoryline", result_payload["engine"])
+        self.assertEqual("fire_red", result_payload["engine_adapter"])
         self.assertEqual("staging_worker", result_payload["execution_mode"])
         self.assertEqual(
             "video-outputs/merchant_1/draft_1/variant_1/job_1/final.mp4",
@@ -439,6 +448,12 @@ class ProcessorContractTests(unittest.TestCase):
             result_payload["outputs"]["subtitles"],
         )
         self.assertEqual("asset_video_1", result_payload["uploaded_assets"][0]["asset_id"])
+        self.assertEqual("fire_red", result_payload["openstoryline"]["engine_adapter"])
+        self.assertEqual("fire-red-session", result_payload["openstoryline"]["session_id"])
+        self.assertEqual(
+            {"provider": "bytedance_bigtts"},
+            result_payload["openstoryline"]["voiceover"],
+        )
 
     def test_success_cleans_local_workspace_and_output_directory(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -68,6 +68,19 @@ test("script production agent prompt is bounded to consultation brief and JSON o
   assert.deepEqual(userPayload.scriptProductionBrief, completeBrief);
 });
 
+test("script production agent prompt requires structured scene rows", () => {
+  const messages = buildScriptProductionAgentMessages({
+    brief: completeBrief,
+  });
+  const userPayload = JSON.parse(messages[1].content);
+  const candidateSchema = userPayload.outputSchema.candidates[0];
+
+  assert.ok(candidateSchema.scenes);
+  assert.match(candidateSchema.scenes[0].timeRange, /00:00/);
+  assert.match(candidateSchema.scenes[0].shotRequirement, /string/i);
+  assert.match(candidateSchema.scenes[0].voiceover, /string/i);
+});
+
 test("script production agent supports configurable prompt and revision context", () => {
   const messages = buildScriptProductionAgentMessages({
     brief: completeBrief,
@@ -127,6 +140,7 @@ test("parseScriptProductionAgentResponse normalizes ready JSON into traceable ca
           whyThisWorks: "降低决策压力，适合稳妥承接咨询。",
           ctaText: "私信预约体验",
           scriptText: "Scene 1 | 00:00-00:05\n画面：门店环境。\n台词：先看三个细节。",
+          scenes: [buildScene("00:00-00:05")],
         },
         {
           candidateType: "strong_hook",
@@ -135,6 +149,7 @@ test("parseScriptProductionAgentResponse normalizes ready JSON into traceable ca
           whyThisWorks: "前三秒冲突更强。",
           ctaText: "私信预约体验",
           scriptText: "Scene 1 | 00:00-00:04\n画面：快速切细节。\n台词：别只听宣传词。",
+          scenes: [buildScene("00:00-00:04")],
         },
         {
           candidateType: "trust_expert",
@@ -143,6 +158,7 @@ test("parseScriptProductionAgentResponse normalizes ready JSON into traceable ca
           whyThisWorks: "专家式拆解承接高意向咨询。",
           ctaText: "私信预约体验",
           scriptText: "Scene 1 | 00:00-00:05\n画面：老师讲解。\n台词：先判断是否理解你的问题。",
+          scenes: [buildScene("00:00-00:05")],
         },
       ],
       riskNotes: ["避免包瘦等禁用表达"],
@@ -161,6 +177,8 @@ test("parseScriptProductionAgentResponse normalizes ready JSON into traceable ca
     result.candidates[0].strategyTrace.acquisitionGoal,
     fallbackCandidates[0].strategyTrace.acquisitionGoal,
   );
+  assert.equal(result.candidates[0].scenes[0].sceneNo, 1);
+  assert.equal(result.candidates[0].scenes[0].timeRange, "00:00-00:05");
 });
 
 test("parseScriptProductionAgentResponse falls back when JSON is unusable", () => {
@@ -197,6 +215,7 @@ test("parseScriptProductionAgentResponse rejects candidates that do not match th
           whyThisWorks: "护肤痛点共鸣。",
           ctaText: "领取护肤方案",
           scriptText: "画面：展示洁面、精华、面膜。台词：烟酰胺和神经酰胺温和修护。",
+          scenes: [buildScene("00:00-00:05")],
         },
       ],
     }),
@@ -229,10 +248,26 @@ function buildFallbackCandidate(
     whyThisWorks: "fallback reason",
     ctaText: "私信预约体验",
     scriptText: "Scene 1 | 00:00-00:05\nfallback",
+    scenes: [buildScene("00:00-00:05")],
     strategyTrace: {
       acquisitionGoal: "appointment",
       audienceStage: "decision",
       contentHypothesis: "fallback trace",
     },
+  };
+}
+
+function buildScene(timeRange: string) {
+  return {
+    sceneNo: 1,
+    timeRange,
+    shotRequirement: "建立开头钩子并交代画面任务",
+    visual: "门店真实环境和人物动作",
+    voiceover: "先看三个细节，再决定要不要预约体验。",
+    subtitle: "先看三个细节",
+    materials: ["门店环境", "人物动作"],
+    cameraMovement: "固定机位",
+    purpose: "建立信任",
+    fallbackShot: "没有人物时使用门店细节特写",
   };
 }

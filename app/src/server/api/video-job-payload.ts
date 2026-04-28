@@ -1,3 +1,5 @@
+import type { ProductionConfig, VoiceoverProvider } from "@/contracts/video";
+
 export type VideoJobPayloadAsset = {
   id: string;
   assetType: string;
@@ -48,6 +50,7 @@ export type VideoEditJobInputPayload = {
     desiredOutputs: ["final_video", "cover", "subtitles"];
     lockedFields: ["script", "cta", "target_user", "claims"];
   };
+  productionConfig: NormalizedProductionConfig;
   materialContext: {
     assetPlanId: string | null;
     assetMatchReportId: string | null;
@@ -82,12 +85,46 @@ export class VideoJobPayloadValidationError extends Error {
 
 const desiredOutputs = ["final_video", "cover", "subtitles"] as const;
 const lockedFields = ["script", "cta", "target_user", "claims"] as const;
+const allowedVoiceoverProviders = new Set<VoiceoverProvider>([
+  "bytedance_bigtts",
+  "minimax",
+  "302",
+]);
+const allowedSubtitleStyles = new Set(["platform_default", "bold_caption"]);
+const allowedBgmFilterKeys = new Set(["mood", "scene", "genre", "lang", "id"]);
+
+type NormalizedProductionConfig = {
+  voiceover: {
+    enabled: boolean;
+    provider: VoiceoverProvider;
+    voiceStyle?: string;
+    speed?: number;
+    volume: number;
+  };
+  bgm: {
+    enabled: boolean;
+    userRequest: string;
+    include: Record<string, Array<string | number>>;
+    exclude: Record<string, Array<string | number>>;
+    volume: number;
+  };
+  subtitles: {
+    enabled: boolean;
+    style: "platform_default" | "bold_caption";
+  };
+  render: {
+    aspectRatio: "9:16";
+    maxDurationSeconds?: number;
+    includeOriginalAudio: boolean;
+  };
+};
 
 export function buildVideoEditJobInputPayload(input: {
   draftId: string;
   variant: VideoJobPayloadVariant;
   materialReferences: VideoJobPayloadMaterialReference[];
   assets: VideoJobPayloadAsset[];
+  productionConfig?: ProductionConfig | null;
   now?: string;
 }): VideoEditJobInputPayload {
   assertApprovedScript(input.variant);
@@ -125,6 +162,7 @@ export function buildVideoEditJobInputPayload(input: {
       desiredOutputs: [...desiredOutputs],
       lockedFields: [...lockedFields],
     },
+    productionConfig: normalizeProductionConfig(input.productionConfig),
     materialContext: {
       assetPlanId: null,
       assetMatchReportId: null,
@@ -140,6 +178,125 @@ export function buildVideoEditJobInputPayload(input: {
     assembled_at: input.now ?? new Date().toISOString(),
     render_mode: inputAssets.length > 0 ? "asset_driven" : "script_only_fallback",
   };
+}
+
+function normalizeProductionConfig(
+  input: ProductionConfig | null | undefined,
+): NormalizedProductionConfig {
+  const voiceover = input?.voiceover ?? {};
+  const provider = voiceover.provider ?? "bytedance_bigtts";
+  if (!allowedVoiceoverProviders.has(provider)) {
+    throwInvalidProductionConfig("Unsupported voiceover provider.");
+  }
+
+  const subtitles = input?.subtitles ?? {};
+  const subtitleStyle = subtitles.style ?? "platform_default";
+  if (!allowedSubtitleStyles.has(subtitleStyle)) {
+    throwInvalidProductionConfig("Unsupported subtitle style.");
+  }
+
+  const render = input?.render ?? {};
+  const normalizedRender: NormalizedProductionConfig["render"] = {
+    aspectRatio: render.aspectRatio ?? "9:16",
+    includeOriginalAudio: render.includeOriginalAudio ?? false,
+  };
+  if (normalizedRender.aspectRatio !== "9:16") {
+    throwInvalidProductionConfig("Unsupported render aspect ratio.");
+  }
+  const maxDurationSeconds = normalizeOptionalNumber(
+    render.maxDurationSeconds,
+    "render.maxDurationSeconds",
+    15,
+    180,
+    true,
+  );
+  if (maxDurationSeconds !== undefined) {
+    normalizedRender.maxDurationSeconds = maxDurationSeconds;
+  }
+
+  const bgm = input?.bgm ?? {};
+  const normalizedVoiceover: NormalizedProductionConfig["voiceover"] = {
+    enabled: voiceover.enabled ?? true,
+    provider,
+    volume: normalizeOptionalNumber(voiceover.volume, "voiceover.volume", 0, 3) ?? 2,
+  };
+  const voiceStyle = normalizeOptionalString(voiceover.voiceStyle);
+  if (voiceStyle) {
+    normalizedVoiceover.voiceStyle = voiceStyle;
+  }
+  const speed = normalizeOptionalNumber(voiceover.speed, "voiceover.speed", 0.5, 2);
+  if (speed !== undefined) {
+    normalizedVoiceover.speed = speed;
+  }
+
+  return {
+    voiceover: normalizedVoiceover,
+    bgm: {
+      enabled: bgm.enabled ?? true,
+      userRequest: normalizeOptionalString(bgm.userRequest) ?? "",
+      include: normalizeBgmFilter(bgm.include, "bgm.include"),
+      exclude: normalizeBgmFilter(bgm.exclude, "bgm.exclude"),
+      volume: normalizeOptionalNumber(bgm.volume, "bgm.volume", 0, 3) ?? 0.25,
+    },
+    subtitles: {
+      enabled: subtitles.enabled ?? true,
+      style: subtitleStyle,
+    },
+    render: normalizedRender,
+  };
+}
+
+function normalizeOptionalString(value: string | null | undefined) {
+  if (value == null) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function normalizeOptionalNumber(
+  value: number | null | undefined,
+  field: string,
+  min: number,
+  max: number,
+  integer = false,
+) {
+  if (value == null) {
+    return undefined;
+  }
+  if (!Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) {
+    throwInvalidProductionConfig(`${field} is out of range.`);
+  }
+  return value;
+}
+
+function normalizeBgmFilter(
+  value: Record<string, Array<string | number>> | undefined,
+  field: string,
+) {
+  if (!value) {
+    return {};
+  }
+
+  const normalized: Record<string, Array<string | number>> = {};
+  for (const [key, items] of Object.entries(value)) {
+    if (!allowedBgmFilterKeys.has(key)) {
+      throwInvalidProductionConfig(`${field}.${key} is unsupported.`);
+    }
+    if (!Array.isArray(items)) {
+      throwInvalidProductionConfig(`${field}.${key} must be an array.`);
+    }
+    normalized[key] = items.filter((item) => String(item).trim().length > 0);
+  }
+  return normalized;
+}
+
+function throwInvalidProductionConfig(message: string): never {
+  throw new VideoJobPayloadValidationError(
+    400,
+    "VIDEO_PRODUCTION_CONFIG_INVALID",
+    message,
+  );
 }
 
 export function assertApprovedScript(variant: VideoJobPayloadVariant) {

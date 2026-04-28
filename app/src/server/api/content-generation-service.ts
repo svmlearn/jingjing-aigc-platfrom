@@ -41,6 +41,10 @@ import {
   buildVideoScriptCandidates,
   type VideoScriptCandidate,
 } from "@/server/api/video-growth-context";
+import {
+  buildVideoChainTestDraftFixture,
+  isVideoChainTestDraftEnabled,
+} from "@/server/api/video-chain-test-draft";
 
 type GenerationMode = "create" | "rewrite";
 
@@ -183,24 +187,6 @@ export async function generateVideoScriptForUser(input: {
       ? `视频脚本：${materialContext.material.title}`
       : session.strategySnapshot.videoBrief?.workingTitle ??
     `${merchant.name} 的视频脚本`;
-  const sourceItem = await createManualSourceItem({
-    merchantId: merchant.id,
-    platform: "douyin",
-    title: workingTitle,
-    scriptText:
-      buildSourceText({
-        extraRequirement: input.extraRequirement,
-        material: materialContext.material,
-        fallback: session.summaryText ?? workingTitle,
-      }),
-    tracePayload: {
-      consultation_session_id: session.id,
-      generated_kind: "video_script",
-      strategy_tag: input.strategyTag ?? null,
-      material_item_id: materialContext.material?.id ?? null,
-      material_reference_id: materialContext.reference?.id ?? input.materialReferenceId ?? null,
-    },
-  });
   const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
   const scriptContext = buildVideoScriptContext({
     merchant,
@@ -255,6 +241,25 @@ export async function generateVideoScriptForUser(input: {
     agentSettings: platformSettings.scriptProductionAgent,
   });
   const scriptCandidates = scriptAgent.candidates;
+  const sourceItem = await createManualSourceItem({
+    merchantId: merchant.id,
+    platform: "douyin",
+    title: workingTitle,
+    scriptText:
+      buildSourceText({
+        extraRequirement: input.extraRequirement,
+        material: materialContext.material,
+        fallback: session.summaryText ?? workingTitle,
+      }),
+    tracePayload: {
+      consultation_session_id: session.id,
+      generated_kind: "video_script",
+      strategy_tag: input.strategyTag ?? null,
+      material_item_id: materialContext.material?.id ?? null,
+      material_reference_id: materialContext.reference?.id ?? input.materialReferenceId ?? null,
+      script_agent_mode: scriptAgent.trace.mode,
+    },
+  });
 
   const draftBundle = await createDraftWithVariants({
     merchantId: merchant.id,
@@ -284,11 +289,16 @@ export async function generateVideoScriptForUser(input: {
         variantType: "video_script",
         title: candidate.title,
         scriptText: candidate.scriptText,
+        productionScenes: candidate.scenes,
         hashtags: buildHashtags(session),
         ctaText: candidate.ctaText,
         reviewStatus: "review_pending",
       })),
   });
+  const draftBundleWithScenes = attachProductionScenes(
+    draftBundle,
+    scriptCandidates.map((candidate) => candidate.scenes),
+  );
 
   await consumeMaterialReferenceIfNeeded({
     merchantId: merchant.id,
@@ -298,7 +308,45 @@ export async function generateVideoScriptForUser(input: {
     draftId: draftBundle.draft.id,
   });
 
-  return draftBundle;
+  return draftBundleWithScenes;
+}
+
+export async function createVideoChainTestDraftForUser(input: {
+  userId: string;
+}): Promise<ContentDraftBundleDto> {
+  if (!isVideoChainTestDraftEnabled()) {
+    throw new ApiError(
+      403,
+      "VIDEO_CHAIN_TEST_ENTRYPOINT_DISABLED",
+      "视频链路测试入口未启用。",
+    );
+  }
+
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  const fixture = buildVideoChainTestDraftFixture({
+    merchantName: merchant.name,
+    serviceItems: merchant.serviceItems,
+    defaultCta: merchant.defaultCta,
+    forbiddenWords: merchant.forbiddenWords,
+  });
+  const sourceItem = await createManualSourceItem({
+    merchantId: merchant.id,
+    platform: fixture.sourceItem.platform,
+    title: fixture.sourceItem.title,
+    scriptText: fixture.sourceItem.scriptText,
+    tracePayload: fixture.sourceItem.tracePayload,
+  });
+
+  return createDraftWithVariants({
+    merchantId: merchant.id,
+    sourceItemId: sourceItem.id,
+    workingTitle: fixture.draft.workingTitle,
+    rewriteGoal: fixture.draft.rewriteGoal,
+    status: fixture.draft.status,
+    inputSnapshot: fixture.draft.inputSnapshot,
+    commentInsights: fixture.draft.commentInsights,
+    variants: [fixture.variant],
+  });
 }
 
 export async function reviseVideoScriptForUser(input: {
@@ -425,6 +473,7 @@ export async function reviseVideoScriptForUser(input: {
     variantType: "video_script",
     title: revisedCandidate.title,
     scriptText: revisedCandidate.scriptText,
+    productionScenes: revisedCandidate.scenes,
     hashtags: buildHashtags(session),
     ctaText: revisedCandidate.ctaText,
     reviewStatus: "review_pending",
@@ -432,7 +481,10 @@ export async function reviseVideoScriptForUser(input: {
 
   return {
     revisionIntent,
-    variant,
+    variant: {
+      ...variant,
+      productionScenes: revisedCandidate.scenes,
+    },
     agentTrace: scriptAgent.trace,
   };
 }
@@ -551,6 +603,26 @@ async function generateVideoScriptCandidatesWithAgent(input: {
       },
     };
   }
+}
+
+function attachProductionScenes(
+  draftBundle: ContentDraftBundleDto,
+  sceneSets: VideoScriptCandidate["scenes"][],
+): ContentDraftBundleDto {
+  const variants = draftBundle.variants.map((variant, index) => ({
+    ...variant,
+    productionScenes: sceneSets[index] ?? variant.productionScenes ?? [],
+  }));
+
+  return {
+    ...draftBundle,
+    variants,
+    selectedVariant:
+      variants.find((variant) => variant.id === draftBundle.selectedVariant?.id) ??
+      variants.find((variant) => variant.id === draftBundle.draft.selectedVariantId) ??
+      variants[0] ??
+      null,
+  };
 }
 
 function buildVideoScriptProductionBrief(input: {

@@ -42,6 +42,7 @@ export async function createVideoEditJobForUser(input: {
     merchantId: variant.merchantId,
     draftId: variant.draftId,
     variant,
+    productionConfig: input.request.productionConfig ?? null,
   });
 
   return createVideoEditJob({
@@ -174,13 +175,20 @@ async function buildServerManagedInputPayload(input: {
   merchantId: string;
   draftId: string;
   variant: VideoJobPayloadVariant;
+  productionConfig: CreateVideoEditJobRequest["productionConfig"];
 }) {
   if (!isSupabaseAdminConfigured()) {
+    const assets = await listAssetObjectsByOwner({
+      ownerType: "content_draft",
+      ownerId: input.draftId,
+    });
+
     return buildVideoEditJobPayloadOrThrow({
       draftId: input.draftId,
       variant: input.variant,
       materialReferences: [],
-      assets: [],
+      assets,
+      productionConfig: input.productionConfig,
     });
   }
 
@@ -204,6 +212,7 @@ async function buildServerManagedInputPayload(input: {
       materialItemId: reference.materialItemId,
     })),
     assets,
+    productionConfig: input.productionConfig,
   });
 }
 

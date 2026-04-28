@@ -1,6 +1,7 @@
 import type {
   VideoScriptCandidate,
   VideoScriptCandidateType,
+  VideoScriptScene,
 } from "./video-growth-context.ts";
 
 export const SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION = "script-production-agent-v1";
@@ -142,6 +143,20 @@ export function buildScriptProductionAgentMessages(input: {
                 hook: "string",
                 whyThisWorks: "string",
                 ctaText: "string",
+                scenes: [
+                  {
+                    sceneNo: 1,
+                    timeRange: "00:00-00:05",
+                    shotRequirement: "string; what this shot must achieve",
+                    visual: "string; concrete picture the customer can shoot",
+                    voiceover: "string; exact spoken line for this shot",
+                    subtitle: "string; subtitle text for this shot",
+                    materials: "string[]; required footage or assets for this shot",
+                    cameraMovement: "string; e.g. fixed, push in, close-up cut",
+                    purpose: "string; why this shot exists",
+                    fallbackShot: "string; substitute shot if material is missing",
+                  },
+                ],
                 scriptText:
                   "string with scenes, timestamps,画面/台词/字幕/CTA; no markdown table",
               },
@@ -311,9 +326,10 @@ function normalizeCandidates(
     const hook = stringValue(record.hook);
     const whyThisWorks = stringValue(record.whyThisWorks);
     const ctaText = stringValue(record.ctaText);
-    const scriptText = stringValue(record.scriptText);
+    const scenes = normalizeScenes(record.scenes);
+    const scriptText = stringValue(record.scriptText) ?? formatScriptTextFromScenes(scenes);
 
-    if (!fallback || !title || !hook || !whyThisWorks || !ctaText || !scriptText) {
+    if (!fallback || !title || !hook || !whyThisWorks || !ctaText || !scriptText || scenes.length === 0) {
       continue;
     }
 
@@ -328,6 +344,7 @@ function normalizeCandidates(
       whyThisWorks,
       ctaText,
       scriptText,
+      scenes,
       strategyTrace: fallback.strategyTrace,
     });
   }
@@ -455,6 +472,77 @@ function stringArray(value: unknown) {
     ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
         .map((item) => item.trim())
     : [];
+}
+
+function normalizeScenes(value: unknown): VideoScriptScene[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item, index) => {
+      const record = toRecord(item);
+      const sceneNo = numberValue(record.sceneNo) ?? index + 1;
+      const timeRange = stringValue(record.timeRange);
+      const shotRequirement =
+        stringValue(record.shotRequirement) ??
+        stringValue(record.shot) ??
+        stringValue(record.visualRequirement);
+      const visual = stringValue(record.visual) ?? shotRequirement;
+      const voiceover =
+        stringValue(record.voiceover) ??
+        stringValue(record.voiceOver) ??
+        stringValue(record.dialogue) ??
+        stringValue(record.line);
+      const subtitle = stringValue(record.subtitle) ?? voiceover ?? "";
+      const materialValues = stringArray(record.materials);
+      const materials =
+        materialValues.length > 0 ? materialValues : stringArray(record.requiredMaterials);
+      const cameraMovement = stringValue(record.cameraMovement) ?? "固定机位或轻微推进";
+      const purpose = stringValue(record.purpose) ?? "服务本镜头的信息表达";
+      const fallbackShot = stringValue(record.fallbackShot) ?? "素材不足时使用同场景近景替代";
+
+      if (!timeRange || !shotRequirement || !visual || !voiceover) {
+        return null;
+      }
+
+      return {
+        sceneNo,
+        timeRange,
+        shotRequirement,
+        visual,
+        voiceover,
+        subtitle,
+        materials,
+        cameraMovement,
+        purpose,
+        fallbackShot,
+      };
+    })
+    .filter((scene): scene is VideoScriptScene => Boolean(scene));
+}
+
+function numberValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formatScriptTextFromScenes(scenes: VideoScriptScene[]) {
+  if (scenes.length === 0) {
+    return null;
+  }
+
+  return scenes
+    .map((scene) =>
+      [
+        `Scene ${scene.sceneNo} | ${scene.timeRange}`,
+        `镜头要求：${scene.shotRequirement}`,
+        `画面：${scene.visual}`,
+        `台词：${scene.voiceover}`,
+        `字幕：${scene.subtitle}`,
+        `素材：${scene.materials.join("、") || "按现场素材确认"}`,
+      ].join("\n"),
+    )
+    .join("\n\n");
 }
 
 function hasText(value: string | null | undefined) {

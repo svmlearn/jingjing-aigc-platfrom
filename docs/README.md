@@ -1,97 +1,89 @@
 # docs
 
-这个目录是 `小红书抖音矩阵获客平台` 的文档主入口。
+这是 `小红书抖音矩阵获客平台` 的文档入口。
 
-当前项目已经从 2026-04-19 的早期探索，进入 `staging 可运行 + V2.1 协作开发` 阶段。因此默认不要再把早期探索稿当作当前真相源。
+当前文档原则：少而准。默认只读当前真相源，不再把早期探索稿、旧分阶段计划、旧增长 Agent 方案当作实现依据。
 
-## 当前推荐阅读顺序
-
-新 Agent、W 同学、M 同学或双方各自的 AI 进入项目前，建议按下面顺序读：
+## 推荐阅读顺序
 
 1. `../AGENTS.md`
 2. `README.md`
 3. `协作/W-M同学协作README.md`
 4. `产品文档/V2.1-咨询驱动主链路体验补强-PRD.md`
 5. `产品文档/V2.1-内容日历到图文视频工作台协作PRD.md`
-6. `架构规范/2026-04-25-AI视频图文数据与系统架构补充决策.md`
-7. `架构规范/2026-04-24-consultation-agent-runtime-rag-spec.md`
-8. `progress/2026-04-25-supabase-migration-current-state.md`
+6. `架构规范/2026-04-28-current-architecture.md`
+7. `progress/2026-04-25-supabase-migration-current-state.md`
 
-如果是接续某个未完成任务，再读对应 `handoff/` 或 `progress/`。不要一上来全量读历史文档。
+如果是在接续当前未完成事项，再读 `current-task.md`。
 
-## 当前最重要的文档
-
-### 协作
-
-- `协作/W-M同学协作README.md`
-
-说明 W 同学（产品）和 M 同学（开发）如何协作，哪些内容可以口头聊，哪些接口、表结构、worker 输入输出必须写文档。
+## 当前真相源
 
 ### 产品
 
 - `产品文档/V2.1-咨询驱动主链路体验补强-PRD.md`
 - `产品文档/V2.1-内容日历到图文视频工作台协作PRD.md`
 
-这两份是当前产品主线。V0.1 系列属于历史资料，不再作为默认开发依据。
+这两份定义当前商家端主链路、内容日历、图文工作台、视频工作台和 worker 协作目标。
 
 ### 架构
 
-- `架构规范/2026-04-25-AI视频图文数据与系统架构补充决策.md`
-- `架构规范/2026-04-24-consultation-agent-runtime-rag-spec.md`
+- `架构规范/2026-04-28-current-architecture.md`
 
-这两份说明当前 AI 视频、图文数据、咨询 Agent runtime、RAG 和上下文调度的约定。
+这份是当前唯一架构总说明，覆盖：
 
-### 当前执行状态
+- 咨询台信息来源
+- 脚本制作 agent
+- app 确认和合同化
+- `video_edit_jobs.input_payload`
+- COS 媒体资产
+- video-worker
+- Docker FireRed/OpenStoryline
+- 预览审核和修订分流
+
+旧的增长 Agent 文档、旧 skeleton 默认路径、旧分阶段 worker / FireRed work-plan 已清理，不再作为当前依据。
+
+### 数据库和部署状态
 
 - `progress/2026-04-25-supabase-migration-current-state.md`
 
-这份记录 staging Supabase migration 当前状态。涉及数据库、worker、视频任务时优先读它。
+这份记录 Supabase migration 当前状态。涉及数据库、worker 表结构、资产表和作业表时优先读取。
+
+### 协作
+
+- `协作/W-M同学协作README.md`
+
+这份定义 W 同学、M 同学和 AI Agent 如何交接、冻结、验收、避免互相覆盖。
 
 ## 目录说明
 
-- `协作/`：W-M 协作说明，给产品、开发和各自 AI 读的沟通约定。
-- `产品文档/`：PRD、页面流程、用户故事、验收标准。
-- `架构规范/`：接口约束、状态机、数据结构、Agent runtime、发布链路规则。
-- `progress/`：执行日志、验证记录、部署和迁移事实。
-- `handoff/`：交接文档、冻结说明、任务书。
-- `探索/`：早期方案探索、竞品拆解、外部项目研究。
+- `产品文档/`：PRD、页面流程、验收标准。
+- `架构规范/`：只放当前架构总说明，不再堆阶段计划。
+- `协作/`：协作规则、面向产品/开发/AI 的说明。
+- `progress/`：少量当前状态和验证事实。
+- `handoff/`：交接文档和任务冻结说明。
+- `探索/`：历史探索资料，默认不作为真相源。
 - `designs/`：历史 UI 原型和视觉参考。
-- `test/`：历史测试清单和点击验证记录。
 
-## 历史文档怎么使用
+## 历史文档使用规则
 
-以下目录默认不要作为当前开发真相源：
+默认不要把以下内容作为当前开发依据：
 
-- `探索/`
-- 旧的 `handoff/`
-- 旧的 `progress/`
-- `designs/`
-- `test/`
-- `产品文档/V0.1-*`
-- `架构规范/V0.1-*`
+- 旧 `探索/`
+- 旧 `handoff/`
+- 旧 `progress/`
+- 旧 V0.1 文档
+- 旧增长 Agent / GrowthBrief / VideoStrategy 文档
+- 旧 skeleton-only worker 计划
 
-这些文档可以保留在 GitHub 历史和本地仓库里，用来追溯思路；但如果要给 M 同学或新 AI 一个干净上下文，建议只提供当前 V2.1 文档和必要架构/进度文件。
+需要追溯历史时可以回 Git 历史查。日常接手只读当前真相源。
 
-## 外部参考项目
+## 最小上下文建议
 
-外部开源项目本地副本放在：
+给新 Agent 或协作者时，优先只给：
 
-```text
-../references/
-```
-
-`references/` 已在根目录 `.gitignore` 中忽略，不提交到 GitHub / Gitee。需要参考时在本地读取，不要把参考项目代码 vendor 到当前仓库。
-
-## 给 M 同学的最小上下文建议
-
-如果要把代码同步到 Gitee 给 M 同学，建议 docs 只保留：
-
-- `README.md`
-- `协作/W-M同学协作README.md`
-- `产品文档/V2.1-咨询驱动主链路体验补强-PRD.md`
-- `产品文档/V2.1-内容日历到图文视频工作台协作PRD.md`
-- `架构规范/2026-04-25-AI视频图文数据与系统架构补充决策.md`
-- `架构规范/2026-04-24-consultation-agent-runtime-rag-spec.md`
-- `progress/2026-04-25-supabase-migration-current-state.md`
-
-其他历史文档先不要给默认上下文，避免 M 同学的 AI 被早期方案或旧部署日志带偏。
+- `AGENTS.md`
+- `docs/README.md`
+- `docs/架构规范/2026-04-28-current-architecture.md`
+- 两份 V2.1 产品文档
+- `docs/progress/2026-04-25-supabase-migration-current-state.md`
+- `docs/current-task.md`，仅当任务正在接续时提供

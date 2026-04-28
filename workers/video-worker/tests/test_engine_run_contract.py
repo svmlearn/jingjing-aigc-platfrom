@@ -27,6 +27,27 @@ class EngineRunContractTests(unittest.TestCase):
         self.assertTrue(request.production_directive["script_locked"])
         self.assertEqual(["script", "cta"], request.production_directive["locked_fields"])
 
+    def test_run_request_keeps_production_config_fields(self):
+        request = RunRequest(
+            job_id="job_1",
+            merchant_id="merchant_1",
+            draft_id="draft_1",
+            content_variant_id="variant_1",
+            instruction_text="make it warmer",
+            workspace_dir="/tmp/workspace",
+            output_dir="/tmp/output",
+            execution_mode="staging_worker",
+            script_text="locked script",
+            production_directive={"script_locked": True},
+            production_config={
+                "voiceover": {"enabled": True, "provider": "minimax"},
+                "bgm": {"enabled": True, "user_request": "light upbeat"},
+            },
+        )
+
+        self.assertEqual("minimax", request.production_config["voiceover"]["provider"])
+        self.assertEqual("light upbeat", request.production_config["bgm"]["user_request"])
+
 
 if __name__ == "__main__":
     unittest.main()

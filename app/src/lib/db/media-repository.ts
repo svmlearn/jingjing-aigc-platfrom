@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import type {
   MediaAssetDto,
   MediaAssetType,
@@ -7,7 +9,8 @@ import type {
   MediaStorageProvider,
 } from "@/contracts/media";
 import type { ContentVariantDto } from "@/contracts/draft";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getLocalDemoMediaOwnerContext } from "@/lib/db/content-draft-repository";
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
 type AssetObjectRow = {
@@ -51,11 +54,47 @@ export type MediaOwnerContext = {
   variantType?: ContentVariantDto["variantType"];
 };
 
+type LocalDemoMediaStore = {
+  assetObjects: Map<string, MediaAssetDto>;
+};
+
+const globalDemoMediaStore = globalThis as typeof globalThis & {
+  __jingjingLocalDemoMediaStore?: LocalDemoMediaStore;
+};
+
+const demoMediaStore =
+  globalDemoMediaStore.__jingjingLocalDemoMediaStore ??
+  (globalDemoMediaStore.__jingjingLocalDemoMediaStore = {
+    assetObjects: new Map<string, MediaAssetDto>(),
+  });
+const demoAssetObjects = demoMediaStore.assetObjects;
+
 export async function assertMediaOwnerAccess(input: {
   merchantId: string;
   ownerType: MediaOwnerType;
   ownerId: string;
 }): Promise<MediaOwnerContext> {
+  if (!isSupabaseAdminConfigured()) {
+    const owner = getLocalDemoMediaOwnerContext(input);
+
+    if (owner) {
+      return owner;
+    }
+
+    if (input.ownerType === "source_item" || input.ownerType === "content_draft") {
+      return {
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        merchantId: input.merchantId,
+        ...(input.ownerType === "content_draft" ? { draftId: input.ownerId } : {}),
+      };
+    }
+
+    if (!owner) {
+      throw new ApiError(404, "MEDIA_OWNER_NOT_FOUND", "Media owner not found.");
+    }
+  }
+
   const supabase = createSupabaseAdminClient();
 
   if (input.ownerType === "source_item") {
@@ -144,6 +183,32 @@ export async function createAssetObject(input: {
   etag?: string | null;
   sortOrder?: number;
 }): Promise<MediaAssetDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const now = new Date().toISOString();
+    const sortOrder =
+      input.sortOrder ?? getNextLocalAssetSortOrder({ ownerType: input.ownerType, ownerId: input.ownerId });
+    const asset: MediaAssetDto = {
+      id: randomUUID(),
+      ownerType: input.ownerType,
+      ownerId: input.ownerId,
+      assetType: input.assetType,
+      storageProvider: input.storageProvider,
+      bucketName: input.bucketName ?? null,
+      storageKey: input.storageKey,
+      originUrl: input.originUrl ?? null,
+      mimeType: input.mimeType ?? null,
+      fileSizeBytes: input.fileSizeBytes ?? null,
+      etag: input.etag ?? null,
+      sortOrder,
+      createdAt: now,
+      updatedAt: null,
+    };
+
+    demoAssetObjects.set(asset.id, asset);
+
+    return asset;
+  }
+
   const supabase = createSupabaseAdminClient();
   const sortOrder =
     input.sortOrder ?? (await getNextAssetSortOrder({ ownerType: input.ownerType, ownerId: input.ownerId }));
@@ -177,6 +242,20 @@ export async function listAssetObjectsByOwner(input: {
   ownerType: MediaOwnerType;
   ownerId: string;
 }): Promise<MediaAssetDto[]> {
+  if (!isSupabaseAdminConfigured()) {
+    return Array.from(demoAssetObjects.values())
+      .filter((asset) => asset.ownerType === input.ownerType && asset.ownerId === input.ownerId)
+      .sort((a, b) => {
+        const sortDelta = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+
+        if (sortDelta !== 0) {
+          return sortDelta;
+        }
+
+        return (a.createdAt ?? "").localeCompare(b.createdAt ?? "");
+      });
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("asset_objects")
@@ -212,6 +291,17 @@ async function getNextAssetSortOrder(input: {
   }
 
   return (((data as { sort_order: number } | null)?.sort_order) ?? -1) + 1;
+}
+
+function getNextLocalAssetSortOrder(input: {
+  ownerType: MediaOwnerType;
+  ownerId: string;
+}): number {
+  const matchingAssets = Array.from(demoAssetObjects.values()).filter(
+    (asset) => asset.ownerType === input.ownerType && asset.ownerId === input.ownerId,
+  );
+
+  return Math.max(-1, ...matchingAssets.map((asset) => asset.sortOrder ?? -1)) + 1;
 }
 
 function mapAssetObject(row: AssetObjectRow): MediaAssetDto {

@@ -21,6 +21,21 @@ This plan covers the first releasable slice:
 
 Revision reuse (`session_id` continuation), cost dashboards, and deeper observability should be implemented in a follow-up plan after this slice produces real videos reliably.
 
+## Split Execution Files
+
+This plan has been split into three execution files so separate workers can pick
+up clear scopes without reading the full master plan:
+
+1. `docs/superpowers/plans/2026-04-28-openstoryline-production-engine-01-runtime.md`
+   covers isolated worktree setup, FireRed runtime configuration, provider
+   environment variables, and resource documentation.
+2. `docs/superpowers/plans/2026-04-28-openstoryline-production-engine-02-contract-adapter.md`
+   covers the platform `productionConfig` contract, worker validation, engine
+   request schema, and FireRed adapter mapping.
+3. `docs/superpowers/plans/2026-04-28-openstoryline-production-engine-03-ui-smoke-handoff.md`
+   covers app controls, FireRed smoke verification, progress recording, and
+   handoff.
+
 ## File Map
 
 - `workers/video-worker/openstoryline/firered/config.toml`: remove committed concrete provider keys; keep environment placeholders.

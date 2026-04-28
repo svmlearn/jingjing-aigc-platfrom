@@ -52,6 +52,12 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     desiredOutputs: ["final_video", "cover", "subtitles"],
     lockedFields: ["script", "cta", "target_user", "claims"],
   });
+  assert.deepEqual(payload.productionConfig, {
+    voiceover: { enabled: true, provider: "bytedance_bigtts", volume: 2 },
+    bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
+    subtitles: { enabled: true, style: "platform_default" },
+    render: { aspectRatio: "9:16", includeOriginalAudio: false },
+  });
   assert.deepEqual(payload.materialContext, {
     assetPlanId: null,
     assetMatchReportId: null,
@@ -74,6 +80,92 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
       sort_order: 0,
     },
   ]);
+});
+
+test("buildVideoEditJobInputPayload adds default production config", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [],
+    now: "2026-04-27T00:00:00.000Z",
+  });
+
+  assert.deepEqual(payload.productionConfig, {
+    voiceover: { enabled: true, provider: "bytedance_bigtts", volume: 2 },
+    bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
+    subtitles: { enabled: true, style: "platform_default" },
+    render: { aspectRatio: "9:16", includeOriginalAudio: false },
+  });
+});
+
+test("buildVideoEditJobInputPayload normalizes production config overrides", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [],
+    productionConfig: {
+      voiceover: {
+        provider: "minimax",
+        voiceStyle: "warm_consultant",
+        speed: 1.1,
+      },
+      bgm: {
+        userRequest: "轻一点，不要压过人声",
+        include: { mood: ["warm"], id: ["light_01"] },
+        volume: 0.18,
+      },
+      render: {
+        maxDurationSeconds: 45,
+        includeOriginalAudio: true,
+      },
+    },
+  });
+
+  assert.deepEqual(payload.productionConfig, {
+    voiceover: {
+      enabled: true,
+      provider: "minimax",
+      voiceStyle: "warm_consultant",
+      speed: 1.1,
+      volume: 2,
+    },
+    bgm: {
+      enabled: true,
+      userRequest: "轻一点，不要压过人声",
+      include: { mood: ["warm"], id: ["light_01"] },
+      exclude: {},
+      volume: 0.18,
+    },
+    subtitles: { enabled: true, style: "platform_default" },
+    render: {
+      aspectRatio: "9:16",
+      maxDurationSeconds: 45,
+      includeOriginalAudio: true,
+    },
+  });
+});
+
+test("buildVideoEditJobInputPayload rejects invalid production config provider", () => {
+  assert.throws(
+    () =>
+      buildVideoEditJobInputPayload({
+        draftId: "draft-1",
+        variant: approvedVariant,
+        materialReferences: [],
+        assets: [],
+        productionConfig: {
+          voiceover: {
+            provider: "azure",
+          },
+        } as never,
+      }),
+    (error) =>
+      error instanceof VideoJobPayloadValidationError &&
+      error.code === "VIDEO_PRODUCTION_CONFIG_INVALID" &&
+      error.status === 400,
+  );
 });
 
 test("buildVideoEditJobInputPayload rejects unapproved scripts", () => {

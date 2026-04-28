@@ -1,6 +1,6 @@
 # Video Worker
 
-`workers/video-worker/` is the staging-only execution skeleton for the current four-layer media architecture:
+`workers/video-worker/` is the Docker-first execution runtime for the current four-layer media architecture:
 
 - `Vercel`: frontend and business APIs
 - `Supabase`: database and job source of truth
@@ -45,8 +45,8 @@ video-worker
 -> firered-openstoryline
 ```
 
-Use `firered.env.example` when the server should run the real FireRed
-OpenStoryline engine:
+Use `firered.env.example` and the FireRed compose override when the server
+should run the real FireRed OpenStoryline engine:
 
 ```bash
 cp firered.env.example .env
@@ -54,7 +54,7 @@ cp firered.env.example .env
 # OPENSTORYLINE_LLM_*, OPENSTORYLINE_VLM_*, and selected TTS_* secrets.
 sudo mkdir -p /srv/jingjing-video-worker/{tmp,models,outputs}
 sudo mkdir -p /srv/jingjing-video-worker/firered/{.storyline,resource/bgms,resource/tts,outputs}
-docker compose --profile firered up --build
+docker compose -f docker-compose.yml -f docker-compose.firered.yml --profile firered up --build
 ```
 
 The main app still writes `video_edit_jobs`; it does not call FireRed directly.
@@ -76,23 +76,30 @@ To start the FireRed web/MCP service on the server:
 docker compose --profile firered up --build firered-openstoryline
 ```
 
-If the server should download FireRed models/resources while building the image,
-set `DOWNLOAD_FIRERED_ASSETS=true` before building. Otherwise prepare these host
-directories and mount them into the container:
+By default the FireRed container downloads missing models/resources at startup
+with `DOWNLOAD_FIRERED_ASSETS=true`. The download runs only when
+`.storyline/models` or `resource/bgms` are missing, so mounted host directories
+stay usable across restarts. If assets are already prepared by deployment
+automation, set `DOWNLOAD_FIRERED_ASSETS=false`:
 
 ```bash
 sudo mkdir -p /srv/jingjing-video-worker/firered/{.storyline,resource,outputs}
 ```
 
 To route worker jobs through FireRed, set these values in `.env` and run the
-compose stack with the `firered` profile:
+compose stack with the `firered` profile plus the FireRed override:
 
 ```bash
 OPENSTORYLINE_ENGINE_ADAPTER=fire_red
 FIRERED_OPENSTORYLINE_BASE_URL=http://firered-openstoryline:7860
 FIRERED_PROVIDER_KEY=<private shared key>
-docker compose --profile firered up --build
+docker compose -f docker-compose.yml -f docker-compose.firered.yml --profile firered up --build
 ```
+
+In FireRed mode, `openstoryline-engine` reports liveness on `/health` and
+readiness on `/ready`. Docker Compose uses `/ready`, so `video-worker` waits
+until the adapter has the FireRed base URL, shared provider key, and reachable
+FireRed `/health` endpoint before polling jobs.
 
 ### FireRed production assets
 
@@ -105,12 +112,18 @@ FireRed mode requires runtime assets that are not committed to git:
 
 Use one of two setup paths:
 
-1. Build with `DOWNLOAD_FIRERED_ASSETS=true`.
-2. Prepare the host directories before starting compose and keep
-   `DOWNLOAD_FIRERED_ASSETS=false`.
+1. Default runtime path: keep `DOWNLOAD_FIRERED_ASSETS=true`, so the container
+   downloads missing assets into the mounted host directories.
+2. Pre-baked image path: set `DOWNLOAD_FIRERED_BUILD_ASSETS=true` when building.
+3. Pre-provisioned host path: prepare the host directories before starting
+   compose and set `DOWNLOAD_FIRERED_ASSETS=false`.
 
 Provider secrets must stay in `.env` or the deployment secret manager. Do not
 write concrete provider keys into FireRed config files.
+
+The FireRed container supervises both its Web service and MCP service. If either
+child process exits, the container exits instead of reporting a false healthy
+state.
 
 The FireRed worker API uses shared host mounts so it can read worker-downloaded
 input files under `/srv/jingjing-video-worker/tmp` and write `final.mp4` back to
@@ -256,11 +269,15 @@ Only requested `desiredOutputs` are uploaded and written back; for example,
 sudo mkdir -p /srv/jingjing-video-worker/{tmp,models,outputs}
 ```
 
-4. Start the stack:
+4. Start the local skeleton stack:
 
 ```bash
 docker compose up --build
 ```
+
+This local command uses `.env.example`, which explicitly sets
+`OPENSTORYLINE_ENGINE_ADAPTER=skeleton`. Server rendering should use
+`firered.env.example` and `docker-compose.firered.yml` instead.
 
 To verify real staging dependencies without printing secrets, run:
 
@@ -286,7 +303,7 @@ This is a PoC execution skeleton, not the final production runtime. Today it giv
 - an internal OpenStoryline HTTP contract we can swap for the real engine later
 
 It now bundles a trimmed `FireRed-OpenStoryline` source copy for server deployment
-and adapter development. The current `openstoryline-engine` service defaults to
-the local contract-preserving skeleton; set `OPENSTORYLINE_ENGINE_ADAPTER=fire_red`
-only when the FireRed service, model/provider keys, and mounted resources are
-ready on the server.
+and adapter development. The Compose service default points at the real FireRed
+adapter so an unset production environment does not silently render placeholder
+videos. Local smoke runs remain explicit through `.env.example`, which sets
+`OPENSTORYLINE_ENGINE_ADAPTER=skeleton`.

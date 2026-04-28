@@ -35,6 +35,22 @@ def make_job():
                 "desiredOutputs": ["final_video", "cover"],
                 "lockedFields": ["script", "cta"],
             },
+            "productionConfig": {
+                "voiceover": {
+                    "enabled": True,
+                    "provider": "minimax",
+                    "volume": 1.5,
+                },
+                "bgm": {
+                    "enabled": True,
+                    "userRequest": "light upbeat",
+                    "include": {},
+                    "exclude": {},
+                    "volume": 0.35,
+                },
+                "subtitles": {"enabled": True, "style": "platform_default"},
+                "render": {"aspectRatio": "9:16", "includeOriginalAudio": True},
+            },
         },
         runtime_payload={},
         retry_count=0,
@@ -83,6 +99,10 @@ class OpenStorylineContractPayloadTests(unittest.TestCase):
         self.assertEqual("固定脚本，不允许制作层改写 CTA。", captured_payload["script_text"])
         self.assertTrue(captured_payload["production_directive"]["script_locked"])
         self.assertEqual(["script", "cta"], captured_payload["production_directive"]["locked_fields"])
+        self.assertEqual("minimax", captured_payload["production_config"]["voiceover"]["provider"])
+        self.assertEqual("light upbeat", captured_payload["production_config"]["bgm"]["user_request"])
+        self.assertEqual(0.35, captured_payload["production_config"]["bgm"]["volume"])
+        self.assertTrue(captured_payload["production_config"]["render"]["include_original_audio"])
 
 
 if __name__ == "__main__":

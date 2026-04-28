@@ -81,7 +81,7 @@ workers/video-worker/tests/**
 `POST /api/video-edit-jobs` 创建的 `input_payload` 必须符合：
 
 ```text
-docs/架构规范/2026-04-27-video-job-payload-contract.md
+docs/架构规范/2026-04-28-current-architecture.md
 ```
 
 最低要求：
@@ -129,7 +129,7 @@ ScriptCandidates
 参考文档：
 
 ```text
-docs/架构规范/2026-04-27-growth-agent-runtime-and-strategy-plan.md
+docs/架构规范/2026-04-28-current-architecture.md
 ```
 
 第一阶段不新增长期记忆表，不新增完整 Agent run 表，不做动态 skill。
