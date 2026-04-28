@@ -1,4 +1,5 @@
 import { Shield, ShieldAlert, UserPlus } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ const errorMessages: Record<string, string> = {
 export default async function PlatformAdminLoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; mode?: string }>;
 }) {
   if (await hasPlatformAdminSession()) {
     redirect("/platform-admin");
@@ -39,6 +40,7 @@ export default async function PlatformAdminLoginPage({
   const bootstrapSecretConfigured = isPlatformAdminBootstrapSecretConfigured();
   const hasAdminUsers = accessConfigured ? await hasAnyPlatformAdminUsers() : false;
   const showBootstrap = accessConfigured && !hasAdminUsers;
+  const showBootstrapForm = showBootstrap && params.mode === "bootstrap";
   const errorMessage = params.error ? errorMessages[params.error] : undefined;
 
   return (
@@ -48,7 +50,11 @@ export default async function PlatformAdminLoginPage({
           <div className="flex items-center gap-3">
             <div className="flex size-11 items-center justify-center rounded-full bg-[#e8f1ff] text-[#1d4ed8]">
               {showBootstrap ? (
-                <UserPlus className="size-5" aria-hidden="true" />
+                showBootstrapForm ? (
+                  <UserPlus className="size-5" aria-hidden="true" />
+                ) : (
+                  <Shield className="size-5" aria-hidden="true" />
+                )
               ) : (
                 <Shield className="size-5" aria-hidden="true" />
               )}
@@ -56,13 +62,13 @@ export default async function PlatformAdminLoginPage({
             <div>
               <p className="text-sm font-semibold text-[#1d4ed8]">Platform Admin</p>
               <h1 className="mt-1 text-2xl font-semibold">
-                {showBootstrap ? "初始化首个超级管理员" : "进入平台管理台"}
+                {showBootstrapForm ? "初始化首个超级管理员" : "进入平台管理台"}
               </h1>
             </div>
           </div>
 
           <p className="mt-5 text-sm leading-6 text-[#5d6b7a]">
-            平台后台现在使用独立管理员账号登录，密码由 Supabase Auth 管理，权限由
+            平台后台使用独立管理员账号登录。邮箱和密码由 Supabase Auth 管理，后台权限由
             `platform_admin_users` 中的 super_admin / admin 角色决定。
           </p>
 
@@ -72,7 +78,19 @@ export default async function PlatformAdminLoginPage({
             </div>
           ) : null}
 
-          {showBootstrap ? (
+          {showBootstrap && !showBootstrapForm ? (
+            <div className="mt-5 rounded-md border border-[#fed7aa] bg-[#fff7ed] px-4 py-3 text-sm leading-6 text-[#9a3412]">
+              当前 staging 还没有任何平台管理员账号。日常入口仍然是邮箱密码登录；首次部署初始化请由部署负责人使用
+              ADMIN_SETUP_SECRET 创建第一个 super_admin。
+              <div className="mt-3">
+                <Link className="font-semibold text-[#1d4ed8]" href="/platform-admin-login?mode=bootstrap">
+                  打开首次初始化入口
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
+          {showBootstrapForm ? (
             <form action={initializePlatformAdmin} className="mt-6 grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="setupSecret">初始化口令</Label>
@@ -125,6 +143,9 @@ export default async function PlatformAdminLoginPage({
               >
                 创建 super_admin 并进入后台
               </Button>
+              <Link className="text-center text-sm font-medium text-[#1d4ed8]" href="/platform-admin-login">
+                返回账号密码登录
+              </Link>
             </form>
           ) : (
             <form action={signInToPlatformAdmin} className="mt-6 grid gap-4">
@@ -137,6 +158,7 @@ export default async function PlatformAdminLoginPage({
                   placeholder="admin@example.com"
                   autoComplete="username"
                   disabled={!accessConfigured}
+                  required
                 />
               </div>
               <div className="grid gap-2">
@@ -147,6 +169,7 @@ export default async function PlatformAdminLoginPage({
                   type="password"
                   autoComplete="current-password"
                   disabled={!accessConfigured}
+                  required
                 />
               </div>
 
@@ -175,7 +198,7 @@ export default async function PlatformAdminLoginPage({
           </div>
 
           <div className="mt-6 rounded-md border border-[#dde3ea] bg-[#f8fafc] p-4 text-sm leading-6 text-[#5d6b7a]">
-            首个 super_admin 只在管理员表为空时开放初始化；创建完成后，后续管理员统一在「系统配置」里由超级管理员维护。
+            首个 super_admin 只在管理员表为空时开放初始化；创建完成后，本页只保留邮箱密码登录，后续管理员统一在「系统配置」里由超级管理员维护。
           </div>
         </aside>
       </div>
