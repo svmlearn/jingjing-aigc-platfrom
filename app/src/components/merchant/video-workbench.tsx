@@ -277,17 +277,19 @@ export function VideoWorkbench({
         throw new Error(formatApiError(data.error, "视频脚本生成失败"));
       }
 
-      setDraftBundle(data.draftBundle);
+      const generatedDraftBundle = data.draftBundle;
+
+      setDraftBundle(generatedDraftBundle);
       setSelectedVariantId(
-        data.draftBundle.selectedVariant?.id ?? data.draftBundle.variants[0]?.id ?? null,
+        generatedDraftBundle.selectedVariant?.id ?? generatedDraftBundle.variants[0]?.id ?? null,
       );
       setRouteContext((current) => ({
         ...current,
-        draftId: data.draftBundle.draft.id,
+        draftId: generatedDraftBundle.draft.id,
         variantId:
-          data.draftBundle.selectedVariant?.id ??
-          data.draftBundle.draft.selectedVariantId ??
-          data.draftBundle.variants[0]?.id ??
+          generatedDraftBundle.selectedVariant?.id ??
+          generatedDraftBundle.draft.selectedVariantId ??
+          generatedDraftBundle.variants[0]?.id ??
           null,
       }));
       setSegmentUploads({});
@@ -401,12 +403,14 @@ export function VideoWorkbench({
         throw new Error(data.error?.message ?? "视频任务创建失败");
       }
 
-      setJob(data.job);
+      const createdJob = data.job;
+
+      setJob(createdJob);
       setRouteContext((current) => ({
         ...current,
-        draftId: data.job.draftId,
+        draftId: createdJob.draftId,
         variantId: selectedVariant.id,
-        jobId: data.job.id,
+        jobId: createdJob.id,
       }));
       setMessages((current) =>
         appendAgentMessage(
@@ -440,9 +444,11 @@ export function VideoWorkbench({
         throw new Error(data.error?.message ?? "测试脚本创建失败");
       }
 
-      setDraftBundle(data.draftBundle);
+      const testDraftBundle = data.draftBundle;
+
+      setDraftBundle(testDraftBundle);
       setSelectedVariantId(
-        data.draftBundle.selectedVariant?.id ?? data.draftBundle.variants[0]?.id ?? null,
+        testDraftBundle.selectedVariant?.id ?? testDraftBundle.variants[0]?.id ?? null,
       );
       setGoal("视频链路测试：上传素材、生成视频、预览结果、发起制作修订");
       setExtraRequirement("");
@@ -451,11 +457,11 @@ export function VideoWorkbench({
       setShowCanvas(true);
       setRouteContext((current) => ({
         ...current,
-        draftId: data.draftBundle?.draft.id ?? null,
+        draftId: testDraftBundle.draft.id,
         variantId:
-          data.draftBundle?.selectedVariant?.id ??
-          data.draftBundle?.draft.selectedVariantId ??
-          data.draftBundle?.variants[0]?.id ??
+          testDraftBundle.selectedVariant?.id ??
+          testDraftBundle.draft.selectedVariantId ??
+          testDraftBundle.variants[0]?.id ??
           null,
         jobId: null,
       }));
@@ -562,10 +568,12 @@ export function VideoWorkbench({
         throw new Error(data.error?.message ?? "视频任务重试失败");
       }
 
-      setJob(data.job);
+      const retriedJob = data.job;
+
+      setJob(retriedJob);
       setRouteContext((current) => ({
         ...current,
-        jobId: data.job.id,
+        jobId: retriedJob.id,
       }));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "视频任务重试失败");
@@ -584,12 +592,14 @@ export function VideoWorkbench({
       };
 
       if (response.ok && data.job) {
-        setJob(data.job);
+        const loadedJob = data.job;
+
+        setJob(loadedJob);
         setRouteContext((current) => ({
           ...current,
-          draftId: data.job?.draftId ?? current.draftId,
-          variantId: data.job?.contentVariantId ?? current.variantId,
-          jobId: data.job?.id ?? current.jobId,
+          draftId: loadedJob.draftId ?? current.draftId,
+          variantId: loadedJob.contentVariantId ?? current.variantId,
+          jobId: loadedJob.id ?? current.jobId,
         }));
       }
     } catch {

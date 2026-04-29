@@ -59,6 +59,13 @@
 - `app/src/components/merchant/video-workbench.tsx`
   - 工作台右侧状态提示也改成用户可读文案，不再直接显示原始枚举。
 
+### 5. 部署补充修正
+
+- `app/src/components/merchant/video-workbench.tsx`
+  - 补齐 `draftBundle` / `job` 的局部常量守卫，消除 Vercel TypeScript 构建报错。
+- `app/src/app/dashboard/history/page.tsx`
+  - 为使用 `useSearchParams()` 的 `HistoryHub` 增加 `Suspense` 包裹，满足 Next.js 16 的 prerender 约束。
+
 ## 验证
 
 已完成：
@@ -66,6 +73,11 @@
 - `git diff --check`
 - 轻量 TS 语法编译检查：
   - `node -e "...typescript.transpileModule(...)" -> syntax-ok`
+- `pnpm run build`
+  - 初次生产构建暴露两类部署阻塞：
+    - `video-workbench.tsx` 中的空值守卫未被 TypeScript 识别
+    - `/dashboard/history` 页面缺少 `Suspense` 包裹 `useSearchParams()` 的客户端组件
+  - 两处问题修复后，本地 `pnpm run build` 已通过
 
 未完成：
 
