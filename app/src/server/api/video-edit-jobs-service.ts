@@ -44,6 +44,11 @@ export async function createVideoEditJobForUser(input: {
     variant,
     productionConfig: input.request.productionConfig ?? null,
   });
+  const runtimePayload = {
+    engine_adapter: "fire_red",
+    provider_settings_source: "env",
+    tts_provider: inputPayload.productionConfig.voiceover.provider,
+  };
 
   return createVideoEditJob({
     merchantId: variant.merchantId,
@@ -60,6 +65,7 @@ export async function createVideoEditJobForUser(input: {
           },
         }
       : inputPayload,
+    runtimePayload,
   });
 }
 

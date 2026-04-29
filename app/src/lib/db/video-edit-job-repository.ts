@@ -185,6 +185,7 @@ export async function createVideoEditJob(input: {
   triggerSource?: VideoEditJobTriggerSource;
   instructionText?: CreateVideoEditJobRequest["instructionText"];
   inputPayload?: CreateVideoEditJobRequest["inputPayload"];
+  runtimePayload?: Record<string, unknown>;
 }): Promise<VideoEditJobDto> {
   if (!isSupabaseAdminConfigured()) {
     const now = new Date().toISOString();
@@ -198,7 +199,7 @@ export async function createVideoEditJob(input: {
       triggerSource: input.triggerSource ?? "manual",
       instructionText: input.instructionText ?? null,
       inputPayload: input.inputPayload ?? {},
-      runtimePayload: {
+      runtimePayload: input.runtimePayload ?? {
         mode: "local_demo_memory",
       },
       progressPct: 0,
@@ -227,7 +228,7 @@ export async function createVideoEditJob(input: {
       trigger_source: input.triggerSource ?? "manual",
       instruction_text: input.instructionText ?? null,
       input_payload: input.inputPayload ?? {},
-      runtime_payload: {},
+      runtime_payload: input.runtimePayload ?? {},
       result_payload: {},
       log_payload: {},
       progress_pct: 0,
