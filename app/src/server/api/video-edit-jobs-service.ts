@@ -1,11 +1,10 @@
 import "server-only";
 
+import type { ContentVariantDto } from "@/contracts/draft";
 import type { CreateVideoEditJobRequest, VideoEditJobDto, VideoEditJobStatus } from "@/contracts/video";
-import {
-  isLocalRealChainEnabled,
-  listLocalRealChainAssetObjectsByOwner,
-} from "@/lib/db/local-real-chain-repository";
+import { approveContentVariant } from "@/lib/db/content-draft-repository";
 import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
+import { listMaterialWorkbenchReferencesByDraft } from "@/lib/db/material-library-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import {
   assertVideoScriptVariantAccess,
@@ -17,6 +16,12 @@ import {
 } from "@/lib/db/video-edit-job-repository";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { createCosSignedPreviewUrl } from "@/server/api/cos";
+import {
+  VideoJobPayloadValidationError,
+  buildVideoEditJobInputPayload,
+  type VideoJobPayloadVariant,
+} from "@/server/api/video-job-payload";
+import { ApiError } from "@/server/api/errors";
 
 export async function createVideoEditJobForUser(input: {
   userId: string;
@@ -27,14 +32,64 @@ export async function createVideoEditJobForUser(input: {
     merchantId: merchant.id,
     contentVariantId: input.request.contentVariantId,
   });
+  if (input.request.sourceJobId) {
+    await getVideoEditJobById({
+      merchantId: variant.merchantId,
+      jobId: input.request.sourceJobId,
+    });
+  }
+  const inputPayload = await buildServerManagedInputPayload({
+    merchantId: variant.merchantId,
+    draftId: variant.draftId,
+    variant,
+    productionConfig: input.request.productionConfig ?? null,
+  });
+  const runtimePayload = {
+    engine_adapter: "fire_red",
+    provider_settings_source: "env",
+    tts_provider: inputPayload.productionConfig.voiceover.provider,
+  };
 
   return createVideoEditJob({
     merchantId: variant.merchantId,
     draftId: variant.draftId,
     contentVariantId: variant.contentVariantId,
-    triggerSource: "manual",
+    triggerSource: input.request.sourceJobId ? "regenerate" : "manual",
     instructionText: input.request.instructionText,
-    inputPayload: await buildServerManagedInputPayload(variant.draftId, variant),
+    inputPayload: input.request.sourceJobId
+      ? {
+          ...inputPayload,
+          revisionContext: {
+            sourceJobId: input.request.sourceJobId,
+            revisionType: "production",
+          },
+        }
+      : inputPayload,
+    runtimePayload,
+  });
+}
+
+export async function approveVideoScriptVariantForUser(input: {
+  userId: string;
+  contentVariantId: string;
+}): Promise<ContentVariantDto> {
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  const executableVariant = await assertVideoScriptVariantAccess({
+    merchantId: merchant.id,
+    contentVariantId: input.contentVariantId,
+  });
+
+  if (!executableVariant.scriptText?.trim()) {
+    throw new ApiError(
+      409,
+      "VIDEO_SCRIPT_TEXT_REQUIRED",
+      "视频脚本缺少正文，无法确认。",
+    );
+  }
+
+  return approveContentVariant({
+    merchantId: merchant.id,
+    contentVariantId: input.contentVariantId,
   });
 }
 
@@ -98,15 +153,10 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
     };
   }
 
-  const assets = isLocalRealChainEnabled()
-    ? await listLocalRealChainAssetObjectsByOwner({
-        ownerType: "content_variant",
-        ownerId: job.contentVariantId,
-      })
-    : await listAssetObjectsByOwner({
-        ownerType: "content_variant",
-        ownerId: job.contentVariantId,
-      });
+  const assets = await listAssetObjectsByOwner({
+    ownerType: "content_variant",
+    ownerId: job.contentVariantId,
+  });
   const matchedAssets = assets.filter(
     (asset) =>
       references.assetIds.has(asset.id) || references.storageKeys.has(asset.storageKey),
@@ -127,101 +177,61 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
   };
 }
 
-async function buildServerManagedInputPayload(
-  draftId: string,
-  variant: {
-    title?: string | null;
-    scriptText?: string | null;
-    hashtags?: string[];
-    ctaText?: string | null;
-  },
-) {
-  const script = buildScriptPayload(variant);
-
+async function buildServerManagedInputPayload(input: {
+  merchantId: string;
+  draftId: string;
+  variant: VideoJobPayloadVariant;
+  productionConfig: CreateVideoEditJobRequest["productionConfig"];
+}) {
   if (!isSupabaseAdminConfigured()) {
-    if (isLocalRealChainEnabled()) {
-      const assets = await listLocalRealChainAssetObjectsByOwner({
-        ownerType: "content_draft",
-        ownerId: draftId,
-      });
-      const inputAssets = assets
-        .filter((asset) => asset.assetType === "image" || asset.assetType === "video")
-        .map((asset) => ({
-          asset_id: asset.id,
-          asset_type: asset.assetType,
-          storage_provider: asset.storageProvider,
-          bucket_name: asset.bucketName ?? null,
-          storage_key: asset.storageKey,
-          mime_type: asset.mimeType ?? null,
-          file_size_bytes: asset.fileSizeBytes ?? null,
-          etag: asset.etag ?? null,
-          sort_order: asset.sortOrder,
-        }));
+    const assets = await listAssetObjectsByOwner({
+      ownerType: "content_draft",
+      ownerId: input.draftId,
+    });
 
-      return {
-        script,
-        input_assets: inputAssets,
-        assembled_from_owner_type: "content_draft",
-        assembled_from_owner_id: draftId,
-        assembled_at: new Date().toISOString(),
-        render_mode: inputAssets.length === 0 ? "script_only_fallback" : "asset_driven",
-        storageMode: "local_real_chain_db",
-      };
-    }
-
-    return {
-      script,
-      input_assets: [],
-      assembled_from_owner_type: "content_draft",
-      assembled_from_owner_id: draftId,
-      assembled_at: new Date().toISOString(),
-      render_mode: "script_only_fallback",
-      storageMode: "local_demo_memory",
-    };
+    return buildVideoEditJobPayloadOrThrow({
+      draftId: input.draftId,
+      variant: input.variant,
+      materialReferences: [],
+      assets,
+      productionConfig: input.productionConfig,
+    });
   }
 
-  const assets = await listAssetObjectsByOwner({
-    ownerType: "content_draft",
-    ownerId: draftId,
-  });
-  const inputAssets = assets
-    .filter((asset) => asset.assetType === "image" || asset.assetType === "video")
-    .map((asset) => ({
-      asset_id: asset.id,
-      asset_type: asset.assetType,
-      storage_provider: asset.storageProvider,
-      bucket_name: asset.bucketName ?? null,
-      storage_key: asset.storageKey,
-      mime_type: asset.mimeType ?? null,
-      file_size_bytes: asset.fileSizeBytes ?? null,
-      etag: asset.etag ?? null,
-      sort_order: asset.sortOrder,
-    }));
+  const [assets, materialReferences] = await Promise.all([
+    listAssetObjectsByOwner({
+      ownerType: "content_draft",
+      ownerId: input.draftId,
+    }),
+    listMaterialWorkbenchReferencesByDraft({
+      merchantId: input.merchantId,
+      draftId: input.draftId,
+      targetWorkbench: "video",
+    }),
+  ]);
 
-  return {
-    script,
-    input_assets: inputAssets,
-    assembled_from_owner_type: "content_draft",
-    assembled_from_owner_id: draftId,
-    assembled_at: new Date().toISOString(),
-    render_mode: inputAssets.length === 0 ? "script_only_fallback" : "asset_driven",
-  };
+  return buildVideoEditJobPayloadOrThrow({
+    draftId: input.draftId,
+    variant: input.variant,
+    materialReferences: materialReferences.map((reference) => ({
+      id: reference.id,
+      materialItemId: reference.materialItemId,
+    })),
+    assets,
+    productionConfig: input.productionConfig,
+  });
 }
 
-function buildScriptPayload(variant: {
-  title?: string | null;
-  scriptText?: string | null;
-  hashtags?: string[];
-  ctaText?: string | null;
-}) {
-  return {
-    title: variant.title ?? null,
-    text: variant.scriptText ?? "",
-    hashtags: variant.hashtags ?? [],
-    cta_text: variant.ctaText ?? null,
-    source: "content_variant",
-    locked_at: new Date().toISOString(),
-  };
+function buildVideoEditJobPayloadOrThrow(input: Parameters<typeof buildVideoEditJobInputPayload>[0]) {
+  try {
+    return buildVideoEditJobInputPayload(input);
+  } catch (error) {
+    if (error instanceof VideoJobPayloadValidationError) {
+      throw new ApiError(error.status, error.code, error.message);
+    }
+
+    throw error;
+  }
 }
 
 function extractUploadedAssetReferences(resultPayload: Record<string, unknown>) {

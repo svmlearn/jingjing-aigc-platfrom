@@ -12,6 +12,131 @@ const consultationAgentToolSchema = z.enum([
   "read_history",
 ]);
 
+const jsonObjectSchema = z.record(z.string(), z.unknown());
+
+const agentKeySchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(120)
+  .regex(/^[a-z0-9][a-z0-9_-]*$/, "Only lowercase letters, numbers, underscores and dashes are allowed.");
+
+const agentServiceStatusSchema = z.enum(["draft", "enabled", "disabled"]);
+
+const agentAssetStatusSchema = z.enum(["draft", "enabled", "disabled"]);
+
+const agentServiceFlagsSchema = z
+  .object({
+    systemPromptEnabled: z.boolean().optional(),
+    skillsEnabled: z.boolean().optional(),
+    knowledgeEnabled: z.boolean().optional(),
+  })
+  .catchall(z.unknown());
+
+export const createAgentConfigSchema = z.object({
+  agentKey: agentKeySchema.optional(),
+  displayName: z.string().trim().min(1).max(120),
+  roleDescription: z.string().trim().max(300).nullish(),
+  description: z.string().trim().max(1000).nullish(),
+  serviceStatus: agentServiceStatusSchema.optional(),
+  serviceFlags: agentServiceFlagsSchema.optional(),
+  modelConfig: jsonObjectSchema.optional(),
+});
+
+export const updateAgentConfigSchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(120).optional(),
+    roleDescription: z.string().trim().max(300).nullish(),
+    description: z.string().trim().max(1000).nullish(),
+    serviceStatus: agentServiceStatusSchema.optional(),
+    serviceFlags: agentServiceFlagsSchema.optional(),
+    modelConfig: jsonObjectSchema.optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field must be provided.",
+  });
+
+export const copyAgentSchema = z.object({
+  displayName: z.string().trim().min(1).max(120),
+});
+
+export const saveAgentPromptDraftSchema = z.object({
+  body: z.string().max(20000),
+  changeNote: z.string().trim().max(300).nullish(),
+});
+
+export const publishAgentPromptSchema = z.object({
+  promptVersionId: z.uuid().optional(),
+});
+
+export const rollbackAgentPromptSchema = z.object({
+  promptVersionId: z.uuid(),
+});
+
+export const updateAgentSkillBindingsSchema = z.object({
+  skillIds: z.array(z.uuid()).max(100),
+});
+
+export const updateAgentKnowledgeSetBindingsSchema = z.object({
+  knowledgeSetIds: z.array(z.uuid()).max(100),
+});
+
+export const createAgentSkillSchema = z.object({
+  skillKey: agentKeySchema.nullish(),
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(1000).optional(),
+  whenToUse: z.string().trim().max(1000).optional(),
+  body: z.string().max(20000).optional(),
+  status: agentAssetStatusSchema.optional(),
+  dependencies: z.array(z.string().trim().min(1).max(120)).max(50).optional(),
+  metadata: jsonObjectSchema.optional(),
+});
+
+export const updateAgentSkillSchema = z
+  .object({
+    skillKey: agentKeySchema.nullish(),
+    name: z.string().trim().min(1).max(120).optional(),
+    description: z.string().trim().max(1000).optional(),
+    whenToUse: z.string().trim().max(1000).optional(),
+    body: z.string().max(20000).optional(),
+    status: agentAssetStatusSchema.optional(),
+    dependencies: z.array(z.string().trim().min(1).max(120)).max(50).optional(),
+    metadata: jsonObjectSchema.optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field must be provided.",
+  });
+
+export const createKnowledgeSetSchema = z.object({
+  setKey: agentKeySchema.nullish(),
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(1000).nullish(),
+  scope: z.enum(["platform", "merchant"]).optional(),
+  merchantId: z.uuid().nullish(),
+  status: agentAssetStatusSchema.optional(),
+  metadata: jsonObjectSchema.optional(),
+});
+
+export const updateKnowledgeSetSchema = z
+  .object({
+    setKey: agentKeySchema.nullish(),
+    name: z.string().trim().min(1).max(120).optional(),
+    description: z.string().trim().max(1000).nullish(),
+    status: agentAssetStatusSchema.optional(),
+    metadata: jsonObjectSchema.optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field must be provided.",
+  });
+
+export const updateKnowledgeSetDocumentsSchema = z.object({
+  documentIds: z.array(z.uuid()).max(500),
+});
+
+export const updateKnowledgeDocumentSetsSchema = z.object({
+  knowledgeSetIds: z.array(z.uuid()).max(100),
+});
+
 export const merchantProfileInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   address: z.string().trim().max(300).nullish(),
@@ -68,6 +193,34 @@ export const platformAdminMerchantPatchSchema = z
     message: "At least one field must be provided.",
   });
 
+export const platformAdminBootstrapSchema = z.object({
+  setupSecret: z.string().trim().min(1).max(200),
+  email: z.email().max(254),
+  password: z.string().min(8).max(128),
+  displayName: z.string().trim().max(80).nullish(),
+});
+
+export const platformAdminUserCreateSchema = z.object({
+  email: z.email().max(254),
+  password: z.string().min(8).max(128),
+  displayName: z.string().trim().max(80).nullish(),
+  role: z.enum(["super_admin", "admin"]).optional(),
+});
+
+export const platformAdminUserPatchSchema = z
+  .object({
+    displayName: z.string().trim().max(80).nullish(),
+    role: z.enum(["super_admin", "admin"]).optional(),
+    status: z.enum(["active", "disabled"]).optional(),
+  })
+  .refine(
+    (value) =>
+      value.displayName !== undefined || value.role !== undefined || value.status !== undefined,
+    {
+      message: "At least one field must be provided.",
+    },
+  );
+
 const llmRuntimeSchema = z.object({
   providerLabel: z.string().trim().min(1).max(80),
   baseUrl: z.url().max(2000),
@@ -101,6 +254,14 @@ const consultationAgentSchema = z.object({
   temperature: z.number().min(0).max(2),
 });
 
+const scriptProductionAgentSchema = z.object({
+  systemPrompt: z.string().trim().min(1).max(5000),
+  model: z.string().trim().min(1).max(120),
+  temperature: z.number().min(0).max(2),
+  retrievalTopK: z.number().int().min(0).max(20),
+  revisionEnabled: z.boolean(),
+});
+
 const knowledgeRuntimeSchema = z.object({
   retrievalTopK: z.number().int().min(1).max(20),
   chunkSize: z.number().int().min(200).max(4000),
@@ -120,6 +281,7 @@ export const platformSettingsUpdateSchema = z.object({
     })
     .optional(),
   consultationAgent: consultationAgentSchema.optional(),
+  scriptProductionAgent: scriptProductionAgentSchema.optional(),
   knowledgeRuntime: knowledgeRuntimeSchema.optional(),
 });
 
@@ -161,10 +323,62 @@ export const mediaCompleteSchema = z.object({
   sortOrder: z.number().int().min(0).max(9999).optional(),
 });
 
+const productionConfigFilterSchema = z
+  .object({
+    mood: z.array(z.union([z.string(), z.number()])).optional(),
+    scene: z.array(z.union([z.string(), z.number()])).optional(),
+    genre: z.array(z.union([z.string(), z.number()])).optional(),
+    lang: z.array(z.union([z.string(), z.number()])).optional(),
+    id: z.array(z.union([z.string(), z.number()])).optional(),
+  })
+  .strict();
+
+const productionConfigSchema = z
+  .object({
+    voiceover: z
+      .object({
+        enabled: z.boolean().optional(),
+        provider: z.enum(["bytedance_bigtts", "minimax", "302"]).optional(),
+        voiceStyle: z.string().trim().max(120).nullish(),
+        speed: z.number().min(0.5).max(2).nullish(),
+        volume: z.number().min(0).max(3).nullish(),
+      })
+      .strict()
+      .optional(),
+    bgm: z
+      .object({
+        enabled: z.boolean().optional(),
+        userRequest: z.string().trim().max(300).nullish(),
+        include: productionConfigFilterSchema.optional(),
+        exclude: productionConfigFilterSchema.optional(),
+        volume: z.number().min(0).max(3).nullish(),
+      })
+      .strict()
+      .optional(),
+    subtitles: z
+      .object({
+        enabled: z.boolean().optional(),
+        style: z.enum(["platform_default", "bold_caption"]).optional(),
+      })
+      .strict()
+      .optional(),
+    render: z
+      .object({
+        aspectRatio: z.literal("9:16").optional(),
+        maxDurationSeconds: z.number().int().min(15).max(180).nullish(),
+        includeOriginalAudio: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
 export const createVideoEditJobSchema = z.object({
   contentVariantId: z.uuid(),
   instructionText: z.string().trim().max(4000).nullish(),
   inputPayload: z.record(z.string(), z.unknown()).optional(),
+  productionConfig: productionConfigSchema.nullish(),
+  sourceJobId: z.uuid().nullish(),
 });
 
 export const listVideoEditJobsQuerySchema = z.object({
@@ -185,6 +399,15 @@ export const generateConsultationContentSchema = z.object({
   goal: z.string().trim().max(300).nullish(),
   extraRequirement: z.string().trim().max(4000).nullish(),
   mode: z.enum(["create", "rewrite"]).optional(),
+  materialId: z.uuid().nullish(),
+  materialReferenceId: z.uuid().nullish(),
+  strategyTag: z.string().trim().max(80).nullish(),
+});
+
+export const reviseVideoScriptSchema = z.object({
+  contentVariantId: z.uuid(),
+  sessionId: z.uuid(),
+  revisionInstruction: z.string().trim().min(1).max(4000),
   materialId: z.uuid().nullish(),
   materialReferenceId: z.uuid().nullish(),
   strategyTag: z.string().trim().max(80).nullish(),

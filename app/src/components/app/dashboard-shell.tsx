@@ -6,6 +6,7 @@ import {
   FileText,
   FolderGit2,
   Library,
+  LogOut,
   MessageSquare,
   Settings,
   Video,
@@ -71,18 +72,27 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
           <div className="mt-auto border-t border-white/10 p-4">
-            <Link
-              href="/platform-admin"
-              className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs">
-                商
-              </div>
-              <div>
-                <p className="text-sm">演示商家</p>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">旗舰版</p>
-              </div>
-            </Link>
+            <div className="grid gap-2">
+              <Link
+                href="/dashboard/settings"
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs">
+                  商
+                </div>
+                <div>
+                  <p className="text-sm">商家账号</p>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">Owner</p>
+                </div>
+              </Link>
+              <Link
+                href="/logout"
+                className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs text-white/40 transition-colors hover:bg-white/5 hover:text-white/70"
+              >
+                <LogOut className="size-3.5" aria-hidden="true" />
+                退出登录
+              </Link>
+            </div>
           </div>
         </aside>
         <main className="flex-1 p-6 lg:p-10">
@@ -94,9 +104,18 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
       <div className="lg:hidden">
         <header className="border-b border-white/10 bg-[#0a0a0a] px-4 py-4">
-          <p className="text-lg italic tracking-tight [font-family:var(--font-cormorant)]">
-            AI 咨询工作台
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-lg italic tracking-tight [font-family:var(--font-cormorant)]">
+              AI 咨询工作台
+            </p>
+            <Link
+              href="/logout"
+              className="flex size-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/45"
+              aria-label="退出登录"
+            >
+              <LogOut className="size-4" aria-hidden="true" />
+            </Link>
+          </div>
           <nav className="mt-4 flex gap-2 overflow-x-auto pb-1">
             {navItems.map((item) => {
               const active =

@@ -45,7 +45,7 @@ function parseInvitationCodeFilters(request: Request): PlatformAdminInvitationCo
 
 export async function GET(request: Request) {
   try {
-    assertPlatformAdminAccess(request);
+    await assertPlatformAdminAccess(request);
     const invitationCodes = await listPlatformInvitationCodes(parseInvitationCodeFilters(request));
 
     return Response.json({ invitationCodes });
@@ -56,13 +56,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    assertPlatformAdminAccess(request);
+    const adminUser = await assertPlatformAdminAccess(request, { roles: ["super_admin"] });
     const payload = createInvitationCodeSchema.parse(await request.json());
     const invitationCode = await createPlatformInvitationCode({
       code: payload.code,
       maxRedemptions: payload.maxRedemptions,
       expiresAt: payload.expiresAt,
       note: payload.note,
+      actorLabel: adminUser.email,
     });
 
     return Response.json({ invitationCode }, { status: 201 });

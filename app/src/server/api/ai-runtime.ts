@@ -13,7 +13,6 @@ type ChatMessage = {
 type ChatCompletionInput = {
   runtime: LlmRuntimeSettingsDto;
   model?: string;
-  apiKey?: string;
   messages: ChatMessage[];
 };
 
@@ -77,7 +76,7 @@ export async function createChatCompletion(input: ChatCompletionInput): Promise<
   model: string;
   usage?: Record<string, unknown>;
 }> {
-  const apiKey = input.apiKey?.trim() || getAiRuntimeApiKey();
+  const apiKey = getAiRuntimeApiKey();
 
   if (!apiKey) {
     throw new AiRuntimeError("AI runtime API key is not configured.");
@@ -96,7 +95,6 @@ export async function createChatCompletion(input: ChatCompletionInput): Promise<
     path: "/chat/completions",
     payload,
     timeoutSeconds: input.runtime.timeoutSeconds,
-    apiKey,
   });
   const choice = Array.isArray(response.choices) ? response.choices[0] : null;
   const content =
@@ -179,9 +177,8 @@ async function postOpenAiCompatible(input: {
   path: string;
   payload: Record<string, unknown>;
   timeoutSeconds: number;
-  apiKey?: string;
 }): Promise<Record<string, unknown>> {
-  const apiKey = input.apiKey?.trim() || getAiRuntimeApiKey();
+  const apiKey = getAiRuntimeApiKey();
   const baseUrl = input.runtime.baseUrl.replace(/\/+$/, "");
   const response = await fetch(`${baseUrl}${input.path}`, {
     method: "POST",

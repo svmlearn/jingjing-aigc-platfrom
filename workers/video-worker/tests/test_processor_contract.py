@@ -1,0 +1,576 @@
+import tempfile
+import unittest
+import sys
+import types
+from pathlib import Path
+
+qcloud_cos = types.ModuleType("qcloud_cos")
+qcloud_cos.CosConfig = object
+qcloud_cos.CosS3Client = object
+sys.modules.setdefault("qcloud_cos", qcloud_cos)
+
+psycopg = types.ModuleType("psycopg")
+psycopg.Connection = object
+psycopg_rows = types.ModuleType("psycopg.rows")
+psycopg_rows.dict_row = object()
+psycopg_types = types.ModuleType("psycopg.types")
+psycopg_json = types.ModuleType("psycopg.types.json")
+psycopg_json.Json = dict
+sys.modules.setdefault("psycopg", psycopg)
+sys.modules.setdefault("psycopg.rows", psycopg_rows)
+sys.modules.setdefault("psycopg.types", psycopg_types)
+sys.modules.setdefault("psycopg.types.json", psycopg_json)
+
+from worker.app.models import EngineRunResult, UploadedAsset, VideoJob
+from worker.app.processor import JobProcessor
+
+
+class Settings:
+    cos_bucket = "default-bucket"
+
+    def __init__(self, root: Path) -> None:
+        self.worker_temp_root = root / "tmp"
+        self.worker_output_root = root / "outputs"
+
+
+def make_job(input_payload=None):
+    if input_payload is None:
+        input_payload = {
+            "source": "video_workbench",
+            "executionMode": "staging_worker",
+            "script": {
+                "text": "固定脚本，不允许制作层改写。",
+                "locked": True,
+                "variantId": "variant_1",
+            },
+            "productionDirective": {
+                "targetPlatform": "douyin",
+                "aspectRatio": "9:16",
+                "desiredOutputs": ["final_video", "cover", "subtitles"],
+                "lockedFields": ["script", "cta"],
+            },
+            "input_assets": [
+                {
+                    "asset_type": "video",
+                    "bucket_name": "input-bucket",
+                    "storage_key": "draft-inputs/demo.mp4",
+                    "file_name": "demo.mp4",
+                }
+            ],
+        }
+    return VideoJob(
+        id="job_1",
+        merchant_id="merchant_1",
+        draft_id="draft_1",
+        content_variant_id="variant_1",
+        status="pending",
+        current_stage=None,
+        instruction_text="make a video",
+        input_payload=input_payload,
+        runtime_payload={},
+        retry_count=0,
+    )
+
+
+class FakeRepository:
+    def __init__(self, fail_insert_output_assets=False) -> None:
+        self.stage_updates = []
+        self.failed = None
+        self.succeeded = None
+        self.inserted_assets = []
+        self.fail_insert_output_assets = fail_insert_output_assets
+
+    def update_stage(self, job_id, **kwargs):
+        self.stage_updates.append({"job_id": job_id, **kwargs})
+
+    def mark_failed(self, job_id, **kwargs):
+        kwargs.setdefault("status", "failed_retryable")
+        self.failed = {"job_id": job_id, **kwargs}
+
+    def mark_succeeded(self, job_id, **kwargs):
+        self.succeeded = {"job_id": job_id, **kwargs}
+
+    def insert_output_assets(self, job, uploaded_assets):
+        if self.fail_insert_output_assets:
+            raise RuntimeError("asset_objects insert failed")
+        self.inserted_assets.extend(uploaded_assets)
+        return [
+            {
+                "asset_id": f"asset_{asset.asset_type}_1",
+                "asset_type": asset.asset_type,
+                "bucket_name": asset.bucket_name,
+                "storage_key": asset.storage_key,
+                "mime_type": asset.mime_type,
+                "etag": asset.etag,
+                "file_size_bytes": asset.file_size_bytes,
+            }
+            for asset in uploaded_assets
+        ]
+
+
+class FakeCosClient:
+    def __init__(self, fail_download=False, fail_upload_asset_type=None) -> None:
+        self.downloads = []
+        self.uploads = []
+        self.fail_download = fail_download
+        self.fail_upload_asset_type = fail_upload_asset_type
+
+    def download_file(self, storage_key, destination, bucket_name=None):
+        self.downloads.append(
+            {
+                "storage_key": storage_key,
+                "destination": destination,
+                "bucket_name": bucket_name,
+            }
+        )
+        if self.fail_download:
+            raise RuntimeError(f"download failed for {storage_key}")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(b"input")
+        return destination
+
+    def upload_file(self, local_path, storage_key, asset_type, bucket_name=None):
+        self.uploads.append(
+            {
+                "local_path": local_path,
+                "storage_key": storage_key,
+                "asset_type": asset_type,
+                "bucket_name": bucket_name,
+            }
+        )
+        if self.fail_upload_asset_type == asset_type:
+            raise RuntimeError(f"upload failed for {storage_key}")
+        return UploadedAsset(
+            asset_type=asset_type,
+            bucket_name=bucket_name or "output-bucket",
+            storage_key=storage_key,
+            mime_type="video/mp4" if asset_type == "video" else "application/octet-stream",
+            file_size_bytes=local_path.stat().st_size,
+            etag="etag",
+            local_path=local_path,
+        )
+
+
+class FakeOpenStorylineClient:
+    def __init__(self, missing_outputs=None, fail_run=False) -> None:
+        self.missing_outputs = set(missing_outputs or [])
+        self.fail_run = fail_run
+
+    def run_job(self, job, directive, input_assets, workspace_dir, output_dir):
+        if self.fail_run:
+            raise RuntimeError("engine unavailable")
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        final_video_path = output_dir / "final.mp4"
+        cover_image_path = output_dir / "cover.jpg"
+        subtitle_path = output_dir / "subtitles.srt"
+        metadata_path = output_dir / "run-metadata.json"
+
+        for name, path in {
+            "final_video": final_video_path,
+            "cover": cover_image_path,
+            "subtitles": subtitle_path,
+            "metadata": metadata_path,
+        }.items():
+            if name not in self.missing_outputs:
+                path.write_bytes(b"output")
+
+        return EngineRunResult(
+            final_video_path=final_video_path,
+            cover_image_path=cover_image_path,
+            subtitle_path=subtitle_path,
+            metadata_path=metadata_path,
+            raw_response={
+                "engine": "fire_red-openstoryline",
+                "engine_adapter": "fire_red",
+                "fire_red": {"session_id": "fire-red-session"},
+                "openstoryline": {
+                    "session_id": "fire-red-session",
+                    "production_config_used": {
+                        "voiceover": {"provider": "bytedance_bigtts"},
+                    },
+                    "selected_bgm": {"name": "light_upbeat_01"},
+                    "voiceover": {"provider": "bytedance_bigtts"},
+                },
+            },
+        )
+
+
+class ProcessorContractTests(unittest.TestCase):
+    def test_non_object_input_payload_marks_failed_manual_without_download(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+
+            processor.process(make_job([]))
+
+        self.assertEqual("failed_manual", repository.failed["status"])
+        self.assertIn("invalid_input_payload", repository.failed["failure_reason"])
+        self.assertEqual([], cos_client.downloads)
+
+    def test_invalid_input_asset_contract_marks_failed_manual_without_engine_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            engine_client = FakeOpenStorylineClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                engine_client,
+            )
+            job = make_job(
+                {
+                    "script": {"text": "固定脚本", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "input_assets": [{"asset_type": "video"}],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertEqual("failed_manual", repository.failed["status"])
+        self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
+        self.assertEqual([], cos_client.downloads)
+
+    def test_falsey_non_list_input_assets_marks_failed_manual_without_download(self):
+        for input_assets in ("", 0, False):
+            with self.subTest(input_assets=input_assets):
+                with tempfile.TemporaryDirectory() as tmp:
+                    repository = FakeRepository()
+                    cos_client = FakeCosClient()
+                    processor = JobProcessor(
+                        Settings(Path(tmp)),
+                        repository,
+                        cos_client,
+                        FakeOpenStorylineClient(),
+                    )
+                    job = make_job(
+                        {
+                            "script": {"text": "固定脚本", "locked": True},
+                            "productionDirective": {"desiredOutputs": ["final_video"]},
+                            "input_assets": input_assets,
+                        }
+                    )
+
+                    processor.process(job)
+
+                self.assertEqual("failed_manual", repository.failed["status"])
+                self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
+                self.assertEqual([], cos_client.downloads)
+
+    def test_download_failure_marks_failed_retryable_with_diagnostic_stage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient(fail_download=True)
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+
+            with self.assertRaises(RuntimeError):
+                processor.process(make_job())
+
+        self.assertEqual("failed_retryable", repository.failed["status"])
+        self.assertEqual("downloading_inputs_failed", repository.failed["current_stage"])
+        self.assertIn("input_download_failed", repository.failed["failure_reason"])
+        self.assertIsNone(repository.succeeded)
+
+    def test_engine_run_failure_marks_failed_retryable_with_diagnostic_stage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(fail_run=True),
+            )
+
+            with self.assertRaises(RuntimeError):
+                processor.process(make_job())
+
+        self.assertEqual("failed_retryable", repository.failed["status"])
+        self.assertEqual("openstoryline_rendering_failed", repository.failed["current_stage"])
+        self.assertIn("engine_run_failed", repository.failed["failure_reason"])
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual([], cos_client.uploads)
+
+    def test_unsafe_input_asset_file_name_marks_failed_manual_without_download(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+            job = make_job(
+                {
+                    "script": {"text": "固定脚本", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_key": "draft-inputs/demo.mp4",
+                            "file_name": "../demo.mp4",
+                        }
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertEqual("failed_manual", repository.failed["status"])
+        self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
+        self.assertEqual([], cos_client.downloads)
+
+    def test_unsupported_input_asset_storage_provider_marks_failed_manual_without_download(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+            job = make_job(
+                {
+                    "script": {"text": "固定脚本", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_provider": "s3",
+                            "storage_key": "draft-inputs/demo.mp4",
+                            "file_name": "demo.mp4",
+                        }
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNotNone(repository.failed)
+        self.assertEqual("failed_manual", repository.failed["status"])
+        self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
+        self.assertEqual([], cos_client.downloads)
+
+    def test_malformed_input_asset_bucket_name_marks_failed_manual_without_download(self):
+        for bucket_name in ("", " ", 123):
+            with self.subTest(bucket_name=bucket_name):
+                with tempfile.TemporaryDirectory() as tmp:
+                    repository = FakeRepository()
+                    cos_client = FakeCosClient()
+                    processor = JobProcessor(
+                        Settings(Path(tmp)),
+                        repository,
+                        cos_client,
+                        FakeOpenStorylineClient(),
+                    )
+                    job = make_job(
+                        {
+                            "script": {"text": "固定脚本", "locked": True},
+                            "productionDirective": {"desiredOutputs": ["final_video"]},
+                            "input_assets": [
+                                {
+                                    "asset_type": "video",
+                                    "storage_provider": "tencent_cos",
+                                    "bucket_name": bucket_name,
+                                    "storage_key": "draft-inputs/demo.mp4",
+                                    "file_name": "demo.mp4",
+                                }
+                            ],
+                        }
+                    )
+
+                    processor.process(job)
+
+                self.assertIsNotNone(repository.failed)
+                self.assertEqual("failed_manual", repository.failed["status"])
+                self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
+                self.assertEqual([], cos_client.downloads)
+
+    def test_missing_requested_output_marks_failed_retryable_before_upload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(missing_outputs={"subtitles"}),
+            )
+
+            processor.process(make_job())
+
+        self.assertEqual("failed_retryable", repository.failed["status"])
+        self.assertIn("missing_output_files", repository.failed["failure_reason"])
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual([], cos_client.uploads)
+
+    def test_success_result_payload_records_outputs_and_engine_adapter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(),
+            )
+
+            processor.process(make_job())
+
+        result_payload = repository.succeeded["result_payload"]
+        self.assertEqual("fire_red-openstoryline", result_payload["engine"])
+        self.assertEqual("fire_red", result_payload["engine_adapter"])
+        self.assertEqual("staging_worker", result_payload["execution_mode"])
+        self.assertEqual(
+            "video-outputs/merchant_1/draft_1/variant_1/job_1/final.mp4",
+            result_payload["outputs"]["final_video"],
+        )
+        self.assertEqual(
+            "video-covers/merchant_1/draft_1/variant_1/job_1/cover.jpg",
+            result_payload["outputs"]["cover"],
+        )
+        self.assertEqual(
+            "video-subtitles/merchant_1/draft_1/variant_1/job_1/subtitles.srt",
+            result_payload["outputs"]["subtitles"],
+        )
+        self.assertEqual("asset_video_1", result_payload["uploaded_assets"][0]["asset_id"])
+        self.assertEqual("fire_red", result_payload["openstoryline"]["engine_adapter"])
+        self.assertEqual("fire-red-session", result_payload["openstoryline"]["session_id"])
+        self.assertEqual(
+            {"provider": "bytedance_bigtts"},
+            result_payload["openstoryline"]["voiceover"],
+        )
+
+    def test_success_cleans_local_workspace_and_output_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(root),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(),
+            )
+
+            processor.process(make_job())
+
+            self.assertFalse((root / "tmp" / "jobs" / "job_1").exists())
+            self.assertFalse((root / "outputs" / "jobs" / "job_1").exists())
+            self.assertIsNotNone(repository.succeeded)
+
+    def test_retryable_failure_cleans_local_workspace_and_output_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(root),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(missing_outputs={"subtitles"}),
+            )
+
+            processor.process(make_job())
+
+            self.assertFalse((root / "tmp" / "jobs" / "job_1").exists())
+            self.assertFalse((root / "outputs" / "jobs" / "job_1").exists())
+            self.assertEqual("failed_retryable", repository.failed["status"])
+
+    def test_upload_failure_marks_failed_retryable_with_diagnostic_stage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient(fail_upload_asset_type="cover")
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+
+            with self.assertRaises(RuntimeError):
+                processor.process(make_job())
+
+        self.assertEqual("failed_retryable", repository.failed["status"])
+        self.assertEqual("uploading_outputs_failed", repository.failed["current_stage"])
+        self.assertIn("output_upload_failed", repository.failed["failure_reason"])
+        self.assertIsNone(repository.succeeded)
+
+    def test_asset_object_insert_failure_marks_failed_retryable_with_diagnostic_stage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository(fail_insert_output_assets=True)
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+
+            with self.assertRaises(RuntimeError):
+                processor.process(make_job())
+
+        self.assertEqual("failed_retryable", repository.failed["status"])
+        self.assertEqual("asset_objects_persistence_failed", repository.failed["current_stage"])
+        self.assertIn("asset_objects_insert_failed", repository.failed["failure_reason"])
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual(["video", "cover", "subtitle"], [upload["asset_type"] for upload in cos_client.uploads])
+
+    def test_final_video_only_job_does_not_upload_unrequested_cover_or_subtitles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+            job = make_job(
+                {
+                    "source": "video_workbench",
+                    "executionMode": "staging_worker",
+                    "script": {
+                        "text": "固定脚本，只需要成片。",
+                        "locked": True,
+                        "variantId": "variant_1",
+                    },
+                    "productionDirective": {
+                        "targetPlatform": "douyin",
+                        "aspectRatio": "9:16",
+                        "desiredOutputs": ["final_video"],
+                        "lockedFields": ["script", "cta"],
+                    },
+                    "input_assets": [],
+                }
+            )
+
+            processor.process(job)
+
+        uploaded_asset_types = [upload["asset_type"] for upload in cos_client.uploads]
+        inserted_asset_types = [asset.asset_type for asset in repository.inserted_assets]
+        result_payload = repository.succeeded["result_payload"]
+
+        self.assertEqual(["video"], uploaded_asset_types)
+        self.assertEqual(["video"], inserted_asset_types)
+        self.assertEqual(
+            {"final_video": "video-outputs/merchant_1/draft_1/variant_1/job_1/final.mp4"},
+            result_payload["outputs"],
+        )
+        self.assertEqual(["video"], [asset["asset_type"] for asset in result_payload["uploaded_assets"]])
+
+
+if __name__ == "__main__":
+    unittest.main()

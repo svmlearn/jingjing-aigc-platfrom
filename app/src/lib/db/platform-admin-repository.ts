@@ -4,6 +4,7 @@ import type { MerchantProfileDto } from "@/contracts/merchant";
 import type {
   ConsultationAgentSettingsDto,
   KnowledgeRuntimeSettingsDto,
+  ScriptProductionAgentSettingsDto,
 } from "@/contracts/knowledge";
 import type {
   PlatformAdminInvitationCodeFilters,
@@ -14,7 +15,10 @@ import type {
   PlatformAdminMerchantDto,
   PlatformAdminMerchantPatch,
   PlatformAdminInvitationCodeDto,
+  PlatformAdminRole,
   PlatformSettingsDto,
+  PlatformAdminUserDto,
+  PlatformAdminUserStatus,
 } from "@/contracts/platform-admin";
 import { createInvitationCode, mapMerchantProfile } from "@/lib/db/merchant-repository";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
@@ -55,8 +59,21 @@ type InvitationCodeAdminRow = {
 
 type PlatformSettingRow = {
   key: string;
-  category: "llm" | "import" | "membership" | "consultation" | "knowledge";
+  category: "llm" | "import" | "membership" | "consultation" | "script_production" | "knowledge";
   value: unknown;
+};
+
+type PlatformAdminUserRow = {
+  id: string;
+  auth_user_id: string;
+  email: string;
+  display_name: string | null;
+  role: PlatformAdminRole;
+  status: PlatformAdminUserStatus;
+  created_by_admin_id: string | null;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 type CountRow = {
@@ -68,6 +85,7 @@ type PlatformSettingsUpdateInput = {
   importRuntime?: ImportRuntimeSettingsDto;
   membershipPlans?: MembershipPlanSettingsDto;
   consultationAgent?: ConsultationAgentSettingsDto;
+  scriptProductionAgent?: ScriptProductionAgentSettingsDto;
   knowledgeRuntime?: KnowledgeRuntimeSettingsDto;
 };
 
@@ -123,6 +141,15 @@ const defaultConsultationAgent: ConsultationAgentSettingsDto = {
   temperature: 0.6,
 };
 
+const defaultScriptProductionAgent: ScriptProductionAgentSettingsDto = {
+  systemPrompt:
+    "你是「脚本制作 Agent」，只把咨询台已确认信息转成可确认、可拍摄、可交给制作层执行的视频脚本候选。你不是咨询台 Agent，不重新诊断商家，不重新定义目标用户、账号定位或商业方向。信息不足时输出 needs_more_info；信息充分时只输出 JSON。",
+  model: "gpt-4.1-mini",
+  temperature: 0.65,
+  retrievalTopK: 4,
+  revisionEnabled: true,
+};
+
 const defaultKnowledgeRuntime: KnowledgeRuntimeSettingsDto = {
   retrievalTopK: 5,
   chunkSize: 900,
@@ -134,6 +161,214 @@ const defaultKnowledgeRuntime: KnowledgeRuntimeSettingsDto = {
 const invitationCodeExpiringSoonWindowDays = 7;
 
 let demoPlatformSettings: PlatformSettingsDto | null = null;
+
+const platformAdminUserSelect = [
+  "id",
+  "auth_user_id",
+  "email",
+  "display_name",
+  "role",
+  "status",
+  "created_by_admin_id",
+  "last_login_at",
+  "created_at",
+  "updated_at",
+].join(", ");
+
+export async function listPlatformAdminUsers(): Promise<PlatformAdminUserDto[]> {
+  if (!isSupabaseAdminConfigured()) {
+    return [];
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("platform_admin_users")
+    .select(platformAdminUserSelect)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new ApiError(500, "PLATFORM_ADMIN_USERS_FETCH_FAILED", error.message);
+  }
+
+  return ((data ?? []) as unknown as PlatformAdminUserRow[]).map(mapPlatformAdminUser);
+}
+
+export async function createPlatformAdminUser(
+  input: {
+    email: string;
+    password: string;
+    displayName?: string | null;
+    role?: PlatformAdminRole;
+  },
+  actor: PlatformAdminUserDto,
+): Promise<PlatformAdminUserDto> {
+  if (!isSupabaseAdminConfigured()) {
+    throw new ApiError(
+      503,
+      "PLATFORM_ADMIN_AUTH_NOT_CONFIGURED",
+      "Supabase service role is required to manage platform admins.",
+    );
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const email = input.email.trim().toLowerCase();
+  const displayName = input.displayName?.trim() || null;
+  const role = input.role ?? "admin";
+
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email,
+    password: input.password,
+    email_confirm: true,
+    user_metadata: {
+      display_name: displayName,
+      platform_admin_role: role,
+    },
+  });
+
+  if (authError || !authData.user) {
+    throw new ApiError(
+      400,
+      "PLATFORM_ADMIN_AUTH_USER_CREATE_FAILED",
+      authError?.message ?? "Failed to create platform admin auth user.",
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("platform_admin_users")
+    .insert({
+      auth_user_id: authData.user.id,
+      email,
+      display_name: displayName,
+      role,
+      status: "active",
+      created_by_admin_id: actor.id,
+    })
+    .select(platformAdminUserSelect)
+    .single();
+
+  if (error || !data) {
+    await supabase.auth.admin.deleteUser(authData.user.id);
+    throw new ApiError(
+      400,
+      "PLATFORM_ADMIN_USER_CREATE_FAILED",
+      error?.message ?? "Failed to create platform admin user.",
+    );
+  }
+
+  const adminUser = mapPlatformAdminUser(data as unknown as PlatformAdminUserRow);
+
+  await recordPlatformAdminEvent({
+    actorLabel: actor.email,
+    eventType: "platform_admin_user.created",
+    targetType: "platform_admin_user",
+    targetId: adminUser.id,
+    summary: `新增后台管理员 ${adminUser.email}`,
+    details: {
+      role: adminUser.role,
+      status: adminUser.status,
+    },
+  });
+
+  return adminUser;
+}
+
+export async function updatePlatformAdminUser(
+  adminUserId: string,
+  input: {
+    displayName?: string | null;
+    role?: PlatformAdminRole;
+    status?: PlatformAdminUserStatus;
+  },
+  actor: PlatformAdminUserDto,
+): Promise<PlatformAdminUserDto> {
+  if (!isSupabaseAdminConfigured()) {
+    throw new ApiError(
+      503,
+      "PLATFORM_ADMIN_AUTH_NOT_CONFIGURED",
+      "Supabase service role is required to manage platform admins.",
+    );
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const current = await getPlatformAdminUserById(adminUserId);
+
+  if (
+    current.role === "super_admin" &&
+    current.status === "active" &&
+    (input.role === "admin" || input.status === "disabled")
+  ) {
+    const activeSuperAdminCount = await countActiveSuperAdmins();
+
+    if (activeSuperAdminCount <= 1) {
+      throw new ApiError(
+        409,
+        "LAST_SUPER_ADMIN_REQUIRED",
+        "At least one active super admin is required.",
+      );
+    }
+  }
+
+  const update: Record<string, unknown> = {};
+
+  if (input.displayName !== undefined) {
+    update.display_name = input.displayName?.trim() || null;
+  }
+
+  if (input.role !== undefined) {
+    update.role = input.role;
+  }
+
+  if (input.status !== undefined) {
+    update.status = input.status;
+  }
+
+  if (Object.keys(update).length === 0) {
+    return current;
+  }
+
+  const { data, error } = await supabase
+    .from("platform_admin_users")
+    .update(update)
+    .eq("id", adminUserId)
+    .select(platformAdminUserSelect)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(
+      500,
+      "PLATFORM_ADMIN_USER_UPDATE_FAILED",
+      error?.message ?? "Failed to update platform admin user.",
+    );
+  }
+
+  const adminUser = mapPlatformAdminUser(data as unknown as PlatformAdminUserRow);
+
+  if (input.displayName !== undefined || input.role !== undefined) {
+    await supabase.auth.admin.updateUserById(adminUser.authUserId, {
+      user_metadata: {
+        display_name: adminUser.displayName ?? null,
+        platform_admin_role: adminUser.role,
+      },
+    });
+  }
+
+  await recordPlatformAdminEvent({
+    actorLabel: actor.email,
+    eventType: "platform_admin_user.updated",
+    targetType: "platform_admin_user",
+    targetId: adminUser.id,
+    summary: `更新后台管理员 ${adminUser.email}`,
+    details: {
+      fromRole: current.role,
+      toRole: adminUser.role,
+      fromStatus: current.status,
+      toStatus: adminUser.status,
+      displayNameChanged: current.displayName !== adminUser.displayName,
+    },
+  });
+
+  return adminUser;
+}
 
 export async function listPlatformInvitationCodes(
   filters: PlatformAdminInvitationCodeFilters = {},
@@ -396,6 +631,7 @@ export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
       "import_runtime",
       "membership_plans",
       "consultation_agent",
+      "script_production_agent",
       "knowledge_runtime",
     ]);
 
@@ -410,6 +646,9 @@ export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
   const consultationAgent = toConsultationAgentSettings(
     rows.get("consultation_agent")?.value,
   );
+  const scriptProductionAgent = toScriptProductionAgentSettings(
+    rows.get("script_production_agent")?.value,
+  );
   const knowledgeRuntime = toKnowledgeRuntimeSettings(rows.get("knowledge_runtime")?.value);
 
   return {
@@ -417,6 +656,7 @@ export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
     importRuntime,
     membershipPlans,
     consultationAgent,
+    scriptProductionAgent,
     knowledgeRuntime,
   };
 }
@@ -470,6 +710,12 @@ export async function updatePlatformSettings(
       description: "Platform-level consultation agent settings.",
     },
     {
+      key: "script_production_agent",
+      category: "script_production",
+      value: next.scriptProductionAgent,
+      description: "Platform-level script production agent settings.",
+    },
+    {
       key: "knowledge_runtime",
       category: "knowledge",
       value: next.knowledgeRuntime,
@@ -504,6 +750,7 @@ function getDefaultPlatformSettings(): PlatformSettingsDto {
     importRuntime: toImportRuntimeSettings(undefined),
     membershipPlans: toMembershipPlans(undefined),
     consultationAgent: toConsultationAgentSettings(undefined),
+    scriptProductionAgent: toScriptProductionAgentSettings(undefined),
     knowledgeRuntime: toKnowledgeRuntimeSettings(undefined),
   };
 }
@@ -538,6 +785,10 @@ function mergePlatformSettings(
             input.consultationAgent.enabledTools ?? current.consultationAgent.enabledTools,
         }
       : current.consultationAgent,
+    scriptProductionAgent: {
+      ...current.scriptProductionAgent,
+      ...input.scriptProductionAgent,
+    },
     knowledgeRuntime: {
       ...current.knowledgeRuntime,
       ...input.knowledgeRuntime,
@@ -622,6 +873,53 @@ async function getPlatformInvitationCodeById(
   }
 
   return mapInvitationCodeAdmin(data as InvitationCodeAdminRow);
+}
+
+async function getPlatformAdminUserById(
+  adminUserId: string,
+): Promise<PlatformAdminUserDto> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("platform_admin_users")
+    .select(platformAdminUserSelect)
+    .eq("id", adminUserId)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(404, "PLATFORM_ADMIN_USER_NOT_FOUND", "Platform admin user not found.");
+  }
+
+  return mapPlatformAdminUser(data as unknown as PlatformAdminUserRow);
+}
+
+async function countActiveSuperAdmins() {
+  const supabase = createSupabaseAdminClient();
+  const { count, error } = await supabase
+    .from("platform_admin_users")
+    .select("*", { count: "exact", head: true })
+    .eq("role", "super_admin")
+    .eq("status", "active");
+
+  if (error) {
+    throw new ApiError(500, "PLATFORM_ADMIN_USERS_COUNT_FAILED", error.message);
+  }
+
+  return count ?? 0;
+}
+
+function mapPlatformAdminUser(row: PlatformAdminUserRow): PlatformAdminUserDto {
+  return {
+    id: row.id,
+    authUserId: row.auth_user_id,
+    email: row.email,
+    displayName: row.display_name,
+    role: row.role,
+    status: row.status,
+    createdByAdminId: row.created_by_admin_id,
+    lastLoginAt: row.last_login_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 function mapInvitationCodeAdmin(row: InvitationCodeAdminRow): PlatformAdminInvitationCodeDto {
@@ -750,6 +1048,21 @@ function toConsultationAgentSettings(value: unknown): ConsultationAgentSettingsD
     retrievalTopK: getNumber(record.retrievalTopK, defaultConsultationAgent.retrievalTopK),
     model: getString(record.model, defaultConsultationAgent.model),
     temperature: getNumber(record.temperature, defaultConsultationAgent.temperature),
+  };
+}
+
+function toScriptProductionAgentSettings(value: unknown): ScriptProductionAgentSettingsDto {
+  const record = toRecord(value);
+
+  return {
+    systemPrompt: getString(record.systemPrompt, defaultScriptProductionAgent.systemPrompt),
+    model: getString(record.model, defaultScriptProductionAgent.model),
+    temperature: getNumber(record.temperature, defaultScriptProductionAgent.temperature),
+    retrievalTopK: getNumber(record.retrievalTopK, defaultScriptProductionAgent.retrievalTopK),
+    revisionEnabled: getBoolean(
+      record.revisionEnabled,
+      defaultScriptProductionAgent.revisionEnabled,
+    ),
   };
 }
 

@@ -16,6 +16,7 @@ class Settings:
     cos_secret_key: str
     cos_bucket: str
     cos_region: str
+    cos_result_prefix: str
     worker_poll_interval_seconds: int
     worker_max_concurrency: int
     video_job_stale_minutes: int
@@ -26,14 +27,33 @@ class Settings:
     openstoryline_timeout_seconds: int
     log_level: str
 
+    @property
+    def cos_output_configured(self) -> bool:
+        return all(
+            [
+                self.cos_secret_id,
+                self.cos_secret_key,
+                self.cos_bucket,
+                self.cos_region,
+            ]
+        )
+
     @classmethod
     def from_env(cls) -> "Settings":
         settings = cls(
             supabase_db_url=os.environ["SUPABASE_DB_URL"],
-            cos_secret_id=os.environ["COS_SECRET_ID"],
-            cos_secret_key=os.environ["COS_SECRET_KEY"],
-            cos_bucket=os.environ["COS_BUCKET"],
-            cos_region=os.environ["COS_REGION"],
+            cos_secret_id=os.getenv("WORKER_COS_SECRET_ID")
+            or os.getenv("COS_SECRET_ID", ""),
+            cos_secret_key=os.getenv("WORKER_COS_SECRET_KEY")
+            or os.getenv("COS_SECRET_KEY", ""),
+            cos_bucket=os.getenv("WORKER_COS_BUCKET")
+            or os.getenv("COS_BUCKET", ""),
+            cos_region=os.getenv("WORKER_COS_REGION")
+            or os.getenv("COS_REGION", ""),
+            cos_result_prefix=(
+                os.getenv("WORKER_COS_RESULT_PREFIX", "video-results").strip("/")
+                or "video-results"
+            ),
             worker_poll_interval_seconds=_read_int(
                 "WORKER_POLL_INTERVAL_SECONDS", 10
             ),

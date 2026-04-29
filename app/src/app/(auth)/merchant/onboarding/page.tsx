@@ -1,6 +1,14 @@
-import { MerchantProfileForm } from "@/components/dashboard/merchant-profile-form";
+import { redirect } from "next/navigation";
 
-export default function MerchantOnboardingPage() {
+import { MerchantProfileForm } from "@/components/dashboard/merchant-profile-form";
+import {
+  createSupabaseServerClient,
+  isSupabasePublicConfigured,
+} from "@/lib/supabase/server";
+
+export default async function MerchantOnboardingPage() {
+  await requireSignedInMerchantOwner();
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050505] px-4 py-6 text-white md:px-6">
       <div className="pointer-events-none absolute left-[-16rem] top-[-18rem] size-[34rem] rounded-full bg-amber-500/20 blur-3xl" />
@@ -16,4 +24,17 @@ export default function MerchantOnboardingPage() {
       </div>
     </main>
   );
+}
+
+async function requireSignedInMerchantOwner() {
+  if (!isSupabasePublicConfigured()) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error || !data.user) {
+    redirect("/login?error=unauthenticated&next=/merchant/onboarding");
+  }
 }

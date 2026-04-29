@@ -15,8 +15,7 @@
 - `docs/协作/W-M同学协作README.md`：W 同学（产品）和 M 同学（开发）的协作规则
 - `docs/产品文档/V2.1-咨询驱动主链路体验补强-PRD.md`：当前主链路体验补强 PRD
 - `docs/产品文档/V2.1-内容日历到图文视频工作台协作PRD.md`：内容日历、图文/视频工作台、worker 协作契约
-- `docs/架构规范/2026-04-25-AI视频图文数据与系统架构补充决策.md`：图文、视频、worker、数据落点的当前架构决策
-- `docs/架构规范/2026-04-24-consultation-agent-runtime-rag-spec.md`：咨询 Agent runtime、RAG、上下文调度规范
+- `docs/架构规范/2026-04-28-current-architecture.md`：当前系统架构总说明，覆盖咨询台、脚本制作 agent、app、worker、FireRed/OpenStoryline、COS、预览修订
 - `docs/progress/2026-04-25-supabase-migration-current-state.md`：staging Supabase 迁移当前状态
 - `app/`：当前 Next.js 商家端、平台管理端、API routes、Supabase migrations 的主应用
 
@@ -55,7 +54,7 @@
 3. 如果是 W-M 协作或给 M 同学交付，读 `docs/协作/W-M同学协作README.md`
 4. 如果任务涉及主链路产品判断，读 `docs/产品文档/V2.1-咨询驱动主链路体验补强-PRD.md`
 5. 如果任务涉及内容日历、图文工作台、视频工作台或 worker，读 `docs/产品文档/V2.1-内容日历到图文视频工作台协作PRD.md`
-6. 如果任务涉及 AI 视频、图文数据落点、worker 或 Supabase，读对应 `docs/架构规范/` 和 `docs/progress/2026-04-25-supabase-migration-current-state.md`
+6. 如果任务涉及 AI 视频、图文数据落点、worker、FireRed/OpenStoryline 或 Supabase，读 `docs/架构规范/2026-04-28-current-architecture.md` 和 `docs/progress/2026-04-25-supabase-migration-current-state.md`
 7. 如果任务是接续某个未完成事项，再读相关 `docs/handoff/` 和 `docs/progress/`
 
 旧 `docs/探索/`、旧 `docs/handoff/`、旧 `docs/progress/` 只作为历史资料，不再作为默认真相源。只有当用户明确要求追溯历史、参考旧方案或排查历史部署时再读。
@@ -117,7 +116,7 @@
 - Prompt 规范
 - AI 工作流约束
 
-当前阶段最重要的架构规范是 AI 视频 / 图文数据决策、咨询 Agent runtime/RAG，以及 Supabase 迁移状态。
+当前阶段最重要的架构规范是 `docs/架构规范/2026-04-28-current-architecture.md`。旧的分阶段工作计划、增长 Agent 文档、过渡性 FireRed 接入方案不再作为当前真相源。
 
 ### 4.6 `docs/协作/`
 

@@ -1,5 +1,5 @@
 import { PlatformAdminShell } from "@/components/platform-admin/platform-admin-shell";
-import { hasPlatformAdminSession } from "@/lib/auth/platform-admin-session";
+import { getCurrentPlatformAdmin } from "@/lib/auth/platform-admin-session";
 import { redirect } from "next/navigation";
 
 export default async function PlatformAdminLayout({
@@ -7,9 +7,11 @@ export default async function PlatformAdminLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  if (!(await hasPlatformAdminSession())) {
+  const currentAdmin = await getCurrentPlatformAdmin();
+
+  if (!currentAdmin) {
     redirect("/platform-admin-login");
   }
 
-  return <PlatformAdminShell>{children}</PlatformAdminShell>;
+  return <PlatformAdminShell currentAdmin={currentAdmin}>{children}</PlatformAdminShell>;
 }

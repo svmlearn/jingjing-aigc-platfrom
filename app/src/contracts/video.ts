@@ -35,8 +35,38 @@ export type VideoEditJobDto = {
   resultAssets?: MediaAssetDto[];
 };
 
+export type VoiceoverProvider = "bytedance_bigtts" | "minimax" | "302";
+
+export type ProductionConfig = {
+  voiceover?: {
+    enabled?: boolean;
+    provider?: VoiceoverProvider;
+    voiceStyle?: string | null;
+    speed?: number | null;
+    volume?: number | null;
+  };
+  bgm?: {
+    enabled?: boolean;
+    userRequest?: string | null;
+    include?: Record<string, Array<string | number>>;
+    exclude?: Record<string, Array<string | number>>;
+    volume?: number | null;
+  };
+  subtitles?: {
+    enabled?: boolean;
+    style?: "platform_default" | "bold_caption";
+  };
+  render?: {
+    aspectRatio?: "9:16";
+    maxDurationSeconds?: number | null;
+    includeOriginalAudio?: boolean;
+  };
+};
+
 export type CreateVideoEditJobRequest = {
   contentVariantId: string;
   instructionText?: string | null;
   inputPayload?: Record<string, unknown>;
+  productionConfig?: ProductionConfig | null;
+  sourceJobId?: string | null;
 };

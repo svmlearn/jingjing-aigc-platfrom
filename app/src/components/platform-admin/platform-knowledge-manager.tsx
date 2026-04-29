@@ -4,16 +4,34 @@ import { useEffect, useEffectEvent, useState } from "react";
 import {
   Database,
   FileText,
+  Plus,
   RefreshCw,
   RotateCcw,
   Trash2,
   UploadCloud,
 } from "lucide-react";
 
+import type { KnowledgeSetDto } from "@/contracts/agent-console";
 import type { KnowledgeDocumentWithStatsDto } from "@/contracts/knowledge";
+import {
+  AdminEmptyState,
+  AdminField,
+  AdminNotice,
+  AdminPanel,
+  AdminPanelHeader,
+  AdminStatusBadge,
+  adminButtonClassName,
+  adminButtonVariants,
+  adminInputClassName,
+  adminTextareaClassName,
+} from "@/components/platform-admin/platform-admin-ui";
 import { cn } from "@/lib/utils";
 
-export function PlatformKnowledgeManager() {
+export function PlatformKnowledgeManager({
+  knowledgeSets = [],
+}: {
+  knowledgeSets?: KnowledgeSetDto[];
+}) {
   const [documents, setDocuments] = useState<KnowledgeDocumentWithStatsDto[]>([]);
   const [title, setTitle] = useState("");
   const [textContent, setTextContent] = useState("");
@@ -24,6 +42,7 @@ export function PlatformKnowledgeManager() {
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [selectedSetId, setSelectedSetId] = useState<string>("all");
 
   async function loadDocuments() {
     setLoading(true);
@@ -174,197 +193,230 @@ export function PlatformKnowledgeManager() {
     }
   }
 
+  const filteredDocuments =
+    selectedSetId === "all"
+      ? documents
+      : documents.filter((document) => document.scope === "platform");
+
   return (
     <div className="grid gap-6">
-      {error ? (
-        <div className="rounded-md border border-[#fecaca] bg-[#fef2f2] px-4 py-3 text-sm text-[#b91c1c]">
-          {error}
-        </div>
-      ) : null}
-      {notice ? (
-        <div className="rounded-md border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3 text-sm text-[#166534]">
-          {notice}
-        </div>
-      ) : null}
+      {error ? <AdminNotice tone="danger">{error}</AdminNotice> : null}
+      {notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
 
-      <section className="rounded-md border border-[#dde3ea] bg-white p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="flex items-center gap-2 text-base font-semibold text-[#17202a]">
-              <UploadCloud className="size-4 text-[#0f766e]" />
-              上传平台知识
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-[#5d6b7a]">
-              当前 demo 支持文本类文件与直接粘贴内容；云端配置 COS 后会同步保存原文对象，
-              并立刻切块入库供下一轮咨询检索。
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              void loadDocuments();
-            }}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-md border border-[#dde3ea] px-3 py-2 text-sm font-medium text-[#435364] disabled:opacity-60"
-          >
-            <RefreshCw className={cn("size-4", loading && "animate-spin")} />
-            刷新
-          </button>
-        </div>
-
-        <form onSubmit={uploadDocument} className="mt-5 grid gap-4">
-          <label className="grid gap-2">
-            <span className="text-sm font-medium text-[#17202a]">文档标题</span>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="例如：普拉提门店小红书内容方法论"
-              className="rounded-md border border-[#dde3ea] px-3 py-2 text-sm"
-            />
-          </label>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-[#17202a]">上传文件</span>
-              <input
-                key={fileInputKey}
-                type="file"
-                accept=".txt,.md,.markdown,.csv,.json,.jsonl,.yaml,.yml,.xml,text/*,application/json"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                className="rounded-md border border-dashed border-[#b6c2cf] px-3 py-2 text-sm text-[#435364]"
-              />
-              <span className="text-xs text-[#7b8794]">
-                当前保底解析文本类文件；PDF/Word 后续交给异步 worker。
-              </span>
-            </label>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-[#17202a]">或粘贴内容</span>
-              <textarea
-                value={textContent}
-                onChange={(event) => setTextContent(event.target.value)}
-                rows={6}
-                placeholder="把平台方法论、行业 SOP、禁忌话术、内容模板粘贴在这里..."
-                className="rounded-md border border-[#dde3ea] px-3 py-2 text-sm leading-6"
-              />
-            </label>
-          </div>
-
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-xs leading-5 text-[#7b8794]">
-              本轮先做平台级知识库；商户级知识会复用同一张表和 API 入参继续扩展。
-            </p>
+      <div className="grid gap-4 xl:grid-cols-[14rem_minmax(0,1fr)]">
+        <AdminPanel className="overflow-hidden">
+          <AdminPanelHeader
+            eyebrow="知识集"
+            action={
+              <button
+                type="button"
+                disabled
+                className={cn(adminButtonClassName, adminButtonVariants.ghost, "min-h-8 px-2")}
+                title="等待 Knowledge Set 写入 API"
+              >
+                <Plus className="size-3.5" aria-hidden="true" />
+              </button>
+            }
+          />
+          <div className="grid gap-1 p-2">
             <button
-              type="submit"
-              disabled={uploading}
-              className="rounded-md bg-[#1d4ed8] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              type="button"
+              onClick={() => setSelectedSetId("all")}
+              className={cn(
+                "rounded-md px-3 py-2.5 text-left text-sm transition-colors",
+                selectedSetId === "all"
+                  ? "bg-amber-500/10 text-amber-300"
+                  : "text-white/55 hover:bg-white/[0.05]",
+              )}
             >
-              {uploading ? "入库中..." : "上传并入库"}
+              <span>全部文档</span>
+              <span className="float-right text-xs text-white/30">{documents.length}</span>
             </button>
-          </div>
-        </form>
-      </section>
-
-      <section className="rounded-md border border-[#dde3ea] bg-white">
-        <div className="flex items-center justify-between border-b border-[#dde3ea] p-5">
-          <div>
-            <h2 className="flex items-center gap-2 text-base font-semibold text-[#17202a]">
-              <Database className="size-4 text-[#1d4ed8]" />
-              知识文档列表
-            </h2>
-            <p className="mt-1 text-sm text-[#5d6b7a]">
-              已 indexed 的 chunks 会参与咨询诊断的保底检索。
-            </p>
-          </div>
-          <span className="rounded-full bg-[#edf4ff] px-3 py-1 text-xs font-medium text-[#1d4ed8]">
-            {documents.length} 份文档
-          </span>
-        </div>
-
-        {loading ? (
-          <div className="p-6 text-sm text-[#5d6b7a]">正在读取知识文档...</div>
-        ) : documents.length === 0 ? (
-          <div className="p-6 text-sm text-[#5d6b7a]">
-            还没有知识文档。先上传一份行业方法论，我们就能让下一轮咨询真的命中它。
-          </div>
-        ) : (
-          <div className="divide-y divide-[#edf1f5]">
-            {documents.map((document) => (
-              <article key={document.id} className="grid gap-4 p-5 lg:grid-cols-[1fr_auto]">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <FileText className="size-4 text-[#5d6b7a]" />
-                    <h3 className="font-semibold text-[#17202a]">{document.title}</h3>
-                    <StatusBadge status={document.status} />
-                    {document.latestJob ? <JobBadge status={document.latestJob.status} /> : null}
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#5d6b7a]">
-                    {document.summaryText ?? "暂无摘要"}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-[#7b8794]">
-                    <span>scope: {document.scope}</span>
-                    <span>chunks: {document.chunkCount}</span>
-                    <span>source: {document.sourceName ?? "manual"}</span>
-                    <span>updated: {formatDateTime(document.updatedAt)}</span>
-                    {document.storageKey ? <span>COS: {document.storageKey}</span> : null}
-                  </div>
+            {knowledgeSets.map((knowledgeSet) => (
+              <button
+                key={knowledgeSet.id}
+                type="button"
+                onClick={() => setSelectedSetId(knowledgeSet.id)}
+                className={cn(
+                  "min-w-0 rounded-md px-3 py-2.5 text-left transition-colors",
+                  selectedSetId === knowledgeSet.id
+                    ? "bg-amber-500/10 text-amber-300"
+                    : "text-white/55 hover:bg-white/[0.05]",
+                )}
+              >
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                  <span className="truncate text-sm">{knowledgeSet.name}</span>
+                  <span className="shrink-0 text-xs text-white/30">
+                    {knowledgeSet.scope === "platform" ? "平台" : "商户"}
+                  </span>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void retryDocument(document.id);
-                    }}
-                    disabled={mutatingId === document.id}
-                    className="inline-flex items-center gap-2 rounded-md border border-[#dde3ea] px-3 py-2 text-sm font-medium text-[#435364] disabled:opacity-60"
-                  >
-                    <RotateCcw className="size-4" />
-                    重跑入库
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void deleteDocument(document.id);
-                    }}
-                    disabled={mutatingId === document.id}
-                    className="inline-flex items-center gap-2 rounded-md border border-[#fecaca] px-3 py-2 text-sm font-medium text-[#b91c1c] disabled:opacity-60"
-                  >
-                    <Trash2 className="size-4" />
-                    删除
-                  </button>
+                <div className="mt-2">
+                  <AdminStatusBadge status={knowledgeSet.status} />
                 </div>
-              </article>
+              </button>
             ))}
+            {knowledgeSets.length === 0 ? (
+              <div className="px-3 py-8 text-center text-xs leading-5 text-white/30">
+                foundation 还没有返回知识集。
+              </div>
+            ) : null}
           </div>
-        )}
-      </section>
+        </AdminPanel>
+
+        <div className="grid gap-4">
+          <AdminPanel>
+            <AdminPanelHeader
+              eyebrow={selectedSetId === "all" ? "全部知识文档" : "知识文档"}
+              description="文档列表读取真实 knowledge documents API。知识集归属选择在 Knowledge Set API 接入前先保持明确边界。"
+              action={
+                <button
+                  type="button"
+                  onClick={() => {
+                    void loadDocuments();
+                  }}
+                  disabled={loading}
+                  className={cn(adminButtonClassName, adminButtonVariants.secondary)}
+                >
+                  <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
+                  刷新
+                </button>
+              }
+            />
+
+            {loading ? (
+              <div className="p-6 text-sm text-white/40">正在读取知识文档...</div>
+            ) : filteredDocuments.length === 0 ? (
+              <div className="p-5">
+                <AdminEmptyState
+                  icon={Database}
+                  title="暂无知识文档"
+                  description="先上传一份行业方法论，入库后的 indexed chunks 会供咨询检索使用。"
+                />
+              </div>
+            ) : (
+              <div className="divide-y divide-white/[0.06]">
+                {filteredDocuments.map((document) => (
+                  <article key={document.id} className="grid gap-4 p-5 lg:grid-cols-[1fr_auto]">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <FileText className="size-4 text-white/35" aria-hidden="true" />
+                        <h3 className="break-words font-semibold text-white/80">{document.title}</h3>
+                        <DocumentStatusBadge status={document.status} />
+                        {document.latestJob ? <JobBadge status={document.latestJob.status} /> : null}
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/40">
+                        {document.summaryText ?? "暂无摘要"}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/30">
+                        <span>scope: {document.scope}</span>
+                        <span>chunks: {document.chunkCount}</span>
+                        <span>source: {document.sourceName ?? "manual"}</span>
+                        <span>updated: {formatDateTime(document.updatedAt)}</span>
+                        {document.storageKey ? <span>COS: {document.storageKey}</span> : null}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void retryDocument(document.id);
+                        }}
+                        disabled={mutatingId === document.id}
+                        className={cn(adminButtonClassName, adminButtonVariants.secondary)}
+                      >
+                        <RotateCcw className="size-3.5" aria-hidden="true" />
+                        重跑入库
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void deleteDocument(document.id);
+                        }}
+                        disabled={mutatingId === document.id}
+                        className={cn(adminButtonClassName, adminButtonVariants.danger)}
+                      >
+                        <Trash2 className="size-3.5" aria-hidden="true" />
+                        删除
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </AdminPanel>
+
+          <AdminPanel>
+            <AdminPanelHeader
+              eyebrow="上传知识"
+              description="当前上传继续走真实平台级知识 API；加入知识集的强制选择会在 knowledge set 写入接口接入后开放。"
+            />
+            <form onSubmit={uploadDocument} className="grid gap-4 p-5">
+              <AdminField label="文档标题">
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="例如：普拉提门店小红书内容方法论"
+                  className={adminInputClassName}
+                />
+              </AdminField>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <AdminField label="上传文件" hint="当前保底解析文本类文件；PDF/Word 后续交给异步 worker。">
+                  <input
+                    key={fileInputKey}
+                    type="file"
+                    accept=".txt,.md,.markdown,.csv,.json,.jsonl,.yaml,.yml,.xml,text/*,application/json"
+                    onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                    className={cn(
+                      adminInputClassName,
+                      "h-auto border-dashed py-2 file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-sm file:text-white/70",
+                    )}
+                  />
+                </AdminField>
+
+                <AdminField label="或粘贴内容">
+                  <textarea
+                    value={textContent}
+                    onChange={(event) => setTextContent(event.target.value)}
+                    rows={6}
+                    placeholder="把平台方法论、行业 SOP、禁忌话术、内容模板粘贴在这里..."
+                    className={adminTextareaClassName}
+                  />
+                </AdminField>
+              </div>
+
+              <AdminNotice tone="info">
+                知识集选择当前为只读预览。后续 API 完成后，上传时会强制至少选择一个知识集。
+              </AdminNotice>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs leading-5 text-white/30">
+                  平台级文档会进入真实 knowledge documents；是否参与 Agent 检索由知识集挂载决定。
+                </p>
+                <button
+                  type="submit"
+                  disabled={uploading}
+                  className={cn(adminButtonClassName, adminButtonVariants.primary)}
+                >
+                  <UploadCloud className="size-3.5" aria-hidden="true" />
+                  {uploading ? "入库中..." : "上传并入库"}
+                </button>
+              </div>
+            </form>
+          </AdminPanel>
+        </div>
+      </div>
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: KnowledgeDocumentWithStatsDto["status"] }) {
-  return (
-    <span
-      className={cn(
-        "rounded-full px-2.5 py-1 text-xs font-medium",
-        status === "indexed" && "bg-[#dcfce7] text-[#166534]",
-        status === "failed" && "bg-[#fee2e2] text-[#b91c1c]",
-        status === "processing" && "bg-[#fef3c7] text-[#92400e]",
-        (status === "uploaded" || status === "queued") && "bg-[#edf4ff] text-[#1d4ed8]",
-      )}
-    >
-      {status}
-    </span>
-  );
+function DocumentStatusBadge({ status }: { status: KnowledgeDocumentWithStatsDto["status"] }) {
+  return <AdminStatusBadge status={status} label={status} />;
 }
 
 function JobBadge({ status }: { status: NonNullable<KnowledgeDocumentWithStatsDto["latestJob"]>["status"] }) {
-  return (
-    <span className="rounded-full bg-[#f4f6f8] px-2.5 py-1 text-xs font-medium text-[#435364]">
-      job: {status}
-    </span>
-  );
+  return <AdminStatusBadge status={status} label={`job: ${status}`} />;
 }
 
 function formatDateTime(value: string) {

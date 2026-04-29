@@ -23,6 +23,7 @@ export type DraftMediaAsset = {
   mimeType: string;
   fileSizeBytes: number;
   etag: string;
+  sortOrder?: number | null;
   signedPreviewUrl?: string | null;
   originUrl?: string | null;
   createdAt?: string | null;
@@ -231,6 +232,7 @@ function normalizeAsset(input: unknown): DraftMediaAsset | null {
   const mimeType = readString(input, "mimeType", "mime_type") ?? "application/octet-stream";
   const fileSizeBytes = readNumber(input, "fileSizeBytes", "file_size_bytes", "sizeBytes", "size_bytes") ?? 0;
   const etag = readString(input, "etag", "eTag", "ETag") ?? "";
+  const sortOrder = readNumber(input, "sortOrder", "sort_order");
 
   if (!id || !ownerType || !ownerId || !assetType) {
     return null;
@@ -247,6 +249,7 @@ function normalizeAsset(input: unknown): DraftMediaAsset | null {
     mimeType,
     fileSizeBytes,
     etag,
+    sortOrder,
     signedPreviewUrl:
       readString(input, "signedPreviewUrl", "signed_preview_url", "previewUrl", "preview_url") ??
       readString(input, "originUrl", "origin_url"),
@@ -453,8 +456,8 @@ async function uploadToCos(params: {
   });
 }
 
-function assetTypeFromMimeType(mimeType: string): MediaAssetType {
-  if (mimeType.startsWith("video/")) {
+function assetTypeFromMimeType(mimeType: string, fileName?: string): MediaAssetType {
+  if (mimeType.startsWith("video/") || /\.(m4v|mov|mp4|webm)$/i.test(fileName ?? "")) {
     return "video";
   }
   return "image";
@@ -514,6 +517,7 @@ export async function completeMediaUpload(payload: {
   sizeBytes: number;
   etag: string;
   originUrl?: string | null;
+  sortOrder?: number;
 }) {
   const response = await requestJson<JsonRecord>("/api/media/complete", {
     method: "POST",
@@ -531,9 +535,10 @@ export async function completeMediaUpload(payload: {
 export async function uploadDraftMediaFile(params: {
   draftId: string;
   file: File;
+  sortOrder?: number;
   onProgress?: (progress: UploadProgress) => void;
 }) {
-  const assetType = assetTypeFromMimeType(params.file.type);
+  const assetType = assetTypeFromMimeType(params.file.type, params.file.name);
   const intent = await createUploadIntent({
     ownerType: "content_draft",
     ownerId: params.draftId,
@@ -549,18 +554,21 @@ export async function uploadDraftMediaFile(params: {
     onProgress: params.onProgress,
   });
 
+  const completePayload = {
+    ownerType: "content_draft" as const,
+    ownerId: params.draftId,
+    assetType,
+    storageProvider: "tencent_cos",
+    bucketName: intent.bucket,
+    storageKey: intent.cosKey,
+    mimeType: params.file.type || "application/octet-stream",
+    sizeBytes: params.file.size,
+    etag: uploadResult.etag,
+    ...(params.sortOrder !== undefined ? { sortOrder: params.sortOrder } : {}),
+  };
+
   const completedAsset =
-    (await completeMediaUpload({
-      ownerType: "content_draft",
-      ownerId: params.draftId,
-      assetType,
-      storageProvider: "tencent_cos",
-      bucketName: intent.bucket,
-      storageKey: intent.cosKey,
-      mimeType: params.file.type || "application/octet-stream",
-      sizeBytes: params.file.size,
-      etag: uploadResult.etag,
-    })) ??
+    (await completeMediaUpload(completePayload)) ??
     ({
       id: intent.cosKey,
       ownerType: "content_draft",
@@ -572,6 +580,7 @@ export async function uploadDraftMediaFile(params: {
       mimeType: params.file.type || "application/octet-stream",
       fileSizeBytes: params.file.size,
       etag: uploadResult.etag,
+      sortOrder: params.sortOrder ?? null,
       signedPreviewUrl: null,
       originUrl: null,
     } satisfies DraftMediaAsset);
@@ -611,14 +620,20 @@ export async function createVideoEditJob(payload: {
   draftId: string;
   contentVariantId: string;
   instructionText?: string | null;
+  sourceJobId?: string | null;
+  productionConfig?: JsonRecord | null;
 }) {
   const requestPayload = {
     draftId: payload.draftId,
     contentVariantId: payload.contentVariantId,
     instructionText: payload.instructionText ?? null,
+    sourceJobId: payload.sourceJobId ?? null,
+    productionConfig: payload.productionConfig ?? null,
     draft_id: payload.draftId,
     content_variant_id: payload.contentVariantId,
     instruction_text: payload.instructionText ?? null,
+    source_job_id: payload.sourceJobId ?? null,
+    production_config: payload.productionConfig ?? null,
   };
 
   const response = await requestJson<JsonRecord>("/api/video-edit-jobs", {
