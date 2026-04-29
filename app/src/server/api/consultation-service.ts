@@ -513,8 +513,8 @@ async function dispatchConsultationTool(
       status: matches.length > 0 ? "completed" : "skipped",
       summary:
         matches.length > 0
-          ? `命中 ${matches.length} 个平台知识片段。`
-          : "暂无 indexed 知识片段命中，使用商家资料与会话上下文兜底。",
+          ? `检索平台方法论与商家上下文，命中 ${matches.length} 个受控片段。`
+          : "暂无 indexed 知识片段命中，使用商家基础资料与会话上下文兜底。",
       payload: {
         retrievalMode: queryEmbedding.embedding ? "vector_with_lexical_fallback" : "lexical",
         embeddingMode: queryEmbedding.mode,
@@ -525,6 +525,7 @@ async function dispatchConsultationTool(
           documentId: match.documentId,
           documentTitle: match.documentTitle,
           chunkId: match.chunkId,
+          scope: match.scope,
           score: match.score,
         })),
       },
@@ -791,7 +792,7 @@ function buildToolCards(input: {
     },
     retrieve_knowledge_base: {
       key: "retrieve_knowledge_base",
-      label: "检索平台知识库",
+      label: "检索平台方法论与商家上下文",
       summary:
         knowledgeMatches.length > 0
           ? `已按 Hermes 安全上下文方式注入 ${knowledgeMatches.length} 个片段，来源：${matchedTitles.join("、")}。`
@@ -972,6 +973,7 @@ function buildKnowledgeContextBlock(matches: KnowledgeSearchMatchDto[]) {
     matches: matches.map((match) => ({
       documentTitle: match.documentTitle,
       chunkId: match.chunkId,
+      scope: match.scope,
       score: match.score,
       excerpt: match.content.slice(0, 220),
     })),
@@ -984,7 +986,7 @@ function buildKnowledgeReplyHint(matches: KnowledgeSearchMatchDto[]) {
   }
 
   const titles = uniqueStrings(matches.map((match) => match.documentTitle)).slice(0, 2);
-  return `我还参考了平台知识库「${titles.join("、")}」里的方法片段，先把它作为受控上下文合并进判断。`;
+  return `我还参考了「${titles.join("、")}」里的平台方法论或商家上下文片段，先把它作为受控上下文合并进判断。`;
 }
 
 function buildAgentLoopReplyHint(toolResults: ConsultationAgentToolResult[]) {

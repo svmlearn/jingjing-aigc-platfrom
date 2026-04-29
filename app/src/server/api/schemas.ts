@@ -184,6 +184,15 @@ export const importRequestSchema = z.object({
 
 export const merchantProfilePatchSchema = merchantProfileInputSchema.partial();
 
+export const merchantKnowledgeDocumentPatchSchema = z
+  .object({
+    title: z.string().trim().min(1).max(120).optional(),
+    textContent: z.string().max(1200).optional(),
+  })
+  .refine((value) => value.title !== undefined || value.textContent !== undefined, {
+    message: "At least one field must be provided.",
+  });
+
 export const platformAdminMerchantPatchSchema = z
   .object({
     status: z.enum(["active", "disabled", "archived"]).optional(),

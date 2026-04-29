@@ -217,6 +217,8 @@ export async function createKnowledgeDocument(input: {
 
 export async function updateKnowledgeDocument(input: {
   documentId: string;
+  title?: string;
+  sourceName?: string | null;
   status?: KnowledgeDocumentStatus;
   summaryText?: string | null;
   metadata?: Record<string, unknown>;
@@ -232,6 +234,8 @@ export async function updateKnowledgeDocument(input: {
 
     const updated: KnowledgeDocumentDto = {
       ...current,
+      title: input.title ?? current.title,
+      sourceName: input.sourceName !== undefined ? input.sourceName : current.sourceName,
       status: input.status ?? current.status,
       summaryText: input.summaryText !== undefined ? input.summaryText : current.summaryText,
       metadata: input.metadata ?? current.metadata,
@@ -249,6 +253,8 @@ export async function updateKnowledgeDocument(input: {
   const patch: Record<string, unknown> = {};
 
   if (input.status !== undefined) patch.status = input.status;
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.sourceName !== undefined) patch.source_name = input.sourceName;
   if (input.summaryText !== undefined) patch.summary_text = input.summaryText;
   if (input.metadata !== undefined) patch.metadata = input.metadata;
   if (input.bucketName !== undefined) patch.bucket_name = input.bucketName;

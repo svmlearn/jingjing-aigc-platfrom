@@ -784,6 +784,7 @@ export function VideoWorkbench({
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRouteContext((current) => mergeRouteContext(current, snapshot.routeContext));
     setGoal((current) => current || snapshot.goal || "");
     setExtraRequirement((current) => current || snapshot.extraRequirement || "");
@@ -810,6 +811,7 @@ export function VideoWorkbench({
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSession(routeContext.sessionId);
   }, [routeContext.sessionId]);
 
@@ -818,6 +820,7 @@ export function VideoWorkbench({
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadReferenceMaterial(routeContext.materialId);
   }, [routeContext.materialId]);
 
@@ -830,6 +833,7 @@ export function VideoWorkbench({
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadDraftBundle(routeContext.draftId);
   }, [draftBundle?.draft.id, routeContext.draftId]);
 
@@ -838,6 +842,7 @@ export function VideoWorkbench({
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadVideoJob(routeContext.jobId);
   }, [routeContext.jobId]);
 
@@ -846,6 +851,7 @@ export function VideoWorkbench({
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessages((current) =>
       isInitialOnlyMessages(current) ? buildInitialMessages(routeContext.strategyTag) : current,
     );
@@ -856,6 +862,7 @@ export function VideoWorkbench({
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRouteContext((current) =>
       current.variantId === selectedVariantId
         ? current

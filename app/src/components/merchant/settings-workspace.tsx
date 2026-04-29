@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save, Settings, Store, Tag, Target, Users, Zap } from "lucide-react";
+import { BookOpenText, Save, Settings, Store, Tag, Target, Users, Zap } from "lucide-react";
 
 import type { MerchantProfileDto } from "@/contracts/merchant";
 import { cn } from "@/lib/utils";
+import { MerchantKnowledgeLibrary } from "@/components/merchant/merchant-knowledge-library";
 
 const tabs = [
   { id: "basic", label: "基本属性信息", icon: Store },
@@ -12,6 +13,7 @@ const tabs = [
   { id: "products", label: "产品与服务体系", icon: Zap },
   { id: "audience", label: "目标客群特征", icon: Users },
   { id: "marketing", label: "营销转化目标", icon: Target },
+  { id: "knowledge", label: "商家知识库", icon: BookOpenText },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -113,17 +115,19 @@ export function SettingsWorkspace() {
           <h1 className="text-xl tracking-tight [font-family:var(--font-cormorant)]">商家设置</h1>
           <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">咨询、图文、视频共同上下文</p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            void saveProfile();
-          }}
-          disabled={saving || !profile}
-          className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-5 py-2 text-[10px] uppercase tracking-[0.25em] text-amber-500 disabled:opacity-60"
-        >
-          <Save className="h-3.5 w-3.5" />
-          {saving ? "保存中" : "保存设置"}
-        </button>
+        {activeTab === "knowledge" ? null : (
+          <button
+            type="button"
+            onClick={() => {
+              void saveProfile();
+            }}
+            disabled={saving || !profile}
+            className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-5 py-2 text-[10px] uppercase tracking-[0.25em] text-amber-500 disabled:opacity-60"
+          >
+            <Save className="h-3.5 w-3.5" />
+            {saving ? "保存中" : "保存设置"}
+          </button>
+        )}
       </div>
 
       {error ? (
@@ -283,6 +287,8 @@ export function SettingsWorkspace() {
                   </div>
                 </>
               ) : null}
+
+              {activeTab === "knowledge" ? <MerchantKnowledgeLibrary /> : null}
             </div>
           </div>
         </div>

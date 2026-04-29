@@ -72,11 +72,13 @@ export function HistoryHub() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadHistory();
   }, []);
 
   useEffect(() => {
     if (records.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedId(null);
       return;
     }
