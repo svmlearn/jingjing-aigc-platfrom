@@ -211,11 +211,13 @@ parts of the upstream content decision that the worker and engine must not
 silently rewrite. The worker currently normalizes it into an internal directive
 and forwards the normalized directive to `openstoryline-engine`.
 
-The worker also derives output object keys from the staging task rules:
+The worker also derives output object keys from `WORKER_COS_RESULT_PREFIX`:
 
-- `video-outputs/{merchantId}/{draftId}/{variantId}/{jobId}/final.mp4`
-- `video-covers/{merchantId}/{draftId}/{variantId}/{jobId}/cover.jpg`
-- `video-subtitles/{merchantId}/{draftId}/{variantId}/{jobId}/subtitles.srt`
+- `{prefix}/{merchantId}/{jobId}/final.mp4`
+- `{prefix}/{merchantId}/{jobId}/cover.jpg`
+- `{prefix}/{merchantId}/{jobId}/subtitles.srt`
+
+The default prefix is `video-results`.
 
 ## Directive validation and failure mapping
 
@@ -262,7 +264,7 @@ Only requested `desiredOutputs` are uploaded and written back; for example,
 ## Local setup
 
 1. Copy `.env.example` to `.env`.
-2. Set `SUPABASE_DB_URL`, `COS_SECRET_ID`, `COS_SECRET_KEY`, `COS_BUCKET`, `OPENAI_API_KEY`, and any extra provider keys you need.
+2. Set `SUPABASE_DB_URL`, `COS_SECRET_ID`, `COS_SECRET_KEY`, `COS_BUCKET`, `OPENAI_API_KEY`, and any extra provider keys you need. The worker also accepts `WORKER_COS_SECRET_ID`, `WORKER_COS_SECRET_KEY`, `WORKER_COS_BUCKET`, `WORKER_COS_REGION`, and `WORKER_COS_RESULT_PREFIX`.
 3. Make sure the host directories exist on the worker machine:
 
 ```bash

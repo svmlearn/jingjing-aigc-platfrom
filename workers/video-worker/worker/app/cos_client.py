@@ -11,6 +11,12 @@ from .models import UploadedAsset
 
 class TencentCosClient:
     def __init__(self, settings: Settings) -> None:
+        self._default_bucket = settings.cos_bucket
+        self._configured = settings.cos_output_configured
+        if not self._configured:
+            self._client = None
+            return
+
         config = CosConfig(
             Region=settings.cos_region,
             SecretId=settings.cos_secret_id,
@@ -19,7 +25,6 @@ class TencentCosClient:
             Scheme="https",
         )
         self._client = CosS3Client(config)
-        self._default_bucket = settings.cos_bucket
 
     def download_file(
         self,
@@ -27,6 +32,8 @@ class TencentCosClient:
         destination: Path,
         bucket_name: str | None = None,
     ) -> Path:
+        if self._client is None:
+            raise RuntimeError("Tencent COS is not configured for this worker")
         destination.parent.mkdir(parents=True, exist_ok=True)
         self._client.download_file(
             Bucket=bucket_name or self._default_bucket,
@@ -42,6 +49,8 @@ class TencentCosClient:
         asset_type: str,
         bucket_name: str | None = None,
     ) -> UploadedAsset:
+        if self._client is None:
+            raise RuntimeError("Tencent COS is not configured for this worker")
         mime_type = mimetypes.guess_type(local_path.name)[0] or "application/octet-stream"
         with local_path.open("rb") as file_obj:
             response = self._client.put_object(

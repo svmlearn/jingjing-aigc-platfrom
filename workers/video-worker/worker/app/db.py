@@ -112,8 +112,8 @@ class VideoJobRepository:
                 set status = %s,
                     current_stage = %s,
                     progress_pct = %s,
-                    runtime_payload = coalesce(%s, runtime_payload),
-                    log_payload = coalesce(%s, log_payload),
+                    runtime_payload = coalesce(%s::jsonb, runtime_payload),
+                    log_payload = coalesce(%s::jsonb, log_payload),
                     updated_at = timezone('utc', now())
                 where id = %s
                 """,
@@ -141,8 +141,8 @@ class VideoJobRepository:
                 set status = 'succeeded',
                     current_stage = 'completed',
                     progress_pct = 100,
-                    result_payload = %s,
-                    log_payload = %s,
+                    result_payload = %s::jsonb,
+                    log_payload = %s::jsonb,
                     finished_at = timezone('utc', now()),
                     updated_at = timezone('utc', now())
                 where id = %s
@@ -167,7 +167,7 @@ class VideoJobRepository:
                 set status = %s,
                     current_stage = %s,
                     failure_reason = %s,
-                    log_payload = %s,
+                    log_payload = %s::jsonb,
                     finished_at = timezone('utc', now()),
                     updated_at = timezone('utc', now())
                 where id = %s
@@ -223,6 +223,7 @@ class VideoJobRepository:
                     {
                         "asset_id": str(record.get("id") or ""),
                         "asset_type": asset.asset_type,
+                        "storage_provider": "tencent_cos",
                         "bucket_name": asset.bucket_name,
                         "storage_key": asset.storage_key,
                         "mime_type": asset.mime_type,
