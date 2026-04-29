@@ -4,7 +4,7 @@ from typing import Any
 
 from psycopg import Connection
 from psycopg.rows import dict_row
-from psycopg.types.json import Json
+from psycopg.types.json import Jsonb
 
 from .models import UploadedAsset, VideoJob
 
@@ -92,8 +92,8 @@ class VideoJobRepository:
                     status,
                     current_stage,
                     progress_pct,
-                    Json(runtime_payload) if runtime_payload is not None else None,
-                    Json(log_payload) if log_payload is not None else None,
+                    Jsonb(runtime_payload) if runtime_payload is not None else None,
+                    Jsonb(log_payload) if log_payload is not None else None,
                     job_id,
                 ),
             )
@@ -118,7 +118,7 @@ class VideoJobRepository:
                     updated_at = timezone('utc', now())
                 where id = %s
                 """,
-                (Json(result_payload), Json(log_payload), job_id),
+                (Jsonb(result_payload), Jsonb(log_payload), job_id),
             )
 
     def mark_failed(
@@ -142,7 +142,7 @@ class VideoJobRepository:
                     updated_at = timezone('utc', now())
                 where id = %s
                 """,
-                (status, current_stage, failure_reason, Json(log_payload), job_id),
+                (status, current_stage, failure_reason, Jsonb(log_payload), job_id),
             )
 
     def insert_output_assets(

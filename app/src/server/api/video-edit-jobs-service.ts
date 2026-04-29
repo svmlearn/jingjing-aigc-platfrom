@@ -1,6 +1,10 @@
 import "server-only";
 
 import type { CreateVideoEditJobRequest, VideoEditJobDto, VideoEditJobStatus } from "@/contracts/video";
+import {
+  isLocalRealChainEnabled,
+  listLocalRealChainAssetObjectsByOwner,
+} from "@/lib/db/local-real-chain-repository";
 import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import {
@@ -30,7 +34,7 @@ export async function createVideoEditJobForUser(input: {
     contentVariantId: variant.contentVariantId,
     triggerSource: "manual",
     instructionText: input.request.instructionText,
-    inputPayload: await buildServerManagedInputPayload(variant.draftId),
+    inputPayload: await buildServerManagedInputPayload(variant.draftId, variant),
   });
 }
 
@@ -94,10 +98,15 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
     };
   }
 
-  const assets = await listAssetObjectsByOwner({
-    ownerType: "content_variant",
-    ownerId: job.contentVariantId,
-  });
+  const assets = isLocalRealChainEnabled()
+    ? await listLocalRealChainAssetObjectsByOwner({
+        ownerType: "content_variant",
+        ownerId: job.contentVariantId,
+      })
+    : await listAssetObjectsByOwner({
+        ownerType: "content_variant",
+        ownerId: job.contentVariantId,
+      });
   const matchedAssets = assets.filter(
     (asset) =>
       references.assetIds.has(asset.id) || references.storageKeys.has(asset.storageKey),
@@ -118,9 +127,50 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
   };
 }
 
-async function buildServerManagedInputPayload(draftId: string) {
+async function buildServerManagedInputPayload(
+  draftId: string,
+  variant: {
+    title?: string | null;
+    scriptText?: string | null;
+    hashtags?: string[];
+    ctaText?: string | null;
+  },
+) {
+  const script = buildScriptPayload(variant);
+
   if (!isSupabaseAdminConfigured()) {
+    if (isLocalRealChainEnabled()) {
+      const assets = await listLocalRealChainAssetObjectsByOwner({
+        ownerType: "content_draft",
+        ownerId: draftId,
+      });
+      const inputAssets = assets
+        .filter((asset) => asset.assetType === "image" || asset.assetType === "video")
+        .map((asset) => ({
+          asset_id: asset.id,
+          asset_type: asset.assetType,
+          storage_provider: asset.storageProvider,
+          bucket_name: asset.bucketName ?? null,
+          storage_key: asset.storageKey,
+          mime_type: asset.mimeType ?? null,
+          file_size_bytes: asset.fileSizeBytes ?? null,
+          etag: asset.etag ?? null,
+          sort_order: asset.sortOrder,
+        }));
+
+      return {
+        script,
+        input_assets: inputAssets,
+        assembled_from_owner_type: "content_draft",
+        assembled_from_owner_id: draftId,
+        assembled_at: new Date().toISOString(),
+        render_mode: inputAssets.length === 0 ? "script_only_fallback" : "asset_driven",
+        storageMode: "local_real_chain_db",
+      };
+    }
+
     return {
+      script,
       input_assets: [],
       assembled_from_owner_type: "content_draft",
       assembled_from_owner_id: draftId,
@@ -149,11 +199,28 @@ async function buildServerManagedInputPayload(draftId: string) {
     }));
 
   return {
+    script,
     input_assets: inputAssets,
     assembled_from_owner_type: "content_draft",
     assembled_from_owner_id: draftId,
     assembled_at: new Date().toISOString(),
     render_mode: inputAssets.length === 0 ? "script_only_fallback" : "asset_driven",
+  };
+}
+
+function buildScriptPayload(variant: {
+  title?: string | null;
+  scriptText?: string | null;
+  hashtags?: string[];
+  ctaText?: string | null;
+}) {
+  return {
+    title: variant.title ?? null,
+    text: variant.scriptText ?? "",
+    hashtags: variant.hashtags ?? [],
+    cta_text: variant.ctaText ?? null,
+    source: "content_variant",
+    locked_at: new Date().toISOString(),
   };
 }
 

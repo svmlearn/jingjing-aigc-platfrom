@@ -10,6 +10,14 @@ import type {
   VideoEditJobTriggerSource,
 } from "@/contracts/video";
 import { getLocalDemoContentVariantContext } from "@/lib/db/content-draft-repository";
+import {
+  cancelLocalRealChainVideoEditJob,
+  createLocalRealChainVideoEditJob,
+  getLocalRealChainVideoEditJobById,
+  isLocalRealChainEnabled,
+  listLocalRealChainVideoEditJobs,
+  retryLocalRealChainVideoEditJob,
+} from "@/lib/db/local-real-chain-repository";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -39,6 +47,10 @@ type ContentVariantContextRow = {
   id: string;
   draft_id: string;
   variant_type: ContentVariantDto["variantType"];
+  title: string | null;
+  script_text: string | null;
+  hashtags: unknown;
+  cta_text: string | null;
 };
 
 type ContentDraftContextRow = {
@@ -60,6 +72,10 @@ export async function assertVideoScriptVariantAccess(input: {
   merchantId: string;
   draftId: string;
   contentVariantId: string;
+  title?: string | null;
+  scriptText?: string | null;
+  hashtags?: string[];
+  ctaText?: string | null;
 }> {
   if (!isSupabaseAdminConfigured()) {
     const variant = getLocalDemoContentVariantContext(input.contentVariantId);
@@ -80,13 +96,17 @@ export async function assertVideoScriptVariantAccess(input: {
       merchantId: variant.merchantId,
       draftId: variant.draftId,
       contentVariantId: variant.contentVariantId,
+      title: variant.title,
+      scriptText: variant.scriptText,
+      hashtags: variant.hashtags,
+      ctaText: variant.ctaText,
     };
   }
 
   const supabase = createSupabaseAdminClient();
   const { data: variantData, error: variantError } = await supabase
     .from("content_variants")
-    .select("id, draft_id, variant_type")
+    .select("id, draft_id, variant_type, title, script_text, hashtags, cta_text")
     .eq("id", input.contentVariantId)
     .single();
 
@@ -119,6 +139,10 @@ export async function assertVideoScriptVariantAccess(input: {
     merchantId: draft.merchant_id,
     draftId: draft.id,
     contentVariantId: variant.id,
+    title: variant.title,
+    scriptText: variant.script_text,
+    hashtags: toStringArray(variant.hashtags),
+    ctaText: variant.cta_text,
   };
 }
 
@@ -131,6 +155,16 @@ export async function createVideoEditJob(input: {
   inputPayload?: CreateVideoEditJobRequest["inputPayload"];
 }): Promise<VideoEditJobDto> {
   if (!isSupabaseAdminConfigured()) {
+    if (isLocalRealChainEnabled()) {
+      return createLocalRealChainVideoEditJob({
+        draftId: input.draftId,
+        contentVariantId: input.contentVariantId,
+        triggerSource: input.triggerSource,
+        instructionText: input.instructionText,
+        inputPayload: input.inputPayload,
+      });
+    }
+
     const now = new Date().toISOString();
     const job: VideoEditJobDto = {
       id: randomUUID(),
@@ -197,6 +231,10 @@ export async function listVideoEditJobs(
   filters: VideoEditJobListFilters = {},
 ): Promise<VideoEditJobDto[]> {
   if (!isSupabaseAdminConfigured()) {
+    if (isLocalRealChainEnabled()) {
+      return listLocalRealChainVideoEditJobs(filters);
+    }
+
     return Array.from(demoVideoEditJobs.values())
       .filter((job) => job.merchantId === merchantId)
       .filter((job) => !filters.status || job.status === filters.status)
@@ -230,6 +268,10 @@ export async function getVideoEditJobById(input: {
   jobId: string;
 }): Promise<VideoEditJobDto> {
   if (!isSupabaseAdminConfigured()) {
+    if (isLocalRealChainEnabled()) {
+      return getLocalRealChainVideoEditJobById(input.jobId);
+    }
+
     const job = demoVideoEditJobs.get(input.jobId);
 
     if (!job || job.merchantId !== input.merchantId) {
@@ -269,6 +311,10 @@ export async function retryVideoEditJob(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
+    if (isLocalRealChainEnabled()) {
+      return retryLocalRealChainVideoEditJob(input.jobId);
+    }
+
     const updated: VideoEditJobDto = {
       ...current,
       status: "pending",
@@ -331,6 +377,10 @@ export async function cancelVideoEditJob(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
+    if (isLocalRealChainEnabled()) {
+      return cancelLocalRealChainVideoEditJob(input.jobId);
+    }
+
     const now = new Date().toISOString();
     const updated: VideoEditJobDto = {
       ...current,
@@ -387,6 +437,14 @@ export function mapVideoEditJob(row: VideoEditJobRow): VideoEditJobDto {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function toStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
 }
 
 const videoEditJobSelect = [

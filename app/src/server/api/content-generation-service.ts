@@ -6,6 +6,7 @@ import type {
   MaterialWorkbenchReferenceDto,
   MaterialWorkbenchTarget,
 } from "@/contracts/material";
+import type { LlmRuntimeSettingsDto } from "@/contracts/platform-admin";
 import { getConsultationSessionDetail } from "@/lib/db/consultation-repository";
 import {
   createDraftWithVariants,
@@ -17,9 +18,18 @@ import {
   getMaterialLibraryItemById,
   getMaterialWorkbenchReference,
 } from "@/lib/db/material-library-repository";
+import { isLocalRealChainEnabled } from "@/lib/db/local-real-chain-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
+import { AiRuntimeError, createChatCompletion } from "@/server/api/ai-runtime";
+import { ApiError } from "@/server/api/errors";
 
 type GenerationMode = "create" | "rewrite";
+type VideoScriptDraftContent = {
+  title: string;
+  scriptText: string;
+  hashtags: string[];
+  ctaText: string;
+};
 
 export async function generateArticleDraftForUser(input: {
   userId: string;
@@ -145,7 +155,7 @@ export async function generateVideoScriptForUser(input: {
   strategyTag?: string | null;
 }): Promise<ContentDraftBundleDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const session = await getConsultationSessionDetail({
+  const session = await getVideoScriptSessionOrFallback({
     merchantId: merchant.id,
     sessionId: input.sessionId,
   });
@@ -178,6 +188,25 @@ export async function generateVideoScriptForUser(input: {
       material_reference_id: materialContext.reference?.id ?? input.materialReferenceId ?? null,
     },
   });
+  const fallbackScript = buildFallbackVideoScriptDraft({
+    workingTitle,
+    merchantName: merchant.name,
+    session,
+    extraRequirement: input.extraRequirement ?? null,
+    material: materialContext.material,
+    strategyTag: input.strategyTag ?? null,
+    ctaText: merchant.defaultCta[0] ?? session.strategySnapshot.videoBrief?.outcome ?? "结尾引导私信或预约体验",
+  });
+  const generatedScript =
+    (await generateVideoScriptWithLlm({
+      fallback: fallbackScript,
+      merchantName: merchant.name,
+      session,
+      goal: input.goal ?? null,
+      extraRequirement: input.extraRequirement ?? null,
+      material: materialContext.material,
+      strategyTag: input.strategyTag ?? null,
+    })) ?? fallbackScript;
 
   const draftBundle = await createDraftWithVariants({
     merchantId: merchant.id,
@@ -201,16 +230,10 @@ export async function generateVideoScriptForUser(input: {
       {
         platform: "douyin",
         variantType: "video_script",
-        title: workingTitle,
-        scriptText: buildVideoScript({
-          merchantName: merchant.name,
-          session,
-          extraRequirement: input.extraRequirement ?? null,
-          material: materialContext.material,
-          strategyTag: input.strategyTag ?? null,
-        }),
-        hashtags: buildHashtags(session),
-        ctaText: merchant.defaultCta[0] ?? "结尾引导私信或预约体验",
+        title: generatedScript.title,
+        scriptText: generatedScript.scriptText,
+        hashtags: generatedScript.hashtags,
+        ctaText: generatedScript.ctaText,
       },
     ],
   });
@@ -224,6 +247,238 @@ export async function generateVideoScriptForUser(input: {
   });
 
   return draftBundle;
+}
+
+async function getVideoScriptSessionOrFallback(input: {
+  merchantId: string;
+  sessionId: string;
+}): Promise<Awaited<ReturnType<typeof getConsultationSessionDetail>>> {
+  try {
+    return await getConsultationSessionDetail(input);
+  } catch (error) {
+    if (
+      !isLocalRealChainEnabled() ||
+      !(error instanceof ApiError) ||
+      error.code !== "CONSULTATION_SESSION_NOT_FOUND"
+    ) {
+      throw error;
+    }
+
+    const now = new Date().toISOString();
+
+    return {
+      id: input.sessionId,
+      merchantId: input.merchantId,
+      title: "Local real-chain smoke test",
+      status: "active",
+      currentStage: "video_smoke_test",
+      strategySnapshot: {
+        positioning: "Local smoke test for real media upload and server-side video worker rendering.",
+        coreSellingPoints: ["real COS upload", "server worker render", "OpenStoryline output"],
+        targetAudiences: ["local tester"],
+        keyScenes: ["uploaded real storefront or product material", "worker-generated edit"],
+        currentSuggestion: "Generate a short video script from the uploaded real materials.",
+        strategyTags: ["real-chain-smoke"],
+        contentCalendarDraft: [],
+        articleBrief: null,
+        videoBrief: {
+          workingTitle: "Real material upload smoke test",
+          hook: "Use uploaded real materials to verify the full worker chain.",
+          outcome: "Create a rendered video and upload the result back to COS.",
+        },
+      },
+      summaryText:
+        "This temporary fallback session is only for verifying real material upload, job enqueueing, server worker rendering, and result upload.",
+      latestMessagePreview: null,
+      lastMessageAt: now,
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+      events: [],
+    };
+  }
+}
+
+function buildFallbackVideoScriptDraft(input: {
+  workingTitle: string;
+  merchantName: string;
+  session: Awaited<ReturnType<typeof getConsultationSessionDetail>>;
+  extraRequirement?: string | null;
+  material?: MaterialLibraryItemDto | null;
+  strategyTag?: string | null;
+  ctaText: string;
+}): VideoScriptDraftContent {
+  return {
+    title: input.workingTitle,
+    scriptText: buildVideoScript({
+      merchantName: input.merchantName,
+      session: input.session,
+      extraRequirement: input.extraRequirement ?? null,
+      material: input.material,
+      strategyTag: input.strategyTag ?? null,
+    }),
+    hashtags: buildHashtags(input.session),
+    ctaText: input.ctaText,
+  };
+}
+
+async function generateVideoScriptWithLlm(input: {
+  fallback: VideoScriptDraftContent;
+  merchantName: string;
+  session: Awaited<ReturnType<typeof getConsultationSessionDetail>>;
+  goal?: string | null;
+  extraRequirement?: string | null;
+  material?: MaterialLibraryItemDto | null;
+  strategyTag?: string | null;
+}): Promise<VideoScriptDraftContent | null> {
+  const runtime = getVideoWorkbenchLlmRuntime();
+  const apiKey = getVideoWorkbenchLlmApiKey();
+
+  if (!runtime || !apiKey) {
+    return null;
+  }
+
+  try {
+    const response = await createChatCompletion({
+      runtime,
+      apiKey,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are the video script generation agent for a Chinese merchant content workbench.",
+            "Return strict JSON only. No markdown.",
+            "JSON shape: {\"title\":\"...\",\"scriptText\":\"...\",\"hashtags\":[\"#...\"],\"ctaText\":\"...\"}.",
+            "The scriptText must be Chinese, short-video ready, and split into 4-6 scenes with timestamps, visuals, and voiceover.",
+          ].join("\n"),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            merchantName: input.merchantName,
+            goal: input.goal,
+            extraRequirement: input.extraRequirement,
+            strategyTag: input.strategyTag,
+            consultationSummary: input.session.summaryText,
+            strategySnapshot: input.session.strategySnapshot,
+            material: input.material
+              ? {
+                  title: input.material.title,
+                  description: input.material.description,
+                  platform: input.material.platform,
+                  engagementLabel: input.material.engagementLabel,
+                }
+              : null,
+            fallback: input.fallback,
+          }),
+        },
+      ],
+    });
+
+    return normalizeVideoScriptDraft(parseJsonObject(response.content), input.fallback);
+  } catch (error) {
+    if (error instanceof AiRuntimeError) {
+      console.warn("Video script LLM generation failed; falling back to deterministic script.", {
+        status: error.status,
+      });
+      return null;
+    }
+
+    console.warn("Video script LLM generation failed; falling back to deterministic script.");
+    return null;
+  }
+}
+
+function getVideoWorkbenchLlmRuntime(): LlmRuntimeSettingsDto | null {
+  const baseUrl = firstEnv("VIDEO_WORKBENCH_LLM_BASE_URL", "LLM_BASE_URL");
+  const model = firstEnv("VIDEO_WORKBENCH_LLM_MODEL", "LLM_MODEL");
+
+  if (!baseUrl || !model) {
+    return null;
+  }
+
+  return {
+    providerLabel: firstEnv("VIDEO_WORKBENCH_LLM_PROVIDER", "LLM_PROVIDER") ?? "DeepSeek",
+    baseUrl,
+    primaryModel: model,
+    fallbackModel: null,
+    temperature: parseEnvNumber("VIDEO_WORKBENCH_LLM_TEMPERATURE", 0.6),
+    maxTokens: parseEnvInteger("VIDEO_WORKBENCH_LLM_MAX_TOKENS", 2200),
+    timeoutSeconds: parseEnvInteger("VIDEO_WORKBENCH_LLM_TIMEOUT_SECONDS", 90),
+    retryCount: 0,
+    apiKeySource: "env",
+  };
+}
+
+function getVideoWorkbenchLlmApiKey() {
+  return firstEnv("VIDEO_WORKBENCH_LLM_API_KEY", "DEEPSEEK_API_KEY", "LLM_API_KEY");
+}
+
+function parseJsonObject(text: string): Record<string, unknown> {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+  const candidate = fenced ?? (firstBrace >= 0 && lastBrace > firstBrace ? text.slice(firstBrace, lastBrace + 1) : text);
+  const parsed = JSON.parse(candidate);
+
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>)
+    : {};
+}
+
+function normalizeVideoScriptDraft(
+  record: Record<string, unknown>,
+  fallback: VideoScriptDraftContent,
+): VideoScriptDraftContent {
+  const hashtags = Array.isArray(record.hashtags)
+    ? record.hashtags
+        .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        .map((item) => (item.trim().startsWith("#") ? item.trim() : `#${item.trim()}`))
+        .slice(0, 8)
+    : fallback.hashtags;
+
+  return {
+    title: firstNonEmptyString(record.title, fallback.title),
+    scriptText: firstNonEmptyString(record.scriptText, record.script, fallback.scriptText),
+    hashtags: hashtags.length > 0 ? hashtags : fallback.hashtags,
+    ctaText: firstNonEmptyString(record.ctaText, record.cta, fallback.ctaText),
+  };
+}
+
+function firstEnv(...names: string[]) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function parseEnvInteger(name: string, fallback: number) {
+  const value = process.env[name]?.trim();
+  const parsed = value ? Number.parseInt(value, 10) : NaN;
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseEnvNumber(name: string, fallback: number) {
+  const value = process.env[name]?.trim();
+  const parsed = value ? Number.parseFloat(value) : NaN;
+
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function firstNonEmptyString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return "";
 }
 
 export async function listContentRecordsForUser(input: {

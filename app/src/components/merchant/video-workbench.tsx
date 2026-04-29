@@ -25,6 +25,13 @@ import type { ConsultationSessionDetailDto } from "@/contracts/consultation";
 import type { ContentDraftBundleDto } from "@/contracts/draft";
 import type { MaterialLibraryItemDto } from "@/contracts/material";
 import type { VideoEditJobDto } from "@/contracts/video";
+import {
+  formatAssetSize,
+  loadDraftMediaAssetsFallback,
+  persistDraftMediaAssetsFallback,
+  uploadDraftMediaFile,
+  type DraftMediaAsset,
+} from "@/lib/ui/video-workflow";
 
 type ChatMessage = {
   role: "agent" | "user";
@@ -42,6 +49,7 @@ export function VideoWorkbench({
   materialReferenceId?: string | null;
   strategyTag?: string | null;
 }) {
+  const effectiveSessionId = sessionId ?? "00000000-0000-4000-8000-000000000202";
   const [session, setSession] = useState<ConsultationSessionDetailDto | null>(null);
   const [referenceMaterial, setReferenceMaterial] = useState<MaterialLibraryItemDto | null>(null);
   const [goal, setGoal] = useState("");
@@ -56,6 +64,10 @@ export function VideoWorkbench({
   const [showCanvas, setShowCanvas] = useState(true);
   const [canvasExpanded, setCanvasExpanded] = useState(false);
   const [uploadedSegments, setUploadedSegments] = useState<Record<number, boolean>>({});
+  const [uploadedAssets, setUploadedAssets] = useState<DraftMediaAsset[]>([]);
+  const [uploadingSegments, setUploadingSegments] = useState<Record<number, boolean>>({});
+  const [uploadProgressBySegment, setUploadProgressBySegment] = useState<Record<number, number>>({});
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "agent",
@@ -79,7 +91,7 @@ export function VideoWorkbench({
       };
 
       if (!response.ok || !data.session) {
-        throw new Error(data.error?.message ?? "咨询上下文加载失败");
+        throw new Error(data.error?.message ?? "咨询上下文加载失败。");
       }
 
       const loadedSession = data.session;
@@ -97,7 +109,7 @@ export function VideoWorkbench({
         },
       ]);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "咨询上下文加载失败");
+      setError(requestError instanceof Error ? requestError.message : "咨询上下文加载失败。");
     } finally {
       setLoadingSession(false);
     }
@@ -114,7 +126,7 @@ export function VideoWorkbench({
       };
 
       if (!response.ok) {
-        throw new Error(data.error?.message ?? "参考素材加载失败");
+        throw new Error(data.error?.message ?? "参考素材加载失败。");
       }
 
       const material = data.materials?.find((item) => item.id === nextMaterialId) ?? null;
@@ -130,7 +142,7 @@ export function VideoWorkbench({
         ]);
       }
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "参考素材加载失败");
+      setError(requestError instanceof Error ? requestError.message : "参考素材加载失败。");
     }
   }
 
@@ -139,16 +151,12 @@ export function VideoWorkbench({
     extraRequirement?: string;
     fromChat?: boolean;
   }) {
-    if (!sessionId) {
-      setError("请先从咨询页进入视频工作台。");
-      return;
-    }
-
     const nextGoal = overrides?.goal ?? goal;
     const nextExtraRequirement = overrides?.extraRequirement ?? extraRequirement;
 
     setGenerating(true);
     setError(null);
+    setUploadMessage(null);
 
     try {
       const response = await fetch("/api/content/video-scripts", {
@@ -157,7 +165,7 @@ export function VideoWorkbench({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sessionId,
+          sessionId: effectiveSessionId,
           goal: nextGoal,
           extraRequirement: nextExtraRequirement,
           materialId: referenceMaterial?.id ?? materialId ?? null,
@@ -182,7 +190,7 @@ export function VideoWorkbench({
           role: "agent",
           content: overrides?.fromChat
             ? "收到，我已经把你的补充意见更新到右侧脚本画布。你可以继续让我调整镜头节奏、台词风格或结尾转化动作。"
-            : "脚本草案已经生成。你可以继续在对话里微调，也可以上传分段素材后启动 AI 一键剪辑。",
+            : "脚本草案已经生成。你可以继续在对话里微调，也可以先上传真实素材，再启动 AI 一键剪辑。",
         },
       ]);
     } catch (requestError) {
@@ -253,6 +261,80 @@ export function VideoWorkbench({
     }
   }
 
+  async function handleSegmentUpload(segmentIndex: number, fileList: FileList | null) {
+    const nextDraftId = draftBundle?.draft.id;
+
+    if (!nextDraftId) {
+      setError("请先生成脚本，再上传素材。");
+      return;
+    }
+
+    const files = Array.from(fileList ?? []);
+    if (files.length === 0) {
+      return;
+    }
+
+    setUploadingSegments((current) => ({
+      ...current,
+      [segmentIndex]: true,
+    }));
+    setUploadProgressBySegment((current) => ({
+      ...current,
+      [segmentIndex]: 0,
+    }));
+    setUploadMessage(null);
+    setError(null);
+
+    const succeeded: DraftMediaAsset[] = [];
+    const failed: string[] = [];
+
+    try {
+      for (const file of files) {
+        try {
+          const asset = await uploadDraftMediaFile({
+            draftId: nextDraftId,
+            file,
+            onProgress(progress) {
+              setUploadProgressBySegment((current) => ({
+                ...current,
+                [segmentIndex]: Math.round(progress.percent * 100),
+              }));
+            },
+          });
+          succeeded.push(asset);
+        } catch (uploadError) {
+          failed.push(
+            uploadError instanceof Error ? `${file.name}: ${uploadError.message}` : `${file.name}: 上传失败`,
+          );
+        }
+      }
+
+      if (succeeded.length > 0) {
+        setUploadedAssets((current) => mergeAssets(current, succeeded));
+        setUploadedSegments((current) => ({
+          ...current,
+          [segmentIndex]: true,
+        }));
+        setUploadMessage(`已上传 ${succeeded.length} 个素材，并归档到当前 content_draft。`);
+      }
+
+      if (failed.length > 0) {
+        setError(failed.join("；"));
+      }
+    } finally {
+      setUploadingSegments((current) => {
+        const next = { ...current };
+        delete next[segmentIndex];
+        return next;
+      });
+      setUploadProgressBySegment((current) => {
+        const next = { ...current };
+        delete next[segmentIndex];
+        return next;
+      });
+    }
+  }
+
   function submitChatMessage() {
     const nextInput = input.trim();
 
@@ -280,7 +362,6 @@ export function VideoWorkbench({
       return;
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSession(sessionId);
   }, [sessionId]);
 
@@ -289,7 +370,6 @@ export function VideoWorkbench({
       return;
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadReferenceMaterial(materialId);
   }, [materialId]);
 
@@ -305,7 +385,30 @@ export function VideoWorkbench({
     return () => window.clearInterval(timer);
   }, [job]);
 
+  useEffect(() => {
+    const nextDraftId = draftBundle?.draft.id;
+    if (!nextDraftId) {
+      setUploadedAssets([]);
+      setUploadedSegments({});
+      return;
+    }
+
+    const restored = loadDraftMediaAssetsFallback(nextDraftId);
+    setUploadedAssets(restored);
+    setUploadedSegments(restored.length > 0 ? { 0: true } : {});
+  }, [draftBundle?.draft.id]);
+
+  useEffect(() => {
+    const nextDraftId = draftBundle?.draft.id;
+    if (!nextDraftId) {
+      return;
+    }
+
+    persistDraftMediaAssetsFallback(nextDraftId, uploadedAssets);
+  }, [draftBundle?.draft.id, uploadedAssets]);
+
   const selectedVariant = draftBundle?.selectedVariant ?? draftBundle?.variants[0] ?? null;
+  const draftId = draftBundle?.draft.id ?? null;
   const scriptSections = useMemo(() => {
     return (selectedVariant?.scriptText ?? "")
       .split("\n\n")
@@ -323,12 +426,8 @@ export function VideoWorkbench({
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
-            <h1 className="text-xl tracking-tight [font-family:var(--font-cormorant)]">
-              视频脚本室
-            </h1>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">
-              AI 对话 + 脚本画布
-            </p>
+            <h1 className="text-xl tracking-tight [font-family:var(--font-cormorant)]">视频脚本室</h1>
+            <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">AI 对话 + 脚本画布</p>
           </div>
         </div>
 
@@ -367,9 +466,7 @@ export function VideoWorkbench({
       </div>
 
       {error ? (
-        <div className="border-b border-rose-500/20 bg-rose-500/10 px-6 py-3 text-sm text-rose-200">
-          {error}
-        </div>
+        <div className="border-b border-rose-500/20 bg-rose-500/10 px-6 py-3 text-sm text-rose-200">{error}</div>
       ) : null}
 
       <div className="flex min-h-0 flex-1">
@@ -395,7 +492,7 @@ export function VideoWorkbench({
                       : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs text-white/60"
                   }
                 >
-                  {message.role === "agent" ? <PlayCircle className="h-4 w-4" /> : "商"}
+                  {message.role === "agent" ? <PlayCircle className="h-4 w-4" /> : "你"}
                 </div>
                 <div
                   className={
@@ -466,9 +563,7 @@ export function VideoWorkbench({
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-white/35">
-                    镜头画布 · 台词 · 素材要求
-                  </p>
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-white/35">镜头画布 / 台词 / 素材要求</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -492,27 +587,83 @@ export function VideoWorkbench({
 
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
                 {selectedVariant ? (
-                  <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#080808]">
-                    <div className="grid grid-cols-12 border-b border-white/10 bg-[#050505] text-[10px] uppercase tracking-[0.2em] text-white/35">
-                      <div className="col-span-2 border-r border-white/10 p-4 text-center">时长</div>
-                      <div className="col-span-4 border-r border-white/10 p-4">画面 / 镜头要求</div>
-                      <div className="col-span-4 border-r border-white/10 p-4">台词 / 旁白</div>
-                      <div className="col-span-2 p-4 text-center">素材</div>
+                  <div className="space-y-5">
+                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#080808]">
+                      <div className="grid grid-cols-12 border-b border-white/10 bg-[#050505] text-[10px] uppercase tracking-[0.2em] text-white/35">
+                        <div className="col-span-2 border-r border-white/10 p-4 text-center">时长</div>
+                        <div className="col-span-4 border-r border-white/10 p-4">画面 / 镜头要求</div>
+                        <div className="col-span-4 border-r border-white/10 p-4">台词 / 旁白</div>
+                        <div className="col-span-2 p-4 text-center">素材</div>
+                      </div>
+                      {canvasSegments.map((segment, index) => (
+                        <ScriptSegmentRow
+                          key={`${segment}-${index}`}
+                          index={index}
+                          text={segment}
+                          uploaded={Boolean(uploadedSegments[index])}
+                          disabled={!draftId || Boolean(uploadingSegments[index])}
+                          uploadLabel={
+                            uploadingSegments[index]
+                              ? `${uploadProgressBySegment[index] ?? 0}%`
+                              : !draftId
+                                ? "先生成脚本"
+                                : "上传素材"
+                          }
+                          onUpload={(files) => {
+                            void handleSegmentUpload(index, files);
+                          }}
+                        />
+                      ))}
                     </div>
-                    {canvasSegments.map((segment, index) => (
-                      <ScriptSegmentRow
-                        key={`${segment}-${index}`}
-                        index={index}
-                        text={segment}
-                        uploaded={Boolean(uploadedSegments[index])}
-                        onUpload={() =>
-                          setUploadedSegments((current) => ({
-                            ...current,
-                            [index]: true,
-                          }))
-                        }
-                      />
-                    ))}
+
+                    <div className="rounded-2xl border border-white/10 bg-[#080808] p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm text-[#e0e0e0] [font-family:var(--font-cormorant)]">当前会话已上传素材</p>
+                          <p className="mt-2 text-xs leading-6 text-white/45">
+                            这里先展示当前会话里已经上传成功并完成归档的素材，目标 owner 固定为 `content_draft`。
+                          </p>
+                        </div>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/50">
+                          {draftId ? `draft ${draftId.slice(0, 8)}` : "等待脚本"}
+                        </span>
+                      </div>
+
+                      {!draftId ? (
+                        <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-3 text-sm text-white/45">
+                          还没有 `draftId`。请先生成脚本，再上传图片或视频素材。
+                        </div>
+                      ) : null}
+
+                      {uploadMessage ? (
+                        <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                          {uploadMessage}
+                        </div>
+                      ) : null}
+
+                      {uploadedAssets.length > 0 ? (
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          {uploadedAssets.map((asset) => (
+                            <div key={asset.id} className="rounded-2xl border border-white/10 bg-[#050505] p-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-white/50">
+                                  {asset.assetType}
+                                </span>
+                                <span className="text-xs text-white/35">{formatAssetSize(asset.fileSizeBytes)}</span>
+                              </div>
+                              <p className="mt-3 break-all text-sm text-white/70">{asset.storageKey}</p>
+                              <p className="mt-2 text-xs text-white/35">
+                                {asset.bucketName || "未返回 bucket"} / {asset.storageProvider}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-3 text-sm text-white/45">
+                          还没有已归档素材。上传成功后，这里会先显示当前浏览器会话内的成功结果。
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="flex h-full min-h-[420px] items-center justify-center">
@@ -520,11 +671,9 @@ export function VideoWorkbench({
                       <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5 text-amber-500">
                         <Film className="h-8 w-8" />
                       </div>
-                      <p className="text-3xl text-white [font-family:var(--font-cormorant)]">
-                        视频脚本还没生成
-                      </p>
+                      <p className="text-3xl text-white [font-family:var(--font-cormorant)]">视频脚本还没生成</p>
                       <p className="mt-4 text-sm leading-7 text-white/45">
-                        左侧继续和 AI 对话，或点击顶部「生成视频脚本」。脚本生成后，这里会变成可放大/收起的镜头画布。
+                        左侧继续和 AI 对话，或点击顶部「生成视频脚本」。脚本生成后，这里会变成可放大、可收起的镜头画布，并支持真实素材上传。
                       </p>
                     </div>
                   </div>
@@ -533,22 +682,18 @@ export function VideoWorkbench({
                 <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
                   <div className="flex items-start gap-4">
                     <div className="rounded-xl bg-amber-500/15 p-2 text-amber-500">
-                      {jobIsRunning ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-5 w-5" />
-                      )}
+                      {jobIsRunning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
                     </div>
                     <div>
                       <p className="text-sm text-[#e0e0e0] [font-family:var(--font-cormorant)]">
                         {job
-                          ? `任务状态：${job.status} · ${job.currentStage ?? "等待调度"} · ${job.progressPct}%`
+                          ? `任务状态：${job.status} / ${job.currentStage ?? "等待调度"} / ${job.progressPct}%`
                           : "AI 一键剪辑提示"}
                       </p>
                       <p className="mt-2 text-xs leading-6 text-white/50">
                         {job
                           ? "任务创建后会在这里持续更新状态；完成后展示成片预览。"
-                          : "脚本确认后点击顶部「AI 一键剪辑」，系统会按镜头顺序和素材要求创建视频任务。"}
+                          : "脚本确认后点击顶部「AI 一键剪辑」，系统会按镜头顺序和素材要求创建视频任务。即使没有素材，也仍保留当前 fallback。"}
                       </p>
                       {jobIsRunning ? (
                         <div className="mt-4 inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-amber-500">
@@ -590,12 +735,16 @@ function ScriptSegmentRow({
   index,
   text,
   uploaded,
+  disabled,
+  uploadLabel,
   onUpload,
 }: {
   index: number;
   text: string;
   uploaded: boolean;
-  onUpload: () => void;
+  disabled: boolean;
+  uploadLabel: string;
+  onUpload: (files: FileList | null) => void;
 }) {
   const labels = ["Hook", "Body", "CTA", "Backup"];
   const timeRanges = ["00:00 - 00:05", "00:05 - 00:25", "00:25 - 00:45", "00:45 - 00:60"];
@@ -609,15 +758,11 @@ function ScriptSegmentRow({
         </span>
       </div>
       <div className="col-span-4 border-r border-white/5 p-5 text-sm leading-7 text-white/75 [font-family:var(--font-cormorant)]">
-        <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-amber-500/80">
-          镜头要求
-        </p>
+        <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-amber-500/80">镜头要求</p>
         {extractShotText(text)}
       </div>
       <div className="col-span-4 border-r border-white/5 p-5 text-sm leading-7 text-white/80 whitespace-pre-wrap [font-family:var(--font-cormorant)]">
-        <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-white/35">
-          台词 / 音效
-        </p>
+        <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-white/35">台词 / 音效</p>
         {text}
       </div>
       <div className="col-span-2 flex items-center justify-center p-5">
@@ -626,14 +771,25 @@ function ScriptSegmentRow({
             <Film className="h-5 w-5" />
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={onUpload}
-            className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 bg-[#050505] text-white/35 transition-colors hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-500"
+          <label
+            className={`flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 bg-[#050505] text-white/35 transition-colors ${
+              disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-500"
+            }`}
           >
+            <input
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              className="hidden"
+              disabled={disabled}
+              onChange={(event) => {
+                onUpload(event.target.files);
+                event.currentTarget.value = "";
+              }}
+            />
             <UploadCloud className="h-5 w-5" />
-            <span className="text-[10px] uppercase tracking-[0.16em]">传镜头</span>
-          </button>
+            <span className="text-[10px] uppercase tracking-[0.16em]">{uploadLabel}</span>
+          </label>
         )}
       </div>
     </div>
@@ -641,7 +797,7 @@ function ScriptSegmentRow({
 }
 
 function extractShotText(text: string) {
-  const firstSentence = text.split(/[。！？\n]/).find(Boolean)?.trim();
+  const firstSentence = text.split(/[。！!\n]/).find(Boolean)?.trim();
   return firstSentence
     ? `围绕「${firstSentence}」设计画面节奏，优先使用真实门店、人物动作和细节特写。`
     : "根据策略生成画面、台词和素材要求。";
@@ -656,4 +812,15 @@ function buildPlaceholderSegments(goal: string, strategyTag?: string | null) {
     "中段展示门店真实空间、服务流程、专业资质或客户常见问题，建立信任。",
     "结尾给出明确行动：私信咨询、预约体验、领取评估或到店了解。",
   ];
+}
+
+function mergeAssets(current: DraftMediaAsset[], nextAssets: DraftMediaAsset[]) {
+  const seen = new Set<string>();
+  return [...nextAssets, ...current].filter((asset) => {
+    if (seen.has(asset.id)) {
+      return false;
+    }
+    seen.add(asset.id);
+    return true;
+  });
 }

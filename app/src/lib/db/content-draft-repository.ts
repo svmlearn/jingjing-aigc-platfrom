@@ -4,6 +4,11 @@ import { randomUUID } from "node:crypto";
 
 import type { ContentDraftBundleDto, ContentDraftDto, ContentVariantDto } from "@/contracts/draft";
 import type { Platform } from "@/contracts/import";
+import {
+  isLocalRealChainEnabled,
+  upsertLocalRealChainDraftBundle,
+  upsertLocalRealChainSourceItem,
+} from "@/lib/db/local-real-chain-repository";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -52,6 +57,17 @@ export async function createManualSourceItem(input: {
       id,
       merchantId: input.merchantId,
     });
+
+    if (isLocalRealChainEnabled()) {
+      await upsertLocalRealChainSourceItem({
+        id,
+        platform: input.platform,
+        title: input.title,
+        bodyText: input.bodyText,
+        scriptText: input.scriptText,
+        tracePayload: input.tracePayload,
+      });
+    }
 
     return { id };
   }
@@ -136,6 +152,10 @@ export async function createDraftWithVariants(input: {
     };
 
     demoDraftBundles.set(draft.id, bundle);
+
+    if (isLocalRealChainEnabled()) {
+      await upsertLocalRealChainDraftBundle(bundle);
+    }
 
     return bundle;
   }
@@ -294,6 +314,10 @@ export function getLocalDemoContentVariantContext(contentVariantId: string) {
       draftId: bundle.draft.id,
       contentVariantId: variant.id,
       variantType: variant.variantType,
+      title: variant.title,
+      scriptText: variant.scriptText,
+      hashtags: variant.hashtags,
+      ctaText: variant.ctaText,
     };
   }
 
