@@ -12,6 +12,7 @@ import {
   appendContentVariantToDraft,
   createDraftWithVariants,
   createManualSourceItem,
+  getDraftBundleByMerchant,
   listDraftBundlesByMerchant,
 } from "@/lib/db/content-draft-repository";
 import {
@@ -802,6 +803,17 @@ export async function listContentRecordsForUser(input: {
   return listDraftBundlesByMerchant({
     merchantId: merchant.id,
     limit: input.limit,
+  });
+}
+
+export async function getContentRecordForUser(input: {
+  userId: string;
+  draftId: string;
+}) {
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  return getDraftBundleByMerchant({
+    merchantId: merchant.id,
+    draftId: input.draftId,
   });
 }
 

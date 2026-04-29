@@ -14,6 +14,7 @@ export type ContentDraftDto = {
   merchantId: string;
   workingTitle?: string | null;
   rewriteGoal?: string | null;
+  inputSnapshot?: Record<string, unknown> | null;
   status: ContentDraftStatus;
   selectedVariantId?: string | null;
   createdAt: string;

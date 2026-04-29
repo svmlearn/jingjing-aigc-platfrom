@@ -26,15 +26,24 @@ import type { ContentDraftBundleDto, VideoScriptSceneDto } from "@/contracts/dra
 import type { MaterialLibraryItemDto } from "@/contracts/material";
 import type { VideoEditJobDto } from "@/contracts/video";
 import {
+  getVideoJobAudienceSummary,
+  getVideoJobStageLabel,
+  getVideoJobStatusLabel,
+} from "@/lib/ui/video-job-display";
+import {
+  clearVideoWorkbenchSnapshot,
+  mergeRouteContext,
+  readRouteContextFromDraftInputSnapshot,
+  readVideoWorkbenchSnapshot,
+  type VideoWorkbenchChatMessage,
+  type VideoWorkbenchRouteContext,
+  writeVideoWorkbenchSnapshot,
+} from "@/lib/ui/video-workbench-state";
+import {
   type DraftMediaAsset,
   formatAssetSize,
   uploadDraftMediaFile,
 } from "@/lib/ui/video-workflow";
-
-type ChatMessage = {
-  role: "agent" | "user";
-  content: string;
-};
 
 type ApiErrorPayload = {
   message?: string;
@@ -57,6 +66,9 @@ export function VideoWorkbench({
   sessionId,
   source,
   calendarItemId,
+  draftId,
+  variantId,
+  jobId,
   materialId,
   materialReferenceId,
   strategyTag,
@@ -65,17 +77,31 @@ export function VideoWorkbench({
   sessionId?: string | null;
   source?: string | null;
   calendarItemId?: string | null;
+  draftId?: string | null;
+  variantId?: string | null;
+  jobId?: string | null;
   materialId?: string | null;
   materialReferenceId?: string | null;
   strategyTag?: string | null;
   testMode?: string | null;
 }) {
+  const [routeContext, setRouteContext] = useState<VideoWorkbenchRouteContext>({
+    sessionId: sessionId ?? null,
+    source: source ?? null,
+    calendarItemId: calendarItemId ?? null,
+    draftId: draftId ?? null,
+    variantId: variantId ?? null,
+    jobId: jobId ?? null,
+    materialId: materialId ?? null,
+    materialReferenceId: materialReferenceId ?? null,
+    strategyTag: strategyTag ?? null,
+  });
   const [session, setSession] = useState<ConsultationSessionDetailDto | null>(null);
   const [referenceMaterial, setReferenceMaterial] = useState<MaterialLibraryItemDto | null>(null);
   const [goal, setGoal] = useState("");
   const [extraRequirement, setExtraRequirement] = useState("");
   const [draftBundle, setDraftBundle] = useState<ContentDraftBundleDto | null>(null);
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(variantId ?? null);
   const [job, setJob] = useState<VideoEditJobDto | null>(null);
   const [loadingSession, setLoadingSession] = useState(Boolean(sessionId));
   const [generating, setGenerating] = useState(false);
@@ -87,14 +113,9 @@ export function VideoWorkbench({
   const [showCanvas, setShowCanvas] = useState(true);
   const [canvasExpanded, setCanvasExpanded] = useState(false);
   const [segmentUploads, setSegmentUploads] = useState<Record<number, SegmentUploadState>>({});
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "agent",
-      content: `我已经准备好把咨询策略拆成镜头表、台词和素材要求。${
-        strategyTag ? `这次内容策略是「${strategyTag}」。` : ""
-      }你可以直接告诉我希望视频偏种草、转化，还是人设表达。`,
-    },
-  ]);
+  const [messages, setMessages] = useState<VideoWorkbenchChatMessage[]>(
+    buildInitialMessages(strategyTag ?? null),
+  );
   const videoChainTestMode = testMode === "video_chain";
 
   async function loadSession(nextSessionId: string) {
@@ -116,18 +137,16 @@ export function VideoWorkbench({
 
       const loadedSession = data.session;
       setSession(loadedSession);
-      setGoal(loadedSession.strategySnapshot.videoBrief?.hook ?? loadedSession.summaryText ?? "");
-      setMessages((current) => [
-        ...current,
-        {
-          role: "agent",
-          content: `已读取咨询策略：${
-            loadedSession.strategySnapshot.videoBrief?.workingTitle ??
-            loadedSession.strategySnapshot.currentSuggestion ??
-            "视频脚本任务"
-          }。右侧画布会根据后续对话实时沉淀脚本结构。`,
-        },
-      ]);
+      setGoal(
+        (current) => current || loadedSession.strategySnapshot.videoBrief?.hook || loadedSession.summaryText || "",
+      );
+      setMessages((current) =>
+        appendAgentMessage(current, `已读取咨询策略：${
+          loadedSession.strategySnapshot.videoBrief?.workingTitle ??
+          loadedSession.strategySnapshot.currentSuggestion ??
+          "视频脚本任务"
+        }。右侧画布会根据后续对话实时沉淀脚本结构。`),
+      );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "咨询上下文加载失败");
     } finally {
@@ -153,16 +172,62 @@ export function VideoWorkbench({
       setReferenceMaterial(material);
 
       if (material) {
-        setMessages((current) => [
-          ...current,
-          {
-            role: "agent",
-            content: `已带入参考素材「${material.title}」。我会优先借鉴它的开头钩子、镜头结构和转化动作。`,
-          },
-        ]);
+        setMessages((current) =>
+          appendAgentMessage(
+            current,
+            `已带入参考素材「${material.title}」。我会优先借鉴它的开头钩子、镜头结构和转化动作。`,
+          ),
+        );
       }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "参考素材加载失败");
+    }
+  }
+
+  async function loadDraftBundle(nextDraftId: string) {
+    try {
+      const response = await fetch(`/api/content/records/${nextDraftId}`, {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as {
+        draftBundle?: ContentDraftBundleDto;
+        error?: { message?: string };
+      };
+
+      if (!response.ok || !data.draftBundle) {
+        throw new Error(data.error?.message ?? "脚本草稿加载失败");
+      }
+
+      const loadedDraftBundle = data.draftBundle;
+      const restored = readRouteContextFromDraftInputSnapshot(loadedDraftBundle.draft.inputSnapshot);
+
+      setDraftBundle(loadedDraftBundle);
+      setSelectedVariantId(
+        (current) =>
+          current ||
+          routeContext.variantId ||
+          loadedDraftBundle.selectedVariant?.id ||
+          loadedDraftBundle.draft.selectedVariantId ||
+          loadedDraftBundle.variants[0]?.id ||
+          null,
+      );
+      setGoal((current) => current || loadedDraftBundle.draft.rewriteGoal || "");
+      if (restored.extraRequirement) {
+        setExtraRequirement((current) => current || restored.extraRequirement || "");
+      }
+      setRouteContext((current) =>
+        mergeRouteContext(current, {
+          ...restored.routeContext,
+          draftId: loadedDraftBundle.draft.id,
+          variantId:
+            current.variantId ??
+            loadedDraftBundle.selectedVariant?.id ??
+            loadedDraftBundle.draft.selectedVariantId ??
+            null,
+        }),
+      );
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "脚本草稿加载失败");
     }
   }
 
@@ -171,7 +236,7 @@ export function VideoWorkbench({
     extraRequirement?: string;
     fromChat?: boolean;
   }) {
-    if (!sessionId) {
+    if (!routeContext.sessionId) {
       setError(
         videoChainTestMode
           ? "请先创建链路测试脚本，再上传素材并启动 AI 剪辑。"
@@ -193,14 +258,14 @@ export function VideoWorkbench({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sessionId,
-          source,
-          calendarItemId,
+          sessionId: routeContext.sessionId,
+          source: routeContext.source,
+          calendarItemId: routeContext.calendarItemId,
           goal: nextGoal,
           extraRequirement: nextExtraRequirement,
-          materialId: referenceMaterial?.id ?? materialId ?? null,
-          materialReferenceId: materialReferenceId ?? null,
-          strategyTag,
+          materialId: referenceMaterial?.id ?? routeContext.materialId ?? null,
+          materialReferenceId: routeContext.materialReferenceId ?? null,
+          strategyTag: routeContext.strategyTag,
         }),
       });
       const data = (await response.json()) as {
@@ -213,18 +278,28 @@ export function VideoWorkbench({
       }
 
       setDraftBundle(data.draftBundle);
-      setSelectedVariantId(data.draftBundle.selectedVariant?.id ?? data.draftBundle.variants[0]?.id ?? null);
+      setSelectedVariantId(
+        data.draftBundle.selectedVariant?.id ?? data.draftBundle.variants[0]?.id ?? null,
+      );
+      setRouteContext((current) => ({
+        ...current,
+        draftId: data.draftBundle.draft.id,
+        variantId:
+          data.draftBundle.selectedVariant?.id ??
+          data.draftBundle.draft.selectedVariantId ??
+          data.draftBundle.variants[0]?.id ??
+          null,
+      }));
       setSegmentUploads({});
       setShowCanvas(true);
-      setMessages((current) => [
-        ...current,
-        {
-          role: "agent",
-          content: overrides?.fromChat
+      setMessages((current) =>
+        appendAgentMessage(
+          current,
+          overrides?.fromChat
             ? "收到，我已经把你的补充意见更新到右侧脚本画布。你可以继续让我调整镜头节奏、台词风格或结尾转化动作。"
             : "脚本草案已经生成。你可以继续在对话里微调，也可以上传分段素材后启动 AI 一键剪辑。",
-        },
-      ]);
+        ),
+      );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "视频脚本生成失败");
     } finally {
@@ -275,13 +350,16 @@ export function VideoWorkbench({
         };
       });
       setSelectedVariantId(approvedVariant.id);
-      setMessages((current) => [
+      setRouteContext((current) => ({
         ...current,
-        {
-          role: "agent",
-          content: `已确认脚本「${approvedVariant.title ?? "当前候选"}」。现在可以创建正式 AI 剪辑任务。`,
-        },
-      ]);
+        variantId: approvedVariant.id,
+      }));
+      setMessages((current) =>
+        appendAgentMessage(
+          current,
+          `已确认脚本「${approvedVariant.title ?? "当前候选"}」。现在可以创建正式 AI 剪辑任务。`,
+        ),
+      );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "脚本确认失败");
     } finally {
@@ -324,15 +402,20 @@ export function VideoWorkbench({
       }
 
       setJob(data.job);
-      setMessages((current) => [
+      setRouteContext((current) => ({
         ...current,
-        {
-          role: "agent",
-          content: sourceJobId
+        draftId: data.job.draftId,
+        variantId: selectedVariant.id,
+        jobId: data.job.id,
+      }));
+      setMessages((current) =>
+        appendAgentMessage(
+          current,
+          sourceJobId
             ? "制作修订任务已经创建。我会保留原任务，并在右侧显示新任务进度。"
             : "AI 剪辑任务已经创建。我会在右侧持续显示任务进度，完成后这里会出现可预览的成片结果。",
-        },
-      ]);
+        ),
+      );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "视频任务创建失败");
     } finally {
@@ -366,14 +449,22 @@ export function VideoWorkbench({
       setSegmentUploads({});
       setJob(null);
       setShowCanvas(true);
-      setMessages((current) => [
+      setRouteContext((current) => ({
         ...current,
-        {
-          role: "agent",
-          content:
-            "已创建并确认链路测试占位脚本。现在可以上传任意图片或视频素材，然后点击 AI 一键剪辑验证后续链路。",
-        },
-      ]);
+        draftId: data.draftBundle?.draft.id ?? null,
+        variantId:
+          data.draftBundle?.selectedVariant?.id ??
+          data.draftBundle?.draft.selectedVariantId ??
+          data.draftBundle?.variants[0]?.id ??
+          null,
+        jobId: null,
+      }));
+      setMessages((current) =>
+        appendAgentMessage(
+          current,
+          "已创建并确认链路测试占位脚本。现在可以上传任意图片或视频素材，然后点击 AI 一键剪辑验证后续链路。",
+        ),
+      );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "测试脚本创建失败");
     } finally {
@@ -433,13 +524,12 @@ export function VideoWorkbench({
           asset,
         },
       }));
-      setMessages((current) => [
-        ...current,
-        {
-          role: "agent",
-          content: `镜头 ${index + 1} 的素材已上传并绑定到当前视频草稿，创建剪辑任务时会交给 worker 使用。`,
-        },
-      ]);
+      setMessages((current) =>
+        appendAgentMessage(
+          current,
+          `镜头 ${index + 1} 的素材已上传并绑定到当前视频草稿，创建剪辑任务时会交给 worker 使用。`,
+        ),
+      );
     } catch (uploadError) {
       const message = uploadError instanceof Error ? uploadError.message : "镜头素材上传失败";
       setSegmentUploads((current) => ({
@@ -473,6 +563,10 @@ export function VideoWorkbench({
       }
 
       setJob(data.job);
+      setRouteContext((current) => ({
+        ...current,
+        jobId: data.job.id,
+      }));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "视频任务重试失败");
     } finally {
@@ -491,6 +585,12 @@ export function VideoWorkbench({
 
       if (response.ok && data.job) {
         setJob(data.job);
+        setRouteContext((current) => ({
+          ...current,
+          draftId: data.job?.draftId ?? current.draftId,
+          variantId: data.job?.contentVariantId ?? current.variantId,
+          jobId: data.job?.id ?? current.jobId,
+        }));
       }
     } catch {
       // Ignore polling errors and keep the last visible state.
@@ -509,7 +609,7 @@ export function VideoWorkbench({
     setExtraRequirement(nextExtraRequirement);
     setInput("");
 
-    if (selectedVariant && draftBundle && sessionId) {
+    if (selectedVariant && draftBundle && routeContext.sessionId) {
       void reviseScriptFromChat(nextInput, nextExtraRequirement);
       return;
     }
@@ -522,7 +622,7 @@ export function VideoWorkbench({
     if (videoChainTestMode) {
       const message = "请先点击顶部「创建测试脚本」，再上传素材并启动 AI 剪辑。";
       setError(message);
-      setMessages((current) => [...current, { role: "agent", content: message }]);
+      setMessages((current) => appendAgentMessage(current, message));
       return;
     }
 
@@ -541,22 +641,18 @@ export function VideoWorkbench({
     if (!job?.id || job.status !== "succeeded") {
       const message = "链路测试模式只跳过脚本生成。制作修订需要先有一版已完成的视频任务。";
       setError(message);
-      setMessages((current) => [...current, { role: "agent", content: message }]);
+      setMessages((current) => appendAgentMessage(current, message));
       return;
     }
 
-    setMessages((current) => [
-      ...current,
-      {
-        role: "agent",
-        content: "收到，这条测试指令会作为制作修订创建新任务，用来验证修改版本回写。",
-      },
-    ]);
+    setMessages((current) =>
+      appendAgentMessage(current, "收到，这条测试指令会作为制作修订创建新任务，用来验证修改版本回写。"),
+    );
     await createVideoJob(job.id, revisionInstruction);
   }
 
   async function reviseScriptFromChat(revisionInstruction: string, nextExtraRequirement: string) {
-    if (!selectedVariant || !sessionId) {
+    if (!selectedVariant || !routeContext.sessionId) {
       return;
     }
 
@@ -571,11 +667,11 @@ export function VideoWorkbench({
         },
         body: JSON.stringify({
           contentVariantId: selectedVariant.id,
-          sessionId,
+          sessionId: routeContext.sessionId,
           revisionInstruction,
-          materialId: referenceMaterial?.id ?? materialId ?? null,
-          materialReferenceId: materialReferenceId ?? null,
-          strategyTag,
+          materialId: referenceMaterial?.id ?? routeContext.materialId ?? null,
+          materialReferenceId: routeContext.materialReferenceId ?? null,
+          strategyTag: routeContext.strategyTag,
         }),
       });
       const data = (await response.json()) as {
@@ -594,23 +690,16 @@ export function VideoWorkbench({
         if (!job?.id || job.status !== "succeeded") {
           const message = "制作修订需要先有一版已完成的视频任务。请先创建并完成 AI 剪辑任务，再提出字幕、节奏、封面等制作修订。";
           setError(message);
-          setMessages((current) => [
-            ...current,
-            {
-              role: "agent",
-              content: message,
-            },
-          ]);
+          setMessages((current) => appendAgentMessage(current, message));
           return;
         }
 
-        setMessages((current) => [
-          ...current,
-          {
-            role: "agent",
-            content: "这属于制作修订，我会基于当前已完成视频创建新的制作任务，并保留已确认脚本语义。",
-          },
-        ]);
+        setMessages((current) =>
+          appendAgentMessage(
+            current,
+            "这属于制作修订，我会基于当前已完成视频创建新的制作任务，并保留已确认脚本语义。",
+          ),
+        );
         await createVideoJob(job.id, data.instructionText);
         return;
       }
@@ -636,14 +725,17 @@ export function VideoWorkbench({
         };
       });
       setSelectedVariantId(revisedVariant.id);
-      setShowCanvas(true);
-      setMessages((current) => [
+      setRouteContext((current) => ({
         ...current,
-        {
-          role: "agent",
-          content: "收到，这属于脚本语义修订。我已经生成一个新脚本版本，旧版本保留，右侧已切到新版本。",
-        },
-      ]);
+        variantId: revisedVariant.id,
+      }));
+      setShowCanvas(true);
+      setMessages((current) =>
+        appendAgentMessage(
+          current,
+          "收到，这属于脚本语义修订。我已经生成一个新脚本版本，旧版本保留，右侧已切到新版本。",
+        ),
+      );
       setExtraRequirement(nextExtraRequirement);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "脚本修订失败");
@@ -658,22 +750,111 @@ export function VideoWorkbench({
   }
 
   useEffect(() => {
-    if (!sessionId) {
+    const snapshot = readVideoWorkbenchSnapshot();
+    if (!snapshot) {
       return;
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadSession(sessionId);
-  }, [sessionId]);
+    const hasExplicitRouteContext = Boolean(
+      sessionId ||
+        source ||
+        calendarItemId ||
+        draftId ||
+        variantId ||
+        jobId ||
+        materialId ||
+        materialReferenceId ||
+        strategyTag,
+    );
+    const snapshotMatchesCurrent =
+      (draftId && snapshot.routeContext.draftId === draftId) ||
+      (jobId && snapshot.routeContext.jobId === jobId);
+
+    if (hasExplicitRouteContext && !snapshotMatchesCurrent) {
+      return;
+    }
+
+    setRouteContext((current) => mergeRouteContext(current, snapshot.routeContext));
+    setGoal((current) => current || snapshot.goal || "");
+    setExtraRequirement((current) => current || snapshot.extraRequirement || "");
+    setSelectedVariantId((current) => current ?? snapshot.selectedVariantId ?? null);
+    setShowCanvas(snapshot.showCanvas);
+    setCanvasExpanded(snapshot.canvasExpanded);
+    setMessages((current) =>
+      isInitialOnlyMessages(current) && snapshot.messages.length > 0 ? snapshot.messages : current,
+    );
+  }, [
+    calendarItemId,
+    draftId,
+    jobId,
+    materialId,
+    materialReferenceId,
+    sessionId,
+    source,
+    strategyTag,
+    variantId,
+  ]);
 
   useEffect(() => {
-    if (!materialId) {
+    if (!routeContext.sessionId) {
       return;
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadReferenceMaterial(materialId);
-  }, [materialId]);
+    void loadSession(routeContext.sessionId);
+  }, [routeContext.sessionId]);
+
+  useEffect(() => {
+    if (!routeContext.materialId) {
+      return;
+    }
+
+    void loadReferenceMaterial(routeContext.materialId);
+  }, [routeContext.materialId]);
+
+  useEffect(() => {
+    if (!routeContext.draftId) {
+      return;
+    }
+
+    if (draftBundle?.draft.id === routeContext.draftId) {
+      return;
+    }
+
+    void loadDraftBundle(routeContext.draftId);
+  }, [draftBundle?.draft.id, routeContext.draftId]);
+
+  useEffect(() => {
+    if (!routeContext.jobId) {
+      return;
+    }
+
+    void loadVideoJob(routeContext.jobId);
+  }, [routeContext.jobId]);
+
+  useEffect(() => {
+    if (!routeContext.strategyTag) {
+      return;
+    }
+
+    setMessages((current) =>
+      isInitialOnlyMessages(current) ? buildInitialMessages(routeContext.strategyTag) : current,
+    );
+  }, [routeContext.strategyTag]);
+
+  useEffect(() => {
+    if (!selectedVariantId) {
+      return;
+    }
+
+    setRouteContext((current) =>
+      current.variantId === selectedVariantId
+        ? current
+        : {
+            ...current,
+            variantId: selectedVariantId,
+          },
+    );
+  }, [selectedVariantId]);
 
   useEffect(() => {
     if (!job || !["pending", "queued", "preparing", "running"].includes(job.status)) {
@@ -686,6 +867,36 @@ export function VideoWorkbench({
 
     return () => window.clearInterval(timer);
   }, [job]);
+
+  useEffect(() => {
+    const hasRecoverableState =
+      routeContext.sessionId || routeContext.draftId || routeContext.jobId || messages.length > 1;
+
+    if (!hasRecoverableState) {
+      clearVideoWorkbenchSnapshot();
+      return;
+    }
+
+    writeVideoWorkbenchSnapshot({
+      version: 1,
+      routeContext,
+      goal,
+      extraRequirement,
+      selectedVariantId,
+      messages,
+      showCanvas,
+      canvasExpanded,
+      savedAt: new Date().toISOString(),
+    });
+  }, [
+    canvasExpanded,
+    extraRequirement,
+    goal,
+    messages,
+    routeContext,
+    selectedVariantId,
+    showCanvas,
+  ]);
 
   const selectedVariant =
     draftBundle?.variants.find((variant) => variant.id === selectedVariantId) ??
@@ -701,8 +912,8 @@ export function VideoWorkbench({
 
     const parsedScenes = parseScriptTextToScenes(selectedVariant?.scriptText ?? "");
 
-    return parsedScenes.length > 0 ? parsedScenes : buildPlaceholderScenes(goal, strategyTag);
-  }, [goal, selectedVariant, strategyTag]);
+    return parsedScenes.length > 0 ? parsedScenes : buildPlaceholderScenes(goal, routeContext.strategyTag);
+  }, [goal, routeContext.strategyTag, selectedVariant]);
   const jobIsRunning = job && ["pending", "queued", "preparing", "running"].includes(job.status);
   const scriptApproved = selectedVariant?.reviewStatus === "approved";
   const jobCanRetry = job?.status === "failed_retryable";
@@ -740,7 +951,7 @@ export function VideoWorkbench({
             <CheckCircle2 className="h-3.5 w-3.5" />
             {videoChainTestMode ? "链路测试模式" : "上下文已就绪"}
           </span>
-          {videoChainTestMode && !sessionId ? (
+          {videoChainTestMode && !routeContext.sessionId ? (
             <button
               type="button"
               onClick={() => {
@@ -892,9 +1103,9 @@ export function VideoWorkbench({
                         referenceMaterial?.title ??
                         "等待生成视频脚本"}
                     </h2>
-                    {strategyTag ? (
+                    {routeContext.strategyTag ? (
                       <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-500">
-                        {strategyTag}
+                        {routeContext.strategyTag}
                       </span>
                     ) : null}
                   </div>
@@ -993,12 +1204,12 @@ export function VideoWorkbench({
                     <div>
                       <p className="text-sm text-[#e0e0e0] [font-family:var(--font-cormorant)]">
                         {job
-                          ? `任务状态：${job.status} · ${job.currentStage ?? "等待调度"} · ${job.progressPct}%`
+                          ? `任务状态：${getVideoJobStatusLabel(job.status)} · ${getVideoJobStageLabel(job.currentStage, job.status)} · ${job.progressPct}%`
                           : "AI 一键剪辑提示"}
                       </p>
                       <p className="mt-2 text-xs leading-6 text-white/50">
                         {job
-                          ? "任务创建后会在这里持续更新状态；完成后展示成片预览。"
+                          ? getVideoJobAudienceSummary(job)
                           : "脚本确认后点击顶部「AI 一键剪辑」，系统会按镜头顺序和素材要求创建视频任务。"}
                       </p>
                       {jobIsRunning ? (
@@ -1180,6 +1391,32 @@ function ScriptSegmentRow({
       </div>
     </div>
   );
+}
+
+function buildInitialMessages(strategyTag?: string | null): VideoWorkbenchChatMessage[] {
+  return [
+    {
+      role: "agent",
+      content: `我已经准备好把咨询策略拆成镜头表、台词和素材要求。${
+        strategyTag ? `这次内容策略是「${strategyTag}」。` : ""
+      }你可以直接告诉我希望视频偏种草、转化，还是人设表达。`,
+    },
+  ];
+}
+
+function appendAgentMessage(
+  current: VideoWorkbenchChatMessage[],
+  content: string,
+): VideoWorkbenchChatMessage[] {
+  if (current.some((message) => message.role === "agent" && message.content === content)) {
+    return current;
+  }
+
+  return [...current, { role: "agent", content }];
+}
+
+function isInitialOnlyMessages(messages: VideoWorkbenchChatMessage[]) {
+  return messages.length <= 1 && messages.every((message) => message.role === "agent");
 }
 
 function parseScriptTextToScenes(scriptText: string): VideoScriptSceneDto[] {

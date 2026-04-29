@@ -7,6 +7,9 @@ export default async function DashboardVideoPage({
     source?: string;
     sessionId?: string;
     calendarItemId?: string;
+    draftId?: string;
+    variantId?: string;
+    jobId?: string;
     materialId?: string;
     materialReferenceId?: string;
     strategyTag?: string;
@@ -20,6 +23,9 @@ export default async function DashboardVideoPage({
       sessionId={params.sessionId ?? null}
       source={params.source ?? null}
       calendarItemId={params.calendarItemId ?? null}
+      draftId={params.draftId ?? null}
+      variantId={params.variantId ?? null}
+      jobId={params.jobId ?? null}
       materialId={params.materialId ?? null}
       materialReferenceId={params.materialReferenceId ?? null}
       strategyTag={params.strategyTag ?? params.strategy ?? null}

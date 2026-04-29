@@ -13,6 +13,7 @@ type ContentDraftRow = {
   merchant_id: string;
   working_title: string | null;
   rewrite_goal: string | null;
+  input_snapshot: Record<string, unknown> | null;
   status: ContentDraftDto["status"];
   selected_variant_id: string | null;
   created_at: string;
@@ -141,6 +142,7 @@ export async function createDraftWithVariants(input: {
       merchantId: input.merchantId,
       workingTitle: input.workingTitle,
       rewriteGoal: input.rewriteGoal ?? null,
+      inputSnapshot: input.inputSnapshot ?? null,
       status: input.status ?? "review_pending",
       selectedVariantId: selectedVariant?.id ?? null,
       createdAt: now,
@@ -292,6 +294,53 @@ export async function listDraftBundlesByMerchant(input: {
         variants.find((variant) => variant.id === draft.selectedVariantId) ?? variants[0] ?? null,
     };
   });
+}
+
+export async function getDraftBundleByMerchant(input: {
+  merchantId: string;
+  draftId: string;
+}): Promise<ContentDraftBundleDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const bundle = demoDraftBundles.get(input.draftId);
+
+    if (!bundle || bundle.draft.merchantId !== input.merchantId) {
+      throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
+    }
+
+    return bundle;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: draftData, error: draftError } = await supabase
+    .from("content_drafts")
+    .select(contentDraftSelect)
+    .eq("id", input.draftId)
+    .eq("merchant_id", input.merchantId)
+    .single();
+
+  if (draftError || !draftData) {
+    throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
+  }
+
+  const draft = mapContentDraft(draftData as unknown as ContentDraftRow);
+  const { data: variantData, error: variantError } = await supabase
+    .from("content_variants")
+    .select(contentVariantSelect)
+    .eq("draft_id", input.draftId)
+    .order("version_no", { ascending: true });
+
+  if (variantError) {
+    throw new ApiError(500, "CONTENT_VARIANT_LIST_FAILED", variantError.message);
+  }
+
+  const variants = ((variantData ?? []) as unknown as ContentVariantRow[]).map(mapContentVariant);
+
+  return {
+    draft,
+    variants,
+    selectedVariant:
+      variants.find((variant) => variant.id === draft.selectedVariantId) ?? variants[0] ?? null,
+  };
 }
 
 export async function approveContentVariant(input: {
@@ -601,6 +650,7 @@ function mapContentDraft(row: ContentDraftRow): ContentDraftDto {
     merchantId: row.merchant_id,
     workingTitle: row.working_title,
     rewriteGoal: row.rewrite_goal,
+    inputSnapshot: row.input_snapshot ?? null,
     status: row.status,
     selectedVariantId: row.selected_variant_id,
     createdAt: row.created_at,
@@ -640,6 +690,7 @@ const contentDraftSelect = [
   "merchant_id",
   "working_title",
   "rewrite_goal",
+  "input_snapshot",
   "status",
   "selected_variant_id",
   "created_at",
