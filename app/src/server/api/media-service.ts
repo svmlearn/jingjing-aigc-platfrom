@@ -6,6 +6,12 @@ import type {
   MediaUploadIntentDto,
   MediaUploadIntentRequest,
 } from "@/contracts/media";
+import {
+  assertLocalRealChainMediaOwner,
+  createLocalRealChainAssetObject,
+  getLocalRealChainMerchantId,
+  isLocalRealChainEnabled,
+} from "@/lib/db/local-real-chain-repository";
 import { assertMediaOwnerAccess, createAssetObject } from "@/lib/db/media-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import { ApiError } from "@/server/api/errors";
@@ -33,6 +39,28 @@ export async function createMediaUploadIntentForUser(input: {
   }
 
   assertUploadSizeWithinLimit(input.request.sizeBytes);
+
+  if (isLocalRealChainEnabled()) {
+    await assertLocalRealChainMediaOwner({
+      ownerType: input.request.ownerType,
+      ownerId: input.request.ownerId,
+    });
+    const cosKey = buildCosUploadObjectKey({
+      merchantId: getLocalRealChainMerchantId(),
+      ownerType: input.request.ownerType,
+      ownerId: input.request.ownerId,
+      fileName: input.request.fileName,
+    });
+    const credentials = await issueCosUploadCredentials({ cosKey });
+    const cosConfig = getCosConfig();
+
+    return {
+      bucket: cosConfig.bucket,
+      region: cosConfig.region,
+      cosKey,
+      ...credentials,
+    };
+  }
 
   await assertMediaOwnerAccess({
     merchantId: merchant.id,
@@ -89,7 +117,7 @@ export async function completeMediaUploadForUser(input: {
   if (
     !input.request.storageKey.startsWith(
       `${getCosUploadKeyPrefix({
-        merchantId: merchant.id,
+        merchantId: isLocalRealChainEnabled() ? getLocalRealChainMerchantId() : merchant.id,
         ownerType: input.request.ownerType,
         ownerId: input.request.ownerId,
       })}/`,
@@ -100,6 +128,27 @@ export async function completeMediaUploadForUser(input: {
       "MEDIA_STORAGE_KEY_INVALID",
       "Uploaded media key does not match the expected owner prefix.",
     );
+  }
+
+  if (isLocalRealChainEnabled()) {
+    await assertLocalRealChainMediaOwner({
+      ownerType: input.request.ownerType,
+      ownerId: input.request.ownerId,
+    });
+
+    return createLocalRealChainAssetObject({
+      ownerType: input.request.ownerType,
+      ownerId: input.request.ownerId,
+      assetType: input.request.assetType,
+      storageProvider: input.request.storageProvider,
+      bucketName: input.request.bucketName ?? cosConfig.bucket,
+      storageKey: input.request.storageKey,
+      originUrl: input.request.originUrl,
+      mimeType: input.request.mimeType,
+      fileSizeBytes: input.request.sizeBytes,
+      etag: input.request.etag,
+      sortOrder: input.request.sortOrder,
+    });
   }
 
   await assertMediaOwnerAccess({
