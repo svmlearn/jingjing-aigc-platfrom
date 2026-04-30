@@ -92,3 +92,49 @@ curl -I -L https://jingjing-content-platform-staging.vercel.app
 1. 如需真实执行 Supabase `db push`，需要先在 shell 中配置 `SUPABASE_DB_PASSWORD`，并再次确认目标是 staging。
 2. `app/.env.local` 存在 Supabase CLI 无法解析的变量名字符，后续本地直接跑 Supabase CLI 前需要修正或避开该 env 文件。
 3. 如果 staging 运行不符合预期，Vercel 可从 `main` 重新部署或在 Vercel 后台 rollback；Supabase 因本轮没有新增 migration，数据库侧目前无新增回滚动作。
+
+## 18:05 补充部署：视频脚本 Agent 共享平台 LLM
+
+用户在视频脚本室遇到报错：
+
+```text
+未接入大模型，请检查是否接入大模型后再生成脚本。
+```
+
+排查结论：
+
+- Vercel production 环境已有通用大模型变量 `SILICONFLOW_API_KEY`。
+- 咨询 Agent 和图文生成链路读取通用 key：`SILICONFLOW_API_KEY` -> `LLM_API_KEY` -> `OPENAI_API_KEY`。
+- 孟 4.30 集成分支中的视频脚本 Agent 当时只读取 `VIDEO_WORKBENCH_LLM_API_KEY` -> `DEEPSEEK_API_KEY`，因此没有复用通用大模型 key。
+- 视频脚本生成后的 workflow/worker env 是另一套执行环境，本次未改动。
+
+代码调整：
+
+- `app/src/server/api/script-production-runtime.ts`
+  - 视频脚本 Agent 默认使用平台通用 `llmRuntime.primaryModel`。
+  - 视频脚本 Agent API key 读取顺序改为：
+    `VIDEO_WORKBENCH_LLM_API_KEY` -> `DEEPSEEK_API_KEY` -> `SILICONFLOW_API_KEY` -> `LLM_API_KEY` -> `OPENAI_API_KEY`。
+  - `VIDEO_WORKBENCH_LLM_*` 仍保留为视频脚本专用覆盖项。
+- `app/src/server/api/script-production-runtime.test.ts`
+  - 补充“无视频专用配置时共享平台 LLM runtime”的测试。
+- `app/.env.example`
+  - 补充注释说明视频脚本专用 env 为空时共享通用平台 LLM。
+
+验证：
+
+- `pnpm typecheck` 通过。
+- `pnpm lint` 通过。
+
+重新部署：
+
+```bash
+vercel deploy --prod --yes
+```
+
+结果：
+
+- Deployment id：`dpl_Eou7nem2cSaPfpQtCc21KqZuKGfr`
+- Status：`Ready`
+- Deployment URL：`https://jingjing-content-platform-staging-c0fk7whkb.vercel.app`
+- Aliased URL：`https://jingjing-content-platform-staging.vercel.app`
+- HTTP 轻量验证：`200`
