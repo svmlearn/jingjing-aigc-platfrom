@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useEffectEvent, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -230,6 +230,10 @@ export function VideoWorkbench({
       setError(requestError instanceof Error ? requestError.message : "脚本草稿加载失败");
     }
   }
+
+  const loadDraftBundleFromEffect = useEffectEvent(async (nextDraftId: string) => {
+    await loadDraftBundle(nextDraftId);
+  });
 
   async function generateScript(overrides?: {
     goal?: string;
@@ -834,7 +838,7 @@ export function VideoWorkbench({
     }
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadDraftBundle(routeContext.draftId);
+    void loadDraftBundleFromEffect(routeContext.draftId);
   }, [draftBundle?.draft.id, routeContext.draftId]);
 
   useEffect(() => {
