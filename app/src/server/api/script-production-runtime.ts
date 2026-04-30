@@ -13,7 +13,7 @@ export function resolveScriptProductionRuntime(input: ResolveScriptProductionRun
   model: string;
   runtime: LlmRuntimeSettingsDto;
 } {
-  const model = firstEnv("VIDEO_WORKBENCH_LLM_MODEL") ?? input.agentSettings.model;
+  const model = firstEnv("VIDEO_WORKBENCH_LLM_MODEL") ?? input.llmRuntime.primaryModel;
   const timeoutSeconds =
     readPositiveIntEnv("VIDEO_WORKBENCH_LLM_TIMEOUT_SECONDS") ?? input.llmRuntime.timeoutSeconds;
   const maxTokens =
@@ -36,7 +36,15 @@ export function resolveScriptProductionRuntime(input: ResolveScriptProductionRun
 }
 
 function getScriptProductionApiKey() {
-  return firstEnv("VIDEO_WORKBENCH_LLM_API_KEY", "DEEPSEEK_API_KEY") ?? "";
+  return (
+    firstEnv(
+      "VIDEO_WORKBENCH_LLM_API_KEY",
+      "DEEPSEEK_API_KEY",
+      "SILICONFLOW_API_KEY",
+      "LLM_API_KEY",
+      "OPENAI_API_KEY",
+    ) ?? ""
+  );
 }
 
 function firstEnv(...names: string[]) {

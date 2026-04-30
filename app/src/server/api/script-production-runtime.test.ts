@@ -69,7 +69,35 @@ test("script production reserves enough output tokens for full JSON scripts", ()
   );
 });
 
-test("script production falls back to not configured when no video-specific key exists", () => {
+test("script production defaults to shared llm runtime when no video-specific override exists", () => {
+  withEnv(
+    {
+      SILICONFLOW_API_KEY: "shared-key",
+      LLM_API_KEY: " ",
+      OPENAI_API_KEY: " ",
+      DEEPSEEK_API_KEY: " ",
+      VIDEO_WORKBENCH_LLM_API_KEY: " ",
+      VIDEO_WORKBENCH_LLM_MODEL: " ",
+      VIDEO_WORKBENCH_LLM_BASE_URL: " ",
+      VIDEO_WORKBENCH_LLM_PROVIDER: " ",
+      VIDEO_WORKBENCH_LLM_MAX_TOKENS: " ",
+    },
+    () => {
+      const runtime = resolveScriptProductionRuntime({
+        llmRuntime: baseRuntime,
+        agentSettings: scriptAgentSettings,
+      });
+
+      assert.equal(runtime.apiKey, "shared-key");
+      assert.equal(runtime.model, "gpt-4.1");
+      assert.equal(runtime.runtime.providerLabel, "OpenAI Compatible");
+      assert.equal(runtime.runtime.baseUrl, "https://api.openai.com/v1");
+      assert.equal(runtime.runtime.primaryModel, "gpt-4.1");
+    },
+  );
+});
+
+test("script production falls back to not configured when no shared or video-specific key exists", () => {
   withEnv(
     {
       SILICONFLOW_API_KEY: " ",
@@ -86,7 +114,7 @@ test("script production falls back to not configured when no video-specific key 
       });
 
       assert.equal(runtime.apiKey, "");
-      assert.equal(runtime.model, "gpt-4.1-mini");
+      assert.equal(runtime.model, "gpt-4.1");
       assert.equal(runtime.runtime.baseUrl, "https://api.openai.com/v1");
     },
   );
