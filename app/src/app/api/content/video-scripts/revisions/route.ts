@@ -4,6 +4,7 @@ import { handleApiError } from "@/server/api/errors";
 import { reviseVideoScriptSchema } from "@/server/api/schemas";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {

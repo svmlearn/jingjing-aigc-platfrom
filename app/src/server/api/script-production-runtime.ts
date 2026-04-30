@@ -13,7 +13,10 @@ export function resolveScriptProductionRuntime(input: ResolveScriptProductionRun
   model: string;
   runtime: LlmRuntimeSettingsDto;
 } {
-  const model = firstEnv("VIDEO_WORKBENCH_LLM_MODEL") ?? input.llmRuntime.primaryModel;
+  const model =
+    firstEnv("VIDEO_WORKBENCH_LLM_MODEL") ??
+    input.llmRuntime.fallbackModel?.trim() ??
+    input.llmRuntime.primaryModel;
   const timeoutSeconds =
     readPositiveIntEnv("VIDEO_WORKBENCH_LLM_TIMEOUT_SECONDS") ?? input.llmRuntime.timeoutSeconds;
   const maxTokens =

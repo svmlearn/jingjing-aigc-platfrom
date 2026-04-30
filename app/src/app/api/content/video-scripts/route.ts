@@ -4,6 +4,7 @@ import { generateConsultationContentSchema } from "@/server/api/schemas";
 import { generateVideoScriptForUser } from "@/server/api/content-generation-service";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {

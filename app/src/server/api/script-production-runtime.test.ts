@@ -89,10 +89,10 @@ test("script production defaults to shared llm runtime when no video-specific ov
       });
 
       assert.equal(runtime.apiKey, "shared-key");
-      assert.equal(runtime.model, "gpt-4.1");
+      assert.equal(runtime.model, "gpt-4.1-mini");
       assert.equal(runtime.runtime.providerLabel, "OpenAI Compatible");
       assert.equal(runtime.runtime.baseUrl, "https://api.openai.com/v1");
-      assert.equal(runtime.runtime.primaryModel, "gpt-4.1");
+      assert.equal(runtime.runtime.primaryModel, "gpt-4.1-mini");
     },
   );
 });
@@ -114,7 +114,7 @@ test("script production falls back to not configured when no shared or video-spe
       });
 
       assert.equal(runtime.apiKey, "");
-      assert.equal(runtime.model, "gpt-4.1");
+      assert.equal(runtime.model, "gpt-4.1-mini");
       assert.equal(runtime.runtime.baseUrl, "https://api.openai.com/v1");
     },
   );
