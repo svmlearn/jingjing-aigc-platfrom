@@ -1,24 +1,23 @@
 import { VideoWorkbench } from "@/components/merchant/video-workbench";
 
+import {
+  normalizeDashboardVideoSearchParams,
+  type DashboardVideoSearchParams,
+} from "./page-search-params";
+
 export default async function DashboardVideoPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    sessionId?: string;
-    materialId?: string;
-    materialReferenceId?: string;
-    strategy?: string;
-    testMode?: string;
-  }>;
+  searchParams: Promise<DashboardVideoSearchParams>;
 }) {
-  const params = await searchParams;
+  const params = normalizeDashboardVideoSearchParams(await searchParams);
+
   return (
     <VideoWorkbench
-      sessionId={params.sessionId ?? null}
-      materialId={params.materialId ?? null}
-      materialReferenceId={params.materialReferenceId ?? null}
-      strategyTag={params.strategy ?? null}
-      testMode={params.testMode ?? null}
+      sessionId={params.sessionId}
+      materialId={params.materialId}
+      materialReferenceId={params.materialReferenceId}
+      strategyTag={params.strategyTag}
     />
   );
 }

@@ -64,7 +64,7 @@ export function VideoWorkbench({
   materialId?: string | null;
   materialReferenceId?: string | null;
   strategyTag?: string | null;
-  testMode?: string | null;
+  testMode?: "local_video_chain" | null;
 }) {
   const [session, setSession] = useState<ConsultationSessionDetailDto | null>(null);
   const [referenceMaterial, setReferenceMaterial] = useState<MaterialLibraryItemDto | null>(null);
@@ -91,7 +91,7 @@ export function VideoWorkbench({
       }你可以直接告诉我希望视频偏种草、转化，还是人设表达。`,
     },
   ]);
-  const videoChainTestMode = testMode === "video_chain";
+  const localVideoChainTestMode = testMode === "local_video_chain";
 
   async function loadSession(nextSessionId: string) {
     setLoadingSession(true);
@@ -169,8 +169,8 @@ export function VideoWorkbench({
   }) {
     if (!sessionId) {
       setError(
-        videoChainTestMode
-          ? "请先创建链路测试脚本，再上传素材并启动 AI 剪辑。"
+        localVideoChainTestMode
+          ? "请先创建本地测试脚本，再上传素材并启动 AI 剪辑。"
           : "请先从咨询页进入视频工作台。",
       );
       return;
@@ -334,12 +334,12 @@ export function VideoWorkbench({
     }
   }
 
-  async function createVideoChainTestDraft() {
+  async function createLocalVideoChainTestDraft() {
     setCreatingTestDraft(true);
     setError(null);
 
     try {
-      const response = await fetch("/api/content/video-scripts/test-draft", {
+      const response = await fetch("/api/__local-test/video-chain-test-draft", {
         method: "POST",
       });
       const data = (await response.json()) as {
@@ -348,14 +348,14 @@ export function VideoWorkbench({
       };
 
       if (!response.ok || !data.draftBundle) {
-        throw new Error(data.error?.message ?? "测试脚本创建失败");
+        throw new Error(data.error?.message ?? "本地测试脚本创建失败");
       }
 
       setDraftBundle(data.draftBundle);
       setSelectedVariantId(
         data.draftBundle.selectedVariant?.id ?? data.draftBundle.variants[0]?.id ?? null,
       );
-      setGoal("视频链路测试：上传素材、生成视频、预览结果、发起制作修订");
+      setGoal("本地视频链路测试：上传素材、生成视频、预览结果、发起制作修订");
       setExtraRequirement("");
       setSegmentUploads({});
       setJob(null);
@@ -365,11 +365,11 @@ export function VideoWorkbench({
         {
           role: "agent",
           content:
-            "已创建并确认链路测试占位脚本。现在可以上传任意图片或视频素材，然后点击 AI 一键剪辑验证后续链路。",
+            "已创建并确认本地测试占位脚本。现在可以上传任意图片或视频素材，然后点击 AI 一键剪辑验证后续链路。",
         },
       ]);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "测试脚本创建失败");
+      setError(requestError instanceof Error ? requestError.message : "本地测试脚本创建失败");
     } finally {
       setCreatingTestDraft(false);
     }
@@ -508,12 +508,12 @@ export function VideoWorkbench({
       return;
     }
 
-    if (selectedVariant && draftBundle && videoChainTestMode) {
+    if (selectedVariant && draftBundle && localVideoChainTestMode) {
       void reviseProductionFromTestMode(nextInput, nextExtraRequirement);
       return;
     }
 
-    if (videoChainTestMode) {
+    if (localVideoChainTestMode) {
       const message = "请先点击顶部「创建测试脚本」，再上传素材并启动 AI 剪辑。";
       setError(message);
       setMessages((current) => [...current, { role: "agent", content: message }]);
@@ -533,7 +533,7 @@ export function VideoWorkbench({
     setExtraRequirement(nextExtraRequirement);
 
     if (!job?.id || job.status !== "succeeded") {
-      const message = "链路测试模式只跳过脚本生成。制作修订需要先有一版已完成的视频任务。";
+      const message = "本地测试模式只跳过脚本生成。制作修订需要先有一版已完成的视频任务。";
       setError(message);
       setMessages((current) => [...current, { role: "agent", content: message }]);
       return;
@@ -726,19 +726,19 @@ export function VideoWorkbench({
         <div className="flex items-center gap-2">
           <span
             className={
-              videoChainTestMode
+              localVideoChainTestMode
                 ? "hidden items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-sky-300 md:inline-flex"
                 : "hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-400 md:inline-flex"
             }
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
-            {videoChainTestMode ? "链路测试模式" : "上下文已就绪"}
+            {localVideoChainTestMode ? "本地测试模式" : "上下文已就绪"}
           </span>
-          {videoChainTestMode && !sessionId ? (
+          {localVideoChainTestMode && !sessionId ? (
             <button
               type="button"
               onClick={() => {
-                void createVideoChainTestDraft();
+                void createLocalVideoChainTestDraft();
               }}
               disabled={creatingTestDraft}
               className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-sky-300 disabled:opacity-60"

@@ -41,10 +41,6 @@ import {
   buildVideoScriptCandidates,
   type VideoScriptCandidate,
 } from "@/server/api/video-growth-context";
-import {
-  buildVideoChainTestDraftFixture,
-  isVideoChainTestDraftEnabled,
-} from "@/server/api/video-chain-test-draft";
 
 type GenerationMode = "create" | "rewrite";
 
@@ -309,44 +305,6 @@ export async function generateVideoScriptForUser(input: {
   });
 
   return draftBundleWithScenes;
-}
-
-export async function createVideoChainTestDraftForUser(input: {
-  userId: string;
-}): Promise<ContentDraftBundleDto> {
-  if (!isVideoChainTestDraftEnabled()) {
-    throw new ApiError(
-      403,
-      "VIDEO_CHAIN_TEST_ENTRYPOINT_DISABLED",
-      "视频链路测试入口未启用。",
-    );
-  }
-
-  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const fixture = buildVideoChainTestDraftFixture({
-    merchantName: merchant.name,
-    serviceItems: merchant.serviceItems,
-    defaultCta: merchant.defaultCta,
-    forbiddenWords: merchant.forbiddenWords,
-  });
-  const sourceItem = await createManualSourceItem({
-    merchantId: merchant.id,
-    platform: fixture.sourceItem.platform,
-    title: fixture.sourceItem.title,
-    scriptText: fixture.sourceItem.scriptText,
-    tracePayload: fixture.sourceItem.tracePayload,
-  });
-
-  return createDraftWithVariants({
-    merchantId: merchant.id,
-    sourceItemId: sourceItem.id,
-    workingTitle: fixture.draft.workingTitle,
-    rewriteGoal: fixture.draft.rewriteGoal,
-    status: fixture.draft.status,
-    inputSnapshot: fixture.draft.inputSnapshot,
-    commentInsights: fixture.draft.commentInsights,
-    variants: [fixture.variant],
-  });
 }
 
 export async function reviseVideoScriptForUser(input: {
