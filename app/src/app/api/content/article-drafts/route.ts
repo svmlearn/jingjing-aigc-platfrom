@@ -16,6 +16,7 @@ export async function POST(request: Request) {
       calendarItemId: payload.calendarItemId,
       goal: payload.goal,
       extraRequirement: payload.extraRequirement,
+      toneStyle: payload.toneStyle,
       mode: payload.mode,
       materialId: payload.materialId,
       materialReferenceId: payload.materialReferenceId,

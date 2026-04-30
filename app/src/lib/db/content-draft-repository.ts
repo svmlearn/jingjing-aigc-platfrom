@@ -36,6 +36,21 @@ type ContentVariantRow = {
   updated_at: string;
 };
 
+type ContentVariantAccessRow = ContentVariantRow & {
+  content_drafts:
+    | {
+        id: string;
+        merchant_id: string;
+        input_snapshot: Record<string, unknown> | null;
+      }
+    | Array<{
+        id: string;
+        merchant_id: string;
+        input_snapshot: Record<string, unknown> | null;
+      }>
+    | null;
+};
+
 type LocalDemoContentDraftStore = {
   sourceItems: Map<string, { id: string; merchantId: string }>;
   draftBundles: Map<string, ContentDraftBundleDto>;
@@ -558,6 +573,157 @@ export async function appendContentVariantToDraft(input: {
   return variant;
 }
 
+export async function assertContentVariantAccess(input: {
+  merchantId: string;
+  contentVariantId: string;
+  variantType?: ContentVariantDto["variantType"];
+}): Promise<{
+  merchantId: string;
+  draftId: string;
+  contentVariantId: string;
+  variantType: ContentVariantDto["variantType"];
+  title?: string | null;
+  bodyText?: string | null;
+  scriptText?: string | null;
+  hashtags: string[];
+  ctaText?: string | null;
+  reviewStatus: ContentVariantDto["reviewStatus"];
+  inputSnapshot: Record<string, unknown> | null;
+}> {
+  if (!isSupabaseAdminConfigured()) {
+    const variant = getLocalDemoContentVariantContext(input.contentVariantId);
+
+    if (!variant || variant.merchantId !== input.merchantId) {
+      throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
+    }
+
+    if (input.variantType && variant.variantType !== input.variantType) {
+      throw new ApiError(
+        409,
+        "CONTENT_VARIANT_TYPE_MISMATCH",
+        "当前内容版本类型和操作要求不一致。",
+      );
+    }
+
+    return {
+      merchantId: variant.merchantId,
+      draftId: variant.draftId,
+      contentVariantId: variant.contentVariantId,
+      variantType: variant.variantType,
+      title: variant.title,
+      bodyText: variant.bodyText,
+      scriptText: variant.scriptText,
+      hashtags: variant.hashtags,
+      ctaText: variant.ctaText,
+      reviewStatus: variant.reviewStatus,
+      inputSnapshot: variant.inputSnapshot ?? null,
+    };
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("content_variants")
+    .select(`${contentVariantSelect}, content_drafts!inner(id, merchant_id, input_snapshot)`)
+    .eq("id", input.contentVariantId)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant not found.");
+  }
+
+  const row = data as unknown as ContentVariantAccessRow;
+  const draft = Array.isArray(row.content_drafts)
+    ? row.content_drafts[0]
+    : row.content_drafts;
+
+  if (!draft || draft.merchant_id !== input.merchantId) {
+    throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
+  }
+
+  const variant = mapContentVariant(row);
+
+  if (input.variantType && variant.variantType !== input.variantType) {
+    throw new ApiError(
+      409,
+      "CONTENT_VARIANT_TYPE_MISMATCH",
+      "当前内容版本类型和操作要求不一致。",
+    );
+  }
+
+  return {
+    merchantId: draft.merchant_id,
+    draftId: draft.id,
+    contentVariantId: variant.id,
+    variantType: variant.variantType,
+    title: variant.title,
+    bodyText: variant.bodyText,
+    scriptText: variant.scriptText,
+    hashtags: variant.hashtags,
+    ctaText: variant.ctaText,
+    reviewStatus: variant.reviewStatus,
+    inputSnapshot: draft.input_snapshot ?? null,
+  };
+}
+
+export async function appendContentDraftRevisionTrace(input: {
+  merchantId: string;
+  draftId: string;
+  trace: Record<string, unknown>;
+}) {
+  if (!isSupabaseAdminConfigured()) {
+    const bundle = demoDraftBundles.get(input.draftId);
+
+    if (!bundle || bundle.draft.merchantId !== input.merchantId) {
+      throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
+    }
+
+    const snapshot = bundle.draft.inputSnapshot ?? {};
+    const traces = Array.isArray(snapshot.revisionTraces) ? snapshot.revisionTraces : [];
+    demoDraftBundles.set(input.draftId, {
+      ...bundle,
+      draft: {
+        ...bundle.draft,
+        inputSnapshot: {
+          ...snapshot,
+          revisionTraces: [...traces, input.trace],
+        },
+        updatedAt: new Date().toISOString(),
+      },
+    });
+    return;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("content_drafts")
+    .select("id, input_snapshot")
+    .eq("id", input.draftId)
+    .eq("merchant_id", input.merchantId)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
+  }
+
+  const row = data as { input_snapshot?: Record<string, unknown> | null };
+  const snapshot = row.input_snapshot ?? {};
+  const traces = Array.isArray(snapshot.revisionTraces) ? snapshot.revisionTraces : [];
+  const { error: updateError } = await supabase
+    .from("content_drafts")
+    .update({
+      input_snapshot: {
+        ...snapshot,
+        revisionTraces: [...traces, input.trace],
+      },
+    })
+    .eq("id", input.draftId)
+    .eq("merchant_id", input.merchantId);
+
+  if (updateError) {
+    throw new ApiError(500, "CONTENT_DRAFT_TRACE_UPDATE_FAILED", updateError.message);
+  }
+}
+
 export function getLocalDemoContentVariantContext(contentVariantId: string) {
   if (isSupabaseAdminConfigured()) {
     return null;
@@ -576,10 +742,13 @@ export function getLocalDemoContentVariantContext(contentVariantId: string) {
       contentVariantId: variant.id,
       variantType: variant.variantType,
       title: variant.title,
+      bodyText: variant.bodyText,
       scriptText: variant.scriptText,
+      hashtags: variant.hashtags,
       ctaText: variant.ctaText,
       productionScenes: variant.productionScenes,
       reviewStatus: variant.reviewStatus,
+      inputSnapshot: bundle.draft.inputSnapshot,
     };
   }
 

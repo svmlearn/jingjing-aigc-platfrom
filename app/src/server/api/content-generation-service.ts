@@ -9,7 +9,9 @@ import type {
 } from "@/contracts/material";
 import { getConsultationSessionDetail } from "@/lib/db/consultation-repository";
 import {
+  appendContentDraftRevisionTrace,
   appendContentVariantToDraft,
+  assertContentVariantAccess,
   createDraftWithVariants,
   createManualSourceItem,
   getDraftBundleByMerchant,
@@ -47,6 +49,16 @@ import {
   buildVideoChainTestDraftFixture,
   isVideoChainTestDraftEnabled,
 } from "@/server/api/video-chain-test-draft";
+import {
+  ARTICLE_PROMPT_VERSION,
+  ArticlePromptParseError,
+  buildArticleGenerationMessages,
+  parseArticleGenerationResponse,
+  type ArticleGeneratedVariant,
+  type ArticlePromptContext,
+  type ArticlePromptMode,
+  type ArticlePromptTraceMode,
+} from "@/server/api/article-prompt-templates";
 
 type GenerationMode = "create" | "rewrite";
 type GenerationSource = "consultation_calendar" | "material_center" | "manual";
@@ -61,6 +73,7 @@ export async function generateArticleDraftForUser(input: {
   sessionId: string;
   goal?: string | null;
   extraRequirement?: string | null;
+  toneStyle?: string | null;
   mode?: GenerationMode | null;
   source?: GenerationSource | null;
   calendarItemId?: string | null;
@@ -89,6 +102,15 @@ export async function generateArticleDraftForUser(input: {
   });
   const mode: GenerationMode =
     input.mode ?? (materialContext.material ? "rewrite" : "create");
+
+  if (mode === "rewrite" && !materialContext.material) {
+    throw new ApiError(
+      400,
+      "ARTICLE_REWRITE_MATERIAL_REQUIRED",
+      "改写模式需要先选择参考素材。",
+    );
+  }
+
   const workingTitle =
     materialContext.material
       ? `改写：${materialContext.material.title}`
@@ -123,6 +145,30 @@ export async function generateArticleDraftForUser(input: {
     generationContext.selectedCalendarItem?.summary ??
     session.strategySnapshot.articleBrief?.angle ??
     "专业干货 + 场景信任";
+  const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
+  const articleContext = buildArticlePromptContext({
+    selectedCalendarItem: generationContext.selectedCalendarItem,
+    strategySnapshot: session.strategySnapshot,
+    merchantProfile: buildMerchantSnapshot(merchant),
+    materialContext: materialSnapshot,
+    contentGoal: angle,
+    extraRequirement: input.extraRequirement ?? null,
+    toneStyle: input.toneStyle ?? null,
+  });
+  const fallbackVariants = buildFallbackArticleVariants({
+    merchantName: merchant.name,
+    angle,
+    session,
+    cta,
+    material: materialContext.material,
+    mode,
+  });
+  const articleGeneration = await generateArticleVariantsWithLlm({
+    mode,
+    context: articleContext,
+    fallbackVariants,
+    expectedVariantCount: "multiple",
+  });
 
   const draftBundle = await createDraftWithVariants({
     merchantId: merchant.id,
@@ -139,46 +185,30 @@ export async function generateArticleDraftForUser(input: {
       generationMode: mode,
       strategyTag: generationContext.strategyTag,
       extraRequirement: input.extraRequirement ?? null,
-      materialContext: buildMaterialSnapshot(materialContext.material, materialContext.reference),
+      toneStyle: input.toneStyle ?? null,
+      materialContext: materialSnapshot,
+      promptMode: mode,
+      promptVersion: ARTICLE_PROMPT_VERSION,
+      llmTrace: articleGeneration.trace,
+      riskNotes: articleGeneration.riskNotes,
     },
     commentInsights: {
       audiences: session.strategySnapshot.targetAudiences,
       strategyTags: session.strategySnapshot.strategyTags,
       referenceMaterialTitle: materialContext.material?.title ?? null,
       referenceMaterialEngagement: materialContext.material?.engagementLabel ?? null,
+      promptMode: articleGeneration.trace.mode,
+      promptVersion: ARTICLE_PROMPT_VERSION,
+      riskNotes: articleGeneration.riskNotes,
     },
-    variants: [
-      {
-        platform: "xiaohongshu",
-        variantType: "note",
-        title: `别再盲目发内容了，${merchant.name} 先把这 3 个点讲清楚`,
-        bodyText: buildArticleBody({
-          merchantName: merchant.name,
-          angle,
-          session,
-          variantLabel: "专业干货版",
-          cta,
-          material: materialContext.material,
-        }),
-        hashtags: buildHashtags(session),
-        ctaText: cta,
-      },
-      {
-        platform: "xiaohongshu",
-        variantType: "note",
-        title: `${session.strategySnapshot.targetAudiences[0] ?? "高意向用户"} 最在意的，其实不是价格`,
-        bodyText: buildArticleBody({
-          merchantName: merchant.name,
-          angle,
-          session,
-          variantLabel: "场景共鸣版",
-          cta,
-          material: materialContext.material,
-        }),
-        hashtags: buildHashtags(session),
-        ctaText: cta,
-      },
-    ],
+    variants: articleGeneration.variants.map((variant) => ({
+      platform: "xiaohongshu",
+      variantType: "note",
+      title: variant.title,
+      bodyText: variant.bodyText,
+      hashtags: variant.hashtags.length ? variant.hashtags : buildHashtags(session),
+      ctaText: variant.ctaText || cta,
+    })),
   });
 
   await consumeMaterialReferenceIfNeeded({
@@ -190,6 +220,103 @@ export async function generateArticleDraftForUser(input: {
   });
 
   return draftBundle;
+}
+
+export async function reviseArticleDraftForUser(input: {
+  userId: string;
+  contentVariantId: string;
+  revisionInstruction: string;
+  toneStyle?: string | null;
+}): Promise<{
+  variant: NonNullable<ContentDraftBundleDto["selectedVariant"]>;
+  llmTrace: {
+    promptVersion: typeof ARTICLE_PROMPT_VERSION;
+    mode: ArticlePromptTraceMode;
+    model?: string;
+    error?: string;
+  };
+  riskNotes: string[];
+}> {
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  const currentVariant = await assertContentVariantAccess({
+    merchantId: merchant.id,
+    contentVariantId: input.contentVariantId,
+    variantType: "note",
+  });
+
+  if (!currentVariant.bodyText?.trim()) {
+    throw new ApiError(
+      409,
+      "ARTICLE_BODY_TEXT_REQUIRED",
+      "图文版本缺少正文，无法修订。",
+    );
+  }
+
+  const originalContext = toRecord(currentVariant.inputSnapshot);
+  const fallbackVariants = buildFallbackArticleRevisionVariants({
+    currentVariant,
+    revisionInstruction: input.revisionInstruction,
+  });
+  const articleGeneration = await generateArticleVariantsWithLlm({
+    mode: "revise",
+    context: buildArticlePromptContext({
+      selectedCalendarItem: originalContext.selectedCalendarItem ?? null,
+      strategySnapshot: originalContext.strategySnapshot ?? null,
+      merchantProfile: originalContext.merchantProfile ?? buildMerchantSnapshot(merchant),
+      materialContext: originalContext.materialContext ?? null,
+      contentGoal: firstString(originalContext.contentGoal, originalContext.rewriteGoal) ?? null,
+      extraRequirement: firstString(originalContext.extraRequirement) ?? null,
+      toneStyle: input.toneStyle ?? firstString(originalContext.toneStyle) ?? null,
+    }),
+    currentVariant: {
+      title: currentVariant.title,
+      bodyText: currentVariant.bodyText,
+      hashtags: currentVariant.hashtags,
+      ctaText: currentVariant.ctaText,
+    },
+    revisionInstruction: input.revisionInstruction,
+    fallbackVariants,
+    expectedVariantCount: "single",
+  });
+  const revised = articleGeneration.variants[0];
+
+  if (!revised) {
+    throw new ApiError(500, "ARTICLE_REVISION_EMPTY", "图文修订没有返回可用版本。");
+  }
+
+  const variant = await appendContentVariantToDraft({
+    merchantId: merchant.id,
+    draftId: currentVariant.draftId,
+    platform: "xiaohongshu",
+    variantType: "note",
+    title: revised.title,
+    bodyText: revised.bodyText,
+    hashtags: revised.hashtags.length ? revised.hashtags : currentVariant.hashtags,
+    ctaText: revised.ctaText || currentVariant.ctaText,
+    reviewStatus: "review_pending",
+  });
+  const trace = {
+    promptMode: "revise",
+    promptVersion: ARTICLE_PROMPT_VERSION,
+    sourceVariantId: currentVariant.contentVariantId,
+    newVariantId: variant.id,
+    revisionInstruction: input.revisionInstruction,
+    llmTrace: articleGeneration.trace,
+    riskNotes: articleGeneration.riskNotes,
+    createdAt: new Date().toISOString(),
+  };
+
+  await appendContentDraftRevisionTrace({
+    merchantId: merchant.id,
+    draftId: currentVariant.draftId,
+    trace,
+  });
+
+  return {
+    variant,
+    llmTrace: articleGeneration.trace,
+    riskNotes: articleGeneration.riskNotes,
+  };
 }
 
 export async function generateVideoScriptForUser(input: {
@@ -854,6 +981,186 @@ function buildArticleBody(input: {
     .join("\n");
 }
 
+async function generateArticleVariantsWithLlm(input: {
+  mode: ArticlePromptMode;
+  context: ArticlePromptContext;
+  fallbackVariants: ArticleGeneratedVariant[];
+  currentVariant?: {
+    title?: string | null;
+    bodyText?: string | null;
+    hashtags?: string[];
+    ctaText?: string | null;
+  };
+  revisionInstruction?: string | null;
+  expectedVariantCount: "single" | "multiple";
+}): Promise<{
+  variants: ArticleGeneratedVariant[];
+  riskNotes: string[];
+  trace: {
+    promptVersion: typeof ARTICLE_PROMPT_VERSION;
+    mode: ArticlePromptTraceMode;
+    model?: string;
+    error?: string;
+  };
+}> {
+  if (!getAiRuntimeApiKey()) {
+    return {
+      variants: input.fallbackVariants,
+      riskNotes: [],
+      trace: {
+        promptVersion: ARTICLE_PROMPT_VERSION,
+        mode: "fallback_no_key",
+      },
+    };
+  }
+
+  const platformSettings = await getPlatformSettings();
+
+  try {
+    const response = await createChatCompletion({
+      runtime: platformSettings.llmRuntime,
+      messages: buildArticleGenerationMessages({
+        mode: input.mode,
+        context: input.context,
+        currentVariant: input.currentVariant,
+        revisionInstruction: input.revisionInstruction,
+      }),
+    });
+    const parsed = parseArticleGenerationResponse({
+      content: response.content,
+      expectedVariantCount: input.expectedVariantCount,
+    });
+
+    return {
+      variants: parsed.variants,
+      riskNotes: parsed.riskNotes,
+      trace: {
+        promptVersion: ARTICLE_PROMPT_VERSION,
+        mode: "llm",
+        model: response.model,
+      },
+    };
+  } catch (error) {
+    const mode: ArticlePromptTraceMode =
+      error instanceof ArticlePromptParseError ? "fallback_parse_error" : "fallback_error";
+    const errorMessage =
+      error instanceof AiRuntimeError
+        ? `${error.message}${error.status ? ` (${error.status})` : ""}`
+        : error instanceof Error
+          ? error.message
+          : "Unknown article generation error.";
+
+    console.error("[article-generation] llm fallback", {
+      mode,
+      provider: platformSettings.llmRuntime.providerLabel,
+      baseUrl: platformSettings.llmRuntime.baseUrl,
+      model: platformSettings.llmRuntime.primaryModel,
+      error: errorMessage,
+    });
+
+    return {
+      variants: input.fallbackVariants,
+      riskNotes: [],
+      trace: {
+        promptVersion: ARTICLE_PROMPT_VERSION,
+        mode,
+        error: errorMessage,
+      },
+    };
+  }
+}
+
+function buildArticlePromptContext(input: {
+  selectedCalendarItem: unknown;
+  strategySnapshot: unknown;
+  merchantProfile: unknown;
+  materialContext: unknown;
+  contentGoal: string | null;
+  extraRequirement: string | null;
+  toneStyle: string | null;
+}): ArticlePromptContext {
+  return {
+    selectedCalendarItem: input.selectedCalendarItem,
+    strategySnapshot: input.strategySnapshot,
+    merchantProfile: input.merchantProfile,
+    materialContext: input.materialContext,
+    contentGoal: input.contentGoal,
+    extraRequirement: input.extraRequirement,
+    toneStyle: input.toneStyle,
+    platform: "xiaohongshu",
+  };
+}
+
+function buildFallbackArticleVariants(input: {
+  merchantName: string;
+  angle: string;
+  session: Awaited<ReturnType<typeof getConsultationSessionDetail>>;
+  cta: string;
+  material?: MaterialLibraryItemDto | null;
+  mode: GenerationMode;
+}): ArticleGeneratedVariant[] {
+  return [
+    {
+      styleLabel: "专业干货版",
+      title:
+        input.mode === "rewrite"
+          ? `参考这个结构，重写 ${input.merchantName} 的到店笔记`
+          : `别再盲目发内容了，${input.merchantName} 先把这 3 个点讲清楚`,
+      bodyText: buildArticleBody({
+        merchantName: input.merchantName,
+        angle: input.angle,
+        session: input.session,
+        variantLabel: "专业干货版",
+        cta: input.cta,
+        material: input.material,
+      }),
+      hashtags: buildHashtags(input.session),
+      ctaText: input.cta,
+      rationale: "AI 生成服务暂不可用，先使用稳定模板生成可编辑草稿。",
+    },
+    {
+      styleLabel: "场景共鸣版",
+      title: `${input.session.strategySnapshot.targetAudiences[0] ?? "高意向用户"} 最在意的，其实不是价格`,
+      bodyText: buildArticleBody({
+        merchantName: input.merchantName,
+        angle: input.angle,
+        session: input.session,
+        variantLabel: "场景共鸣版",
+        cta: input.cta,
+        material: input.material,
+      }),
+      hashtags: buildHashtags(input.session),
+      ctaText: input.cta,
+      rationale: "AI 生成服务暂不可用，先使用稳定模板生成可编辑草稿。",
+    },
+  ];
+}
+
+function buildFallbackArticleRevisionVariants(input: {
+  currentVariant: {
+    title?: string | null;
+    bodyText?: string | null;
+    hashtags: string[];
+    ctaText?: string | null;
+  };
+  revisionInstruction: string;
+}): ArticleGeneratedVariant[] {
+  return [
+    {
+      styleLabel: "按要求修改版",
+      title: input.currentVariant.title ?? "按要求修改后的图文版本",
+      bodyText: [
+        input.currentVariant.bodyText ?? "",
+        "",
+        `【修改备注】${input.revisionInstruction}`,
+      ].join("\n"),
+      hashtags: input.currentVariant.hashtags,
+      ctaText: input.currentVariant.ctaText ?? "私信我了解更多到店建议",
+      rationale: "AI 生成服务暂不可用，先追加一版带修改备注的可编辑草稿。",
+    },
+  ];
+}
+
 function buildHashtags(session: Awaited<ReturnType<typeof getConsultationSessionDetail>>) {
   return session.strategySnapshot.strategyTags.map((tag) => `#${tag}`);
 }
@@ -1046,4 +1353,20 @@ function buildMaterialSnapshot(
 
 function compactStrings(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
 }

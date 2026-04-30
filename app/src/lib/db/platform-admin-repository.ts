@@ -90,13 +90,13 @@ type PlatformSettingsUpdateInput = {
 };
 
 const defaultLlmRuntime: Omit<LlmRuntimeSettingsDto, "apiKeyMasked" | "apiKeySource"> = {
-  providerLabel: "OpenAI Compatible",
-  baseUrl: "https://api.openai.com/v1",
-  primaryModel: "gpt-4.1",
-  fallbackModel: "gpt-4.1-mini",
+  providerLabel: "SiliconFlow",
+  baseUrl: "https://api.siliconflow.cn/v1",
+  primaryModel: "Qwen/Qwen3-32B",
+  fallbackModel: "Qwen/Qwen3-14B",
   temperature: 0.7,
   maxTokens: 1800,
-  timeoutSeconds: 45,
+  timeoutSeconds: 60,
   retryCount: 2,
 };
 
@@ -1005,15 +1005,27 @@ function toLlmRuntimeSettings(value: unknown): LlmRuntimeSettingsDto {
   const record = toRecord(value);
   const apiKeyMasked = maskAiRuntimeApiKey();
   const apiKeySource = getAiRuntimeApiKeySource();
+  const storedBaseUrl = getString(record.baseUrl, defaultLlmRuntime.baseUrl);
+  const useSiliconFlowDefaults =
+    apiKeySource === "siliconflow" &&
+    (!storedBaseUrl || storedBaseUrl === "https://api.openai.com/v1");
 
   return {
-    providerLabel: getString(record.providerLabel, defaultLlmRuntime.providerLabel),
-    baseUrl: getString(record.baseUrl, defaultLlmRuntime.baseUrl),
-    primaryModel: getString(record.primaryModel, defaultLlmRuntime.primaryModel),
-    fallbackModel: getNullableString(record.fallbackModel, defaultLlmRuntime.fallbackModel ?? null),
+    providerLabel: useSiliconFlowDefaults
+      ? defaultLlmRuntime.providerLabel
+      : getString(record.providerLabel, defaultLlmRuntime.providerLabel),
+    baseUrl: useSiliconFlowDefaults ? defaultLlmRuntime.baseUrl : storedBaseUrl,
+    primaryModel: useSiliconFlowDefaults
+      ? defaultLlmRuntime.primaryModel
+      : getString(record.primaryModel, defaultLlmRuntime.primaryModel),
+    fallbackModel: useSiliconFlowDefaults
+      ? defaultLlmRuntime.fallbackModel
+      : getNullableString(record.fallbackModel, defaultLlmRuntime.fallbackModel ?? null),
     temperature: getNumber(record.temperature, defaultLlmRuntime.temperature),
     maxTokens: getNumber(record.maxTokens, defaultLlmRuntime.maxTokens),
-    timeoutSeconds: getNumber(record.timeoutSeconds, defaultLlmRuntime.timeoutSeconds),
+    timeoutSeconds: useSiliconFlowDefaults
+      ? defaultLlmRuntime.timeoutSeconds
+      : getNumber(record.timeoutSeconds, defaultLlmRuntime.timeoutSeconds),
     retryCount: getNumber(record.retryCount, defaultLlmRuntime.retryCount),
     apiKeyMasked,
     apiKeySource: apiKeySource === "none" ? "none" : "env",

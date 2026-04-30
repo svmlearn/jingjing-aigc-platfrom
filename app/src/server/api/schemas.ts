@@ -409,10 +409,17 @@ export const generateConsultationContentSchema = z.object({
   calendarItemId: z.string().trim().max(120).nullish(),
   goal: z.string().trim().max(300).nullish(),
   extraRequirement: z.string().trim().max(4000).nullish(),
+  toneStyle: z.string().trim().max(80).nullish(),
   mode: z.enum(["create", "rewrite"]).optional(),
   materialId: z.uuid().nullish(),
   materialReferenceId: z.uuid().nullish(),
   strategyTag: z.string().trim().max(80).nullish(),
+});
+
+export const reviseArticleDraftSchema = z.object({
+  contentVariantId: z.uuid(),
+  revisionInstruction: z.string().trim().min(1).max(4000),
+  toneStyle: z.string().trim().max(80).nullish(),
 });
 
 export const reviseVideoScriptSchema = z.object({
