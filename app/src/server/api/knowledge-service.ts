@@ -74,32 +74,55 @@ const contextInvisibleChars = new Set([
 export async function listKnowledgeDocumentsForPlatformAdmin(): Promise<
   KnowledgeDocumentWithStatsDto[]
 > {
-  return listKnowledgeDocuments({ limit: 100 });
+  return listKnowledgeDocuments({
+    scope: "platform",
+    merchantId: null,
+    limit: 100,
+  });
 }
 
 export async function getKnowledgeDocumentForPlatformAdmin(
   documentId: string,
 ): Promise<KnowledgeDocumentWithStatsDto> {
-  return getKnowledgeDocumentById(documentId);
+  const document = await getKnowledgeDocumentById(documentId);
+
+  if (document.scope !== "platform") {
+    throw new ApiError(
+      404,
+      "PLATFORM_KNOWLEDGE_DOCUMENT_NOT_FOUND",
+      "平台方法论文档不存在或无权访问。",
+    );
+  }
+
+  return document;
 }
 
 export async function deleteKnowledgeDocumentForPlatformAdmin(documentId: string): Promise<void> {
-  await getKnowledgeDocumentById(documentId);
+  await getKnowledgeDocumentForPlatformAdmin(documentId);
   await deleteKnowledgeDocument(documentId);
 }
 
 export async function uploadKnowledgeDocumentForPlatformAdmin(
   input: KnowledgeUploadInput,
 ): Promise<KnowledgeDocumentWithStatsDto> {
-  if (input.scope === "merchant" && !input.merchantId) {
+  if (input.scope !== "platform") {
     throw new ApiError(
       400,
-      "KNOWLEDGE_MERCHANT_ID_REQUIRED",
-      "Merchant knowledge documents require a merchantId.",
+      "PLATFORM_KNOWLEDGE_SCOPE_REQUIRED",
+      "平台后台只能维护平台方法论知识库。",
     );
   }
 
-  return uploadKnowledgeDocument(input);
+  return uploadKnowledgeDocument({
+    ...input,
+    scope: "platform",
+    merchantId: null,
+    metadata: {
+      contentKind: "platform_methodology",
+      chunkPolicy: "auto",
+      ...input.metadata,
+    },
+  });
 }
 
 export async function listKnowledgeDocumentsForMerchant(
@@ -337,7 +360,7 @@ async function uploadKnowledgeDocument(
 export async function retryKnowledgeDocumentIngestionForPlatformAdmin(
   documentId: string,
 ): Promise<KnowledgeDocumentWithStatsDto> {
-  const document = await getKnowledgeDocumentById(documentId);
+  const document = await getKnowledgeDocumentForPlatformAdmin(documentId);
   const chunks = await listKnowledgeChunksByDocumentId(documentId);
   const sourceText = chunks.map((chunk) => chunk.content).join("\n\n").trim();
 

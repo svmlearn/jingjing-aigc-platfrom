@@ -4,7 +4,7 @@ import {
   listKnowledgeDocumentsForPlatformAdmin,
   uploadKnowledgeDocumentForPlatformAdmin,
 } from "@/server/api/knowledge-service";
-import { ApiError, assertPlatformAdminAccess, handleApiError } from "@/server/api/errors";
+import { assertPlatformAdminAccess, handleApiError } from "@/server/api/errors";
 
 export const runtime = "nodejs";
 
@@ -25,16 +25,11 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const fileValue = formData.get("file");
     const file = fileValue instanceof File && fileValue.size > 0 ? fileValue : null;
-    const scope = getStringFormValue(formData, "scope") ?? "platform";
-
-    if (scope !== "platform" && scope !== "merchant") {
-      throw new ApiError(400, "KNOWLEDGE_SCOPE_INVALID", "Knowledge document scope is invalid.");
-    }
 
     const document = await uploadKnowledgeDocumentForPlatformAdmin({
       title: getStringFormValue(formData, "title"),
-      scope,
-      merchantId: getStringFormValue(formData, "merchantId"),
+      scope: "platform",
+      merchantId: null,
       sourceName: getStringFormValue(formData, "sourceName") ?? file?.name ?? null,
       textContent: getStringFormValue(formData, "textContent"),
       file: file
