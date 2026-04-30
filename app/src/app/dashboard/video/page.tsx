@@ -1,35 +1,29 @@
 import { VideoWorkbench } from "@/components/merchant/video-workbench";
 
+import {
+  normalizeDashboardVideoSearchParams,
+  type DashboardVideoSearchParams,
+} from "./page-search-params";
+
 export default async function DashboardVideoPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    source?: string;
-    sessionId?: string;
-    calendarItemId?: string;
-    draftId?: string;
-    variantId?: string;
-    jobId?: string;
-    materialId?: string;
-    materialReferenceId?: string;
-    strategyTag?: string;
-    strategy?: string;
-    testMode?: string;
-  }>;
+  searchParams: Promise<DashboardVideoSearchParams>;
 }) {
-  const params = await searchParams;
+  const params = normalizeDashboardVideoSearchParams(await searchParams);
+
   return (
     <VideoWorkbench
-      sessionId={params.sessionId ?? null}
-      source={params.source ?? null}
-      calendarItemId={params.calendarItemId ?? null}
-      draftId={params.draftId ?? null}
-      variantId={params.variantId ?? null}
-      jobId={params.jobId ?? null}
-      materialId={params.materialId ?? null}
-      materialReferenceId={params.materialReferenceId ?? null}
-      strategyTag={params.strategyTag ?? params.strategy ?? null}
-      testMode={params.testMode ?? null}
+      sessionId={params.sessionId}
+      source={params.source}
+      calendarItemId={params.calendarItemId}
+      draftId={params.draftId}
+      variantId={params.variantId}
+      jobId={params.jobId}
+      materialId={params.materialId}
+      materialReferenceId={params.materialReferenceId}
+      strategyTag={params.strategyTag}
+      testMode={params.testMode === "video_chain" ? "video_chain" : null}
     />
   );
 }

@@ -40,6 +40,7 @@ app/supabase/.temp/
 tmp/
 temp/
 .cache/
+.worktrees/
 
 # Local reference copies of third-party projects.
 # Do not vendor local reference projects or indexes to GitHub.

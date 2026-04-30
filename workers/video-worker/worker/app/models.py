@@ -94,21 +94,14 @@ class VideoJob:
                 raise InputAssetContractError("each input asset must be an object")
         return [InputAsset.from_payload(item, default_bucket) for item in raw_assets]
 
-    def output_object_key(self, asset_type: str) -> str:
-        root = {
-            "video": "video-outputs",
-            "cover": "video-covers",
-            "subtitle": "video-subtitles",
-        }[asset_type]
+    def output_object_key(self, asset_type: str, result_prefix: str = "video-results") -> str:
+        root = result_prefix.strip("/") or "video-results"
         filename = {
             "video": "final.mp4",
             "cover": "cover.jpg",
             "subtitle": "subtitles.srt",
         }[asset_type]
-        return (
-            f"{root}/{self.merchant_id}/{self.draft_id}/"
-            f"{self.content_variant_id}/{self.id}/{filename}"
-        )
+        return f"{root}/{self.merchant_id}/{self.id}/{filename}"
 
 
 def _required_string(payload: dict[str, Any], key: str) -> str:

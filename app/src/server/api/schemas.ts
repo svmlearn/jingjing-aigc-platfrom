@@ -264,7 +264,6 @@ const consultationAgentSchema = z.object({
 });
 
 const scriptProductionAgentSchema = z.object({
-  systemPrompt: z.string().trim().min(1).max(5000),
   model: z.string().trim().min(1).max(120),
   temperature: z.number().min(0).max(2),
   retrievalTopK: z.number().int().min(0).max(20),

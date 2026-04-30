@@ -142,8 +142,6 @@ const defaultConsultationAgent: ConsultationAgentSettingsDto = {
 };
 
 const defaultScriptProductionAgent: ScriptProductionAgentSettingsDto = {
-  systemPrompt:
-    "你是「脚本制作 Agent」，只把咨询台已确认信息转成可确认、可拍摄、可交给制作层执行的视频脚本候选。你不是咨询台 Agent，不重新诊断商家，不重新定义目标用户、账号定位或商业方向。信息不足时输出 needs_more_info；信息充分时只输出 JSON。",
   model: "gpt-4.1-mini",
   temperature: 0.65,
   retrievalTopK: 4,
@@ -712,7 +710,12 @@ export async function updatePlatformSettings(
     {
       key: "script_production_agent",
       category: "script_production",
-      value: next.scriptProductionAgent,
+      value: {
+        model: next.scriptProductionAgent.model,
+        temperature: next.scriptProductionAgent.temperature,
+        retrievalTopK: next.scriptProductionAgent.retrievalTopK,
+        revisionEnabled: next.scriptProductionAgent.revisionEnabled,
+      },
       description: "Platform-level script production agent settings.",
     },
     {
@@ -1067,7 +1070,6 @@ function toScriptProductionAgentSettings(value: unknown): ScriptProductionAgentS
   const record = toRecord(value);
 
   return {
-    systemPrompt: getString(record.systemPrompt, defaultScriptProductionAgent.systemPrompt),
     model: getString(record.model, defaultScriptProductionAgent.model),
     temperature: getNumber(record.temperature, defaultScriptProductionAgent.temperature),
     retrievalTopK: getNumber(record.retrievalTopK, defaultScriptProductionAgent.retrievalTopK),

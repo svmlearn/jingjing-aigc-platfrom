@@ -16,6 +16,7 @@ psycopg_rows.dict_row = object()
 psycopg_types = types.ModuleType("psycopg.types")
 psycopg_json = types.ModuleType("psycopg.types.json")
 psycopg_json.Json = dict
+psycopg_json.Jsonb = dict
 sys.modules.setdefault("psycopg", psycopg)
 sys.modules.setdefault("psycopg.rows", psycopg_rows)
 sys.modules.setdefault("psycopg.types", psycopg_types)
@@ -27,6 +28,7 @@ from worker.app.processor import JobProcessor
 
 class Settings:
     cos_bucket = "default-bucket"
+    cos_result_prefix = "video-results"
 
     def __init__(self, root: Path) -> None:
         self.worker_temp_root = root / "tmp"
@@ -436,15 +438,15 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual("fire_red", result_payload["engine_adapter"])
         self.assertEqual("staging_worker", result_payload["execution_mode"])
         self.assertEqual(
-            "video-outputs/merchant_1/draft_1/variant_1/job_1/final.mp4",
+            "video-results/merchant_1/job_1/final.mp4",
             result_payload["outputs"]["final_video"],
         )
         self.assertEqual(
-            "video-covers/merchant_1/draft_1/variant_1/job_1/cover.jpg",
+            "video-results/merchant_1/job_1/cover.jpg",
             result_payload["outputs"]["cover"],
         )
         self.assertEqual(
-            "video-subtitles/merchant_1/draft_1/variant_1/job_1/subtitles.srt",
+            "video-results/merchant_1/job_1/subtitles.srt",
             result_payload["outputs"]["subtitles"],
         )
         self.assertEqual("asset_video_1", result_payload["uploaded_assets"][0]["asset_id"])
@@ -505,7 +507,7 @@ class ProcessorContractTests(unittest.TestCase):
 
         self.assertEqual("failed_retryable", repository.failed["status"])
         self.assertEqual("uploading_outputs_failed", repository.failed["current_stage"])
-        self.assertIn("output_upload_failed", repository.failed["failure_reason"])
+        self.assertIn("OUTPUT_UPLOAD_FAILED", repository.failed["failure_reason"])
         self.assertIsNone(repository.succeeded)
 
     def test_asset_object_insert_failure_marks_failed_retryable_with_diagnostic_stage(self):
@@ -566,7 +568,7 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual(["video"], uploaded_asset_types)
         self.assertEqual(["video"], inserted_asset_types)
         self.assertEqual(
-            {"final_video": "video-outputs/merchant_1/draft_1/variant_1/job_1/final.mp4"},
+            {"final_video": "video-results/merchant_1/job_1/final.mp4"},
             result_payload["outputs"],
         )
         self.assertEqual(["video"], [asset["asset_type"] for asset in result_payload["uploaded_assets"]])

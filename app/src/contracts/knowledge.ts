@@ -18,7 +18,6 @@ export type ConsultationAgentSettingsDto = {
 };
 
 export type ScriptProductionAgentSettingsDto = {
-  systemPrompt: string;
   model: string;
   temperature: number;
   retrievalTopK: number;

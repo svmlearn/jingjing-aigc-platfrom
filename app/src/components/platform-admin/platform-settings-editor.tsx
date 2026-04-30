@@ -424,22 +424,6 @@ export function PlatformSettingsEditor({
         <AdminPanel>
           <AdminPanelHeader eyebrow="Script Production Agent" />
           <div className="grid gap-5 p-5">
-            <AdminField label="System Prompt">
-              <textarea
-                value={settings.scriptProductionAgent.systemPrompt}
-                onChange={(event) =>
-                  setSettings({
-                    ...settings,
-                    scriptProductionAgent: {
-                      ...settings.scriptProductionAgent,
-                      systemPrompt: event.target.value,
-                    },
-                  })
-                }
-                rows={6}
-                className={cn(adminTextareaClassName, "font-mono text-xs")}
-              />
-            </AdminField>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <AdminField label="Model">
                 <input

@@ -3,6 +3,10 @@ import "server-only";
 import type { ContentVariantDto } from "@/contracts/draft";
 import type { CreateVideoEditJobRequest, VideoEditJobDto, VideoEditJobStatus } from "@/contracts/video";
 import { approveContentVariant } from "@/lib/db/content-draft-repository";
+import {
+  isLocalRealChainEnabled,
+  listLocalRealChainAssetObjectsByOwner,
+} from "@/lib/db/local-real-chain-repository";
 import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
 import { listMaterialWorkbenchReferencesByDraft } from "@/lib/db/material-library-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
@@ -44,6 +48,11 @@ export async function createVideoEditJobForUser(input: {
     variant,
     productionConfig: input.request.productionConfig ?? null,
   });
+  const runtimePayload = {
+    engine_adapter: "fire_red",
+    provider_settings_source: "env",
+    tts_provider: inputPayload.productionConfig.voiceover.provider,
+  };
 
   return createVideoEditJob({
     merchantId: variant.merchantId,
@@ -60,6 +69,7 @@ export async function createVideoEditJobForUser(input: {
           },
         }
       : inputPayload,
+    runtimePayload,
   });
 }
 
@@ -147,10 +157,15 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
     };
   }
 
-  const assets = await listAssetObjectsByOwner({
-    ownerType: "content_variant",
-    ownerId: job.contentVariantId,
-  });
+  const assets = isLocalRealChainEnabled()
+    ? await listLocalRealChainAssetObjectsByOwner({
+        ownerType: "content_variant",
+        ownerId: job.contentVariantId,
+      })
+    : await listAssetObjectsByOwner({
+        ownerType: "content_variant",
+        ownerId: job.contentVariantId,
+      });
   const matchedAssets = assets.filter(
     (asset) =>
       references.assetIds.has(asset.id) || references.storageKeys.has(asset.storageKey),
@@ -178,10 +193,15 @@ async function buildServerManagedInputPayload(input: {
   productionConfig: CreateVideoEditJobRequest["productionConfig"];
 }) {
   if (!isSupabaseAdminConfigured()) {
-    const assets = await listAssetObjectsByOwner({
-      ownerType: "content_draft",
-      ownerId: input.draftId,
-    });
+    const assets = isLocalRealChainEnabled()
+      ? await listLocalRealChainAssetObjectsByOwner({
+          ownerType: "content_draft",
+          ownerId: input.draftId,
+        })
+      : await listAssetObjectsByOwner({
+          ownerType: "content_draft",
+          ownerId: input.draftId,
+        });
 
     return buildVideoEditJobPayloadOrThrow({
       draftId: input.draftId,

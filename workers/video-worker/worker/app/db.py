@@ -4,7 +4,7 @@ from typing import Any
 
 from psycopg import Connection
 from psycopg.rows import dict_row
-from psycopg.types.json import Json
+from psycopg.types.json import Jsonb
 
 from .models import UploadedAsset, VideoJob
 
@@ -112,8 +112,8 @@ class VideoJobRepository:
                 set status = %s,
                     current_stage = %s,
                     progress_pct = %s,
-                    runtime_payload = coalesce(%s, runtime_payload),
-                    log_payload = coalesce(%s, log_payload),
+                    runtime_payload = coalesce(%s::jsonb, runtime_payload),
+                    log_payload = coalesce(%s::jsonb, log_payload),
                     updated_at = timezone('utc', now())
                 where id = %s
                 """,
@@ -121,8 +121,8 @@ class VideoJobRepository:
                     status,
                     current_stage,
                     progress_pct,
-                    Json(runtime_payload) if runtime_payload is not None else None,
-                    Json(log_payload) if log_payload is not None else None,
+                    Jsonb(runtime_payload) if runtime_payload is not None else None,
+                    Jsonb(log_payload) if log_payload is not None else None,
                     job_id,
                 ),
             )
@@ -141,13 +141,13 @@ class VideoJobRepository:
                 set status = 'succeeded',
                     current_stage = 'completed',
                     progress_pct = 100,
-                    result_payload = %s,
-                    log_payload = %s,
+                    result_payload = %s::jsonb,
+                    log_payload = %s::jsonb,
                     finished_at = timezone('utc', now()),
                     updated_at = timezone('utc', now())
                 where id = %s
                 """,
-                (Json(result_payload), Json(log_payload), job_id),
+                (Jsonb(result_payload), Jsonb(log_payload), job_id),
             )
 
     def mark_failed(
@@ -167,12 +167,12 @@ class VideoJobRepository:
                 set status = %s,
                     current_stage = %s,
                     failure_reason = %s,
-                    log_payload = %s,
+                    log_payload = %s::jsonb,
                     finished_at = timezone('utc', now()),
                     updated_at = timezone('utc', now())
                 where id = %s
                 """,
-                (status, current_stage, failure_reason, Json(log_payload), job_id),
+                (status, current_stage, failure_reason, Jsonb(log_payload), job_id),
             )
 
     def insert_output_assets(
@@ -223,6 +223,7 @@ class VideoJobRepository:
                     {
                         "asset_id": str(record.get("id") or ""),
                         "asset_type": asset.asset_type,
+                        "storage_provider": "tencent_cos",
                         "bucket_name": asset.bucket_name,
                         "storage_key": asset.storage_key,
                         "mime_type": asset.mime_type,

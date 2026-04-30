@@ -13,8 +13,16 @@ from .openstoryline_client import OpenStorylineClient
 
 
 class OutputValidationError(RuntimeError):
-    def __init__(self, missing_outputs: list[str]) -> None:
+    def __init__(
+        self,
+        missing_outputs: list[str],
+        *,
+        failure_code: str = "missing_output_files",
+        failure_status: str = "failed_retryable",
+    ) -> None:
         self.missing_outputs = missing_outputs
+        self.failure_code = failure_code
+        self.failure_status = failure_status
         super().__init__(f"missing output files: {', '.join(missing_outputs)}")
 
 
@@ -133,7 +141,10 @@ class JobProcessor:
         subtitle_path: Path | None,
     ) -> list[UploadedAsset]:
         def upload(local_path: Path, asset_type: str) -> UploadedAsset:
-            storage_key = job.output_object_key(asset_type)
+            storage_key = job.output_object_key(
+                asset_type,
+                self._settings.cos_result_prefix,
+            )
             try:
                 return self._cos_client.upload_file(
                     local_path=local_path,
@@ -154,15 +165,13 @@ class JobProcessor:
 
     def _validate_outputs(
         self,
-        directive: Any,
+        desired_outputs: tuple[str, ...],
         run_result: EngineRunResult,
     ) -> None:
-        required_paths = {
-            "final_video": run_result.final_video_path,
-        }
-        if "cover" in directive.desired_outputs:
+        required_paths = {"final_video": run_result.final_video_path}
+        if "cover" in desired_outputs:
             required_paths["cover"] = run_result.cover_image_path
-        if "subtitles" in directive.desired_outputs:
+        if "subtitles" in desired_outputs:
             required_paths["subtitles"] = run_result.subtitle_path
 
         missing_outputs = [
@@ -171,14 +180,31 @@ class JobProcessor:
             if output_path is None or not output_path.is_file()
         ]
         if missing_outputs:
+            if "final_video" in missing_outputs:
+                raise OutputValidationError(
+                    missing_outputs,
+                    failure_code="FINAL_VIDEO_MISSING",
+                    failure_status="failed_manual",
+                )
             raise OutputValidationError(missing_outputs)
 
-    def _outputs_payload(self, uploaded_assets: list[UploadedAsset]) -> dict[str, str]:
-        output_keys = {
-            "video": "final_video",
-            "cover": "cover",
-            "subtitle": "subtitles",
+    def _cos_output_configured(self) -> bool:
+        return bool(getattr(self._settings, "cos_output_configured", True))
+
+    def _local_outputs_payload(self, run_result: EngineRunResult) -> dict[str, str | None]:
+        return {
+            "final_video_path": str(run_result.final_video_path),
+            "cover_image_path": str(run_result.cover_image_path)
+            if run_result.cover_image_path
+            else None,
+            "subtitle_path": str(run_result.subtitle_path)
+            if run_result.subtitle_path
+            else None,
+            "metadata_path": str(run_result.metadata_path),
         }
+
+    def _outputs_payload(self, uploaded_assets: list[UploadedAsset]) -> dict[str, str]:
+        output_keys = {"video": "final_video", "cover": "cover", "subtitle": "subtitles"}
         return {
             output_keys[asset.asset_type]: asset.storage_key
             for asset in uploaded_assets
@@ -196,6 +222,7 @@ class JobProcessor:
             {
                 "asset_type": asset.asset_type,
                 "bucket_name": asset.bucket_name,
+                "storage_provider": "tencent_cos",
                 "storage_key": asset.storage_key,
                 "mime_type": asset.mime_type,
                 "etag": asset.etag,
@@ -244,6 +271,7 @@ class JobProcessor:
             runtime_payload={"workspace_dir": str(workspace_dir), "output_dir": str(output_dir)},
             log_payload=log_payload,
         )
+        run_result: EngineRunResult | None = None
         try:
             input_assets = self._download_inputs(job, input_dir)
             log_payload["steps"].append(
@@ -280,7 +308,7 @@ class JobProcessor:
                     "metadata_path": str(run_result.metadata_path),
                 }
             )
-            self._validate_outputs(directive, run_result)
+            self._validate_outputs(directive.desired_outputs, run_result)
             log_payload["steps"].append(
                 {
                     "stage": "output_validation",
@@ -288,30 +316,49 @@ class JobProcessor:
                     "checked_outputs": list(directive.desired_outputs),
                 }
             )
-            self._repository.update_stage(
-                job.id,
-                status="running",
-                current_stage="uploading_outputs",
-                progress_pct=80,
-                log_payload=log_payload,
-            )
-            uploaded_assets = self._upload_outputs(
-                job=job,
-                desired_outputs=directive.desired_outputs,
-                final_video_path=run_result.final_video_path,
-                cover_image_path=run_result.cover_image_path,
-                subtitle_path=run_result.subtitle_path,
-            )
-            try:
-                persisted_assets = self._repository.insert_output_assets(job, uploaded_assets)
-            except Exception as exc:
-                raise OutputAssetPersistenceError(exc) from exc
-            log_payload["steps"].append(
-                {
-                    "stage": "uploading_outputs",
-                    "uploaded_assets": persisted_assets,
-                }
-            )
+            local_outputs = self._local_outputs_payload(run_result)
+            uploaded_assets: list[UploadedAsset] = []
+            persisted_assets: list[dict[str, Any]] = []
+            upload_mode = "local_only"
+            if self._cos_output_configured():
+                self._repository.update_stage(
+                    job.id,
+                    status="running",
+                    current_stage="uploading_outputs",
+                    progress_pct=80,
+                    log_payload=log_payload,
+                )
+                uploaded_assets = self._upload_outputs(
+                    job=job,
+                    desired_outputs=directive.desired_outputs,
+                    final_video_path=run_result.final_video_path,
+                    cover_image_path=run_result.cover_image_path,
+                    subtitle_path=run_result.subtitle_path,
+                )
+                try:
+                    persisted_assets = self._repository.insert_output_assets(
+                        job,
+                        uploaded_assets,
+                    )
+                except Exception as exc:
+                    raise OutputAssetPersistenceError(exc) from exc
+                upload_mode = "tencent_cos"
+                log_payload["steps"].append(
+                    {
+                        "stage": "uploading_outputs",
+                        "status": "succeeded",
+                        "uploaded_assets": persisted_assets,
+                    }
+                )
+            else:
+                log_payload["steps"].append(
+                    {
+                        "stage": "uploading_outputs",
+                        "status": "skipped",
+                        "reason": "cos_not_configured",
+                        "local_outputs": local_outputs,
+                    }
+                )
             self._repository.mark_succeeded(
                 job.id,
                 result_payload={
@@ -322,6 +369,12 @@ class JobProcessor:
                     "execution_mode": directive.execution_mode,
                     "script_locked": directive.script_locked,
                     "desired_outputs": list(directive.desired_outputs),
+                    "final_video_path": local_outputs["final_video_path"],
+                    "cover_image_path": local_outputs["cover_image_path"],
+                    "subtitle_path": local_outputs["subtitle_path"],
+                    "metadata_path": local_outputs["metadata_path"],
+                    "upload_mode": upload_mode,
+                    "local_outputs": local_outputs,
                     "outputs": self._outputs_payload(uploaded_assets),
                     "uploaded_assets": self._uploaded_assets_payload(
                         uploaded_assets,
@@ -357,7 +410,7 @@ class JobProcessor:
                 {
                     "stage": "output_validation",
                     "status": "failed",
-                    "failure_code": "missing_output_files",
+                    "failure_code": exc.failure_code,
                     "missing_outputs": exc.missing_outputs,
                     "error": str(exc),
                 }
@@ -365,9 +418,9 @@ class JobProcessor:
             self._repository.mark_failed(
                 job.id,
                 current_stage="output_validation_failed",
-                failure_reason=f"missing_output_files: {exc}",
+                failure_reason=f"{exc.failure_code}: {exc}",
                 log_payload=log_payload,
-                status="failed_retryable",
+                status=exc.failure_status,
             )
             return
         except InputDownloadError as exc:
@@ -406,19 +459,22 @@ class JobProcessor:
             )
             raise
         except OutputUploadError as exc:
-            log_payload["steps"].append(
-                {
-                    "stage": "uploading_outputs",
-                    "status": "failed",
-                    "failure_code": "output_upload_failed",
-                    "storage_key": exc.storage_key,
-                    "error": str(exc),
-                }
-            )
+            upload_failure_step: dict[str, Any] = {
+                "stage": "uploading_outputs",
+                "status": "failed",
+                "failure_code": "OUTPUT_UPLOAD_FAILED",
+                "storage_key": exc.storage_key,
+                "error": str(exc),
+            }
+            if run_result is not None:
+                upload_failure_step["local_outputs"] = self._local_outputs_payload(
+                    run_result,
+                )
+            log_payload["steps"].append(upload_failure_step)
             self._repository.mark_failed(
                 job.id,
                 current_stage="uploading_outputs_failed",
-                failure_reason=f"output_upload_failed: {exc}",
+                failure_reason=f"OUTPUT_UPLOAD_FAILED: {exc}",
                 log_payload=log_payload,
                 status="failed_retryable",
             )

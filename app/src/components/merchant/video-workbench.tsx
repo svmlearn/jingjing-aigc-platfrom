@@ -26,10 +26,9 @@ import type { ContentDraftBundleDto, VideoScriptSceneDto } from "@/contracts/dra
 import type { MaterialLibraryItemDto } from "@/contracts/material";
 import type { VideoEditJobDto } from "@/contracts/video";
 import {
-  getVideoJobAudienceSummary,
-  getVideoJobStageLabel,
-  getVideoJobStatusLabel,
-} from "@/lib/ui/video-job-display";
+  buildVideoJobStatusCopy,
+  type VideoJobStatusCopyTone,
+} from "@/lib/ui/video-job-status-copy";
 import {
   clearVideoWorkbenchSnapshot,
   mergeRouteContext,
@@ -938,11 +937,22 @@ export function VideoWorkbench({
   const jobIsRunning = job && ["pending", "queued", "preparing", "running"].includes(job.status);
   const scriptApproved = selectedVariant?.reviewStatus === "approved";
   const jobCanRetry = job?.status === "failed_retryable";
-  const jobNeedsManualFix = job?.status === "failed_manual";
   const jobSucceeded = job?.status === "succeeded";
   const resultVideoAsset =
     job?.resultAssets?.find((asset) => asset.assetType === "video") ?? job?.resultAssets?.[0] ?? null;
   const resultVideoPreviewUrl = resultVideoAsset?.signedPreviewUrl ?? resultVideoAsset?.originUrl ?? null;
+  const jobStatusCopy = job
+    ? buildVideoJobStatusCopy({
+        status: job.status,
+        currentStage: job.currentStage,
+        progressPct: job.progressPct,
+        failureReason: job.failureReason,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+        hasResultPreview: Boolean(resultVideoPreviewUrl),
+      })
+    : null;
+  const jobToneClassNames = getVideoJobToneClassNames(jobStatusCopy?.tone ?? "info");
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -1213,9 +1223,9 @@ export function VideoWorkbench({
                   </div>
                 )}
 
-                <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+                <div className={`mt-6 rounded-2xl border p-5 ${jobToneClassNames.panel}`}>
                   <div className="flex items-start gap-4">
-                    <div className="rounded-xl bg-amber-500/15 p-2 text-amber-500">
+                    <div className={`rounded-xl p-2 ${jobToneClassNames.icon}`}>
                       {jobIsRunning ? (
                         <Loader2 className="h-5 w-5 animate-spin" />
                       ) : (
@@ -1224,19 +1234,21 @@ export function VideoWorkbench({
                     </div>
                     <div>
                       <p className="text-sm text-[#e0e0e0] [font-family:var(--font-cormorant)]">
-                        {job
-                          ? `任务状态：${getVideoJobStatusLabel(job.status)} · ${getVideoJobStageLabel(job.currentStage, job.status)} · ${job.progressPct}%`
-                          : "AI 一键剪辑提示"}
+                        {jobStatusCopy?.title ?? "AI 一键剪辑提示"}
                       </p>
                       <p className="mt-2 text-xs leading-6 text-white/50">
-                        {job
-                          ? getVideoJobAudienceSummary(job)
-                          : "脚本确认后点击顶部「AI 一键剪辑」，系统会按镜头顺序和素材要求创建视频任务。"}
+                        {jobStatusCopy?.detail ??
+                          "脚本确认后点击顶部「AI 一键剪辑」，系统会按镜头顺序和素材要求创建视频任务。"}
                       </p>
-                      {jobIsRunning ? (
-                        <div className="mt-4 inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-amber-500">
+                      {jobStatusCopy?.nextAction ? (
+                        <p className={`mt-3 rounded-2xl px-3 py-2 text-xs leading-6 ${jobToneClassNames.message}`}>
+                          {jobStatusCopy.nextAction}
+                        </p>
+                      ) : null}
+                      {jobStatusCopy?.badge ? (
+                        <div className={`mt-4 inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] ${jobToneClassNames.badge}`}>
                           <Clock className="mr-2 h-3.5 w-3.5" />
-                          预计 5-10 分钟
+                          {jobStatusCopy.badge}
                         </div>
                       ) : null}
                       {jobCanRetry ? (
@@ -1249,11 +1261,6 @@ export function VideoWorkbench({
                           {creatingJob ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                           重试任务
                         </button>
-                      ) : null}
-                      {jobNeedsManualFix ? (
-                        <p className="mt-4 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs leading-6 text-rose-100">
-                          当前失败需要人工处理，请先回到脚本或素材确认，不建议直接重试。
-                        </p>
                       ) : null}
                       {jobSucceeded && scriptApproved ? (
                         <button
@@ -1595,4 +1602,40 @@ function isSupportedSegmentMediaFile(file: File) {
   }
 
   return /\.(avif|bmp|gif|jpe?g|m4v|mov|mp4|png|webm|webp)$/i.test(file.name);
+}
+
+function getVideoJobToneClassNames(tone: VideoJobStatusCopyTone) {
+  if (tone === "success") {
+    return {
+      panel: "border-emerald-500/20 bg-emerald-500/5",
+      icon: "bg-emerald-500/15 text-emerald-400",
+      message: "border border-emerald-500/20 bg-emerald-500/10 text-emerald-100",
+      badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
+    };
+  }
+
+  if (tone === "warning") {
+    return {
+      panel: "border-amber-500/20 bg-amber-500/5",
+      icon: "bg-amber-500/15 text-amber-500",
+      message: "border border-amber-500/20 bg-amber-500/10 text-amber-100",
+      badge: "border-amber-500/20 bg-amber-500/10 text-amber-500",
+    };
+  }
+
+  if (tone === "danger") {
+    return {
+      panel: "border-rose-500/20 bg-rose-500/5",
+      icon: "bg-rose-500/15 text-rose-300",
+      message: "border border-rose-500/20 bg-rose-500/10 text-rose-100",
+      badge: "border-rose-500/20 bg-rose-500/10 text-rose-200",
+    };
+  }
+
+  return {
+    panel: "border-amber-500/20 bg-amber-500/5",
+    icon: "bg-amber-500/15 text-amber-500",
+    message: "border border-white/10 bg-white/5 text-white/55",
+    badge: "border-white/10 bg-white/5 text-white/55",
+  };
 }
