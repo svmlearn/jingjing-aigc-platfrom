@@ -9,6 +9,7 @@ psycopg_rows.dict_row = object()
 psycopg_types = types.ModuleType("psycopg.types")
 psycopg_json = types.ModuleType("psycopg.types.json")
 psycopg_json.Json = dict
+psycopg_json.Jsonb = dict
 sys.modules.setdefault("psycopg", psycopg)
 sys.modules.setdefault("psycopg.rows", psycopg_rows)
 sys.modules.setdefault("psycopg.types", psycopg_types)
