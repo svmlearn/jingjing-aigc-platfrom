@@ -1,6 +1,8 @@
 # docs
 
-这是 `小红书抖音矩阵获客平台` 的文档入口。
+状态时间：`2026-04-28 18:58:59 CST`
+
+这是 `小红书抖音矩阵获客平台` 的文档主入口。
 
 当前文档原则：少而准。默认只读当前真相源，不再把早期探索稿、旧分阶段计划、旧增长 Agent 方案当作实现依据。
 
@@ -14,7 +16,7 @@
 6. `架构规范/2026-04-28-current-architecture.md`
 7. `progress/2026-04-25-supabase-migration-current-state.md`
 
-如果是在接续当前未完成事项，再读 `current-task.md`。
+如果是在接续当前未完成事项，再读 `current-task.md`。如果是在规划 V2.2 合并后的下一阶段，再读 `需求池.md` 和 `探索/2026-04-28-热点抓取与咨询Agent优化待验证事项.md`。
 
 ## 当前真相源
 
@@ -29,7 +31,7 @@
 
 - `架构规范/2026-04-28-current-architecture.md`
 
-这份是当前唯一架构总说明，覆盖：
+这份是当前架构总说明，覆盖：
 
 - 咨询台信息来源
 - 脚本制作 agent
@@ -40,7 +42,7 @@
 - Docker FireRed/OpenStoryline
 - 预览审核和修订分流
 
-旧的增长 Agent 文档、旧 skeleton 默认路径、旧分阶段 worker / FireRed work-plan 已清理，不再作为当前依据。
+旧的增长 Agent 文档、旧 skeleton 默认路径、旧分阶段 worker / FireRed work-plan 不再作为当前依据。
 
 ### 数据库和部署状态
 
@@ -54,15 +56,24 @@
 
 这份定义 W 同学、M 同学和 AI Agent 如何交接、冻结、验收、避免互相覆盖。
 
+### 后续任务池
+
+- `需求池.md`
+- `探索/2026-04-28-热点抓取与咨询Agent优化待验证事项.md`
+
+这两份记录 V2.2 合并后下一阶段要做的事项：先跑通全链路，再验证 TikHub 等抓取 API、内容资产复利工程、咨询 Agent RAG 方法论和 runtime/tools/skills 优化。它们是待验证任务，不是当前已实现状态。
+
 ## 目录说明
 
 - `产品文档/`：PRD、页面流程、验收标准。
-- `架构规范/`：只放当前架构总说明，不再堆阶段计划。
+- `架构规范/`：当前架构说明、接口约束、状态机、数据结构、Agent runtime、发布链路规则。
 - `协作/`：协作规则、面向产品/开发/AI 的说明。
-- `progress/`：少量当前状态和验证事实。
+- `progress/`：当前状态、执行日志和验证事实。
 - `handoff/`：交接文档和任务冻结说明。
-- `探索/`：历史探索资料，默认不作为真相源。
+- `探索/`：历史探索资料和待验证事项，默认不作为真相源。
 - `designs/`：历史 UI 原型和视觉参考。
+- `test/`：历史测试清单和点击验证记录。
+- `需求池.md`：后续想法、待验证事项和可进入下一阶段的需求池。
 
 ## 历史文档使用规则
 
@@ -83,7 +94,8 @@
 
 - `AGENTS.md`
 - `docs/README.md`
-- `docs/架构规范/2026-04-28-current-architecture.md`
+- `docs/协作/W-M同学协作README.md`
 - 两份 V2.1 产品文档
+- `docs/架构规范/2026-04-28-current-architecture.md`
 - `docs/progress/2026-04-25-supabase-migration-current-state.md`
 - `docs/current-task.md`，仅当任务正在接续时提供

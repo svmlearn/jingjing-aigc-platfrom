@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["taskId", "completionPromise", "sourceDocs", "hardGates", "verifier"],
+  "properties": {
+    "taskId": {
+      "type": "string"
+    },
+    "completionPromise": {
+      "type": "string"
+    },
+    "sourceDocs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hardGates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "type"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["command", "file_exists", "file_contains"]
+          }
+        }
+      }
+    },
+    "verifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "provider"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["codex"]
+        },
+        "model": {
+          "type": "string"
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 30
+        }
+      }
+    }
+  }
+}

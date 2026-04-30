@@ -12,8 +12,11 @@ export async function POST(request: Request) {
     const draftBundle = await generateArticleDraftForUser({
       userId: user.id,
       sessionId: payload.sessionId,
+      source: payload.source,
+      calendarItemId: payload.calendarItemId,
       goal: payload.goal,
       extraRequirement: payload.extraRequirement,
+      toneStyle: payload.toneStyle,
       mode: payload.mode,
       materialId: payload.materialId,
       materialReferenceId: payload.materialReferenceId,

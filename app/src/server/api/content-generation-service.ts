@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { ContentCalendarItemDto } from "@/contracts/consultation";
 import type { ContentDraftBundleDto } from "@/contracts/draft";
 import type {
   MaterialLibraryItemDto,
@@ -8,9 +9,12 @@ import type {
 } from "@/contracts/material";
 import { getConsultationSessionDetail } from "@/lib/db/consultation-repository";
 import {
+  appendContentDraftRevisionTrace,
   appendContentVariantToDraft,
+  assertContentVariantAccess,
   createDraftWithVariants,
   createManualSourceItem,
+  getDraftBundleByMerchant,
   listDraftBundlesByMerchant,
 } from "@/lib/db/content-draft-repository";
 import {
@@ -24,6 +28,7 @@ import { getPlatformSettings } from "@/lib/db/platform-admin-repository";
 import {
   AiRuntimeError,
   createChatCompletion,
+  getAiRuntimeApiKey,
 } from "@/server/api/ai-runtime";
 import { ApiError } from "@/server/api/errors";
 import { resolveScriptProductionRuntime } from "@/server/api/script-production-runtime";
@@ -43,15 +48,34 @@ import {
 } from "@/server/api/video-script-production-agent";
 import { assertVideoScriptVariantAccess } from "@/lib/db/video-edit-job-repository";
 import { buildVideoScriptContext } from "@/server/api/video-growth-context";
+import {
+  ARTICLE_PROMPT_VERSION,
+  ArticlePromptParseError,
+  buildArticleGenerationMessages,
+  parseArticleGenerationResponse,
+  type ArticleGeneratedVariant,
+  type ArticlePromptContext,
+  type ArticlePromptMode,
+  type ArticlePromptTraceMode,
+} from "@/server/api/article-prompt-templates";
 
 type GenerationMode = "create" | "rewrite";
+type GenerationSource = "consultation_calendar" | "material_center" | "manual";
+type WorkbenchKind = "article" | "video";
+type SelectedCalendarItemSnapshot = ContentCalendarItemDto & {
+  targetPlatform: "xiaohongshu" | "douyin";
+  contentGoal: string | null;
+};
 
 export async function generateArticleDraftForUser(input: {
   userId: string;
   sessionId: string;
   goal?: string | null;
   extraRequirement?: string | null;
+  toneStyle?: string | null;
   mode?: GenerationMode | null;
+  source?: GenerationSource | null;
+  calendarItemId?: string | null;
   materialId?: string | null;
   materialReferenceId?: string | null;
   strategyTag?: string | null;
@@ -67,13 +91,31 @@ export async function generateArticleDraftForUser(input: {
     materialReferenceId: input.materialReferenceId,
     targetWorkbench: "article",
   });
+  const generationContext = resolveGenerationContext({
+    source: input.source,
+    calendarItemId: input.calendarItemId,
+    strategyTag: input.strategyTag,
+    session,
+    material: materialContext.material,
+    targetWorkbench: "article",
+  });
   const mode: GenerationMode =
     input.mode ?? (materialContext.material ? "rewrite" : "create");
+
+  if (mode === "rewrite" && !materialContext.material) {
+    throw new ApiError(
+      400,
+      "ARTICLE_REWRITE_MATERIAL_REQUIRED",
+      "改写模式需要先选择参考素材。",
+    );
+  }
+
   const workingTitle =
     materialContext.material
       ? `改写：${materialContext.material.title}`
-      : session.strategySnapshot.articleBrief?.workingTitle ??
-    `${merchant.name} 的图文内容草稿`;
+      : generationContext.selectedCalendarItem?.title ??
+        session.strategySnapshot.articleBrief?.workingTitle ??
+        `${merchant.name} 的图文内容草稿`;
   const sourceItem = await createManualSourceItem({
     merchantId: merchant.id,
     platform: "xiaohongshu",
@@ -88,13 +130,44 @@ export async function generateArticleDraftForUser(input: {
       consultation_session_id: session.id,
       generated_kind: "article",
       generation_mode: mode,
-      strategy_tag: input.strategyTag ?? null,
+      generation_source: generationContext.source,
+      calendar_item_id: generationContext.calendarItemId,
+      selected_calendar_item: generationContext.selectedCalendarItem,
+      strategy_tag: generationContext.strategyTag,
       material_item_id: materialContext.material?.id ?? null,
       material_reference_id: materialContext.reference?.id ?? input.materialReferenceId ?? null,
     },
   });
   const cta = merchant.defaultCta[0] ?? "私信我领取体验方案或预约到店咨询";
-  const angle = input.goal ?? session.strategySnapshot.articleBrief?.angle ?? "专业干货 + 场景信任";
+  const angle =
+    input.goal ??
+    generationContext.selectedCalendarItem?.summary ??
+    session.strategySnapshot.articleBrief?.angle ??
+    "专业干货 + 场景信任";
+  const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
+  const articleContext = buildArticlePromptContext({
+    selectedCalendarItem: generationContext.selectedCalendarItem,
+    strategySnapshot: session.strategySnapshot,
+    merchantProfile: buildMerchantSnapshot(merchant),
+    materialContext: materialSnapshot,
+    contentGoal: angle,
+    extraRequirement: input.extraRequirement ?? null,
+    toneStyle: input.toneStyle ?? null,
+  });
+  const fallbackVariants = buildFallbackArticleVariants({
+    merchantName: merchant.name,
+    angle,
+    session,
+    cta,
+    material: materialContext.material,
+    mode,
+  });
+  const articleGeneration = await generateArticleVariantsWithLlm({
+    mode,
+    context: articleContext,
+    fallbackVariants,
+    expectedVariantCount: "multiple",
+  });
 
   const draftBundle = await createDraftWithVariants({
     merchantId: merchant.id,
@@ -102,51 +175,39 @@ export async function generateArticleDraftForUser(input: {
     workingTitle,
     rewriteGoal: angle,
     inputSnapshot: {
+      source: generationContext.source,
       consultationSessionId: session.id,
+      calendarItemId: generationContext.calendarItemId,
+      selectedCalendarItem: generationContext.selectedCalendarItem,
       strategySnapshot: session.strategySnapshot,
+      merchantProfile: buildMerchantSnapshot(merchant),
       generationMode: mode,
-      strategyTag: input.strategyTag ?? null,
+      strategyTag: generationContext.strategyTag,
       extraRequirement: input.extraRequirement ?? null,
-      materialContext: buildMaterialSnapshot(materialContext.material, materialContext.reference),
+      toneStyle: input.toneStyle ?? null,
+      materialContext: materialSnapshot,
+      promptMode: mode,
+      promptVersion: ARTICLE_PROMPT_VERSION,
+      llmTrace: articleGeneration.trace,
+      riskNotes: articleGeneration.riskNotes,
     },
     commentInsights: {
       audiences: session.strategySnapshot.targetAudiences,
       strategyTags: session.strategySnapshot.strategyTags,
       referenceMaterialTitle: materialContext.material?.title ?? null,
       referenceMaterialEngagement: materialContext.material?.engagementLabel ?? null,
+      promptMode: articleGeneration.trace.mode,
+      promptVersion: ARTICLE_PROMPT_VERSION,
+      riskNotes: articleGeneration.riskNotes,
     },
-    variants: [
-      {
-        platform: "xiaohongshu",
-        variantType: "note",
-        title: `别再盲目发内容了，${merchant.name} 先把这 3 个点讲清楚`,
-        bodyText: buildArticleBody({
-          merchantName: merchant.name,
-          angle,
-          session,
-          variantLabel: "专业干货版",
-          cta,
-          material: materialContext.material,
-        }),
-        hashtags: buildHashtags(session),
-        ctaText: cta,
-      },
-      {
-        platform: "xiaohongshu",
-        variantType: "note",
-        title: `${session.strategySnapshot.targetAudiences[0] ?? "高意向用户"} 最在意的，其实不是价格`,
-        bodyText: buildArticleBody({
-          merchantName: merchant.name,
-          angle,
-          session,
-          variantLabel: "场景共鸣版",
-          cta,
-          material: materialContext.material,
-        }),
-        hashtags: buildHashtags(session),
-        ctaText: cta,
-      },
-    ],
+    variants: articleGeneration.variants.map((variant) => ({
+      platform: "xiaohongshu",
+      variantType: "note",
+      title: variant.title,
+      bodyText: variant.bodyText,
+      hashtags: variant.hashtags.length ? variant.hashtags : buildHashtags(session),
+      ctaText: variant.ctaText || cta,
+    })),
   });
 
   await consumeMaterialReferenceIfNeeded({
@@ -160,6 +221,103 @@ export async function generateArticleDraftForUser(input: {
   return draftBundle;
 }
 
+export async function reviseArticleDraftForUser(input: {
+  userId: string;
+  contentVariantId: string;
+  revisionInstruction: string;
+  toneStyle?: string | null;
+}): Promise<{
+  variant: NonNullable<ContentDraftBundleDto["selectedVariant"]>;
+  llmTrace: {
+    promptVersion: typeof ARTICLE_PROMPT_VERSION;
+    mode: ArticlePromptTraceMode;
+    model?: string;
+    error?: string;
+  };
+  riskNotes: string[];
+}> {
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  const currentVariant = await assertContentVariantAccess({
+    merchantId: merchant.id,
+    contentVariantId: input.contentVariantId,
+    variantType: "note",
+  });
+
+  if (!currentVariant.bodyText?.trim()) {
+    throw new ApiError(
+      409,
+      "ARTICLE_BODY_TEXT_REQUIRED",
+      "图文版本缺少正文，无法修订。",
+    );
+  }
+
+  const originalContext = toRecord(currentVariant.inputSnapshot);
+  const fallbackVariants = buildFallbackArticleRevisionVariants({
+    currentVariant,
+    revisionInstruction: input.revisionInstruction,
+  });
+  const articleGeneration = await generateArticleVariantsWithLlm({
+    mode: "revise",
+    context: buildArticlePromptContext({
+      selectedCalendarItem: originalContext.selectedCalendarItem ?? null,
+      strategySnapshot: originalContext.strategySnapshot ?? null,
+      merchantProfile: originalContext.merchantProfile ?? buildMerchantSnapshot(merchant),
+      materialContext: originalContext.materialContext ?? null,
+      contentGoal: firstString(originalContext.contentGoal, originalContext.rewriteGoal) ?? null,
+      extraRequirement: firstString(originalContext.extraRequirement) ?? null,
+      toneStyle: input.toneStyle ?? firstString(originalContext.toneStyle) ?? null,
+    }),
+    currentVariant: {
+      title: currentVariant.title,
+      bodyText: currentVariant.bodyText,
+      hashtags: currentVariant.hashtags,
+      ctaText: currentVariant.ctaText,
+    },
+    revisionInstruction: input.revisionInstruction,
+    fallbackVariants,
+    expectedVariantCount: "single",
+  });
+  const revised = articleGeneration.variants[0];
+
+  if (!revised) {
+    throw new ApiError(500, "ARTICLE_REVISION_EMPTY", "图文修订没有返回可用版本。");
+  }
+
+  const variant = await appendContentVariantToDraft({
+    merchantId: merchant.id,
+    draftId: currentVariant.draftId,
+    platform: "xiaohongshu",
+    variantType: "note",
+    title: revised.title,
+    bodyText: revised.bodyText,
+    hashtags: revised.hashtags.length ? revised.hashtags : currentVariant.hashtags,
+    ctaText: revised.ctaText || currentVariant.ctaText,
+    reviewStatus: "review_pending",
+  });
+  const trace = {
+    promptMode: "revise",
+    promptVersion: ARTICLE_PROMPT_VERSION,
+    sourceVariantId: currentVariant.contentVariantId,
+    newVariantId: variant.id,
+    revisionInstruction: input.revisionInstruction,
+    llmTrace: articleGeneration.trace,
+    riskNotes: articleGeneration.riskNotes,
+    createdAt: new Date().toISOString(),
+  };
+
+  await appendContentDraftRevisionTrace({
+    merchantId: merchant.id,
+    draftId: currentVariant.draftId,
+    trace,
+  });
+
+  return {
+    variant,
+    llmTrace: articleGeneration.trace,
+    riskNotes: articleGeneration.riskNotes,
+  };
+}
+
 export async function generateVideoScriptForUser(input: {
   userId: string;
   sessionId: string;
@@ -167,6 +325,8 @@ export async function generateVideoScriptForUser(input: {
   extraRequirement?: string | null;
   materialId?: string | null;
   materialReferenceId?: string | null;
+  source?: GenerationSource | null;
+  calendarItemId?: string | null;
   strategyTag?: string | null;
 }): Promise<ContentDraftBundleDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
@@ -180,27 +340,48 @@ export async function generateVideoScriptForUser(input: {
     materialReferenceId: input.materialReferenceId,
     targetWorkbench: "video",
   });
+  const generationContext = resolveGenerationContext({
+    source: input.source,
+    calendarItemId: input.calendarItemId,
+    strategyTag: input.strategyTag,
+    session,
+    material: materialContext.material,
+    targetWorkbench: "video",
+  });
   const workingTitle =
     materialContext.material
       ? `视频脚本：${materialContext.material.title}`
-      : session.strategySnapshot.videoBrief?.workingTitle ??
-    `${merchant.name} 的视频脚本`;
+      : generationContext.selectedCalendarItem?.title ??
+        session.strategySnapshot.videoBrief?.workingTitle ??
+        `${merchant.name} 的视频脚本`;
   const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
+  const selectedVideoCalendarItem =
+    generationContext.selectedCalendarItem?.contentType === "video"
+      ? {
+          id: generationContext.selectedCalendarItem.id,
+          dayLabel: generationContext.selectedCalendarItem.dayLabel,
+          contentType: "video" as const,
+          strategyTag: generationContext.selectedCalendarItem.strategyTag,
+          title: generationContext.selectedCalendarItem.title,
+          summary: generationContext.selectedCalendarItem.summary,
+        }
+      : null;
   const scriptContext = buildVideoScriptContext({
     merchant,
     session,
     extraRequirement: input.extraRequirement ?? null,
     materialContext: materialSnapshot,
-    strategyTag: input.strategyTag ?? null,
+    strategyTag: generationContext.strategyTag,
+    selectedCalendarItem: selectedVideoCalendarItem,
   });
   const platformSettings = await getPlatformSettings();
   const scriptProductionBriefBase = buildVideoScriptProductionBrief({
     merchant,
     session,
     materialSnapshot,
-    goal: input.goal ?? null,
+    goal: input.goal ?? generationContext.selectedCalendarItem?.title ?? null,
     extraRequirement: input.extraRequirement ?? null,
-    strategyTag: input.strategyTag ?? null,
+    strategyTag: generationContext.strategyTag,
   });
   const scriptEvidenceReferences = await collectScriptProductionEvidence({
     merchantId: merchant.id,
@@ -244,7 +425,10 @@ export async function generateVideoScriptForUser(input: {
     tracePayload: {
       consultation_session_id: session.id,
       generated_kind: "video_script",
-      strategy_tag: input.strategyTag ?? null,
+      generation_source: generationContext.source,
+      calendar_item_id: generationContext.calendarItemId,
+      selected_calendar_item: generationContext.selectedCalendarItem,
+      strategy_tag: generationContext.strategyTag,
       material_item_id: materialContext.material?.id ?? null,
       material_reference_id: materialContext.reference?.id ?? input.materialReferenceId ?? null,
       script_agent_mode: scriptAgent.trace.mode,
@@ -257,9 +441,13 @@ export async function generateVideoScriptForUser(input: {
     workingTitle,
     rewriteGoal: input.goal ?? session.strategySnapshot.videoBrief?.hook ?? "门店场景视频脚本",
     inputSnapshot: {
+      source: generationContext.source,
       consultationSessionId: session.id,
+      calendarItemId: generationContext.calendarItemId,
+      selectedCalendarItem: generationContext.selectedCalendarItem,
       strategySnapshot: session.strategySnapshot,
-      strategyTag: input.strategyTag ?? null,
+      merchantProfile: buildMerchantSnapshot(merchant),
+      strategyTag: generationContext.strategyTag,
       extraRequirement: input.extraRequirement ?? null,
       materialContext: materialSnapshot,
       scriptContext,
@@ -324,6 +512,11 @@ export async function reviseVideoScriptForUser(input: {
       instructionText: string;
     }
 > {
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  const currentVariant = await assertVideoScriptVariantAccess({
+    merchantId: merchant.id,
+    contentVariantId: input.contentVariantId,
+  });
   const revisionIntent = classifyVideoScriptRevisionIntent(input.revisionInstruction);
 
   if (revisionIntent === "production") {
@@ -333,12 +526,6 @@ export async function reviseVideoScriptForUser(input: {
       instructionText: input.revisionInstruction,
     };
   }
-
-  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const currentVariant = await assertVideoScriptVariantAccess({
-    merchantId: merchant.id,
-    contentVariantId: input.contentVariantId,
-  });
 
   if (!currentVariant.scriptText?.trim()) {
     throw new ApiError(
@@ -705,6 +892,17 @@ export async function listContentRecordsForUser(input: {
   });
 }
 
+export async function getContentRecordForUser(input: {
+  userId: string;
+  draftId: string;
+}) {
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  return getDraftBundleByMerchant({
+    merchantId: merchant.id,
+    draftId: input.draftId,
+  });
+}
+
 function buildArticleBody(input: {
   merchantName: string;
   angle: string;
@@ -740,6 +938,186 @@ function buildArticleBody(input: {
   ]
     .filter((line) => line !== null)
     .join("\n");
+}
+
+async function generateArticleVariantsWithLlm(input: {
+  mode: ArticlePromptMode;
+  context: ArticlePromptContext;
+  fallbackVariants: ArticleGeneratedVariant[];
+  currentVariant?: {
+    title?: string | null;
+    bodyText?: string | null;
+    hashtags?: string[];
+    ctaText?: string | null;
+  };
+  revisionInstruction?: string | null;
+  expectedVariantCount: "single" | "multiple";
+}): Promise<{
+  variants: ArticleGeneratedVariant[];
+  riskNotes: string[];
+  trace: {
+    promptVersion: typeof ARTICLE_PROMPT_VERSION;
+    mode: ArticlePromptTraceMode;
+    model?: string;
+    error?: string;
+  };
+}> {
+  if (!getAiRuntimeApiKey()) {
+    return {
+      variants: input.fallbackVariants,
+      riskNotes: [],
+      trace: {
+        promptVersion: ARTICLE_PROMPT_VERSION,
+        mode: "fallback_no_key",
+      },
+    };
+  }
+
+  const platformSettings = await getPlatformSettings();
+
+  try {
+    const response = await createChatCompletion({
+      runtime: platformSettings.llmRuntime,
+      messages: buildArticleGenerationMessages({
+        mode: input.mode,
+        context: input.context,
+        currentVariant: input.currentVariant,
+        revisionInstruction: input.revisionInstruction,
+      }),
+    });
+    const parsed = parseArticleGenerationResponse({
+      content: response.content,
+      expectedVariantCount: input.expectedVariantCount,
+    });
+
+    return {
+      variants: parsed.variants,
+      riskNotes: parsed.riskNotes,
+      trace: {
+        promptVersion: ARTICLE_PROMPT_VERSION,
+        mode: "llm",
+        model: response.model,
+      },
+    };
+  } catch (error) {
+    const mode: ArticlePromptTraceMode =
+      error instanceof ArticlePromptParseError ? "fallback_parse_error" : "fallback_error";
+    const errorMessage =
+      error instanceof AiRuntimeError
+        ? `${error.message}${error.status ? ` (${error.status})` : ""}`
+        : error instanceof Error
+          ? error.message
+          : "Unknown article generation error.";
+
+    console.error("[article-generation] llm fallback", {
+      mode,
+      provider: platformSettings.llmRuntime.providerLabel,
+      baseUrl: platformSettings.llmRuntime.baseUrl,
+      model: platformSettings.llmRuntime.primaryModel,
+      error: errorMessage,
+    });
+
+    return {
+      variants: input.fallbackVariants,
+      riskNotes: [],
+      trace: {
+        promptVersion: ARTICLE_PROMPT_VERSION,
+        mode,
+        error: errorMessage,
+      },
+    };
+  }
+}
+
+function buildArticlePromptContext(input: {
+  selectedCalendarItem: unknown;
+  strategySnapshot: unknown;
+  merchantProfile: unknown;
+  materialContext: unknown;
+  contentGoal: string | null;
+  extraRequirement: string | null;
+  toneStyle: string | null;
+}): ArticlePromptContext {
+  return {
+    selectedCalendarItem: input.selectedCalendarItem,
+    strategySnapshot: input.strategySnapshot,
+    merchantProfile: input.merchantProfile,
+    materialContext: input.materialContext,
+    contentGoal: input.contentGoal,
+    extraRequirement: input.extraRequirement,
+    toneStyle: input.toneStyle,
+    platform: "xiaohongshu",
+  };
+}
+
+function buildFallbackArticleVariants(input: {
+  merchantName: string;
+  angle: string;
+  session: Awaited<ReturnType<typeof getConsultationSessionDetail>>;
+  cta: string;
+  material?: MaterialLibraryItemDto | null;
+  mode: GenerationMode;
+}): ArticleGeneratedVariant[] {
+  return [
+    {
+      styleLabel: "专业干货版",
+      title:
+        input.mode === "rewrite"
+          ? `参考这个结构，重写 ${input.merchantName} 的到店笔记`
+          : `别再盲目发内容了，${input.merchantName} 先把这 3 个点讲清楚`,
+      bodyText: buildArticleBody({
+        merchantName: input.merchantName,
+        angle: input.angle,
+        session: input.session,
+        variantLabel: "专业干货版",
+        cta: input.cta,
+        material: input.material,
+      }),
+      hashtags: buildHashtags(input.session),
+      ctaText: input.cta,
+      rationale: "AI 生成服务暂不可用，先使用稳定模板生成可编辑草稿。",
+    },
+    {
+      styleLabel: "场景共鸣版",
+      title: `${input.session.strategySnapshot.targetAudiences[0] ?? "高意向用户"} 最在意的，其实不是价格`,
+      bodyText: buildArticleBody({
+        merchantName: input.merchantName,
+        angle: input.angle,
+        session: input.session,
+        variantLabel: "场景共鸣版",
+        cta: input.cta,
+        material: input.material,
+      }),
+      hashtags: buildHashtags(input.session),
+      ctaText: input.cta,
+      rationale: "AI 生成服务暂不可用，先使用稳定模板生成可编辑草稿。",
+    },
+  ];
+}
+
+function buildFallbackArticleRevisionVariants(input: {
+  currentVariant: {
+    title?: string | null;
+    bodyText?: string | null;
+    hashtags: string[];
+    ctaText?: string | null;
+  };
+  revisionInstruction: string;
+}): ArticleGeneratedVariant[] {
+  return [
+    {
+      styleLabel: "按要求修改版",
+      title: input.currentVariant.title ?? "按要求修改后的图文版本",
+      bodyText: [
+        input.currentVariant.bodyText ?? "",
+        "",
+        `【修改备注】${input.revisionInstruction}`,
+      ].join("\n"),
+      hashtags: input.currentVariant.hashtags,
+      ctaText: input.currentVariant.ctaText ?? "私信我了解更多到店建议",
+      rationale: "AI 生成服务暂不可用，先追加一版带修改备注的可编辑草稿。",
+    },
+  ];
 }
 
 function buildHashtags(session: Awaited<ReturnType<typeof getConsultationSessionDetail>>) {
@@ -796,6 +1174,105 @@ async function consumeMaterialReferenceIfNeeded(input: {
   });
 }
 
+function resolveGenerationContext(input: {
+  source?: GenerationSource | null;
+  calendarItemId?: string | null;
+  strategyTag?: string | null;
+  session: Awaited<ReturnType<typeof getConsultationSessionDetail>>;
+  material?: MaterialLibraryItemDto | null;
+  targetWorkbench: WorkbenchKind;
+}) {
+  const source =
+    input.source ??
+    (input.calendarItemId
+      ? "consultation_calendar"
+      : input.material
+        ? "material_center"
+        : "manual");
+
+  if (source !== "consultation_calendar") {
+    return {
+      source,
+      calendarItemId: null,
+      selectedCalendarItem: null,
+      strategyTag: input.strategyTag ?? null,
+    };
+  }
+
+  const calendarItemId = input.calendarItemId?.trim();
+  if (!calendarItemId) {
+    throw new ApiError(
+      400,
+      "CONTENT_CALENDAR_ITEM_REQUIRED",
+      "从内容日历进入工作台时，必须携带 calendarItemId。",
+    );
+  }
+
+  const selectedCalendarItem =
+    input.session.strategySnapshot.contentCalendarDraft.find(
+      (item) => item.id === calendarItemId,
+    ) ?? null;
+  if (!selectedCalendarItem) {
+    throw new ApiError(
+      409,
+      "CONTENT_CALENDAR_ITEM_NOT_FOUND",
+      "没有在当前咨询会话中找到对应的内容日历卡片。",
+      { calendarItemId },
+    );
+  }
+
+  if (selectedCalendarItem.contentType !== input.targetWorkbench) {
+    throw new ApiError(
+      409,
+      "CONTENT_CALENDAR_WORKBENCH_MISMATCH",
+      "内容日历卡片类型和当前工作台不一致。",
+      {
+        calendarItemId,
+        calendarContentType: selectedCalendarItem.contentType,
+        targetWorkbench: input.targetWorkbench,
+      },
+    );
+  }
+
+  return {
+    source,
+    calendarItemId,
+    selectedCalendarItem: buildSelectedCalendarItemSnapshot(selectedCalendarItem),
+    strategyTag: input.strategyTag ?? selectedCalendarItem.strategyTag ?? null,
+  };
+}
+
+function buildSelectedCalendarItemSnapshot(
+  item: ContentCalendarItemDto,
+): SelectedCalendarItemSnapshot {
+  return {
+    id: item.id,
+    dayLabel: item.dayLabel,
+    contentType: item.contentType,
+    strategyTag: item.strategyTag,
+    title: item.title,
+    summary: item.summary,
+    targetPlatform: item.contentType === "video" ? "douyin" : "xiaohongshu",
+    contentGoal: null,
+  };
+}
+
+function buildMerchantSnapshot(
+  merchant: Awaited<ReturnType<typeof getOperationalMerchantProfileByOwnerUserId>>,
+) {
+  return {
+    id: merchant.id,
+    name: merchant.name,
+    industry: merchant.industry ?? null,
+    serviceItems: merchant.serviceItems,
+    brandSummary: merchant.brandSummary ?? null,
+    regionSummary: merchant.regionSummary ?? null,
+    toneStyle: merchant.toneStyle ?? null,
+    defaultCta: merchant.defaultCta,
+    forbiddenWords: merchant.forbiddenWords,
+  };
+}
+
 function buildSourceText(input: {
   extraRequirement?: string | null;
   material?: MaterialLibraryItemDto | null;
@@ -835,4 +1312,20 @@ function buildMaterialSnapshot(
 
 function compactStrings(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
 }

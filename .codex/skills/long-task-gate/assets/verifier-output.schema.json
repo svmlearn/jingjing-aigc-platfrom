@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdict",
+    "confidence",
+    "evidenceSummary",
+    "failedItems",
+    "remainingRisks",
+    "nextInstruction"
+  ],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["pass", "fail"]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "evidenceSummary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "failedItems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "reason", "evidence"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "remainingRisks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nextInstruction": {
+      "type": "string"
+    }
+  }
+}

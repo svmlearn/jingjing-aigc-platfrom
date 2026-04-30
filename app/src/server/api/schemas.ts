@@ -184,6 +184,15 @@ export const importRequestSchema = z.object({
 
 export const merchantProfilePatchSchema = merchantProfileInputSchema.partial();
 
+export const merchantKnowledgeDocumentPatchSchema = z
+  .object({
+    title: z.string().trim().min(1).max(120).optional(),
+    textContent: z.string().max(1200).optional(),
+  })
+  .refine((value) => value.title !== undefined || value.textContent !== undefined, {
+    message: "At least one field must be provided.",
+  });
+
 export const platformAdminMerchantPatchSchema = z
   .object({
     status: z.enum(["active", "disabled", "archived"]).optional(),
@@ -395,12 +404,21 @@ export const sendConsultationMessageSchema = z.object({
 
 export const generateConsultationContentSchema = z.object({
   sessionId: z.uuid(),
+  source: z.enum(["consultation_calendar", "material_center", "manual"]).nullish(),
+  calendarItemId: z.string().trim().max(120).nullish(),
   goal: z.string().trim().max(300).nullish(),
   extraRequirement: z.string().trim().max(4000).nullish(),
+  toneStyle: z.string().trim().max(80).nullish(),
   mode: z.enum(["create", "rewrite"]).optional(),
   materialId: z.uuid().nullish(),
   materialReferenceId: z.uuid().nullish(),
   strategyTag: z.string().trim().max(80).nullish(),
+});
+
+export const reviseArticleDraftSchema = z.object({
+  contentVariantId: z.uuid(),
+  revisionInstruction: z.string().trim().min(1).max(4000),
+  toneStyle: z.string().trim().max(80).nullish(),
 });
 
 export const reviseVideoScriptSchema = z.object({

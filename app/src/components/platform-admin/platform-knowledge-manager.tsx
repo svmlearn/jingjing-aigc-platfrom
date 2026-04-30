@@ -58,12 +58,12 @@ export function PlatformKnowledgeManager({
       };
 
       if (!response.ok) {
-        throw new Error(data.error?.message ?? "知识库文档加载失败");
+        throw new Error(data.error?.message ?? "平台方法论文档加载失败");
       }
 
       setDocuments(data.documents ?? []);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "知识库文档加载失败");
+      setError(requestError instanceof Error ? requestError.message : "平台方法论文档加载失败");
     } finally {
       setLoading(false);
     }
@@ -116,17 +116,17 @@ export function PlatformKnowledgeManager({
       };
 
       if (!response.ok || !data.document) {
-        throw new Error(data.error?.message ?? "知识文档上传失败");
+        throw new Error(data.error?.message ?? "平台方法论文档上传失败");
       }
 
       setTitle("");
       setTextContent("");
       setFile(null);
       setFileInputKey((current) => current + 1);
-      setNotice(`已入库「${data.document.title}」，生成 ${data.document.chunkCount} 个知识片段。`);
+      setNotice(`已入库「${data.document.title}」，生成 ${data.document.chunkCount} 个方法论片段。`);
       await loadDocuments();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "知识文档上传失败");
+      setError(requestError instanceof Error ? requestError.message : "平台方法论文档上传失败");
     } finally {
       setUploading(false);
     }
@@ -163,7 +163,7 @@ export function PlatformKnowledgeManager({
   }
 
   async function deleteDocument(documentId: string) {
-    if (!window.confirm("确认删除这份知识文档？对应 chunks 和入库 job 会一起删除。")) {
+    if (!window.confirm("确认删除这份平台方法论文档？对应 chunks 和入库 job 会一起删除。")) {
       return;
     }
 
@@ -181,13 +181,13 @@ export function PlatformKnowledgeManager({
       };
 
       if (!response.ok || !data.ok) {
-        throw new Error(data.error?.message ?? "删除知识文档失败");
+        throw new Error(data.error?.message ?? "删除平台方法论文档失败");
       }
 
-      setNotice("知识文档已删除。");
+      setNotice("平台方法论文档已删除。");
       await loadDocuments();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "删除知识文档失败");
+      setError(requestError instanceof Error ? requestError.message : "删除平台方法论文档失败");
     } finally {
       setMutatingId(null);
     }
@@ -266,7 +266,7 @@ export function PlatformKnowledgeManager({
         <div className="grid gap-4">
           <AdminPanel>
             <AdminPanelHeader
-              eyebrow={selectedSetId === "all" ? "全部知识文档" : "知识文档"}
+              eyebrow={selectedSetId === "all" ? "全部平台方法论文档" : "平台方法论文档"}
               description="文档列表读取真实 knowledge documents API。知识集归属选择在 Knowledge Set API 接入前先保持明确边界。"
               action={
                 <button
@@ -284,12 +284,12 @@ export function PlatformKnowledgeManager({
             />
 
             {loading ? (
-              <div className="p-6 text-sm text-white/40">正在读取知识文档...</div>
+              <div className="p-6 text-sm text-white/40">正在读取平台方法论文档...</div>
             ) : filteredDocuments.length === 0 ? (
               <div className="p-5">
                 <AdminEmptyState
                   icon={Database}
-                  title="暂无知识文档"
+                  title="暂无平台方法论文档"
                   description="先上传一份行业方法论，入库后的 indexed chunks 会供咨询检索使用。"
                 />
               </div>
@@ -348,7 +348,7 @@ export function PlatformKnowledgeManager({
 
           <AdminPanel>
             <AdminPanelHeader
-              eyebrow="上传知识"
+              eyebrow="上传平台方法论"
               description="当前上传继续走真实平台级知识 API；加入知识集的强制选择会在 knowledge set 写入接口接入后开放。"
             />
             <form onSubmit={uploadDocument} className="grid gap-4 p-5">

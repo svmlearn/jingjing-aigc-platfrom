@@ -4,10 +4,13 @@ export default async function DashboardArticlePage({
   searchParams,
 }: {
   searchParams: Promise<{
+    source?: string;
     sessionId?: string;
+    calendarItemId?: string;
     materialId?: string;
     materialReferenceId?: string;
     mode?: string;
+    strategyTag?: string;
     strategy?: string;
   }>;
 }) {
@@ -15,10 +18,12 @@ export default async function DashboardArticlePage({
   return (
     <ArticleWorkbench
       sessionId={params.sessionId ?? null}
+      source={params.source ?? null}
+      calendarItemId={params.calendarItemId ?? null}
       materialId={params.materialId ?? null}
       materialReferenceId={params.materialReferenceId ?? null}
       initialMode={params.mode === "rewrite" ? "rewrite" : null}
-      strategyTag={params.strategy ?? null}
+      strategyTag={params.strategyTag ?? params.strategy ?? null}
     />
   );
 }

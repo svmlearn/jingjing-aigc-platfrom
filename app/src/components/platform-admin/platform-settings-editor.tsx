@@ -31,8 +31,8 @@ const consultationSkillOptions: Array<{
   },
   {
     key: "retrieve_knowledge_base",
-    label: "检索平台知识库",
-    description: "按 knowledge runtime 召回 indexed chunks。",
+    label: "检索平台方法论与商家上下文",
+    description: "按 knowledge runtime 召回平台方法论与当前商家的 indexed chunks。",
   },
   {
     key: "read_history",

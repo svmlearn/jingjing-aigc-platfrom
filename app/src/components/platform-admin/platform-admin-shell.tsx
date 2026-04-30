@@ -27,7 +27,7 @@ const navGroups = [
       { href: "/platform-admin", label: "总览", icon: LayoutDashboard },
       { href: "/platform-admin/invitation-codes", label: "邀请码管理", icon: Ticket },
       { href: "/platform-admin/merchants", label: "商户管理", icon: Store },
-      { href: "/platform-admin/knowledge", label: "知识管理", icon: BookOpenText },
+      { href: "/platform-admin/knowledge", label: "方法论知识库", icon: BookOpenText },
     ],
   },
   {

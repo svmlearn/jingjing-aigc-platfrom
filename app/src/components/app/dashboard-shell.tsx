@@ -85,13 +85,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">Owner</p>
                 </div>
               </Link>
-              <Link
-                href="/logout"
-                className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs text-white/40 transition-colors hover:bg-white/5 hover:text-white/70"
-              >
-                <LogOut className="size-3.5" aria-hidden="true" />
-                退出登录
-              </Link>
+              <form action="/logout" method="post" className="flex">
+                <button
+                  type="submit"
+                  className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs text-white/40 transition-colors hover:bg-white/5 hover:text-white/70"
+                >
+                  <LogOut className="size-3.5" aria-hidden="true" />
+                  退出登录
+                </button>
+              </form>
             </div>
           </div>
         </aside>
@@ -108,13 +110,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <p className="text-lg italic tracking-tight [font-family:var(--font-cormorant)]">
               AI 咨询工作台
             </p>
-            <Link
-              href="/logout"
-              className="flex size-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/45"
-              aria-label="退出登录"
-            >
-              <LogOut className="size-4" aria-hidden="true" />
-            </Link>
+            <form action="/logout" method="post">
+              <button
+                type="submit"
+                className="flex size-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/45"
+                aria-label="退出登录"
+              >
+                <LogOut className="size-4" aria-hidden="true" />
+              </button>
+            </form>
           </div>
           <nav className="mt-4 flex gap-2 overflow-x-auto pb-1">
             {navItems.map((item) => {

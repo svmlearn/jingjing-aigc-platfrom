@@ -12,6 +12,15 @@ type StrategySnapshot = {
   } | null;
 };
 
+type SelectedVideoCalendarItem = {
+  id: string;
+  dayLabel: string;
+  contentType: "video";
+  strategyTag: string;
+  title: string;
+  summary: string;
+} | null;
+
 type VideoGrowthSession = {
   id: string;
   summaryText?: string | null;
@@ -75,6 +84,8 @@ export type VideoGrowthContext = {
       contentType: "video";
       strategyTag: string | null;
       title: string | null;
+      dayLabel: string | null;
+      summary: string | null;
     };
     materialContext: VideoGrowthMaterialContext;
     extraRequirement: string | null;
@@ -131,6 +142,7 @@ export function buildVideoGrowthContext(input: {
   extraRequirement?: string | null;
   materialContext: VideoGrowthMaterialContext;
   strategyTag?: string | null;
+  selectedCalendarItem?: SelectedVideoCalendarItem;
 }): VideoGrowthContext {
   const snapshot = input.session.strategySnapshot;
   const audience = first(snapshot.targetAudiences, "首次咨询前还在比较的用户");
@@ -187,10 +199,15 @@ export function buildVideoGrowthContext(input: {
       summaryText: input.session.summaryText ?? null,
     },
     selectedCalendarItem: {
-      id: null,
+      id: input.selectedCalendarItem?.id ?? null,
       contentType: "video" as const,
-      strategyTag: input.strategyTag ?? first(snapshot.strategyTags, null),
-      title: snapshot.videoBrief?.workingTitle ?? null,
+      strategyTag:
+        input.selectedCalendarItem?.strategyTag ??
+        input.strategyTag ??
+        first(snapshot.strategyTags, null),
+      title: input.selectedCalendarItem?.title ?? snapshot.videoBrief?.workingTitle ?? null,
+      dayLabel: input.selectedCalendarItem?.dayLabel ?? null,
+      summary: input.selectedCalendarItem?.summary ?? null,
     },
     materialContext: input.materialContext,
     extraRequirement: input.extraRequirement ?? null,
