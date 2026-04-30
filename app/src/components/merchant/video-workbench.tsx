@@ -339,7 +339,7 @@ export function VideoWorkbench({
     setError(null);
 
     try {
-      const response = await fetch("/api/__local-test/video-chain-test-draft", {
+      const response = await fetch("/api/local-test/video-chain-test-draft", {
         method: "POST",
       });
       const data = (await response.json()) as {
