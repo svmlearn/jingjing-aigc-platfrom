@@ -24,23 +24,25 @@ import { getPlatformSettings } from "@/lib/db/platform-admin-repository";
 import {
   AiRuntimeError,
   createChatCompletion,
-  getAiRuntimeApiKey,
 } from "@/server/api/ai-runtime";
 import { ApiError } from "@/server/api/errors";
+import { resolveScriptProductionRuntime } from "@/server/api/script-production-runtime";
 import {
+  SCRIPT_PRODUCTION_MODEL_NOT_CONFIGURED_MESSAGE,
+  SCRIPT_PRODUCTION_MODEL_OUTPUT_INVALID_MESSAGE,
+  SCRIPT_PRODUCTION_MODEL_UNAVAILABLE_MESSAGE,
+  SCRIPT_PRODUCTION_TOOL_FAILED_MESSAGE,
   SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION,
   buildScriptProductionAgentMessages,
   classifyVideoScriptRevisionIntent,
+  isScriptProductionModelConfigured,
   parseScriptProductionAgentResponse,
   validateScriptProductionBrief,
   type ScriptProductionBrief,
+  type ScriptProductionVersion,
 } from "@/server/api/video-script-production-agent";
 import { assertVideoScriptVariantAccess } from "@/lib/db/video-edit-job-repository";
-import {
-  buildVideoScriptContext,
-  buildVideoScriptCandidates,
-  type VideoScriptCandidate,
-} from "@/server/api/video-growth-context";
+import { buildVideoScriptContext } from "@/server/api/video-growth-context";
 
 type GenerationMode = "create" | "rewrite";
 
@@ -191,13 +193,6 @@ export async function generateVideoScriptForUser(input: {
     materialContext: materialSnapshot,
     strategyTag: input.strategyTag ?? null,
   });
-  const fallbackScriptCandidates = buildVideoScriptCandidates({
-    merchantName: merchant.name,
-    session,
-    scriptContext,
-    extraRequirement: input.extraRequirement ?? null,
-    material: materialContext.material,
-  });
   const platformSettings = await getPlatformSettings();
   const scriptProductionBriefBase = buildVideoScriptProductionBrief({
     merchant,
@@ -230,13 +225,12 @@ export async function generateVideoScriptForUser(input: {
     );
   }
 
-  const scriptAgent = await generateVideoScriptCandidatesWithAgent({
+  const scriptAgent = await generateVideoScriptVersionWithAgent({
     brief: scriptProductionBrief,
-    fallbackCandidates: fallbackScriptCandidates,
     llmRuntime: platformSettings.llmRuntime,
     agentSettings: platformSettings.scriptProductionAgent,
   });
-  const scriptCandidates = scriptAgent.candidates;
+  const scriptVersion = scriptAgent.version;
   const sourceItem = await createManualSourceItem({
     merchantId: merchant.id,
     platform: "douyin",
@@ -277,23 +271,26 @@ export async function generateVideoScriptForUser(input: {
       scenes: session.strategySnapshot.keyScenes,
       referenceMaterialTitle: materialContext.material?.title ?? null,
       referenceMaterialEngagement: materialContext.material?.engagementLabel ?? null,
-      scriptCandidateTypes: scriptCandidates.map((candidate) => candidate.candidateType),
+      scriptVersionNo: scriptVersion.versionNo,
+      scriptChangeSummary: scriptVersion.changeSummary,
       scriptAgentMode: scriptAgent.trace.mode,
     },
-    variants: scriptCandidates.map((candidate) => ({
+    variants: [
+      {
         platform: "douyin",
         variantType: "video_script",
-        title: candidate.title,
-        scriptText: candidate.scriptText,
-        productionScenes: candidate.scenes,
+        title: scriptVersion.title,
+        scriptText: scriptVersion.scriptText,
+        productionScenes: scriptVersion.scenes,
         hashtags: buildHashtags(session),
-        ctaText: candidate.ctaText,
+        ctaText: scriptVersion.ctaText,
         reviewStatus: "review_pending",
-      })),
+      },
+    ],
   });
   const draftBundleWithScenes = attachProductionScenes(
     draftBundle,
-    scriptCandidates.map((candidate) => candidate.scenes),
+    [scriptVersion.scenes],
   );
 
   await consumeMaterialReferenceIfNeeded({
@@ -362,20 +359,6 @@ export async function reviseVideoScriptForUser(input: {
     targetWorkbench: "video",
   });
   const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
-  const scriptContext = buildVideoScriptContext({
-    merchant,
-    session,
-    extraRequirement: input.revisionInstruction,
-    materialContext: materialSnapshot,
-    strategyTag: input.strategyTag ?? null,
-  });
-  const fallbackScriptCandidates = buildVideoScriptCandidates({
-    merchantName: merchant.name,
-    session,
-    scriptContext,
-    extraRequirement: input.revisionInstruction,
-    material: materialContext.material,
-  });
   const platformSettings = await getPlatformSettings();
 
   if (!platformSettings.scriptProductionAgent.revisionEnabled) {
@@ -402,9 +385,8 @@ export async function reviseVideoScriptForUser(input: {
       retrievalTopK: platformSettings.scriptProductionAgent.retrievalTopK,
     }),
   };
-  const scriptAgent = await generateVideoScriptCandidatesWithAgent({
+  const scriptAgent = await generateVideoScriptVersionWithAgent({
     brief: scriptProductionBrief,
-    fallbackCandidates: fallbackScriptCandidates,
     llmRuntime: platformSettings.llmRuntime,
     agentSettings: platformSettings.scriptProductionAgent,
     revisionContext: {
@@ -414,26 +396,18 @@ export async function reviseVideoScriptForUser(input: {
       revisionIntent,
     },
   });
-  const revisedCandidate = scriptAgent.candidates[0];
-
-  if (!revisedCandidate) {
-    throw new ApiError(
-      500,
-      "SCRIPT_PRODUCTION_REVISION_EMPTY",
-      "脚本制作 Agent 没有返回可用修订稿。",
-    );
-  }
+  const revisedVersion = scriptAgent.version;
 
   const variant = await appendContentVariantToDraft({
     merchantId: merchant.id,
     draftId: currentVariant.draftId,
     platform: "douyin",
     variantType: "video_script",
-    title: revisedCandidate.title,
-    scriptText: revisedCandidate.scriptText,
-    productionScenes: revisedCandidate.scenes,
+    title: revisedVersion.title,
+    scriptText: revisedVersion.scriptText,
+    productionScenes: revisedVersion.scenes,
     hashtags: buildHashtags(session),
-    ctaText: revisedCandidate.ctaText,
+    ctaText: revisedVersion.ctaText,
     reviewStatus: "review_pending",
   });
 
@@ -441,25 +415,23 @@ export async function reviseVideoScriptForUser(input: {
     revisionIntent,
     variant: {
       ...variant,
-      productionScenes: revisedCandidate.scenes,
+      productionScenes: revisedVersion.scenes,
     },
     agentTrace: scriptAgent.trace,
   };
 }
 
-async function generateVideoScriptCandidatesWithAgent(input: {
+async function generateVideoScriptVersionWithAgent(input: {
   brief: ScriptProductionBrief;
-  fallbackCandidates: VideoScriptCandidate[];
   llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
   agentSettings: Awaited<ReturnType<typeof getPlatformSettings>>["scriptProductionAgent"];
   revisionContext?: Parameters<typeof buildScriptProductionAgentMessages>[0]["revisionContext"];
 }): Promise<{
-  candidates: VideoScriptCandidate[];
+  version: ScriptProductionVersion;
   trace: {
     promptVersion: typeof SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION;
-    mode: "llm" | "fallback_no_key" | "fallback_error" | "fallback_parse_error";
+    mode: "llm";
     model?: string;
-    error?: string;
     productionGoal?: string | null;
     evidenceSummary?: string[];
     riskNotes?: string[];
@@ -469,34 +441,39 @@ async function generateVideoScriptCandidatesWithAgent(input: {
 }> {
   const promptVersion = SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION;
   const evidenceReferenceCount = input.brief.evidenceReferences?.length ?? 0;
+  const scriptRuntime = resolveScriptProductionRuntime({
+    llmRuntime: input.llmRuntime,
+    agentSettings: input.agentSettings,
+  });
 
-  if (!getAiRuntimeApiKey()) {
-    return {
-      candidates: input.fallbackCandidates,
-      trace: {
+  if (!isScriptProductionModelConfigured(scriptRuntime.apiKey)) {
+    throw new ApiError(
+      503,
+      "SCRIPT_PRODUCTION_MODEL_NOT_CONFIGURED",
+      SCRIPT_PRODUCTION_MODEL_NOT_CONFIGURED_MESSAGE,
+      {
         promptVersion,
-        mode: "fallback_no_key",
         evidenceReferenceCount,
       },
-    };
+    );
   }
 
   try {
     const response = await createChatCompletion({
       runtime: {
-        ...input.llmRuntime,
+        ...scriptRuntime.runtime,
         temperature: input.agentSettings.temperature,
       },
-      model: input.agentSettings.model,
+      model: scriptRuntime.model,
+      apiKey: scriptRuntime.apiKey,
+      responseFormat: "json_object",
       messages: buildScriptProductionAgentMessages({
         brief: input.brief,
-        systemPrompt: input.agentSettings.systemPrompt,
         revisionContext: input.revisionContext,
       }),
     });
     const parsed = parseScriptProductionAgentResponse(
       response.content,
-      input.fallbackCandidates,
       {
         brief: input.brief,
       },
@@ -515,21 +492,38 @@ async function generateVideoScriptCandidatesWithAgent(input: {
       );
     }
 
-    if (parsed.mode === "fallback_parse_error") {
-      return {
-        candidates: parsed.candidates,
-        trace: {
+    if (parsed.mode === "tool_failed") {
+      throw new ApiError(
+        502,
+        "SCRIPT_PRODUCTION_TOOL_FAILED",
+        SCRIPT_PRODUCTION_TOOL_FAILED_MESSAGE,
+        {
           promptVersion,
-          mode: "fallback_parse_error",
+          model: response.model,
+          toolName: parsed.toolName,
+          reason: parsed.reason,
+          recoverable: parsed.recoverable,
+          evidenceReferenceCount,
+        },
+      );
+    }
+
+    if (parsed.mode === "parse_error") {
+      throw new ApiError(
+        502,
+        "SCRIPT_PRODUCTION_MODEL_OUTPUT_INVALID",
+        SCRIPT_PRODUCTION_MODEL_OUTPUT_INVALID_MESSAGE,
+        {
+          promptVersion,
           model: response.model,
           error: parsed.error,
           evidenceReferenceCount,
         },
-      };
+      );
     }
 
     return {
-      candidates: parsed.candidates,
+      version: parsed.version,
       trace: {
         promptVersion,
         mode: "llm",
@@ -546,11 +540,12 @@ async function generateVideoScriptCandidatesWithAgent(input: {
       throw error;
     }
 
-    return {
-      candidates: input.fallbackCandidates,
-      trace: {
+    throw new ApiError(
+      502,
+      "SCRIPT_PRODUCTION_MODEL_UNAVAILABLE",
+      SCRIPT_PRODUCTION_MODEL_UNAVAILABLE_MESSAGE,
+      {
         promptVersion,
-        mode: "fallback_error",
         evidenceReferenceCount,
         error:
           error instanceof AiRuntimeError
@@ -559,13 +554,13 @@ async function generateVideoScriptCandidatesWithAgent(input: {
               ? error.message
               : "Unknown AI runtime error.",
       },
-    };
+    );
   }
 }
 
 function attachProductionScenes(
   draftBundle: ContentDraftBundleDto,
-  sceneSets: VideoScriptCandidate["scenes"][],
+  sceneSets: ScriptProductionVersion["scenes"][],
 ): ContentDraftBundleDto {
   const variants = draftBundle.variants.map((variant, index) => ({
     ...variant,
@@ -612,6 +607,10 @@ function buildVideoScriptProductionBrief(input: {
       ...snapshot.coreSellingPoints,
     ]),
     customerAdvantages: snapshot.coreSellingPoints,
+    ctaOptions: compactStrings([
+      ...input.merchant.defaultCta,
+      snapshot.articleBrief?.callToAction ?? "",
+    ]),
     forbiddenExpressions: input.merchant.forbiddenWords,
     brandTone: input.merchant.toneStyle ?? null,
     availableMaterials: material
@@ -673,6 +672,7 @@ async function collectScriptProductionEvidence(input: {
       ...input.brief.targetAudiences,
       ...input.brief.productOrServiceInfo,
       ...input.brief.customerAdvantages,
+      ...input.brief.ctaOptions,
       ...input.brief.availableScenes,
     ]).join(" ");
     const matches = await searchKnowledgeChunks({

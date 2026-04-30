@@ -15,6 +15,7 @@ type ChatCompletionInput = {
   model?: string;
   apiKey?: string;
   messages: ChatMessage[];
+  responseFormat?: "json_object";
 };
 
 type EmbeddingInput = {
@@ -90,6 +91,9 @@ export async function createChatCompletion(input: ChatCompletionInput): Promise<
     temperature: input.runtime.temperature,
     max_tokens: input.runtime.maxTokens,
     stream: false,
+    ...(input.responseFormat
+      ? { response_format: { type: input.responseFormat } }
+      : {}),
   };
   const response = await postOpenAiCompatible({
     runtime: input.runtime,
