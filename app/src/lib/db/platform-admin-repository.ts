@@ -137,12 +137,12 @@ const defaultConsultationAgent: ConsultationAgentSettingsDto = {
   visibleExecutionMode: "cards",
   maxRounds: 6,
   retrievalTopK: 5,
-  model: "gpt-4.1-mini",
+  model: "Qwen/Qwen3-32B",
   temperature: 0.6,
 };
 
 const defaultScriptProductionAgent: ScriptProductionAgentSettingsDto = {
-  model: "gpt-4.1-mini",
+  model: "Qwen/Qwen3-14B",
   temperature: 0.65,
   retrievalTopK: 4,
   revisionEnabled: true,
@@ -152,7 +152,7 @@ const defaultKnowledgeRuntime: KnowledgeRuntimeSettingsDto = {
   retrievalTopK: 5,
   chunkSize: 900,
   chunkOverlap: 120,
-  embeddingModel: "text-embedding-3-small",
+  embeddingModel: "Qwen/Qwen3-Embedding-4B",
   queryRewriteEnabled: true,
 };
 
@@ -1010,7 +1010,7 @@ function toLlmRuntimeSettings(value: unknown): LlmRuntimeSettingsDto {
   const apiKeySource = getAiRuntimeApiKeySource();
   const storedBaseUrl = getString(record.baseUrl, defaultLlmRuntime.baseUrl);
   const useSiliconFlowDefaults =
-    apiKeySource === "siliconflow" &&
+    apiKeySource !== "openai" &&
     (!storedBaseUrl || storedBaseUrl === "https://api.openai.com/v1");
 
   return {
@@ -1048,6 +1048,10 @@ function toImportRuntimeSettings(value: unknown): ImportRuntimeSettingsDto {
 
 function toConsultationAgentSettings(value: unknown): ConsultationAgentSettingsDto {
   const record = toRecord(value);
+  const model = normalizeLegacyOpenAiModel(
+    getString(record.model, defaultConsultationAgent.model),
+    defaultConsultationAgent.model,
+  );
 
   return {
     systemPrompt: getString(record.systemPrompt, defaultConsultationAgent.systemPrompt),
@@ -1061,16 +1065,20 @@ function toConsultationAgentSettings(value: unknown): ConsultationAgentSettingsD
         : "cards",
     maxRounds: getNumber(record.maxRounds, defaultConsultationAgent.maxRounds),
     retrievalTopK: getNumber(record.retrievalTopK, defaultConsultationAgent.retrievalTopK),
-    model: getString(record.model, defaultConsultationAgent.model),
+    model,
     temperature: getNumber(record.temperature, defaultConsultationAgent.temperature),
   };
 }
 
 function toScriptProductionAgentSettings(value: unknown): ScriptProductionAgentSettingsDto {
   const record = toRecord(value);
+  const model = normalizeLegacyOpenAiModel(
+    getString(record.model, defaultScriptProductionAgent.model),
+    defaultScriptProductionAgent.model,
+  );
 
   return {
-    model: getString(record.model, defaultScriptProductionAgent.model),
+    model,
     temperature: getNumber(record.temperature, defaultScriptProductionAgent.temperature),
     retrievalTopK: getNumber(record.retrievalTopK, defaultScriptProductionAgent.retrievalTopK),
     revisionEnabled: getBoolean(
@@ -1082,17 +1090,41 @@ function toScriptProductionAgentSettings(value: unknown): ScriptProductionAgentS
 
 function toKnowledgeRuntimeSettings(value: unknown): KnowledgeRuntimeSettingsDto {
   const record = toRecord(value);
+  const embeddingModel = normalizeLegacyOpenAiModel(
+    getString(record.embeddingModel, defaultKnowledgeRuntime.embeddingModel),
+    defaultKnowledgeRuntime.embeddingModel,
+  );
 
   return {
     retrievalTopK: getNumber(record.retrievalTopK, defaultKnowledgeRuntime.retrievalTopK),
     chunkSize: getNumber(record.chunkSize, defaultKnowledgeRuntime.chunkSize),
     chunkOverlap: getNumber(record.chunkOverlap, defaultKnowledgeRuntime.chunkOverlap),
-    embeddingModel: getString(record.embeddingModel, defaultKnowledgeRuntime.embeddingModel),
+    embeddingModel,
     queryRewriteEnabled: getBoolean(
       record.queryRewriteEnabled,
       defaultKnowledgeRuntime.queryRewriteEnabled,
     ),
   };
+}
+
+function normalizeLegacyOpenAiModel(model: string, fallback: string) {
+  if (getAiRuntimeApiKeySource() === "openai") {
+    return model;
+  }
+
+  return isLegacyOpenAiModel(model) ? fallback : model;
+}
+
+function isLegacyOpenAiModel(model: string) {
+  const normalized = model.trim().toLowerCase();
+
+  return (
+    normalized.startsWith("gpt-") ||
+    normalized.startsWith("text-embedding-") ||
+    normalized.startsWith("o1") ||
+    normalized.startsWith("o3") ||
+    normalized.startsWith("o4")
+  );
 }
 
 function toMembershipPlans(value: unknown): MembershipPlanSettingsDto {

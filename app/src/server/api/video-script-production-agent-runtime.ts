@@ -93,13 +93,6 @@ export type ScriptProductionAgentParseResult =
       reason: string | null;
     }
   | {
-      mode: "tool_failed";
-      version: null;
-      toolName: string | null;
-      reason: string | null;
-      recoverable: boolean | null;
-    }
-  | {
       mode: "parse_error";
       version: null;
       error: string;
@@ -200,16 +193,6 @@ export function parseScriptProductionAgentResponse(
         missingFields: stringArray(payload.missingFields),
         questions: stringArray(payload.questions),
         reason: stringValue(payload.reason),
-      };
-    }
-
-    if (status === "tool_failed") {
-      return {
-        mode: "tool_failed",
-        version: null,
-        toolName: stringValue(payload.toolName),
-        reason: stringValue(payload.reason),
-        recoverable: booleanValue(payload.recoverable),
       };
     }
 
@@ -317,10 +300,6 @@ function stringArray(value: unknown) {
     ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
         .map((item) => item.trim())
     : [];
-}
-
-function booleanValue(value: unknown) {
-  return typeof value === "boolean" ? value : null;
 }
 
 function normalizeScenes(value: unknown): VideoScriptScene[] {

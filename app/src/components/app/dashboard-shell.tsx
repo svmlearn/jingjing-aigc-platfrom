@@ -28,8 +28,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
-      <div className="hidden min-h-screen lg:flex">
-        <aside className="w-64 shrink-0 border-r border-white/10 bg-[#0a0a0a]">
+      <div className="hidden h-screen overflow-hidden lg:flex">
+        <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-white/10 bg-[#0a0a0a]">
           <div className="flex h-16 items-center gap-4 border-b border-white/10 px-6">
             <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-tr from-amber-600 to-amber-200 rotate-45">
               <span className="-rotate-45 text-xs font-bold tracking-tight text-black">AI</span>
@@ -97,8 +97,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </aside>
-        <main className="flex-1 p-6 lg:p-10">
-          <div className="flex h-[calc(100vh-5rem)] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#0d0d0d] shadow-[0_24px_120px_rgba(0,0,0,0.45)]">
+        <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden p-6 lg:p-10">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#0d0d0d] shadow-[0_24px_120px_rgba(0,0,0,0.45)]">
             {children}
           </div>
         </main>

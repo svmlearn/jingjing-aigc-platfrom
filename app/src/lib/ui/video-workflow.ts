@@ -72,16 +72,20 @@ type UploadProgress = {
   percent: number;
 };
 
+export type DraftMediaUploadStage = "preparing" | "uploading" | "finalizing";
+
 const DRAFT_MEDIA_STORAGE_PREFIX = "jingjing:draft-media-assets";
 const DRAFT_VIDEO_JOBS_STORAGE_PREFIX = "jingjing:draft-video-jobs";
 
 type BrowserCosClient = {
+  cancelTask?: (taskId: string) => void;
   sliceUploadFile?: (
     params: {
       Bucket: string;
       Region: string;
       Key: string;
       Body: File;
+      onTaskReady?: (taskId: string) => void;
       onProgress?: (progress: {
         loaded?: number;
         total?: number;
@@ -96,6 +100,7 @@ type BrowserCosClient = {
       Region: string;
       Key: string;
       Body: File;
+      onTaskReady?: (taskId: string) => void;
       onProgress?: (progress: {
         loaded?: number;
         total?: number;
@@ -125,6 +130,8 @@ declare global {
 }
 
 const COS_SDK_URL = "https://cdn.jsdelivr.net/npm/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js";
+const COS_UPLOAD_STALL_TIMEOUT_MS = 90_000;
+const COS_UPLOAD_TOTAL_TIMEOUT_MS = 10 * 60_000;
 let cosSdkPromise: Promise<BrowserCosConstructor> | null = null;
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -426,33 +433,99 @@ async function uploadToCos(params: {
   }
 
   return new Promise<{ etag: string }>((resolve, reject) => {
-    uploadMethod.call(
-      cosClient,
-      {
-        Bucket: params.intent.bucket,
-        Region: params.intent.region,
-        Key: params.intent.cosKey,
-        Body: params.file,
-        onProgress(progress) {
-          params.onProgress?.({
-            loaded: progress.loaded ?? 0,
-            total: progress.total ?? params.file.size,
-            percent: progress.percent ?? 0,
-          });
-        },
-      },
-      (error, data) => {
-        if (error) {
-          reject(error instanceof Error ? error : new Error("素材上传到 COS 失败。"));
-          return;
-        }
+    let settled = false;
+    let taskId: string | null = null;
+    let lastProgressAt = Date.now();
+    let lastLoaded = 0;
+    let lastPercent = 0;
+    let stallTimer: number | null = null;
+    let totalTimer: number | null = null;
 
-        const etag =
-          (isRecord(data) ? readString(data, "ETag", "etag", "eTag") : null) ??
-          `${params.intent.cosKey}-${params.file.size}`;
-        resolve({ etag: stripEtagQuotes(etag) });
-      },
-    );
+    const clearTimers = () => {
+      if (stallTimer) {
+        window.clearInterval(stallTimer);
+        stallTimer = null;
+      }
+
+      if (totalTimer) {
+        window.clearTimeout(totalTimer);
+        totalTimer = null;
+      }
+    };
+    const failUpload = (error: Error) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimers();
+      if (taskId) {
+        cosClient.cancelTask?.(taskId);
+      }
+      reject(error);
+    };
+    const finishUpload = (etag: string) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimers();
+      resolve({ etag: stripEtagQuotes(etag) });
+    };
+
+    stallTimer = window.setInterval(() => {
+      if (Date.now() - lastProgressAt >= COS_UPLOAD_STALL_TIMEOUT_MS) {
+        failUpload(new Error("素材上传到 COS 已长时间没有进度，请检查网络后重试。"));
+      }
+    }, 10_000);
+    totalTimer = window.setTimeout(() => {
+      failUpload(new Error("素材上传到 COS 超时，请检查文件大小和网络后重试。"));
+    }, COS_UPLOAD_TOTAL_TIMEOUT_MS);
+
+    try {
+      uploadMethod.call(
+        cosClient,
+        {
+          Bucket: params.intent.bucket,
+          Region: params.intent.region,
+          Key: params.intent.cosKey,
+          Body: params.file,
+          onTaskReady(nextTaskId) {
+            taskId = nextTaskId;
+          },
+          onProgress(progress) {
+            const loaded = progress.loaded ?? 0;
+            const percent = progress.percent ?? 0;
+
+            if (loaded > lastLoaded || percent > lastPercent) {
+              lastLoaded = Math.max(lastLoaded, loaded);
+              lastPercent = Math.max(lastPercent, percent);
+              lastProgressAt = Date.now();
+            }
+
+            params.onProgress?.({
+              loaded,
+              total: progress.total ?? params.file.size,
+              percent,
+            });
+          },
+        },
+        (error, data) => {
+          if (error) {
+            failUpload(error instanceof Error ? error : new Error("素材上传到 COS 失败。"));
+            return;
+          }
+
+          const etag =
+            (isRecord(data) ? readString(data, "ETag", "etag", "eTag") : null) ??
+            `${params.intent.cosKey}-${params.file.size}`;
+          finishUpload(etag);
+        },
+      );
+    } catch (error) {
+      failUpload(error instanceof Error ? error : new Error("素材上传到 COS 失败。"));
+    }
   });
 }
 
@@ -537,8 +610,10 @@ export async function uploadDraftMediaFile(params: {
   file: File;
   sortOrder?: number;
   onProgress?: (progress: UploadProgress) => void;
+  onStageChange?: (stage: DraftMediaUploadStage) => void;
 }) {
   const assetType = assetTypeFromMimeType(params.file.type, params.file.name);
+  params.onStageChange?.("preparing");
   const intent = await createUploadIntent({
     ownerType: "content_draft",
     ownerId: params.draftId,
@@ -548,6 +623,7 @@ export async function uploadDraftMediaFile(params: {
     sizeBytes: params.file.size,
   });
 
+  params.onStageChange?.("uploading");
   const uploadResult = await uploadToCos({
     intent,
     file: params.file,
@@ -567,6 +643,7 @@ export async function uploadDraftMediaFile(params: {
     ...(params.sortOrder !== undefined ? { sortOrder: params.sortOrder } : {}),
   };
 
+  params.onStageChange?.("finalizing");
   const completedAsset =
     (await completeMediaUpload(completePayload)) ??
     ({

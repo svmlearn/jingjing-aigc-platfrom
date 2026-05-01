@@ -211,6 +211,7 @@ export function ConsultationWorkspace() {
   const latestAssistantMessage =
     [...(session?.messages ?? [])].reverse().find((message) => message.role === "assistant") ?? null;
   const toolCards = latestAssistantMessage?.toolCards ?? [];
+  const strategySnapshot = session?.strategySnapshot ?? null;
 
   function selectHistorySession(nextSessionId: string) {
     setSessionId(nextSessionId);
@@ -693,64 +694,43 @@ export function ConsultationWorkspace() {
               </span>
             </div>
 
-            <Card title="产品定位">
-              <div className="space-y-3 text-sm text-white/75">
-                <StrategyRow
-                  label="我们是谁"
-                  value={
-                    session?.strategySnapshot.positioning ??
-                    "等待咨询中..."
-                  }
-                />
-                <StrategyRow
-                  label="服务谁"
-                  value={session?.strategySnapshot.targetAudiences.join("、") || "继续补充客群"}
-                />
-                <StrategyRow
-                  label="核心场景"
-                  value={session?.strategySnapshot.keyScenes.join("、") || "继续补充场景"}
-                />
-              </div>
-            </Card>
+            <Card title="策略资产 Editor">
+              <div className="space-y-5">
+                <div className="space-y-3 text-sm text-white/75">
+                  <StrategyRow
+                    label="我们是谁"
+                    value={strategySnapshot?.positioning ?? "等待咨询中..."}
+                  />
+                  <StrategyRow
+                    label="服务谁"
+                    value={strategySnapshot?.targetAudiences.join("、") || "继续补充客群"}
+                  />
+                  <StrategyRow
+                    label="核心场景"
+                    value={strategySnapshot?.keyScenes.join("、") || "继续补充场景"}
+                  />
+                </div>
 
-            <Card title="核心卖点卡">
-              <div className="flex flex-wrap gap-2">
-                {session?.strategySnapshot.coreSellingPoints.map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/75"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </Card>
+                <StrategyChipGroup
+                  label="核心卖点"
+                  items={strategySnapshot?.coreSellingPoints ?? []}
+                  emptyText="继续补充卖点"
+                  tone="neutral"
+                />
+                <StrategyChipGroup
+                  label="目标客群"
+                  items={strategySnapshot?.targetAudiences ?? []}
+                  emptyText="继续补充客群"
+                  tone="amber"
+                />
 
-            <Card title="目标客群">
-              <div className="flex flex-wrap gap-2">
-                {session?.strategySnapshot.targetAudiences.map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs text-amber-500"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </Card>
-
-            <Card title="当前建议">
-              <div className="space-y-3">
-                <p className="flex items-center gap-2 text-sm leading-7 text-white/75">
-                  <MessageCircle className="h-4 w-4 text-white/35" />
-                  {session?.strategySnapshot.currentSuggestion ?? "继续补充信息后，这里会同步咨询建议。"}
-                </p>
-                <div className="rounded-xl border border-white/10 bg-[#050505] p-3">
+                <div className="space-y-2">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">
-                    Agent Loop
+                    当前建议
                   </p>
-                  <p className="mt-2 text-xs leading-6 text-white/55">
-                    会按后台启用 skills 执行读取资料、知识检索、策略快照、内容日历与任务草案。
+                  <p className="flex items-start gap-2 text-sm leading-7 text-white/75">
+                    <MessageCircle className="mt-1 h-4 w-4 shrink-0 text-white/35" />
+                    {strategySnapshot?.currentSuggestion ?? "继续补充信息后，这里会同步咨询建议。"}
                   </p>
                 </div>
               </div>
@@ -817,6 +797,35 @@ function StrategyRow(props: { label: string; value: string }) {
         {props.label}
       </span>
       <span className="font-serif italic text-white/80">{props.value}</span>
+    </div>
+  );
+}
+
+function StrategyChipGroup(props: {
+  label: string;
+  items: string[];
+  emptyText: string;
+  tone: "amber" | "neutral";
+}) {
+  const chipClassName =
+    props.tone === "amber"
+      ? "border-amber-500/20 bg-amber-500/10 text-amber-500"
+      : "border-white/10 bg-white/5 text-white/75";
+  const items = props.items.length > 0 ? props.items : [props.emptyText];
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">{props.label}</p>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <span
+            key={item}
+            className={cn("rounded-full border px-3 py-1 text-xs", chipClassName)}
+          >
+            {item}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

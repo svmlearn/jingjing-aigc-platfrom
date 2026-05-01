@@ -128,11 +128,11 @@ test("video workbench agent prompt frames script production as a gated tool", ()
   const roleBoundary = activePromptCardText(messages, "role_boundary");
   assert.match(roleBoundary, /短视频脚本设计大师/);
   assert.match(roleBoundary, /咨询台已确认信息最高优先级/);
-  assert.match(roleBoundary, /modify_script/);
+  assert.match(roleBoundary, /没有外部工具调用/);
   assert.equal(userPayload.outputSchema, undefined);
   const outputSchema = outputSchemaFrom(messages);
-  assert.match(outputSchema.status, /tool_failed/);
-  assert.equal(outputSchema.toolName, "string when status is tool_failed");
+  assert.equal(outputSchema.status, "ready | needs_more_info");
+  assert.equal("toolName" in outputSchema, false);
   assert.equal(outputSchema.version.script.title, "string");
   assert.equal(userPayload.expectedCandidateTypes, undefined);
   assert.deepEqual(userPayload.scriptProductionBrief, completeBrief);
@@ -219,7 +219,7 @@ test("script production prompt explains output fields by workflow purpose", () =
   assert.match(outputContract, /riskNotes 没有明显风险时返回空数组/);
   assert.match(outputContract, /confirmQuestions.*影响脚本确认或制作执行/);
   assert.match(outputContract, /needs_more_info 时只返回 missingFields、questions、reason/);
-  assert.match(outputContract, /tool_failed 时只返回 toolName、reason、recoverable/);
+  assert.match(outputContract, /不得返回旧工具失败状态/);
   assert.doesNotMatch(outputContract, /方便用户判断|用来说明|用来定位/);
 });
 
@@ -445,23 +445,6 @@ test("parseScriptProductionAgentResponse accepts common DeepSeek field aliases",
   assert.equal(result.version.whyThisWorks, "用真实门店场景降低到店前顾虑。");
   assert.equal(result.version.scenes[0].shotRequirement, "用门店真实环境建立信任");
   assert.deepEqual(result.version.scenes[0].materials, ["门店环境", "老师示范"]);
-});
-
-test("agent test case: tool failure returns diagnostics without a fallback script", () => {
-  const result = parseScriptProductionAgentResponse(
-    JSON.stringify({
-      status: "tool_failed",
-      toolName: "modify_script",
-      reason: "modify_script 超时，未返回脚本版本。",
-      recoverable: true,
-    }),
-  );
-
-  assert.equal(result.mode, "tool_failed");
-  assert.equal(result.version, null);
-  assert.equal(result.toolName, "modify_script");
-  assert.match(result.reason ?? "", /超时/);
-  assert.equal(result.recoverable, true);
 });
 
 test("parseScriptProductionAgentResponse reports parse errors without default script versions", () => {

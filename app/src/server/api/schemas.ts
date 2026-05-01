@@ -430,6 +430,26 @@ export const reviseVideoScriptSchema = z.object({
   strategyTag: z.string().trim().max(80).nullish(),
 });
 
+export const videoWorkbenchAgentMessageSchema = z.object({
+  role: z.enum(["user", "assistant", "agent"]),
+  content: z.string().trim().min(1).max(8000),
+});
+
+export const runVideoWorkbenchAgentSchema = z.object({
+  sessionId: z.uuid().nullish(),
+  source: z.enum(["consultation_calendar", "material_center", "manual"]).nullish(),
+  calendarItemId: z.string().trim().max(120).nullish(),
+  goal: z.string().trim().max(300).nullish(),
+  userMessage: z.string().trim().min(1).max(4000),
+  messages: z.array(videoWorkbenchAgentMessageSchema).max(20).optional(),
+  intent: z.enum(["chat", "generate", "revise"]).optional(),
+  contentVariantId: z.uuid().nullish(),
+  draftId: z.uuid().nullish(),
+  materialId: z.uuid().nullish(),
+  materialReferenceId: z.uuid().nullish(),
+  strategyTag: z.string().trim().max(80).nullish(),
+});
+
 export const listContentRecordsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });

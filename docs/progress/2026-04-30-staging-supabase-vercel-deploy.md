@@ -138,3 +138,53 @@ vercel deploy --prod --yes
 - Deployment URL：`https://jingjing-content-platform-staging-c0fk7whkb.vercel.app`
 - Aliased URL：`https://jingjing-content-platform-staging.vercel.app`
 - HTTP 轻量验证：`200`
+
+## 18:25 补充部署：视频脚本 Agent 超时修复
+
+用户再次触发 `/api/content/video-scripts` 后，接口返回：
+
+```text
+脚本制作 Agent 调用大模型失败，请检查是否接入大模型、模型服务和 API 配置后再生成脚本。
+```
+
+排查：
+
+- 此时已不是未读取 env；接口返回 502，说明已经进入模型调用阶段。
+- 使用 Vercel production env 做模型探针：
+  - `Qwen/Qwen3-32B` + 完整视频脚本 prompt 可成功，但耗时约 `49.9s`。
+  - `Qwen/Qwen3-14B` + 同一完整 prompt 可成功，耗时约 `21-22s`。
+- staging 数据库 `llm_runtime` 当前配置：
+  - `primaryModel`: `Qwen/Qwen3-32B`
+  - `fallbackModel`: `Qwen/Qwen3-14B`
+- 结论：视频脚本生成 prompt 较重，默认使用 primary 模型时容易接近 Vercel/网络超时窗口。
+
+代码调整：
+
+- `app/src/server/api/script-production-runtime.ts`
+  - 视频脚本 Agent 仍共用平台 LLM provider/baseUrl/key。
+  - 默认模型从 `llmRuntime.primaryModel` 改为优先使用 `llmRuntime.fallbackModel`，没有 fallback 时再用 primary。
+  - `VIDEO_WORKBENCH_LLM_MODEL` 仍然保留为显式覆盖。
+- `app/src/app/api/content/video-scripts/route.ts`
+  - 添加 `export const maxDuration = 60`。
+- `app/src/app/api/content/video-scripts/revisions/route.ts`
+  - 添加 `export const maxDuration = 60`。
+
+验证：
+
+- `pnpm typecheck` 通过。
+- `pnpm lint` 通过。
+- `node --experimental-strip-types --test src/server/api/script-production-runtime.test.ts` 通过，`4 passed`。
+
+重新部署：
+
+```bash
+vercel deploy --prod --yes
+```
+
+结果：
+
+- Deployment id：`dpl_8vYMH8FThdhsXWx1SxEV1N6vLhE4`
+- Status：`Ready`
+- Deployment URL：`https://jingjing-content-platform-staging-dglu5dabu.vercel.app`
+- Aliased URL：`https://jingjing-content-platform-staging.vercel.app`
+- HTTP 轻量验证：`200`

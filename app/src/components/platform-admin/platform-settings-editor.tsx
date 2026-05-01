@@ -41,8 +41,8 @@ const consultationSkillOptions: Array<{
   },
   {
     key: "update_strategy_snapshot",
-    label: "更新策略快照",
-    description: "沉淀定位、卖点、客群、场景和建议。",
+    label: "编辑策略资产",
+    description: "把定位、卖点、客群、场景和建议作为一个整体资产写入。",
   },
   {
     key: "update_content_calendar",

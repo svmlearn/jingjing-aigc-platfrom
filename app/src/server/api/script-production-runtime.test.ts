@@ -23,11 +23,11 @@ const scriptAgentSettings = {
   revisionEnabled: true,
 };
 
-test("script production can use DeepSeek video env while general consultation runtime stays disconnected", () => {
+test("script production ignores legacy DeepSeek video env and follows shared llm runtime", () => {
   withEnv(
     {
       SILICONFLOW_API_KEY: " ",
-      LLM_API_KEY: " ",
+      LLM_API_KEY: "shared-key",
       OPENAI_API_KEY: " ",
       VIDEO_WORKBENCH_LLM_API_KEY: "video-key",
       VIDEO_WORKBENCH_LLM_BASE_URL: "https://api.deepseek.com",
@@ -42,13 +42,13 @@ test("script production can use DeepSeek video env while general consultation ru
         agentSettings: scriptAgentSettings,
       });
 
-      assert.equal(runtime.apiKey, "video-key");
-      assert.equal(runtime.runtime.providerLabel, "DeepSeek");
-      assert.equal(runtime.runtime.baseUrl, "https://api.deepseek.com");
-      assert.equal(runtime.model, "deepseek-v4-flash");
-      assert.equal(runtime.runtime.primaryModel, "deepseek-v4-flash");
-      assert.equal(runtime.runtime.timeoutSeconds, 90);
-      assert.equal(runtime.runtime.maxTokens, 6200);
+      assert.equal(runtime.apiKey, "shared-key");
+      assert.equal(runtime.runtime.providerLabel, "OpenAI Compatible");
+      assert.equal(runtime.runtime.baseUrl, "https://api.openai.com/v1");
+      assert.equal(runtime.model, "gpt-4.1-mini");
+      assert.equal(runtime.runtime.primaryModel, "gpt-4.1-mini");
+      assert.equal(runtime.runtime.timeoutSeconds, 45);
+      assert.equal(runtime.runtime.maxTokens, 5000);
     },
   );
 });
@@ -69,7 +69,7 @@ test("script production reserves enough output tokens for full JSON scripts", ()
   );
 });
 
-test("script production defaults to shared llm runtime when no video-specific override exists", () => {
+test("script production uses shared llm runtime settings", () => {
   withEnv(
     {
       SILICONFLOW_API_KEY: "shared-key",
@@ -97,7 +97,7 @@ test("script production defaults to shared llm runtime when no video-specific ov
   );
 });
 
-test("script production falls back to not configured when no shared or video-specific key exists", () => {
+test("script production falls back to not configured when no shared key exists", () => {
   withEnv(
     {
       SILICONFLOW_API_KEY: " ",

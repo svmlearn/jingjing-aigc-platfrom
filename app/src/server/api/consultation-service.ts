@@ -2,6 +2,13 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { z } from "zod";
+
+import type {
+  AgentConfigDto,
+  AgentPromptVersionDto,
+  AgentSkillDto,
+} from "@/contracts/agent-console";
 import type {
   ConsultationSessionDetailDto,
   ConsultationToolCardDto,
@@ -22,11 +29,26 @@ import {
   listConsultationSessions,
   updateConsultationSession,
 } from "@/lib/db/consultation-repository";
+import {
+  ensureMerchantStrategyAsset,
+  getMerchantStrategyAsset,
+  upsertMerchantStrategyAsset,
+} from "@/lib/db/merchant-strategy-asset-repository";
+import {
+  getAgentConfigById,
+  getConsultationDefaultRouteBinding,
+  listAgentPromptVersions,
+  listAgentSkillBindings,
+  listAgentSkills,
+} from "@/lib/db/agent-console-repository";
 import { searchKnowledgeChunks } from "@/lib/db/knowledge-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import { getPlatformSettings } from "@/lib/db/platform-admin-repository";
 import {
   AiRuntimeError,
+  type AiRuntimeTool,
+  type AiRuntimeToolCall,
+  type ChatMessage,
   createChatCompletion,
   createEmbeddings,
   getAiRuntimeApiKey,
@@ -34,7 +56,19 @@ import {
 
 export async function listConsultationSessionsForUser(userId: string) {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(userId);
-  return listConsultationSessions(merchant.id);
+  const [sessions, merchantStrategyAsset] = await Promise.all([
+    listConsultationSessions(merchant.id),
+    getMerchantStrategyAsset(merchant.id),
+  ]);
+
+  if (!merchantStrategyAsset) {
+    return sessions;
+  }
+
+  return sessions.map((session) => ({
+    ...session,
+    strategySnapshot: merchantStrategyAsset,
+  }));
 }
 
 export async function createConsultationSessionForUser(input: {
@@ -42,11 +76,15 @@ export async function createConsultationSessionForUser(input: {
   title?: string | null;
 }): Promise<ConsultationSessionDetailDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const { consultationAgent } = await getPlatformSettings();
-  const strategySnapshot = buildStrategySnapshot({
+  const { consultationAgent } = await resolveConsultationAgentRuntime();
+  const initialStrategySnapshot = buildStrategySnapshot({
     merchant,
     previousSnapshot: null,
     userMessages: [],
+  });
+  const strategySnapshot = await ensureMerchantStrategyAsset({
+    merchantId: merchant.id,
+    fallback: initialStrategySnapshot,
   });
   const session = await createConsultationSession({
     merchantId: merchant.id,
@@ -63,6 +101,15 @@ export async function createConsultationSessionForUser(input: {
     payload: {
       merchantName: merchant.name,
       enabledTools: consultationAgent.enabledTools,
+      agentContainer: consultationAgent.container
+        ? {
+            agentId: consultationAgent.container.agent.id,
+            agentKey: consultationAgent.container.agent.agentKey,
+            displayName: consultationAgent.container.agent.displayName,
+            activePromptVersion: consultationAgent.container.activePromptVersion?.versionNo ?? null,
+            candidateSkillIds: consultationAgent.container.candidateSkills.map((skill) => skill.id),
+          }
+        : null,
     },
   });
   await createConsultationMessage({
@@ -92,10 +139,18 @@ export async function getConsultationSessionForUser(input: {
   sessionId: string;
 }) {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  return getConsultationSessionDetail({
+  const session = await getConsultationSessionDetail({
     merchantId: merchant.id,
     sessionId: input.sessionId,
   });
+  const merchantStrategyAsset = await getMerchantStrategyAsset(merchant.id);
+
+  return merchantStrategyAsset
+    ? {
+        ...session,
+        strategySnapshot: merchantStrategyAsset,
+      }
+    : session;
 }
 
 export async function deleteConsultationSessionForUser(input: {
@@ -115,35 +170,53 @@ export async function sendConsultationMessageForUser(input: {
   content: string;
 }) {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const [{ consultationAgent, knowledgeRuntime, llmRuntime }, session] = await Promise.all([
+  const [{ consultationAgent, knowledgeRuntime, llmRuntime }, session, existingMerchantStrategyAsset] = await Promise.all([
     getPlatformSettings(),
     getConsultationSessionDetail({
       merchantId: merchant.id,
       sessionId: input.sessionId,
     }),
+    getMerchantStrategyAsset(merchant.id),
   ]);
+  const runtime = await resolveConsultationAgentRuntime({
+    fallback: consultationAgent,
+  });
+  const effectiveSession: ConsultationSessionDetailDto = {
+    ...session,
+    strategySnapshot: existingMerchantStrategyAsset ?? session.strategySnapshot,
+  };
 
   const userMessage = await createConsultationMessage({
-    sessionId: session.id,
+    sessionId: effectiveSession.id,
     role: "user",
     content: input.content,
-    stageLabel: session.currentStage,
+    stageLabel: effectiveSession.currentStage,
   });
-  const allUserMessages = [...session.messages, userMessage]
+  const allUserMessages = [...effectiveSession.messages, userMessage]
     .filter((message) => message.role === "user")
     .map((message) => message.content);
+  const conversationMessages = [...effectiveSession.messages, userMessage]
+    .filter(
+      (message): message is typeof message & { role: "user" | "assistant" } =>
+        message.role === "user" || message.role === "assistant",
+    )
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
   const loopResult = await runConsultationAgentLoop({
     merchant,
-    session,
+    session: effectiveSession,
     userContent: input.content,
     userMessages: allUserMessages,
-    consultationAgent,
+    conversationMessages,
+    consultationAgent: runtime.consultationAgent,
     knowledgeRuntime,
     llmRuntime,
   });
 
   await createConsultationEvent({
-    sessionId: session.id,
+    sessionId: effectiveSession.id,
     eventType: "strategy_snapshot.updated",
     stageLabel: loopResult.nextStage,
     payload: {
@@ -153,21 +226,25 @@ export async function sendConsultationMessageForUser(input: {
       loopIterations: loopResult.toolResults.length,
     },
   });
+  await upsertMerchantStrategyAsset({
+    merchantId: merchant.id,
+    strategySnapshot: loopResult.strategySnapshot,
+  });
   await updateConsultationSession({
     merchantId: merchant.id,
-    sessionId: session.id,
+    sessionId: effectiveSession.id,
     currentStage: loopResult.nextStage,
     strategySnapshot: loopResult.strategySnapshot,
     summaryText: loopResult.strategySnapshot.currentSuggestion,
   });
   await createConsultationMessage({
-    sessionId: session.id,
+    sessionId: effectiveSession.id,
     role: "assistant",
     content: loopResult.assistantContent,
     stageLabel: loopResult.nextStage,
     toolCards: buildToolCards({
       merchant,
-      settings: consultationAgent,
+      settings: runtime.consultationAgent,
       stageLabel: loopResult.nextStage,
       knowledgeMatches: loopResult.knowledgeMatches,
       toolResults: loopResult.toolResults,
@@ -183,6 +260,8 @@ export async function sendConsultationMessageForUser(input: {
           "references/open-source/hermes-agent/model_tools.py",
           "references/open-source/claude-code泄漏的客户端源码/claude-code-main/",
         ],
+        agentContainer: loopResult.agentContainer,
+        skillDisclosure: loopResult.skillDisclosure,
         toolResults: loopResult.toolResults.map((result) => ({
           tool: result.toolName,
           status: result.status,
@@ -198,11 +277,37 @@ export async function sendConsultationMessageForUser(input: {
 
   return getConsultationSessionDetail({
     merchantId: merchant.id,
-    sessionId: session.id,
-  });
+    sessionId: effectiveSession.id,
+  }).then((updatedSession) => ({
+    ...updatedSession,
+    strategySnapshot: loopResult.strategySnapshot,
+  }));
 }
 
 type ConsultationAgentToolKey = ConsultationAgentSettingsDto["enabledTools"][number];
+
+type ConsultationRuntimeSkill = Pick<
+  AgentSkillDto,
+  "id" | "skillKey" | "name" | "description" | "whenToUse" | "body"
+>;
+
+type ConsultationAgentContainerSnapshot = {
+  agent: AgentConfigDto;
+  activePromptVersion: AgentPromptVersionDto | null;
+  candidateSkills: ConsultationRuntimeSkill[];
+};
+
+type ConsultationSkillDisclosure = {
+  mode: "progressive_disclosure";
+  candidateSkills: Array<Pick<ConsultationRuntimeSkill, "id" | "skillKey" | "name" | "whenToUse">>;
+  activeSkills: Array<Pick<ConsultationRuntimeSkill, "id" | "skillKey" | "name" | "whenToUse">>;
+};
+
+type ConsultationAgentRuntimeSettings = ConsultationAgentSettingsDto & {
+  container: ConsultationAgentContainerSnapshot | null;
+  skillCatalog: ConsultationRuntimeSkill[];
+  activeSkills: ConsultationRuntimeSkill[];
+};
 
 type ConsultationAgentToolCall = {
   id: string;
@@ -220,26 +325,160 @@ type ConsultationAgentToolResult = {
   knowledgeMatches?: KnowledgeSearchMatchDto[];
 };
 
+type StrategyAssetFieldKey =
+  | "positioning"
+  | "coreSellingPoints"
+  | "targetAudiences"
+  | "keyScenes"
+  | "currentSuggestion";
+
+type StrategyAssetEditorPatch = {
+  positioning?: string;
+  coreSellingPoints?: string[];
+  targetAudiences?: string[];
+  keyScenes?: string[];
+  currentSuggestion?: string;
+  changedFields: StrategyAssetFieldKey[];
+};
+
+type ConsultationConversationMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+const strategyAssetFieldKeys = [
+  "positioning",
+  "coreSellingPoints",
+  "targetAudiences",
+  "keyScenes",
+  "currentSuggestion",
+] as const satisfies readonly StrategyAssetFieldKey[];
+
+const strategyAssetListLimits = {
+  coreSellingPoints: 8,
+  targetAudiences: 10,
+  keyScenes: 8,
+} as const;
+
+const strategyAssetDocumentSchema = z
+  .object({
+    positioning: z.string().trim().min(1),
+    coreSellingPoints: z.array(z.string().trim().min(1)).max(strategyAssetListLimits.coreSellingPoints),
+    targetAudiences: z.array(z.string().trim().min(1)).max(strategyAssetListLimits.targetAudiences),
+    keyScenes: z.array(z.string().trim().min(1)).max(strategyAssetListLimits.keyScenes),
+    currentSuggestion: z.string().trim().min(1),
+  })
+  .strict();
+
+const strategyAssetEditorToolArgsSchema = z
+  .object({
+    changedFields: z.array(z.enum(strategyAssetFieldKeys)),
+    strategyAsset: strategyAssetDocumentSchema,
+    changeSummary: z.string().trim().optional(),
+  })
+  .strict();
+
+type StrategyAssetEditorToolArgs = z.infer<
+  typeof strategyAssetEditorToolArgsSchema
+>;
+
+type StrategyAssetEditorToolParseResult =
+  | {
+      ok: true;
+      patch: StrategyAssetEditorPatch;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
 type ConsultationAgentLoopState = {
   merchant: MerchantProfileDto;
   session: ConsultationSessionDetailDto;
   userContent: string;
   userMessages: string[];
+  conversationMessages: ConsultationConversationMessage[];
   nextRound: number;
   nextStage: string;
-  consultationAgent: ConsultationAgentSettingsDto;
+  consultationAgent: ConsultationAgentRuntimeSettings;
   knowledgeRuntime: KnowledgeRuntimeSettingsDto;
   llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
   knowledgeMatches: KnowledgeSearchMatchDto[];
   strategySnapshot: StrategySnapshotDto;
 };
 
+async function resolveConsultationAgentRuntime(input: {
+  fallback?: ConsultationAgentSettingsDto;
+} = {}): Promise<{
+  consultationAgent: ConsultationAgentRuntimeSettings;
+}> {
+  const fallback = input.fallback ?? (await getPlatformSettings()).consultationAgent;
+  const fallbackRuntime = {
+    ...fallback,
+    container: null,
+    skillCatalog: [],
+    activeSkills: [],
+  };
+
+  try {
+    const routeBinding = await getConsultationDefaultRouteBinding();
+
+    if (!routeBinding?.agentId || routeBinding.status !== "active") {
+      return { consultationAgent: fallbackRuntime };
+    }
+
+    const agent = await getAgentConfigById(routeBinding.agentId);
+
+    if (agent.serviceStatus !== "enabled") {
+      return { consultationAgent: fallbackRuntime };
+    }
+
+    const [promptVersions, skillBindings, skills] = await Promise.all([
+      listAgentPromptVersions(agent.id),
+      listAgentSkillBindings({ agentId: agent.id }),
+      listAgentSkills(),
+    ]);
+    const activePrompt =
+      promptVersions
+        .filter((promptVersion) => promptVersion.status === "active")
+        .sort((first, second) => second.versionNo - first.versionNo)[0] ?? null;
+    const enabledSkillIds = new Set(
+      skillBindings
+        .filter((binding) => binding.status === "enabled")
+        .map((binding) => binding.skillId),
+    );
+    const candidateSkills = skills
+      .filter((skill) => skill.status === "enabled" && enabledSkillIds.has(skill.id))
+      .map(toRuntimeSkill);
+
+    return {
+      consultationAgent: {
+        ...fallback,
+        systemPrompt:
+          agent.serviceFlags.systemPromptEnabled && activePrompt?.body
+            ? activePrompt.body
+            : fallback.systemPrompt,
+        container: {
+          agent,
+          activePromptVersion: activePrompt,
+          candidateSkills,
+        },
+        skillCatalog: agent.serviceFlags.skillsEnabled ? candidateSkills : [],
+        activeSkills: [],
+      },
+    };
+  } catch {
+    return { consultationAgent: fallbackRuntime };
+  }
+}
+
 async function runConsultationAgentLoop(input: {
   merchant: MerchantProfileDto;
   session: ConsultationSessionDetailDto;
   userContent: string;
   userMessages: string[];
-  consultationAgent: ConsultationAgentSettingsDto;
+  conversationMessages: ConsultationConversationMessage[];
+  consultationAgent: ConsultationAgentRuntimeSettings;
   knowledgeRuntime: KnowledgeRuntimeSettingsDto;
   llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
 }) {
@@ -256,9 +495,17 @@ async function runConsultationAgentLoop(input: {
     session: input.session,
     userContent: input.userContent,
     userMessages: input.userMessages,
+    conversationMessages: input.conversationMessages,
     nextRound,
     nextStage,
-    consultationAgent: input.consultationAgent,
+    consultationAgent: {
+      ...input.consultationAgent,
+      activeSkills: selectActiveConsultationSkills({
+        skills: input.consultationAgent.skillCatalog,
+        userContent: input.userContent,
+        userMessages: input.userMessages,
+      }),
+    },
     knowledgeRuntime: input.knowledgeRuntime,
     llmRuntime: input.llmRuntime,
     knowledgeMatches: [],
@@ -281,6 +528,26 @@ async function runConsultationAgentLoop(input: {
       maxConversationRounds,
       toolBudget,
       enabledTools: input.consultationAgent.enabledTools,
+      businessTools: getConsultationBusinessToolCatalog()
+        .filter((tool) => input.consultationAgent.enabledTools.includes(tool.key))
+        .map((tool) => ({
+          key: tool.key,
+          label: tool.label,
+          purpose: tool.purpose,
+          writes: tool.writes,
+        })),
+      agentContainer: state.consultationAgent.container
+        ? {
+            agentId: state.consultationAgent.container.agent.id,
+            agentKey: state.consultationAgent.container.agent.agentKey,
+            displayName: state.consultationAgent.container.agent.displayName,
+            activePromptVersion:
+              state.consultationAgent.container.activePromptVersion?.versionNo ?? null,
+            candidateSkillIds: state.consultationAgent.skillCatalog.map((skill) => skill.id),
+            activeSkillIds: state.consultationAgent.activeSkills.map((skill) => skill.id),
+          }
+        : null,
+      skillDisclosure: buildSkillDisclosure(state.consultationAgent),
       systemPromptPreview: input.consultationAgent.systemPrompt.slice(0, 240),
       references: [
         "references/open-source/hermes-agent/run_agent.py",
@@ -325,15 +592,6 @@ async function runConsultationAgentLoop(input: {
         },
       });
     }
-  }
-
-  if (!toolResults.some((result) => result.toolName === "update_strategy_snapshot")) {
-    state.strategySnapshot = buildStrategySnapshot({
-      merchant: state.merchant,
-      previousSnapshot: state.session.strategySnapshot,
-      userMessages: state.userMessages,
-      knowledgeMatches: state.knowledgeMatches,
-    });
   }
 
   const assistantReply = await buildAssistantReplyWithModel({
@@ -383,6 +641,15 @@ async function runConsultationAgentLoop(input: {
     strategySnapshot: state.strategySnapshot,
     knowledgeMatches: state.knowledgeMatches,
     toolResults,
+    agentContainer: state.consultationAgent.container
+      ? {
+          agentId: state.consultationAgent.container.agent.id,
+          agentKey: state.consultationAgent.container.agent.agentKey,
+          displayName: state.consultationAgent.container.agent.displayName,
+          activePromptVersion: state.consultationAgent.container.activePromptVersion?.versionNo ?? null,
+        }
+      : null,
+    skillDisclosure: buildSkillDisclosure(state.consultationAgent),
     assistantContent: assistantReply.content,
   };
 }
@@ -408,6 +675,198 @@ function planConsultationToolCalls(
       toolName,
       args: buildToolArgs(toolName, state),
     }));
+}
+
+function toRuntimeSkill(skill: AgentSkillDto): ConsultationRuntimeSkill {
+  return {
+    id: skill.id,
+    skillKey: skill.skillKey,
+    name: skill.name,
+    description: skill.description,
+    whenToUse: skill.whenToUse,
+    body: skill.body,
+  };
+}
+
+function selectActiveConsultationSkills(input: {
+  skills: ConsultationRuntimeSkill[];
+  userContent: string;
+  userMessages: string[];
+}) {
+  const currentText = normalizeSkillMatchText(input.userContent);
+  const recentText = normalizeSkillMatchText(input.userMessages.slice(-3).join(" "));
+
+  return input.skills
+    .filter((skill) => {
+      const haystack = normalizeSkillMatchText(
+        [skill.name, skill.skillKey ?? "", skill.description, skill.whenToUse].join(" "),
+      );
+      const tokens = extractSkillTriggerTokens(haystack);
+
+      return tokens.some((token) => currentText.includes(token) || recentText.includes(token));
+    })
+    .slice(0, 3);
+}
+
+function extractSkillTriggerTokens(source: string) {
+  const normalized = normalizeSkillMatchText(source);
+  const phraseTokens = normalized
+    .split(/[\s,，。；;、/|()[\]{}"'`：:]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2 && token.length <= 12);
+  const conceptTokens = [
+    "个人ip",
+    "个人定位",
+    "定位",
+    "亮点",
+    "优势",
+    "人设",
+    "产品",
+    "卖点",
+    "客群",
+    "场景",
+    "异议",
+    "内容",
+    "日历",
+    "图文",
+    "视频",
+    "脚本",
+    "转化",
+    "私信",
+    "到店",
+  ].filter((token) => normalized.includes(token));
+
+  return uniqueStrings([...conceptTokens, ...phraseTokens]).slice(0, 32);
+}
+
+function normalizeSkillMatchText(value: string) {
+  return value.toLowerCase().replace(/\s+/g, "");
+}
+
+function buildSkillDisclosure(
+  consultationAgent: ConsultationAgentRuntimeSettings,
+): ConsultationSkillDisclosure {
+  return {
+    mode: "progressive_disclosure",
+    candidateSkills: consultationAgent.skillCatalog.map(toSkillDisclosureItem),
+    activeSkills: consultationAgent.activeSkills.map(toSkillDisclosureItem),
+  };
+}
+
+function toSkillDisclosureItem(skill: ConsultationRuntimeSkill) {
+  return {
+    id: skill.id,
+    skillKey: skill.skillKey,
+    name: skill.name,
+    whenToUse: skill.whenToUse,
+  };
+}
+
+function buildSkillCatalogPrompt(consultationAgent: ConsultationAgentRuntimeSettings) {
+  if (consultationAgent.skillCatalog.length === 0) {
+    return "";
+  }
+
+  const listing = consultationAgent.skillCatalog
+    .map((skill) =>
+      [
+        `- ${skill.name}${skill.skillKey ? ` (${skill.skillKey})` : ""}`,
+        skill.description ? `  Description: ${clipText(skill.description, 160)}` : "",
+        skill.whenToUse ? `  When to use: ${clipText(skill.whenToUse, 180)}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .join("\n");
+
+  return [
+    "【候选 Skills：渐进式披露】",
+    "下面只列出可用 Skill 的简短说明。只有当前轮用户问题命中触发条件时，才会在后续“本轮激活 Skill”中提供完整正文。",
+    listing,
+  ].join("\n");
+}
+
+function buildActiveSkillPrompt(skills: ConsultationRuntimeSkill[]) {
+  if (skills.length === 0) {
+    return "";
+  }
+
+  return [
+    "【本轮激活 Skill】",
+    "以下 Skill 正文只用于当前轮咨询判断。不得向商家暴露 Skill 名称、内部字段或配置来源。",
+    ...skills.map((skill) =>
+      [
+        `## ${skill.name}${skill.skillKey ? ` (${skill.skillKey})` : ""}`,
+        skill.body ? clipText(skill.body, 3600) : skill.whenToUse,
+      ].join("\n"),
+    ),
+  ].join("\n\n");
+}
+
+function buildBusinessToolPrompt(enabledTools: ConsultationAgentToolKey[]) {
+  const enabled = new Set(enabledTools);
+  const rows = getConsultationBusinessToolCatalog()
+    .filter((tool) => enabled.has(tool.key))
+    .map((tool) => `- ${tool.key}: ${tool.label}。${tool.purpose} 写入/影响：${tool.writes}。`)
+    .join("\n");
+
+  return [
+    "【咨询 Agent 受控业务工具】",
+    "右侧策略资产不是普通文案，它由以下受控业务工具更新；回答时要尊重这些工具的输出，不要声称执行未启用工具。",
+    rows,
+  ].join("\n");
+}
+
+function getConsultationBusinessToolCatalog(): Array<{
+  key: ConsultationAgentToolKey;
+  label: string;
+  purpose: string;
+  writes: string;
+}> {
+  return [
+    {
+      key: "read_merchant_profile",
+      label: "读取商家资料",
+      purpose: "读取商家基础信息、服务项目、品牌语气和默认 CTA。",
+      writes: "只读上下文",
+    },
+    {
+      key: "retrieve_knowledge_base",
+      label: "检索平台方法论与商家上下文",
+      purpose: "检索平台方法论、商家资料和可用于咨询的知识片段。",
+      writes: "knowledgeMatches / 受控上下文",
+    },
+    {
+      key: "read_history",
+      label: "读取历史内容",
+      purpose: "读取当前咨询会话历史和摘要，避免丢上下文。",
+      writes: "只读上下文",
+    },
+    {
+      key: "update_strategy_snapshot",
+      label: "编辑策略资产",
+      purpose: "把产品定位、核心卖点、目标客群、关键场景和当前建议作为一个整体资产编辑。",
+      writes: "strategySnapshot as one editor document: positioning / coreSellingPoints / targetAudiences / keyScenes / currentSuggestion",
+    },
+    {
+      key: "update_content_calendar",
+      label: "更新内容日历",
+      purpose: "把策略快照转成图文/视频混合内容日历。",
+      writes: "strategySnapshot.contentCalendarDraft",
+    },
+    {
+      key: "generate_article_brief",
+      label: "生成图文任务草案",
+      purpose: "把咨询结论转成图文工作台可使用的 brief。",
+      writes: "strategySnapshot.articleBrief",
+    },
+    {
+      key: "generate_video_brief",
+      label: "生成视频任务草案",
+      purpose: "把咨询结论转成视频工作台可使用的 brief。",
+      writes: "strategySnapshot.videoBrief",
+    },
+  ];
 }
 
 function buildToolArgs(
@@ -547,20 +1006,28 @@ async function dispatchConsultationTool(
   }
 
   if (call.toolName === "update_strategy_snapshot") {
+    const assetEdit = await resolveStrategyAssetEditorPatch({
+      state,
+      fallback: buildStrategyAssetSnapshotPatch(state.session.strategySnapshot),
+    });
     const strategySnapshot = buildStrategySnapshot({
       merchant: state.merchant,
       previousSnapshot: state.session.strategySnapshot,
       userMessages: state.userMessages,
       knowledgeMatches: state.knowledgeMatches,
+      assetEdit,
     });
 
     return {
       callId: call.id,
       toolName: call.toolName,
       status: "completed",
-      summary: "已更新定位、卖点、客群、关键场景与当前建议。",
+      summary: assetEdit.changedFields.length
+        ? `策略资产 Editor 已更新：${summarizeStrategyAssetEdit(assetEdit)}。`
+        : "策略资产 Editor 已同步定位、卖点、客群、关键场景与当前建议。",
       payload: {
         strategySnapshot,
+        editorPatch: toStrategyAssetEditorPayload(assetEdit),
       },
     };
   }
@@ -693,7 +1160,7 @@ async function buildAssistantReplyWithModel(input: {
   strategySnapshot: StrategySnapshotDto;
   knowledgeMatches: KnowledgeSearchMatchDto[];
   toolResults?: ConsultationAgentToolResult[];
-  consultationAgent: ConsultationAgentSettingsDto;
+  consultationAgent: ConsultationAgentRuntimeSettings;
   llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
 }): Promise<{
   content: string;
@@ -719,8 +1186,13 @@ async function buildAssistantReplyWithModel(input: {
           role: "system",
           content: [
             input.consultationAgent.systemPrompt,
+            buildSkillCatalogPrompt(input.consultationAgent),
+            buildActiveSkillPrompt(input.consultationAgent.activeSkills),
+            buildBusinessToolPrompt(input.consultationAgent.enabledTools),
             "你只输出给商家的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
             "必须基于已完成工具结果、策略快照和受控知识库片段回答；如果信息不足，提出一个最关键的追问。",
+            "如果工具结果已经显示策略资产被编辑，要先确认已按用户要求写入；不要反过来劝用户保持旧结构，也不要把已执行的明确编辑再改成优先级追问。",
+            "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshot 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
           ].join("\n"),
         },
         {
@@ -745,6 +1217,7 @@ async function buildAssistantReplyWithModel(input: {
               status: result.status,
               summary: result.summary,
             })),
+            skillDisclosure: buildSkillDisclosure(input.consultationAgent),
             fallbackDraft: fallback,
           }),
         },
@@ -801,8 +1274,8 @@ function buildToolCards(input: {
     },
     update_strategy_snapshot: {
       key: "update_strategy_snapshot",
-      label: "更新策略快照",
-      summary: `已同步定位、卖点、客群与当前建议到「${stageLabel}」。`,
+      label: "编辑策略资产",
+      summary: `已把定位、卖点、客群与当前建议作为一个整体资产同步到「${stageLabel}」。`,
       status: "completed",
     },
     update_content_calendar: {
@@ -856,60 +1329,71 @@ function buildStrategySnapshot(input: {
   previousSnapshot: StrategySnapshotDto | null;
   userMessages: string[];
   knowledgeMatches?: KnowledgeSearchMatchDto[];
+  assetEdit?: StrategyAssetEditorPatch;
 }): StrategySnapshotDto {
   const mergedUserText = input.userMessages.join(" ");
   const knowledgeText = (input.knowledgeMatches ?? []).map((match) => match.content).join(" ");
+  const assetEdit = input.assetEdit;
   const serviceAnchor =
     input.merchant.serviceItems[0] ?? input.merchant.industry ?? "本地生活服务";
-  const audiences = uniqueStrings([
-    ...extractKeywordMatches(mergedUserText, [
-      "白领女性",
-      "产后妈妈",
-      "附近居民",
-      "精致宝妈",
-      "健身人群",
-      "门店周边上班族",
-      "体态调整人群",
-      "新客体验人群",
-    ]),
-    ...extractKeywordMatches(knowledgeText, ["白领女性", "产后妈妈", "附近居民", "体态调整人群"]),
-    ...extractKeywordMatches(input.merchant.brandSummary ?? "", [
-      "白领女性",
-      "产后妈妈",
-      "附近居民",
-      "体态调整人群",
-    ]),
-    input.previousSnapshot?.targetAudiences?.[0] ?? "",
-    "门店 3 公里内高意向到店人群",
-  ]).slice(0, 3);
-  const sellingPoints = uniqueStrings([
-    ...input.merchant.serviceItems.slice(0, 3),
-    ...extractKeywordMatches(knowledgeText, [
-      "真实案例",
-      "专业评估",
-      "体验课",
-      "私教跟进",
-      "到店转化",
-      "信任建立",
-    ]),
-    input.merchant.brandSummary ?? "",
-    input.merchant.regionSummary ?? "",
-    input.previousSnapshot?.coreSellingPoints?.[0] ?? "",
-  ]).slice(0, 3);
-  const keyScenes = uniqueStrings([
-    ...extractKeywordMatches(mergedUserText, [
-      "下班后恢复",
-      "产后恢复",
-      "周末探店",
-      "首次体验课",
-      "体态调整",
-      "减脂塑形",
-      "门店到访前决策",
-    ]),
-    ...extractKeywordMatches(knowledgeText, ["首次体验课", "门店到访前决策", "成交异议"]),
-    input.merchant.regionSummary ?? "",
-    "门店首次咨询前的信任建立",
-  ]).slice(0, 3);
+  const audiences = mergeEditedStrategyList({
+    edited: assetEdit?.targetAudiences,
+    fallback: [
+      ...(input.previousSnapshot?.targetAudiences ?? []),
+      ...extractKeywordMatches(mergedUserText, [
+        "白领女性",
+        "产后妈妈",
+        "附近居民",
+        "精致宝妈",
+        "健身人群",
+        "体态调整人群",
+      ]),
+      ...extractKeywordMatches(knowledgeText, ["白领女性", "产后妈妈", "附近居民", "体态调整人群"]),
+      ...extractKeywordMatches(input.merchant.brandSummary ?? "", [
+        "白领女性",
+        "产后妈妈",
+        "附近居民",
+        "体态调整人群",
+      ]),
+    ],
+    maxItems: strategyAssetListLimits.targetAudiences,
+  });
+  const sellingPoints = mergeEditedStrategyList({
+    edited: assetEdit?.coreSellingPoints,
+    fallback: [
+      ...(input.previousSnapshot?.coreSellingPoints ?? []),
+      ...input.merchant.serviceItems.slice(0, 3),
+      ...extractKeywordMatches(knowledgeText, [
+        "真实案例",
+        "专业评估",
+        "体验课",
+        "私教跟进",
+        "到店转化",
+        "信任建立",
+      ]),
+      input.merchant.brandSummary ?? "",
+      input.merchant.regionSummary ?? "",
+    ],
+    maxItems: strategyAssetListLimits.coreSellingPoints,
+  });
+  const keyScenes = mergeEditedStrategyList({
+    edited: assetEdit?.keyScenes,
+    fallback: [
+      ...(input.previousSnapshot?.keyScenes ?? []),
+      ...extractKeywordMatches(mergedUserText, [
+        "下班后恢复",
+        "产后恢复",
+        "周末探店",
+        "首次体验课",
+        "体态调整",
+        "减脂塑形",
+        "门店到访前决策",
+      ]),
+      ...extractKeywordMatches(knowledgeText, ["首次体验课", "门店到访前决策", "成交异议"]),
+      input.merchant.regionSummary ?? "",
+    ],
+    maxItems: strategyAssetListLimits.keyScenes,
+  });
   const strategyTags = uniqueStrings([
     "专业人设",
     "场景种草",
@@ -917,8 +1401,12 @@ function buildStrategySnapshot(input: {
     knowledgeText ? "知识库命中" : "",
     mergedUserText.includes("视频") ? "视频优先" : "",
   ]).slice(0, 4);
-  const positioning = `${input.merchant.name} 围绕 ${serviceAnchor} 提供更适合 ${audiences[0]} 的本地化服务，内容上优先突出 ${sellingPoints[0] || serviceAnchor}。`;
-  const currentSuggestion = `建议先用「${strategyTags[0]} + ${strategyTags[1]}」做 3 条信任建立内容，再用 ${strategyTags.at(-1) ?? "到店转化"} 把咨询引到体验或到店动作。`;
+  const positioning =
+    assetEdit?.positioning ??
+    `${input.merchant.name} 围绕 ${serviceAnchor} 提供更适合 ${audiences[0] || "高意向用户"} 的本地化服务，内容上优先突出 ${sellingPoints[0] || serviceAnchor}。`;
+  const currentSuggestion =
+    assetEdit?.currentSuggestion ??
+    `建议先用「${strategyTags[0]} + ${strategyTags[1]}」做 3 条信任建立内容，再用 ${strategyTags.at(-1) ?? "到店转化"} 把咨询引到体验或到店动作。`;
 
   return {
     positioning,
@@ -940,10 +1428,400 @@ function buildStrategySnapshot(input: {
     },
     videoBrief: {
       workingTitle: `${input.merchant.name} 门店场景视频脚本`,
-      hook: `先用 3 秒钩子把 ${audiences[0]} 的典型痛点说透`,
+      hook: `先用 3 秒钩子把 ${audiences[0] || "高意向用户"} 的典型痛点说透`,
       outcome: "输出一条能直接进入视频工作台的门店信任感脚本",
     },
   };
+}
+
+async function resolveStrategyAssetEditorPatch(input: {
+  state: ConsultationAgentLoopState;
+  fallback: StrategyAssetEditorPatch;
+}): Promise<StrategyAssetEditorPatch> {
+  if (!getAiRuntimeApiKey()) {
+    return input.fallback;
+  }
+
+  try {
+    const messages = buildStrategyAssetEditorMessages(input.state);
+    const response = await createStrategyAssetEditorCompletion({
+      state: input.state,
+      messages,
+    });
+    const toolCall = findStrategyAssetEditorToolCall(response.toolCalls);
+
+    if (!toolCall) {
+      const retryResponse = await createStrategyAssetEditorCompletion({
+        state: input.state,
+        model: response.model,
+        messages: [
+          ...messages,
+          {
+            role: "assistant",
+            content: response.content || "",
+          },
+          {
+            role: "user",
+            content:
+              "你上一次没有调用 update_strategy_asset_editor。请立刻调用该工具；如果本轮没有明确编辑，changedFields 传空数组。",
+          },
+        ],
+      });
+      const retryToolCall = findStrategyAssetEditorToolCall(retryResponse.toolCalls);
+
+      if (!retryToolCall) {
+        return input.fallback;
+      }
+
+      const retryParsed = parseStrategyAssetEditorToolArgs(
+        retryToolCall.function.arguments,
+      );
+
+      return retryParsed.ok ? retryParsed.patch : input.fallback;
+    }
+
+    const parsed = parseStrategyAssetEditorToolArgs(toolCall.function.arguments);
+
+    if (parsed.ok) {
+      return parsed.patch;
+    }
+
+    const retryResponse = await createStrategyAssetEditorCompletion({
+      state: input.state,
+      model: response.model,
+      messages: [
+        ...messages,
+        {
+          role: "assistant",
+          content: response.content || "",
+          toolCalls: [toolCall],
+        },
+        {
+          role: "tool",
+          toolCallId: toolCall.id,
+          content: buildStrategyAssetEditorValidationToolResult(parsed.error),
+        },
+      ],
+    });
+    const retryToolCall = findStrategyAssetEditorToolCall(retryResponse.toolCalls);
+
+    if (!retryToolCall) {
+      return input.fallback;
+    }
+
+    const retryParsed = parseStrategyAssetEditorToolArgs(
+      retryToolCall.function.arguments,
+    );
+
+    return retryParsed.ok ? retryParsed.patch : input.fallback;
+  } catch {
+    return input.fallback;
+  }
+}
+
+function buildStrategyAssetEditorMessages(
+  state: ConsultationAgentLoopState,
+): ChatMessage[] {
+  return [
+    {
+      role: "system",
+      content: [
+        "你是咨询 Agent 的策略资产编辑器，只负责把右侧策略资产作为一个完整文档改写。",
+        "你必须调用 update_strategy_asset_editor 工具，并传入完整 strategyAsset 文档，不要只传局部字段。",
+        "strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion 五个字段。",
+        "如果用户要求追加、补充或把刚才提到的内容放进策略资产，你要基于 currentStrategySnapshot 合并，并结合 recentConversation 理解指代。",
+        "如果用户说'这5个'、'这些'、'刚才你说的'，由你根据 recentConversation 判断具体条目；runtime 不会替你解析中文指代。",
+        "只写干净业务内容，不要包含聊天口语、编辑动作、Markdown 标记、引号或额外解释。",
+        "不要凭空补默认门店客群、到店人群或与当前商家不匹配的旧模板。",
+        "如果用户只是追问、聊天或信息不足，strategyAsset 原样返回 currentStrategySnapshot，changedFields 传空数组。",
+        "字段说明：positioning=我们是谁；targetAudiences=服务谁；keyScenes=核心场景；coreSellingPoints=核心卖点；currentSuggestion=当前建议。",
+      ].join("\n"),
+    },
+    {
+      role: "user",
+      content: JSON.stringify({
+        userMessage: state.userContent,
+        recentConversation: state.conversationMessages.slice(-8),
+        recentUserMessages: state.userMessages.slice(-4),
+        currentStrategySnapshot: {
+          positioning: state.session.strategySnapshot.positioning,
+          coreSellingPoints: state.session.strategySnapshot.coreSellingPoints,
+          targetAudiences: state.session.strategySnapshot.targetAudiences,
+          keyScenes: state.session.strategySnapshot.keyScenes,
+          currentSuggestion: state.session.strategySnapshot.currentSuggestion,
+        },
+        limits: strategyAssetListLimits,
+      }),
+    },
+  ];
+}
+
+async function createStrategyAssetEditorCompletion(input: {
+  state: ConsultationAgentLoopState;
+  messages: ChatMessage[];
+  model?: string;
+}) {
+  return createChatCompletion({
+    runtime: input.state.llmRuntime,
+    model: input.model || input.state.consultationAgent.model,
+    messages: input.messages,
+    tools: [strategyAssetEditorTool],
+    toolChoice: {
+      type: "function",
+      function: {
+        name: "update_strategy_asset_editor",
+      },
+    },
+  });
+}
+
+function findStrategyAssetEditorToolCall(toolCalls: AiRuntimeToolCall[]) {
+  return toolCalls.find(
+    (call) => call.function.name === "update_strategy_asset_editor",
+  );
+}
+
+function buildStrategyAssetEditorValidationToolResult(error: string) {
+  return JSON.stringify({
+    ok: false,
+    errorType: "tool_arguments_validation_failed",
+    error,
+    retryInstruction:
+      "请重新调用 update_strategy_asset_editor。arguments 必须包含完整 strategyAsset 文档，并符合工具 schema；changedFields 只能标记本轮实际改动字段；字段值只能写干净业务正文，不要包含聊天口语、编辑动作、Markdown、引号或额外解释。",
+  });
+}
+
+const strategyAssetEditorTool: AiRuntimeTool = {
+  type: "function",
+  function: {
+    name: "update_strategy_asset_editor",
+    description:
+      "编辑右侧策略资产。传入完整 strategyAsset 文档；不要把聊天口语、Markdown 或编辑指令写入字段。",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        changedFields: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: strategyAssetFieldKeys,
+          },
+          description: "本轮明确要更新的字段。没有明确编辑时传空数组。",
+        },
+        strategyAsset: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            positioning: {
+              type: "string",
+              description: "产品/品牌定位的干净正文。",
+            },
+            coreSellingPoints: {
+              type: "array",
+              items: { type: "string" },
+              maxItems: strategyAssetListLimits.coreSellingPoints,
+              description: "完整核心卖点列表。",
+            },
+            targetAudiences: {
+              type: "array",
+              items: { type: "string" },
+              maxItems: strategyAssetListLimits.targetAudiences,
+              description: "完整目标客群列表。",
+            },
+            keyScenes: {
+              type: "array",
+              items: { type: "string" },
+              maxItems: strategyAssetListLimits.keyScenes,
+              description: "完整核心场景列表。",
+            },
+            currentSuggestion: {
+              type: "string",
+              description: "当前建议正文。",
+            },
+          },
+          required: [
+            "positioning",
+            "coreSellingPoints",
+            "targetAudiences",
+            "keyScenes",
+            "currentSuggestion",
+          ],
+        },
+        changeSummary: {
+          type: "string",
+          description: "本轮修改摘要，给 runtime 记录用，不展示给商家。",
+        },
+      },
+      required: ["changedFields", "strategyAsset"],
+    },
+  },
+};
+
+function parseStrategyAssetEditorToolArgs(
+  value: string,
+): StrategyAssetEditorToolParseResult {
+  const parsed = parseJsonObject(value);
+
+  if (!parsed) {
+    return {
+      ok: false,
+      error: "工具 arguments 必须是合法的 JSON object。",
+    };
+  }
+
+  const validated = strategyAssetEditorToolArgsSchema.safeParse(parsed);
+
+  if (!validated.success) {
+    return {
+      ok: false,
+      error: formatStrategyAssetEditorSchemaError(validated.error),
+    };
+  }
+
+  return normalizeStrategyAssetEditorToolArgs(validated.data);
+}
+
+function normalizeStrategyAssetEditorToolArgs(
+  args: StrategyAssetEditorToolArgs,
+): StrategyAssetEditorToolParseResult {
+  const changedFields = uniqueFieldKeys(args.changedFields);
+  const patch = buildStrategyAssetSnapshotPatch(args.strategyAsset, changedFields);
+  const invalidFields: StrategyAssetFieldKey[] = [];
+
+  if (!patch.positioning) {
+    invalidFields.push("positioning");
+  }
+
+  if (!patch.currentSuggestion) {
+    invalidFields.push("currentSuggestion");
+  }
+
+  if (invalidFields.length > 0) {
+    return {
+      ok: false,
+      error: `strategyAsset.${invalidFields.join("、")} 缺少可保存的非空值。`,
+    };
+  }
+
+  return {
+    ok: true,
+    patch,
+  };
+}
+
+function formatStrategyAssetEditorSchemaError(error: z.ZodError) {
+  const details = error.issues
+    .map((issue) => {
+      const path = issue.path.join(".") || "arguments";
+      return `${path}: ${issue.message}`;
+    })
+    .join("；");
+
+  return details || "工具 arguments 不符合 update_strategy_asset_editor schema。";
+}
+
+function buildStrategyAssetSnapshotPatch(
+  strategyAsset: Pick<
+    StrategySnapshotDto,
+    "positioning" | "coreSellingPoints" | "targetAudiences" | "keyScenes" | "currentSuggestion"
+  >,
+  changedFields: StrategyAssetFieldKey[] = [],
+): StrategyAssetEditorPatch {
+  return {
+    positioning: cleanModelStrategyText(strategyAsset.positioning) ?? undefined,
+    coreSellingPoints: cleanModelStrategyList(strategyAsset.coreSellingPoints),
+    targetAudiences: cleanModelStrategyList(strategyAsset.targetAudiences),
+    keyScenes: cleanModelStrategyList(strategyAsset.keyScenes),
+    currentSuggestion: cleanModelStrategyText(strategyAsset.currentSuggestion) ?? undefined,
+    changedFields: uniqueFieldKeys(changedFields),
+  };
+}
+
+function mergeEditedStrategyList(input: {
+  edited?: string[];
+  fallback: string[];
+  maxItems: number;
+}) {
+  const source = input.edited !== undefined ? input.edited : input.fallback;
+
+  return uniqueStrings(source).slice(0, input.maxItems);
+}
+
+function cleanModelStrategyList(value: unknown) {
+  return uniqueStrings(
+    toStringArrayValue(value)
+      .map(cleanModelStrategyText)
+      .filter((item): item is string => Boolean(item)),
+  ).slice(0, 10);
+}
+
+function cleanModelStrategyText(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.replace(/\s+/g, " ").trim();
+
+  return normalized ? clipText(normalized, 180) : null;
+}
+
+function summarizeStrategyAssetEdit(edit: StrategyAssetEditorPatch) {
+  const summaries = edit.changedFields
+    .map((field) => {
+      if (field === "targetAudiences" && edit.targetAudiences?.length) {
+        return `目标客群 -> ${edit.targetAudiences.join("、")}`;
+      }
+
+      if (field === "coreSellingPoints" && edit.coreSellingPoints?.length) {
+        return `核心卖点 -> ${edit.coreSellingPoints.join("、")}`;
+      }
+
+      if (field === "keyScenes" && edit.keyScenes?.length) {
+        return `关键场景 -> ${edit.keyScenes.join("、")}`;
+      }
+
+      if (field === "positioning" && edit.positioning) {
+        return `产品定位 -> ${clipText(edit.positioning, 48)}`;
+      }
+
+      if (field === "currentSuggestion" && edit.currentSuggestion) {
+        return `当前建议 -> ${clipText(edit.currentSuggestion, 48)}`;
+      }
+
+      return null;
+    })
+    .filter((summary): summary is string => Boolean(summary));
+
+  return summaries.join("；") || "策略资产";
+}
+
+function toStrategyAssetEditorPayload(edit: StrategyAssetEditorPatch) {
+  return {
+    mode: "strategy_asset_editor",
+    changedFields: edit.changedFields,
+    positioning: edit.positioning ?? null,
+    coreSellingPoints: edit.coreSellingPoints ?? null,
+    targetAudiences: edit.targetAudiences ?? null,
+    keyScenes: edit.keyScenes ?? null,
+    currentSuggestion: edit.currentSuggestion ?? null,
+  };
+}
+
+function uniqueFieldKeys(values: StrategyAssetFieldKey[]) {
+  const seen = new Set<StrategyAssetFieldKey>();
+  const result: StrategyAssetFieldKey[] = [];
+
+  for (const value of values) {
+    if (seen.has(value)) {
+      continue;
+    }
+
+    seen.add(value);
+    result.push(value);
+  }
+
+  return result;
 }
 
 function buildKnowledgeQuery(input: {
@@ -1085,4 +1963,34 @@ function uniqueStrings(values: string[]) {
   }
 
   return result;
+}
+
+function parseJsonObject(value: string) {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function toStringArrayValue(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  return typeof value === "string" ? [value] : [];
+}
+
+function clipText(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
 }

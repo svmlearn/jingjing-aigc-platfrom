@@ -39,12 +39,14 @@ import {
   writeVideoWorkbenchSnapshot,
 } from "@/lib/ui/video-workbench-state";
 import {
+  type DraftMediaUploadStage,
   type DraftMediaAsset,
   formatAssetSize,
   uploadDraftMediaFile,
 } from "@/lib/ui/video-workflow";
 
 type ApiErrorPayload = {
+  code?: string;
   message?: string;
   details?: {
     questions?: string[];
@@ -53,9 +55,20 @@ type ApiErrorPayload = {
   };
 };
 
+type VideoWorkbenchAgentResponse = {
+  assistantMessage?: string;
+  draftBundle?: ContentDraftBundleDto | null;
+  selectedVariant?: ContentDraftBundleDto["selectedVariant"] | null;
+  toolApplied?: boolean;
+  toolMode?: "create" | "revise" | null;
+  changeSummary?: string | null;
+  error?: ApiErrorPayload;
+};
+
 type SegmentUploadState = {
   status: "uploading" | "uploaded" | "failed";
   progressPct: number;
+  stage?: DraftMediaUploadStage;
   fileName?: string;
   asset?: DraftMediaAsset;
   error?: string;
@@ -199,16 +212,26 @@ export function VideoWorkbench({
 
       const loadedDraftBundle = data.draftBundle;
       const restored = readRouteContextFromDraftInputSnapshot(loadedDraftBundle.draft.inputSnapshot);
+      const routeVariant =
+        routeContext.variantId &&
+        loadedDraftBundle.variants.some((variant) => variant.id === routeContext.variantId)
+          ? routeContext.variantId
+          : null;
+      const fallbackVariantId =
+        loadedDraftBundle.selectedVariant?.id ??
+        loadedDraftBundle.draft.selectedVariantId ??
+        loadedDraftBundle.variants[0]?.id ??
+        null;
 
       setDraftBundle(loadedDraftBundle);
       setSelectedVariantId(
-        (current) =>
-          current ||
-          routeContext.variantId ||
-          loadedDraftBundle.selectedVariant?.id ||
-          loadedDraftBundle.draft.selectedVariantId ||
-          loadedDraftBundle.variants[0]?.id ||
-          null,
+        (current) => {
+          if (current && loadedDraftBundle.variants.some((variant) => variant.id === current)) {
+            return current;
+          }
+
+          return routeVariant ?? fallbackVariantId;
+        },
       );
       setGoal((current) => current || loadedDraftBundle.draft.rewriteGoal || "");
       if (restored.extraRequirement) {
@@ -218,11 +241,7 @@ export function VideoWorkbench({
         mergeRouteContext(current, {
           ...restored.routeContext,
           draftId: loadedDraftBundle.draft.id,
-          variantId:
-            current.variantId ??
-            loadedDraftBundle.selectedVariant?.id ??
-            loadedDraftBundle.draft.selectedVariantId ??
-            null,
+          variantId: routeVariant ?? fallbackVariantId,
         }),
       );
     } catch (requestError) {
@@ -234,28 +253,40 @@ export function VideoWorkbench({
     await loadDraftBundle(nextDraftId);
   });
 
-  async function generateScript(overrides?: {
-    goal?: string;
-    extraRequirement?: string;
-    fromChat?: boolean;
-  }) {
-    if (!routeContext.sessionId) {
-      setError(
-        videoChainTestMode
-          ? "请先创建链路测试脚本，再上传素材并启动 AI 剪辑。"
-          : "请先从咨询页进入视频工作台。",
+  async function sendWorkbenchAgentMessage(
+    userMessage: string,
+    options?: {
+      intent?: "chat" | "generate" | "revise";
+      goal?: string;
+      extraRequirement?: string;
+      conversationMessages?: VideoWorkbenchChatMessage[];
+    },
+  ) {
+    const nextGoal = options?.goal ?? goal;
+    const nextExtraRequirement = options?.extraRequirement ?? extraRequirement;
+    const requestIntent = options?.intent ?? "chat";
+    const requestDraftId = draftBundle?.draft.id ?? routeContext.draftId ?? null;
+    const selectedVariantBelongsToDraft =
+      Boolean(selectedVariant && requestDraftId && selectedVariant.draftId === requestDraftId);
+    const routeVariantBelongsToDraft =
+      Boolean(
+        routeContext.variantId &&
+        requestDraftId &&
+        draftBundle?.variants.some(
+          (variant) => variant.id === routeContext.variantId && variant.draftId === requestDraftId,
+        ),
       );
-      return;
-    }
-
-    const nextGoal = overrides?.goal ?? goal;
-    const nextExtraRequirement = overrides?.extraRequirement ?? extraRequirement;
+    const requestVariantId = selectedVariantBelongsToDraft
+      ? selectedVariant?.id ?? null
+      : routeVariantBelongsToDraft
+        ? routeContext.variantId
+        : null;
 
     setGenerating(true);
     setError(null);
 
     try {
-      const response = await fetch("/api/content/video-scripts", {
+      const response = await fetch("/api/content/video-workbench-agent", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -265,51 +296,89 @@ export function VideoWorkbench({
           source: routeContext.source,
           calendarItemId: routeContext.calendarItemId,
           goal: nextGoal,
-          extraRequirement: nextExtraRequirement,
+          userMessage,
+          messages: (options?.conversationMessages ?? messages).map((message) => ({
+            role: message.role === "agent" ? "assistant" : message.role,
+            content: message.content,
+          })),
+          intent: requestIntent,
+          contentVariantId: requestVariantId,
+          draftId: requestDraftId,
           materialId: referenceMaterial?.id ?? routeContext.materialId ?? null,
           materialReferenceId: routeContext.materialReferenceId ?? null,
           strategyTag: routeContext.strategyTag,
         }),
       });
-      const data = (await response.json()) as {
-        draftBundle?: ContentDraftBundleDto;
-        error?: ApiErrorPayload;
-      };
+      const data = (await response.json()) as VideoWorkbenchAgentResponse;
 
-      if (!response.ok || !data.draftBundle) {
-        throw new Error(formatApiError(data.error, "视频脚本生成失败"));
+      if (!response.ok || data.error) {
+        throw new Error(formatApiError(data.error, "脚本助手响应失败"));
       }
 
-      const generatedDraftBundle = data.draftBundle;
+      if (data.draftBundle) {
+        const nextDraftBundle = data.draftBundle;
 
-      setDraftBundle(generatedDraftBundle);
-      setSelectedVariantId(
-        generatedDraftBundle.selectedVariant?.id ?? generatedDraftBundle.variants[0]?.id ?? null,
-      );
-      setRouteContext((current) => ({
-        ...current,
-        draftId: generatedDraftBundle.draft.id,
-        variantId:
-          generatedDraftBundle.selectedVariant?.id ??
-          generatedDraftBundle.draft.selectedVariantId ??
-          generatedDraftBundle.variants[0]?.id ??
-          null,
-      }));
-      setSegmentUploads({});
-      setShowCanvas(true);
+        setDraftBundle(nextDraftBundle);
+        setSelectedVariantId(
+          nextDraftBundle.selectedVariant?.id ?? nextDraftBundle.variants[0]?.id ?? null,
+        );
+        setRouteContext((current) => ({
+          ...current,
+          draftId: nextDraftBundle.draft.id,
+          variantId:
+            nextDraftBundle.selectedVariant?.id ??
+            nextDraftBundle.draft.selectedVariantId ??
+            nextDraftBundle.variants[0]?.id ??
+            null,
+        }));
+        setSegmentUploads({});
+        setShowCanvas(true);
+      }
+
+      setExtraRequirement(nextExtraRequirement);
       setMessages((current) =>
         appendAgentMessage(
           current,
-          overrides?.fromChat
-            ? "收到，我已经把你的补充意见更新到右侧脚本画布。你可以继续让我调整镜头节奏、台词风格或结尾转化动作。"
-            : "脚本草案已经生成。你可以继续在对话里微调，也可以上传分段素材后启动 AI 一键剪辑。",
+          data.assistantMessage ??
+            (data.toolApplied
+              ? "已更新右侧脚本画布。"
+              : "我先记下这个方向。你确认要生成或修改脚本时，我会更新右侧脚本画布。"),
         ),
       );
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "视频脚本生成失败");
+      setError(requestError instanceof Error ? requestError.message : "脚本助手响应失败");
     } finally {
       setGenerating(false);
     }
+  }
+
+  async function generateScript(overrides?: {
+    goal?: string;
+    extraRequirement?: string;
+  }) {
+    if (videoChainTestMode && !routeContext.sessionId) {
+      setError("请先创建链路测试脚本，再上传素材并启动 AI 剪辑。");
+      return;
+    }
+
+    const nextGoal = overrides?.goal ?? goal;
+    const nextExtraRequirement = overrides?.extraRequirement ?? extraRequirement;
+    const userMessage = selectedVariant
+      ? [
+          "请基于右侧当前脚本覆盖修改一版。",
+          nextExtraRequirement ? `补充要求：${nextExtraRequirement}` : null,
+        ].filter(Boolean).join("\n")
+      : [
+          "请根据当前上下文生成一版视频脚本。",
+          nextGoal ? `目标方向：${nextGoal}` : null,
+          nextExtraRequirement ? `补充要求：${nextExtraRequirement}` : null,
+        ].filter(Boolean).join("\n");
+
+    await sendWorkbenchAgentMessage(userMessage, {
+      intent: selectedVariant ? "revise" : "generate",
+      goal: nextGoal,
+      extraRequirement: nextExtraRequirement,
+    });
   }
 
   async function approveSelectedScript() {
@@ -334,7 +403,7 @@ export function VideoWorkbench({
         throw new Error(data.error?.message ?? "脚本确认失败");
       }
 
-      const approvedVariant = data.variant;
+      const approvedVariant = mergeVariantWithProductionScenes(data.variant, selectedVariant);
       setDraftBundle((current) => {
         if (!current) {
           return current;
@@ -498,37 +567,49 @@ export function VideoWorkbench({
       [index]: {
         status: "uploading",
         progressPct: 0,
+        stage: "preparing",
         fileName: file.name,
       },
     }));
+
+    let uploadSettled = false;
 
     try {
       const asset = await uploadDraftMediaFile({
         draftId: draftBundle.draft.id,
         file,
         sortOrder: index,
-        onProgress(progress) {
+        onStageChange(stage) {
           setSegmentUploads((current) => ({
             ...current,
-            [index]: {
-              ...(current[index] ?? {
-                status: "uploading",
-                progressPct: 0,
-                fileName: file.name,
-              }),
-              status: "uploading",
+            [index]: updateUploadInProgressState(current[index], file.name, {
+              stage,
+              progressPct: stage === "finalizing" ? 100 : current[index]?.progressPct ?? 0,
+            }),
+          }));
+        },
+        onProgress(progress) {
+          if (uploadSettled) {
+            return;
+          }
+
+          setSegmentUploads((current) => ({
+            ...current,
+            [index]: updateUploadInProgressState(current[index], file.name, {
+              stage: "uploading",
               progressPct: normalizeUploadPercent(progress.percent),
-              fileName: file.name,
-            },
+            }),
           }));
         },
       });
 
+      uploadSettled = true;
       setSegmentUploads((current) => ({
         ...current,
         [index]: {
           status: "uploaded",
           progressPct: 100,
+          stage: "finalizing",
           fileName: file.name,
           asset,
         },
@@ -540,12 +621,14 @@ export function VideoWorkbench({
         ),
       );
     } catch (uploadError) {
+      uploadSettled = true;
       const message = uploadError instanceof Error ? uploadError.message : "镜头素材上传失败";
       setSegmentUploads((current) => ({
         ...current,
         [index]: {
           status: "failed",
           progressPct: 0,
+          stage: current[index]?.stage,
           fileName: file.name,
           error: message,
         },
@@ -617,15 +700,11 @@ export function VideoWorkbench({
       return;
     }
 
+    const previousMessages = messages;
     const nextExtraRequirement = [extraRequirement, nextInput].filter(Boolean).join("\n");
     setMessages((current) => [...current, { role: "user", content: nextInput }]);
     setExtraRequirement(nextExtraRequirement);
     setInput("");
-
-    if (selectedVariant && draftBundle && routeContext.sessionId) {
-      void reviseScriptFromChat(nextInput, nextExtraRequirement);
-      return;
-    }
 
     if (selectedVariant && draftBundle && videoChainTestMode) {
       void reviseProductionFromTestMode(nextInput, nextExtraRequirement);
@@ -639,9 +718,10 @@ export function VideoWorkbench({
       return;
     }
 
-    void generateScript({
+    void sendWorkbenchAgentMessage(nextInput, {
+      intent: "chat",
       extraRequirement: nextExtraRequirement,
-      fromChat: true,
+      conversationMessages: previousMessages,
     });
   }
 
@@ -662,99 +742,6 @@ export function VideoWorkbench({
       appendAgentMessage(current, "收到，这条测试指令会作为制作修订创建新任务，用来验证修改版本回写。"),
     );
     await createVideoJob(job.id, revisionInstruction);
-  }
-
-  async function reviseScriptFromChat(revisionInstruction: string, nextExtraRequirement: string) {
-    if (!selectedVariant || !routeContext.sessionId) {
-      return;
-    }
-
-    setGenerating(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/content/video-scripts/revisions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contentVariantId: selectedVariant.id,
-          sessionId: routeContext.sessionId,
-          revisionInstruction,
-          materialId: referenceMaterial?.id ?? routeContext.materialId ?? null,
-          materialReferenceId: routeContext.materialReferenceId ?? null,
-          strategyTag: routeContext.strategyTag,
-        }),
-      });
-      const data = (await response.json()) as {
-        revisionIntent?: "semantic" | "production";
-        variant?: NonNullable<ContentDraftBundleDto["selectedVariant"]>;
-        contentVariantId?: string;
-        instructionText?: string;
-        error?: ApiErrorPayload;
-      };
-
-      if (!response.ok || data.error) {
-        throw new Error(formatApiError(data.error, "脚本修订失败"));
-      }
-
-      if (data.revisionIntent === "production" && data.instructionText) {
-        if (!job?.id || job.status !== "succeeded") {
-          const message = "制作修订需要先有一版已完成的视频任务。请先创建并完成 AI 剪辑任务，再提出字幕、节奏、封面等制作修订。";
-          setError(message);
-          setMessages((current) => appendAgentMessage(current, message));
-          return;
-        }
-
-        setMessages((current) =>
-          appendAgentMessage(
-            current,
-            "这属于制作修订，我会基于当前已完成视频创建新的制作任务，并保留已确认脚本语义。",
-          ),
-        );
-        await createVideoJob(job.id, data.instructionText);
-        return;
-      }
-
-      if (data.revisionIntent !== "semantic" || !data.variant) {
-        throw new Error("脚本修订失败");
-      }
-
-      const revisedVariant = data.variant;
-      setDraftBundle((current) => {
-        if (!current) {
-          return current;
-        }
-
-        return {
-          ...current,
-          draft: {
-            ...current.draft,
-            selectedVariantId: revisedVariant.id,
-          },
-          variants: [...current.variants, revisedVariant],
-          selectedVariant: revisedVariant,
-        };
-      });
-      setSelectedVariantId(revisedVariant.id);
-      setRouteContext((current) => ({
-        ...current,
-        variantId: revisedVariant.id,
-      }));
-      setShowCanvas(true);
-      setMessages((current) =>
-        appendAgentMessage(
-          current,
-          "收到，这属于脚本语义修订。我已经生成一个新脚本版本，旧版本保留，右侧已切到新版本。",
-        ),
-      );
-      setExtraRequirement(nextExtraRequirement);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "脚本修订失败");
-    } finally {
-      setGenerating(false);
-    }
   }
 
   function handleSend(event: FormEvent<HTMLFormElement>) {
@@ -1090,7 +1077,7 @@ export function VideoWorkbench({
                 </div>
                 <div className="flex items-center gap-2 rounded-2xl rounded-tl-none border border-white/10 bg-[#0d0d0d] p-4 text-sm italic text-white/45">
                   <RefreshCw className="h-4 w-4 animate-spin text-amber-500" />
-                  正在更新右侧脚本画布...
+                  正在和脚本助手沟通...
                 </div>
               </div>
             ) : null}
@@ -1165,30 +1152,6 @@ export function VideoWorkbench({
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
-                {draftBundle && draftBundle.variants.length > 1 ? (
-                  <div className="mb-5 flex flex-wrap gap-2">
-                    {draftBundle.variants.map((variant) => {
-                      const isSelected = variant.id === selectedVariant?.id;
-                      const isApproved = variant.reviewStatus === "approved";
-
-                      return (
-                        <button
-                          key={variant.id}
-                          type="button"
-                          onClick={() => setSelectedVariantId(variant.id)}
-                          className={
-                            isSelected
-                              ? "rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-2 text-xs text-amber-300"
-                              : "rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/55 transition-colors hover:bg-white/10 hover:text-white"
-                          }
-                        >
-                          候选 {variant.versionNo}
-                          {isApproved ? " · 已确认" : ""}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
                 {selectedVariant ? (
                   <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#080808]">
                     <div className="grid grid-cols-12 border-b border-white/10 bg-[#050505] text-[10px] uppercase tracking-[0.2em] text-white/35">
@@ -1377,7 +1340,7 @@ function ScriptSegmentRow({
           <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-2 text-amber-300">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-[10px] uppercase tracking-[0.16em]">
-              {uploadState.progressPct}%
+              {getSegmentUploadStageLabel(uploadState)}
             </span>
           </div>
         ) : (
@@ -1391,7 +1354,7 @@ function ScriptSegmentRow({
             <input
               type="file"
               accept="image/*,video/*"
-              className="sr-only"
+              className="hidden"
               onChange={(event) => {
                 const file = event.currentTarget.files?.[0];
                 event.currentTarget.value = "";
@@ -1454,7 +1417,8 @@ function parseScriptTextToScenes(scriptText: string): VideoScriptSceneDto[] {
     return [];
   }
 
-  const sceneBlocks = text
+  const sceneText = stripScriptPreamble(text);
+  const sceneBlocks = sceneText
     .split(/(?=^Scene\s+\d+\s*\|)|(?=^镜头\s*\d+[：:])/gim)
     .map((block) => block.trim())
     .filter(Boolean);
@@ -1463,7 +1427,7 @@ function parseScriptTextToScenes(scriptText: string): VideoScriptSceneDto[] {
     return sceneBlocks.map((block, index) => parseSceneBlock(block, index));
   }
 
-  const taggedBlocks = text
+  const taggedBlocks = sceneText
     .split(/(?=【镜头\s*\d*】)|(?=镜头\s*\d+[：:])/g)
     .map((block) => block.trim())
     .filter(Boolean);
@@ -1473,6 +1437,42 @@ function parseScriptTextToScenes(scriptText: string): VideoScriptSceneDto[] {
   }
 
   return [];
+}
+
+function mergeVariantWithProductionScenes(
+  approvedVariant: NonNullable<ContentDraftBundleDto["selectedVariant"]>,
+  currentVariant: NonNullable<ContentDraftBundleDto["selectedVariant"]>,
+) {
+  const approvedScenes = approvedVariant.productionScenes ?? [];
+
+  return {
+    ...currentVariant,
+    ...approvedVariant,
+    productionScenes: approvedScenes.length > 0 ? approvedScenes : currentVariant.productionScenes ?? [],
+  };
+}
+
+function stripScriptPreamble(text: string) {
+  const firstSceneIndex = findFirstSceneMarkerIndex(text);
+
+  if (firstSceneIndex < 0) {
+    return text;
+  }
+
+  return text.slice(firstSceneIndex).trim();
+}
+
+function findFirstSceneMarkerIndex(text: string) {
+  const markers = [
+    /^Scene\s+\d+\s*\|/im,
+    /^镜头\s*\d+[：:]/im,
+    /^【镜头\s*\d*】/im,
+  ];
+  const indexes = markers
+    .map((marker) => text.search(marker))
+    .filter((index) => index >= 0);
+
+  return indexes.length > 0 ? Math.min(...indexes) : -1;
 }
 
 function parseSceneBlock(block: string, index: number): VideoScriptSceneDto {
@@ -1577,6 +1577,14 @@ function buildPlaceholderScenes(goal: string, strategyTag?: string | null): Vide
 }
 
 function formatApiError(error: ApiErrorPayload | undefined, fallback: string) {
+  if (error?.code === "CONTENT_VARIANT_NOT_FOUND") {
+    return "当前脚本版本已刷新或失效，请刷新页面后重试，或点击重新生成脚本。";
+  }
+
+  if (error?.code === "VIDEO_SCRIPT_REVISION_TARGET_REQUIRED") {
+    return "当前右侧脚本还没有准备好可修改版本，请先重新生成脚本。";
+  }
+
   const message = error?.message ?? fallback;
   const questions = error?.details?.questions;
 
@@ -1585,6 +1593,42 @@ function formatApiError(error: ApiErrorPayload | undefined, fallback: string) {
   }
 
   return `${message}\n${questions.map((question) => `· ${question}`).join("\n")}`;
+}
+
+function getSegmentUploadStageLabel(uploadState: SegmentUploadState) {
+  if (uploadState.stage === "preparing") {
+    return "领凭证";
+  }
+
+  if (uploadState.stage === "finalizing") {
+    return "登记素材";
+  }
+
+  return `${uploadState.progressPct}%`;
+}
+
+function updateUploadInProgressState(
+  current: SegmentUploadState | undefined,
+  fileName: string,
+  patch: {
+    stage?: DraftMediaUploadStage;
+    progressPct?: number;
+  },
+): SegmentUploadState {
+  if (current?.status && current.status !== "uploading") {
+    return current;
+  }
+
+  return {
+    ...(current ?? {
+      status: "uploading",
+      progressPct: 0,
+      fileName,
+    }),
+    status: "uploading",
+    fileName,
+    ...patch,
+  };
 }
 
 function normalizeUploadPercent(value: number) {

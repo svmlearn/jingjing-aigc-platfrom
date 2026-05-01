@@ -1,13 +1,17 @@
 import "server-only";
 
-import type { ContentCalendarItemDto } from "@/contracts/consultation";
-import type { ContentDraftBundleDto } from "@/contracts/draft";
+import type {
+  ContentCalendarItemDto,
+  ConsultationSessionDetailDto,
+} from "@/contracts/consultation";
+import type { ContentDraftBundleDto, ContentVariantDto } from "@/contracts/draft";
 import type {
   MaterialLibraryItemDto,
   MaterialWorkbenchReferenceDto,
   MaterialWorkbenchTarget,
 } from "@/contracts/material";
 import { getConsultationSessionDetail } from "@/lib/db/consultation-repository";
+import { getMerchantStrategyAsset } from "@/lib/db/merchant-strategy-asset-repository";
 import {
   appendContentDraftRevisionTrace,
   appendContentVariantToDraft,
@@ -16,6 +20,7 @@ import {
   createManualSourceItem,
   getDraftBundleByMerchant,
   listDraftBundlesByMerchant,
+  updateContentVariantScript,
 } from "@/lib/db/content-draft-repository";
 import {
   consumeMaterialWorkbenchReference,
@@ -31,23 +36,19 @@ import {
   getAiRuntimeApiKey,
 } from "@/server/api/ai-runtime";
 import { ApiError } from "@/server/api/errors";
-import { resolveScriptProductionRuntime } from "@/server/api/script-production-runtime";
 import {
-  SCRIPT_PRODUCTION_MODEL_NOT_CONFIGURED_MESSAGE,
-  SCRIPT_PRODUCTION_MODEL_OUTPUT_INVALID_MESSAGE,
-  SCRIPT_PRODUCTION_MODEL_UNAVAILABLE_MESSAGE,
-  SCRIPT_PRODUCTION_TOOL_FAILED_MESSAGE,
-  SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION,
-  buildScriptProductionAgentMessages,
   classifyVideoScriptRevisionIntent,
-  isScriptProductionModelConfigured,
-  parseScriptProductionAgentResponse,
   validateScriptProductionBrief,
   type ScriptProductionBrief,
-  type ScriptProductionVersion,
 } from "@/server/api/video-script-production-agent";
 import { assertVideoScriptVariantAccess } from "@/lib/db/video-edit-job-repository";
-import { buildVideoScriptContext } from "@/server/api/video-growth-context";
+import { buildVideoScriptContext, type VideoScriptScene } from "@/server/api/video-growth-context";
+import {
+  formatSetVideoScriptForStorage,
+  runVideoWorkbenchAgentRuntime,
+  setVideoScriptScenesToVideoScenes,
+  type VideoWorkbenchAgentConversationMessage,
+} from "@/server/api/video-workbench-agent-runtime";
 import {
   ARTICLE_PROMPT_VERSION,
   ArticlePromptParseError,
@@ -62,10 +63,28 @@ import {
 type GenerationMode = "create" | "rewrite";
 type GenerationSource = "consultation_calendar" | "material_center" | "manual";
 type WorkbenchKind = "article" | "video";
+type ContentVariantAccessContext = Awaited<ReturnType<typeof assertContentVariantAccess>>;
 type SelectedCalendarItemSnapshot = ContentCalendarItemDto & {
   targetPlatform: "xiaohongshu" | "douyin";
   contentGoal: string | null;
 };
+
+async function getConsultationSessionWithMerchantStrategy(input: {
+  merchantId: string;
+  sessionId: string;
+}): Promise<ConsultationSessionDetailDto> {
+  const [session, merchantStrategyAsset] = await Promise.all([
+    getConsultationSessionDetail(input),
+    getMerchantStrategyAsset(input.merchantId),
+  ]);
+
+  return merchantStrategyAsset
+    ? {
+        ...session,
+        strategySnapshot: merchantStrategyAsset,
+      }
+    : session;
+}
 
 export async function generateArticleDraftForUser(input: {
   userId: string;
@@ -81,7 +100,7 @@ export async function generateArticleDraftForUser(input: {
   strategyTag?: string | null;
 }): Promise<ContentDraftBundleDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const session = await getConsultationSessionDetail({
+  const session = await getConsultationSessionWithMerchantStrategy({
     merchantId: merchant.id,
     sessionId: input.sessionId,
   });
@@ -318,42 +337,78 @@ export async function reviseArticleDraftForUser(input: {
   };
 }
 
-export async function generateVideoScriptForUser(input: {
+export async function runVideoWorkbenchScriptAgentForUser(input: {
   userId: string;
-  sessionId: string;
+  sessionId?: string | null;
   goal?: string | null;
-  extraRequirement?: string | null;
+  userMessage: string;
+  messages?: Array<{ role: "user" | "assistant" | "agent"; content: string }>;
+  intent?: "chat" | "generate" | "revise" | null;
+  contentVariantId?: string | null;
+  draftId?: string | null;
   materialId?: string | null;
   materialReferenceId?: string | null;
   source?: GenerationSource | null;
   calendarItemId?: string | null;
   strategyTag?: string | null;
-}): Promise<ContentDraftBundleDto> {
+}): Promise<{
+  assistantMessage: string;
+  draftBundle: ContentDraftBundleDto | null;
+  selectedVariant: ContentDraftBundleDto["selectedVariant"] | null;
+  toolApplied: boolean;
+  toolMode: "create" | "revise" | null;
+  changeSummary: string | null;
+  trace: Record<string, unknown>;
+}> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const session = await getConsultationSessionDetail({
+  const resolvedCurrentScript = await resolveVideoWorkbenchCurrentScript({
     merchantId: merchant.id,
-    sessionId: input.sessionId,
+    contentVariantId: input.contentVariantId,
+    draftId: input.draftId,
+    requireVariant: input.intent === "revise",
   });
+  let currentVariant = resolvedCurrentScript.currentVariant;
+  const currentSnapshot = toRecord(currentVariant?.inputSnapshot);
+  const resolvedSessionId =
+    input.sessionId ??
+    firstString(currentSnapshot.consultationSessionId, currentSnapshot.sessionId) ??
+    null;
   const materialContext = await resolveMaterialContext({
     merchantId: merchant.id,
     materialId: input.materialId,
     materialReferenceId: input.materialReferenceId,
     targetWorkbench: "video",
   });
+  const session = resolvedSessionId
+    ? await getConsultationSessionWithMerchantStrategy({
+        merchantId: merchant.id,
+        sessionId: resolvedSessionId,
+      })
+    : null;
+
+  if (!session) {
+    return {
+      assistantMessage:
+        "我还没有拿到已确认的咨询策略。请先从咨询台或内容日历进入视频工作台，再让我生成或修改脚本。",
+      draftBundle: null,
+      selectedVariant: null,
+      toolApplied: false,
+      toolMode: null,
+      changeSummary: null,
+      trace: {
+        mode: "context_required",
+      },
+    };
+  }
+
   const generationContext = resolveGenerationContext({
     source: input.source,
-    calendarItemId: input.calendarItemId,
-    strategyTag: input.strategyTag,
+    calendarItemId: input.calendarItemId ?? firstString(currentSnapshot.calendarItemId) ?? null,
+    strategyTag: input.strategyTag ?? firstString(currentSnapshot.strategyTag) ?? null,
     session,
     material: materialContext.material,
     targetWorkbench: "video",
   });
-  const workingTitle =
-    materialContext.material
-      ? `视频脚本：${materialContext.material.title}`
-      : generationContext.selectedCalendarItem?.title ??
-        session.strategySnapshot.videoBrief?.workingTitle ??
-        `${merchant.name} 的视频脚本`;
   const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
   const selectedVideoCalendarItem =
     generationContext.selectedCalendarItem?.contentType === "video"
@@ -369,7 +424,7 @@ export async function generateVideoScriptForUser(input: {
   const scriptContext = buildVideoScriptContext({
     merchant,
     session,
-    extraRequirement: input.extraRequirement ?? null,
+    extraRequirement: input.userMessage ?? null,
     materialContext: materialSnapshot,
     strategyTag: generationContext.strategyTag,
     selectedCalendarItem: selectedVideoCalendarItem,
@@ -379,8 +434,12 @@ export async function generateVideoScriptForUser(input: {
     merchant,
     session,
     materialSnapshot,
-    goal: input.goal ?? generationContext.selectedCalendarItem?.title ?? null,
-    extraRequirement: input.extraRequirement ?? null,
+    goal: firstString(
+      input.goal,
+      generationContext.selectedCalendarItem?.title,
+      generationContext.selectedCalendarItem?.summary,
+    ) ?? null,
+    extraRequirement: input.userMessage ?? null,
     strategyTag: generationContext.strategyTag,
   });
   const scriptEvidenceReferences = await collectScriptProductionEvidence({
@@ -393,103 +452,501 @@ export async function generateVideoScriptForUser(input: {
     evidenceReferences: scriptEvidenceReferences,
   };
   const briefValidation = validateScriptProductionBrief(scriptProductionBrief);
+  const forceToolMode =
+    input.intent === "generate"
+      ? currentVariant?.scriptText?.trim()
+        ? "revise"
+        : "create"
+      : input.intent === "revise"
+        ? "revise"
+        : null;
 
-  if (!briefValidation.ready) {
+  if (forceToolMode && !briefValidation.ready) {
+    return {
+      assistantMessage: [
+        "当前咨询策略还不足以生成正式视频脚本，我需要先补齐这些信息：",
+        ...briefValidation.questions.map((question) => `· ${question}`),
+      ].join("\n"),
+      draftBundle: null,
+      selectedVariant: currentVariant
+        ? {
+            id: currentVariant.contentVariantId,
+            draftId: currentVariant.draftId,
+            platform: "douyin",
+            variantType: "video_script",
+            versionNo: 1,
+            title: currentVariant.title,
+            scriptText: currentVariant.scriptText,
+            hashtags: currentVariant.hashtags ?? [],
+            ctaText: currentVariant.ctaText,
+            productionScenes: [],
+            reviewStatus: currentVariant.reviewStatus,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+        : null,
+      toolApplied: false,
+      toolMode: null,
+      changeSummary: null,
+      trace: {
+        mode: "brief_incomplete",
+        missingFields: briefValidation.missingFields,
+      },
+    };
+  }
+
+  const result = await runVideoWorkbenchAgentRuntime({
+    llmRuntime: platformSettings.llmRuntime,
+    agentSettings: platformSettings.scriptProductionAgent,
+    conversationMessages: normalizeWorkbenchAgentMessages(input.messages ?? []),
+    userMessage: input.userMessage,
+    forceToolMode,
+    contextPack: {
+      entryContext: {
+        source: generationContext.source,
+        sessionId: session.id,
+        calendarItemId: generationContext.calendarItemId,
+        selectedCalendarItem: generationContext.selectedCalendarItem,
+        strategyTag: generationContext.strategyTag,
+      },
+      confirmedStrategy: {
+        positioning: session.strategySnapshot.positioning,
+        targetAudiences: session.strategySnapshot.targetAudiences,
+        coreSellingPoints: session.strategySnapshot.coreSellingPoints,
+        keyScenes: session.strategySnapshot.keyScenes,
+        currentSuggestion: session.strategySnapshot.currentSuggestion,
+        videoBrief: session.strategySnapshot.videoBrief ?? null,
+        merchantProfile: buildMerchantSnapshot(merchant),
+        forbiddenExpressions: merchant.forbiddenWords,
+      },
+      workspaceState: {
+        draftId: currentVariant?.draftId ?? resolvedCurrentScript.draftBundle?.draft.id ?? input.draftId ?? null,
+        currentVariantId: currentVariant?.contentVariantId ?? null,
+        status: currentVariant?.scriptText?.trim()
+          ? currentVariant.reviewStatus === "approved"
+            ? "confirmed"
+            : "draft"
+          : "empty",
+        title: currentVariant?.title ?? null,
+        scriptText: currentVariant?.scriptText ?? null,
+        ctaText: currentVariant?.ctaText ?? null,
+      },
+      materialContext: materialSnapshot,
+      briefValidation,
+    },
+    setVideoScript: async (toolInput) => {
+      const scenes = setVideoScriptScenesToVideoScenes(toolInput);
+      const storedScriptText = formatSetVideoScriptForStorage(toolInput);
+
+      if (toolInput.mode === "revise") {
+        if (!currentVariant) {
+          throw new ApiError(
+            409,
+            "VIDEO_SCRIPT_REVISION_TARGET_REQUIRED",
+            "右侧还没有可修改的脚本，请先生成初版脚本。",
+          );
+        }
+
+        const revisionResult = await updateVideoScriptVariantWithDraftFallback({
+          merchantId: merchant.id,
+          draftId: currentVariant.draftId,
+          currentVariant,
+          title: toolInput.title,
+          scriptText: storedScriptText,
+          hashtags: buildHashtags(session),
+          ctaText: toolInput.ctaText,
+        });
+        const variant = revisionResult.variant;
+        currentVariant = revisionResult.currentVariant;
+
+        await appendContentDraftRevisionTrace({
+          merchantId: merchant.id,
+          draftId: currentVariant.draftId,
+          trace: {
+            promptMode: "video_workbench_agent",
+            sourceVariantId: revisionResult.sourceVariantId,
+            updatedVariantId: variant.id,
+            fallbackApplied: revisionResult.fallbackApplied,
+            changeSummary: toolInput.changeSummary,
+            userMessage: input.userMessage,
+            createdAt: new Date().toISOString(),
+          },
+        });
+
+        const bundle = await getDraftBundleByMerchant({
+          merchantId: merchant.id,
+          draftId: currentVariant.draftId,
+        });
+
+        return {
+          draftBundle: attachProductionScenesToVariant(bundle, variant.id, scenes),
+        };
+      }
+
+      const workingTitle =
+        toolInput.title ||
+        materialContext.material?.title ||
+        generationContext.selectedCalendarItem?.title ||
+        session.strategySnapshot.videoBrief?.workingTitle ||
+        `${merchant.name} 的视频脚本`;
+      const sourceItem = await createManualSourceItem({
+        merchantId: merchant.id,
+        platform: "douyin",
+        title: workingTitle,
+        scriptText: buildSourceText({
+          extraRequirement: input.userMessage,
+          material: materialContext.material,
+          fallback: session.summaryText ?? workingTitle,
+        }),
+        tracePayload: {
+          consultation_session_id: session.id,
+          generated_kind: "video_script",
+          generation_source: generationContext.source,
+          calendar_item_id: generationContext.calendarItemId,
+          selected_calendar_item: generationContext.selectedCalendarItem,
+          strategy_tag: generationContext.strategyTag,
+          material_item_id: materialContext.material?.id ?? null,
+          material_reference_id: materialContext.reference?.id ?? input.materialReferenceId ?? null,
+          script_agent_mode: "video_workbench_agent",
+        },
+      });
+      const draftBundle = await createDraftWithVariants({
+        merchantId: merchant.id,
+        sourceItemId: sourceItem.id,
+        workingTitle,
+        rewriteGoal: input.goal ?? session.strategySnapshot.videoBrief?.hook ?? "门店场景视频脚本",
+        inputSnapshot: {
+          source: generationContext.source,
+          consultationSessionId: session.id,
+          calendarItemId: generationContext.calendarItemId,
+          selectedCalendarItem: generationContext.selectedCalendarItem,
+          strategySnapshot: session.strategySnapshot,
+          merchantProfile: buildMerchantSnapshot(merchant),
+          strategyTag: generationContext.strategyTag,
+          extraRequirement: input.userMessage ?? null,
+          materialContext: materialSnapshot,
+          scriptContext,
+          scriptProductionBrief,
+          videoWorkbenchAgent: {
+            mode: "set_video_script",
+            changeSummary: toolInput.changeSummary,
+          },
+        },
+        commentInsights: {
+          audiences: session.strategySnapshot.targetAudiences,
+          scenes: session.strategySnapshot.keyScenes,
+          referenceMaterialTitle: materialContext.material?.title ?? null,
+          referenceMaterialEngagement: materialContext.material?.engagementLabel ?? null,
+          scriptChangeSummary: toolInput.changeSummary,
+          scriptAgentMode: "video_workbench_agent",
+        },
+        variants: [
+          {
+            platform: "douyin",
+            variantType: "video_script",
+            title: toolInput.title,
+            scriptText: storedScriptText,
+            productionScenes: scenes,
+            hashtags: buildHashtags(session),
+            ctaText: toolInput.ctaText,
+            reviewStatus: "review_pending",
+          },
+        ],
+      });
+      const draftBundleWithScenes = attachProductionScenesToVariant(
+        draftBundle,
+        draftBundle.selectedVariant?.id ?? draftBundle.variants[0]?.id ?? null,
+        scenes,
+      );
+
+      await consumeMaterialReferenceIfNeeded({
+        merchantId: merchant.id,
+        materialId: materialContext.material?.id ?? input.materialId ?? null,
+        materialReferenceId: input.materialReferenceId,
+        targetWorkbench: "video",
+        draftId: draftBundle.draft.id,
+      });
+
+      return {
+        draftBundle: draftBundleWithScenes,
+      };
+    },
+  });
+
+  return {
+    assistantMessage: result.assistantMessage,
+    draftBundle: result.draftBundle,
+    selectedVariant: result.draftBundle?.selectedVariant ?? null,
+    toolApplied: result.toolApplied,
+    toolMode: result.toolMode,
+    changeSummary: result.changeSummary,
+    trace: result.trace,
+  };
+}
+
+async function resolveVideoWorkbenchCurrentScript(input: {
+  merchantId: string;
+  contentVariantId?: string | null;
+  draftId?: string | null;
+  requireVariant?: boolean;
+}): Promise<{
+  currentVariant: ContentVariantAccessContext | null;
+  draftBundle: ContentDraftBundleDto | null;
+}> {
+  let draftBundle: ContentDraftBundleDto | null | undefined;
+  const loadDraftBundle = async () => {
+    if (draftBundle !== undefined) {
+      return draftBundle;
+    }
+
+    if (!input.draftId) {
+      draftBundle = null;
+      return draftBundle;
+    }
+
+    try {
+      draftBundle = await getDraftBundleByMerchant({
+        merchantId: input.merchantId,
+        draftId: input.draftId,
+      });
+    } catch (error) {
+      if (input.requireVariant || !isNotFoundApiError(error)) {
+        throw error;
+      }
+
+      draftBundle = null;
+    }
+
+    return draftBundle;
+  };
+
+  if (input.contentVariantId) {
+    try {
+      const currentVariant = await assertContentVariantAccess({
+        merchantId: input.merchantId,
+        contentVariantId: input.contentVariantId,
+        variantType: "video_script",
+      });
+
+      if (input.draftId && currentVariant.draftId !== input.draftId) {
+        const bundle = await loadDraftBundle();
+        const fallbackVariant = bundle ? getSelectedVideoScriptVariantContext(bundle) : null;
+
+        if (fallbackVariant) {
+          return {
+            currentVariant: fallbackVariant,
+            draftBundle: bundle,
+          };
+        }
+
+        if (input.requireVariant) {
+          throw new ApiError(
+            409,
+            "VIDEO_SCRIPT_REVISION_TARGET_REQUIRED",
+            "当前脚本版本已刷新或失效，请刷新页面后重试，或点击重新生成脚本。",
+          );
+        }
+
+        return {
+          currentVariant: null,
+          draftBundle: bundle,
+        };
+      }
+
+      return {
+        currentVariant,
+        draftBundle: draftBundle ?? null,
+      };
+    } catch (error) {
+      if (input.requireVariant && !input.draftId) {
+        throw error;
+      }
+
+      if (!isNotFoundApiError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  const bundle = await loadDraftBundle();
+  const fallbackVariant = bundle ? getSelectedVideoScriptVariantContext(bundle) : null;
+
+  if (!fallbackVariant && input.requireVariant) {
     throw new ApiError(
       409,
-      "SCRIPT_PRODUCTION_BRIEF_INCOMPLETE",
-      "咨询台信息还不足以生成正式视频脚本。",
-      {
-        missingFields: briefValidation.missingFields,
-        questions: briefValidation.questions,
-      },
+      "VIDEO_SCRIPT_REVISION_TARGET_REQUIRED",
+      "当前脚本版本已刷新或失效，请刷新页面后重试，或点击重新生成脚本。",
     );
   }
 
-  const scriptAgent = await generateVideoScriptVersionWithAgent({
-    brief: scriptProductionBrief,
-    llmRuntime: platformSettings.llmRuntime,
-    agentSettings: platformSettings.scriptProductionAgent,
+  return {
+    currentVariant: fallbackVariant,
+    draftBundle: bundle,
+  };
+}
+
+async function updateVideoScriptVariantWithDraftFallback(input: {
+  merchantId: string;
+  draftId: string;
+  currentVariant: ContentVariantAccessContext;
+  title?: string | null;
+  scriptText: string;
+  hashtags: string[];
+  ctaText?: string | null;
+}): Promise<{
+  variant: ContentVariantDto;
+  currentVariant: ContentVariantAccessContext;
+  sourceVariantId: string;
+  fallbackApplied: boolean;
+}> {
+  const update = (variant: ContentVariantAccessContext) =>
+    updateContentVariantScript({
+      merchantId: input.merchantId,
+      contentVariantId: variant.contentVariantId,
+      title: input.title,
+      scriptText: input.scriptText,
+      hashtags: input.hashtags,
+      ctaText: input.ctaText,
+      reviewStatus: "review_pending",
+    });
+
+  try {
+    return {
+      variant: await update(input.currentVariant),
+      currentVariant: input.currentVariant,
+      sourceVariantId: input.currentVariant.contentVariantId,
+      fallbackApplied: false,
+    };
+  } catch (error) {
+    if (!isNotFoundApiError(error)) {
+      throw error;
+    }
+  }
+
+  const latestBundle = await getDraftBundleByMerchant({
+    merchantId: input.merchantId,
+    draftId: input.draftId,
   });
-  const scriptVersion = scriptAgent.version;
-  const sourceItem = await createManualSourceItem({
-    merchantId: merchant.id,
+  const latestVariant = getSelectedVideoScriptVariantContext(latestBundle);
+
+  if (latestVariant) {
+    return {
+      variant: await update(latestVariant),
+      currentVariant: latestVariant,
+      sourceVariantId: input.currentVariant.contentVariantId,
+      fallbackApplied: true,
+    };
+  }
+
+  const createdVariant = await appendContentVariantToDraft({
+    merchantId: input.merchantId,
+    draftId: input.draftId,
     platform: "douyin",
-    title: workingTitle,
-    scriptText:
-      buildSourceText({
-        extraRequirement: input.extraRequirement,
-        material: materialContext.material,
-        fallback: session.summaryText ?? workingTitle,
-      }),
-    tracePayload: {
-      consultation_session_id: session.id,
-      generated_kind: "video_script",
-      generation_source: generationContext.source,
-      calendar_item_id: generationContext.calendarItemId,
-      selected_calendar_item: generationContext.selectedCalendarItem,
-      strategy_tag: generationContext.strategyTag,
-      material_item_id: materialContext.material?.id ?? null,
-      material_reference_id: materialContext.reference?.id ?? input.materialReferenceId ?? null,
-      script_agent_mode: scriptAgent.trace.mode,
-    },
+    variantType: "video_script",
+    title: input.title,
+    scriptText: input.scriptText,
+    hashtags: input.hashtags,
+    ctaText: input.ctaText,
+    reviewStatus: "review_pending",
   });
 
-  const draftBundle = await createDraftWithVariants({
-    merchantId: merchant.id,
-    sourceItemId: sourceItem.id,
-    workingTitle,
-    rewriteGoal: input.goal ?? session.strategySnapshot.videoBrief?.hook ?? "门店场景视频脚本",
-    inputSnapshot: {
-      source: generationContext.source,
-      consultationSessionId: session.id,
-      calendarItemId: generationContext.calendarItemId,
-      selectedCalendarItem: generationContext.selectedCalendarItem,
-      strategySnapshot: session.strategySnapshot,
-      merchantProfile: buildMerchantSnapshot(merchant),
-      strategyTag: generationContext.strategyTag,
-      extraRequirement: input.extraRequirement ?? null,
-      materialContext: materialSnapshot,
-      scriptContext,
-      scriptProductionBrief,
-      scriptProductionAgent: scriptAgent.trace,
-    },
-    commentInsights: {
-      audiences: session.strategySnapshot.targetAudiences,
-      scenes: session.strategySnapshot.keyScenes,
-      referenceMaterialTitle: materialContext.material?.title ?? null,
-      referenceMaterialEngagement: materialContext.material?.engagementLabel ?? null,
-      scriptVersionNo: scriptVersion.versionNo,
-      scriptChangeSummary: scriptVersion.changeSummary,
-      scriptAgentMode: scriptAgent.trace.mode,
-    },
-    variants: [
-      {
-        platform: "douyin",
-        variantType: "video_script",
-        title: scriptVersion.title,
-        scriptText: scriptVersion.scriptText,
-        productionScenes: scriptVersion.scenes,
-        hashtags: buildHashtags(session),
-        ctaText: scriptVersion.ctaText,
-        reviewStatus: "review_pending",
-      },
-    ],
-  });
-  const draftBundleWithScenes = attachProductionScenes(
-    draftBundle,
-    [scriptVersion.scenes],
-  );
+  return {
+    variant: createdVariant,
+    currentVariant: toContentVariantAccessContext({
+      merchantId: input.merchantId,
+      inputSnapshot: latestBundle.draft.inputSnapshot ?? null,
+      variant: createdVariant,
+    }),
+    sourceVariantId: input.currentVariant.contentVariantId,
+    fallbackApplied: true,
+  };
+}
 
-  await consumeMaterialReferenceIfNeeded({
-    merchantId: merchant.id,
-    materialId: materialContext.material?.id ?? input.materialId ?? null,
+function getSelectedVideoScriptVariantContext(
+  draftBundle: ContentDraftBundleDto,
+): ContentVariantAccessContext | null {
+  const selectedVariant =
+    (draftBundle.selectedVariant?.variantType === "video_script"
+      ? draftBundle.selectedVariant
+      : null) ??
+    draftBundle.variants.find(
+      (variant) =>
+        variant.variantType === "video_script" &&
+        variant.id === draftBundle.draft.selectedVariantId,
+    ) ??
+    draftBundle.variants.find((variant) => variant.variantType === "video_script") ??
+    null;
+
+  if (!selectedVariant) {
+    return null;
+  }
+
+  return toContentVariantAccessContext({
+    merchantId: draftBundle.draft.merchantId,
+    inputSnapshot: draftBundle.draft.inputSnapshot ?? null,
+    variant: selectedVariant,
+  });
+}
+
+function toContentVariantAccessContext(input: {
+  merchantId: string;
+  inputSnapshot: Record<string, unknown> | null;
+  variant: ContentVariantDto;
+}): ContentVariantAccessContext {
+  return {
+    merchantId: input.merchantId,
+    draftId: input.variant.draftId,
+    contentVariantId: input.variant.id,
+    variantType: input.variant.variantType,
+    title: input.variant.title,
+    bodyText: input.variant.bodyText,
+    scriptText: input.variant.scriptText,
+    hashtags: input.variant.hashtags,
+    ctaText: input.variant.ctaText,
+    reviewStatus: input.variant.reviewStatus,
+    inputSnapshot: input.inputSnapshot,
+  };
+}
+
+function isNotFoundApiError(error: unknown) {
+  return error instanceof ApiError && error.status === 404;
+}
+
+export async function generateVideoScriptForUser(input: {
+  userId: string;
+  sessionId: string;
+  goal?: string | null;
+  extraRequirement?: string | null;
+  materialId?: string | null;
+  materialReferenceId?: string | null;
+  source?: GenerationSource | null;
+  calendarItemId?: string | null;
+  strategyTag?: string | null;
+}): Promise<ContentDraftBundleDto> {
+  const result = await runVideoWorkbenchScriptAgentForUser({
+    userId: input.userId,
+    sessionId: input.sessionId,
+    goal: input.goal,
+    userMessage: input.extraRequirement
+      ? `请根据这些补充要求生成一版视频脚本：${input.extraRequirement}`
+      : "请根据当前上下文生成一版视频脚本。",
+    intent: "generate",
+    materialId: input.materialId,
     materialReferenceId: input.materialReferenceId,
-    targetWorkbench: "video",
-    draftId: draftBundle.draft.id,
+    source: input.source,
+    calendarItemId: input.calendarItemId,
+    strategyTag: input.strategyTag,
   });
 
-  return draftBundleWithScenes;
+  if (!result.draftBundle) {
+    throw new ApiError(
+      409,
+      "VIDEO_SCRIPT_NOT_CREATED",
+      result.assistantMessage || "脚本 Agent 还没有生成可用脚本。",
+    );
+  }
+
+  return result.draftBundle;
 }
 
 export async function reviseVideoScriptForUser(input: {
@@ -535,17 +992,6 @@ export async function reviseVideoScriptForUser(input: {
     );
   }
 
-  const session = await getConsultationSessionDetail({
-    merchantId: merchant.id,
-    sessionId: input.sessionId,
-  });
-  const materialContext = await resolveMaterialContext({
-    merchantId: merchant.id,
-    materialId: input.materialId,
-    materialReferenceId: input.materialReferenceId,
-    targetWorkbench: "video",
-  });
-  const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
   const platformSettings = await getPlatformSettings();
 
   if (!platformSettings.scriptProductionAgent.revisionEnabled) {
@@ -556,213 +1002,70 @@ export async function reviseVideoScriptForUser(input: {
     );
   }
 
-  const scriptProductionBriefBase = buildVideoScriptProductionBrief({
-    merchant,
-    session,
-    materialSnapshot,
-    goal: currentVariant.title ?? null,
-    extraRequirement: input.revisionInstruction,
-    strategyTag: input.strategyTag ?? null,
+  const result = await runVideoWorkbenchScriptAgentForUser({
+    userId: input.userId,
+    sessionId: input.sessionId,
+    userMessage: input.revisionInstruction,
+    intent: "revise",
+    contentVariantId: input.contentVariantId,
+    materialId: input.materialId,
+    materialReferenceId: input.materialReferenceId,
+    strategyTag: input.strategyTag,
   });
-  const scriptProductionBrief = {
-    ...scriptProductionBriefBase,
-    evidenceReferences: await collectScriptProductionEvidence({
-      merchantId: merchant.id,
-      brief: scriptProductionBriefBase,
-      retrievalTopK: platformSettings.scriptProductionAgent.retrievalTopK,
-    }),
-  };
-  const scriptAgent = await generateVideoScriptVersionWithAgent({
-    brief: scriptProductionBrief,
-    llmRuntime: platformSettings.llmRuntime,
-    agentSettings: platformSettings.scriptProductionAgent,
-    revisionContext: {
-      currentVariantId: input.contentVariantId,
-      currentScriptText: currentVariant.scriptText,
-      revisionInstruction: input.revisionInstruction,
-      revisionIntent,
-    },
-  });
-  const revisedVersion = scriptAgent.version;
 
-  const variant = await appendContentVariantToDraft({
-    merchantId: merchant.id,
-    draftId: currentVariant.draftId,
-    platform: "douyin",
-    variantType: "video_script",
-    title: revisedVersion.title,
-    scriptText: revisedVersion.scriptText,
-    productionScenes: revisedVersion.scenes,
-    hashtags: buildHashtags(session),
-    ctaText: revisedVersion.ctaText,
-    reviewStatus: "review_pending",
-  });
+  if (!result.selectedVariant) {
+    throw new ApiError(
+      409,
+      "VIDEO_SCRIPT_NOT_REVISED",
+      result.assistantMessage || "脚本 Agent 还没有完成脚本修改。",
+    );
+  }
 
   return {
     revisionIntent,
-    variant: {
-      ...variant,
-      productionScenes: revisedVersion.scenes,
-    },
-    agentTrace: scriptAgent.trace,
+    variant: result.selectedVariant,
+    agentTrace: result.trace,
   };
 }
 
-async function generateVideoScriptVersionWithAgent(input: {
-  brief: ScriptProductionBrief;
-  llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
-  agentSettings: Awaited<ReturnType<typeof getPlatformSettings>>["scriptProductionAgent"];
-  revisionContext?: Parameters<typeof buildScriptProductionAgentMessages>[0]["revisionContext"];
-}): Promise<{
-  version: ScriptProductionVersion;
-  trace: {
-    promptVersion: typeof SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION;
-    mode: "llm";
-    model?: string;
-    productionGoal?: string | null;
-    evidenceSummary?: string[];
-    riskNotes?: string[];
-    confirmQuestions?: string[];
-    evidenceReferenceCount?: number;
-  };
-}> {
-  const promptVersion = SCRIPT_PRODUCTION_AGENT_PROMPT_VERSION;
-  const evidenceReferenceCount = input.brief.evidenceReferences?.length ?? 0;
-  const scriptRuntime = resolveScriptProductionRuntime({
-    llmRuntime: input.llmRuntime,
-    agentSettings: input.agentSettings,
-  });
-
-  if (!isScriptProductionModelConfigured(scriptRuntime.apiKey)) {
-    throw new ApiError(
-      503,
-      "SCRIPT_PRODUCTION_MODEL_NOT_CONFIGURED",
-      SCRIPT_PRODUCTION_MODEL_NOT_CONFIGURED_MESSAGE,
-      {
-        promptVersion,
-        evidenceReferenceCount,
-      },
-    );
-  }
-
-  try {
-    const response = await createChatCompletion({
-      runtime: {
-        ...scriptRuntime.runtime,
-        temperature: input.agentSettings.temperature,
-      },
-      model: scriptRuntime.model,
-      apiKey: scriptRuntime.apiKey,
-      responseFormat: "json_object",
-      messages: buildScriptProductionAgentMessages({
-        brief: input.brief,
-        revisionContext: input.revisionContext,
-      }),
-    });
-    const parsed = parseScriptProductionAgentResponse(
-      response.content,
-      {
-        brief: input.brief,
-      },
-    );
-
-    if (parsed.mode === "needs_more_info") {
-      throw new ApiError(
-        409,
-        "SCRIPT_PRODUCTION_BRIEF_INCOMPLETE",
-        "脚本制作 Agent 判断当前信息还不足以生成正式视频脚本。",
-        {
-          missingFields: parsed.missingFields,
-          questions: parsed.questions,
-          reason: parsed.reason,
-        },
-      );
-    }
-
-    if (parsed.mode === "tool_failed") {
-      throw new ApiError(
-        502,
-        "SCRIPT_PRODUCTION_TOOL_FAILED",
-        SCRIPT_PRODUCTION_TOOL_FAILED_MESSAGE,
-        {
-          promptVersion,
-          model: response.model,
-          toolName: parsed.toolName,
-          reason: parsed.reason,
-          recoverable: parsed.recoverable,
-          evidenceReferenceCount,
-        },
-      );
-    }
-
-    if (parsed.mode === "parse_error") {
-      throw new ApiError(
-        502,
-        "SCRIPT_PRODUCTION_MODEL_OUTPUT_INVALID",
-        SCRIPT_PRODUCTION_MODEL_OUTPUT_INVALID_MESSAGE,
-        {
-          promptVersion,
-          model: response.model,
-          error: parsed.error,
-          evidenceReferenceCount,
-        },
-      );
-    }
-
-    return {
-      version: parsed.version,
-      trace: {
-        promptVersion,
-        mode: "llm",
-        model: response.model,
-        productionGoal: parsed.productionGoal,
-        evidenceSummary: parsed.evidenceSummary,
-        riskNotes: parsed.riskNotes,
-        confirmQuestions: parsed.confirmQuestions,
-        evidenceReferenceCount,
-      },
-    };
-  } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
-
-    throw new ApiError(
-      502,
-      "SCRIPT_PRODUCTION_MODEL_UNAVAILABLE",
-      SCRIPT_PRODUCTION_MODEL_UNAVAILABLE_MESSAGE,
-      {
-        promptVersion,
-        evidenceReferenceCount,
-        error:
-          error instanceof AiRuntimeError
-            ? `${error.message}${error.status ? ` (${error.status})` : ""}`
-            : error instanceof Error
-              ? error.message
-              : "Unknown AI runtime error.",
-      },
-    );
-  }
-}
-
-function attachProductionScenes(
+function attachProductionScenesToVariant(
   draftBundle: ContentDraftBundleDto,
-  sceneSets: ScriptProductionVersion["scenes"][],
+  variantId: string | null | undefined,
+  scenes: VideoScriptScene[],
 ): ContentDraftBundleDto {
-  const variants = draftBundle.variants.map((variant, index) => ({
-    ...variant,
-    productionScenes: sceneSets[index] ?? variant.productionScenes ?? [],
-  }));
+  if (!variantId) {
+    return draftBundle;
+  }
+
+  const variants = draftBundle.variants.map((variant) =>
+    variant.id === variantId
+      ? {
+          ...variant,
+          productionScenes: scenes,
+        }
+      : variant,
+  );
 
   return {
     ...draftBundle,
     variants,
     selectedVariant:
-      variants.find((variant) => variant.id === draftBundle.selectedVariant?.id) ??
-      variants.find((variant) => variant.id === draftBundle.draft.selectedVariantId) ??
+      variants.find((variant) => variant.id === variantId) ??
+      draftBundle.selectedVariant ??
       variants[0] ??
       null,
   };
+}
+
+function normalizeWorkbenchAgentMessages(
+  messages: Array<{ role: "user" | "assistant" | "agent"; content: string }>,
+): VideoWorkbenchAgentConversationMessage[] {
+  return messages
+    .map((message) => ({
+      role: message.role === "user" ? ("user" as const) : ("assistant" as const),
+      content: message.content.trim(),
+    }))
+    .filter((message) => message.content.length > 0);
 }
 
 function buildVideoScriptProductionBrief(input: {
@@ -776,10 +1079,12 @@ function buildVideoScriptProductionBrief(input: {
   const snapshot = input.session.strategySnapshot;
   const material = input.materialSnapshot;
   const topicDirection =
-    input.goal ??
-    snapshot.videoBrief?.workingTitle ??
-    snapshot.videoBrief?.hook ??
-    snapshot.currentSuggestion;
+    firstString(
+      input.goal,
+      snapshot.videoBrief?.workingTitle,
+      snapshot.videoBrief?.hook,
+      snapshot.currentSuggestion,
+    ) ?? "";
 
   return {
     platform: "douyin",

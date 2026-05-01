@@ -95,33 +95,90 @@ function BindingCheckRow({
   description,
   status,
   checked,
+  disabled = false,
+  onCheckedChange,
 }: {
   title: string;
   description?: string;
   status: string;
   checked: boolean;
+  disabled?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
 }) {
-  return (
-    <div className="flex items-start gap-3 rounded-md px-3 py-3 transition-colors hover:bg-white/[0.03]">
-      <div
-        className={cn(
-          "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border",
-          checked ? "border-amber-500 bg-amber-500 text-white" : "border-white/20 text-transparent",
-        )}
-      >
-        <Check className="size-3" aria-hidden="true" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="break-words text-sm font-medium text-white/75">{title}</span>
-          <AdminStatusBadge status={status} />
-        </div>
-        {description ? (
-          <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/35">{description}</p>
-        ) : null}
-      </div>
+  const rowClassName = cn(
+    "flex items-start gap-3 rounded-md px-3 py-3 transition-colors hover:bg-white/[0.03]",
+    onCheckedChange && !disabled ? "cursor-pointer" : "",
+    disabled ? "cursor-not-allowed opacity-55" : "",
+  );
+  const indicator = (
+    <div
+      className={cn(
+        "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border",
+        checked ? "border-amber-500 bg-amber-500 text-white" : "border-white/20 text-transparent",
+      )}
+    >
+      <Check className="size-3" aria-hidden="true" />
     </div>
   );
+  const content = (
+    <div className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="break-words text-sm font-medium text-white/75">{title}</span>
+        <AdminStatusBadge status={status} />
+      </div>
+      {description ? (
+        <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/35">{description}</p>
+      ) : null}
+    </div>
+  );
+
+  if (onCheckedChange) {
+    return (
+      <label className={rowClassName}>
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(event) => onCheckedChange(event.target.checked)}
+          className="sr-only"
+        />
+        {indicator}
+        {content}
+      </label>
+    );
+  }
+
+  return (
+    <div className={rowClassName}>
+      {indicator}
+      {content}
+    </div>
+  );
+}
+
+function getEnabledSkillIdSet(skills: AgentSkillDto[]) {
+  return new Set(skills.filter((skill) => skill.status === "enabled").map((skill) => skill.id));
+}
+
+function getSaveableSkillIds(skillIds: string[], skills: AgentSkillDto[]) {
+  const enabledSkillIds = getEnabledSkillIdSet(skills);
+  return skillIds.filter((skillId) => enabledSkillIds.has(skillId));
+}
+
+function hasSkillBindingChanges(
+  agentId: string,
+  skills: AgentSkillDto[],
+  initialBindings: AgentSkillBindingDto[],
+  currentBindings: AgentSkillBindingDto[],
+) {
+  const initial = getSaveableSkillIds(getEnabledSkillIds(agentId, initialBindings), skills).sort();
+  const current = getSaveableSkillIds(getEnabledSkillIds(agentId, currentBindings), skills).sort();
+
+  if (initial.length !== current.length) {
+    return true;
+  }
+
+  return initial.some((skillId, index) => skillId !== current[index]);
 }
 
 function getBoundSkills(
@@ -152,6 +209,12 @@ function getBoundKnowledgeSets(
   return knowledgeSets.filter((knowledgeSet) => boundKnowledgeSetIds.has(knowledgeSet.id));
 }
 
+function getEnabledSkillIds(agentId: string, skillBindings: AgentSkillBindingDto[]) {
+  return skillBindings
+    .filter((binding) => binding.agentId === agentId && binding.status === "enabled")
+    .map((binding) => binding.skillId);
+}
+
 export function AgentConfigAdminPage({
   foundationState,
   skillBindings,
@@ -163,6 +226,10 @@ export function AgentConfigAdminPage({
     onlineAgentId ?? foundationState.agents[0]?.id ?? "",
   );
   const [promptTab, setPromptTab] = useState<"draft" | "active" | "history">("draft");
+  const [localSkillBindings, setLocalSkillBindings] = useState(skillBindings);
+  const [savingSkills, setSavingSkills] = useState(false);
+  const [skillBindingError, setSkillBindingError] = useState<string | null>(null);
+  const [skillBindingSaved, setSkillBindingSaved] = useState(false);
   const selectedAgent =
     foundationState.agents.find((agent) => agent.id === selectedAgentId) ??
     foundationState.agents[0];
@@ -177,8 +244,22 @@ export function AgentConfigAdminPage({
     ? sortPromptVersions(promptVersions.filter((version) => version.agentId === selectedAgent.id))
     : [];
   const boundSkills = selectedAgent
-    ? getBoundSkills(selectedAgent.id, foundationState.skills, skillBindings)
+    ? getBoundSkills(selectedAgent.id, foundationState.skills, localSkillBindings)
     : [];
+  const selectedSkillIds = selectedAgent
+    ? getEnabledSkillIds(selectedAgent.id, localSkillBindings)
+    : [];
+  const selectedSaveableSkillIds = selectedAgent
+    ? getSaveableSkillIds(selectedSkillIds, foundationState.skills)
+    : [];
+  const skillBindingsDirty = selectedAgent
+    ? hasSkillBindingChanges(
+        selectedAgent.id,
+        foundationState.skills,
+        skillBindings,
+        localSkillBindings,
+      )
+    : false;
   const boundKnowledgeSets = selectedAgent
     ? getBoundKnowledgeSets(
         selectedAgent.id,
@@ -187,6 +268,80 @@ export function AgentConfigAdminPage({
       )
     : [];
   const isOnline = selectedAgent?.id === onlineAgentId;
+
+  function toggleSkill(skillId: string, checked: boolean) {
+    if (!selectedAgent) {
+      return;
+    }
+
+    setSkillBindingError(null);
+    setSkillBindingSaved(false);
+    setLocalSkillBindings((current) => {
+      const existing = current.find(
+        (binding) => binding.agentId === selectedAgent.id && binding.skillId === skillId,
+      );
+
+      if (existing) {
+        return current.map((binding) =>
+          binding.id === existing.id
+            ? { ...binding, status: checked ? "enabled" : "disabled" }
+            : binding,
+        );
+      }
+
+      return [
+        ...current,
+        {
+          id: `local-${selectedAgent.id}-${skillId}`,
+          agentId: selectedAgent.id,
+          skillId,
+          status: checked ? "enabled" : "disabled",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+    });
+  }
+
+  async function saveSkillBindings() {
+    if (!selectedAgent) {
+      return;
+    }
+
+    setSavingSkills(true);
+    setSkillBindingError(null);
+    setSkillBindingSaved(false);
+
+    try {
+      const response = await fetch(`/api/platform-admin/agents/${selectedAgent.id}/skills`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ skillIds: selectedSaveableSkillIds }),
+      });
+      const data = (await response.json()) as {
+        skillBindings?: AgentSkillBindingDto[];
+        error?: { message?: string };
+      };
+
+      const nextSkillBindings = data.skillBindings;
+
+      if (!response.ok || !nextSkillBindings) {
+        throw new Error(data.error?.message ?? "Skill 挂载保存失败");
+      }
+
+      setLocalSkillBindings((current) => [
+        ...current.filter((binding) => binding.agentId !== selectedAgent.id),
+        ...nextSkillBindings,
+      ]);
+      setSkillBindingSaved(true);
+    } catch (error) {
+      setSkillBindingError(error instanceof Error ? error.message : "Skill 挂载保存失败");
+    } finally {
+      setSavingSkills(false);
+    }
+  }
 
   if (!selectedAgent) {
     return (
@@ -240,7 +395,7 @@ export function AgentConfigAdminPage({
         <AdminPageHeader
           eyebrow="Agent 配置"
           title={selectedAgent.displayName}
-          description="以 Agent 容器组织 System Prompt、Skill 与 Knowledge Set。本分支先做只读配置台，写操作等待 Agent API 分支接入。"
+          description="以 Agent 容器组织 System Prompt、Skill 与 Knowledge Set。Skill 挂载会进入商家端咨询运行时，并按触发条件渐进式披露。"
           action={
             <div className="flex flex-wrap gap-2">
               <MiniButton>
@@ -383,8 +538,36 @@ export function AgentConfigAdminPage({
 
         <div className="grid gap-5 xl:grid-cols-2">
           <AdminPanel>
-            <AdminPanelHeader eyebrow="挂载技能" />
+            <AdminPanelHeader
+              eyebrow="挂载技能"
+              description="只把 Skill 摘要送入候选列表；命中触发条件后，咨询运行时才加载 Skill Body。"
+              action={
+                <button
+                  type="button"
+                  onClick={() => void saveSkillBindings()}
+                  disabled={savingSkills || !skillBindingsDirty}
+                  className={cn(adminButtonClassName, adminButtonVariants.primary)}
+                >
+                  {savingSkills ? (
+                    <RefreshCw className="size-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Check className="size-3.5" aria-hidden="true" />
+                  )}
+                  保存挂载
+                </button>
+              }
+            />
             <div className="p-2">
+              {skillBindingError ? (
+                <AdminNotice tone="danger" className="m-3">
+                  {skillBindingError}
+                </AdminNotice>
+              ) : null}
+              {skillBindingSaved ? (
+                <AdminNotice tone="success" className="m-3">
+                  Skill 挂载已保存，商家端咨询 Agent 下一轮运行会读取最新候选集。
+                </AdminNotice>
+              ) : null}
               {foundationState.skills.length > 0 ? (
                 foundationState.skills.map((skill) => (
                   <BindingCheckRow
@@ -393,6 +576,8 @@ export function AgentConfigAdminPage({
                     description={skill.whenToUse}
                     status={skill.status}
                     checked={boundSkills.some((boundSkill) => boundSkill.id === skill.id)}
+                    disabled={skill.status !== "enabled" || savingSkills}
+                    onCheckedChange={(checked) => toggleSkill(skill.id, checked)}
                   />
                 ))
               ) : (

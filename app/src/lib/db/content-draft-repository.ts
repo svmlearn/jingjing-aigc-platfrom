@@ -90,14 +90,16 @@ export async function createManualSourceItem(input: {
     });
 
     if (isLocalRealChainEnabled()) {
-      await upsertLocalRealChainSourceItem({
-        id,
-        platform: input.platform,
-        title: input.title,
-        bodyText: input.bodyText,
-        scriptText: input.scriptText,
-        tracePayload: input.tracePayload,
-      });
+      await syncLocalRealChainOptional("LOCAL_REAL_CHAIN_SOURCE_ITEM_SYNC_FAILED", () =>
+        upsertLocalRealChainSourceItem({
+          id,
+          platform: input.platform,
+          title: input.title,
+          bodyText: input.bodyText,
+          scriptText: input.scriptText,
+          tracePayload: input.tracePayload,
+        }),
+      );
     }
 
     return { id };
@@ -188,7 +190,9 @@ export async function createDraftWithVariants(input: {
     demoDraftBundles.set(draft.id, bundle);
 
     if (isLocalRealChainEnabled()) {
-      await upsertLocalRealChainDraftBundle(bundle);
+      await syncLocalRealChainOptional("LOCAL_REAL_CHAIN_DRAFT_SYNC_FAILED", () =>
+        upsertLocalRealChainDraftBundle(bundle),
+      );
     }
 
     return bundle;
@@ -524,6 +528,12 @@ export async function appendContentVariantToDraft(input: {
 
     demoDraftBundles.set(input.draftId, nextBundle);
 
+    if (isLocalRealChainEnabled()) {
+      await syncLocalRealChainOptional("LOCAL_REAL_CHAIN_DRAFT_SYNC_FAILED", () =>
+        upsertLocalRealChainDraftBundle(nextBundle),
+      );
+    }
+
     return variant;
   }
 
@@ -591,6 +601,111 @@ export async function appendContentVariantToDraft(input: {
   }
 
   return variant;
+}
+
+export async function updateContentVariantScript(input: {
+  merchantId: string;
+  contentVariantId: string;
+  title?: string | null;
+  scriptText: string;
+  hashtags?: string[];
+  ctaText?: string | null;
+  reviewStatus?: ContentVariantDto["reviewStatus"];
+}): Promise<ContentVariantDto> {
+  if (!isSupabaseAdminConfigured()) {
+    for (const [draftId, bundle] of demoDraftBundles.entries()) {
+      const variant = bundle.variants.find((item) => item.id === input.contentVariantId);
+
+      if (!variant || bundle.draft.merchantId !== input.merchantId) {
+        continue;
+      }
+
+      if (variant.variantType !== "video_script") {
+        throw new ApiError(
+          409,
+          "CONTENT_VARIANT_TYPE_MISMATCH",
+          "当前内容版本类型和操作要求不一致。",
+        );
+      }
+
+      const now = new Date().toISOString();
+      const updatedVariant: ContentVariantDto = {
+        ...variant,
+        title: input.title ?? variant.title,
+        scriptText: input.scriptText,
+        hashtags: input.hashtags ?? variant.hashtags,
+        ctaText: input.ctaText ?? variant.ctaText,
+        reviewStatus: input.reviewStatus ?? "review_pending",
+        updatedAt: now,
+      };
+      const variants = bundle.variants.map((item) =>
+        item.id === updatedVariant.id ? updatedVariant : item,
+      );
+      const nextBundle = {
+        ...bundle,
+        draft: {
+          ...bundle.draft,
+          selectedVariantId: updatedVariant.id,
+          updatedAt: now,
+        },
+        variants,
+        selectedVariant: updatedVariant,
+      };
+
+      demoDraftBundles.set(draftId, nextBundle);
+
+      if (isLocalRealChainEnabled()) {
+        await syncLocalRealChainOptional("LOCAL_REAL_CHAIN_DRAFT_SYNC_FAILED", () =>
+          upsertLocalRealChainDraftBundle(nextBundle),
+        );
+      }
+
+      return updatedVariant;
+    }
+
+    throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant not found.");
+  }
+
+  const currentVariant = await assertContentVariantAccess({
+    merchantId: input.merchantId,
+    contentVariantId: input.contentVariantId,
+    variantType: "video_script",
+  });
+  const supabase = createSupabaseAdminClient();
+  const { data: variantData, error: variantError } = await supabase
+    .from("content_variants")
+    .update({
+      title: input.title ?? currentVariant.title ?? null,
+      script_text: input.scriptText,
+      hashtags: input.hashtags ?? currentVariant.hashtags,
+      cta_text: input.ctaText ?? currentVariant.ctaText ?? null,
+      review_status: input.reviewStatus ?? "review_pending",
+    })
+    .eq("id", input.contentVariantId)
+    .select(contentVariantSelect)
+    .single();
+
+  if (variantError || !variantData) {
+    throw new ApiError(
+      500,
+      "CONTENT_VARIANT_UPDATE_FAILED",
+      variantError?.message ?? "Update failed.",
+    );
+  }
+
+  const { error: selectError } = await supabase
+    .from("content_drafts")
+    .update({
+      selected_variant_id: input.contentVariantId,
+    })
+    .eq("id", currentVariant.draftId)
+    .eq("merchant_id", input.merchantId);
+
+  if (selectError) {
+    throw new ApiError(500, "CONTENT_DRAFT_SELECT_VARIANT_FAILED", selectError.message);
+  }
+
+  return mapContentVariant(variantData as unknown as ContentVariantRow);
 }
 
 export async function assertContentVariantAccess(input: {
@@ -830,6 +945,19 @@ export function getLocalDemoMediaOwnerContext(input: {
   }
 
   return null;
+}
+
+async function syncLocalRealChainOptional(
+  code: string,
+  sync: () => Promise<void>,
+) {
+  try {
+    await sync();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Local real-chain sync failed.";
+
+    console.warn(`[${code}] ${message}`);
+  }
 }
 
 function mapContentDraft(row: ContentDraftRow): ContentDraftDto {

@@ -34,9 +34,6 @@ export const SCRIPT_PRODUCTION_MODEL_UNAVAILABLE_MESSAGE =
 export const SCRIPT_PRODUCTION_MODEL_OUTPUT_INVALID_MESSAGE =
   "脚本制作 Agent 返回内容无法解析，请检查大模型输出格式后再生成脚本。";
 
-export const SCRIPT_PRODUCTION_TOOL_FAILED_MESSAGE =
-  "脚本制作 tool 调用失败，请检查工具链路后再生成脚本。";
-
 export const SCRIPT_PRODUCTION_AGENT_SYSTEM_PROMPT = [
   "【短视频脚本设计大师 Prompt 目录】",
   "01. 本系统提示词只保留规则目录；执行细则全部读取本轮 activePromptCards。",

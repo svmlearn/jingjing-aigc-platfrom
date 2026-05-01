@@ -5,10 +5,49 @@ import type {
 } from "@/contracts/knowledge";
 import type { LlmRuntimeSettingsDto } from "@/contracts/platform-admin";
 
-type ChatMessage = {
-  role: "system" | "user" | "assistant";
-  content: string;
+export type AiRuntimeToolCall = {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
 };
+
+export type AiRuntimeTool = {
+  type: "function";
+  function: {
+    name: string;
+    description?: string;
+    parameters: Record<string, unknown>;
+  };
+};
+
+export type AiRuntimeToolChoice =
+  | "auto"
+  | "none"
+  | {
+      type: "function";
+      function: {
+        name: string;
+      };
+    };
+
+export type ChatMessage =
+  | {
+      role: "system" | "user";
+      content: string;
+    }
+  | {
+      role: "assistant";
+      content: string | null;
+      toolCalls?: AiRuntimeToolCall[];
+    }
+  | {
+      role: "tool";
+      content: string;
+      toolCallId: string;
+    };
 
 type ChatCompletionInput = {
   runtime: LlmRuntimeSettingsDto;
@@ -16,6 +55,8 @@ type ChatCompletionInput = {
   apiKey?: string;
   messages: ChatMessage[];
   responseFormat?: "json_object";
+  tools?: AiRuntimeTool[];
+  toolChoice?: AiRuntimeToolChoice;
 };
 
 type EmbeddingInput = {
@@ -77,6 +118,7 @@ export async function createChatCompletion(input: ChatCompletionInput): Promise<
   content: string;
   model: string;
   usage?: Record<string, unknown>;
+  toolCalls: AiRuntimeToolCall[];
 }> {
   const apiKey = input.apiKey?.trim() || getAiRuntimeApiKey();
 
@@ -87,13 +129,15 @@ export async function createChatCompletion(input: ChatCompletionInput): Promise<
   const model = input.model || input.runtime.primaryModel;
   const payload = {
     model,
-    messages: input.messages.slice(0, 10),
+    messages: input.messages.slice(0, 20).map(toOpenAiMessage),
     temperature: input.runtime.temperature,
     max_tokens: input.runtime.maxTokens,
     stream: false,
     ...(input.responseFormat
       ? { response_format: { type: input.responseFormat } }
       : {}),
+    ...(input.tools && input.tools.length > 0 ? { tools: input.tools } : {}),
+    ...(input.toolChoice ? { tool_choice: input.toolChoice } : {}),
   };
   const response = await postOpenAiCompatible({
     runtime: input.runtime,
@@ -103,12 +147,14 @@ export async function createChatCompletion(input: ChatCompletionInput): Promise<
     apiKey,
   });
   const choice = Array.isArray(response.choices) ? response.choices[0] : null;
-  const content =
+  const message =
     choice && typeof choice === "object" && "message" in choice
-      ? firstString((choice.message as Record<string, unknown> | undefined)?.content)
-      : undefined;
+      ? toRecord(choice.message)
+      : {};
+  const content = firstString(message.content) ?? "";
+  const toolCalls = parseToolCalls(message.tool_calls);
 
-  if (!content) {
+  if (!content && toolCalls.length === 0) {
     throw new AiRuntimeError("AI runtime returned an empty chat completion.", undefined, response);
   }
 
@@ -116,6 +162,7 @@ export async function createChatCompletion(input: ChatCompletionInput): Promise<
     content,
     model: firstString(response.model) ?? model,
     usage: toRecord(response.usage),
+    toolCalls,
   };
 }
 
@@ -223,6 +270,60 @@ function firstString(...values: unknown[]) {
   }
 
   return undefined;
+}
+
+function toOpenAiMessage(message: ChatMessage): Record<string, unknown> {
+  if (message.role === "tool") {
+    return {
+      role: "tool",
+      content: message.content,
+      tool_call_id: message.toolCallId,
+    };
+  }
+
+  if (message.role === "assistant") {
+    return {
+      role: "assistant",
+      content: message.content ?? "",
+      ...(message.toolCalls && message.toolCalls.length > 0
+        ? { tool_calls: message.toolCalls }
+        : {}),
+    };
+  }
+
+  return {
+    role: message.role,
+    content: message.content,
+  };
+}
+
+function parseToolCalls(value: unknown): AiRuntimeToolCall[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      const record = toRecord(item);
+      const functionRecord = toRecord(record.function);
+      const id = firstString(record.id);
+      const name = firstString(functionRecord.name);
+      const args = firstString(functionRecord.arguments);
+
+      if (!id || !name || args === undefined) {
+        return null;
+      }
+
+      return {
+        id,
+        type: "function" as const,
+        function: {
+          name,
+          arguments: args,
+        },
+      };
+    })
+    .filter((item): item is AiRuntimeToolCall => item !== null);
 }
 
 function isNumberArray(value: unknown): value is number[] {

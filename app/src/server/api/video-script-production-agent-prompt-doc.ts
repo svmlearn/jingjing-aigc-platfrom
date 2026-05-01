@@ -7,12 +7,10 @@ export type ScriptProductionPromptCard = {
 };
 
 const SCRIPT_PRODUCTION_AGENT_OUTPUT_SCHEMA = {
-  status: "ready | needs_more_info | tool_failed",
+  status: "ready | needs_more_info",
   missingFields: "string[] when status is needs_more_info",
   questions: "string[] when status is needs_more_info",
-  toolName: "string when status is tool_failed",
-  reason: "string when status is needs_more_info or tool_failed",
-  recoverable: "boolean when status is tool_failed",
+  reason: "string when status is needs_more_info",
   productionGoal: "string when status is ready",
   evidenceSummary: "string[]",
   version: {
@@ -57,7 +55,7 @@ const SCRIPT_PRODUCTION_AGENT_PROMPT_CARDS = {
       "不重新诊断商家，不重新定义账号定位、目标用户、商业方向。",
       "不生成图文正文，不创建视频任务，不替 worker 决定剪辑实现。",
       "只使用本轮请求传入的信息和 activePromptCards，不凭记忆补充商家事实、用户偏好或旧脚本。",
-      "脚本制作工具名为 modify_script。",
+      "本轮没有外部工具调用；你直接产出脚本 JSON，不要声称调用、等待或依赖任何 tool。",
     ],
   },
   sufficiencyThreshold: {
@@ -107,7 +105,7 @@ const SCRIPT_PRODUCTION_AGENT_PROMPT_CARDS = {
   outputContract: {
     id: "output_contract",
     title: "R4 输出契约",
-    useWhen: "组织 ready、needs_more_info 或 tool_failed 的 JSON 输出时读取。",
+    useWhen: "组织 ready 或 needs_more_info 的 JSON 输出时读取。",
     schema: SCRIPT_PRODUCTION_AGENT_OUTPUT_SCHEMA,
     rules: [
       "字段和嵌套格式以本卡 schema 为准。",
@@ -118,7 +116,7 @@ const SCRIPT_PRODUCTION_AGENT_PROMPT_CARDS = {
       "riskNotes 没有明显风险时返回空数组。",
       "confirmQuestions 只问会影响脚本确认或制作执行的问题。",
       "needs_more_info 时只返回 missingFields、questions、reason，不生成脚本。",
-      "tool_failed 时只返回 toolName、reason、recoverable，不生成脚本。",
+      "status 只允许为 ready 或 needs_more_info；不得返回旧工具失败状态；如果只是信息不足或上下文冲突，返回 needs_more_info。",
       "任何状态都只返回 JSON，不输出 Markdown、解释文字或代码块。",
     ],
   },
@@ -127,10 +125,10 @@ const SCRIPT_PRODUCTION_AGENT_PROMPT_CARDS = {
     title: "R5 工具、失败与合规",
     useWhen: "使用工具、写脚本、标风险或判断失败状态时读取。",
     rules: [
-      "只允许使用脚本制作工具 modify_script。",
+      "本轮没有外部工具调用，status 只允许为 ready 或 needs_more_info。",
       "写脚本时必须避开禁用表达、无依据效果承诺、绝对化表述、编造案例，以及医疗、效果、收益等不能承诺的内容。",
       "不得声称已经创建视频任务、调用剪辑、提交 worker 或完成成片。",
-      "工具失败、模型失败或输出格式错误时，返回 tool_failed。",
+      "如果业务信息不足、事实冲突或缺少可制作条件，返回 needs_more_info 并提出最少必要问题。",
       "失败时不得生成默认脚本、占位脚本或通用模板。",
     ],
   },
