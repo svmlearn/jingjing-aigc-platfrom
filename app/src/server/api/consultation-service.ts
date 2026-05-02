@@ -30,6 +30,12 @@ import {
   updateConsultationSession,
 } from "@/lib/db/consultation-repository";
 import {
+  attachRoundtableState,
+  createRoundtableConsultationSessionForUser,
+  resolveRoundtableState,
+  sendRoundtableMessageForUser,
+} from "@/server/api/roundtable-consultation-service";
+import {
   ensureMerchantStrategyAsset,
   getMerchantStrategyAsset,
   upsertMerchantStrategyAsset,
@@ -74,7 +80,12 @@ export async function listConsultationSessionsForUser(userId: string) {
 export async function createConsultationSessionForUser(input: {
   userId: string;
   title?: string | null;
+  mode?: "standard" | "roundtable";
 }): Promise<ConsultationSessionDetailDto> {
+  if (input.mode === "roundtable") {
+    return createRoundtableConsultationSessionForUser(input);
+  }
+
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const { consultationAgent } = await resolveConsultationAgentRuntime();
   const initialStrategySnapshot = buildStrategySnapshot({
@@ -131,7 +142,7 @@ export async function createConsultationSessionForUser(input: {
   return getConsultationSessionDetail({
     merchantId: merchant.id,
     sessionId: session.id,
-  });
+  }).then(attachRoundtableState);
 }
 
 export async function getConsultationSessionForUser(input: {
@@ -146,11 +157,11 @@ export async function getConsultationSessionForUser(input: {
   const merchantStrategyAsset = await getMerchantStrategyAsset(merchant.id);
 
   return merchantStrategyAsset
-    ? {
+    ? attachRoundtableState({
         ...session,
         strategySnapshot: merchantStrategyAsset,
-      }
-    : session;
+      })
+    : attachRoundtableState(session);
 }
 
 export async function deleteConsultationSessionForUser(input: {
@@ -185,6 +196,10 @@ export async function sendConsultationMessageForUser(input: {
     ...session,
     strategySnapshot: existingMerchantStrategyAsset ?? session.strategySnapshot,
   };
+
+  if (resolveRoundtableState(effectiveSession)) {
+    return sendRoundtableMessageForUser(input);
+  }
 
   const userMessage = await createConsultationMessage({
     sessionId: effectiveSession.id,

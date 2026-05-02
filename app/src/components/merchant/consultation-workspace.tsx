@@ -5,22 +5,29 @@ import { useEffect, useEffectEvent, useState } from "react";
 import {
   BookOpen,
   CalendarDays,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Edit3,
   History,
   MessageCircle,
   Plus,
+  RotateCcw,
+  Save,
   Send,
   Sparkles,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 
 import type {
+  ConsultationMode,
   ContentCalendarItemDto,
   ConsultationSessionDetailDto,
   ConsultationSessionSummaryDto,
+  RoundtablePhaseOutputDto,
+  RoundtableStateDto,
 } from "@/contracts/consultation";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +50,7 @@ export function ConsultationWorkspace() {
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [creating, setCreating] = useState(false);
   const [sending, setSending] = useState(false);
+  const [roundtableActionLoading, setRoundtableActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toolCardsCollapsed, setToolCardsCollapsed] = useState(true);
 
@@ -129,7 +137,7 @@ export function ConsultationWorkspace() {
     }
   }
 
-  async function createSession() {
+  async function createSession(mode: ConsultationMode = "standard") {
     setCreating(true);
     setError(null);
 
@@ -139,7 +147,7 @@ export function ConsultationWorkspace() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ mode }),
         credentials: "same-origin",
       });
       const data = await readApiJson<{
@@ -212,6 +220,17 @@ export function ConsultationWorkspace() {
     [...(session?.messages ?? [])].reverse().find((message) => message.role === "assistant") ?? null;
   const toolCards = latestAssistantMessage?.toolCards ?? [];
   const strategySnapshot = session?.strategySnapshot ?? null;
+  const roundtable = session?.roundtable ?? null;
+  const isRoundtable = Boolean(roundtable);
+  const roundtableCurrentOutput = getCurrentRoundtableOutput(roundtable);
+  const canSendRoundtableMessage =
+    !roundtable || isRoundtableInterviewing(roundtable.status);
+  const canCompleteRoundtablePhase =
+    roundtable && isRoundtableInterviewing(roundtable.status);
+  const canConfirmRoundtableSummary =
+    roundtable && isRoundtableSummarizing(roundtable.status) && roundtableCurrentOutput;
+  const canSaveRoundtableStrategy =
+    roundtable?.status === "synthesis_review" && roundtable.strategyCandidate;
 
   function selectHistorySession(nextSessionId: string) {
     setSessionId(nextSessionId);
@@ -278,6 +297,46 @@ export function ConsultationWorkspace() {
     }
   }
 
+  async function runRoundtableAction(
+    action:
+      | "complete_phase"
+      | "confirm_phase_summary"
+      | "return_to_phase"
+      | "save_strategy_candidate",
+  ) {
+    if (!sessionId) {
+      return;
+    }
+
+    setRoundtableActionLoading(action);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/consultation/sessions/${sessionId}/roundtable`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+        credentials: "same-origin",
+      });
+      const data = await readApiJson<{
+        session?: ConsultationSessionDetailDto;
+      }>(response, "圆桌咨询操作失败");
+
+      if (!data.session) {
+        throw new Error("圆桌咨询操作失败");
+      }
+
+      setSession(data.session);
+      await loadSessions(data.session.id);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "圆桌咨询操作失败");
+    } finally {
+      setRoundtableActionLoading(null);
+    }
+  }
+
   async function sendMessage() {
     if (!sessionId || !input.trim()) {
       return;
@@ -330,7 +389,7 @@ export function ConsultationWorkspace() {
           <button
             type="button"
             onClick={() => {
-              void createSession();
+              void createSession("standard");
             }}
             disabled={creating}
             className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.25em] text-amber-500 transition-colors hover:bg-amber-500/20 disabled:opacity-60"
@@ -351,6 +410,55 @@ export function ConsultationWorkspace() {
             <History className="h-3.5 w-3.5" />
             历史记录
           </button>
+        </div>
+      </div>
+
+      <div className="border-b border-white/10 px-6 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] uppercase tracking-[0.25em] text-white/35">
+            咨询模式
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              if (isRoundtable) {
+                void createSession("standard");
+              }
+            }}
+            disabled={creating || !isRoundtable}
+            className={cn(
+              "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-xs transition-colors disabled:cursor-default",
+              !isRoundtable
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-500"
+                : "border-white/10 bg-white/5 text-white/55 hover:bg-white/10 hover:text-white",
+            )}
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            普通咨询
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!isRoundtable) {
+                void createSession("roundtable");
+              }
+            }}
+            disabled={creating || isRoundtable}
+            className={cn(
+              "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-xs transition-colors disabled:cursor-default",
+              isRoundtable
+                ? "border-sky-400/40 bg-sky-500/10 text-sky-300"
+                : "border-white/10 bg-white/5 text-white/55 hover:bg-white/10 hover:text-white",
+            )}
+          >
+            <Users className="h-3.5 w-3.5" />
+            圆桌咨询 Beta
+          </button>
+          <span className="text-xs text-white/35">
+            {isRoundtable
+              ? "固定专家链正在按阶段推进"
+              : "默认单 Agent 咨询，会持续同步右侧策略资产"}
+          </span>
         </div>
       </div>
 
@@ -564,6 +672,12 @@ export function ConsultationWorkspace() {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {roundtable ? (
+              <section className="border-b border-white/10 px-6 py-4">
+                <RoundtableProgressPanel roundtable={roundtable} />
+              </section>
+            ) : null}
+
             {toolCards.length ? (
               <section className="border-b border-white/10 px-6 py-3">
                 <button
@@ -615,37 +729,60 @@ export function ConsultationWorkspace() {
                 </div>
               ) : (
                 <div className="mx-auto flex max-w-3xl flex-col gap-5 pb-8">
-                  {session?.messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "flex gap-4",
-                        message.role === "user" ? "justify-end" : "justify-start",
-                      )}
-                    >
-                      {message.role !== "user" ? (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-500">
-                          <Sparkles className="h-4 w-4" />
-                        </div>
-                      ) : null}
+                  {session?.messages.map((message) => {
+                    const roundtableMeta = getMessageRoundtableMeta(message.visibleSummary);
+
+                    return (
                       <div
+                        key={message.id}
                         className={cn(
-                          "max-w-2xl rounded-2xl border px-4 py-3 text-sm leading-7",
-                          message.role === "user"
-                            ? "border-amber-500/20 bg-amber-600/80 text-white"
-                            : "border-white/10 bg-[#111111] text-white/85",
+                          "flex gap-4",
+                          message.role === "user" ? "justify-end" : "justify-start",
                         )}
                       >
-                        {message.content}
+                        {message.role !== "user" ? (
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-500">
+                            <Sparkles className="h-4 w-4" />
+                          </div>
+                        ) : null}
+                        <div
+                          className={cn(
+                            "max-w-2xl rounded-2xl border px-4 py-3 text-sm leading-7",
+                            message.role === "user"
+                              ? "border-amber-500/20 bg-amber-600/80 text-white"
+                              : "border-white/10 bg-[#111111] text-white/85",
+                          )}
+                        >
+                          {roundtableMeta?.agentName && message.role !== "user" ? (
+                            <p className="mb-2 text-[10px] uppercase tracking-[0.22em] text-amber-500/80">
+                              {roundtableMeta.agentName}
+                            </p>
+                          ) : null}
+                          {message.content}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
 
           <div className="shrink-0 border-t border-white/10 bg-[#0d0d0d]/95 px-6 py-4">
+            {roundtable ? (
+              <RoundtableActionBar
+                roundtable={roundtable}
+                currentOutput={roundtableCurrentOutput}
+                loadingAction={roundtableActionLoading}
+                canComplete={Boolean(canCompleteRoundtablePhase)}
+                canConfirm={Boolean(canConfirmRoundtableSummary)}
+                canSave={Boolean(canSaveRoundtableStrategy)}
+                onAction={(action) => {
+                  void runRoundtableAction(action);
+                }}
+              />
+            ) : null}
+
             <form
               className="mx-auto flex max-w-3xl items-end gap-3"
               onSubmit={(event) => {
@@ -656,34 +793,58 @@ export function ConsultationWorkspace() {
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                placeholder="告诉我你的业务目标、主力客群、成交异议或想优先拿下的场景..."
-                className="max-h-36 min-h-[72px] flex-1 resize-y rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25"
+                disabled={!canSendRoundtableMessage}
+                placeholder={
+                  canSendRoundtableMessage
+                    ? isRoundtable
+                      ? "继续回答当前专家的问题..."
+                      : "告诉我你的业务目标、主力客群、成交异议或想优先拿下的场景..."
+                    : "当前阶段正在等待摘要确认或策略保存..."
+                }
+                className="max-h-36 min-h-[72px] flex-1 resize-y rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 disabled:cursor-not-allowed disabled:opacity-60"
               />
               <button
                 type="submit"
-                disabled={sending || !input.trim()}
+                disabled={sending || !input.trim() || !canSendRoundtableMessage}
                 className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-600 text-white transition-colors hover:bg-amber-500 disabled:opacity-60"
               >
                 <Send className="h-4 w-4" />
               </button>
-            </form>
-            <div className="mx-auto mt-3 flex max-w-3xl flex-wrap gap-2">
-              {["我们在客流上有瓶颈", "我不太清楚怎么拍视频"].map((prompt) => (
+              {canCompleteRoundtablePhase ? (
                 <button
-                  key={prompt}
                   type="button"
-                  onClick={() => setInput(prompt)}
-                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                  disabled={Boolean(roundtableActionLoading)}
+                  onClick={() => {
+                    void runRoundtableAction("complete_phase");
+                  }}
+                  className="flex h-14 shrink-0 items-center gap-2 rounded-2xl border border-sky-400/30 bg-sky-500/10 px-4 text-xs text-sky-200 transition-colors hover:bg-sky-500/20 disabled:opacity-60"
                 >
-                  {prompt}
+                  <CheckCircle2 className="h-4 w-4" />
+                  阶段完成
                 </button>
-              ))}
-            </div>
+              ) : null}
+            </form>
+            {!isRoundtable ? (
+              <div className="mx-auto mt-3 flex max-w-3xl flex-wrap gap-2">
+                {["我们在客流上有瓶颈", "我不太清楚怎么拍视频"].map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => setInput(prompt)}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
 
         <aside className="hidden w-96 shrink-0 overflow-y-auto border-l border-white/10 bg-[#0a0a0a] xl:flex xl:flex-col">
           <div className="space-y-4 p-6">
+            {roundtable ? <RoundtableArtifactsPanel roundtable={roundtable} /> : null}
+
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40">
                 <BookOpen className="h-4 w-4 text-amber-500" />
@@ -778,6 +939,205 @@ export function ConsultationWorkspace() {
   );
 }
 
+type RoundtableAction =
+  | "complete_phase"
+  | "confirm_phase_summary"
+  | "return_to_phase"
+  | "save_strategy_candidate";
+
+const roundtableSteps = [
+  { phase: "intro", label: "主持人" },
+  { phase: "asset", label: "资产盘点官" },
+  { phase: "skill", label: "技能洞察官" },
+  { phase: "marketing", label: "营销策略官" },
+  { phase: "synthesis", label: "汇总确认" },
+] as const;
+
+const roundtablePhaseLabels = {
+  asset: "资产盘点",
+  skill: "技能洞察",
+  marketing: "营销策略",
+} as const;
+
+function RoundtableProgressPanel(props: { roundtable: RoundtableStateDto }) {
+  return (
+    <div className="mx-auto max-w-5xl">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.25em] text-sky-300/80">
+            Roundtable Consultation
+          </p>
+          <h2 className="mt-1 text-sm font-medium text-white">
+            当前阶段：{formatRoundtableStatus(props.roundtable)}
+          </h2>
+        </div>
+        <span className="rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-sky-200">
+          固定顺序专家链
+        </span>
+      </div>
+      <div className="mt-4 grid gap-2 md:grid-cols-5">
+        {roundtableSteps.map((step) => {
+          const state = getRoundtableStepState(props.roundtable, step.phase);
+
+          return (
+            <div
+              key={step.phase}
+              className={cn(
+                "min-h-20 rounded-2xl border p-3",
+                state === "current"
+                  ? "border-sky-400/40 bg-sky-500/10"
+                  : state === "done"
+                    ? "border-emerald-400/25 bg-emerald-500/10"
+                    : "border-white/10 bg-white/[0.03]",
+              )}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-white/35">
+                  {step.label}
+                </span>
+                {state === "done" ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+                ) : null}
+              </div>
+              <p className="mt-2 text-xs leading-5 text-white/65">
+                {getRoundtableStepDescription(step.phase)}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RoundtableActionBar(props: {
+  roundtable: RoundtableStateDto;
+  currentOutput: RoundtablePhaseOutputDto | null;
+  loadingAction: string | null;
+  canComplete: boolean;
+  canConfirm: boolean;
+  canSave: boolean;
+  onAction: (action: RoundtableAction) => void;
+}) {
+  if (props.canConfirm && props.currentOutput) {
+    return (
+      <div className="mx-auto mb-3 max-w-3xl rounded-2xl border border-sky-400/20 bg-sky-500/10 p-4">
+        <p className="text-[10px] uppercase tracking-[0.22em] text-sky-200">
+          阶段摘要待确认
+        </p>
+        <p className="mt-2 text-sm leading-6 text-white/75">
+          {props.currentOutput.handoffSummary}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={Boolean(props.loadingAction)}
+            onClick={() => props.onAction("return_to_phase")}
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 text-xs text-white/65 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-60"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            返回继续补充
+          </button>
+          <button
+            type="button"
+            disabled={Boolean(props.loadingAction)}
+            onClick={() => props.onAction("confirm_phase_summary")}
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/15 px-3 text-xs text-sky-100 transition-colors hover:bg-sky-500/25 disabled:opacity-60"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            确认进入下一位专家
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (props.canSave) {
+    return (
+      <div className="mx-auto mb-3 max-w-3xl rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4">
+        <p className="text-[10px] uppercase tracking-[0.22em] text-emerald-200">
+          圆桌汇总待保存
+        </p>
+        <p className="mt-2 text-sm leading-6 text-white/75">
+          策略候选已经生成，保存后才会回写右侧策略资产和内容日历。
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={Boolean(props.loadingAction)}
+            onClick={() => props.onAction("return_to_phase")}
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 text-xs text-white/65 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-60"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            返回营销策略官补充
+          </button>
+          <button
+            type="button"
+            disabled={Boolean(props.loadingAction)}
+            onClick={() => props.onAction("save_strategy_candidate")}
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 text-xs text-emerald-100 transition-colors hover:bg-emerald-500/25 disabled:opacity-60"
+          >
+            <Save className="h-3.5 w-3.5" />
+            保存为策略快照
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!props.canComplete) {
+    return null;
+  }
+
+  return (
+    <div className="mx-auto mb-3 max-w-3xl text-xs leading-6 text-white/40">
+      当前专家可以继续多轮追问；信息足够时点击“阶段完成”生成结构化摘要。
+    </div>
+  );
+}
+
+function RoundtableArtifactsPanel(props: { roundtable: RoundtableStateDto }) {
+  return (
+    <Card title="圆桌阶段产物">
+      <div className="space-y-3">
+        {(["asset", "skill", "marketing"] as const).map((phase) => (
+          <RoundtableOutputCard
+            key={phase}
+            label={roundtablePhaseLabels[phase]}
+            output={props.roundtable.phaseOutputs[phase] ?? null}
+          />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function RoundtableOutputCard(props: {
+  label: string;
+  output: RoundtablePhaseOutputDto | null;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#050505] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">
+          {props.label}
+        </p>
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[10px]",
+            props.output ? "bg-emerald-500/10 text-emerald-300" : "bg-white/5 text-white/35",
+          )}
+        >
+          {props.output ? "已生成" : "待生成"}
+        </span>
+      </div>
+      <p className="mt-2 text-xs leading-6 text-white/60">
+        {props.output?.handoffSummary ?? "完成该专家阶段后，这里会显示交接摘要。"}
+      </p>
+    </div>
+  );
+}
+
 function Card(props: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -828,6 +1188,115 @@ function StrategyChipGroup(props: {
       </div>
     </div>
   );
+}
+
+function getCurrentRoundtableOutput(
+  roundtable: RoundtableStateDto | null,
+): RoundtablePhaseOutputDto | null {
+  if (!roundtable) {
+    return null;
+  }
+
+  if (roundtable.currentPhase === "asset") {
+    return roundtable.phaseOutputs.asset ?? null;
+  }
+
+  if (roundtable.currentPhase === "skill") {
+    return roundtable.phaseOutputs.skill ?? null;
+  }
+
+  if (roundtable.currentPhase === "marketing") {
+    return roundtable.phaseOutputs.marketing ?? null;
+  }
+
+  return null;
+}
+
+function isRoundtableInterviewing(status: RoundtableStateDto["status"]) {
+  return (
+    status === "asset_interviewing" ||
+    status === "skill_interviewing" ||
+    status === "marketing_interviewing"
+  );
+}
+
+function isRoundtableSummarizing(status: RoundtableStateDto["status"]) {
+  return (
+    status === "asset_summarizing" ||
+    status === "skill_summarizing" ||
+    status === "marketing_summarizing"
+  );
+}
+
+function formatRoundtableStatus(roundtable: RoundtableStateDto) {
+  if (roundtable.status === "synthesis_review") {
+    return "主持人汇总确认";
+  }
+
+  if (roundtable.status === "strategy_saved") {
+    return "策略已保存";
+  }
+
+  const phaseLabel =
+    roundtable.currentPhase === "asset"
+      ? "资产盘点"
+      : roundtable.currentPhase === "skill"
+        ? "技能洞察"
+        : roundtable.currentPhase === "marketing"
+          ? "营销策略"
+          : "圆桌咨询";
+
+  return isRoundtableSummarizing(roundtable.status)
+    ? `${phaseLabel}摘要确认`
+    : `${phaseLabel}中`;
+}
+
+function getRoundtableStepState(
+  roundtable: RoundtableStateDto,
+  phase: (typeof roundtableSteps)[number]["phase"],
+) {
+  if (phase === "intro") {
+    return "done";
+  }
+
+  if (phase === "synthesis") {
+    if (roundtable.status === "strategy_saved") {
+      return "done";
+    }
+
+    return roundtable.currentPhase === "synthesis" ? "current" : "todo";
+  }
+
+  if (roundtable.phaseOutputs[phase]) {
+    return "done";
+  }
+
+  return roundtable.currentPhase === phase ? "current" : "todo";
+}
+
+function getRoundtableStepDescription(
+  phase: (typeof roundtableSteps)[number]["phase"],
+) {
+  if (phase === "intro") return "说明机制和产出";
+  if (phase === "asset") return "资源、经历、素材";
+  if (phase === "skill") return "方法、证明、优势";
+  if (phase === "marketing") return "定位、选题、CTA";
+  return "策略候选与保存";
+}
+
+function getMessageRoundtableMeta(value: Record<string, unknown>) {
+  const roundtable = toRecord(value.roundtable);
+  const agentName = typeof roundtable.agentName === "string" ? roundtable.agentName : null;
+
+  return agentName ? { agentName } : null;
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as Record<string, unknown>;
 }
 
 function formatConsultationTime(value: string) {

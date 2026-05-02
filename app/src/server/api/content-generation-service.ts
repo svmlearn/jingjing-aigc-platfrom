@@ -30,6 +30,7 @@ import {
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import { searchKnowledgeChunks } from "@/lib/db/knowledge-repository";
 import { getPlatformSettings } from "@/lib/db/platform-admin-repository";
+import { buildRoundtableSnapshotForInput } from "@/server/api/roundtable-consultation-service";
 import {
   AiRuntimeError,
   createChatCompletion,
@@ -118,6 +119,7 @@ export async function generateArticleDraftForUser(input: {
     material: materialContext.material,
     targetWorkbench: "article",
   });
+  const roundtableContext = buildRoundtableSnapshotForInput(session);
   const mode: GenerationMode =
     input.mode ?? (materialContext.material ? "rewrite" : "create");
 
@@ -199,6 +201,7 @@ export async function generateArticleDraftForUser(input: {
       calendarItemId: generationContext.calendarItemId,
       selectedCalendarItem: generationContext.selectedCalendarItem,
       strategySnapshot: session.strategySnapshot,
+      roundtableContext,
       merchantProfile: buildMerchantSnapshot(merchant),
       generationMode: mode,
       strategyTag: generationContext.strategyTag,
@@ -409,6 +412,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
     material: materialContext.material,
     targetWorkbench: "video",
   });
+  const roundtableContext = buildRoundtableSnapshotForInput(session);
   const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
   const selectedVideoCalendarItem =
     generationContext.selectedCalendarItem?.contentType === "video"
@@ -621,6 +625,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
           calendarItemId: generationContext.calendarItemId,
           selectedCalendarItem: generationContext.selectedCalendarItem,
           strategySnapshot: session.strategySnapshot,
+          roundtableContext,
           merchantProfile: buildMerchantSnapshot(merchant),
           strategyTag: generationContext.strategyTag,
           extraRequirement: input.userMessage ?? null,

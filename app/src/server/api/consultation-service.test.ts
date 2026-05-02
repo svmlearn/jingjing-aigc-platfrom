@@ -3,6 +3,14 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const serviceSource = readFileSync(new URL("./consultation-service.ts", import.meta.url), "utf8");
+const roundtableSource = readFileSync(
+  new URL("./roundtable-consultation-service.ts", import.meta.url),
+  "utf8",
+);
+const contentGenerationSource = readFileSync(
+  new URL("./content-generation-service.ts", import.meta.url),
+  "utf8",
+);
 
 test("consultation runtime resolves online agent prompt and skill bindings", () => {
   assert.match(serviceSource, /getConsultationDefaultRouteBinding/);
@@ -86,4 +94,22 @@ test("strategy asset editor is a full-document tool call, not runtime semantic p
   assert.doesNotMatch(serviceSource, /splitTargetAudience/);
   assert.doesNotMatch(serviceSource, /splitOnDunhao/);
   assert.doesNotMatch(serviceSource, /门店\\s\*3\\s\*公里内高意向到店人群/);
+});
+
+test("roundtable consultation uses fixed phase handoff instead of free swarm", () => {
+  assert.match(serviceSource, /createRoundtableConsultationSessionForUser/);
+  assert.match(serviceSource, /resolveRoundtableState\(effectiveSession\)/);
+  assert.match(roundtableSource, /roundtablePhaseOrder: RoundtableInterviewPhaseKey\[\] = \["asset", "skill", "marketing"\]/);
+  assert.match(roundtableSource, /phase_summary_confirmed/);
+  assert.match(roundtableSource, /第一版只传阶段结构化摘要，不默认传全量 transcript/);
+  assert.doesNotMatch(roundtableSource, /swarm/i);
+});
+
+test("roundtable strategy writes only after synthesis confirmation and is snapshotted downstream", () => {
+  assert.match(roundtableSource, /saveRoundtableStrategyCandidate/);
+  assert.match(roundtableSource, /status !== "synthesis_review" \|\| !input\.state\.strategyCandidate/);
+  assert.match(roundtableSource, /upsertMerchantStrategyAsset/);
+  assert.match(roundtableSource, /strategySnapshot: input\.state\.strategyCandidate/);
+  assert.match(contentGenerationSource, /buildRoundtableSnapshotForInput/);
+  assert.match(contentGenerationSource, /roundtableContext/);
 });

@@ -396,10 +396,20 @@ export const listVideoEditJobsQuerySchema = z.object({
 
 export const createConsultationSessionSchema = z.object({
   title: z.string().trim().max(120).nullish(),
+  mode: z.enum(["standard", "roundtable"]).optional(),
 });
 
 export const sendConsultationMessageSchema = z.object({
   content: z.string().trim().min(1).max(8000),
+});
+
+export const roundtableActionSchema = z.object({
+  action: z.enum([
+    "complete_phase",
+    "confirm_phase_summary",
+    "return_to_phase",
+    "save_strategy_candidate",
+  ]),
 });
 
 export const generateConsultationContentSchema = z.object({

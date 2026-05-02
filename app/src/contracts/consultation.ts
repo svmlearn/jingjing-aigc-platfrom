@@ -2,6 +2,8 @@ export type ConsultationSessionStatus = "active" | "completed" | "archived";
 
 export type ConsultationMessageRole = "assistant" | "user" | "system";
 
+export type ConsultationMode = "standard" | "roundtable";
+
 export type ConsultationToolCardDto = {
   key: string;
   label: string;
@@ -36,6 +38,67 @@ export type StrategySnapshotDto = {
     hook: string;
     outcome: string;
   } | null;
+};
+
+export type RoundtablePhaseKey = "intro" | "asset" | "skill" | "marketing" | "synthesis";
+
+export type RoundtableInterviewPhaseKey = "asset" | "skill" | "marketing";
+
+export type RoundtableAgentRole =
+  | "moderator"
+  | "asset_manager"
+  | "skill_mapper"
+  | "marketing_strategist";
+
+export type RoundtableSessionStatus =
+  | "intro"
+  | "asset_interviewing"
+  | "asset_summarizing"
+  | "skill_interviewing"
+  | "skill_summarizing"
+  | "marketing_interviewing"
+  | "marketing_summarizing"
+  | "synthesis_review"
+  | "strategy_saved"
+  | "failed"
+  | "archived";
+
+export type RoundtableSummaryFieldDto = {
+  label: string;
+  items: string[];
+};
+
+export type RoundtablePhaseOutputDto = {
+  phaseKey: RoundtableInterviewPhaseKey;
+  agentRole: RoundtableAgentRole;
+  title: string;
+  fields: RoundtableSummaryFieldDto[];
+  handoffSummary: string;
+  confidence: "low" | "medium" | "high";
+  sourceMessageIds: string[];
+  createdAt: string;
+};
+
+export type RoundtableHandoffDto = {
+  fromPhase: RoundtableInterviewPhaseKey;
+  toPhase: RoundtableInterviewPhaseKey | "synthesis";
+  handoffSummary: string;
+  includedContextKeys: string[];
+  excludedContextReason: string;
+  createdAt: string;
+};
+
+export type RoundtableStateDto = {
+  mode: "roundtable";
+  status: RoundtableSessionStatus;
+  currentPhase: RoundtablePhaseKey;
+  currentAgentRole: RoundtableAgentRole;
+  startedAt: string;
+  updatedAt: string;
+  phaseOutputs: Partial<Record<RoundtableInterviewPhaseKey, RoundtablePhaseOutputDto>>;
+  handoffTrace: RoundtableHandoffDto[];
+  strategyCandidate?: StrategySnapshotDto | null;
+  strategySavedAt?: string | null;
 };
 
 export type ConsultationMessageDto = {
@@ -75,12 +138,22 @@ export type ConsultationSessionSummaryDto = {
 export type ConsultationSessionDetailDto = ConsultationSessionSummaryDto & {
   messages: ConsultationMessageDto[];
   events: ConsultationEventDto[];
+  roundtable?: RoundtableStateDto | null;
 };
 
 export type CreateConsultationSessionRequest = {
   title?: string | null;
+  mode?: ConsultationMode;
 };
 
 export type SendConsultationMessageRequest = {
   content: string;
+};
+
+export type RoundtableActionRequest = {
+  action:
+    | "complete_phase"
+    | "confirm_phase_summary"
+    | "return_to_phase"
+    | "save_strategy_candidate";
 };

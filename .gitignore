@@ -44,4 +44,6 @@ temp/
 
 # Local reference copies of third-party projects.
 # Do not vendor local reference projects or indexes to GitHub.
+# Example: references/open-source/圆桌访谈/ stores the 18 multi-agent
+# reference repos used for the roundtable consultation PRD research.
 /references/

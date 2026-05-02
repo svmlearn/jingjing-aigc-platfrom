@@ -28,6 +28,7 @@ export async function POST(request: Request) {
     const session = await createConsultationSessionForUser({
       userId: user.id,
       title: payload.title,
+      mode: payload.mode,
     });
 
     return Response.json({ session }, { status: 201 });
