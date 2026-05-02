@@ -93,3 +93,29 @@ http://127.0.0.1:3000
 - Push：未 push
 - Merge：未 merge
 - Staging：未部署
+
+## 2026-05-02 体验纠偏
+
+用户验收时指出第一版问题：
+
+1. 专家追问仍像硬编码流程，不像有自主判断的 agent。
+2. 阶段产物用字符匹配和模板拼接，误把“我没懂你什么意思”等对话状态写成业务事实。
+3. 主持人汇总也存在模板感，不能作为可信策略候选。
+
+已修正：
+
+- 专家追问改为 LLM `json_object` 结构化输出，基于当前 transcript、前序阶段摘要和阶段职责自主生成下一问。
+- 阶段摘要改为 LLM 结构化摘要 + Zod 校验。
+- 模型判断信息不足、模型未配置或结构校验失败时，系统阻止生成阶段产物，不再写伪摘要。
+- 主持人汇总改为 LLM 生成完整 `strategySnapshot`，并通过 schema 校验后才进入保存确认。
+- 删除硬编码问题数组、正则抽句、关键词匹配和模板策略候选。
+- 补测试禁止 `buildFallbackQuestion`、`buildFieldItems`、`keywordHits` 等硬编码摘要路径回归。
+
+追加验证：
+
+```bash
+cd app && pnpm typecheck
+cd app && pnpm lint
+cd app && node --test src/server/api/consultation-service.test.ts
+git diff --check
+```

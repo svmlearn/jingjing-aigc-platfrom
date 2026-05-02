@@ -78,3 +78,19 @@ git diff --check -- app/src/contracts/consultation.ts app/src/server/api/roundta
 - 圆桌第一版不做自由 swarm，不做专家横向聊天。
 - 最终策略保存前不会覆盖商家级 `merchant_strategy_assets`。
 - 当前 `.gitignore` 和两份 V2.2 文档在本任务开始前已存在本地改动，提交前需要决定是否一并纳入本分支。
+
+## 验收反馈后的修正
+
+用户指出第一版圆桌体验存在明显硬编码：
+
+- 专家追问像固定脚本。
+- 阶段产物像字符匹配。
+- “我没懂你什么意思”这类沟通状态被写入阶段摘要。
+
+已修：
+
+- `roundtable-consultation-service.ts` 中专家追问改为模型驱动 JSON 输出。
+- 阶段摘要改为模型结构化摘要 + Zod schema 校验。
+- 主持人汇总改为模型生成 `strategySnapshot` + schema 校验。
+- 没有模型、信息不足或结构校验失败时，不写阶段产物，只提示继续补充或重试。
+- 测试新增防回归断言，禁止回到 `buildFallbackQuestion`、`buildFieldItems`、`keywordHits` 等路径。

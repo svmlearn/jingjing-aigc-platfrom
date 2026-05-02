@@ -102,6 +102,8 @@ test("roundtable consultation uses fixed phase handoff instead of free swarm", (
   assert.match(roundtableSource, /roundtablePhaseOrder: RoundtableInterviewPhaseKey\[\] = \["asset", "skill", "marketing"\]/);
   assert.match(roundtableSource, /phase_summary_confirmed/);
   assert.match(roundtableSource, /第一版只传阶段结构化摘要，不默认传全量 transcript/);
+  assert.match(roundtableSource, /roundtableQuestionSchema/);
+  assert.match(roundtableSource, /responseFormat: "json_object"/);
   assert.doesNotMatch(roundtableSource, /swarm/i);
 });
 
@@ -112,4 +114,15 @@ test("roundtable strategy writes only after synthesis confirmation and is snapsh
   assert.match(roundtableSource, /strategySnapshot: input\.state\.strategyCandidate/);
   assert.match(contentGenerationSource, /buildRoundtableSnapshotForInput/);
   assert.match(contentGenerationSource, /roundtableContext/);
+});
+
+test("roundtable phase outputs are model structured, not keyword matched placeholders", () => {
+  assert.match(roundtableSource, /roundtablePhaseSummarySchema/);
+  assert.match(roundtableSource, /strategyCandidateSchema/);
+  assert.match(roundtableSource, /阶段摘要模型输出不可用或结构化校验失败/);
+  assert.match(roundtableSource, /用户说「没懂」「什么意思」「不知道」这类内容/);
+  assert.doesNotMatch(roundtableSource, /buildFallbackQuestion/);
+  assert.doesNotMatch(roundtableSource, /buildFieldItems/);
+  assert.doesNotMatch(roundtableSource, /keywordHits/);
+  assert.doesNotMatch(roundtableSource, /真实案例 \+ 方法说明 \+ 风险边界/);
 });

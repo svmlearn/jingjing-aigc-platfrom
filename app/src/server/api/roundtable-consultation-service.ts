@@ -1,5 +1,7 @@
 import "server-only";
 
+import { z } from "zod";
+
 import type {
   ConsultationMessageDto,
   ConsultationSessionDetailDto,
@@ -48,8 +50,9 @@ const phaseMeta: Record<
     agentRole: RoundtableAgentRole;
     agentName: string;
     outputTitle: string;
-    defaultFields: string[];
+    outputFields: string[];
     focus: string;
+    evidenceRule: string;
   }
 > = {
   asset: {
@@ -57,28 +60,101 @@ const phaseMeta: Record<
     agentRole: "asset_manager",
     agentName: "资产盘点官",
     outputTitle: "asset_diagnosis",
-    defaultFields: ["生活状态", "可用资产", "真实故事", "素材线索", "约束条件", "风险边界"],
+    outputFields: ["life_context", "available_assets", "real_stories", "material_clues", "constraints", "risk_boundaries"],
     focus: "生活状态、经营资源、过往经历、真实案例、素材线索和表达禁区",
+    evidenceRule: "只记录用户明确说过或能从商家资料直接得出的资产事实；用户反问、没听懂、情绪反馈不能写成资产。",
   },
   skill: {
     title: "技能洞察",
     agentRole: "skill_mapper",
     agentName: "技能洞察官",
     outputTitle: "skill_diagnosis",
-    defaultFields: ["技能模块", "可复制方法", "可信证明", "差异化优势", "表达线索"],
+    outputFields: ["skill_clusters", "repeatable_methods", "proof_points", "differentiators", "content_voice_clues"],
     focus: "可复制能力、服务方法、判断标准、可信证明和表达优势",
+    evidenceRule: "只基于资产摘要和当前技能访谈抽取能力；没有方法、证明或优势时必须标记信息不足，不能补模板。",
   },
   marketing: {
     title: "营销策略",
     agentRole: "marketing_strategist",
     agentName: "营销策略官",
     outputTitle: "marketing_strategy",
-    defaultFields: ["定位判断", "目标客群", "核心卖点", "内容栏目", "CTA 建议", "风险边界"],
+    outputFields: ["positioning", "target_audiences", "core_selling_points", "content_pillars", "strategy_tags", "cta_suggestions", "risk_boundaries"],
     focus: "目标客群、内容定位、核心卖点、选题方向、CTA 和风险边界",
+    evidenceRule: "营销判断必须引用资产和技能阶段摘要；缺少事实时输出信息不足，不得编造客群、卖点或 CTA。",
   },
 };
 
 const moderatorName = "主持人";
+
+const roundtableQuestionSchema = z
+  .object({
+    message: z.string().trim().min(1).max(1200),
+    intent: z.string().trim().max(200).optional(),
+    shouldSuggestPhaseComplete: z.boolean().optional(),
+  })
+  .strict();
+
+const roundtablePhaseSummarySchema = z
+  .object({
+    isSufficient: z.boolean(),
+    insufficientReason: z.string().trim().max(500).nullable().optional(),
+    missingQuestions: z.array(z.string().trim().min(1).max(240)).max(5).optional(),
+    title: z.string().trim().min(1).max(120),
+    fields: z
+      .array(
+        z
+          .object({
+            label: z.string().trim().min(1).max(80),
+            items: z.array(z.string().trim().min(1).max(180)).min(1).max(5),
+          })
+          .strict(),
+      )
+      .min(2)
+      .max(10),
+    handoffSummary: z.string().trim().min(1).max(500),
+    confidence: z.enum(["low", "medium", "high"]),
+  })
+  .strict();
+
+const strategyCandidateSchema = z
+  .object({
+    positioning: z.string().trim().min(1).max(500),
+    coreSellingPoints: z.array(z.string().trim().min(1).max(120)).min(1).max(8),
+    targetAudiences: z.array(z.string().trim().min(1).max(120)).min(1).max(8),
+    keyScenes: z.array(z.string().trim().min(1).max(140)).min(1).max(8),
+    currentSuggestion: z.string().trim().min(1).max(800),
+    strategyTags: z.array(z.string().trim().min(1).max(40)).min(1).max(8),
+    contentCalendarDraft: z
+      .array(
+        z
+          .object({
+            id: z.string().trim().min(1).max(80),
+            dayLabel: z.string().trim().min(1).max(40),
+            contentType: z.enum(["article", "video"]),
+            strategyTag: z.string().trim().min(1).max(80),
+            title: z.string().trim().min(1).max(120),
+            summary: z.string().trim().min(1).max(240),
+          })
+          .strict(),
+      )
+      .min(3)
+      .max(7),
+    articleBrief: z
+      .object({
+        workingTitle: z.string().trim().min(1).max(120),
+        angle: z.string().trim().min(1).max(240),
+        callToAction: z.string().trim().min(1).max(120),
+      })
+      .strict(),
+    videoBrief: z
+      .object({
+        workingTitle: z.string().trim().min(1).max(120),
+        hook: z.string().trim().min(1).max(240),
+        outcome: z.string().trim().min(1).max(240),
+      })
+      .strict(),
+  })
+  .strict();
 
 export async function createRoundtableConsultationSessionForUser(input: {
   userId: string;
@@ -295,16 +371,23 @@ async function completeRoundtablePhase(input: {
   }
 
   const phaseMessages = getMessagesForPhase(input.session.messages, phaseKey);
-  const userText = phaseMessages
-    .filter((message) => message.role === "user")
-    .map((message) => message.content)
-    .join("\n");
+  const summaryResult = await buildPhaseOutputWithModel({
+    merchant: input.merchant,
+    state: input.state,
+    phaseKey,
+    messages: phaseMessages,
+    createdAt: new Date().toISOString(),
+  });
 
-  if (userText.trim().length < 12) {
+  if (summaryResult.status !== "ready") {
     await createConsultationMessage({
       sessionId: input.session.id,
       role: "assistant",
-      content: `现在的信息还不够生成 ${phaseMeta[phaseKey].outputTitle}。你可以先补充一个真实例子、一个约束条件，或一个你不希望账号使用的表达方式。`,
+      content: formatPhaseSummaryBlockedMessage({
+        phaseKey,
+        reason: summaryResult.reason,
+        missingQuestions: summaryResult.missingQuestions,
+      }),
       stageLabel: phaseMeta[phaseKey].title,
       toolCards: buildRoundtableToolCards(input.state),
       visibleSummary: buildRoundtableVisibleSummary({
@@ -312,6 +395,16 @@ async function completeRoundtablePhase(input: {
         phaseKey,
         agentName: phaseMeta[phaseKey].agentName,
       }),
+    });
+    await createConsultationEvent({
+      sessionId: input.session.id,
+      eventType: "roundtable.phase_summary.blocked",
+      stageLabel: phaseMeta[phaseKey].title,
+      payload: {
+        phaseKey,
+        reason: summaryResult.reason,
+        missingQuestions: summaryResult.missingQuestions,
+      },
     });
 
     return getRoundtableSessionDetail({
@@ -321,11 +414,10 @@ async function completeRoundtablePhase(input: {
   }
 
   const now = new Date().toISOString();
-  const output = buildPhaseOutput({
-    phaseKey,
-    messages: phaseMessages,
+  const output = {
+    ...summaryResult.output,
     createdAt: now,
-  });
+  };
   const nextState: RoundtableStateDto = {
     ...input.state,
     status: getSummarizingStatus(phaseKey),
@@ -464,10 +556,40 @@ async function enterRoundtableSynthesis(input: {
         createdAt: now,
       }
     : null;
-  const strategyCandidate = buildRoundtableStrategyCandidate({
+  const strategyCandidate = await buildRoundtableStrategyCandidateWithModel({
     merchant: input.merchant,
     state: input.state,
   });
+
+  if (!strategyCandidate) {
+    await createConsultationMessage({
+      sessionId: input.session.id,
+      role: "assistant",
+      content:
+        "主持人：圆桌汇总暂时没有生成成功。我不会用模板策略覆盖你的信息，请稍后重试，或返回营销策略官继续补充关键事实后再汇总。",
+      stageLabel: "圆桌汇总失败",
+      toolCards: buildRoundtableToolCards(input.state),
+      visibleSummary: buildRoundtableVisibleSummary({
+        state: input.state,
+        phaseKey: "synthesis",
+        agentName: moderatorName,
+      }),
+    });
+    await createConsultationEvent({
+      sessionId: input.session.id,
+      eventType: "roundtable.synthesis.blocked",
+      stageLabel: "圆桌汇总失败",
+      payload: {
+        reason: "strategy_candidate_model_generation_failed",
+      },
+    });
+
+    return getRoundtableSessionDetail({
+      merchantId: input.merchant.id,
+      sessionId: input.session.id,
+    });
+  }
+
   const nextState: RoundtableStateDto = {
     ...input.state,
     status: "synthesis_review",
@@ -674,10 +796,8 @@ async function buildRoundtableQuestion(input: {
   recentUserContent: string;
   phaseMessages: ConsultationMessageDto[];
 }) {
-  const fallback = buildFallbackQuestion(input);
-
   if (!getAiRuntimeApiKey()) {
-    return fallback;
+    return `${phaseMeta[input.phaseKey].agentName}：当前模型运行时还没有配置好，我不能假装自己在自主访谈。请先配置 LLM runtime 后继续圆桌咨询。`;
   }
 
   try {
@@ -685,15 +805,20 @@ async function buildRoundtableQuestion(input: {
     const response = await createChatCompletion({
       runtime: llmRuntime,
       model: llmRuntime.primaryModel,
+      responseFormat: "json_object",
       messages: [
         {
           role: "system",
           content: [
-            `你是圆桌咨询里的${phaseMeta[input.phaseKey].agentName}。`,
-            `你只负责${phaseMeta[input.phaseKey].focus}。`,
-            "每次只问 1 个主问题，可以带 1 到 2 个提示。",
-            "不要直接替用户编造事实，不要跳到其他专家阶段。",
-            "用自然中文回复，不要输出 JSON 或 Markdown 表格。",
+            "你是圆桌咨询里的自主访谈 Agent，不是固定脚本机器人。",
+            `当前身份：${phaseMeta[input.phaseKey].agentName}。`,
+            `当前职责：${phaseMeta[input.phaseKey].focus}。`,
+            phaseMeta[input.phaseKey].evidenceRule,
+            "你必须根据用户最近回答、当前阶段 transcript、前序阶段摘要，自主判断下一步最值得追问的问题。",
+            "如果用户表示没听懂、反问或困惑，先用更具体的话解释你想问什么，再换一种问法；不要重复原问题。",
+            "每次只提出 1 个主问题，可以附 1 到 2 个具体示例帮助用户回答。",
+            "不得跨阶段做其他专家的工作，不得编造用户没有说过的事实。",
+            '只输出 JSON：{"message":"给商家的自然语言回复","intent":"本轮追问意图","shouldSuggestPhaseComplete":false}。',
           ].join("\n"),
         },
         {
@@ -706,60 +831,27 @@ async function buildRoundtableQuestion(input: {
               brandSummary: input.merchant.brandSummary,
             },
             phaseKey: input.phaseKey,
+            phaseGoal: phaseMeta[input.phaseKey].focus,
+            outputContract: phaseMeta[input.phaseKey].outputFields,
             previousPhaseOutputs: input.state.phaseOutputs,
             recentUserContent: input.recentUserContent,
             currentPhaseMessages: input.phaseMessages.slice(-8).map((message) => ({
               role: message.role,
               content: message.content,
             })),
-            fallbackDraft: fallback,
           }),
         },
       ],
     });
+    const parsed = parseModelJson({
+      content: response.content,
+      schema: roundtableQuestionSchema,
+    });
 
-    return response.content.trim() || fallback;
+    return parsed.message;
   } catch {
-    return fallback;
+    return `${phaseMeta[input.phaseKey].agentName}：这一轮追问生成失败了。我不会用固定话术继续，请稍后重试，或检查模型运行时配置。`;
   }
-}
-
-function buildFallbackQuestion(input: {
-  merchant: MerchantProfileDto;
-  state: RoundtableStateDto;
-  phaseKey: RoundtableInterviewPhaseKey;
-  recentUserContent: string;
-  phaseMessages: ConsultationMessageDto[];
-}) {
-  const phaseUserMessageCount = input.phaseMessages.filter((message) => message.role === "user").length;
-
-  if (input.phaseKey === "asset") {
-    const questions = [
-      `我是资产盘点官。先不急着做营销定位，我们先看 ${input.merchant.name} 已经有什么。你现在最稳定能拿出来的真实资源、客户故事或服务过程是什么？`,
-      "这些真实案例大概来自哪几类客户？能不能挑一个你印象最深、最能体现你服务方式的例子说说？",
-      "你有哪些表达边界是绝对不想碰的，比如不想制造焦虑、不想夸大效果，或不想用过度承诺的说法？",
-    ];
-    return questions[Math.min(phaseUserMessageCount, questions.length - 1)];
-  }
-
-  if (input.phaseKey === "skill") {
-    const assetSummary = input.state.phaseOutputs.asset?.handoffSummary ?? "资产摘要还不够完整";
-    const questions = [
-      `我是技能洞察官。我先接住上一阶段的资产摘要：${assetSummary}。这些经历背后，你最擅长解决的一个具体问题是什么？`,
-      "当客户遇到这个问题时，你通常会按什么判断标准或步骤处理？请讲一个可复用的方法。",
-      "有什么证明能让陌生用户相信你，例如案例反馈、资质、复购、经验年限或标准流程？",
-    ];
-    return questions[Math.min(phaseUserMessageCount, questions.length - 1)];
-  }
-
-  const assetSummary = input.state.phaseOutputs.asset?.handoffSummary ?? "资产摘要不足";
-  const skillSummary = input.state.phaseOutputs.skill?.handoffSummary ?? "技能摘要不足";
-  const questions = [
-    `我是营销策略官。我会基于前两位专家的结论做判断：资产是「${assetSummary}」，技能是「${skillSummary}」。你更想优先建立信任，还是更想把咨询转化做起来？`,
-    "如果要让一条内容更容易带来咨询，目标用户最常卡在哪个点：不知道值不值、担心效果、担心价格，还是不知道怎么开始？",
-    "你希望内容里的行动引导是什么：私信咨询、到店体验、领取资料、预约评估，还是先关注账号？",
-  ];
-  return questions[Math.min(phaseUserMessageCount, questions.length - 1)];
 }
 
 function buildInitialRoundtableState(now: string): RoundtableStateDto {
@@ -801,181 +893,204 @@ function buildModeratorOpening(merchant: MerchantProfileDto) {
   ].join("\n");
 }
 
-function buildPhaseOutput(input: {
+async function buildPhaseOutputWithModel(input: {
+  merchant: MerchantProfileDto;
+  state: RoundtableStateDto;
   phaseKey: RoundtableInterviewPhaseKey;
   messages: ConsultationMessageDto[];
   createdAt: string;
-}): RoundtablePhaseOutputDto {
-  const userMessages = input.messages.filter((message) => message.role === "user");
-  const userText = userMessages.map((message) => message.content.trim()).filter(Boolean);
-  const allText = userText.join(" ");
-  const fields = phaseMeta[input.phaseKey].defaultFields.map((label, index) => ({
-    label,
-    items: buildFieldItems({
-      label,
-      text: allText,
-      fallback: userText[index % Math.max(userText.length, 1)] ?? "用户已补充，待下一轮细化。",
-    }),
-  }));
-  const handoffSummary = clipText(
-    userText.slice(-3).join("；") ||
-      fields
-        .map((field) => `${field.label}: ${field.items.join("、")}`)
-        .join("；"),
-    220,
-  );
+}): Promise<
+  | {
+      status: "ready";
+      output: RoundtablePhaseOutputDto;
+    }
+  | {
+      status: "blocked";
+      reason: string;
+      missingQuestions: string[];
+    }
+> {
+  const userMessageCount = input.messages.filter((message) => message.role === "user").length;
 
-  return {
-    phaseKey: input.phaseKey,
-    agentRole: phaseMeta[input.phaseKey].agentRole,
-    title: phaseMeta[input.phaseKey].outputTitle,
-    fields,
-    handoffSummary,
-    confidence: userText.join("").length > 120 ? "high" : userText.join("").length > 48 ? "medium" : "low",
-    sourceMessageIds: input.messages.map((message) => message.id),
-    createdAt: input.createdAt,
-  };
+  if (!getAiRuntimeApiKey()) {
+    return {
+      status: "blocked",
+      reason: "模型运行时未配置，无法生成可信阶段摘要。",
+      missingQuestions: ["请先配置 LLM runtime，再重新生成阶段摘要。"],
+    };
+  }
+
+  if (userMessageCount === 0) {
+    return {
+      status: "blocked",
+      reason: "当前阶段还没有用户回答，不能生成阶段摘要。",
+      missingQuestions: [`请先回答${phaseMeta[input.phaseKey].agentName}的一个核心问题。`],
+    };
+  }
+
+  try {
+    const { llmRuntime } = await getPlatformSettings();
+    const response = await createChatCompletion({
+      runtime: llmRuntime,
+      model: llmRuntime.primaryModel,
+      responseFormat: "json_object",
+      messages: [
+        {
+          role: "system",
+          content: [
+            "你是圆桌咨询的阶段摘要 Agent。",
+            `当前阶段：${phaseMeta[input.phaseKey].title} / ${phaseMeta[input.phaseKey].agentName}。`,
+            `阶段职责：${phaseMeta[input.phaseKey].focus}。`,
+            `输出字段契约：${phaseMeta[input.phaseKey].outputFields.join(", ")}。`,
+            phaseMeta[input.phaseKey].evidenceRule,
+            "你只能抽取用户在当前阶段明确表达过的事实，以及前序阶段摘要中允许带入的事实。",
+            "用户说「没懂」「什么意思」「不知道」这类内容，只能作为沟通状态，不能写成业务事实或阶段产物。",
+            "如果当前 transcript 不足以支持结构化产物，isSufficient 必须为 false，并给出 missingQuestions。",
+            "如果 isSufficient 为 true，fields 中每个 item 都必须是干净业务事实，不要重复、不要堆砌原文、不要写解释过程。",
+            "只输出 JSON，不输出 Markdown。",
+          ].join("\n"),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            merchant: {
+              name: input.merchant.name,
+              industry: input.merchant.industry,
+              serviceItems: input.merchant.serviceItems,
+              brandSummary: input.merchant.brandSummary,
+              forbiddenWords: input.merchant.forbiddenWords,
+            },
+            phaseKey: input.phaseKey,
+            previousPhaseOutputs: input.state.phaseOutputs,
+            transcript: input.messages.map((message) => ({
+              role: message.role,
+              content: message.content,
+            })),
+            requiredJsonShape: {
+              isSufficient: "boolean",
+              insufficientReason: "string|null",
+              missingQuestions: ["string"],
+              title: phaseMeta[input.phaseKey].outputTitle,
+              fields: [{ label: "field name", items: ["fact from transcript"] }],
+              handoffSummary: "short summary for next expert",
+              confidence: "low|medium|high",
+            },
+          }),
+        },
+      ],
+    });
+    const parsed = parseModelJson({
+      content: response.content,
+      schema: roundtablePhaseSummarySchema,
+    });
+
+    if (!parsed.isSufficient) {
+      return {
+        status: "blocked",
+        reason: parsed.insufficientReason || "当前阶段信息不足。",
+        missingQuestions: parsed.missingQuestions ?? [],
+      };
+    }
+
+    return {
+      status: "ready",
+      output: {
+        phaseKey: input.phaseKey,
+        agentRole: phaseMeta[input.phaseKey].agentRole,
+        title: parsed.title,
+        fields: parsed.fields,
+        handoffSummary: parsed.handoffSummary,
+        confidence: parsed.confidence,
+        sourceMessageIds: input.messages.map((message) => message.id),
+        createdAt: input.createdAt,
+      },
+    };
+  } catch {
+    return {
+      status: "blocked",
+      reason: "阶段摘要模型输出不可用或结构化校验失败，未写入阶段产物。",
+      missingQuestions: ["请补充一个更具体的事实后重试，或稍后重新生成摘要。"],
+    };
+  }
 }
 
-function buildFieldItems(input: {
-  label: string;
-  text: string;
-  fallback: string;
-}) {
-  const sentences = input.text
-    .split(/[。！？!?；;\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-  const keywordHits = sentences.filter((sentence) => {
-    if (input.label.includes("风险") || input.label.includes("边界")) {
-      return /不想|不要|不能|避免|风险|夸大|承诺|焦虑/.test(sentence);
-    }
-
-    if (input.label.includes("故事") || input.label.includes("案例")) {
-      return /案例|客户|故事|经历|反馈|复购/.test(sentence);
-    }
-
-    if (input.label.includes("CTA") || input.label.includes("转化")) {
-      return /私信|到店|预约|咨询|领取|评估|体验/.test(sentence);
-    }
-
-    return sentence.length >= 6;
-  });
-  const items = (keywordHits.length ? keywordHits : [input.fallback])
-    .map((item) => clipText(item, 64))
-    .filter(Boolean);
-
-  return uniqueStrings(items).slice(0, 3);
-}
-
-function buildRoundtableStrategyCandidate(input: {
+async function buildRoundtableStrategyCandidateWithModel(input: {
   merchant: MerchantProfileDto;
   state: RoundtableStateDto;
-}): StrategySnapshotDto {
-  const asset = input.state.phaseOutputs.asset;
-  const skill = input.state.phaseOutputs.skill;
-  const marketing = input.state.phaseOutputs.marketing;
-  const serviceAnchor = input.merchant.serviceItems[0] ?? input.merchant.industry ?? "本地服务";
-  const marketingFields = flattenOutputFields(marketing);
-  const skillFields = flattenOutputFields(skill);
-  const assetFields = flattenOutputFields(asset);
-  const targetAudiences = pickFieldItems(marketing, ["目标客群"], [
-    "谨慎决策型高意向用户",
-    "需要先建立信任再咨询的潜在客户",
-  ]);
-  const coreSellingPoints = uniqueStrings([
-    ...pickFieldItems(marketing, ["核心卖点"], []),
-    ...pickFieldItems(skill, ["可信证明", "差异化优势", "技能模块"], []),
-    ...input.merchant.serviceItems.slice(0, 2),
-  ]).slice(0, 6);
-  const keyScenes = uniqueStrings([
-    ...pickFieldItems(asset, ["真实故事", "素材线索", "生活状态"], []),
-    ...pickFieldItems(marketing, ["内容栏目"], []),
-  ]).slice(0, 6);
-  const strategyTags = uniqueStrings([
-    "圆桌咨询",
-    marketingFields.includes("案例") || assetFields.includes("案例") ? "真实案例" : "信任建立",
-    skillFields.includes("方法") || skillFields.includes("流程") ? "方法拆解" : "专业表达",
-    "轻转化",
-  ]).slice(0, 4);
-  const positioning =
-    pickFirst(marketing, "定位判断") ??
-    `${input.merchant.name} 以真实资产和可验证技能为基础，面向${targetAudiences[0] ?? "高意向用户"}提供 ${serviceAnchor} 内容咨询与转化承接。`;
-  const currentSuggestion =
-    marketing?.handoffSummary ??
-    `建议先用「${strategyTags.join(" + ")}」建立信任，再把咨询引导到 ${input.merchant.defaultCta[0] ?? "私信或预约"}。`;
+}): Promise<StrategySnapshotDto | null> {
+  if (!getAiRuntimeApiKey()) {
+    return null;
+  }
 
-  return {
-    positioning,
-    coreSellingPoints,
-    targetAudiences,
-    keyScenes,
-    currentSuggestion,
-    strategyTags,
-    contentCalendarDraft: [
-      {
-        id: "roundtable-calendar-1",
-        dayLabel: "Day 1",
-        contentType: "article",
-        strategyTag: strategyTags[1] ?? "真实案例",
-        title: `${serviceAnchor} 的一个真实案例拆解`,
-        summary: asset?.handoffSummary ?? "用真实经历建立第一层信任。",
-      },
-      {
-        id: "roundtable-calendar-2",
-        dayLabel: "Day 2",
-        contentType: "video",
-        strategyTag: strategyTags[2] ?? "方法拆解",
-        title: `${input.merchant.name} 的服务判断过程`,
-        summary: skill?.handoffSummary ?? "把可复制方法拍成短视频脚本。",
-      },
-      {
-        id: "roundtable-calendar-3",
-        dayLabel: "Day 3",
-        contentType: "article",
-        strategyTag: strategyTags[3] ?? "轻转化",
-        title: "用户最常见顾虑的答疑",
-        summary: marketing?.handoffSummary ?? "围绕咨询异议做轻转化内容。",
-      },
-    ],
-    articleBrief: {
-      workingTitle: `${serviceAnchor} 的真实案例与避坑答疑`,
-      angle: asset?.handoffSummary ?? "真实案例 + 方法说明 + 风险边界",
-      callToAction: input.merchant.defaultCta[0] ?? "私信咨询或预约评估",
-    },
-    videoBrief: {
-      workingTitle: `${input.merchant.name} 圆桌咨询短视频脚本`,
-      hook: targetAudiences[0]
-        ? `先说出 ${targetAudiences[0]} 最常见的一个顾虑`
-        : "先用一个真实问题切入",
-      outcome: "输出一条基于圆桌阶段摘要的视频脚本",
-    },
-  };
-}
+  try {
+    const { llmRuntime } = await getPlatformSettings();
+    const response = await createChatCompletion({
+      runtime: llmRuntime,
+      model: llmRuntime.primaryModel,
+      responseFormat: "json_object",
+      messages: [
+        {
+          role: "system",
+          content: [
+            "你是圆桌咨询主持人的策略汇总 Agent。",
+            "你只能读取三阶段结构化产物，不读取全量 transcript。",
+            "输出必须是可保存的 strategySnapshot JSON，字段包括 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion、strategyTags、contentCalendarDraft、articleBrief、videoBrief。",
+            "不得编造阶段产物没有支持的商家事实；如果需要泛化，只能写成策略假设和低承诺表达。",
+            "内容日历必须能进入图文/视频工作台，至少 3 条，图文和视频都要有。",
+            "不要输出 Markdown，只输出 JSON。",
+          ].join("\n"),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            merchant: {
+              name: input.merchant.name,
+              industry: input.merchant.industry,
+              serviceItems: input.merchant.serviceItems,
+              defaultCta: input.merchant.defaultCta,
+              forbiddenWords: input.merchant.forbiddenWords,
+            },
+            phaseOutputs: input.state.phaseOutputs,
+            requiredJsonShape: {
+              positioning: "string",
+              coreSellingPoints: ["string"],
+              targetAudiences: ["string"],
+              keyScenes: ["string"],
+              currentSuggestion: "string",
+              strategyTags: ["string"],
+              contentCalendarDraft: [
+                {
+                  id: "stable string id",
+                  dayLabel: "Day 1",
+                  contentType: "article|video",
+                  strategyTag: "string",
+                  title: "string",
+                  summary: "string",
+                },
+              ],
+              articleBrief: {
+                workingTitle: "string",
+                angle: "string",
+                callToAction: "string",
+              },
+              videoBrief: {
+                workingTitle: "string",
+                hook: "string",
+                outcome: "string",
+              },
+            },
+          }),
+        },
+      ],
+    });
 
-function flattenOutputFields(output?: RoundtablePhaseOutputDto) {
-  return (
-    output?.fields
-      .flatMap((field) => field.items)
-      .join(" ") ?? ""
-  );
-}
-
-function pickFieldItems(
-  output: RoundtablePhaseOutputDto | undefined,
-  labels: string[],
-  fallback: string[],
-) {
-  const values =
-    output?.fields
-      .filter((field) => labels.some((label) => field.label.includes(label)))
-      .flatMap((field) => field.items) ?? [];
-
-  return uniqueStrings(values.length ? values : fallback).slice(0, 6);
-}
-
-function pickFirst(output: RoundtablePhaseOutputDto | undefined, label: string) {
-  return output?.fields.find((field) => field.label.includes(label))?.items[0] ?? null;
+    return parseModelJson({
+      content: response.content,
+      schema: strategyCandidateSchema,
+    });
+  } catch {
+    return null;
+  }
 }
 
 function formatPhaseSummaryMessage(output: RoundtablePhaseOutputDto) {
@@ -989,6 +1104,23 @@ function formatPhaseSummaryMessage(output: RoundtablePhaseOutputDto) {
     body,
     `交接摘要：${output.handoffSummary}`,
     "你可以确认进入下一位专家，也可以返回继续补充。",
+  ].join("\n");
+}
+
+function formatPhaseSummaryBlockedMessage(input: {
+  phaseKey: RoundtableInterviewPhaseKey;
+  reason: string;
+  missingQuestions: string[];
+}) {
+  const meta = phaseMeta[input.phaseKey];
+  const questions = input.missingQuestions.length
+    ? input.missingQuestions.map((question) => `- ${question}`).join("\n")
+    : "- 请补充一个能支撑本阶段判断的具体事实。";
+
+  return [
+    `${meta.agentName}：我现在不能把这一阶段写成 ${meta.outputTitle}，因为${input.reason}`,
+    "为了避免把无效信息写进后续专家上下文，请先补充：",
+    questions,
   ].join("\n");
 }
 
@@ -1011,8 +1143,8 @@ function buildRoundtableToolCards(state: RoundtableStateDto) {
   return [
     {
       key: "roundtable_fixed_sequence",
-      label: "固定专家链",
-      summary: "按资产盘点官 -> 技能洞察官 -> 营销策略官 -> 主持人汇总推进。",
+      label: "主持人编排",
+      summary: "主持人控制阶段边界；每位专家的问题由模型根据当前上下文生成。",
       status: "completed" as const,
     },
     {
@@ -1046,6 +1178,21 @@ function buildRoundtableVisibleSummary(input: {
       phaseOutput: input.phaseOutput ?? null,
     },
   };
+}
+
+function parseModelJson<T>(input: {
+  content: string;
+  schema: z.ZodType<T>;
+}): T {
+  const parsed = JSON.parse(stripJsonFence(input.content));
+  return input.schema.parse(parsed);
+}
+
+function stripJsonFence(content: string) {
+  const trimmed = content.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+
+  return fenced?.[1]?.trim() ?? trimmed;
 }
 
 function requireRoundtableState(session: ConsultationSessionDetailDto) {
@@ -1346,13 +1493,4 @@ function getString(value: unknown, fallback = "") {
 
 function getNullableString(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
-}
-
-function uniqueStrings(values: string[]) {
-  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
-}
-
-function clipText(value: string, maxLength: number) {
-  const text = value.trim();
-  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 }

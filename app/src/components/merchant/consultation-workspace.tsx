@@ -456,7 +456,7 @@ export function ConsultationWorkspace() {
           </button>
           <span className="text-xs text-white/35">
             {isRoundtable
-              ? "固定专家链正在按阶段推进"
+              ? "主持人正在编排多专家访谈"
               : "默认单 Agent 咨询，会持续同步右侧策略资产"}
           </span>
         </div>
@@ -972,7 +972,7 @@ function RoundtableProgressPanel(props: { roundtable: RoundtableStateDto }) {
           </h2>
         </div>
         <span className="rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-sky-200">
-          固定顺序专家链
+          主持人编排专家链
         </span>
       </div>
       <div className="mt-4 grid gap-2 md:grid-cols-5">
