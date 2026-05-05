@@ -39,6 +39,7 @@ test("buildVideoScriptContext includes consultation context for video drafting",
   const scriptContext = buildVideoScriptContext({
     merchant,
     session,
+    strategyAssetMarkdown: "# 商家策略资产\n\n## 当前定位\n专业可信的本地门店",
     extraRequirement: "更强调专业信任感",
     materialContext: {
       referenceId: "reference-1",
@@ -63,6 +64,10 @@ test("buildVideoScriptContext includes consultation context for video drafting",
   assert.equal(scriptContext.strategy.platformStrategy.platform, "douyin");
   assert.equal(scriptContext.strategy.platformStrategy.format, "vertical_short_video");
   assert.equal(scriptContext.critique.passForDrafting, true);
+  assert.match(
+    scriptContext.contextDigest.consultationSummary.strategyAssetMarkdown ?? "",
+    /商家策略资产/,
+  );
   assert.deepEqual(scriptContext.contextDigest.selectedCalendarItem, {
     id: "calendar-video-1",
     contentType: "video",

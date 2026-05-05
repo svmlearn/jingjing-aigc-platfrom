@@ -13,6 +13,7 @@ export type ScriptProductionBrief = {
   ctaOptions: string[];
   forbiddenExpressions: string[];
   brandTone: string | null;
+  strategyAssetMarkdown?: string | null;
   availableMaterials: Array<{
     title: string;
     description?: string | null;

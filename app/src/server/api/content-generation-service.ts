@@ -3,6 +3,7 @@ import "server-only";
 import type {
   ContentCalendarItemDto,
   ConsultationSessionDetailDto,
+  StrategySnapshotDto,
 } from "@/contracts/consultation";
 import type { ContentDraftBundleDto, ContentVariantDto } from "@/contracts/draft";
 import type {
@@ -11,7 +12,11 @@ import type {
   MaterialWorkbenchTarget,
 } from "@/contracts/material";
 import { getConsultationSessionDetail } from "@/lib/db/consultation-repository";
-import { getMerchantStrategyAsset } from "@/lib/db/merchant-strategy-asset-repository";
+import { toStrategySnapshot } from "@/lib/strategy-snapshot";
+import {
+  buildStrategyAssetMarkdown,
+  getMerchantStrategyAssetDocument,
+} from "@/lib/db/merchant-strategy-asset-repository";
 import {
   appendContentDraftRevisionTrace,
   appendContentVariantToDraft,
@@ -55,6 +60,7 @@ import {
   ArticlePromptParseError,
   buildArticleGenerationMessages,
   parseArticleGenerationResponse,
+  type ArticlePlaybook,
   type ArticleGeneratedVariant,
   type ArticlePromptContext,
   type ArticlePromptMode,
@@ -76,13 +82,14 @@ async function getConsultationSessionWithMerchantStrategy(input: {
 }): Promise<ConsultationSessionDetailDto> {
   const [session, merchantStrategyAsset] = await Promise.all([
     getConsultationSessionDetail(input),
-    getMerchantStrategyAsset(input.merchantId),
+    getMerchantStrategyAssetDocument(input.merchantId),
   ]);
 
   return merchantStrategyAsset
     ? {
         ...session,
-        strategySnapshot: merchantStrategyAsset,
+        strategySnapshot: merchantStrategyAsset.strategySnapshot,
+        strategyAsset: merchantStrategyAsset,
       }
     : session;
 }
@@ -99,6 +106,7 @@ export async function generateArticleDraftForUser(input: {
   materialId?: string | null;
   materialReferenceId?: string | null;
   strategyTag?: string | null;
+  articlePlaybook?: ArticlePlaybook | null;
 }): Promise<ContentDraftBundleDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const session = await getConsultationSessionWithMerchantStrategy({
@@ -169,6 +177,8 @@ export async function generateArticleDraftForUser(input: {
   const articleContext = buildArticlePromptContext({
     selectedCalendarItem: generationContext.selectedCalendarItem,
     strategySnapshot: session.strategySnapshot,
+    strategyAssetMarkdown: resolveStrategyAssetMarkdown(session),
+    articlePlaybook: input.articlePlaybook ?? "balanced_seed",
     merchantProfile: buildMerchantSnapshot(merchant),
     materialContext: materialSnapshot,
     contentGoal: angle,
@@ -201,13 +211,22 @@ export async function generateArticleDraftForUser(input: {
       calendarItemId: generationContext.calendarItemId,
       selectedCalendarItem: generationContext.selectedCalendarItem,
       strategySnapshot: session.strategySnapshot,
+      strategyAssetMarkdown: articleContext.strategyAssetMarkdown,
       roundtableContext,
       merchantProfile: buildMerchantSnapshot(merchant),
       generationMode: mode,
       strategyTag: generationContext.strategyTag,
+      articlePlaybook: articleContext.articlePlaybook,
       extraRequirement: input.extraRequirement ?? null,
       toneStyle: input.toneStyle ?? null,
       materialContext: materialSnapshot,
+      coverCopySuggestions: compactStrings(
+        articleGeneration.variants.flatMap((variant) => variant.coverCopySuggestions),
+      ).slice(0, 3),
+      imageStructureSuggestions: compactStrings(
+        articleGeneration.variants.flatMap((variant) => variant.imageStructureSuggestions),
+      ).slice(0, 5),
+      writingNotes: articleGeneration.variants.map((variant) => variant.rationale).filter(Boolean),
       promptMode: mode,
       promptVersion: ARTICLE_PROMPT_VERSION,
       llmTrace: articleGeneration.trace,
@@ -218,6 +237,7 @@ export async function generateArticleDraftForUser(input: {
       strategyTags: session.strategySnapshot.strategyTags,
       referenceMaterialTitle: materialContext.material?.title ?? null,
       referenceMaterialEngagement: materialContext.material?.engagementLabel ?? null,
+      articlePlaybook: articleContext.articlePlaybook,
       promptMode: articleGeneration.trace.mode,
       promptVersion: ARTICLE_PROMPT_VERSION,
       riskNotes: articleGeneration.riskNotes,
@@ -283,6 +303,10 @@ export async function reviseArticleDraftForUser(input: {
     context: buildArticlePromptContext({
       selectedCalendarItem: originalContext.selectedCalendarItem ?? null,
       strategySnapshot: originalContext.strategySnapshot ?? null,
+      strategyAssetMarkdown:
+        firstString(originalContext.strategyAssetMarkdown) ??
+        buildStrategyAssetMarkdown(toStrategySnapshotSafe(originalContext.strategySnapshot)),
+      articlePlaybook: normalizeArticlePlaybook(originalContext.articlePlaybook),
       merchantProfile: originalContext.merchantProfile ?? buildMerchantSnapshot(merchant),
       materialContext: originalContext.materialContext ?? null,
       contentGoal: firstString(originalContext.contentGoal, originalContext.rewriteGoal) ?? null,
@@ -428,6 +452,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
   const scriptContext = buildVideoScriptContext({
     merchant,
     session,
+    strategyAssetMarkdown: resolveStrategyAssetMarkdown(session),
     extraRequirement: input.userMessage ?? null,
     materialContext: materialSnapshot,
     strategyTag: generationContext.strategyTag,
@@ -445,6 +470,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
     ) ?? null,
     extraRequirement: input.userMessage ?? null,
     strategyTag: generationContext.strategyTag,
+    strategyAssetMarkdown: resolveStrategyAssetMarkdown(session),
   });
   const scriptEvidenceReferences = await collectScriptProductionEvidence({
     merchantId: merchant.id,
@@ -520,6 +546,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
         keyScenes: session.strategySnapshot.keyScenes,
         currentSuggestion: session.strategySnapshot.currentSuggestion,
         videoBrief: session.strategySnapshot.videoBrief ?? null,
+        strategyAssetMarkdown: resolveStrategyAssetMarkdown(session),
         merchantProfile: buildMerchantSnapshot(merchant),
         forbiddenExpressions: merchant.forbiddenWords,
       },
@@ -625,6 +652,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
           calendarItemId: generationContext.calendarItemId,
           selectedCalendarItem: generationContext.selectedCalendarItem,
           strategySnapshot: session.strategySnapshot,
+          strategyAssetMarkdown: resolveStrategyAssetMarkdown(session),
           roundtableContext,
           merchantProfile: buildMerchantSnapshot(merchant),
           strategyTag: generationContext.strategyTag,
@@ -1080,6 +1108,7 @@ function buildVideoScriptProductionBrief(input: {
   goal?: string | null;
   extraRequirement?: string | null;
   strategyTag?: string | null;
+  strategyAssetMarkdown?: string | null;
 }): ScriptProductionBrief {
   const snapshot = input.session.strategySnapshot;
   const material = input.materialSnapshot;
@@ -1110,6 +1139,7 @@ function buildVideoScriptProductionBrief(input: {
     ]),
     forbiddenExpressions: input.merchant.forbiddenWords,
     brandTone: input.merchant.toneStyle ?? null,
+    strategyAssetMarkdown: input.strategyAssetMarkdown ?? null,
     availableMaterials: material
       ? [
           {
@@ -1342,6 +1372,8 @@ async function generateArticleVariantsWithLlm(input: {
 function buildArticlePromptContext(input: {
   selectedCalendarItem: unknown;
   strategySnapshot: unknown;
+  strategyAssetMarkdown: string | null;
+  articlePlaybook: ArticlePlaybook;
   merchantProfile: unknown;
   materialContext: unknown;
   contentGoal: string | null;
@@ -1351,6 +1383,8 @@ function buildArticlePromptContext(input: {
   return {
     selectedCalendarItem: input.selectedCalendarItem,
     strategySnapshot: input.strategySnapshot,
+    strategyAssetMarkdown: input.strategyAssetMarkdown,
+    articlePlaybook: input.articlePlaybook,
     merchantProfile: input.merchantProfile,
     materialContext: input.materialContext,
     contentGoal: input.contentGoal,
@@ -1386,6 +1420,13 @@ function buildFallbackArticleVariants(input: {
       hashtags: buildHashtags(input.session),
       ctaText: input.cta,
       rationale: "AI 生成服务暂不可用，先使用稳定模板生成可编辑草稿。",
+      coverCopySuggestions: ["先别急着下单，先看这 3 个细节"],
+      imageStructureSuggestions: [
+        "首图用用户最关心的问题做封面花字。",
+        "第二页展示真实场景或服务流程。",
+        "第三页解释核心卖点和判断标准。",
+        "最后一页保留明确 CTA。",
+      ],
     },
     {
       styleLabel: "场景共鸣版",
@@ -1401,6 +1442,12 @@ function buildFallbackArticleVariants(input: {
       hashtags: buildHashtags(input.session),
       ctaText: input.cta,
       rationale: "AI 生成服务暂不可用，先使用稳定模板生成可编辑草稿。",
+      coverCopySuggestions: ["真正影响体验的，其实不是价格"],
+      imageStructureSuggestions: [
+        "首图抛出场景化顾虑。",
+        "中间页拆解顾虑背后的真实判断点。",
+        "末页用门店事实和 CTA 承接咨询。",
+      ],
     },
   ];
 }
@@ -1426,6 +1473,8 @@ function buildFallbackArticleRevisionVariants(input: {
       hashtags: input.currentVariant.hashtags,
       ctaText: input.currentVariant.ctaText ?? "私信我了解更多到店建议",
       rationale: "AI 生成服务暂不可用，先追加一版带修改备注的可编辑草稿。",
+      coverCopySuggestions: ["按修改意见优化后的封面方向"],
+      imageStructureSuggestions: ["沿用原配图结构，并按修改意见调整重点。"],
     },
   ];
 }
@@ -1622,6 +1671,27 @@ function buildMaterialSnapshot(
 
 function compactStrings(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function resolveStrategyAssetMarkdown(session: ConsultationSessionDetailDto) {
+  return (
+    session.strategyAsset?.strategyMarkdown?.trim() ||
+    buildStrategyAssetMarkdown(session.strategySnapshot)
+  );
+}
+
+function normalizeArticlePlaybook(value: unknown): ArticlePlaybook {
+  return value === "viral_generation" ||
+    value === "traffic_rewrite" ||
+    value === "compliance_safe" ||
+    value === "ip_persona" ||
+    value === "balanced_seed"
+    ? value
+    : "balanced_seed";
+}
+
+function toStrategySnapshotSafe(value: unknown): StrategySnapshotDto {
+  return toStrategySnapshot(value);
 }
 
 function toRecord(value: unknown): Record<string, unknown> {

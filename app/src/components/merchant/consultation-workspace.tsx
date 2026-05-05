@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Edit3,
   History,
-  MessageCircle,
   Plus,
   Send,
   Sparkles,
@@ -760,46 +759,13 @@ export function ConsultationWorkspace() {
               </span>
             </div>
 
-            <Card title="策略资产 Editor">
-              <div className="space-y-5">
-                <div className="space-y-3 text-sm text-white/75">
-                  <StrategyRow
-                    label="我们是谁"
-                    value={strategySnapshot?.positioning ?? "等待咨询中..."}
-                  />
-                  <StrategyRow
-                    label="服务谁"
-                    value={strategySnapshot?.targetAudiences.join("、") || "继续补充客群"}
-                  />
-                  <StrategyRow
-                    label="核心场景"
-                    value={strategySnapshot?.keyScenes.join("、") || "继续补充场景"}
-                  />
-                </div>
-
-                <StrategyChipGroup
-                  label="核心卖点"
-                  items={strategySnapshot?.coreSellingPoints ?? []}
-                  emptyText="继续补充卖点"
-                  tone="neutral"
-                />
-                <StrategyChipGroup
-                  label="目标客群"
-                  items={strategySnapshot?.targetAudiences ?? []}
-                  emptyText="继续补充客群"
-                  tone="amber"
-                />
-
-                <div className="space-y-2">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">
-                    当前建议
-                  </p>
-                  <p className="flex items-start gap-2 text-sm leading-7 text-white/75">
-                    <MessageCircle className="mt-1 h-4 w-4 shrink-0 text-white/35" />
-                    {strategySnapshot?.currentSuggestion ?? "继续补充信息后，这里会同步咨询建议。"}
-                  </p>
-                </div>
-              </div>
+            <Card title="策略资产文档">
+              <StrategyAssetDocument
+                markdown={
+                  session?.strategyAsset?.strategyMarkdown ??
+                  buildFallbackStrategyMarkdown(strategySnapshot)
+                }
+              />
             </Card>
           </div>
 
@@ -902,44 +868,105 @@ function Card(props: { title: string; children: React.ReactNode }) {
   );
 }
 
-function StrategyRow(props: { label: string; value: string }) {
+function StrategyAssetDocument({ markdown }: { markdown: string }) {
+  const sections = parseStrategyMarkdown(markdown);
+
   return (
-    <div className="flex gap-3">
-      <span className="w-16 shrink-0 text-[10px] uppercase tracking-[0.2em] text-white/30">
-        {props.label}
-      </span>
-      <span className="font-serif italic text-white/80">{props.value}</span>
+    <div className="space-y-4">
+      {sections.map((section) => (
+        <section key={section.title} className="space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-white/30">
+            {section.title}
+          </p>
+          <div className="space-y-2 text-sm leading-7 text-white/75">
+            {section.items.length ? (
+              section.items.map((item) => (
+                <p key={item} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                  {item}
+                </p>
+              ))
+            ) : (
+              <p className="whitespace-pre-wrap">{section.body || "继续补充。"}</p>
+            )}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
 
-function StrategyChipGroup(props: {
-  label: string;
-  items: string[];
-  emptyText: string;
-  tone: "amber" | "neutral";
-}) {
-  const chipClassName =
-    props.tone === "amber"
-      ? "border-amber-500/20 bg-amber-500/10 text-amber-500"
-      : "border-white/10 bg-white/5 text-white/75";
-  const items = props.items.length > 0 ? props.items : [props.emptyText];
+function parseStrategyMarkdown(markdown: string) {
+  const lines = markdown.split("\n");
+  const sections: Array<{ title: string; body: string; items: string[] }> = [];
+  let current: { title: string; lines: string[] } | null = null;
 
-  return (
-    <div className="space-y-2">
-      <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">{props.label}</p>
-      <div className="flex flex-wrap gap-2">
-        {items.map((item) => (
-          <span
-            key={item}
-            className={cn("rounded-full border px-3 py-1 text-xs", chipClassName)}
-          >
-            {item}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
+  for (const line of lines) {
+    const heading = line.match(/^#{1,3}\s+(.+)$/);
+
+    if (heading) {
+      if (current) {
+        sections.push(normalizeMarkdownSection(current));
+      }
+
+      current = {
+        title: heading[1]?.trim() || "策略资产",
+        lines: [],
+      };
+      continue;
+    }
+
+    if (!current) {
+      current = {
+        title: "策略资产",
+        lines: [],
+      };
+    }
+
+    current.lines.push(line);
+  }
+
+  if (current) {
+    sections.push(normalizeMarkdownSection(current));
+  }
+
+  return sections.length ? sections.slice(0, 8) : [{ title: "策略资产", body: "等待咨询中...", items: [] }];
+}
+
+function normalizeMarkdownSection(section: { title: string; lines: string[] }) {
+  const cleanLines = section.lines.map((line) => line.trim()).filter(Boolean);
+  const items = cleanLines
+    .filter((line) => /^[-*]\s+/.test(line))
+    .map((line) => line.replace(/^[-*]\s+/, "").trim());
+  const body = cleanLines
+    .filter((line) => !/^[-*]\s+/.test(line))
+    .join("\n");
+
+  return {
+    title: section.title.replace(/^商家策略资产$/, "当前资产"),
+    body,
+    items,
+  };
+}
+
+function buildFallbackStrategyMarkdown(
+  snapshot: ConsultationSessionDetailDto["strategySnapshot"] | null,
+) {
+  if (!snapshot) {
+    return "# 商家策略资产\n\n## 当前定位\n等待咨询中...";
+  }
+
+  return [
+    "# 商家策略资产",
+    `## 当前定位\n${snapshot.positioning || "继续补充。"}`,
+    `## 高价值用户洞察\n${formatMarkdownList(snapshot.targetAudiences, "继续补充客群。")}`,
+    `## 核心卖点\n${formatMarkdownList(snapshot.coreSellingPoints, "继续补充卖点。")}`,
+    `## 核心场景\n${formatMarkdownList(snapshot.keyScenes, "继续补充场景。")}`,
+    `## 当前建议\n${snapshot.currentSuggestion || "继续补充信息后同步咨询建议。"}`,
+  ].join("\n\n");
+}
+
+function formatMarkdownList(items: string[], emptyText: string) {
+  return items.length ? items.map((item) => `- ${item}`).join("\n") : emptyText;
 }
 
 function getMessageAgentLoopMeta(value: Record<string, unknown>) {

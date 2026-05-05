@@ -21,6 +21,7 @@ export async function POST(request: Request) {
       materialId: payload.materialId,
       materialReferenceId: payload.materialReferenceId,
       strategyTag: payload.strategyTag,
+      articlePlaybook: payload.articlePlaybook,
     });
 
     return Response.json({ draftBundle }, { status: 201 });

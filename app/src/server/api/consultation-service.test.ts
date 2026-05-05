@@ -203,13 +203,22 @@ test("consultation tool cards do not mark unexecuted writer tools as completed",
 });
 
 test("strategy assets are merchant-level and stable across consultation sessions", () => {
-  assert.match(serviceSource, /getMerchantStrategyAsset/);
-  assert.match(serviceSource, /ensureMerchantStrategyAsset/);
-  assert.match(serviceSource, /upsertMerchantStrategyAsset/);
-  assert.match(serviceSource, /existingMerchantStrategyAsset \?\? session\.strategySnapshot/);
-  assert.match(serviceSource, /strategySnapshot: merchantStrategyAsset/);
+  assert.match(serviceSource, /getMerchantStrategyAssetDocument/);
+  assert.match(serviceSource, /ensureMerchantStrategyAssetDocument/);
+  assert.match(serviceSource, /upsertMerchantStrategyAssetDocument/);
+  assert.match(serviceSource, /existingMerchantStrategyAsset\?\.strategySnapshot \?\? session\.strategySnapshot/);
+  assert.match(serviceSource, /strategyAsset: merchantStrategyAsset/);
   assert.match(serviceSource, /strategySnapshot: loopResult\.strategySnapshot/);
+  assert.match(serviceSource, /strategyMarkdown: loopResult\.strategyMarkdown/);
   assert.doesNotMatch(serviceSource, /previousSnapshot: null,\n\s*userMessages: \[\],\n\s*\}\);\n\s*const session = await createConsultationSession/);
+});
+
+test("strategy asset markdown is the extensible primary document", () => {
+  assert.match(serviceSource, /strategyMarkdown: state\.strategyMarkdown/);
+  assert.match(serviceSource, /strategyMarkdownChars: loopResult\.strategyMarkdown\.length/);
+  assert.match(serviceSource, /strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion、strategyMarkdown 六个字段/);
+  assert.match(serviceSource, /strategyMarkdown 是右侧策略资产的主文档/);
+  assert.match(serviceSource, /strategyMarkdown 写完整 Markdown 策略资产文档/);
 });
 
 test("strategy asset editor validates model tool arguments before applying them", () => {

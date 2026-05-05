@@ -44,6 +44,7 @@ export function buildConsultationContextInjection(input: {
   userContent: string;
   sessionSummary?: string | null;
   strategySnapshot: StrategySnapshotDto;
+  strategyMarkdown?: string | null;
   consultationAgent: ConsultationAgentRuntimeSettings;
   knowledgeMatches: KnowledgeSearchMatchDto[];
   toolResults: ConsultationAgentToolResult[];
@@ -52,6 +53,7 @@ export function buildConsultationContextInjection(input: {
   const budget = buildContextBudgetReport({
     merchant: input.merchant,
     strategySnapshot: input.strategySnapshot,
+    strategyMarkdown: input.strategyMarkdown ?? "",
     userContent: input.userContent,
     sessionSummary,
     knowledgeMatches: input.knowledgeMatches,
@@ -89,6 +91,7 @@ export function buildConsultationContextInjection(input: {
       sessionSummary,
       latestUserMessage: input.userContent,
       strategySnapshot: input.strategySnapshot,
+      strategyMarkdown: input.strategyMarkdown ?? "",
       knowledgeMatchCount: input.knowledgeMatches.length,
       toolResults: input.toolResults.map((result) => ({
         label: getConsultationContextToolLabel(result.toolName),
@@ -102,6 +105,7 @@ export function buildConsultationContextInjection(input: {
 export function buildContextBudgetReport(input: {
   merchant: MerchantProfileDto;
   strategySnapshot: StrategySnapshotDto;
+  strategyMarkdown?: string | null;
   userContent: string;
   sessionSummary: string | null;
   consultationAgent: ConsultationAgentRuntimeSettings;
@@ -111,6 +115,7 @@ export function buildContextBudgetReport(input: {
   const buckets = [
     buildBudgetBucket("merchant", input.merchant, 1600),
     buildBudgetBucket("strategySnapshot", input.strategySnapshot, 2600),
+    buildBudgetBucket("strategyMarkdown", input.strategyMarkdown ?? "", 8000),
     buildBudgetBucket("currentUserMessage", input.userContent, 1000),
     buildBudgetBucket("sessionSummary", input.sessionSummary ?? "", 1200),
     buildBudgetBucket("activeSkillBodies", input.consultationAgent.activeSkills.map((skill) => skill.body), 4200),

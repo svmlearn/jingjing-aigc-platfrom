@@ -78,6 +78,7 @@ export type VideoGrowthContext = {
       coreSellingPoints: string[];
       keyScenes: string[];
       summaryText: string | null;
+      strategyAssetMarkdown: string | null;
     };
     selectedCalendarItem: {
       id: string | null;
@@ -140,6 +141,7 @@ export function buildVideoGrowthContext(input: {
   merchant: VideoGrowthMerchant;
   session: VideoGrowthSession;
   extraRequirement?: string | null;
+  strategyAssetMarkdown?: string | null;
   materialContext: VideoGrowthMaterialContext;
   strategyTag?: string | null;
   selectedCalendarItem?: SelectedVideoCalendarItem;
@@ -197,6 +199,7 @@ export function buildVideoGrowthContext(input: {
       coreSellingPoints: snapshot.coreSellingPoints,
       keyScenes: snapshot.keyScenes,
       summaryText: input.session.summaryText ?? null,
+      strategyAssetMarkdown: input.strategyAssetMarkdown ?? null,
     },
     selectedCalendarItem: {
       id: input.selectedCalendarItem?.id ?? null,

@@ -429,6 +429,9 @@ export const generateConsultationContentSchema = z.object({
   materialId: z.uuid().nullish(),
   materialReferenceId: z.uuid().nullish(),
   strategyTag: z.string().trim().max(80).nullish(),
+  articlePlaybook: z
+    .enum(["balanced_seed", "viral_generation", "traffic_rewrite", "compliance_safe", "ip_persona"])
+    .nullish(),
 });
 
 export const reviseArticleDraftSchema = z.object({

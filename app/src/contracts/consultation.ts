@@ -40,6 +40,15 @@ export type StrategySnapshotDto = {
   } | null;
 };
 
+export type MerchantStrategyAssetDto = {
+  merchantId: string;
+  strategySnapshot: StrategySnapshotDto;
+  strategyMarkdown: string;
+  canonicalSnapshot?: Record<string, unknown> | null;
+  compiledContext?: Record<string, unknown> | null;
+  updatedAt?: string | null;
+};
+
 export type RoundtablePhaseKey = "intro" | "asset" | "skill" | "marketing" | "synthesis";
 
 export type RoundtableInterviewPhaseKey = "asset" | "skill" | "marketing";
@@ -128,6 +137,7 @@ export type ConsultationSessionSummaryDto = {
   status: ConsultationSessionStatus;
   currentStage?: string | null;
   strategySnapshot: StrategySnapshotDto;
+  strategyAsset?: MerchantStrategyAssetDto | null;
   summaryText?: string | null;
   latestMessagePreview?: string | null;
   lastMessageAt: string;

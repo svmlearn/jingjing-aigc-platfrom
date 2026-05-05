@@ -8,6 +8,7 @@ import type {
   ConsultationExpertRosterItemDto,
   ConsultationSessionDetailDto,
   ConsultationToolCardDto,
+  MerchantStrategyAssetDto,
   StrategySnapshotDto,
 } from "@/contracts/consultation";
 import type { MerchantProfileDto } from "@/contracts/merchant";
@@ -32,9 +33,10 @@ import {
   sendRoundtableMessageForUser,
 } from "@/server/api/roundtable-consultation-service";
 import {
-  ensureMerchantStrategyAsset,
-  getMerchantStrategyAsset,
-  upsertMerchantStrategyAsset,
+  buildStrategyAssetMarkdown,
+  ensureMerchantStrategyAssetDocument,
+  getMerchantStrategyAssetDocument,
+  upsertMerchantStrategyAssetDocument,
 } from "@/lib/db/merchant-strategy-asset-repository";
 import {
   consumeMerchantCredits,
@@ -113,7 +115,7 @@ export async function listConsultationSessionsForUser(userId: string) {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(userId);
   const [sessions, merchantStrategyAsset] = await Promise.all([
     listConsultationSessions(merchant.id),
-    getMerchantStrategyAsset(merchant.id),
+    getMerchantStrategyAssetDocument(merchant.id),
   ]);
 
   if (!merchantStrategyAsset) {
@@ -122,7 +124,8 @@ export async function listConsultationSessionsForUser(userId: string) {
 
   return sessions.map((session) => ({
     ...session,
-    strategySnapshot: merchantStrategyAsset,
+    strategySnapshot: merchantStrategyAsset.strategySnapshot,
+    strategyAsset: merchantStrategyAsset,
   }));
 }
 
@@ -178,7 +181,7 @@ export async function createConsultationSessionForUser(input: {
     previousSnapshot: null,
     userMessages: [],
   });
-  const strategySnapshot = await ensureMerchantStrategyAsset({
+  const strategyAsset = await ensureMerchantStrategyAssetDocument({
     merchantId: merchant.id,
     fallback: initialStrategySnapshot,
   });
@@ -186,7 +189,7 @@ export async function createConsultationSessionForUser(input: {
     merchantId: merchant.id,
     title: input.title ?? `${merchant.name} 咨询诊断`,
     currentStage: "商家画像读取",
-    strategySnapshot,
+    strategySnapshot: strategyAsset.strategySnapshot,
     summaryText: `${merchant.name} 的首轮咨询会话已建立，等待补充客群与经营场景。`,
   });
 
@@ -219,7 +222,7 @@ export async function createConsultationSessionForUser(input: {
       stageLabel: "商家画像读取",
     }),
     visibleSummary: {
-      positioning: strategySnapshot.positioning,
+      positioning: strategyAsset.strategySnapshot.positioning,
       nextAction: "先补充你的主力客群、核心服务和最想解决的获客问题。",
     },
   });
@@ -227,7 +230,7 @@ export async function createConsultationSessionForUser(input: {
   return getConsultationSessionDetail({
     merchantId: merchant.id,
     sessionId: session.id,
-  }).then(attachRoundtableState);
+  }).then((detail) => attachRoundtableState(attachStrategyAssetToSession(detail, strategyAsset)));
 }
 
 export async function getConsultationSessionForUser(input: {
@@ -239,12 +242,13 @@ export async function getConsultationSessionForUser(input: {
     merchantId: merchant.id,
     sessionId: input.sessionId,
   });
-  const merchantStrategyAsset = await getMerchantStrategyAsset(merchant.id);
+  const merchantStrategyAssetDocument = await getMerchantStrategyAssetDocument(merchant.id);
 
-  return merchantStrategyAsset
+  return merchantStrategyAssetDocument
     ? attachRoundtableState({
         ...session,
-        strategySnapshot: merchantStrategyAsset,
+        strategySnapshot: merchantStrategyAssetDocument.strategySnapshot,
+        strategyAsset: merchantStrategyAssetDocument,
       })
     : attachRoundtableState(session);
 }
@@ -260,6 +264,21 @@ export async function deleteConsultationSessionForUser(input: {
   });
 }
 
+function attachStrategyAssetToSession<T extends ConsultationSessionDetailDto>(
+  session: T,
+  strategyAsset: MerchantStrategyAssetDto | null,
+): T {
+  if (!strategyAsset) {
+    return session;
+  }
+
+  return {
+    ...session,
+    strategySnapshot: strategyAsset.strategySnapshot,
+    strategyAsset,
+  };
+}
+
 export async function sendConsultationMessageForUser(input: {
   userId: string;
   sessionId: string;
@@ -272,14 +291,15 @@ export async function sendConsultationMessageForUser(input: {
       merchantId: merchant.id,
       sessionId: input.sessionId,
     }),
-    getMerchantStrategyAsset(merchant.id),
+    getMerchantStrategyAssetDocument(merchant.id),
   ]);
   const runtime = await resolveConsultationAgentRuntime({
     fallback: consultationAgent,
   });
   const effectiveSession: ConsultationSessionDetailDto = {
     ...session,
-    strategySnapshot: existingMerchantStrategyAsset ?? session.strategySnapshot,
+    strategySnapshot: existingMerchantStrategyAsset?.strategySnapshot ?? session.strategySnapshot,
+    strategyAsset: existingMerchantStrategyAsset ?? null,
   };
 
   if (resolveRoundtableState(effectiveSession)) {
@@ -354,14 +374,17 @@ export async function sendConsultationMessageForUser(input: {
       round: loopResult.nextRound,
       strategyTags: loopResult.strategySnapshot.strategyTags,
       calendarCount: loopResult.strategySnapshot.contentCalendarDraft.length,
+      strategyMarkdownChars: loopResult.strategyMarkdown.length,
       loopIterations: loopResult.toolResults.length,
       mentionRouting: loopResult.mentionRouting,
       agentContainer: loopResult.agentContainer,
     },
   });
-  await upsertMerchantStrategyAsset({
+  const persistedStrategyAsset = await upsertMerchantStrategyAssetDocument({
     merchantId: merchant.id,
     strategySnapshot: loopResult.strategySnapshot,
+    strategyMarkdown: loopResult.strategyMarkdown,
+    canonicalSnapshot: loopResult.strategySnapshot,
   });
   await updateConsultationSession({
     merchantId: merchant.id,
@@ -411,6 +434,7 @@ export async function sendConsultationMessageForUser(input: {
   }).then((updatedSession) => ({
     ...updatedSession,
     strategySnapshot: loopResult.strategySnapshot,
+    strategyAsset: persistedStrategyAsset,
   }));
 }
 
@@ -423,7 +447,7 @@ export async function runAgentDebugTest(input: {
     await Promise.all([
       getMerchantProfileById(input.merchantId),
       getPlatformSettings(),
-      getMerchantStrategyAsset(input.merchantId),
+      getMerchantStrategyAssetDocument(input.merchantId),
     ]);
   const resolvedRuntime = await resolveConsultationAgentRuntime({
     fallback: consultationAgent,
@@ -433,7 +457,7 @@ export async function runAgentDebugTest(input: {
   });
   const now = new Date().toISOString();
   const strategySnapshot =
-    existingMerchantStrategyAsset ??
+    existingMerchantStrategyAsset?.strategySnapshot ??
     buildStrategySnapshot({
       merchant,
       previousSnapshot: null,
@@ -446,6 +470,14 @@ export async function runAgentDebugTest(input: {
     status: "active",
     currentStage: "Agent 调试",
     strategySnapshot,
+    strategyAsset: existingMerchantStrategyAsset ?? {
+      merchantId: merchant.id,
+      strategySnapshot,
+      strategyMarkdown: buildStrategyAssetMarkdown(strategySnapshot),
+      canonicalSnapshot: strategySnapshot,
+      compiledContext: null,
+      updatedAt: now,
+    },
     summaryText: `${merchant.name} 的 Agent 调试运行。`,
     latestMessagePreview: input.inputMessage,
     lastMessageAt: now,
@@ -812,6 +844,7 @@ const strategyAssetFieldKeys = [
   "targetAudiences",
   "keyScenes",
   "currentSuggestion",
+  "strategyMarkdown",
 ] as const satisfies readonly StrategyAssetFieldKey[];
 
 const strategyAssetListLimits = {
@@ -827,6 +860,7 @@ const strategyAssetDocumentSchema = z
     targetAudiences: z.array(z.string().trim().min(1)).max(strategyAssetListLimits.targetAudiences),
     keyScenes: z.array(z.string().trim().min(1)).max(strategyAssetListLimits.keyScenes),
     currentSuggestion: z.string().trim().min(1),
+    strategyMarkdown: z.string().trim().min(1).max(24000),
   })
   .strict();
 
@@ -892,11 +926,15 @@ async function runConsultationAgentLoop(input: {
     llmRuntime: input.llmRuntime,
     knowledgeMatches: [],
     strategySnapshot: input.session.strategySnapshot,
+    strategyMarkdown:
+      input.session.strategyAsset?.strategyMarkdown ??
+      buildStrategyAssetMarkdown(input.session.strategySnapshot),
     plannerTrace: [],
   };
   state.contextBudget = buildContextBudgetReport({
     merchant: state.merchant,
     strategySnapshot: state.strategySnapshot,
+    strategyMarkdown: state.strategyMarkdown,
     userContent: state.userContent,
     sessionSummary: state.session.summaryText ?? null,
     consultationAgent: state.consultationAgent,
@@ -936,6 +974,7 @@ async function runConsultationAgentLoop(input: {
         userContent: currentState.userContent,
         sessionSummary: currentState.session.summaryText ?? null,
         strategySnapshot: currentState.strategySnapshot,
+        strategyMarkdown: currentState.strategyMarkdown,
         knowledgeMatches: currentState.knowledgeMatches,
         toolResults,
         consultationAgent: currentState.consultationAgent,
@@ -952,6 +991,7 @@ async function runConsultationAgentLoop(input: {
     nextRound: state.nextRound,
     nextStage,
     strategySnapshot: state.strategySnapshot,
+    strategyMarkdown: state.strategyMarkdown,
     knowledgeMatches: state.knowledgeMatches,
     toolResults: runtimeResult.toolResults,
     agentContainer: state.consultationAgent.container
@@ -1056,6 +1096,9 @@ async function dispatchConsultationTool(
           assetEdit: assetEdit.patch,
         })
       : state.session.strategySnapshot;
+    const strategyMarkdown = strategyWriteApplied
+      ? assetEdit.patch.strategyMarkdown ?? buildStrategyAssetMarkdown(strategySnapshot)
+      : state.strategyMarkdown;
 
     return {
       callId: call.id,
@@ -1066,6 +1109,7 @@ async function dispatchConsultationTool(
         : assetEdit.guard.summary,
       payload: {
         strategySnapshot,
+        strategyMarkdown,
         editorPatch: toStrategyAssetEditorPayload(assetEdit.patch),
         guardrail: {
           allowed: assetEdit.guard.allowed,
@@ -1131,9 +1175,14 @@ function applyToolResultToState(
 
   if (result.toolName === "update_strategy_snapshot") {
     const strategySnapshot = result.payload.strategySnapshot;
+    const strategyMarkdown = result.payload.strategyMarkdown;
 
     if (isStrategySnapshot(strategySnapshot)) {
       state.strategySnapshot = strategySnapshot;
+    }
+
+    if (typeof strategyMarkdown === "string" && strategyMarkdown.trim()) {
+      state.strategyMarkdown = strategyMarkdown;
     }
   }
 }
@@ -1235,6 +1284,7 @@ function buildAssistantReply(input: {
   userContent: string;
   sessionSummary?: string | null;
   strategySnapshot: StrategySnapshotDto;
+  strategyMarkdown?: string | null;
   knowledgeMatches: KnowledgeSearchMatchDto[];
   toolResults?: ConsultationAgentToolResult[];
 }) {
@@ -1284,6 +1334,7 @@ async function buildAssistantReplyWithModel(input: {
   userContent: string;
   sessionSummary?: string | null;
   strategySnapshot: StrategySnapshotDto;
+  strategyMarkdown?: string | null;
   knowledgeMatches: KnowledgeSearchMatchDto[];
   toolResults?: ConsultationAgentToolResult[];
   consultationAgent: ConsultationAgentRuntimeSettings;
@@ -1301,6 +1352,7 @@ async function buildAssistantReplyWithModel(input: {
     userContent: input.userContent,
     sessionSummary: input.sessionSummary ?? null,
     strategySnapshot: input.strategySnapshot,
+    strategyMarkdown: input.strategyMarkdown ?? "",
     consultationAgent: input.consultationAgent,
     knowledgeMatches: input.knowledgeMatches,
     toolResults: input.toolResults ?? [],
@@ -1711,6 +1763,7 @@ function guardResolvedStrategyAssetEdit(input: {
 }): StrategyAssetEditorResolution {
   const guard = guardStrategyAssetEditorPatch({
     previousSnapshot: input.state.session.strategySnapshot,
+    previousMarkdown: input.state.strategyMarkdown,
     userContent: input.state.userContent,
     patch: input.patch,
     source: input.source,
@@ -1731,6 +1784,7 @@ function buildStrategyAssetEditorMessages(
     userContent: state.userContent,
     sessionSummary: state.session.summaryText,
     strategySnapshot: state.session.strategySnapshot,
+    strategyMarkdown: state.session.strategyAsset?.strategyMarkdown ?? state.strategyMarkdown,
     consultationAgent: state.consultationAgent,
     knowledgeMatches: state.knowledgeMatches,
     toolResults: [],
@@ -1744,13 +1798,14 @@ function buildStrategyAssetEditorMessages(
         buildExpertContainerPrompt(state.consultationAgent),
         buildContextInjectionSystemPrompt(contextInjection),
         "你必须调用 update_strategy_asset_editor 工具，并传入完整 strategyAsset 文档，不要只传局部字段。",
-        "strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion 五个字段。",
+        "strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion、strategyMarkdown 六个字段。",
+        "strategyMarkdown 是右侧策略资产的主文档，允许用 Markdown 章节自由沉淀用户洞察、内容方向、风控边界、待验证想法；不要把它压缩成固定字段。",
         "如果用户要求追加、补充或把刚才提到的内容放进策略资产，你要基于 currentStrategySnapshot 合并，并结合 recentConversation 理解指代。",
         "如果用户说'这5个'、'这些'、'刚才你说的'，由你根据 recentConversation 判断具体条目；runtime 不会替你解析中文指代。",
-        "只写干净业务内容，不要包含聊天口语、编辑动作、Markdown 标记、引号或额外解释。",
+        "固定字段只写干净业务内容，不要包含聊天口语、编辑动作、Markdown 标记、引号或额外解释；strategyMarkdown 可以包含 Markdown 标题和列表。",
         "不要凭空补默认门店客群、到店人群或与当前商家不匹配的旧模板。",
         "如果用户只是追问、聊天或信息不足，strategyAsset 原样返回 currentStrategySnapshot，changedFields 传空数组。",
-        "字段说明：positioning=我们是谁；targetAudiences=服务谁；keyScenes=核心场景；coreSellingPoints=核心卖点；currentSuggestion=当前建议。",
+        "字段说明：positioning=我们是谁；targetAudiences=服务谁；keyScenes=核心场景；coreSellingPoints=核心卖点；currentSuggestion=当前建议；strategyMarkdown=完整策略资产文档。",
       ].join("\n"),
     },
     {
@@ -1767,6 +1822,7 @@ function buildStrategyAssetEditorMessages(
           targetAudiences: state.session.strategySnapshot.targetAudiences,
           keyScenes: state.session.strategySnapshot.keyScenes,
           currentSuggestion: state.session.strategySnapshot.currentSuggestion,
+          strategyMarkdown: state.strategyMarkdown,
         },
         limits: strategyAssetListLimits,
       }),
@@ -1805,7 +1861,7 @@ function buildStrategyAssetEditorValidationToolResult(error: string) {
     errorType: "tool_arguments_validation_failed",
     error,
     retryInstruction:
-      "请重新调用 update_strategy_asset_editor。arguments 必须包含完整 strategyAsset 文档，并符合工具 schema；changedFields 只能标记本轮实际改动字段；字段值只能写干净业务正文，不要包含聊天口语、编辑动作、Markdown、引号或额外解释。",
+      "请重新调用 update_strategy_asset_editor。arguments 必须包含完整 strategyAsset 文档，并符合工具 schema；changedFields 只能标记本轮实际改动字段；固定字段只能写干净业务正文，strategyMarkdown 写完整 Markdown 策略资产文档。",
   });
 }
 
@@ -1814,7 +1870,7 @@ const strategyAssetEditorTool: AiRuntimeTool = {
   function: {
     name: "update_strategy_asset_editor",
     description:
-      "编辑右侧策略资产。传入完整 strategyAsset 文档；不要把聊天口语、Markdown 或编辑指令写入字段。",
+      "编辑右侧策略资产。传入完整 strategyAsset 文档；固定字段保持干净正文，strategyMarkdown 保存完整 Markdown 策略资产文档。",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -1857,6 +1913,11 @@ const strategyAssetEditorTool: AiRuntimeTool = {
               type: "string",
               description: "当前建议正文。",
             },
+            strategyMarkdown: {
+              type: "string",
+              description:
+                "完整策略资产 Markdown 文档。可包含当前定位、用户洞察、小红书表达方向、风控边界、待验证想法等自由章节。",
+            },
           },
           required: [
             "positioning",
@@ -1864,6 +1925,7 @@ const strategyAssetEditorTool: AiRuntimeTool = {
             "targetAudiences",
             "keyScenes",
             "currentSuggestion",
+            "strategyMarkdown",
           ],
         },
         changeSummary: {
@@ -1943,7 +2005,9 @@ function buildStrategyAssetSnapshotPatch(
   strategyAsset: Pick<
     StrategySnapshotDto,
     "positioning" | "coreSellingPoints" | "targetAudiences" | "keyScenes" | "currentSuggestion"
-  >,
+  > & {
+    strategyMarkdown?: string | null;
+  },
   changedFields: StrategyAssetFieldKey[] = [],
 ): StrategyAssetEditorPatch {
   return {
@@ -1952,6 +2016,7 @@ function buildStrategyAssetSnapshotPatch(
     targetAudiences: cleanModelStrategyList(strategyAsset.targetAudiences),
     keyScenes: cleanModelStrategyList(strategyAsset.keyScenes),
     currentSuggestion: cleanModelStrategyText(strategyAsset.currentSuggestion) ?? undefined,
+    strategyMarkdown: cleanModelStrategyMarkdown(strategyAsset.strategyMarkdown) ?? undefined,
     changedFields: uniqueFieldKeys(changedFields),
   };
 }
@@ -1984,6 +2049,16 @@ function cleanModelStrategyText(value: string | null) {
   return normalized ? clipText(normalized, 180) : null;
 }
 
+function cleanModelStrategyMarkdown(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.replace(/\r\n/g, "\n").trim();
+
+  return normalized ? clipText(normalized, 24000) : null;
+}
+
 function summarizeStrategyAssetEdit(edit: StrategyAssetEditorPatch) {
   const summaries = edit.changedFields
     .map((field) => {
@@ -2007,6 +2082,10 @@ function summarizeStrategyAssetEdit(edit: StrategyAssetEditorPatch) {
         return `当前建议 -> ${clipText(edit.currentSuggestion, 48)}`;
       }
 
+      if (field === "strategyMarkdown" && edit.strategyMarkdown) {
+        return `策略资产文档 -> ${clipText(edit.strategyMarkdown.replace(/\n+/g, " "), 48)}`;
+      }
+
       return null;
     })
     .filter((summary): summary is string => Boolean(summary));
@@ -2023,6 +2102,7 @@ function toStrategyAssetEditorPayload(edit: StrategyAssetEditorPatch) {
     targetAudiences: edit.targetAudiences ?? null,
     keyScenes: edit.keyScenes ?? null,
     currentSuggestion: edit.currentSuggestion ?? null,
+    strategyMarkdown: edit.strategyMarkdown ?? null,
   };
 }
 

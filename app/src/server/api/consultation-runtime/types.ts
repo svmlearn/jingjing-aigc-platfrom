@@ -109,6 +109,7 @@ export type ConsultationAgentLoopState = {
   llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
   knowledgeMatches: KnowledgeSearchMatchDto[];
   strategySnapshot: StrategySnapshotDto;
+  strategyMarkdown: string;
   plannerTrace: ConsultationPlannerTraceItem[];
   contextBudget?: Record<string, unknown>;
 };

@@ -10,6 +10,12 @@ import type { MaterialLibraryItemDto } from "@/contracts/material";
 
 type ArticleMode = "create" | "rewrite";
 type ArticleToneStyle = "专业干货" | "知心闺蜜" | "痛点唤醒";
+type ArticlePlaybook =
+  | "balanced_seed"
+  | "viral_generation"
+  | "traffic_rewrite"
+  | "compliance_safe"
+  | "ip_persona";
 type RevisionResponse = {
   variant?: NonNullable<ContentDraftBundleDto["selectedVariant"]>;
   llmTrace?: {
@@ -19,6 +25,37 @@ type RevisionResponse = {
 };
 
 const toneStyles: ArticleToneStyle[] = ["专业干货", "知心闺蜜", "痛点唤醒"];
+const articlePlaybooks: Array<{
+  value: ArticlePlaybook;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "balanced_seed",
+    label: "稳妥种草",
+    description: "平衡小红书表达和合规风险",
+  },
+  {
+    value: "viral_generation",
+    label: "爆款生成",
+    description: "更重标题钩子、情绪表达和 Tags",
+  },
+  {
+    value: "traffic_rewrite",
+    label: "流量重构",
+    description: "更重结构拆解和对标迁移",
+  },
+  {
+    value: "compliance_safe",
+    label: "风控安全版",
+    description: "适合敏感行业的克制表达",
+  },
+  {
+    value: "ip_persona",
+    label: "IP 人设强化",
+    description: "强化主理人、老师和门店人格",
+  },
+];
 
 export function ArticleWorkbench({
   sessionId,
@@ -45,6 +82,7 @@ export function ArticleWorkbench({
   const [goal, setGoal] = useState("");
   const [extraRequirement, setExtraRequirement] = useState("");
   const [toneStyle, setToneStyle] = useState<ArticleToneStyle>("专业干货");
+  const [articlePlaybook, setArticlePlaybook] = useState<ArticlePlaybook>("balanced_seed");
   const [revisionInstruction, setRevisionInstruction] = useState("");
   const [draftBundle, setDraftBundle] = useState<ContentDraftBundleDto | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
@@ -140,6 +178,7 @@ export function ArticleWorkbench({
           materialId: mode === "rewrite" ? referenceMaterial?.id ?? materialId ?? null : null,
           materialReferenceId: mode === "rewrite" ? materialReferenceId ?? null : null,
           strategyTag,
+          articlePlaybook,
         }),
       });
       const data = (await response.json()) as {
@@ -251,6 +290,11 @@ export function ArticleWorkbench({
       null
     : null;
   const selectedCalendarItem = resolveSelectedCalendarItem(session, calendarItemId);
+  const snapshot = draftBundle?.draft.inputSnapshot ?? null;
+  const coverCopySuggestions = readStringArray(snapshot, "coverCopySuggestions");
+  const imageStructureSuggestions = readStringArray(snapshot, "imageStructureSuggestions");
+  const riskNotes = readStringArray(snapshot, "riskNotes");
+  const writingNotes = readStringArray(snapshot, "writingNotes");
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -382,6 +426,35 @@ export function ArticleWorkbench({
                 rows={4}
                 className="mt-3 w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none"
               />
+            </section>
+
+            <section>
+              <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">创作策略</p>
+              <div className="mt-3 grid gap-2">
+                {articlePlaybooks.map((playbook) => {
+                  const selected = articlePlaybook === playbook.value;
+
+                  return (
+                    <button
+                      key={playbook.value}
+                      type="button"
+                      onClick={() => setArticlePlaybook(playbook.value)}
+                      className={
+                        selected
+                          ? "rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-left"
+                          : "rounded-2xl border border-white/10 bg-white/5 p-3 text-left transition-colors hover:border-white/20 hover:bg-white/10"
+                      }
+                    >
+                      <span className={selected ? "text-sm text-amber-200" : "text-sm text-white/75"}>
+                        {playbook.label}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-white/40">
+                        {playbook.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </section>
 
             <section>
@@ -545,11 +618,36 @@ export function ArticleWorkbench({
                 <section className="rounded-3xl border border-white/10 bg-[#111111] p-6">
                   <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">配图建议</p>
                   <ul className="mt-4 list-disc space-y-3 pl-5 text-sm leading-7 text-white/75">
-                    <li>封面优先使用强对比痛点提问，标题与正文主张一致。</li>
-                    <li>中间页重点展示商家差异点和真实场景，不要堆抽象词。</li>
-                    <li>最后一页保留明确 CTA，和笔记末尾动作一致。</li>
+                    {(imageStructureSuggestions.length
+                      ? imageStructureSuggestions
+                      : [
+                          "封面优先使用强对比痛点提问，标题与正文主张一致。",
+                          "中间页重点展示商家差异点和真实场景，不要堆抽象词。",
+                          "最后一页保留明确 CTA，和笔记末尾动作一致。",
+                        ]
+                    ).map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
                   </ul>
                 </section>
+              </section>
+
+              <section className="grid gap-6 lg:grid-cols-3">
+                <InsightList
+                  title="封面花字"
+                  items={coverCopySuggestions}
+                  emptyText="本次未返回单独封面花字，可直接沿用推荐标题。"
+                />
+                <InsightList
+                  title="风控提醒"
+                  items={riskNotes.length ? riskNotes : ["未发现明显高危表达"]}
+                  emptyText="未发现明显高危表达"
+                />
+                <InsightList
+                  title="写作说明"
+                  items={writingNotes}
+                  emptyText="系统已按当前创作策略生成可编辑草稿。"
+                />
               </section>
             </div>
           ) : (
@@ -584,6 +682,37 @@ function resolveSelectedCalendarItem(
     session.strategySnapshot.contentCalendarDraft.find((item) => item.id === calendarItemId) ??
     null
   );
+}
+
+function InsightList({
+  title,
+  items,
+  emptyText,
+}: {
+  title: string;
+  items: string[];
+  emptyText: string;
+}) {
+  const visibleItems = items.length ? items : [emptyText];
+
+  return (
+    <section className="rounded-3xl border border-white/10 bg-[#111111] p-6">
+      <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">{title}</p>
+      <ul className="mt-4 list-disc space-y-3 pl-5 text-sm leading-7 text-white/75">
+        {visibleItems.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function readStringArray(snapshot: Record<string, unknown> | null | undefined, key: string) {
+  const value = snapshot?.[key];
+
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
 }
 
 function readTraceMode(snapshot?: Record<string, unknown> | null) {

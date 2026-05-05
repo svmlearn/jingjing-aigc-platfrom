@@ -7,7 +7,8 @@ export type StrategyAssetGuardFieldKey =
   | "coreSellingPoints"
   | "targetAudiences"
   | "keyScenes"
-  | "currentSuggestion";
+  | "currentSuggestion"
+  | "strategyMarkdown";
 
 export type StrategyAssetGuardPatch = {
   positioning?: string;
@@ -15,6 +16,7 @@ export type StrategyAssetGuardPatch = {
   targetAudiences?: string[];
   keyScenes?: string[];
   currentSuggestion?: string;
+  strategyMarkdown?: string;
   changedFields: StrategyAssetGuardFieldKey[];
 };
 
@@ -55,6 +57,7 @@ const listFieldLimits = {
 
 export function guardStrategyAssetEditorPatch(input: {
   previousSnapshot: StrategyAssetGuardSnapshot;
+  previousMarkdown?: string | null;
   userContent: string;
   patch: StrategyAssetGuardPatch;
   source: StrategyAssetGuardSource;
@@ -98,7 +101,7 @@ export function guardStrategyAssetEditorPatch(input: {
   }
 
   const changedFields = normalizedPatch.changedFields.filter((field) =>
-    hasEffectiveFieldChange(field, normalizedPatch, input.previousSnapshot),
+    hasEffectiveFieldChange(field, normalizedPatch, input.previousSnapshot, input.previousMarkdown),
   );
 
   if (changedFields.length > 0 && looksLikeLowConfidenceEditIntent(input.userContent)) {
@@ -156,6 +159,7 @@ function normalizeGuardPatch(patch: StrategyAssetGuardPatch): StrategyAssetGuard
     targetAudiences: cleanGuardList(patch.targetAudiences, listFieldLimits.targetAudiences),
     keyScenes: cleanGuardList(patch.keyScenes, listFieldLimits.keyScenes),
     currentSuggestion: cleanGuardText(patch.currentSuggestion) ?? undefined,
+    strategyMarkdown: cleanGuardMarkdown(patch.strategyMarkdown) ?? undefined,
     changedFields: uniqueFieldKeys(patch.changedFields),
   };
 }
@@ -167,6 +171,7 @@ function buildPatchFromSnapshot(snapshot: StrategyAssetGuardSnapshot): StrategyA
     targetAudiences: cleanGuardList(snapshot.targetAudiences, listFieldLimits.targetAudiences),
     keyScenes: cleanGuardList(snapshot.keyScenes, listFieldLimits.keyScenes),
     currentSuggestion: cleanGuardText(snapshot.currentSuggestion) ?? undefined,
+    strategyMarkdown: undefined,
     changedFields: [],
   };
 }
@@ -189,10 +194,21 @@ function cleanGuardText(value: string | null | undefined) {
   return normalized ? clipText(normalized, 180) : null;
 }
 
+function cleanGuardMarkdown(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.replace(/\r\n/g, "\n").trim();
+
+  return normalized ? clipText(normalized, 24000) : null;
+}
+
 function hasEffectiveFieldChange(
   field: StrategyAssetGuardFieldKey,
   patch: StrategyAssetGuardPatch,
   previousSnapshot: StrategyAssetGuardSnapshot,
+  previousMarkdown?: string | null,
 ) {
   if (field === "positioning") {
     return normalizeComparableText(patch.positioning) !== normalizeComparableText(previousSnapshot.positioning);
@@ -205,11 +221,19 @@ function hasEffectiveFieldChange(
     );
   }
 
+  if (field === "strategyMarkdown") {
+    return normalizeComparableMarkdown(patch.strategyMarkdown) !== normalizeComparableMarkdown(previousMarkdown);
+  }
+
   return !areComparableListsEqual(patch[field] ?? [], previousSnapshot[field]);
 }
 
 function normalizeComparableText(value: string | null | undefined) {
   return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function normalizeComparableMarkdown(value: string | null | undefined) {
+  return (value ?? "").replace(/\r\n/g, "\n").trim();
 }
 
 function areComparableListsEqual(first: string[], second: string[]) {
