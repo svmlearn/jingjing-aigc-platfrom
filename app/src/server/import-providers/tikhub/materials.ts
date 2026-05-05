@@ -38,6 +38,39 @@ async function fetchXiaohongshuBenchmark(
   input: TikHubBenchmarkRequest & { cacheKey: string },
 ): Promise<TikHubBenchmarkResult> {
   if (input.findMethod === "profile") {
+    const userId = extractXiaohongshuUserId(input.target);
+
+    if (userId) {
+      const endpoint = "/api/v1/xiaohongshu/web_v3/fetch_user_notes";
+      const query = {
+        user_id: userId,
+        cursor: "",
+        num: input.count,
+      };
+      const payload = await requestTikHub({
+        endpoint,
+        query,
+      });
+
+      return {
+        cacheKey: input.cacheKey,
+        providerResponses: [{
+          endpoint,
+          method: "GET",
+          requestPayload: query,
+          responsePayload: payload,
+        }],
+        items: normalizeTikHubMaterialItems({
+          platform: "xiaohongshu",
+          findMethod: input.findMethod,
+          target: input.target,
+          cacheKey: input.cacheKey,
+          payload,
+          limit: input.count,
+        }),
+      };
+    }
+
     const endpoint = "/api/v1/xiaohongshu/app_v2/get_user_posted_notes";
     const query = {
       share_text: input.target,
@@ -96,6 +129,30 @@ async function fetchXiaohongshuBenchmark(
       limit: input.count,
     }),
   };
+}
+
+function extractXiaohongshuUserId(target: string): string | null {
+  const trimmed = target.trim();
+  const directIdMatch = trimmed.match(/^[a-zA-Z0-9_-]{16,40}$/);
+
+  if (directIdMatch) {
+    return trimmed;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    const profileMatch = url.pathname.match(/\/user\/profile\/([^/?#]+)/);
+    if (profileMatch?.[1]) {
+      return decodeURIComponent(profileMatch[1]);
+    }
+  } catch {
+    const profileMatch = trimmed.match(/xiaohongshu\.com\/user\/profile\/([^/?#\s]+)/i);
+    if (profileMatch?.[1]) {
+      return decodeURIComponent(profileMatch[1]);
+    }
+  }
+
+  return null;
 }
 
 async function fetchDouyinBenchmark(
