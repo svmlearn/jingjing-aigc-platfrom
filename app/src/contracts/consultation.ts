@@ -141,6 +141,16 @@ export type ConsultationSessionDetailDto = ConsultationSessionSummaryDto & {
   roundtable?: RoundtableStateDto | null;
 };
 
+export type ConsultationExpertRosterItemDto = {
+  agentId: string;
+  agentKey: string;
+  displayName: string;
+  mentionLabel: string;
+  roleDescription?: string | null;
+  description?: string | null;
+  isDefault: boolean;
+};
+
 export type CreateConsultationSessionRequest = {
   title?: string | null;
   mode?: ConsultationMode;

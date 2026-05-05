@@ -119,3 +119,67 @@ cd app && pnpm lint
 cd app && node --test src/server/api/consultation-service.test.ts
 git diff --check
 ```
+
+## 2026-05-02 专家容器 / 上下文工程底座
+
+本轮根据产品讨论和参考项目结论，把“专家 = system prompt + skills + knowledge + tool policy”的底层能力先接到现有咨询 runtime。
+
+### 已完成
+
+1. 普通咨询 runtime 支持 `@专家` 路由：
+   - 解析消息开头的 `@xxx`。
+   - 按后台 `AgentConfig.displayName / agentKey / roleDescription` 匹配 enabled Agent。
+   - 命中后本轮切换到目标专家容器；未命中则保留默认咨询 Agent 并记录 `mention_unresolved`。
+
+2. 专家容器扩展：
+   - 继续读取 active prompt version。
+   - 继续读取 skill bindings，并保留 progressive disclosure。
+   - 新增读取 knowledge set bindings，并展开为 `knowledgeDocumentIds`。
+   - 支持从 `agent.modelConfig` 覆写 `model / temperature / maxRounds / retrievalTopK / enabledTools`。
+
+3. 上下文工程注入器：
+   - 新增 `consultation_context_injector_v1`。
+   - 注入目标专家、商家、当前轮次、当前策略快照、知识命中数、工具执行结果。
+   - 明确约束：`@` 只切换目标专家，不清空历史和策略资产。
+   - 回复模型和策略资产编辑器都读取同一份共享上下文注入块。
+
+4. 知识检索边界：
+   - `searchKnowledgeChunks` 支持可选 `documentIds`。
+   - 如果专家绑定了知识集，则平台知识收窄到这些文档。
+   - 商家私有 indexed 知识仍保留，避免专家知识绑定误伤商家上下文。
+
+5. 圆桌三专家兼容：
+   - 将原 `phaseMeta` 包装为 `RoundtableExpertContainer`。
+   - 三个固定阶段仍保持现有流程，但 UI / prompt 的 visible summary 里已有内置专家容器结构。
+
+6. 前台专家 roster：
+   - 新增 `GET /api/consultation/experts` 返回 enabled Agent 的轻量展示字段。
+   - 普通咨询输入区新增专家 chip，用户点击即可插入 `@专家名 `。
+   - 已有开头 `@xxx` 会被替换，新 chip 会保留后续正文。
+   - assistant 消息上方会展示本轮实际命中的专家容器名称。
+
+7. 前台圆桌入口收口：
+   - 删除“咨询模式”切换条和“圆桌咨询 Beta”按钮。
+   - 删除圆桌进度面板、阶段完成按钮和右侧圆桌阶段产物面板。
+   - 旧圆桌会话只显示 legacy 提示，不再作为主交互入口。
+   - 后端 roundtable service/API/types 先保留，避免旧会话兼容性问题。
+
+### 验证结果
+
+已通过：
+
+```bash
+cd app && node --test src/server/api/consultation-service.test.ts
+cd app && npm run typecheck
+cd app && npm run lint
+git diff --check
+```
+
+`node --test` 仍有 package 未声明 ESM 的既有 warning，不影响 14 条测试通过。
+
+### 当前边界
+
+- 本轮没有新增数据库表。
+- 本轮没有重做后台 Agent Console UI；前台 roster 当前展示所有 enabled Agent，后续需要后台增加“可被 @”开关和别名字段。
+- 本轮没有删除后端圆桌 legacy 代码；只是从前台主入口移除，保留旧会话读取和兼容。
+- 后续如果要“后台无限添加专家 + 前台专家 roster”，建议新增 consultation room/membership 或 session metadata，而不是继续堆在 roundtable state 里。

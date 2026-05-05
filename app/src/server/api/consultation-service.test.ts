@@ -3,6 +3,24 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const serviceSource = readFileSync(new URL("./consultation-service.ts", import.meta.url), "utf8");
+const consultationRuntimeSource = [
+  "context.ts",
+  "events.ts",
+  "experts.ts",
+  "guards.ts",
+  "planner.ts",
+  "rag.ts",
+  "runtime.ts",
+  "skills.ts",
+  "tools.ts",
+  "types.ts",
+  "utils.ts",
+]
+  .map((fileName) =>
+    readFileSync(new URL(`./consultation-runtime/${fileName}`, import.meta.url), "utf8"),
+  )
+  .join("\n");
+const consultationServiceAndRuntimeSource = `${serviceSource}\n${consultationRuntimeSource}`;
 const roundtableSource = readFileSync(
   new URL("./roundtable-consultation-service.ts", import.meta.url),
   "utf8",
@@ -11,41 +29,177 @@ const contentGenerationSource = readFileSync(
   new URL("./content-generation-service.ts", import.meta.url),
   "utf8",
 );
+const agentConsoleRepositorySource = readFileSync(
+  new URL("../../lib/db/agent-console-repository.ts", import.meta.url),
+  "utf8",
+);
+const consultationWorkspaceSource = readFileSync(
+  new URL("../../components/merchant/consultation-workspace.tsx", import.meta.url),
+  "utf8",
+);
 
 test("consultation runtime resolves online agent prompt and skill bindings", () => {
-  assert.match(serviceSource, /getConsultationDefaultRouteBinding/);
-  assert.match(serviceSource, /getAgentConfigById/);
-  assert.match(serviceSource, /listAgentPromptVersions/);
-  assert.match(serviceSource, /listAgentSkillBindings/);
-  assert.match(serviceSource, /listAgentSkills/);
-  assert.match(serviceSource, /agent\.serviceFlags\.skillsEnabled/);
+  assert.match(consultationServiceAndRuntimeSource, /getConsultationDefaultRouteBinding/);
+  assert.match(consultationServiceAndRuntimeSource, /getAgentConfigById/);
+  assert.match(consultationServiceAndRuntimeSource, /resolveMentionedConsultationAgentRuntime/);
+  assert.match(consultationServiceAndRuntimeSource, /parseLeadingAgentMention/);
+  assert.match(consultationServiceAndRuntimeSource, /findMentionedAgent/);
+  assert.match(consultationServiceAndRuntimeSource, /listAgentPromptVersions/);
+  assert.match(consultationServiceAndRuntimeSource, /listAgentSkillBindings/);
+  assert.match(consultationServiceAndRuntimeSource, /listAgentSkills/);
+  assert.match(consultationServiceAndRuntimeSource, /agent\.serviceFlags\.skillsEnabled/);
+});
+
+test("merchant consultation UI exposes expert roster and inserts mentions", () => {
+  assert.match(serviceSource, /listConsultationExpertsForUser/);
+  assert.match(serviceSource, /ConsultationExpertRosterItemDto/);
+  assert.match(consultationWorkspaceSource, new RegExp("/api/consultation/experts"));
+  assert.match(consultationWorkspaceSource, /ExpertMentionBar/);
+  assert.match(consultationWorkspaceSource, /insertExpertMention/);
+  assert.match(consultationWorkspaceSource, /@ 专家/);
+  assert.match(consultationWorkspaceSource, /getMessageAgentLoopMeta/);
+});
+
+test("merchant consultation UI keeps expert container as the only visible multi-expert entry", () => {
+  assert.doesNotMatch(consultationWorkspaceSource, /圆桌咨询 Beta/);
+  assert.doesNotMatch(consultationWorkspaceSource, /createSession\("roundtable"\)/);
+  assert.doesNotMatch(consultationWorkspaceSource, /RoundtableProgressPanel/);
+  assert.doesNotMatch(consultationWorkspaceSource, /RoundtableActionBar/);
+  assert.match(consultationWorkspaceSource, /LegacyRoundtableNotice/);
+});
+
+test("consultation runtime treats expert as container and context as shared injection", () => {
+  assert.match(consultationServiceAndRuntimeSource, /ConsultationMentionRouting/);
+  assert.match(consultationServiceAndRuntimeSource, /buildExpertContainerPrompt/);
+  assert.match(consultationServiceAndRuntimeSource, /buildConsultationContextInjection/);
+  assert.match(consultationServiceAndRuntimeSource, /consultation_context_injector_v1/);
+  assert.match(consultationServiceAndRuntimeSource, /@ 只切换目标专家，不清空历史与策略资产/);
+  assert.match(consultationServiceAndRuntimeSource, /mentionRouting: routedRuntime\.routing/);
+  assert.match(consultationServiceAndRuntimeSource, /contextInjection/);
+});
+
+test("consultation runtime does not expose local reference source paths", () => {
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /references\/open-source/);
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /claude-code泄漏/);
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /hermes-agent/);
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /hermes_safe_context_block/);
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /systemPromptPreview/);
+  assert.match(consultationServiceAndRuntimeSource, /bounded_business_tool_loop_v1/);
+  assert.match(consultationServiceAndRuntimeSource, /controlled_context_chunks_only/);
+});
+
+test("expert container can scope knowledge and runtime tool policy", () => {
+  assert.match(consultationServiceAndRuntimeSource, /listAgentKnowledgeSetBindings/);
+  assert.match(consultationServiceAndRuntimeSource, /listKnowledgeSetDocuments/);
+  assert.match(consultationServiceAndRuntimeSource, /knowledgeDocumentIds/);
+  assert.match(consultationServiceAndRuntimeSource, /documentIds: toStringArrayValue\(input\.knowledgeDocumentIds\)/);
+  assert.match(consultationServiceAndRuntimeSource, /resolveAgentRuntimeOverrides/);
+  assert.match(consultationServiceAndRuntimeSource, /modelConfig\.enabledTools/);
+  assert.match(consultationServiceAndRuntimeSource, /modelConfig\.retrievalTopK/);
 });
 
 test("consultation runtime uses progressive skill disclosure", () => {
-  assert.match(serviceSource, /mode: "progressive_disclosure"/);
-  assert.match(serviceSource, /buildSkillCatalogPrompt/);
-  assert.match(serviceSource, /buildActiveSkillPrompt/);
-  assert.match(serviceSource, /候选 Skills：渐进式披露/);
-  assert.match(serviceSource, /本轮激活 Skill/);
-  assert.match(serviceSource, /selectActiveConsultationSkills/);
-  assert.match(serviceSource, /normalizeSkillMatchText/);
+  assert.match(consultationServiceAndRuntimeSource, /mode: "progressive_disclosure"/);
+  assert.match(consultationServiceAndRuntimeSource, /buildSkillCatalogPrompt/);
+  assert.match(consultationServiceAndRuntimeSource, /buildActiveSkillPrompt/);
+  assert.match(consultationServiceAndRuntimeSource, /buildSkillDependencyWarnings/);
+  assert.match(consultationServiceAndRuntimeSource, /skillDependencyWarnings/);
+  assert.match(consultationServiceAndRuntimeSource, /候选 Skills：渐进式披露/);
+  assert.match(consultationServiceAndRuntimeSource, /本轮激活 Skill/);
+  assert.match(consultationServiceAndRuntimeSource, /selectActiveConsultationSkills/);
+  assert.match(consultationServiceAndRuntimeSource, /scoreConsultationSkills/);
+  assert.match(consultationServiceAndRuntimeSource, /triggerReasons/);
+  assert.match(consultationServiceAndRuntimeSource, /usageSignal/);
+  assert.match(consultationServiceAndRuntimeSource, /normalizeSkillMatchText/);
+});
+
+test("consultation context records budget and session summary", () => {
+  assert.match(consultationServiceAndRuntimeSource, /ContextBudgetReport/);
+  assert.match(consultationServiceAndRuntimeSource, /buildContextBudgetReport/);
+  assert.match(consultationServiceAndRuntimeSource, /sessionSummary/);
+  assert.match(consultationServiceAndRuntimeSource, /char_budget_v1/);
+  assert.match(consultationServiceAndRuntimeSource, /contextBudget/);
 });
 
 test("consultation runtime exposes right panel assets through bounded business tools", () => {
-  assert.match(serviceSource, /getConsultationBusinessToolCatalog/);
-  assert.match(serviceSource, /update_strategy_snapshot/);
-  assert.match(serviceSource, /策略资产 Editor/);
-  assert.match(serviceSource, /update_strategy_asset_editor/);
-  assert.match(serviceSource, /resolveStrategyAssetEditorPatch/);
-  assert.match(serviceSource, /toolChoice/);
-  assert.match(serviceSource, /update_content_calendar/);
-  assert.match(serviceSource, /generate_article_brief/);
-  assert.match(serviceSource, /generate_video_brief/);
+  assert.match(consultationServiceAndRuntimeSource, /getConsultationBusinessToolCatalog/);
+  assert.match(consultationServiceAndRuntimeSource, /update_strategy_snapshot/);
+  assert.match(consultationServiceAndRuntimeSource, /策略资产 Editor/);
+  assert.match(consultationServiceAndRuntimeSource, /update_strategy_asset_editor/);
+  assert.match(consultationServiceAndRuntimeSource, /resolveStrategyAssetEditorPatch/);
+  assert.match(consultationServiceAndRuntimeSource, /toolChoice/);
+  assert.match(consultationServiceAndRuntimeSource, /update_content_calendar/);
+  assert.match(consultationServiceAndRuntimeSource, /generate_article_brief/);
+  assert.match(consultationServiceAndRuntimeSource, /generate_video_brief/);
   assert.match(
-    serviceSource,
+    consultationServiceAndRuntimeSource,
     /strategySnapshot as one editor document: positioning \/ coreSellingPoints \/ targetAudiences \/ keyScenes \/ currentSuggestion/,
   );
-  assert.match(serviceSource, /strategySnapshot\.contentCalendarDraft/);
+  assert.match(consultationServiceAndRuntimeSource, /strategySnapshot\.contentCalendarDraft/);
+});
+
+test("consultation planner uses model JSON decisions with deterministic fallback", () => {
+  assert.match(consultationServiceAndRuntimeSource, /planNextConsultationToolCall/);
+  assert.match(consultationServiceAndRuntimeSource, /responseFormat: "json_object"/);
+  assert.match(consultationServiceAndRuntimeSource, /plannerDecisionSchema/);
+  assert.match(consultationServiceAndRuntimeSource, /model_tool_json_with_deterministic_fallback/);
+  assert.match(consultationServiceAndRuntimeSource, /getReadyToolNames/);
+  assert.match(consultationServiceAndRuntimeSource, /getToolDependencies/);
+  assert.match(consultationServiceAndRuntimeSource, /mergePlannerToolArgs/);
+  assert.match(consultationServiceAndRuntimeSource, /模型 planner 选择了不可执行工具/);
+  assert.match(consultationServiceAndRuntimeSource, /plannerTrace/);
+});
+
+test("consultation runtime does not treat skipped strategy writes as completed dependencies", () => {
+  assert.match(consultationRuntimeSource, /getPlannerCompletedToolNames/);
+  assert.match(
+    consultationRuntimeSource,
+    /result\.toolName !== "update_strategy_snapshot" \|\| result\.status === "completed"/,
+  );
+  assert.match(consultationRuntimeSource, /shouldStopAfterToolResult/);
+  assert.match(
+    consultationRuntimeSource,
+    /result\.toolName === "update_strategy_snapshot" && result\.status !== "completed"/,
+  );
+});
+
+test("consultation fallback replies hide internal tool keys and avoid false write claims", () => {
+  assert.match(serviceSource, /isLowInformationConsultationTurn/);
+  assert.match(serviceSource, /isConsultationProcessQuestion/);
+  assert.match(serviceSource, /真正的咨询应该先问实际情况/);
+  assert.match(serviceSource, /我先不改右侧策略资产/);
+  assert.match(serviceSource, /为了避免套模板/);
+  assert.match(serviceSource, /hasCompletedConsultationTool/);
+  assert.match(serviceSource, /strategyWriteCompleted/);
+  assert.match(serviceSource, /getConsultationToolDisplayLabel/);
+  assert.match(serviceSource, /label: getConsultationToolDisplayLabel\(result\.toolName\)/);
+  assert.doesNotMatch(
+    serviceSource,
+    /toolResults: \(input\.toolResults \?\? \[\]\)\.map\(\(result\) => \(\{\n\s*tool: result\.toolName/,
+  );
+  assert.equal(serviceSource.includes('join(" / ")'), false);
+});
+
+test("consultation stage label follows completed tools instead of message count", () => {
+  assert.match(serviceSource, /resolveConsultationStageLabel/);
+  assert.match(serviceSource, /initialStage = "咨询诊断中"/);
+  assert.match(serviceSource, /stageLabel: initialStage/);
+  assert.match(serviceSource, /state\.nextStage = nextStage/);
+  assert.match(serviceSource, /"实际情况确认中"/);
+  assert.match(serviceSource, /"策略资产待确认"/);
+  assert.match(serviceSource, /"策略沉淀完成"/);
+  assert.doesNotMatch(serviceSource, /nextRound >= Math\.min\(3, maxConversationRounds\)/);
+  assert.doesNotMatch(serviceSource, /nextRound === 2/);
+});
+
+test("consultation tool cards do not mark unexecuted writer tools as completed", () => {
+  assert.match(serviceSource, /本轮尚未写入策略资产/);
+  assert.match(serviceSource, /策略资产确认前，本轮不生成内容日历/);
+  assert.match(serviceSource, /策略资产确认前，本轮不生成图文任务草案/);
+  assert.match(serviceSource, /策略资产确认前，本轮不生成视频任务草案/);
+  assert.doesNotMatch(serviceSource, /summary: "已生成图文与视频混合的一周内容草案。",\n\s*status: "completed"/);
+  assert.doesNotMatch(serviceSource, /summary: "已准备好图文工作台的默认选题与标题方向。",\n\s*status: "completed"/);
+  assert.doesNotMatch(serviceSource, /summary: "已准备好视频钩子、脚本方向和保底输出目标。",\n\s*status: "completed"/);
 });
 
 test("strategy assets are merchant-level and stable across consultation sessions", () => {
@@ -78,6 +232,36 @@ test("strategy asset editor returns validation errors as tool results and retrie
   assert.match(serviceSource, /retryParsed\.ok/);
 });
 
+test("strategy asset editor uses guardrails before writing merchant assets", () => {
+  assert.match(consultationServiceAndRuntimeSource, /guardStrategyAssetEditorPatch/);
+  assert.match(consultationServiceAndRuntimeSource, /StrategyAssetGuardDecision/);
+  assert.match(consultationServiceAndRuntimeSource, /source: "tool_not_called"/);
+  assert.match(consultationServiceAndRuntimeSource, /source: "validation_failed"/);
+  assert.match(consultationServiceAndRuntimeSource, /source: "runtime_error"/);
+  assert.match(consultationServiceAndRuntimeSource, /low_confidence_user_intent/);
+  assert.match(consultationServiceAndRuntimeSource, /unsafe_editor_content/);
+  assert.match(serviceSource, /strategyWriteApplied/);
+  assert.match(serviceSource, /status: strategyWriteApplied \? "completed" : "skipped"/);
+  assert.match(serviceSource, /guardrail: \{/);
+});
+
+test("consultation runtime records replayable snapshots without blocking replies", () => {
+  assert.match(serviceSource, /recordConsultationRuntimeSnapshotSafely/);
+  assert.match(consultationRuntimeSource, /buildConsultationRuntimeSnapshotRecord/);
+  assert.match(serviceSource, /agent\.runtime_snapshot\.failed/);
+  assert.match(serviceSource, /Snapshot telemetry must never block/);
+  assert.match(serviceSource, /candidateSkillIds/);
+  assert.match(serviceSource, /actualSkillIds/);
+  assert.match(serviceSource, /knowledgeMatchIds/);
+  assert.match(serviceSource, /toolCallSummary/);
+  assert.match(consultationRuntimeSource, /memoryMatches/);
+  assert.match(consultationRuntimeSource, /contentKind === "merchant_memory"/);
+  assert.match(agentConsoleRepositorySource, /recordAgentRuntimeSnapshot/);
+  assert.match(agentConsoleRepositorySource, /agent_runtime_snapshots/);
+  assert.match(agentConsoleRepositorySource, /tool_call_summary/);
+  assert.match(agentConsoleRepositorySource, /mapAgentRuntimeSnapshot/);
+});
+
 test("strategy asset editor is a full-document tool call, not runtime semantic parsing", () => {
   assert.match(serviceSource, /传入完整 strategyAsset 文档/);
   assert.match(serviceSource, /currentStrategySnapshot/);
@@ -100,6 +284,8 @@ test("roundtable consultation uses fixed phase handoff instead of free swarm", (
   assert.match(serviceSource, /createRoundtableConsultationSessionForUser/);
   assert.match(serviceSource, /resolveRoundtableState\(effectiveSession\)/);
   assert.match(roundtableSource, /roundtablePhaseOrder: RoundtableInterviewPhaseKey\[\] = \["asset", "skill", "marketing"\]/);
+  assert.match(roundtableSource, /RoundtableExpertContainer/);
+  assert.match(roundtableSource, /expertContainers/);
   assert.match(roundtableSource, /phase_summary_confirmed/);
   assert.match(roundtableSource, /第一版只传阶段结构化摘要，不默认传全量 transcript/);
   assert.match(roundtableSource, /roundtableQuestionSchema/);

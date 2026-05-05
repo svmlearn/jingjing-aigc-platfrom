@@ -486,12 +486,16 @@ export async function searchKnowledgeChunks(input: {
   query: string;
   limit: number;
   queryEmbedding?: number[] | null;
+  documentIds?: string[];
 }): Promise<KnowledgeSearchMatchDto[]> {
   const documents = await listKnowledgeDocuments({ limit: 200 });
+  const requestedDocumentIds = input.documentIds ? new Set(input.documentIds) : null;
   const eligibleDocuments = documents.filter(
     (document) =>
       document.status === "indexed" &&
-      (document.scope === "platform" || document.merchantId === input.merchantId),
+      (document.scope === "platform"
+        ? requestedDocumentIds === null || requestedDocumentIds.has(document.id)
+        : document.merchantId === input.merchantId),
   );
 
   if (eligibleDocuments.length === 0 || input.limit <= 0) {

@@ -19,7 +19,9 @@ type SourceItemMaterialRow = {
   merchant_id: string;
   platform: MaterialPlatform;
   source_type: "detail" | "creator" | "search" | "manual_text";
+  external_item_id: string | null;
   source_url: string | null;
+  creator_id: string | null;
   creator_name: string | null;
   title: string | null;
   body_text: string | null;
@@ -42,12 +44,30 @@ type MaterialWorkbenchReferenceRow = {
   consumed_at: string | null;
 };
 
+export type MaterialProviderLibraryItemInput = {
+  platform: MaterialPlatform;
+  materialType: MaterialType;
+  sourceKind: MaterialSourceKind;
+  sourceType: "detail" | "creator" | "search" | "manual_text";
+  externalItemId?: string | null;
+  sourceUrl?: string | null;
+  creatorId?: string | null;
+  creatorName?: string | null;
+  title: string;
+  description?: string | null;
+  engagementSnapshot?: Record<string, unknown>;
+  structureSummary?: Record<string, unknown>;
+  tracePayload?: Record<string, unknown>;
+};
+
 const sourceItemMaterialSelect = [
   "id",
   "merchant_id",
   "platform",
   "source_type",
+  "external_item_id",
   "source_url",
+  "creator_id",
   "creator_name",
   "title",
   "body_text",
@@ -217,6 +237,178 @@ export async function createMaterialLibraryItem(input: {
   }
 
   return mapSourceItemToMaterial(data as unknown as SourceItemMaterialRow);
+}
+
+export async function listCachedMaterialProviderItems(input: {
+  platform: MaterialPlatform;
+  provider: string;
+  cacheKey: string;
+  maxAgeMs: number;
+  limit?: number;
+}): Promise<MaterialProviderLibraryItemInput[]> {
+  if (!isSupabaseAdminConfigured()) {
+    const cutoff = Date.now() - input.maxAgeMs;
+
+    return Array.from(demoMaterialItems.values())
+      .filter((item) => {
+        const payload = item.analysisPayload;
+        const tracePayload = toRecord(payload.tracePayload);
+        const createdAt = new Date(item.createdAt).getTime();
+
+        return (
+          item.platform === input.platform &&
+          tracePayload.materialProvider === input.provider &&
+          tracePayload.materialProviderCacheKey === input.cacheKey &&
+          Number.isFinite(createdAt) &&
+          createdAt >= cutoff
+        );
+      })
+      .slice(0, input.limit ?? 20)
+      .map((item) => {
+        const tracePayload = toRecord(item.analysisPayload.tracePayload);
+
+        return {
+          platform: item.platform,
+          materialType: item.materialType,
+          sourceKind: item.sourceKind,
+          sourceType: item.sourceKind === "benchmark" ? "search" : "manual_text",
+          sourceUrl: item.originalUrl,
+          creatorName: item.creatorName,
+          title: item.title,
+          description: item.description,
+          engagementSnapshot: toRecord(item.analysisPayload.engagementSnapshot),
+          structureSummary: toRecord(item.analysisPayload.structureSummary),
+          tracePayload,
+        };
+      });
+  }
+
+  const cutoff = new Date(Date.now() - input.maxAgeMs).toISOString();
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("source_items")
+    .select(sourceItemMaterialSelect)
+    .eq("platform", input.platform)
+    .gte("created_at", cutoff)
+    .contains("trace_payload", {
+      materialLibrary: true,
+      materialProvider: input.provider,
+      materialProviderCacheKey: input.cacheKey,
+    })
+    .order("created_at", { ascending: false })
+    .limit(input.limit ?? 20);
+
+  if (error) {
+    throw new ApiError(500, "MATERIAL_PROVIDER_CACHE_READ_FAILED", error.message);
+  }
+
+  return ((data ?? []) as unknown as SourceItemMaterialRow[]).map(rowToProviderInput);
+}
+
+export async function upsertMaterialLibraryItemsFromProvider(input: {
+  merchantId: string;
+  createdByUserId: string;
+  items: MaterialProviderLibraryItemInput[];
+}): Promise<MaterialLibraryItemDto[]> {
+  if (!isSupabaseAdminConfigured()) {
+    const now = new Date().toISOString();
+    const savedItems = input.items.map((item) => {
+      const material: MaterialLibraryItemDto = {
+        id: randomUUID(),
+        merchantId: input.merchantId,
+        sourceItemId: null,
+        platform: item.platform,
+        materialType: item.materialType,
+        sourceKind: item.sourceKind,
+        status: "ready",
+        title: item.title,
+        description: item.description ?? null,
+        originalUrl: item.sourceUrl ?? null,
+        creatorName: item.creatorName ?? null,
+        engagementLabel:
+          typeof item.engagementSnapshot?.label === "string" ? item.engagementSnapshot.label : null,
+        analysisPayload: {
+          structureSummary: item.structureSummary ?? {},
+          engagementSnapshot: item.engagementSnapshot ?? {},
+          tracePayload: {
+            ...(item.tracePayload ?? {}),
+            createdByUserId: input.createdByUserId,
+          },
+        },
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      demoMaterialItems.set(material.id, material);
+      return material;
+    });
+
+    return savedItems;
+  }
+
+  const rows = input.items.map((item) => ({
+    merchant_id: input.merchantId,
+    platform: item.platform,
+    source_type: item.sourceType,
+    external_item_id: item.externalItemId ?? null,
+    source_url: item.sourceUrl ?? null,
+    creator_id: item.creatorId ?? null,
+    creator_name: item.creatorName ?? null,
+    title: item.title,
+    body_text: item.materialType === "article" ? item.description ?? null : null,
+    script_text: item.materialType === "video" ? item.description ?? null : null,
+    structure_summary: {
+      ...(item.structureSummary ?? {}),
+      materialType: item.materialType,
+      materialStatus: "ready",
+      materialSourceKind: item.sourceKind,
+    },
+    engagement_snapshot: item.engagementSnapshot ?? {},
+    trace_payload: {
+      ...(item.tracePayload ?? {}),
+      materialLibrary: true,
+      materialSourceKind: item.sourceKind,
+      createdByUserId: input.createdByUserId,
+    },
+    is_selected_for_rewrite: false,
+  }));
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const withExternalIds = rows.filter((row) => row.external_item_id);
+  const withoutExternalIds = rows.filter((row) => !row.external_item_id);
+  const saved: MaterialLibraryItemDto[] = [];
+
+  if (withExternalIds.length > 0) {
+    const { data, error } = await supabase
+      .from("source_items")
+      .upsert(withExternalIds, { onConflict: "merchant_id,platform,external_item_id" })
+      .select(sourceItemMaterialSelect);
+
+    if (error) {
+      throw new ApiError(500, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED", error.message);
+    }
+
+    saved.push(...((data ?? []) as unknown as SourceItemMaterialRow[]).map(mapSourceItemToMaterial));
+  }
+
+  if (withoutExternalIds.length > 0) {
+    const { data, error } = await supabase
+      .from("source_items")
+      .upsert(withoutExternalIds, { onConflict: "merchant_id,source_url" })
+      .select(sourceItemMaterialSelect);
+
+    if (error) {
+      throw new ApiError(500, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED", error.message);
+    }
+
+    saved.push(...((data ?? []) as unknown as SourceItemMaterialRow[]).map(mapSourceItemToMaterial));
+  }
+
+  return saved;
 }
 
 export async function createMaterialWorkbenchReference(input: {
@@ -596,6 +788,35 @@ function mapSourceItemToMaterial(row: SourceItemMaterialRow): MaterialLibraryIte
     },
     createdAt: row.created_at,
     updatedAt: row.created_at,
+  };
+}
+
+function rowToProviderInput(row: SourceItemMaterialRow): MaterialProviderLibraryItemInput {
+  const structureSummary = toRecord(row.structure_summary);
+  const engagementSnapshot = toRecord(row.engagement_snapshot);
+  const tracePayload = toRecord(row.trace_payload);
+  const materialType = normalizeMaterialType(structureSummary.materialType, row.script_text);
+  const sourceKind = normalizeSourceKind(tracePayload.materialSourceKind, row.source_type);
+
+  return {
+    platform: row.platform,
+    materialType,
+    sourceKind,
+    sourceType: row.source_type,
+    externalItemId: row.external_item_id,
+    sourceUrl: row.source_url,
+    creatorId: row.creator_id,
+    creatorName: row.creator_name,
+    title: row.title ?? "未命名素材",
+    description: materialType === "video" ? row.script_text : row.body_text,
+    engagementSnapshot,
+    structureSummary,
+    tracePayload: {
+      ...tracePayload,
+      copiedFromSourceItemId: row.id,
+      copiedFromMerchantId: row.merchant_id,
+      providerCacheHit: true,
+    },
   };
 }
 

@@ -9,9 +9,15 @@ import type {
 import {
   createMaterialLibraryItem,
   createMaterialWorkbenchReference,
+  listCachedMaterialProviderItems,
   listMaterialLibraryItems,
+  upsertMaterialLibraryItemsFromProvider,
 } from "@/lib/db/material-library-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
+import { ApiError } from "@/server/api/errors";
+import { isTikHubConfigured } from "@/server/import-providers/tikhub/client";
+import { fetchTikHubBenchmarkMaterials } from "@/server/import-providers/tikhub/materials";
+import { buildTikHubBenchmarkCacheKey } from "@/server/import-providers/tikhub/normalizers";
 
 const platformLabels: Record<MaterialPlatform, string> = {
   xiaohongshu: "小红书",
@@ -71,10 +77,91 @@ export async function createBenchmarkMaterialsForUser(input: {
   count?: number;
 }): Promise<MaterialLibraryItemDto[]> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+
+  return createBenchmarkMaterialsForMerchant({
+    merchantId: merchant.id,
+    createdByUserId: input.userId,
+    merchantName: merchant.name,
+    platform: input.platform,
+    findMethod: input.findMethod,
+    keyword: input.keyword,
+    profileUrl: input.profileUrl,
+    count: input.count,
+  });
+}
+
+export async function createBenchmarkMaterialsForMerchant(input: {
+  merchantId: string;
+  createdByUserId: string;
+  merchantName?: string | null;
+  platform: MaterialPlatform;
+  findMethod: "keyword" | "profile";
+  keyword?: string;
+  profileUrl?: string;
+  count?: number;
+}): Promise<MaterialLibraryItemDto[]> {
   const platformLabel = platformLabels[input.platform];
   const count = Math.min(Math.max(input.count ?? 5, 1), 20);
   const searchTarget =
     input.findMethod === "keyword" ? input.keyword?.trim() ?? "" : input.profileUrl?.trim() ?? "";
+
+  if (!searchTarget) {
+    throw new ApiError(400, "MATERIAL_BENCHMARK_TARGET_REQUIRED", "Search target is required.");
+  }
+
+  const cacheKey = buildTikHubBenchmarkCacheKey({
+    platform: input.platform,
+    findMethod: input.findMethod,
+    target: searchTarget,
+  });
+  const cachedItems = await listCachedMaterialProviderItems({
+    platform: input.platform,
+    provider: "tikhub",
+    cacheKey,
+    maxAgeMs: getTikHubMaterialCacheTtlMs(),
+    limit: count,
+  });
+
+  if (cachedItems.length >= count) {
+    return upsertMaterialLibraryItemsFromProvider({
+      merchantId: input.merchantId,
+      createdByUserId: input.createdByUserId,
+      items: cachedItems.slice(0, count),
+    });
+  }
+
+  if (isTikHubConfigured()) {
+    const result = await fetchTikHubBenchmarkMaterials({
+      platform: input.platform,
+      findMethod: input.findMethod,
+      target: searchTarget,
+      count,
+    });
+
+    if (result.items.length === 0) {
+      throw new ApiError(
+        502,
+        "TIKHUB_EMPTY_MATERIAL_RESULT",
+        `${platformLabel} 对标检索没有返回可用素材，请换一个关键词或主页链接。`,
+      );
+    }
+
+    return upsertMaterialLibraryItemsFromProvider({
+      merchantId: input.merchantId,
+      createdByUserId: input.createdByUserId,
+      items: result.items.map((item) => ({
+        ...item,
+        tracePayload: {
+          ...item.tracePayload,
+          tikhubProviderResponses: result.providerResponses.map((response) => ({
+            endpoint: response.endpoint,
+            method: response.method,
+            requestPayload: response.requestPayload,
+          })),
+        },
+      })),
+    });
+  }
 
   const createdItems: MaterialLibraryItemDto[] = [];
 
@@ -88,25 +175,28 @@ export async function createBenchmarkMaterialsForUser(input: {
 
     createdItems.push(
       await createMaterialLibraryItem({
-        merchantId: merchant.id,
-        createdByUserId: input.userId,
+        merchantId: input.merchantId,
+        createdByUserId: input.createdByUserId,
         platform: input.platform,
         materialType,
         sourceKind: "benchmark",
         title,
         description:
           input.findMethod === "keyword"
-            ? `已按「${searchTarget}」生成对标素材样本。真实对标检索 provider 接入后，这里会替换成平台返回的原始标题、链接、互动数据和拆解结果。`
-            : `已按博主主页生成对标素材样本。真实对标检索 provider 接入后，会优先保存近期互动表现更好的内容。`,
+            ? `TikHub API key 尚未配置，暂未真实检索「${searchTarget}」。配置 TIKHUB_API_KEY 后，这里会保存平台返回的标题、链接、互动数据和拆解结果。`
+            : `TikHub API key 尚未配置，暂未真实解析该博主主页。配置 TIKHUB_API_KEY 后，会优先保存近期互动表现更好的内容。`,
         originalUrl: input.findMethod === "profile" ? input.profileUrl ?? null : null,
         creatorName: input.findMethod === "profile" ? "待解析博主" : null,
-        engagementLabel: rank === 1 ? "Top 1" : `Top ${rank}`,
+        engagementLabel: "TikHub 未配置",
+        status: "failed",
         analysisPayload: {
-          provider: "pending_benchmark_provider_integration",
+          provider: "tikhub",
+          providerStatus: "not_configured",
           findMethod: input.findMethod,
           searchTarget,
           rank,
-          merchantName: merchant.name,
+          merchantName: input.merchantName,
+          cacheKey,
         },
       }),
     );
@@ -141,4 +231,11 @@ function inferMaterialType(platform: MaterialPlatform, url: string): MaterialTyp
 
 function compactUrl(url: string) {
   return url.replace(/^https?:\/\//, "").replace(/^www\./, "").slice(0, 44);
+}
+
+function getTikHubMaterialCacheTtlMs() {
+  const hours = Number(process.env.TIKHUB_MATERIAL_CACHE_TTL_HOURS ?? 72);
+  const boundedHours = Number.isFinite(hours) ? Math.min(Math.max(hours, 1), 24 * 30) : 72;
+
+  return boundedHours * 60 * 60 * 1000;
 }

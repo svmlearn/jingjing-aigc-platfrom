@@ -5,7 +5,8 @@ export type ConsultationAgentToolKey =
   | "update_content_calendar"
   | "generate_article_brief"
   | "generate_video_brief"
-  | "read_history";
+  | "read_history"
+  | "search_benchmark_materials";
 
 export type ConsultationAgentSettingsDto = {
   systemPrompt: string;

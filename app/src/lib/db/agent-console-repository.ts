@@ -7,11 +7,14 @@ import type {
   AgentConfigDto,
   AgentConfigDetailDto,
   AgentConsoleFoundationStateDto,
+  AgentTestRunDto,
+  AgentTestRunStatus,
   AgentKnowledgeSetBindingDto,
   AgentPromptVersionDto,
   AgentPromptVersionStatus,
   AgentRouteBindingDto,
   AgentRouteBindingStatus,
+  AgentRuntimeSnapshotDto,
   AgentRouteKey,
   AgentServiceFlags,
   AgentServiceStatus,
@@ -22,6 +25,9 @@ import type {
   KnowledgeSetDocumentDto,
   KnowledgeSetDto,
   KnowledgeSetScope,
+  MerchantCreditAccountDto,
+  MerchantCreditLedgerDto,
+  MerchantUsageEventDto,
 } from "@/contracts/agent-console";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
@@ -122,6 +128,75 @@ type KnowledgeSetDocumentRow = {
   created_at: string;
 };
 
+type AgentRuntimeSnapshotRow = {
+  id: string;
+  session_id: string | null;
+  message_id: string | null;
+  agent_id: string | null;
+  prompt_version_id: string | null;
+  candidate_skill_ids: unknown;
+  actual_skill_ids: unknown;
+  knowledge_set_ids: unknown;
+  knowledge_match_ids: unknown;
+  memory_match_ids: unknown;
+  tool_call_summary: unknown;
+  model: string | null;
+  created_at: string;
+};
+
+type AgentTestRunRow = {
+  id: string;
+  agent_id: string | null;
+  merchant_id: string | null;
+  input_message: string;
+  prompt_version_id: string | null;
+  candidate_skill_ids: unknown;
+  actual_skill_ids: unknown;
+  knowledge_set_ids: unknown;
+  knowledge_match_ids: unknown;
+  memory_match_ids: unknown;
+  tool_summary: unknown;
+  assistant_output: string | null;
+  status: AgentTestRunStatus;
+  error_summary: string | null;
+  model: string | null;
+  created_by_admin_id: string | null;
+  created_at: string;
+};
+
+type MerchantCreditAccountRow = {
+  id: string;
+  merchant_id: string;
+  balance: number;
+  metadata: unknown;
+  created_at: string;
+  updated_at: string;
+};
+
+type MerchantUsageEventRow = {
+  id: string;
+  merchant_id: string;
+  action_type: string;
+  agent_id: string | null;
+  estimated_cost: number | null;
+  actual_cost: number | null;
+  status: MerchantUsageEventDto["status"];
+  metadata: unknown;
+  created_at: string;
+};
+
+type MerchantCreditLedgerRow = {
+  id: string;
+  merchant_id: string;
+  credit_account_id: string | null;
+  direction: MerchantCreditLedgerDto["direction"];
+  amount: number;
+  reason: string;
+  related_usage_event_id: string | null;
+  metadata: unknown;
+  created_at: string;
+};
+
 type AgentConfigCreateInput = {
   agentKey?: string;
   displayName: string;
@@ -187,6 +262,38 @@ type KnowledgeSetUpdateInput = Partial<{
   status: AgentAssetStatus;
   metadata: Record<string, unknown>;
 }> & {
+  actorLabel?: string;
+};
+
+type AgentRuntimeSnapshotCreateInput = {
+  sessionId?: string | null;
+  messageId?: string | null;
+  agentId?: string | null;
+  promptVersionId?: string | null;
+  candidateSkillIds?: string[];
+  actualSkillIds?: string[];
+  knowledgeSetIds?: string[];
+  knowledgeMatchIds?: string[];
+  memoryMatchIds?: string[];
+  toolCallSummary?: Record<string, unknown>;
+  model?: string | null;
+};
+
+type AgentTestRunCreateInput = {
+  agentId?: string | null;
+  merchantId?: string | null;
+  inputMessage: string;
+  promptVersionId?: string | null;
+  candidateSkillIds?: string[];
+  actualSkillIds?: string[];
+  knowledgeSetIds?: string[];
+  knowledgeMatchIds?: string[];
+  memoryMatchIds?: string[];
+  toolSummary?: Record<string, unknown>;
+  assistantOutput?: string | null;
+  status: AgentTestRunStatus;
+  errorSummary?: string | null;
+  model?: string | null;
   actorLabel?: string;
 };
 
@@ -256,6 +363,13 @@ export async function createAgentConfig(
   input: AgentConfigCreateInput,
 ): Promise<AgentConfigDto> {
   requireSupabaseAdmin("AGENT_CONFIG_CREATE_UNAVAILABLE");
+  if (input.serviceStatus === "enabled") {
+    throw new ApiError(
+      409,
+      "AGENT_ACTIVE_PROMPT_REQUIRED",
+      "请先创建并发布 System Prompt，再启用 Agent",
+    );
+  }
   await assertAgentDisplayNameAvailable(input.displayName);
   const supabase = createSupabaseAdminClient();
   const agentKey = input.agentKey ?? createStableKey("agent");
@@ -344,6 +458,23 @@ export async function updateAgentConfig(
   requireSupabaseAdmin("AGENT_CONFIG_UPDATE_UNAVAILABLE");
   const current = await getAgentConfigById(agentId);
   const update: Record<string, unknown> = {};
+
+  if (input.serviceStatus === "enabled") {
+    await assertAgentHasActivePrompt(agentId);
+  }
+
+  if (input.serviceStatus && input.serviceStatus !== "enabled") {
+    const defaultBinding = await getConsultationDefaultRouteBinding();
+
+    if (defaultBinding?.status === "active" && defaultBinding.agentId === agentId) {
+      throw new ApiError(
+        409,
+        "AGENT_DEFAULT_DISABLE_BLOCKED",
+        "请先切换默认 Agent",
+        { agentId },
+      );
+    }
+  }
 
   if (input.displayName !== undefined) {
     if (input.displayName !== current.displayName) {
@@ -571,6 +702,19 @@ export async function getActiveAgentPromptVersion(
   }
 
   return data ? mapAgentPromptVersion(data as unknown as AgentPromptVersionRow) : null;
+}
+
+async function assertAgentHasActivePrompt(agentId: string) {
+  const activePrompt = await getActiveAgentPromptVersion(agentId);
+
+  if (!activePrompt || !activePrompt.body.trim()) {
+    throw new ApiError(
+      409,
+      "AGENT_ACTIVE_PROMPT_REQUIRED",
+      "请先发布 System Prompt",
+      { agentId },
+    );
+  }
 }
 
 export async function saveAgentPromptDraft(input: {
@@ -1525,6 +1669,8 @@ export async function setConsultationDefaultAgent(input: {
     );
   }
 
+  await assertAgentHasActivePrompt(agent.id);
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("agent_route_bindings")
@@ -1558,6 +1704,320 @@ export async function setConsultationDefaultAgent(input: {
   });
 
   return binding;
+}
+
+export async function recordAgentRuntimeSnapshot(
+  input: AgentRuntimeSnapshotCreateInput,
+): Promise<AgentRuntimeSnapshotDto | null> {
+  if (!isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("agent_runtime_snapshots")
+    .insert({
+      session_id: input.sessionId ?? null,
+      message_id: input.messageId ?? null,
+      agent_id: input.agentId ?? null,
+      prompt_version_id: input.promptVersionId ?? null,
+      candidate_skill_ids: input.candidateSkillIds ?? [],
+      actual_skill_ids: input.actualSkillIds ?? [],
+      knowledge_set_ids: input.knowledgeSetIds ?? [],
+      knowledge_match_ids: input.knowledgeMatchIds ?? [],
+      memory_match_ids: input.memoryMatchIds ?? [],
+      tool_call_summary: input.toolCallSummary ?? {},
+      model: input.model ?? null,
+    })
+    .select(agentRuntimeSnapshotSelect)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(
+      500,
+      "AGENT_RUNTIME_SNAPSHOT_CREATE_FAILED",
+      error?.message ?? "Create failed.",
+    );
+  }
+
+  return mapAgentRuntimeSnapshot(data as unknown as AgentRuntimeSnapshotRow);
+}
+
+export async function recordAgentTestRun(
+  input: AgentTestRunCreateInput,
+): Promise<AgentTestRunDto | null> {
+  if (!isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("agent_test_runs")
+    .insert({
+      agent_id: input.agentId ?? null,
+      merchant_id: input.merchantId ?? null,
+      input_message: input.inputMessage,
+      prompt_version_id: input.promptVersionId ?? null,
+      candidate_skill_ids: input.candidateSkillIds ?? [],
+      actual_skill_ids: input.actualSkillIds ?? [],
+      knowledge_set_ids: input.knowledgeSetIds ?? [],
+      knowledge_match_ids: input.knowledgeMatchIds ?? [],
+      memory_match_ids: input.memoryMatchIds ?? [],
+      tool_summary: input.toolSummary ?? {},
+      assistant_output: input.assistantOutput ?? null,
+      status: input.status,
+      error_summary: input.errorSummary ?? null,
+      model: input.model ?? null,
+    })
+    .select(agentTestRunSelect)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(500, "AGENT_TEST_RUN_CREATE_FAILED", error?.message ?? "Create failed.");
+  }
+
+  const testRun = mapAgentTestRun(data as unknown as AgentTestRunRow);
+  await recordAgentConsoleAdminEvent({
+    actorLabel: input.actorLabel,
+    eventType: "agent_test_run.created",
+    targetType: "agent_test_run",
+    targetId: testRun.id,
+    summary: `保存 Agent 调试记录：${testRun.status}`,
+    details: {
+      agentId: testRun.agentId,
+      merchantId: testRun.merchantId,
+      status: testRun.status,
+      actualSkillIds: testRun.actualSkillIds,
+      knowledgeSetIds: testRun.knowledgeSetIds,
+    },
+  });
+
+  return testRun;
+}
+
+export async function ensureMerchantCreditAccount(input: {
+  merchantId: string;
+  initialBalance?: number;
+  reason?: string;
+}): Promise<MerchantCreditAccountDto | null> {
+  if (!isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: existing, error: existingError } = await supabase
+    .from("merchant_credit_accounts")
+    .select(merchantCreditAccountSelect)
+    .eq("merchant_id", input.merchantId)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new ApiError(500, "MERCHANT_CREDIT_ACCOUNT_FETCH_FAILED", existingError.message);
+  }
+
+  if (existing) {
+    return mapMerchantCreditAccount(existing as unknown as MerchantCreditAccountRow);
+  }
+
+  const initialBalance = Math.max(0, input.initialBalance ?? 0);
+  const { data, error } = await supabase
+    .from("merchant_credit_accounts")
+    .insert({
+      merchant_id: input.merchantId,
+      balance: initialBalance,
+      metadata: {
+        createdBy: "consultation_entitlement_gate",
+        reason: input.reason ?? "signup_bonus",
+      },
+    })
+    .select(merchantCreditAccountSelect)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(
+      500,
+      "MERCHANT_CREDIT_ACCOUNT_CREATE_FAILED",
+      error?.message ?? "Create failed.",
+    );
+  }
+
+  const account = mapMerchantCreditAccount(data as unknown as MerchantCreditAccountRow);
+
+  if (initialBalance > 0) {
+    await recordMerchantCreditLedger({
+      merchantId: input.merchantId,
+      creditAccountId: account.id,
+      direction: "grant",
+      amount: initialBalance,
+      reason: input.reason ?? "signup_bonus",
+      metadata: {
+        createdBy: "consultation_entitlement_gate",
+      },
+    });
+  }
+
+  return account;
+}
+
+export async function recordMerchantUsageEvent(input: {
+  merchantId: string;
+  actionType: string;
+  agentId?: string | null;
+  estimatedCost?: number | null;
+  actualCost?: number | null;
+  status: MerchantUsageEventDto["status"];
+  metadata?: Record<string, unknown>;
+}): Promise<MerchantUsageEventDto | null> {
+  if (!isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_usage_events")
+    .insert({
+      merchant_id: input.merchantId,
+      action_type: input.actionType,
+      agent_id: input.agentId ?? null,
+      estimated_cost: input.estimatedCost ?? null,
+      actual_cost: input.actualCost ?? null,
+      status: input.status,
+      metadata: input.metadata ?? {},
+    })
+    .select(merchantUsageEventSelect)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(500, "MERCHANT_USAGE_EVENT_CREATE_FAILED", error?.message ?? "Create failed.");
+  }
+
+  return mapMerchantUsageEvent(data as unknown as MerchantUsageEventRow);
+}
+
+export async function updateMerchantUsageEvent(input: {
+  usageEventId: string;
+  actualCost?: number | null;
+  status: MerchantUsageEventDto["status"];
+  metadata?: Record<string, unknown>;
+}): Promise<MerchantUsageEventDto | null> {
+  if (!isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const patch: Record<string, unknown> = {
+    status: input.status,
+  };
+
+  if (input.actualCost !== undefined) {
+    patch.actual_cost = input.actualCost;
+  }
+
+  if (input.metadata !== undefined) {
+    patch.metadata = input.metadata;
+  }
+
+  const { data, error } = await supabase
+    .from("merchant_usage_events")
+    .update(patch)
+    .eq("id", input.usageEventId)
+    .select(merchantUsageEventSelect)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(500, "MERCHANT_USAGE_EVENT_UPDATE_FAILED", error?.message ?? "Update failed.");
+  }
+
+  return mapMerchantUsageEvent(data as unknown as MerchantUsageEventRow);
+}
+
+export async function consumeMerchantCredits(input: {
+  merchantId: string;
+  creditAccountId: string;
+  amount: number;
+  relatedUsageEventId?: string | null;
+  reason: string;
+}): Promise<MerchantCreditAccountDto | null> {
+  if (!isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: accountData, error: accountError } = await supabase
+    .from("merchant_credit_accounts")
+    .select(merchantCreditAccountSelect)
+    .eq("id", input.creditAccountId)
+    .single();
+
+  if (accountError || !accountData) {
+    throw new ApiError(404, "MERCHANT_CREDIT_ACCOUNT_NOT_FOUND", "Credit account not found.");
+  }
+
+  const account = mapMerchantCreditAccount(accountData as unknown as MerchantCreditAccountRow);
+  if (account.balance < input.amount) {
+    throw new ApiError(402, "MERCHANT_CREDIT_INSUFFICIENT", "当前积分不足，无法继续使用该 AI 能力。请升级会员或补充积分。");
+  }
+
+  const nextBalance = account.balance - input.amount;
+  const { data, error } = await supabase
+    .from("merchant_credit_accounts")
+    .update({ balance: nextBalance })
+    .eq("id", input.creditAccountId)
+    .select(merchantCreditAccountSelect)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(500, "MERCHANT_CREDIT_CONSUME_FAILED", error?.message ?? "Update failed.");
+  }
+
+  await recordMerchantCreditLedger({
+    merchantId: input.merchantId,
+    creditAccountId: input.creditAccountId,
+    direction: "consume",
+    amount: input.amount,
+    reason: input.reason,
+    relatedUsageEventId: input.relatedUsageEventId ?? null,
+    metadata: {
+      createdBy: "consultation_entitlement_gate",
+    },
+  });
+
+  return mapMerchantCreditAccount(data as unknown as MerchantCreditAccountRow);
+}
+
+async function recordMerchantCreditLedger(input: {
+  merchantId: string;
+  creditAccountId?: string | null;
+  direction: MerchantCreditLedgerDto["direction"];
+  amount: number;
+  reason: string;
+  relatedUsageEventId?: string | null;
+  metadata?: Record<string, unknown>;
+}): Promise<MerchantCreditLedgerDto | null> {
+  if (!isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_credit_ledger")
+    .insert({
+      merchant_id: input.merchantId,
+      credit_account_id: input.creditAccountId ?? null,
+      direction: input.direction,
+      amount: input.amount,
+      reason: input.reason,
+      related_usage_event_id: input.relatedUsageEventId ?? null,
+      metadata: input.metadata ?? {},
+    })
+    .select(merchantCreditLedgerSelect)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(500, "MERCHANT_CREDIT_LEDGER_CREATE_FAILED", error?.message ?? "Create failed.");
+  }
+
+  return mapMerchantCreditLedger(data as unknown as MerchantCreditLedgerRow);
 }
 
 function mapAgentConfig(row: AgentConfigRow): AgentConfigDto {
@@ -1670,6 +2130,85 @@ function mapKnowledgeSetDocument(row: KnowledgeSetDocumentRow): KnowledgeSetDocu
     knowledgeSetId: row.knowledge_set_id,
     documentId: row.document_id,
     createdByAdminId: row.created_by_admin_id,
+    createdAt: row.created_at,
+  };
+}
+
+function mapAgentRuntimeSnapshot(row: AgentRuntimeSnapshotRow): AgentRuntimeSnapshotDto {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    messageId: row.message_id,
+    agentId: row.agent_id,
+    promptVersionId: row.prompt_version_id,
+    candidateSkillIds: toStringArray(row.candidate_skill_ids),
+    actualSkillIds: toStringArray(row.actual_skill_ids),
+    knowledgeSetIds: toStringArray(row.knowledge_set_ids),
+    knowledgeMatchIds: toStringArray(row.knowledge_match_ids),
+    memoryMatchIds: toStringArray(row.memory_match_ids),
+    toolCallSummary: toRecord(row.tool_call_summary),
+    model: row.model,
+    createdAt: row.created_at,
+  };
+}
+
+function mapAgentTestRun(row: AgentTestRunRow): AgentTestRunDto {
+  return {
+    id: row.id,
+    agentId: row.agent_id,
+    merchantId: row.merchant_id,
+    inputMessage: row.input_message,
+    promptVersionId: row.prompt_version_id,
+    candidateSkillIds: toStringArray(row.candidate_skill_ids),
+    actualSkillIds: toStringArray(row.actual_skill_ids),
+    knowledgeSetIds: toStringArray(row.knowledge_set_ids),
+    knowledgeMatchIds: toStringArray(row.knowledge_match_ids),
+    memoryMatchIds: toStringArray(row.memory_match_ids),
+    toolSummary: toRecord(row.tool_summary),
+    assistantOutput: row.assistant_output,
+    status: row.status,
+    errorSummary: row.error_summary,
+    model: row.model,
+    createdByAdminId: row.created_by_admin_id,
+    createdAt: row.created_at,
+  };
+}
+
+function mapMerchantCreditAccount(row: MerchantCreditAccountRow): MerchantCreditAccountDto {
+  return {
+    id: row.id,
+    merchantId: row.merchant_id,
+    balance: row.balance,
+    metadata: toRecord(row.metadata),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapMerchantUsageEvent(row: MerchantUsageEventRow): MerchantUsageEventDto {
+  return {
+    id: row.id,
+    merchantId: row.merchant_id,
+    actionType: row.action_type,
+    agentId: row.agent_id,
+    estimatedCost: row.estimated_cost,
+    actualCost: row.actual_cost,
+    status: row.status,
+    metadata: toRecord(row.metadata),
+    createdAt: row.created_at,
+  };
+}
+
+function mapMerchantCreditLedger(row: MerchantCreditLedgerRow): MerchantCreditLedgerDto {
+  return {
+    id: row.id,
+    merchantId: row.merchant_id,
+    creditAccountId: row.credit_account_id,
+    direction: row.direction,
+    amount: row.amount,
+    reason: row.reason,
+    relatedUsageEventId: row.related_usage_event_id,
+    metadata: toRecord(row.metadata),
     createdAt: row.created_at,
   };
 }
@@ -1972,4 +2511,73 @@ const agentRouteBindingSelect = [
   "created_by_admin_id",
   "created_at",
   "updated_at",
+].join(", ");
+
+const agentRuntimeSnapshotSelect = [
+  "id",
+  "session_id",
+  "message_id",
+  "agent_id",
+  "prompt_version_id",
+  "candidate_skill_ids",
+  "actual_skill_ids",
+  "knowledge_set_ids",
+  "knowledge_match_ids",
+  "memory_match_ids",
+  "tool_call_summary",
+  "model",
+  "created_at",
+].join(", ");
+
+const agentTestRunSelect = [
+  "id",
+  "agent_id",
+  "merchant_id",
+  "input_message",
+  "prompt_version_id",
+  "candidate_skill_ids",
+  "actual_skill_ids",
+  "knowledge_set_ids",
+  "knowledge_match_ids",
+  "memory_match_ids",
+  "tool_summary",
+  "assistant_output",
+  "status",
+  "error_summary",
+  "model",
+  "created_by_admin_id",
+  "created_at",
+].join(", ");
+
+const merchantCreditAccountSelect = [
+  "id",
+  "merchant_id",
+  "balance",
+  "metadata",
+  "created_at",
+  "updated_at",
+].join(", ");
+
+const merchantUsageEventSelect = [
+  "id",
+  "merchant_id",
+  "action_type",
+  "agent_id",
+  "estimated_cost",
+  "actual_cost",
+  "status",
+  "metadata",
+  "created_at",
+].join(", ");
+
+const merchantCreditLedgerSelect = [
+  "id",
+  "merchant_id",
+  "credit_account_id",
+  "direction",
+  "amount",
+  "reason",
+  "related_usage_event_id",
+  "metadata",
+  "created_at",
 ].join(", ");

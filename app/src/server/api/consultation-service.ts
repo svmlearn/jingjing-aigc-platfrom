@@ -5,11 +5,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import type {
-  AgentConfigDto,
-  AgentPromptVersionDto,
-  AgentSkillDto,
-} from "@/contracts/agent-console";
-import type {
+  ConsultationExpertRosterItemDto,
   ConsultationSessionDetailDto,
   ConsultationToolCardDto,
   StrategySnapshotDto,
@@ -41,24 +37,77 @@ import {
   upsertMerchantStrategyAsset,
 } from "@/lib/db/merchant-strategy-asset-repository";
 import {
-  getAgentConfigById,
+  consumeMerchantCredits,
+  ensureMerchantCreditAccount,
   getConsultationDefaultRouteBinding,
-  listAgentPromptVersions,
-  listAgentSkillBindings,
-  listAgentSkills,
+  listAgentConfigs,
+  recordAgentTestRun,
+  recordAgentRuntimeSnapshot,
+  recordMerchantUsageEvent,
+  updateMerchantUsageEvent,
 } from "@/lib/db/agent-console-repository";
-import { searchKnowledgeChunks } from "@/lib/db/knowledge-repository";
-import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
+import {
+  getMerchantProfileById,
+  getOperationalMerchantProfileByOwnerUserId,
+} from "@/lib/db/merchant-repository";
 import { getPlatformSettings } from "@/lib/db/platform-admin-repository";
+import {
+  buildConsultationContextInjection,
+  buildContextBudgetReport,
+  buildContextInjectionSystemPrompt,
+  buildExpertContainerPrompt,
+  buildKnowledgeContextBlock,
+} from "@/server/api/consultation-runtime/context";
+import {
+  resolveConsultationAgentRuntime,
+  resolveMentionedConsultationAgentRuntime,
+} from "@/server/api/consultation-runtime/experts";
+import {
+  guardStrategyAssetEditorPatch,
+  type StrategyAssetGuardDecision,
+  type StrategyAssetGuardFieldKey,
+  type StrategyAssetGuardPatch,
+  type StrategyAssetGuardSource,
+} from "@/server/api/consultation-runtime/guards";
+import {
+  buildActiveSkillPrompt,
+  buildSkillCatalogPrompt,
+  buildSkillDependencyWarnings,
+  buildSkillDisclosure,
+  selectActiveConsultationSkills,
+} from "@/server/api/consultation-runtime/skills";
+import {
+  buildBusinessToolPrompt,
+  getConsultationBusinessToolCatalog,
+} from "@/server/api/consultation-runtime/tools";
+import { createBenchmarkMaterialsForMerchant } from "@/server/api/material-library-service";
+import { retrieveConsultationKnowledge } from "@/server/api/consultation-runtime/rag";
+import {
+  runConsultationRuntime,
+  type ConsultationRuntimeSnapshotRecord,
+} from "@/server/api/consultation-runtime/runtime";
+import type {
+  ConsultationAgentLoopState,
+  ConsultationAgentRuntimeSettings,
+  ConsultationAgentToolCall,
+  ConsultationAgentToolResult,
+  ConsultationConversationMessage,
+  ConsultationMentionRouting,
+} from "@/server/api/consultation-runtime/types";
+import {
+  clipText,
+  toStringArrayValue,
+  uniqueStrings,
+} from "@/server/api/consultation-runtime/utils";
 import {
   AiRuntimeError,
   type AiRuntimeTool,
   type AiRuntimeToolCall,
   type ChatMessage,
   createChatCompletion,
-  createEmbeddings,
   getAiRuntimeApiKey,
 } from "@/server/api/ai-runtime";
+import { ApiError } from "@/server/api/errors";
 
 export async function listConsultationSessionsForUser(userId: string) {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(userId);
@@ -75,6 +124,42 @@ export async function listConsultationSessionsForUser(userId: string) {
     ...session,
     strategySnapshot: merchantStrategyAsset,
   }));
+}
+
+export async function listConsultationExpertsForUser(
+  userId: string,
+): Promise<ConsultationExpertRosterItemDto[]> {
+  await getOperationalMerchantProfileByOwnerUserId(userId);
+
+  try {
+    const [agents, routeBinding] = await Promise.all([
+      listAgentConfigs(),
+      getConsultationDefaultRouteBinding(),
+    ]);
+    const defaultAgentId =
+      routeBinding?.status === "active" ? routeBinding.agentId ?? null : null;
+
+    return agents
+      .filter((agent) => agent.serviceStatus === "enabled")
+      .map((agent) => ({
+        agentId: agent.id,
+        agentKey: agent.agentKey,
+        displayName: agent.displayName,
+        mentionLabel: agent.displayName.replace(/^@/, ""),
+        roleDescription: agent.roleDescription,
+        description: agent.description,
+        isDefault: agent.id === defaultAgentId,
+      }))
+      .sort((first, second) => {
+        if (first.isDefault !== second.isDefault) {
+          return first.isDefault ? -1 : 1;
+        }
+
+        return first.displayName.localeCompare(second.displayName, "zh-CN");
+      });
+  } catch {
+    return [];
+  }
 }
 
 export async function createConsultationSessionForUser(input: {
@@ -181,7 +266,7 @@ export async function sendConsultationMessageForUser(input: {
   content: string;
 }) {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const [{ consultationAgent, knowledgeRuntime, llmRuntime }, session, existingMerchantStrategyAsset] = await Promise.all([
+  const [{ consultationAgent, knowledgeRuntime, llmRuntime, membershipPlans }, session, existingMerchantStrategyAsset] = await Promise.all([
     getPlatformSettings(),
     getConsultationSessionDetail({
       merchantId: merchant.id,
@@ -200,6 +285,22 @@ export async function sendConsultationMessageForUser(input: {
   if (resolveRoundtableState(effectiveSession)) {
     return sendRoundtableMessageForUser(input);
   }
+
+  const routedRuntime = await resolveMentionedConsultationAgentRuntime({
+    fallback: consultationAgent,
+    defaultRuntime: runtime.consultationAgent,
+    content: input.content,
+  });
+  await assertConsultationAgentAvailable({
+    consultationAgent: routedRuntime.consultationAgent,
+    mentionRouting: routedRuntime.routing,
+  });
+  const effectiveUserContent = routedRuntime.routing.cleanedContent;
+  const entitlement = await checkConsultationEntitlement({
+    merchant,
+    agentId: routedRuntime.consultationAgent.container?.agent.id ?? null,
+    membershipPlans,
+  });
 
   const userMessage = await createConsultationMessage({
     sessionId: effectiveSession.id,
@@ -222,12 +323,27 @@ export async function sendConsultationMessageForUser(input: {
   const loopResult = await runConsultationAgentLoop({
     merchant,
     session: effectiveSession,
-    userContent: input.content,
+    userContent: effectiveUserContent,
     userMessages: allUserMessages,
     conversationMessages,
-    consultationAgent: runtime.consultationAgent,
+    consultationAgent: routedRuntime.consultationAgent,
+    mentionRouting: routedRuntime.routing,
     knowledgeRuntime,
     llmRuntime,
+  });
+
+  await recordConsultationUsageSafely({
+    merchantId: merchant.id,
+    agentId: routedRuntime.consultationAgent.container?.agent.id ?? null,
+    entitlement,
+    runtimeSnapshot: loopResult.runtimeSnapshot,
+  });
+
+  await recordConsultationRuntimeSnapshotSafely({
+    sessionId: effectiveSession.id,
+    messageId: userMessage.id,
+    stageLabel: loopResult.nextStage,
+    runtimeSnapshot: loopResult.runtimeSnapshot,
   });
 
   await createConsultationEvent({
@@ -239,6 +355,8 @@ export async function sendConsultationMessageForUser(input: {
       strategyTags: loopResult.strategySnapshot.strategyTags,
       calendarCount: loopResult.strategySnapshot.contentCalendarDraft.length,
       loopIterations: loopResult.toolResults.length,
+      mentionRouting: loopResult.mentionRouting,
+      agentContainer: loopResult.agentContainer,
     },
   });
   await upsertMerchantStrategyAsset({
@@ -259,7 +377,7 @@ export async function sendConsultationMessageForUser(input: {
     stageLabel: loopResult.nextStage,
     toolCards: buildToolCards({
       merchant,
-      settings: runtime.consultationAgent,
+      settings: routedRuntime.consultationAgent,
       stageLabel: loopResult.nextStage,
       knowledgeMatches: loopResult.knowledgeMatches,
       toolResults: loopResult.toolResults,
@@ -270,12 +388,9 @@ export async function sendConsultationMessageForUser(input: {
       knowledgeContext: buildKnowledgeContextBlock(loopResult.knowledgeMatches),
       agentLoop: {
         mode: "bounded_tool_loop",
-        references: [
-          "references/open-source/hermes-agent/run_agent.py",
-          "references/open-source/hermes-agent/model_tools.py",
-          "references/open-source/claude-code泄漏的客户端源码/claude-code-main/",
-        ],
+        runtimeDesign: "bounded_business_tool_loop_v1",
         agentContainer: loopResult.agentContainer,
+        mentionRouting: loopResult.mentionRouting,
         skillDisclosure: loopResult.skillDisclosure,
         toolResults: loopResult.toolResults.map((result) => ({
           tool: result.toolName,
@@ -299,67 +414,397 @@ export async function sendConsultationMessageForUser(input: {
   }));
 }
 
-type ConsultationAgentToolKey = ConsultationAgentSettingsDto["enabledTools"][number];
+export async function runAgentDebugTest(input: {
+  agentId: string;
+  merchantId: string;
+  inputMessage: string;
+}) {
+  const [merchant, { consultationAgent, knowledgeRuntime, llmRuntime }, existingMerchantStrategyAsset] =
+    await Promise.all([
+      getMerchantProfileById(input.merchantId),
+      getPlatformSettings(),
+      getMerchantStrategyAsset(input.merchantId),
+    ]);
+  const resolvedRuntime = await resolveConsultationAgentRuntime({
+    fallback: consultationAgent,
+    agentId: input.agentId,
+    allowNonEnabled: true,
+    promptMode: "draft_or_active",
+  });
+  const now = new Date().toISOString();
+  const strategySnapshot =
+    existingMerchantStrategyAsset ??
+    buildStrategySnapshot({
+      merchant,
+      previousSnapshot: null,
+      userMessages: [],
+    });
+  const session: ConsultationSessionDetailDto = {
+    id: `agent_debug_${randomUUID()}`,
+    merchantId: merchant.id,
+    title: "Agent 调试会话",
+    status: "active",
+    currentStage: "Agent 调试",
+    strategySnapshot,
+    summaryText: `${merchant.name} 的 Agent 调试运行。`,
+    latestMessagePreview: input.inputMessage,
+    lastMessageAt: now,
+    createdAt: now,
+    updatedAt: now,
+    messages: [],
+    events: [],
+    roundtable: null,
+  };
+  const mentionRouting: ConsultationMentionRouting = {
+    mode: "mentioned_agent",
+    rawMention: null,
+    cleanedContent: input.inputMessage,
+    targetAgentId: resolvedRuntime.consultationAgent.container?.agent.id ?? input.agentId,
+    targetAgentKey: resolvedRuntime.consultationAgent.container?.agent.agentKey ?? null,
+    targetDisplayName:
+      resolvedRuntime.consultationAgent.container?.agent.displayName ?? null,
+    availableMentions: resolvedRuntime.consultationAgent.container
+      ? [resolvedRuntime.consultationAgent.container.agent.displayName]
+      : [],
+  };
 
-type ConsultationRuntimeSkill = Pick<
-  AgentSkillDto,
-  "id" | "skillKey" | "name" | "description" | "whenToUse" | "body"
->;
+  try {
+    const loopResult = await runConsultationAgentLoop({
+      merchant,
+      session,
+      userContent: input.inputMessage,
+      userMessages: [input.inputMessage],
+      conversationMessages: [{ role: "user", content: input.inputMessage }],
+      mentionRouting,
+      consultationAgent: resolvedRuntime.consultationAgent,
+      knowledgeRuntime,
+      llmRuntime,
+      emitRuntimeEvent: async () => {
+        // Admin debug runs must not write real consultation sessions or events.
+      },
+    });
+    const testRun = await recordAgentTestRun({
+      agentId: loopResult.runtimeSnapshot.agentId ?? input.agentId,
+      merchantId: merchant.id,
+      inputMessage: input.inputMessage,
+      promptVersionId: loopResult.runtimeSnapshot.promptVersionId,
+      candidateSkillIds: loopResult.runtimeSnapshot.candidateSkillIds,
+      actualSkillIds: loopResult.runtimeSnapshot.actualSkillIds,
+      knowledgeSetIds: loopResult.runtimeSnapshot.knowledgeSetIds,
+      knowledgeMatchIds: loopResult.runtimeSnapshot.knowledgeMatchIds,
+      memoryMatchIds: loopResult.runtimeSnapshot.memoryMatchIds,
+      toolSummary: loopResult.runtimeSnapshot.toolCallSummary,
+      assistantOutput: loopResult.assistantContent,
+      status: "succeeded",
+      model: loopResult.runtimeSnapshot.model,
+    });
 
-type ConsultationAgentContainerSnapshot = {
-  agent: AgentConfigDto;
-  activePromptVersion: AgentPromptVersionDto | null;
-  candidateSkills: ConsultationRuntimeSkill[];
+    return {
+      testRun,
+      assistantOutput: loopResult.assistantContent,
+      runtimeSnapshot: loopResult.runtimeSnapshot,
+      toolResults: loopResult.toolResults,
+      knowledgeMatches: loopResult.knowledgeMatches,
+      memoryMatches: getMerchantMemoryMatches(loopResult.knowledgeMatches),
+      skillDisclosure: loopResult.skillDisclosure,
+      skillDependencyWarnings: buildSkillDependencyWarnings(resolvedRuntime.consultationAgent),
+      agentContainer: loopResult.agentContainer,
+    };
+  } catch (error) {
+    const errorSummary = error instanceof Error ? error.message : "Agent 调试运行失败";
+    const testRun = await recordAgentTestRun({
+      agentId: input.agentId,
+      merchantId: merchant.id,
+      inputMessage: input.inputMessage,
+      candidateSkillIds: resolvedRuntime.consultationAgent.skillCatalog.map((skill) => skill.id),
+      actualSkillIds: [],
+      knowledgeSetIds: resolvedRuntime.consultationAgent.container?.knowledgeSetIds ?? [],
+      knowledgeMatchIds: [],
+      memoryMatchIds: [],
+      toolSummary: {
+        errorSummary,
+      },
+      assistantOutput: null,
+      status: "failed",
+      errorSummary,
+      model: resolvedRuntime.consultationAgent.model,
+    });
+
+    return {
+      testRun,
+      assistantOutput: null,
+      runtimeSnapshot: null,
+      toolResults: [],
+      knowledgeMatches: [],
+      memoryMatches: [],
+      skillDisclosure: buildSkillDisclosure(resolvedRuntime.consultationAgent),
+      skillDependencyWarnings: buildSkillDependencyWarnings(resolvedRuntime.consultationAgent),
+      agentContainer: resolvedRuntime.consultationAgent.container
+        ? {
+            agentId: resolvedRuntime.consultationAgent.container.agent.id,
+            agentKey: resolvedRuntime.consultationAgent.container.agent.agentKey,
+            displayName: resolvedRuntime.consultationAgent.container.agent.displayName,
+            activePromptVersion:
+              resolvedRuntime.consultationAgent.container.activePromptVersion?.versionNo ?? null,
+            knowledgeSetIds: resolvedRuntime.consultationAgent.container.knowledgeSetIds,
+            knowledgeDocumentIds: resolvedRuntime.consultationAgent.container.knowledgeDocumentIds,
+          }
+        : null,
+    };
+  }
+}
+
+async function assertConsultationAgentAvailable(input: {
+  consultationAgent: ConsultationAgentRuntimeSettings;
+  mentionRouting: ConsultationMentionRouting;
+}) {
+  if (input.consultationAgent.container) {
+    return;
+  }
+
+  const enabledAgents = await listEnabledConsultationAgentsSafely();
+
+  if (enabledAgents.length > 0) {
+    throw new ApiError(
+      409,
+      "CONSULTATION_AGENT_REQUIRED",
+      "请选择一个专家开始咨询。",
+      {
+        mentionRouting: input.mentionRouting,
+        availableExperts: enabledAgents.map((agent) => ({
+          agentId: agent.id,
+          agentKey: agent.agentKey,
+          displayName: agent.displayName,
+        })),
+      },
+    );
+  }
+
+  throw new ApiError(
+    503,
+    "CONSULTATION_AGENT_UNCONFIGURED",
+    "咨询服务暂未配置，请联系平台管理员。",
+    {
+      mentionRouting: input.mentionRouting,
+    },
+  );
+}
+
+async function listEnabledConsultationAgentsSafely() {
+  try {
+    return (await listAgentConfigs()).filter((agent) => agent.serviceStatus === "enabled");
+  } catch {
+    return [];
+  }
+}
+
+function getMerchantMemoryMatches(matches: KnowledgeSearchMatchDto[]) {
+  return matches
+    .filter((match) => match.metadata.contentKind === "merchant_memory")
+    .map((match) => ({
+      chunkId: match.chunkId,
+      documentId: match.documentId,
+      documentTitle: match.documentTitle,
+      score: match.score,
+    }));
+}
+
+type ConsultationEntitlementCheck = {
+  mode: "merchant_credit";
+  allowed: true;
+  cost: number;
+  creditAccountId: string | null;
+  reservedUsageEventId: string | null;
 };
 
-type ConsultationSkillDisclosure = {
-  mode: "progressive_disclosure";
-  candidateSkills: Array<Pick<ConsultationRuntimeSkill, "id" | "skillKey" | "name" | "whenToUse">>;
-  activeSkills: Array<Pick<ConsultationRuntimeSkill, "id" | "skillKey" | "name" | "whenToUse">>;
+async function checkConsultationEntitlement(input: {
+  merchant: MerchantProfileDto;
+  agentId?: string | null;
+  membershipPlans: Awaited<ReturnType<typeof getPlatformSettings>>["membershipPlans"];
+}): Promise<ConsultationEntitlementCheck> {
+  const cost = 1;
+  const planGrant = input.membershipPlans[input.merchant.plan]?.dailyCredits ?? 0;
+  const creditAccount = await ensureMerchantCreditAccount({
+    merchantId: input.merchant.id,
+    initialBalance: planGrant,
+    reason: input.merchant.plan === "free" ? "signup_bonus" : "subscription_period_grant",
+  });
+
+  if (!creditAccount) {
+    return {
+      mode: "merchant_credit",
+      allowed: true,
+      cost: 0,
+      creditAccountId: null,
+      reservedUsageEventId: null,
+    };
+  }
+
+  if (creditAccount.balance < cost) {
+    await recordMerchantUsageEvent({
+      merchantId: input.merchant.id,
+      actionType: "AGENT_USAGE_CONSULTATION_MESSAGE",
+      agentId: input.agentId ?? null,
+      estimatedCost: cost,
+      actualCost: 0,
+      status: "failed",
+      metadata: {
+        reason: "merchant_credit_insufficient",
+        balance: creditAccount.balance,
+      },
+    });
+
+    throw new ApiError(
+      402,
+      "MERCHANT_CREDIT_INSUFFICIENT",
+      "当前积分不足，无法继续使用该 AI 能力。请升级会员或补充积分。",
+    );
+  }
+
+  const reservedUsageEvent = await recordMerchantUsageEvent({
+    merchantId: input.merchant.id,
+    actionType: "AGENT_USAGE_CONSULTATION_MESSAGE",
+    agentId: input.agentId ?? null,
+    estimatedCost: cost,
+    actualCost: null,
+    status: "reserved",
+    metadata: {
+      reason: "credit_reserved_before_runtime",
+      balanceBefore: creditAccount.balance,
+    },
+  });
+
+  return {
+    mode: "merchant_credit",
+    allowed: true,
+    cost,
+    creditAccountId: creditAccount.id,
+    reservedUsageEventId: reservedUsageEvent?.id ?? null,
+  };
+}
+
+async function recordConsultationUsageSafely(input: {
+  merchantId: string;
+  agentId?: string | null;
+  entitlement: ConsultationEntitlementCheck;
+  runtimeSnapshot: ConsultationRuntimeSnapshotRecord;
+}) {
+  if (!input.entitlement.creditAccountId || input.entitlement.cost <= 0) {
+    await recordMerchantUsageEvent({
+      merchantId: input.merchantId,
+      actionType: "AGENT_USAGE_CONSULTATION_MESSAGE",
+      agentId: input.agentId ?? null,
+      estimatedCost: 0,
+      actualCost: 0,
+      status: "skipped",
+      metadata: {
+        reason: "credit_gate_not_configured",
+        runtimeModel: input.runtimeSnapshot.model,
+      },
+    }).catch(() => null);
+    return;
+  }
+
+  try {
+    const usageMetadata = {
+      runtimeModel: input.runtimeSnapshot.model,
+      promptVersionId: input.runtimeSnapshot.promptVersionId,
+      candidateSkillIds: input.runtimeSnapshot.candidateSkillIds,
+      actualSkillIds: input.runtimeSnapshot.actualSkillIds,
+      knowledgeSetIds: input.runtimeSnapshot.knowledgeSetIds,
+    };
+    const usageEvent = input.entitlement.reservedUsageEventId
+      ? await updateMerchantUsageEvent({
+          usageEventId: input.entitlement.reservedUsageEventId,
+          actualCost: input.entitlement.cost,
+          status: "consumed",
+          metadata: {
+            ...usageMetadata,
+            reservationStatus: "consumed_after_runtime_success",
+          },
+        })
+      : await recordMerchantUsageEvent({
+          merchantId: input.merchantId,
+          actionType: "AGENT_USAGE_CONSULTATION_MESSAGE",
+          agentId: input.agentId ?? null,
+          estimatedCost: input.entitlement.cost,
+          actualCost: input.entitlement.cost,
+          status: "consumed",
+          metadata: {
+            ...usageMetadata,
+            reservationStatus: "missing_reservation_fallback",
+          },
+        });
+
+    await consumeMerchantCredits({
+      merchantId: input.merchantId,
+      creditAccountId: input.entitlement.creditAccountId,
+      amount: input.entitlement.cost,
+      relatedUsageEventId: usageEvent?.id ?? null,
+      reason: "consultation_agent_message",
+    });
+  } catch (error) {
+    await recordMerchantUsageEvent({
+      merchantId: input.merchantId,
+      actionType: "AGENT_USAGE_CONSULTATION_MESSAGE",
+      agentId: input.agentId ?? null,
+      estimatedCost: input.entitlement.cost,
+      actualCost: 0,
+      status: "failed",
+      metadata: {
+        reason: "usage_compensation_required",
+        reservedUsageEventId: input.entitlement.reservedUsageEventId,
+        error: error instanceof Error ? error.message : "Unknown usage recording error.",
+      },
+    }).catch(() => null);
+  }
+}
+
+type StrategyAssetFieldKey = StrategyAssetGuardFieldKey;
+type StrategyAssetEditorPatch = StrategyAssetGuardPatch;
+type StrategyAssetEditorResolution = {
+  patch: StrategyAssetEditorPatch;
+  guard: StrategyAssetGuardDecision;
 };
 
-type ConsultationAgentRuntimeSettings = ConsultationAgentSettingsDto & {
-  container: ConsultationAgentContainerSnapshot | null;
-  skillCatalog: ConsultationRuntimeSkill[];
-  activeSkills: ConsultationRuntimeSkill[];
-};
-
-type ConsultationAgentToolCall = {
-  id: string;
-  toolName: ConsultationAgentToolKey;
-  args: Record<string, unknown>;
-  repaired?: boolean;
-};
-
-type ConsultationAgentToolResult = {
-  callId: string;
-  toolName: ConsultationAgentToolKey;
-  status: ConsultationToolCardDto["status"];
-  summary: string;
-  payload: Record<string, unknown>;
-  knowledgeMatches?: KnowledgeSearchMatchDto[];
-};
-
-type StrategyAssetFieldKey =
-  | "positioning"
-  | "coreSellingPoints"
-  | "targetAudiences"
-  | "keyScenes"
-  | "currentSuggestion";
-
-type StrategyAssetEditorPatch = {
-  positioning?: string;
-  coreSellingPoints?: string[];
-  targetAudiences?: string[];
-  keyScenes?: string[];
-  currentSuggestion?: string;
-  changedFields: StrategyAssetFieldKey[];
-};
-
-type ConsultationConversationMessage = {
-  role: "user" | "assistant";
-  content: string;
-};
+async function recordConsultationRuntimeSnapshotSafely(input: {
+  sessionId: string;
+  messageId: string;
+  stageLabel: string;
+  runtimeSnapshot: ConsultationRuntimeSnapshotRecord;
+}) {
+  try {
+    await recordAgentRuntimeSnapshot({
+      sessionId: input.sessionId,
+      messageId: input.messageId,
+      agentId: input.runtimeSnapshot.agentId,
+      promptVersionId: input.runtimeSnapshot.promptVersionId,
+      candidateSkillIds: input.runtimeSnapshot.candidateSkillIds,
+      actualSkillIds: input.runtimeSnapshot.actualSkillIds,
+      knowledgeSetIds: input.runtimeSnapshot.knowledgeSetIds,
+      knowledgeMatchIds: input.runtimeSnapshot.knowledgeMatchIds,
+      memoryMatchIds: input.runtimeSnapshot.memoryMatchIds,
+      toolCallSummary: input.runtimeSnapshot.toolCallSummary,
+      model: input.runtimeSnapshot.model,
+    });
+  } catch (error) {
+    try {
+      await createConsultationEvent({
+        sessionId: input.sessionId,
+        eventType: "agent.runtime_snapshot.failed",
+        stageLabel: input.stageLabel,
+        payload: {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unknown runtime snapshot persistence error.",
+        },
+      });
+    } catch {
+      // Snapshot telemetry must never block the merchant-facing consultation response.
+    }
+  }
+}
 
 const strategyAssetFieldKeys = [
   "positioning",
@@ -407,112 +852,34 @@ type StrategyAssetEditorToolParseResult =
       error: string;
     };
 
-type ConsultationAgentLoopState = {
-  merchant: MerchantProfileDto;
-  session: ConsultationSessionDetailDto;
-  userContent: string;
-  userMessages: string[];
-  conversationMessages: ConsultationConversationMessage[];
-  nextRound: number;
-  nextStage: string;
-  consultationAgent: ConsultationAgentRuntimeSettings;
-  knowledgeRuntime: KnowledgeRuntimeSettingsDto;
-  llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
-  knowledgeMatches: KnowledgeSearchMatchDto[];
-  strategySnapshot: StrategySnapshotDto;
-};
-
-async function resolveConsultationAgentRuntime(input: {
-  fallback?: ConsultationAgentSettingsDto;
-} = {}): Promise<{
-  consultationAgent: ConsultationAgentRuntimeSettings;
-}> {
-  const fallback = input.fallback ?? (await getPlatformSettings()).consultationAgent;
-  const fallbackRuntime = {
-    ...fallback,
-    container: null,
-    skillCatalog: [],
-    activeSkills: [],
-  };
-
-  try {
-    const routeBinding = await getConsultationDefaultRouteBinding();
-
-    if (!routeBinding?.agentId || routeBinding.status !== "active") {
-      return { consultationAgent: fallbackRuntime };
-    }
-
-    const agent = await getAgentConfigById(routeBinding.agentId);
-
-    if (agent.serviceStatus !== "enabled") {
-      return { consultationAgent: fallbackRuntime };
-    }
-
-    const [promptVersions, skillBindings, skills] = await Promise.all([
-      listAgentPromptVersions(agent.id),
-      listAgentSkillBindings({ agentId: agent.id }),
-      listAgentSkills(),
-    ]);
-    const activePrompt =
-      promptVersions
-        .filter((promptVersion) => promptVersion.status === "active")
-        .sort((first, second) => second.versionNo - first.versionNo)[0] ?? null;
-    const enabledSkillIds = new Set(
-      skillBindings
-        .filter((binding) => binding.status === "enabled")
-        .map((binding) => binding.skillId),
-    );
-    const candidateSkills = skills
-      .filter((skill) => skill.status === "enabled" && enabledSkillIds.has(skill.id))
-      .map(toRuntimeSkill);
-
-    return {
-      consultationAgent: {
-        ...fallback,
-        systemPrompt:
-          agent.serviceFlags.systemPromptEnabled && activePrompt?.body
-            ? activePrompt.body
-            : fallback.systemPrompt,
-        container: {
-          agent,
-          activePromptVersion: activePrompt,
-          candidateSkills,
-        },
-        skillCatalog: agent.serviceFlags.skillsEnabled ? candidateSkills : [],
-        activeSkills: [],
-      },
-    };
-  } catch {
-    return { consultationAgent: fallbackRuntime };
-  }
-}
-
 async function runConsultationAgentLoop(input: {
   merchant: MerchantProfileDto;
   session: ConsultationSessionDetailDto;
   userContent: string;
   userMessages: string[];
   conversationMessages: ConsultationConversationMessage[];
+  mentionRouting: ConsultationMentionRouting;
   consultationAgent: ConsultationAgentRuntimeSettings;
   knowledgeRuntime: KnowledgeRuntimeSettingsDto;
   llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
+  emitRuntimeEvent?: (event: {
+    eventType: string;
+    stageLabel: string;
+    payload: Record<string, unknown>;
+  }) => Promise<void>;
 }) {
   const nextRound = input.userMessages.length;
   const maxConversationRounds = Math.max(1, input.consultationAgent.maxRounds);
-  const nextStage =
-    nextRound >= Math.min(3, maxConversationRounds)
-      ? "策略沉淀完成"
-      : nextRound === 2
-        ? "内容策略收束"
-        : "目标客群梳理";
+  const initialStage = "咨询诊断中";
   const state: ConsultationAgentLoopState = {
     merchant: input.merchant,
     session: input.session,
     userContent: input.userContent,
     userMessages: input.userMessages,
     conversationMessages: input.conversationMessages,
+    mentionRouting: input.mentionRouting,
     nextRound,
-    nextStage,
+    nextStage: initialStage,
     consultationAgent: {
       ...input.consultationAgent,
       activeSkills: selectActiveConsultationSkills({
@@ -525,424 +892,82 @@ async function runConsultationAgentLoop(input: {
     llmRuntime: input.llmRuntime,
     knowledgeMatches: [],
     strategySnapshot: input.session.strategySnapshot,
+    plannerTrace: [],
   };
-  const plannedCalls = planConsultationToolCalls(state);
-  const toolBudget = Math.min(
-    plannedCalls.length,
-    Math.max(1, input.consultationAgent.enabledTools.length),
-  );
-  const toolResults: ConsultationAgentToolResult[] = [];
-
-  await createConsultationEvent({
-    sessionId: input.session.id,
-    eventType: "agent.loop.started",
-    stageLabel: nextStage,
-    payload: {
-      mode: "bounded_tool_loop",
-      round: nextRound,
-      maxConversationRounds,
-      toolBudget,
-      enabledTools: input.consultationAgent.enabledTools,
-      businessTools: getConsultationBusinessToolCatalog()
-        .filter((tool) => input.consultationAgent.enabledTools.includes(tool.key))
-        .map((tool) => ({
-          key: tool.key,
-          label: tool.label,
-          purpose: tool.purpose,
-          writes: tool.writes,
-        })),
-      agentContainer: state.consultationAgent.container
-        ? {
-            agentId: state.consultationAgent.container.agent.id,
-            agentKey: state.consultationAgent.container.agent.agentKey,
-            displayName: state.consultationAgent.container.agent.displayName,
-            activePromptVersion:
-              state.consultationAgent.container.activePromptVersion?.versionNo ?? null,
-            candidateSkillIds: state.consultationAgent.skillCatalog.map((skill) => skill.id),
-            activeSkillIds: state.consultationAgent.activeSkills.map((skill) => skill.id),
-          }
-        : null,
-      skillDisclosure: buildSkillDisclosure(state.consultationAgent),
-      systemPromptPreview: input.consultationAgent.systemPrompt.slice(0, 240),
-      references: [
-        "references/open-source/hermes-agent/run_agent.py",
-        "references/open-source/hermes-agent/model_tools.py",
-        "references/open-source/hermes-agent/agent/prompt_builder.py",
-        "references/open-source/claude-code泄漏的客户端源码/claude-code-main/",
-      ],
-    },
+  state.contextBudget = buildContextBudgetReport({
+    merchant: state.merchant,
+    strategySnapshot: state.strategySnapshot,
+    userContent: state.userContent,
+    sessionSummary: state.session.summaryText ?? null,
+    consultationAgent: state.consultationAgent,
+    knowledgeMatches: state.knowledgeMatches,
+    toolResults: [],
   });
+  const toolBudget = Math.max(1, input.consultationAgent.enabledTools.length);
+  const runtimeResult = await runConsultationRuntime({
+    state,
+    maxConversationRounds,
+    toolBudget,
+    emitEvent: async (event) => {
+      if (input.emitRuntimeEvent) {
+        await input.emitRuntimeEvent({
+          eventType: event.eventType,
+          stageLabel: initialStage,
+          payload: event.payload,
+        });
+        return;
+      }
 
-  for (const plannedCall of plannedCalls.slice(0, toolBudget)) {
-    const toolCall = repairConsultationToolCall(plannedCall, state);
-    const result = await dispatchConsultationTool(toolCall, state);
-
-    applyToolResultToState(result, state);
-    toolResults.push(result);
-
-    await createConsultationEvent({
-      sessionId: input.session.id,
-      eventType: "agent.tool.completed",
-      stageLabel: nextStage,
-      payload: {
-        callId: toolCall.id,
-        toolName: toolCall.toolName,
-        repaired: toolCall.repaired ?? false,
-        status: result.status,
-        summary: result.summary,
-        payload: result.payload,
-      },
-    });
-
-    if (result.toolName === "retrieve_knowledge_base") {
       await createConsultationEvent({
         sessionId: input.session.id,
-        eventType: "knowledge.retrieved",
-        stageLabel: nextStage,
-        payload: {
-          source: "agent_loop",
-          status: result.status,
-          summary: result.summary,
-          ...(result.payload as Record<string, unknown>),
-        },
+        eventType: event.eventType,
+        stageLabel: initialStage,
+        payload: event.payload,
       });
-    }
-  }
-
-  const assistantReply = await buildAssistantReplyWithModel({
-    merchant: state.merchant,
-    round: state.nextRound,
+    },
+    dispatchTool: (currentState, toolCall) =>
+      dispatchConsultationTool(toolCall, currentState),
+    applyToolResultToState: (currentState, result) =>
+      applyToolResultToState(result, currentState),
+    buildAssistantReply: ({ state: currentState, toolResults }) =>
+      buildAssistantReplyWithModel({
+        merchant: currentState.merchant,
+        round: currentState.nextRound,
+        userContent: currentState.userContent,
+        sessionSummary: currentState.session.summaryText ?? null,
+        strategySnapshot: currentState.strategySnapshot,
+        knowledgeMatches: currentState.knowledgeMatches,
+        toolResults,
+        consultationAgent: currentState.consultationAgent,
+        llmRuntime: currentState.llmRuntime,
+      }),
+  });
+  const nextStage = resolveConsultationStageLabel({
     userContent: state.userContent,
-    strategySnapshot: state.strategySnapshot,
-    knowledgeMatches: state.knowledgeMatches,
-    toolResults,
-    consultationAgent: state.consultationAgent,
-    llmRuntime: state.llmRuntime,
+    toolResults: runtimeResult.toolResults,
   });
-
-  await createConsultationEvent({
-    sessionId: input.session.id,
-    eventType:
-      assistantReply.mode === "llm"
-        ? "llm.response.completed"
-        : "llm.response.fallback",
-    stageLabel: nextStage,
-    payload: {
-      mode: assistantReply.mode,
-      model: assistantReply.model ?? null,
-      error: assistantReply.error ?? null,
-    },
-  });
-
-  await createConsultationEvent({
-    sessionId: input.session.id,
-    eventType: "agent.loop.completed",
-    stageLabel: nextStage,
-    payload: {
-      toolCount: toolResults.length,
-      completedTools: toolResults
-        .filter((result) => result.status === "completed")
-        .map((result) => result.toolName),
-      skippedTools: toolResults
-        .filter((result) => result.status === "skipped")
-        .map((result) => result.toolName),
-      strategyTags: state.strategySnapshot.strategyTags,
-    },
-  });
+  state.nextStage = nextStage;
 
   return {
     nextRound: state.nextRound,
     nextStage,
     strategySnapshot: state.strategySnapshot,
     knowledgeMatches: state.knowledgeMatches,
-    toolResults,
+    toolResults: runtimeResult.toolResults,
     agentContainer: state.consultationAgent.container
       ? {
           agentId: state.consultationAgent.container.agent.id,
           agentKey: state.consultationAgent.container.agent.agentKey,
           displayName: state.consultationAgent.container.agent.displayName,
           activePromptVersion: state.consultationAgent.container.activePromptVersion?.versionNo ?? null,
+          knowledgeSetIds: state.consultationAgent.container.knowledgeSetIds,
+          knowledgeDocumentIds: state.consultationAgent.container.knowledgeDocumentIds,
         }
       : null,
+    mentionRouting: state.mentionRouting,
     skillDisclosure: buildSkillDisclosure(state.consultationAgent),
-    assistantContent: assistantReply.content,
-  };
-}
-
-function planConsultationToolCalls(
-  state: ConsultationAgentLoopState,
-): ConsultationAgentToolCall[] {
-  const enabled = new Set<ConsultationAgentToolKey>(state.consultationAgent.enabledTools);
-  const orderedTools: ConsultationAgentToolKey[] = [
-    "read_merchant_profile",
-    "retrieve_knowledge_base",
-    "read_history",
-    "update_strategy_snapshot",
-    "update_content_calendar",
-    "generate_article_brief",
-    "generate_video_brief",
-  ];
-
-  return orderedTools
-    .filter((toolName) => enabled.has(toolName))
-    .map((toolName) => ({
-      id: randomUUID(),
-      toolName,
-      args: buildToolArgs(toolName, state),
-    }));
-}
-
-function toRuntimeSkill(skill: AgentSkillDto): ConsultationRuntimeSkill {
-  return {
-    id: skill.id,
-    skillKey: skill.skillKey,
-    name: skill.name,
-    description: skill.description,
-    whenToUse: skill.whenToUse,
-    body: skill.body,
-  };
-}
-
-function selectActiveConsultationSkills(input: {
-  skills: ConsultationRuntimeSkill[];
-  userContent: string;
-  userMessages: string[];
-}) {
-  const currentText = normalizeSkillMatchText(input.userContent);
-  const recentText = normalizeSkillMatchText(input.userMessages.slice(-3).join(" "));
-
-  return input.skills
-    .filter((skill) => {
-      const haystack = normalizeSkillMatchText(
-        [skill.name, skill.skillKey ?? "", skill.description, skill.whenToUse].join(" "),
-      );
-      const tokens = extractSkillTriggerTokens(haystack);
-
-      return tokens.some((token) => currentText.includes(token) || recentText.includes(token));
-    })
-    .slice(0, 3);
-}
-
-function extractSkillTriggerTokens(source: string) {
-  const normalized = normalizeSkillMatchText(source);
-  const phraseTokens = normalized
-    .split(/[\s,，。；;、/|()[\]{}"'`：:]+/)
-    .map((token) => token.trim())
-    .filter((token) => token.length >= 2 && token.length <= 12);
-  const conceptTokens = [
-    "个人ip",
-    "个人定位",
-    "定位",
-    "亮点",
-    "优势",
-    "人设",
-    "产品",
-    "卖点",
-    "客群",
-    "场景",
-    "异议",
-    "内容",
-    "日历",
-    "图文",
-    "视频",
-    "脚本",
-    "转化",
-    "私信",
-    "到店",
-  ].filter((token) => normalized.includes(token));
-
-  return uniqueStrings([...conceptTokens, ...phraseTokens]).slice(0, 32);
-}
-
-function normalizeSkillMatchText(value: string) {
-  return value.toLowerCase().replace(/\s+/g, "");
-}
-
-function buildSkillDisclosure(
-  consultationAgent: ConsultationAgentRuntimeSettings,
-): ConsultationSkillDisclosure {
-  return {
-    mode: "progressive_disclosure",
-    candidateSkills: consultationAgent.skillCatalog.map(toSkillDisclosureItem),
-    activeSkills: consultationAgent.activeSkills.map(toSkillDisclosureItem),
-  };
-}
-
-function toSkillDisclosureItem(skill: ConsultationRuntimeSkill) {
-  return {
-    id: skill.id,
-    skillKey: skill.skillKey,
-    name: skill.name,
-    whenToUse: skill.whenToUse,
-  };
-}
-
-function buildSkillCatalogPrompt(consultationAgent: ConsultationAgentRuntimeSettings) {
-  if (consultationAgent.skillCatalog.length === 0) {
-    return "";
-  }
-
-  const listing = consultationAgent.skillCatalog
-    .map((skill) =>
-      [
-        `- ${skill.name}${skill.skillKey ? ` (${skill.skillKey})` : ""}`,
-        skill.description ? `  Description: ${clipText(skill.description, 160)}` : "",
-        skill.whenToUse ? `  When to use: ${clipText(skill.whenToUse, 180)}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    )
-    .join("\n");
-
-  return [
-    "【候选 Skills：渐进式披露】",
-    "下面只列出可用 Skill 的简短说明。只有当前轮用户问题命中触发条件时，才会在后续“本轮激活 Skill”中提供完整正文。",
-    listing,
-  ].join("\n");
-}
-
-function buildActiveSkillPrompt(skills: ConsultationRuntimeSkill[]) {
-  if (skills.length === 0) {
-    return "";
-  }
-
-  return [
-    "【本轮激活 Skill】",
-    "以下 Skill 正文只用于当前轮咨询判断。不得向商家暴露 Skill 名称、内部字段或配置来源。",
-    ...skills.map((skill) =>
-      [
-        `## ${skill.name}${skill.skillKey ? ` (${skill.skillKey})` : ""}`,
-        skill.body ? clipText(skill.body, 3600) : skill.whenToUse,
-      ].join("\n"),
-    ),
-  ].join("\n\n");
-}
-
-function buildBusinessToolPrompt(enabledTools: ConsultationAgentToolKey[]) {
-  const enabled = new Set(enabledTools);
-  const rows = getConsultationBusinessToolCatalog()
-    .filter((tool) => enabled.has(tool.key))
-    .map((tool) => `- ${tool.key}: ${tool.label}。${tool.purpose} 写入/影响：${tool.writes}。`)
-    .join("\n");
-
-  return [
-    "【咨询 Agent 受控业务工具】",
-    "右侧策略资产不是普通文案，它由以下受控业务工具更新；回答时要尊重这些工具的输出，不要声称执行未启用工具。",
-    rows,
-  ].join("\n");
-}
-
-function getConsultationBusinessToolCatalog(): Array<{
-  key: ConsultationAgentToolKey;
-  label: string;
-  purpose: string;
-  writes: string;
-}> {
-  return [
-    {
-      key: "read_merchant_profile",
-      label: "读取商家资料",
-      purpose: "读取商家基础信息、服务项目、品牌语气和默认 CTA。",
-      writes: "只读上下文",
-    },
-    {
-      key: "retrieve_knowledge_base",
-      label: "检索平台方法论与商家上下文",
-      purpose: "检索平台方法论、商家资料和可用于咨询的知识片段。",
-      writes: "knowledgeMatches / 受控上下文",
-    },
-    {
-      key: "read_history",
-      label: "读取历史内容",
-      purpose: "读取当前咨询会话历史和摘要，避免丢上下文。",
-      writes: "只读上下文",
-    },
-    {
-      key: "update_strategy_snapshot",
-      label: "编辑策略资产",
-      purpose: "把产品定位、核心卖点、目标客群、关键场景和当前建议作为一个整体资产编辑。",
-      writes: "strategySnapshot as one editor document: positioning / coreSellingPoints / targetAudiences / keyScenes / currentSuggestion",
-    },
-    {
-      key: "update_content_calendar",
-      label: "更新内容日历",
-      purpose: "把策略快照转成图文/视频混合内容日历。",
-      writes: "strategySnapshot.contentCalendarDraft",
-    },
-    {
-      key: "generate_article_brief",
-      label: "生成图文任务草案",
-      purpose: "把咨询结论转成图文工作台可使用的 brief。",
-      writes: "strategySnapshot.articleBrief",
-    },
-    {
-      key: "generate_video_brief",
-      label: "生成视频任务草案",
-      purpose: "把咨询结论转成视频工作台可使用的 brief。",
-      writes: "strategySnapshot.videoBrief",
-    },
-  ];
-}
-
-function buildToolArgs(
-  toolName: ConsultationAgentToolKey,
-  state: ConsultationAgentLoopState,
-): Record<string, unknown> {
-  if (toolName === "retrieve_knowledge_base") {
-    return {
-      query: buildKnowledgeQuery({
-        merchant: state.merchant,
-        userContent: state.userContent,
-        previousSnapshot: state.session.strategySnapshot,
-      }),
-      topK: Math.max(
-        0,
-        Math.min(state.consultationAgent.retrievalTopK, state.knowledgeRuntime.retrievalTopK),
-      ),
-      contextPolicy: "hermes_safe_context_block",
-    };
-  }
-
-  if (toolName === "read_history") {
-    return {
-      sessionId: state.session.id,
-      previousMessageCount: state.session.messages.length,
-      previousSummary: state.session.summaryText,
-    };
-  }
-
-  return {
-    merchantId: state.merchant.id,
-    round: state.nextRound,
-    stage: state.nextStage,
-  };
-}
-
-function repairConsultationToolCall(
-  call: ConsultationAgentToolCall,
-  state: ConsultationAgentLoopState,
-): ConsultationAgentToolCall {
-  if (call.toolName !== "retrieve_knowledge_base") {
-    return call;
-  }
-
-  if (typeof call.args.query === "string" && call.args.query.trim().length > 0) {
-    return call;
-  }
-
-  return {
-    ...call,
-    repaired: true,
-    args: {
-      ...call.args,
-      query: [
-        state.userContent,
-        state.merchant.industry ?? "",
-        state.merchant.serviceItems.join(" "),
-      ]
-        .filter(Boolean)
-        .join(" "),
-    },
+    assistantContent: runtimeResult.assistantReply.content,
+    runtimeSnapshot: runtimeResult.runtimeSnapshot,
   };
 }
 
@@ -967,19 +992,13 @@ async function dispatchConsultationTool(
   if (call.toolName === "retrieve_knowledge_base") {
     const topK = typeof call.args.topK === "number" ? call.args.topK : 0;
     const query = typeof call.args.query === "string" ? call.args.query : "";
-    const queryEmbedding = await embedKnowledgeQuery({
-      query,
+    const retrieval = await retrieveConsultationKnowledge({
       state,
+      query,
+      topK,
+      knowledgeDocumentIds: call.args.knowledgeDocumentIds,
     });
-    const matches =
-      topK > 0
-        ? await searchKnowledgeChunks({
-            merchantId: state.merchant.id,
-            query,
-            limit: topK,
-            queryEmbedding: queryEmbedding.embedding,
-          })
-        : [];
+    const matches = retrieval.matches;
 
     return {
       callId: call.id,
@@ -990,9 +1009,7 @@ async function dispatchConsultationTool(
           ? `检索平台方法论与商家上下文，命中 ${matches.length} 个受控片段。`
           : "暂无 indexed 知识片段命中，使用商家基础资料与会话上下文兜底。",
       payload: {
-        retrievalMode: queryEmbedding.embedding ? "vector_with_lexical_fallback" : "lexical",
-        embeddingMode: queryEmbedding.mode,
-        embeddingModel: queryEmbedding.model ?? state.knowledgeRuntime.embeddingModel,
+        ...retrieval.payload,
         queryMode: call.args.contextPolicy,
         matchCount: matches.length,
         matches: matches.map((match) => ({
@@ -1020,29 +1037,42 @@ async function dispatchConsultationTool(
     };
   }
 
+  if (call.toolName === "search_benchmark_materials") {
+    return dispatchBenchmarkMaterialTool(call, state);
+  }
+
   if (call.toolName === "update_strategy_snapshot") {
     const assetEdit = await resolveStrategyAssetEditorPatch({
       state,
       fallback: buildStrategyAssetSnapshotPatch(state.session.strategySnapshot),
     });
-    const strategySnapshot = buildStrategySnapshot({
-      merchant: state.merchant,
-      previousSnapshot: state.session.strategySnapshot,
-      userMessages: state.userMessages,
-      knowledgeMatches: state.knowledgeMatches,
-      assetEdit,
-    });
+    const strategyWriteApplied = assetEdit.guard.allowed && assetEdit.patch.changedFields.length > 0;
+    const strategySnapshot = strategyWriteApplied
+      ? buildStrategySnapshot({
+          merchant: state.merchant,
+          previousSnapshot: state.session.strategySnapshot,
+          userMessages: state.userMessages,
+          knowledgeMatches: state.knowledgeMatches,
+          assetEdit: assetEdit.patch,
+        })
+      : state.session.strategySnapshot;
 
     return {
       callId: call.id,
       toolName: call.toolName,
-      status: "completed",
-      summary: assetEdit.changedFields.length
-        ? `策略资产 Editor 已更新：${summarizeStrategyAssetEdit(assetEdit)}。`
-        : "策略资产 Editor 已同步定位、卖点、客群、关键场景与当前建议。",
+      status: strategyWriteApplied ? "completed" : "skipped",
+      summary: strategyWriteApplied
+        ? `策略资产 Editor 已更新：${summarizeStrategyAssetEdit(assetEdit.patch)}。`
+        : assetEdit.guard.summary,
       payload: {
         strategySnapshot,
-        editorPatch: toStrategyAssetEditorPayload(assetEdit),
+        editorPatch: toStrategyAssetEditorPayload(assetEdit.patch),
+        guardrail: {
+          allowed: assetEdit.guard.allowed,
+          reasonCode: assetEdit.guard.reasonCode,
+          summary: assetEdit.guard.summary,
+          warnings: assetEdit.guard.warnings,
+        },
       },
     };
   }
@@ -1091,39 +1121,6 @@ async function dispatchConsultationTool(
   };
 }
 
-async function embedKnowledgeQuery(input: {
-  query: string;
-  state: ConsultationAgentLoopState;
-}): Promise<{
-  embedding: number[] | null;
-  mode: "embedded" | "not_configured" | "failed" | "empty";
-  model?: string;
-}> {
-  if (!input.query.trim()) {
-    return { embedding: null, mode: "empty" };
-  }
-
-  if (!getAiRuntimeApiKey()) {
-    return { embedding: null, mode: "not_configured" };
-  }
-
-  try {
-    const result = await createEmbeddings({
-      runtime: input.state.llmRuntime,
-      knowledgeRuntime: input.state.knowledgeRuntime,
-      input: input.query,
-    });
-
-    return {
-      embedding: result.embeddings[0] ?? null,
-      mode: "embedded",
-      model: result.model,
-    };
-  } catch {
-    return { embedding: null, mode: "failed" };
-  }
-}
-
 function applyToolResultToState(
   result: ConsultationAgentToolResult,
   state: ConsultationAgentLoopState,
@@ -1141,6 +1138,92 @@ function applyToolResultToState(
   }
 }
 
+async function dispatchBenchmarkMaterialTool(
+  call: ConsultationAgentToolCall,
+  state: ConsultationAgentLoopState,
+): Promise<ConsultationAgentToolResult> {
+  const platform = parseBenchmarkPlatform(call.args.platform);
+  const findMethod = call.args.findMethod === "profile" ? "profile" : "keyword";
+  const keyword = typeof call.args.keyword === "string" ? call.args.keyword.trim() : "";
+  const profileUrl = typeof call.args.profileUrl === "string" ? call.args.profileUrl.trim() : "";
+  const count =
+    typeof call.args.count === "number" && Number.isFinite(call.args.count)
+      ? Math.min(Math.max(Math.trunc(call.args.count), 1), 10)
+      : 5;
+  const target = findMethod === "profile" ? profileUrl : keyword;
+
+  if (!target) {
+    return {
+      callId: call.id,
+      toolName: call.toolName,
+      status: "skipped",
+      summary: "对标素材检索缺少关键词或博主主页链接，本轮跳过。",
+      payload: {
+        reason: "missing_benchmark_target",
+      },
+    };
+  }
+
+  try {
+    const materials = await createBenchmarkMaterialsForMerchant({
+      merchantId: state.merchant.id,
+      createdByUserId: state.merchant.ownerUserId ?? "consultation_agent",
+      merchantName: state.merchant.name,
+      platform,
+      findMethod,
+      keyword: findMethod === "keyword" ? target : undefined,
+      profileUrl: findMethod === "profile" ? target : undefined,
+      count,
+    });
+    const readyMaterials = materials.filter((material) => material.status === "ready");
+
+    return {
+      callId: call.id,
+      toolName: call.toolName,
+      status: readyMaterials.length > 0 ? "completed" : "skipped",
+      summary:
+        readyMaterials.length > 0
+          ? `已检索并沉淀 ${readyMaterials.length} 条${platform === "douyin" ? "抖音" : "小红书"}对标素材，可用于选题和爆款结构拆解。`
+          : "对标素材检索未拿到可用结果，已保留配置或失败状态供排查。",
+      payload: {
+        platform,
+        findMethod,
+        target,
+        count: materials.length,
+        materials: materials.map((material) => ({
+          id: material.id,
+          title: material.title,
+          materialType: material.materialType,
+          creatorName: material.creatorName,
+          engagementLabel: material.engagementLabel,
+          originalUrl: material.originalUrl,
+          status: material.status,
+        })),
+      },
+    };
+  } catch (error) {
+    return {
+      callId: call.id,
+      toolName: call.toolName,
+      status: "skipped",
+      summary:
+        error instanceof Error
+          ? `对标素材检索失败：${error.message}`
+          : "对标素材检索失败。",
+      payload: {
+        platform,
+        findMethod,
+        target,
+        error: error instanceof Error ? error.message : "Unknown benchmark material error.",
+      },
+    };
+  }
+}
+
+function parseBenchmarkPlatform(value: unknown): "xiaohongshu" | "douyin" {
+  return value === "douyin" ? "douyin" : "xiaohongshu";
+}
+
 function buildGreetingMessage(merchant: MerchantProfileDto) {
   const service = merchant.serviceItems[0] ?? merchant.industry ?? "本地服务";
   return `你好，欢迎来到静境商家平台。我已经先读取了 ${merchant.name} 的基础资料。接下来我会帮你把「${service}」这条业务线梳理成更清晰的定位、卖点、目标客群和内容策略。先告诉我：你现在最想提升的是到店咨询、私信转化，还是账号的人设种草？`;
@@ -1150,28 +1233,56 @@ function buildAssistantReply(input: {
   merchant: MerchantProfileDto;
   round: number;
   userContent: string;
+  sessionSummary?: string | null;
   strategySnapshot: StrategySnapshotDto;
   knowledgeMatches: KnowledgeSearchMatchDto[];
   toolResults?: ConsultationAgentToolResult[];
 }) {
   const knowledgeHint = buildKnowledgeReplyHint(input.knowledgeMatches);
   const loopHint = buildAgentLoopReplyHint(input.toolResults ?? []);
+  const strategyWriteCompleted = hasCompletedConsultationTool(
+    input.toolResults ?? [],
+    "update_strategy_snapshot",
+  );
+  const contentCalendarCompleted = hasCompletedConsultationTool(
+    input.toolResults ?? [],
+    "update_content_calendar",
+  );
+  const lowInformationTurn = isLowInformationConsultationTurn(input.userContent);
+  const processQuestion = isConsultationProcessQuestion(input.userContent);
+
+  if (processQuestion) {
+    return `你说得对，真正的咨询应该先问实际情况。${loopHint}${knowledgeHint}我先不改右侧策略资产，也不把现有模板当成结论。先从四个事实里选一个告诉我就行：你现在最想提升到店、私信还是账号人设？当前最想推的服务是哪一个？最近客户最常问或最犹豫的点是什么？你希望内容把用户引到什么动作？`;
+  }
+
+  if (lowInformationTurn) {
+    const service = input.merchant.serviceItems[0] ?? input.merchant.industry ?? "核心服务";
+    return `你现在还不确定方向也没关系。${loopHint}${knowledgeHint}我先不改右侧策略资产，建议先从三个入口里选一个：到店咨询、私信转化、账号人设种草。如果让我给默认建议，我会先围绕「${service}」做一条到店转化主线，再反推人设内容和场景种草。你更想先看哪一个方向？`;
+  }
+
+  if (!strategyWriteCompleted) {
+    return `我先不急着把策略沉淀成结论。${loopHint}${knowledgeHint}为了避免套模板，先确认一个最关键事实：你现在最想解决的是“没人咨询”“有人问但不成交”“内容不知道发什么”，还是“想把某个服务项目推起来”？你先回答一个点，我再把它写进右侧策略资产。`;
+  }
 
   if (input.round === 1) {
-    return `收到，我先把你的目标收进策略资产里。${loopHint}${knowledgeHint}现在看，${input.strategySnapshot.positioning}。下一步我想把人群和场景再钉牢一点: 你最优先想拿下的是哪一类人，她们通常会在什么场景下开始认真考虑你这项服务？`;
+    return `收到，我已经把这轮目标收进右侧策略资产里。${loopHint}${knowledgeHint}现在看，${input.strategySnapshot.positioning}。下一步我想把人群和场景再钉牢一点: 你最优先想拿下的是哪一类人，她们通常会在什么场景下开始认真考虑你这项服务？`;
   }
 
   if (input.round === 2) {
-    return `这条信息很关键，我已经把它合并到客群和内容场景里。${loopHint}${knowledgeHint}当前建议是：${input.strategySnapshot.currentSuggestion}。再补最后一个关键问题: 现阶段最容易卡成交的异议是什么，是价格、效果可信度、时间安排，还是门店距离与体验顾虑？`;
+    return `这条信息很关键，我已经把它合并到右侧客群和内容场景里。${loopHint}${knowledgeHint}当前建议是：${input.strategySnapshot.currentSuggestion}。再补最后一个关键问题: 现阶段最容易卡成交的异议是什么，是价格、效果可信度、时间安排，还是门店距离与体验顾虑？`;
   }
 
-  return `策略已经够落地了，我先帮你沉淀成可执行结论。${loopHint}${knowledgeHint}${input.strategySnapshot.currentSuggestion}。右侧内容日历已经更新，你现在可以直接进入图文工作台生成笔记草稿，或者进入视频工作台生成脚本并继续推进视频任务。`;
+  const calendarHint = contentCalendarCompleted
+    ? "右侧内容日历已经更新，你现在可以进入图文工作台生成笔记草稿，或者进入视频工作台生成脚本并继续推进视频任务。"
+    : "下一步先确认右侧策略资产，再生成内容日历和图文/视频任务会更稳。";
+  return `策略已经够落地了，我先帮你沉淀成可执行结论。${loopHint}${knowledgeHint}${input.strategySnapshot.currentSuggestion}。${calendarHint}`;
 }
 
 async function buildAssistantReplyWithModel(input: {
   merchant: MerchantProfileDto;
   round: number;
   userContent: string;
+  sessionSummary?: string | null;
   strategySnapshot: StrategySnapshotDto;
   knowledgeMatches: KnowledgeSearchMatchDto[];
   toolResults?: ConsultationAgentToolResult[];
@@ -1184,6 +1295,16 @@ async function buildAssistantReplyWithModel(input: {
   error?: string;
 }> {
   const fallback = buildAssistantReply(input);
+  const contextInjection = buildConsultationContextInjection({
+    merchant: input.merchant,
+    round: input.round,
+    userContent: input.userContent,
+    sessionSummary: input.sessionSummary ?? null,
+    strategySnapshot: input.strategySnapshot,
+    consultationAgent: input.consultationAgent,
+    knowledgeMatches: input.knowledgeMatches,
+    toolResults: input.toolResults ?? [],
+  });
 
   if (!getAiRuntimeApiKey()) {
     return {
@@ -1201,9 +1322,11 @@ async function buildAssistantReplyWithModel(input: {
           role: "system",
           content: [
             input.consultationAgent.systemPrompt,
+            buildExpertContainerPrompt(input.consultationAgent),
             buildSkillCatalogPrompt(input.consultationAgent),
             buildActiveSkillPrompt(input.consultationAgent.activeSkills),
             buildBusinessToolPrompt(input.consultationAgent.enabledTools),
+            buildContextInjectionSystemPrompt(contextInjection),
             "你只输出给商家的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
             "必须基于已完成工具结果、策略快照和受控知识库片段回答；如果信息不足，提出一个最关键的追问。",
             "如果工具结果已经显示策略资产被编辑，要先确认已按用户要求写入；不要反过来劝用户保持旧结构，也不要把已执行的明确编辑再改成优先级追问。",
@@ -1221,6 +1344,7 @@ async function buildAssistantReplyWithModel(input: {
             },
             userMessage: input.userContent,
             round: input.round,
+            contextInjection,
             strategySnapshot: input.strategySnapshot,
             knowledgeMatches: input.knowledgeMatches.map((match) => ({
               title: match.documentTitle,
@@ -1228,7 +1352,7 @@ async function buildAssistantReplyWithModel(input: {
               content: match.content.slice(0, 600),
             })),
             toolResults: (input.toolResults ?? []).map((result) => ({
-              tool: result.toolName,
+              label: getConsultationToolDisplayLabel(result.toolName),
               status: result.status,
               summary: result.summary,
             })),
@@ -1283,39 +1407,45 @@ function buildToolCards(input: {
       label: "检索平台方法论与商家上下文",
       summary:
         knowledgeMatches.length > 0
-          ? `已按 Hermes 安全上下文方式注入 ${knowledgeMatches.length} 个片段，来源：${matchedTitles.join("、")}。`
+          ? `已按受控上下文策略注入 ${knowledgeMatches.length} 个片段，来源：${matchedTitles.join("、")}。`
           : `按 Top ${settings.retrievalTopK} 规则检索，暂无 indexed 知识片段命中。`,
       status: knowledgeMatches.length > 0 ? "completed" : "skipped",
     },
     update_strategy_snapshot: {
       key: "update_strategy_snapshot",
       label: "编辑策略资产",
-      summary: `已把定位、卖点、客群与当前建议作为一个整体资产同步到「${stageLabel}」。`,
-      status: "completed",
+      summary: `本轮尚未写入策略资产，等待明确业务信息后再同步到「${stageLabel}」。`,
+      status: "skipped",
     },
     update_content_calendar: {
       key: "update_content_calendar",
       label: "更新内容日历",
-      summary: "已生成图文与视频混合的一周内容草案。",
-      status: "completed",
+      summary: "策略资产确认前，本轮不生成内容日历。",
+      status: "skipped",
     },
     generate_article_brief: {
       key: "generate_article_brief",
       label: "生成图文任务草案",
-      summary: "已准备好图文工作台的默认选题与标题方向。",
-      status: "completed",
+      summary: "策略资产确认前，本轮不生成图文任务草案。",
+      status: "skipped",
     },
     generate_video_brief: {
       key: "generate_video_brief",
       label: "生成视频任务草案",
-      summary: "已准备好视频钩子、脚本方向和保底输出目标。",
-      status: "completed",
+      summary: "策略资产确认前，本轮不生成视频任务草案。",
+      status: "skipped",
     },
     read_history: {
       key: "read_history",
       label: "读取历史内容",
-      summary: "已保留和当前商家资料兼容的历史上下文入口。",
-      status: "completed",
+      summary: "本轮尚未读取历史内容。",
+      status: "skipped",
+    },
+    search_benchmark_materials: {
+      key: "search_benchmark_materials",
+      label: "检索对标素材",
+      summary: "本轮尚未检索外部对标素材。",
+      status: "skipped",
     },
   };
 
@@ -1452,9 +1582,13 @@ function buildStrategySnapshot(input: {
 async function resolveStrategyAssetEditorPatch(input: {
   state: ConsultationAgentLoopState;
   fallback: StrategyAssetEditorPatch;
-}): Promise<StrategyAssetEditorPatch> {
+}): Promise<StrategyAssetEditorResolution> {
   if (!getAiRuntimeApiKey()) {
-    return input.fallback;
+    return guardResolvedStrategyAssetEdit({
+      state: input.state,
+      patch: input.fallback,
+      source: "fallback_no_key",
+    });
   }
 
   try {
@@ -1485,20 +1619,38 @@ async function resolveStrategyAssetEditorPatch(input: {
       const retryToolCall = findStrategyAssetEditorToolCall(retryResponse.toolCalls);
 
       if (!retryToolCall) {
-        return input.fallback;
+        return guardResolvedStrategyAssetEdit({
+          state: input.state,
+          patch: input.fallback,
+          source: "tool_not_called",
+        });
       }
 
       const retryParsed = parseStrategyAssetEditorToolArgs(
         retryToolCall.function.arguments,
       );
 
-      return retryParsed.ok ? retryParsed.patch : input.fallback;
+      return retryParsed.ok
+        ? guardResolvedStrategyAssetEdit({
+            state: input.state,
+            patch: retryParsed.patch,
+            source: "llm_tool",
+          })
+        : guardResolvedStrategyAssetEdit({
+            state: input.state,
+            patch: input.fallback,
+            source: "validation_failed",
+          });
     }
 
     const parsed = parseStrategyAssetEditorToolArgs(toolCall.function.arguments);
 
     if (parsed.ok) {
-      return parsed.patch;
+      return guardResolvedStrategyAssetEdit({
+        state: input.state,
+        patch: parsed.patch,
+        source: "llm_tool",
+      });
     }
 
     const retryResponse = await createStrategyAssetEditorCompletion({
@@ -1521,27 +1673,76 @@ async function resolveStrategyAssetEditorPatch(input: {
     const retryToolCall = findStrategyAssetEditorToolCall(retryResponse.toolCalls);
 
     if (!retryToolCall) {
-      return input.fallback;
+      return guardResolvedStrategyAssetEdit({
+        state: input.state,
+        patch: input.fallback,
+        source: "validation_failed",
+      });
     }
 
     const retryParsed = parseStrategyAssetEditorToolArgs(
       retryToolCall.function.arguments,
     );
 
-    return retryParsed.ok ? retryParsed.patch : input.fallback;
+    return retryParsed.ok
+      ? guardResolvedStrategyAssetEdit({
+          state: input.state,
+          patch: retryParsed.patch,
+          source: "llm_tool",
+        })
+      : guardResolvedStrategyAssetEdit({
+          state: input.state,
+          patch: input.fallback,
+          source: "validation_failed",
+        });
   } catch {
-    return input.fallback;
+    return guardResolvedStrategyAssetEdit({
+      state: input.state,
+      patch: input.fallback,
+      source: "runtime_error",
+    });
   }
+}
+
+function guardResolvedStrategyAssetEdit(input: {
+  state: ConsultationAgentLoopState;
+  patch: StrategyAssetEditorPatch;
+  source: StrategyAssetGuardSource;
+}): StrategyAssetEditorResolution {
+  const guard = guardStrategyAssetEditorPatch({
+    previousSnapshot: input.state.session.strategySnapshot,
+    userContent: input.state.userContent,
+    patch: input.patch,
+    source: input.source,
+  });
+
+  return {
+    patch: guard.patch,
+    guard,
+  };
 }
 
 function buildStrategyAssetEditorMessages(
   state: ConsultationAgentLoopState,
 ): ChatMessage[] {
+  const contextInjection = buildConsultationContextInjection({
+    merchant: state.merchant,
+    round: state.nextRound,
+    userContent: state.userContent,
+    sessionSummary: state.session.summaryText,
+    strategySnapshot: state.session.strategySnapshot,
+    consultationAgent: state.consultationAgent,
+    knowledgeMatches: state.knowledgeMatches,
+    toolResults: [],
+  });
+
   return [
     {
       role: "system",
       content: [
         "你是咨询 Agent 的策略资产编辑器，只负责把右侧策略资产作为一个完整文档改写。",
+        buildExpertContainerPrompt(state.consultationAgent),
+        buildContextInjectionSystemPrompt(contextInjection),
         "你必须调用 update_strategy_asset_editor 工具，并传入完整 strategyAsset 文档，不要只传局部字段。",
         "strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion 五个字段。",
         "如果用户要求追加、补充或把刚才提到的内容放进策略资产，你要基于 currentStrategySnapshot 合并，并结合 recentConversation 理解指代。",
@@ -1556,6 +1757,8 @@ function buildStrategyAssetEditorMessages(
       role: "user",
       content: JSON.stringify({
         userMessage: state.userContent,
+        mentionRouting: state.mentionRouting,
+        contextInjection,
         recentConversation: state.conversationMessages.slice(-8),
         recentUserMessages: state.userMessages.slice(-4),
         currentStrategySnapshot: {
@@ -1839,40 +2042,6 @@ function uniqueFieldKeys(values: StrategyAssetFieldKey[]) {
   return result;
 }
 
-function buildKnowledgeQuery(input: {
-  merchant: MerchantProfileDto;
-  userContent: string;
-  previousSnapshot: StrategySnapshotDto;
-}) {
-  return [
-    input.userContent,
-    input.merchant.industry ?? "",
-    input.merchant.serviceItems.join(" "),
-    input.previousSnapshot.positioning,
-    input.previousSnapshot.strategyTags.join(" "),
-    input.previousSnapshot.targetAudiences.join(" "),
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function buildKnowledgeContextBlock(matches: KnowledgeSearchMatchDto[]) {
-  if (matches.length === 0) {
-    return null;
-  }
-
-  return {
-    policy: "参考 hermes-agent/agent/prompt_builder.py：只注入已扫描并入库的受控上下文片段。",
-    matches: matches.map((match) => ({
-      documentTitle: match.documentTitle,
-      chunkId: match.chunkId,
-      scope: match.scope,
-      score: match.score,
-      excerpt: match.content.slice(0, 220),
-    })),
-  };
-}
-
 function buildKnowledgeReplyHint(matches: KnowledgeSearchMatchDto[]) {
   if (matches.length === 0) {
     return "";
@@ -1883,17 +2052,88 @@ function buildKnowledgeReplyHint(matches: KnowledgeSearchMatchDto[]) {
 }
 
 function buildAgentLoopReplyHint(toolResults: ConsultationAgentToolResult[]) {
-  const completedTools = toolResults
+  const completedToolNames = toolResults
     .filter((result) => result.status === "completed")
     .map((result) => result.toolName);
+  const contextLabels = completedToolNames
+    .filter((toolName) =>
+      toolName === "read_merchant_profile" ||
+      toolName === "retrieve_knowledge_base" ||
+      toolName === "read_history",
+    )
+    .map((toolName) => getConsultationToolDisplayLabel(toolName));
 
-  if (completedTools.length === 0) {
+  if (contextLabels.length === 0) {
     return "";
   }
 
-  return `我按 ${completedTools.length} 个能力步骤跑完一轮诊断（${completedTools
-    .slice(0, 4)
-    .join(" / ")}）。`;
+  return `我先参考了${contextLabels.slice(0, 3).join("、")}。`;
+}
+
+function getConsultationToolDisplayLabel(
+  toolName: ConsultationAgentToolResult["toolName"],
+) {
+  return (
+    getConsultationBusinessToolCatalog().find((tool) => tool.key === toolName)?.label ??
+    "咨询步骤"
+  );
+}
+
+function hasCompletedConsultationTool(
+  toolResults: ConsultationAgentToolResult[],
+  toolName: ConsultationAgentToolResult["toolName"],
+) {
+  return toolResults.some((result) => result.toolName === toolName && result.status === "completed");
+}
+
+function resolveConsultationStageLabel(input: {
+  userContent: string;
+  toolResults: ConsultationAgentToolResult[];
+}) {
+  if (hasCompletedConsultationTool(input.toolResults, "update_content_calendar")) {
+    return "策略沉淀完成";
+  }
+
+  if (hasCompletedConsultationTool(input.toolResults, "update_strategy_snapshot")) {
+    return "策略资产待确认";
+  }
+
+  if (isLowInformationConsultationTurn(input.userContent) || isConsultationProcessQuestion(input.userContent)) {
+    return "实际情况确认中";
+  }
+
+  return "实际情况确认中";
+}
+
+function isLowInformationConsultationTurn(content: string) {
+  const normalized = content
+    .replace(/^@[^\n，,。]+[，,。\s]*/, "")
+    .replace(/\s+/g, "");
+
+  if (normalized.length <= 8) {
+    return true;
+  }
+
+  const hasVagueIntent =
+    /不清楚|不知道|没想好|没思路|没有想法|有什么建议|你.*建议|怎么做|怎么办|随便/.test(
+      normalized,
+    );
+  const hasConcreteStrategySignal =
+    /定位|客群|人群|卖点|价格|异议|效果|时间|距离|到店|私信|转化|门店|内容|小红书|抖音|套餐|课程|服务|项目|体验/.test(
+      normalized,
+    );
+
+  return hasVagueIntent && !hasConcreteStrategySignal;
+}
+
+function isConsultationProcessQuestion(content: string) {
+  const normalized = content
+    .replace(/^@[^\n，,。]+[，,。\s]*/, "")
+    .replace(/\s+/g, "");
+
+  return /(?:不应该|是不是应该|应该|为什么不|先)(?:.*)(?:问|了解|确认)(?:.*)(?:实际情况|情况|现状|需求|问题|目标)/.test(
+    normalized,
+  );
 }
 
 function isStrategySnapshot(value: unknown): value is StrategySnapshotDto {
@@ -1962,24 +2202,6 @@ function extractKeywordMatches(source: string, keywords: string[]) {
   return keywords.filter((keyword) => source.includes(keyword));
 }
 
-function uniqueStrings(values: string[]) {
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  for (const value of values) {
-    const normalized = value.trim();
-
-    if (!normalized || seen.has(normalized)) {
-      continue;
-    }
-
-    seen.add(normalized);
-    result.push(normalized);
-  }
-
-  return result;
-}
-
 function parseJsonObject(value: string) {
   try {
     const parsed = JSON.parse(value) as unknown;
@@ -1992,20 +2214,4 @@ function parseJsonObject(value: string) {
   } catch {
     return null;
   }
-}
-
-function toStringArrayValue(value: unknown) {
-  if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === "string");
-  }
-
-  return typeof value === "string" ? [value] : [];
-}
-
-function clipText(value: string, maxLength: number) {
-  if (value.length <= maxLength) {
-    return value;
-  }
-
-  return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
 }

@@ -137,6 +137,12 @@ export const updateKnowledgeDocumentSetsSchema = z.object({
   knowledgeSetIds: z.array(z.uuid()).max(100),
 });
 
+export const runAgentTestSchema = z.object({
+  agentId: z.uuid(),
+  merchantId: z.uuid(),
+  inputMessage: z.string().trim().min(1).max(4000),
+});
+
 export const merchantProfileInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   address: z.string().trim().max(300).nullish(),

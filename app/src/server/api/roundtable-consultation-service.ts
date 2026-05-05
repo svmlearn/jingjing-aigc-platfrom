@@ -41,21 +41,30 @@ type RoundtableAction =
   | "return_to_phase"
   | "save_strategy_candidate";
 
+type RoundtableExpertContainer = {
+  phaseKey: RoundtableInterviewPhaseKey;
+  title: string;
+  agentRole: RoundtableAgentRole;
+  agentName: string;
+  outputTitle: string;
+  outputFields: string[];
+  focus: string;
+  evidenceRule: string;
+  container: {
+    agentKey: string;
+    displayName: string;
+    systemPrompt: string;
+    skills: string[];
+    knowledgePolicy: string;
+    toolPolicy: "interview_only" | "summarize_phase" | "synthesize_strategy";
+  };
+};
+
 const roundtablePhaseOrder: RoundtableInterviewPhaseKey[] = ["asset", "skill", "marketing"];
 
-const phaseMeta: Record<
-  RoundtableInterviewPhaseKey,
-  {
-    title: string;
-    agentRole: RoundtableAgentRole;
-    agentName: string;
-    outputTitle: string;
-    outputFields: string[];
-    focus: string;
-    evidenceRule: string;
-  }
-> = {
+const expertContainers: Record<RoundtableInterviewPhaseKey, RoundtableExpertContainer> = {
   asset: {
+    phaseKey: "asset",
     title: "资产盘点",
     agentRole: "asset_manager",
     agentName: "资产盘点官",
@@ -63,8 +72,17 @@ const phaseMeta: Record<
     outputFields: ["life_context", "available_assets", "real_stories", "material_clues", "constraints", "risk_boundaries"],
     focus: "生活状态、经营资源、过往经历、真实案例、素材线索和表达禁区",
     evidenceRule: "只记录用户明确说过或能从商家资料直接得出的资产事实；用户反问、没听懂、情绪反馈不能写成资产。",
+    container: {
+      agentKey: "roundtable_asset_manager",
+      displayName: "资产盘点官",
+      systemPrompt: "专注盘点商家的真实资产、生活状态、经营资源、故事素材与表达边界。",
+      skills: ["资产追问", "事实抽取", "素材边界识别"],
+      knowledgePolicy: "读取商家资料和本阶段 transcript；只接收前序结构化摘要，不默认读取全量跨阶段 transcript。",
+      toolPolicy: "interview_only",
+    },
   },
   skill: {
+    phaseKey: "skill",
     title: "技能洞察",
     agentRole: "skill_mapper",
     agentName: "技能洞察官",
@@ -72,8 +90,17 @@ const phaseMeta: Record<
     outputFields: ["skill_clusters", "repeatable_methods", "proof_points", "differentiators", "content_voice_clues"],
     focus: "可复制能力、服务方法、判断标准、可信证明和表达优势",
     evidenceRule: "只基于资产摘要和当前技能访谈抽取能力；没有方法、证明或优势时必须标记信息不足，不能补模板。",
+    container: {
+      agentKey: "roundtable_skill_mapper",
+      displayName: "技能洞察官",
+      systemPrompt: "专注把资产事实转成可复制能力、服务方法、证明点与表达优势。",
+      skills: ["能力聚类", "方法论抽取", "证明点识别"],
+      knowledgePolicy: "读取资产阶段摘要和当前技能访谈；不编造未被资产或 transcript 支撑的方法。",
+      toolPolicy: "summarize_phase",
+    },
   },
   marketing: {
+    phaseKey: "marketing",
     title: "营销策略",
     agentRole: "marketing_strategist",
     agentName: "营销策略官",
@@ -81,8 +108,18 @@ const phaseMeta: Record<
     outputFields: ["positioning", "target_audiences", "core_selling_points", "content_pillars", "strategy_tags", "cta_suggestions", "risk_boundaries"],
     focus: "目标客群、内容定位、核心卖点、选题方向、CTA 和风险边界",
     evidenceRule: "营销判断必须引用资产和技能阶段摘要；缺少事实时输出信息不足，不得编造客群、卖点或 CTA。",
+    container: {
+      agentKey: "roundtable_marketing_strategist",
+      displayName: "营销策略官",
+      systemPrompt: "专注把资产与技能阶段产物转成内容定位、目标客群、卖点、选题与 CTA。",
+      skills: ["定位收束", "卖点表达", "内容策略设计"],
+      knowledgePolicy: "读取资产与技能阶段摘要、本阶段访谈和商家资料；策略判断必须可追溯到前序事实。",
+      toolPolicy: "synthesize_strategy",
+    },
   },
 };
+
+const phaseMeta = expertContainers;
 
 const moderatorName = "主持人";
 
@@ -811,6 +848,7 @@ async function buildRoundtableQuestion(input: {
           role: "system",
           content: [
             "你是圆桌咨询里的自主访谈 Agent，不是固定脚本机器人。",
+            buildRoundtableExpertContainerPrompt(input.phaseKey),
             `当前身份：${phaseMeta[input.phaseKey].agentName}。`,
             `当前职责：${phaseMeta[input.phaseKey].focus}。`,
             phaseMeta[input.phaseKey].evidenceRule,
@@ -939,6 +977,7 @@ async function buildPhaseOutputWithModel(input: {
           role: "system",
           content: [
             "你是圆桌咨询的阶段摘要 Agent。",
+            buildRoundtableExpertContainerPrompt(input.phaseKey),
             `当前阶段：${phaseMeta[input.phaseKey].title} / ${phaseMeta[input.phaseKey].agentName}。`,
             `阶段职责：${phaseMeta[input.phaseKey].focus}。`,
             `输出字段契约：${phaseMeta[input.phaseKey].outputFields.join(", ")}。`,
@@ -1143,8 +1182,8 @@ function buildRoundtableToolCards(state: RoundtableStateDto) {
   return [
     {
       key: "roundtable_fixed_sequence",
-      label: "主持人编排",
-      summary: "主持人控制阶段边界；每位专家的问题由模型根据当前上下文生成。",
+      label: "专家容器编排",
+      summary: "主持人控制阶段边界；每位专家由内置专家容器提供身份、技能、知识边界和工具策略。",
       status: "completed" as const,
     },
     {
@@ -1175,9 +1214,28 @@ function buildRoundtableVisibleSummary(input: {
       phaseKey: input.phaseKey,
       agentRole: input.state.currentAgentRole,
       agentName: input.agentName,
+      expertContainer:
+        input.phaseKey === "asset" || input.phaseKey === "skill" || input.phaseKey === "marketing"
+          ? phaseMeta[input.phaseKey].container
+          : null,
       phaseOutput: input.phaseOutput ?? null,
     },
   };
+}
+
+function buildRoundtableExpertContainerPrompt(phaseKey: RoundtableInterviewPhaseKey) {
+  const expert = phaseMeta[phaseKey].container;
+
+  return [
+    "【专家容器】",
+    `agentKey: ${expert.agentKey}`,
+    `displayName: ${expert.displayName}`,
+    `systemPrompt: ${expert.systemPrompt}`,
+    `skills: ${expert.skills.join("、")}`,
+    `knowledgePolicy: ${expert.knowledgePolicy}`,
+    `toolPolicy: ${expert.toolPolicy}`,
+    "专家容器只决定本阶段身份和能力；圆桌共享上下文由主持人和 handoffTrace 统一注入。",
+  ].join("\n");
 }
 
 function parseModelJson<T>(input: {
