@@ -61,7 +61,9 @@ cd app && npm run build
 
 - Worktree：`/Users/wy/.codex/worktrees/consultation-expert-traffic-v1`
 - Branch：`codex/consultation-expert-traffic-v1`
-- Commit：当前 branch HEAD（本轮已提交为 `feat: add agent console asset trio`，最终哈希以 `git log -1` 为准）
-- Push：未 push
-- Merge：未 merge
-- Deploy：未部署
+- 已合并：已 fast-forward 到主目录 `main`
+- Push：已推送 `origin/main` 和 `gitee/main`
+- Supabase：已应用 `202605050002_agent_soul_versions.sql`
+- Vercel：已部署 production alias `https://jingjing-content-platform-staging.vercel.app`
+- Deployment URL：`https://jingjing-content-platform-staging-qalylsnv8.vercel.app`
+- Inspect URL：`https://vercel.com/neveraloofwy-4960s-projects/jingjing-content-platform-staging/DzyHdk9NGw12z32Gf2ez2zFcY4aK`

@@ -89,3 +89,29 @@ cd app && npm run build
 - 远端环境必须先应用 `202605050002_agent_soul_versions.sql`，否则 `soul.md` API 和 runtime 读取会依赖不存在的表。
 - `memory.md` 当前只是显式占位，不代表长期记忆闭环已经实现。
 - 历史 PRD / 设计稿里仍有 `System Prompt` 文字，本轮只改当前 Agent Console 实现，不回写历史资料。
+
+## 6. 合并与部署记录
+
+执行日期：2026-05-05
+
+已完成：
+
+- `codex/consultation-expert-traffic-v1` fast-forward 合并到 `main`。
+- `main` 已推送到 GitHub `origin/main` 和 Gitee `gitee/main`。
+- Supabase linked project：`jingjing-content-platform-staging`。
+- 已执行 `supabase db push`，远端已应用 `202605050002_agent_soul_versions.sql`。
+- Vercel project：`jingjing-content-platform-staging`。
+- 已执行 `vercel deploy --prod --yes --force`。
+
+部署结果：
+
+- Vercel Inspect URL：`https://vercel.com/neveraloofwy-4960s-projects/jingjing-content-platform-staging/DzyHdk9NGw12z32Gf2ez2zFcY4aK`
+- Deployment URL：`https://jingjing-content-platform-staging-qalylsnv8.vercel.app`
+- Production alias：`https://jingjing-content-platform-staging.vercel.app`
+- Vercel status：`Ready`
+
+线上冒烟：
+
+- `https://jingjing-content-platform-staging.vercel.app` 返回 `200`。
+- `https://jingjing-content-platform-staging.vercel.app/platform-admin-login` 返回 `200`。
+- `https://jingjing-content-platform-staging.vercel.app/platform-admin/agents` 未登录时返回 `307` 到 `/platform-admin-login`，符合受保护页面预期。
