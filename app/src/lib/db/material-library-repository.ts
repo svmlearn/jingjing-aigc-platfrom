@@ -378,34 +378,58 @@ export async function upsertMaterialLibraryItemsFromProvider(input: {
   }
 
   const supabase = createSupabaseAdminClient();
-  const withExternalIds = rows.filter((row) => row.external_item_id);
-  const withoutExternalIds = rows.filter((row) => !row.external_item_id);
   const saved: MaterialLibraryItemDto[] = [];
 
-  if (withExternalIds.length > 0) {
-    const { data, error } = await supabase
-      .from("source_items")
-      .upsert(withExternalIds, { onConflict: "merchant_id,platform,external_item_id" })
-      .select(sourceItemMaterialSelect);
+  for (const row of rows) {
+    let existingId: string | null = null;
 
-    if (error) {
+    if (row.external_item_id) {
+      const { data, error } = await supabase
+        .from("source_items")
+        .select("id")
+        .eq("merchant_id", row.merchant_id)
+        .eq("platform", row.platform)
+        .eq("external_item_id", row.external_item_id)
+        .maybeSingle();
+
+      if (error) {
+        throw new ApiError(500, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED", error.message);
+      }
+
+      existingId = typeof data?.id === "string" ? data.id : null;
+    } else if (row.source_url) {
+      const { data, error } = await supabase
+        .from("source_items")
+        .select("id")
+        .eq("merchant_id", row.merchant_id)
+        .eq("source_url", row.source_url)
+        .maybeSingle();
+
+      if (error) {
+        throw new ApiError(500, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED", error.message);
+      }
+
+      existingId = typeof data?.id === "string" ? data.id : null;
+    }
+
+    const { data, error } = existingId
+      ? await supabase
+          .from("source_items")
+          .update(row)
+          .eq("id", existingId)
+          .select(sourceItemMaterialSelect)
+          .single()
+      : await supabase
+          .from("source_items")
+          .insert(row)
+          .select(sourceItemMaterialSelect)
+          .single();
+
+    if (error || !data) {
       throw new ApiError(500, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED", error.message);
     }
 
-    saved.push(...((data ?? []) as unknown as SourceItemMaterialRow[]).map(mapSourceItemToMaterial));
-  }
-
-  if (withoutExternalIds.length > 0) {
-    const { data, error } = await supabase
-      .from("source_items")
-      .upsert(withoutExternalIds, { onConflict: "merchant_id,source_url" })
-      .select(sourceItemMaterialSelect);
-
-    if (error) {
-      throw new ApiError(500, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED", error.message);
-    }
-
-    saved.push(...((data ?? []) as unknown as SourceItemMaterialRow[]).map(mapSourceItemToMaterial));
+    saved.push(mapSourceItemToMaterial(data as unknown as SourceItemMaterialRow));
   }
 
   return saved;
