@@ -78,6 +78,20 @@ test("consultation runtime treats expert as container and context as shared inje
   assert.match(consultationServiceAndRuntimeSource, /contextInjection/);
 });
 
+test("consultation runtime injects short-term expert traffic handoff notes", () => {
+  assert.match(consultationRuntimeSource, /short-term expert traffic/);
+  assert.match(consultationRuntimeSource, /SharedConsultationState/);
+  assert.match(consultationRuntimeSource, /ExpertTurnNote/);
+  assert.match(consultationRuntimeSource, /buildSharedConsultationState/);
+  assert.match(consultationRuntimeSource, /buildExpertTurnNotes/);
+  assert.match(consultationRuntimeSource, /buildExpertTrafficContextBlock/);
+  assert.match(consultationRuntimeSource, /handoffForNextExpert/);
+  assert.match(consultationRuntimeSource, /short_term_expert_traffic_v1/);
+  assert.match(consultationServiceAndRuntimeSource, /@ 只切换目标专家/);
+  assert.match(serviceSource, /recentExpertTurnNotes/);
+  assert.match(serviceSource, /latestExpertTurnNote/);
+});
+
 test("consultation runtime does not expose local reference source paths", () => {
   assert.doesNotMatch(consultationServiceAndRuntimeSource, /references\/open-source/);
   assert.doesNotMatch(consultationServiceAndRuntimeSource, /claude-code泄漏/);

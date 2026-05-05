@@ -57,7 +57,9 @@ import {
   buildConsultationContextInjection,
   buildContextBudgetReport,
   buildContextInjectionSystemPrompt,
+  buildExpertTurnNotes,
   buildExpertContainerPrompt,
+  buildSharedConsultationState,
   buildKnowledgeContextBlock,
 } from "@/server/api/consultation-runtime/context";
 import {
@@ -414,6 +416,12 @@ export async function sendConsultationMessageForUser(input: {
         runtimeDesign: "bounded_business_tool_loop_v1",
         agentContainer: loopResult.agentContainer,
         mentionRouting: loopResult.mentionRouting,
+        expertTraffic: {
+          policy: "short_term_expert_traffic_v1",
+          sharedConsultationState: loopResult.sharedConsultationState,
+          recentExpertTurnNotes: loopResult.expertTurnNotes,
+          latestExpertTurnNote: loopResult.latestExpertTurnNote,
+        },
         skillDisclosure: loopResult.skillDisclosure,
         toolResults: loopResult.toolResults.map((result) => ({
           tool: result.toolName,
@@ -905,6 +913,18 @@ async function runConsultationAgentLoop(input: {
   const nextRound = input.userMessages.length;
   const maxConversationRounds = Math.max(1, input.consultationAgent.maxRounds);
   const initialStage = "咨询诊断中";
+  const expertTurnNotes = buildExpertTurnNotes({
+    sessionMessages: input.session.messages,
+  });
+  const sharedConsultationState = buildSharedConsultationState({
+    merchant: input.merchant,
+    strategySnapshot: input.session.strategySnapshot,
+    strategyMarkdown: input.session.strategyAsset?.strategyMarkdown,
+    userContent: input.userContent,
+    sessionSummary: input.session.summaryText,
+    mentionRouting: input.mentionRouting,
+    expertTurnNotes,
+  });
   const state: ConsultationAgentLoopState = {
     merchant: input.merchant,
     session: input.session,
@@ -930,6 +950,8 @@ async function runConsultationAgentLoop(input: {
       input.session.strategyAsset?.strategyMarkdown ??
       buildStrategyAssetMarkdown(input.session.strategySnapshot),
     plannerTrace: [],
+    sharedConsultationState,
+    expertTurnNotes,
   };
   state.contextBudget = buildContextBudgetReport({
     merchant: state.merchant,
@@ -940,6 +962,8 @@ async function runConsultationAgentLoop(input: {
     consultationAgent: state.consultationAgent,
     knowledgeMatches: state.knowledgeMatches,
     toolResults: [],
+    sharedConsultationState: state.sharedConsultationState,
+    expertTurnNotes: state.expertTurnNotes,
   });
   const toolBudget = Math.max(1, input.consultationAgent.enabledTools.length);
   const runtimeResult = await runConsultationRuntime({
@@ -979,6 +1003,8 @@ async function runConsultationAgentLoop(input: {
         toolResults,
         consultationAgent: currentState.consultationAgent,
         llmRuntime: currentState.llmRuntime,
+        sharedConsultationState: currentState.sharedConsultationState,
+        expertTurnNotes: currentState.expertTurnNotes,
       }),
   });
   const nextStage = resolveConsultationStageLabel({
@@ -1006,6 +1032,9 @@ async function runConsultationAgentLoop(input: {
       : null,
     mentionRouting: state.mentionRouting,
     skillDisclosure: buildSkillDisclosure(state.consultationAgent),
+    sharedConsultationState: state.sharedConsultationState,
+    expertTurnNotes: state.expertTurnNotes,
+    latestExpertTurnNote: runtimeResult.latestExpertTurnNote,
     assistantContent: runtimeResult.assistantReply.content,
     runtimeSnapshot: runtimeResult.runtimeSnapshot,
   };
@@ -1184,6 +1213,16 @@ function applyToolResultToState(
     if (typeof strategyMarkdown === "string" && strategyMarkdown.trim()) {
       state.strategyMarkdown = strategyMarkdown;
     }
+
+    state.sharedConsultationState = buildSharedConsultationState({
+      merchant: state.merchant,
+      strategySnapshot: state.strategySnapshot,
+      strategyMarkdown: state.strategyMarkdown,
+      userContent: state.userContent,
+      sessionSummary: state.session.summaryText,
+      mentionRouting: state.mentionRouting,
+      expertTurnNotes: state.expertTurnNotes,
+    });
   }
 }
 
@@ -1339,6 +1378,8 @@ async function buildAssistantReplyWithModel(input: {
   toolResults?: ConsultationAgentToolResult[];
   consultationAgent: ConsultationAgentRuntimeSettings;
   llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
+  sharedConsultationState: ConsultationAgentLoopState["sharedConsultationState"];
+  expertTurnNotes: ConsultationAgentLoopState["expertTurnNotes"];
 }): Promise<{
   content: string;
   mode: "llm" | "fallback_no_key" | "fallback_error";
@@ -1356,6 +1397,8 @@ async function buildAssistantReplyWithModel(input: {
     consultationAgent: input.consultationAgent,
     knowledgeMatches: input.knowledgeMatches,
     toolResults: input.toolResults ?? [],
+    sharedConsultationState: input.sharedConsultationState,
+    expertTurnNotes: input.expertTurnNotes,
   });
 
   if (!getAiRuntimeApiKey()) {
@@ -1788,6 +1831,8 @@ function buildStrategyAssetEditorMessages(
     consultationAgent: state.consultationAgent,
     knowledgeMatches: state.knowledgeMatches,
     toolResults: [],
+    sharedConsultationState: state.sharedConsultationState,
+    expertTurnNotes: state.expertTurnNotes,
   });
 
   return [

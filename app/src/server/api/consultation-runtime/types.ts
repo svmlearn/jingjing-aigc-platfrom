@@ -95,6 +95,30 @@ export type ConsultationConversationMessage = {
   content: string;
 };
 
+export type ExpertTurnNote = {
+  agentId: string | null;
+  agentKey: string | null;
+  displayName: string | null;
+  turnId: string;
+  whatIUnderstood: string;
+  whatIChanged: string;
+  openQuestionsForUser: string[];
+  handoffForNextExpert: string;
+  confidence: "low" | "medium" | "high";
+  createdAt?: string | null;
+};
+
+export type SharedConsultationState = {
+  merchantProfileSummary: string;
+  currentGoal: string | null;
+  knownFacts: string[];
+  openQuestions: string[];
+  strategySnapshotSummary: string;
+  expertTurnNotes: ExpertTurnNote[];
+  unresolvedConflicts: string[];
+  latestUserIntent: string;
+};
+
 export type ConsultationAgentLoopState = {
   merchant: MerchantProfileDto;
   session: ConsultationSessionDetailDto;
@@ -111,5 +135,8 @@ export type ConsultationAgentLoopState = {
   strategySnapshot: StrategySnapshotDto;
   strategyMarkdown: string;
   plannerTrace: ConsultationPlannerTraceItem[];
+  sharedConsultationState: SharedConsultationState;
+  expertTurnNotes: ExpertTurnNote[];
+  latestExpertTurnNote?: ExpertTurnNote | null;
   contextBudget?: Record<string, unknown>;
 };

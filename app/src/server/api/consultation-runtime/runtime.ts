@@ -10,10 +10,12 @@ import {
   repairConsultationToolCall,
 } from "@/server/api/consultation-runtime/planner";
 import { buildSkillDependencyWarnings } from "@/server/api/consultation-runtime/skills";
+import { buildLatestExpertTurnNote } from "@/server/api/consultation-runtime/context";
 import type {
   ConsultationAgentLoopState,
   ConsultationAgentToolCall,
   ConsultationAgentToolResult,
+  ExpertTurnNote,
 } from "@/server/api/consultation-runtime/types";
 import { uniqueStrings } from "@/server/api/consultation-runtime/utils";
 
@@ -123,6 +125,17 @@ export async function runConsultationRuntime(input: {
     },
   });
 
+  const latestExpertTurnNote = buildLatestExpertTurnNote({
+    sessionId: input.state.session.id,
+    round: input.state.nextRound,
+    consultationAgent: input.state.consultationAgent,
+    userContent: input.state.userContent,
+    strategySnapshot: input.state.strategySnapshot,
+    toolResults,
+    assistantContent: assistantReply.content,
+  });
+  input.state.latestExpertTurnNote = latestExpertTurnNote;
+
   await input.emitEvent({
     eventType: "agent.loop.completed",
     payload: buildLoopCompletedPayload({
@@ -134,10 +147,12 @@ export async function runConsultationRuntime(input: {
   return {
     toolResults,
     assistantReply,
+    latestExpertTurnNote,
     runtimeSnapshot: buildConsultationRuntimeSnapshotRecord({
       state: input.state,
       toolResults,
       assistantReply,
+      latestExpertTurnNote,
     }),
   };
 }
@@ -158,10 +173,13 @@ export function buildConsultationRuntimeSnapshotRecord(input: {
   state: ConsultationAgentLoopState;
   toolResults: ConsultationAgentToolResult[];
   assistantReply: ConsultationRuntimeAssistantReply;
+  latestExpertTurnNote?: ExpertTurnNote | null;
 }): ConsultationRuntimeSnapshotRecord {
   const { state, toolResults, assistantReply } = input;
   const agentContainer = state.consultationAgent.container;
   const memoryMatches = state.knowledgeMatches.filter(isMerchantMemoryMatch);
+  const latestExpertTurnNote =
+    input.latestExpertTurnNote ?? state.latestExpertTurnNote ?? null;
 
   return {
     agentId: agentContainer?.agent.id ?? null,
@@ -188,6 +206,15 @@ export function buildConsultationRuntimeSnapshotRecord(input: {
         })),
       },
       skillDependencyWarnings: buildSkillDependencyWarnings(state.consultationAgent),
+      expertTraffic: {
+        policy: "short_term_expert_traffic_v1",
+        sharedConsultationState: state.sharedConsultationState,
+        expertTurnNotes: state.expertTurnNotes,
+        latestExpertTurnNote,
+      },
+      sharedConsultationState: state.sharedConsultationState,
+      expertTurnNotes: state.expertTurnNotes,
+      latestExpertTurnNote,
       memoryMatches: memoryMatches.map((match) => ({
         chunkId: match.chunkId,
         documentId: match.documentId,

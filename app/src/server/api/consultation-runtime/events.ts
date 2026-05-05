@@ -52,8 +52,13 @@ export function buildAgentLoopStartedPayload(input: {
           activeSkillIds: state.consultationAgent.activeSkills.map((skill) => skill.id),
           knowledgeSetIds: state.consultationAgent.container.knowledgeSetIds,
           knowledgeDocumentIds: state.consultationAgent.container.knowledgeDocumentIds,
-        }
+      }
       : null,
+    expertTraffic: {
+      policy: "short_term_expert_traffic_v1",
+      sharedConsultationState: state.sharedConsultationState,
+      expertTurnNotes: state.expertTurnNotes,
+    },
     skillDisclosure: buildSkillDisclosure(state.consultationAgent),
     skillDependencyWarnings: buildSkillDependencyWarnings(state.consultationAgent),
     plannerMode: "model_tool_json_with_deterministic_fallback",
@@ -101,5 +106,11 @@ export function buildLoopCompletedPayload(input: {
     strategyTags: input.state.strategySnapshot.strategyTags,
     mentionRouting: input.state.mentionRouting,
     plannerTrace: input.state.plannerTrace,
+    expertTraffic: {
+      policy: "short_term_expert_traffic_v1",
+      sharedConsultationState: input.state.sharedConsultationState,
+      expertTurnNotes: input.state.expertTurnNotes,
+      latestExpertTurnNote: input.state.latestExpertTurnNote ?? null,
+    },
   };
 }
