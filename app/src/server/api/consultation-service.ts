@@ -57,6 +57,7 @@ import {
   buildConsultationContextInjection,
   buildContextBudgetReport,
   buildContextInjectionSystemPrompt,
+  buildAgentSoulPrompt,
   buildExpertTurnNotes,
   buildExpertContainerPrompt,
   buildSharedConsultationState,
@@ -208,6 +209,7 @@ export async function createConsultationSessionForUser(input: {
             agentKey: consultationAgent.container.agent.agentKey,
             displayName: consultationAgent.container.agent.displayName,
             activePromptVersion: consultationAgent.container.activePromptVersion?.versionNo ?? null,
+            activeSoulVersion: consultationAgent.container.activeSoulVersion?.versionNo ?? null,
             candidateSkillIds: consultationAgent.container.candidateSkills.map((skill) => skill.id),
           }
         : null,
@@ -586,6 +588,8 @@ export async function runAgentDebugTest(input: {
             displayName: resolvedRuntime.consultationAgent.container.agent.displayName,
             activePromptVersion:
               resolvedRuntime.consultationAgent.container.activePromptVersion?.versionNo ?? null,
+            activeSoulVersion:
+              resolvedRuntime.consultationAgent.container.activeSoulVersion?.versionNo ?? null,
             knowledgeSetIds: resolvedRuntime.consultationAgent.container.knowledgeSetIds,
             knowledgeDocumentIds: resolvedRuntime.consultationAgent.container.knowledgeDocumentIds,
           }
@@ -740,6 +744,8 @@ async function recordConsultationUsageSafely(input: {
       metadata: {
         reason: "credit_gate_not_configured",
         runtimeModel: input.runtimeSnapshot.model,
+        promptVersionId: input.runtimeSnapshot.promptVersionId,
+        soulVersionId: input.runtimeSnapshot.soulVersionId,
       },
     }).catch(() => null);
     return;
@@ -749,6 +755,7 @@ async function recordConsultationUsageSafely(input: {
     const usageMetadata = {
       runtimeModel: input.runtimeSnapshot.model,
       promptVersionId: input.runtimeSnapshot.promptVersionId,
+      soulVersionId: input.runtimeSnapshot.soulVersionId,
       candidateSkillIds: input.runtimeSnapshot.candidateSkillIds,
       actualSkillIds: input.runtimeSnapshot.actualSkillIds,
       knowledgeSetIds: input.runtimeSnapshot.knowledgeSetIds,
@@ -1026,6 +1033,7 @@ async function runConsultationAgentLoop(input: {
           agentKey: state.consultationAgent.container.agent.agentKey,
           displayName: state.consultationAgent.container.agent.displayName,
           activePromptVersion: state.consultationAgent.container.activePromptVersion?.versionNo ?? null,
+          activeSoulVersion: state.consultationAgent.container.activeSoulVersion?.versionNo ?? null,
           knowledgeSetIds: state.consultationAgent.container.knowledgeSetIds,
           knowledgeDocumentIds: state.consultationAgent.container.knowledgeDocumentIds,
         }
@@ -1417,6 +1425,7 @@ async function buildAssistantReplyWithModel(input: {
           role: "system",
           content: [
             input.consultationAgent.systemPrompt,
+            buildAgentSoulPrompt(input.consultationAgent),
             buildExpertContainerPrompt(input.consultationAgent),
             buildSkillCatalogPrompt(input.consultationAgent),
             buildActiveSkillPrompt(input.consultationAgent.activeSkills),
@@ -1426,7 +1435,9 @@ async function buildAssistantReplyWithModel(input: {
             "必须基于已完成工具结果、策略快照和受控知识库片段回答；如果信息不足，提出一个最关键的追问。",
             "如果工具结果已经显示策略资产被编辑，要先确认已按用户要求写入；不要反过来劝用户保持旧结构，也不要把已执行的明确编辑再改成优先级追问。",
             "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshot 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
-          ].join("\n"),
+          ]
+            .filter((item): item is string => Boolean(item))
+            .join("\n"),
         },
         {
           role: "user",
@@ -1841,6 +1852,7 @@ function buildStrategyAssetEditorMessages(
       content: [
         "你是咨询 Agent 的策略资产编辑器，只负责把右侧策略资产作为一个完整文档改写。",
         buildExpertContainerPrompt(state.consultationAgent),
+        buildAgentSoulPrompt(state.consultationAgent),
         buildContextInjectionSystemPrompt(contextInjection),
         "你必须调用 update_strategy_asset_editor 工具，并传入完整 strategyAsset 文档，不要只传局部字段。",
         "strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion、strategyMarkdown 六个字段。",
@@ -1851,7 +1863,9 @@ function buildStrategyAssetEditorMessages(
         "不要凭空补默认门店客群、到店人群或与当前商家不匹配的旧模板。",
         "如果用户只是追问、聊天或信息不足，strategyAsset 原样返回 currentStrategySnapshot，changedFields 传空数组。",
         "字段说明：positioning=我们是谁；targetAudiences=服务谁；keyScenes=核心场景；coreSellingPoints=核心卖点；currentSuggestion=当前建议；strategyMarkdown=完整策略资产文档。",
-      ].join("\n"),
+      ]
+        .filter((item): item is string => Boolean(item))
+        .join("\n"),
     },
     {
       role: "user",

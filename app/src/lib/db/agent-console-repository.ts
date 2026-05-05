@@ -20,6 +20,7 @@ import type {
   AgentServiceStatus,
   AgentSkillBindingDto,
   AgentSkillDto,
+  AgentSoulVersionDto,
   AgentAssetStatus,
   KnowledgeSetDetailDto,
   KnowledgeSetDocumentDto,
@@ -48,6 +49,19 @@ type AgentConfigRow = {
 };
 
 type AgentPromptVersionRow = {
+  id: string;
+  agent_id: string;
+  version_no: number;
+  body: string;
+  status: AgentPromptVersionStatus;
+  change_note: string | null;
+  created_by_admin_id: string | null;
+  created_at: string;
+  activated_at: string | null;
+  archived_at: string | null;
+};
+
+type AgentSoulVersionRow = {
   id: string;
   agent_id: string;
   version_no: number;
@@ -367,7 +381,7 @@ export async function createAgentConfig(
     throw new ApiError(
       409,
       "AGENT_ACTIVE_PROMPT_REQUIRED",
-      "请先创建并发布 System Prompt，再启用 Agent",
+      "请先创建并发布 agent.md，再启用 Agent",
     );
   }
   await assertAgentDisplayNameAvailable(input.displayName);
@@ -435,9 +449,10 @@ export async function getAgentConfigById(agentId: string): Promise<AgentConfigDt
 export async function getAgentConfigDetail(
   agentId: string,
 ): Promise<AgentConfigDetailDto> {
-  const [agent, promptVersions, skillBindings, knowledgeSetBindings] = await Promise.all([
+  const [agent, promptVersions, soulVersions, skillBindings, knowledgeSetBindings] = await Promise.all([
     getAgentConfigById(agentId),
     listAgentPromptVersions(agentId),
+    listAgentSoulVersions(agentId),
     listAgentSkillBindings({ agentId }),
     listAgentKnowledgeSetBindings({ agentId }),
   ]);
@@ -445,7 +460,9 @@ export async function getAgentConfigDetail(
   return {
     agent,
     promptVersions,
+    soulVersions,
     activePromptVersion: promptVersions.find((prompt) => prompt.status === "active") ?? null,
+    activeSoulVersion: soulVersions.find((soul) => soul.status === "active") ?? null,
     skillBindings,
     knowledgeSetBindings,
   };
@@ -561,13 +578,16 @@ export async function copyAgentConfig(
   }
 
   const copied = mapAgentConfig(data as unknown as AgentConfigRow);
-  const [prompts, skillBindings, knowledgeSetBindings] = await Promise.all([
+  const [prompts, souls, skillBindings, knowledgeSetBindings] = await Promise.all([
     listAgentPromptVersions(source.id),
+    listAgentSoulVersions(source.id),
     listAgentSkillBindings({ agentId: source.id }),
     listAgentKnowledgeSetBindings({ agentId: source.id }),
   ]);
   const activePrompt = prompts.find((prompt) => prompt.status === "active");
   const draftPrompt = prompts.find((prompt) => prompt.status === "draft");
+  const activeSoul = souls.find((soul) => soul.status === "active");
+  const draftSoul = souls.find((soul) => soul.status === "draft");
 
   if (activePrompt) {
     const { error: promptError } = await supabase.from("agent_prompt_versions").insert({
@@ -575,7 +595,7 @@ export async function copyAgentConfig(
       version_no: 1,
       body: activePrompt.body,
       status: "active",
-      change_note: `复制自 ${source.displayName} 的 active prompt。`,
+      change_note: `复制自 ${source.displayName} 的 active agent.md。`,
       activated_at: new Date().toISOString(),
     });
 
@@ -590,11 +610,40 @@ export async function copyAgentConfig(
       version_no: activePrompt ? 2 : 1,
       body: draftPrompt.body,
       status: "draft",
-      change_note: `复制自 ${source.displayName} 的 draft prompt。`,
+      change_note: `复制自 ${source.displayName} 的 draft agent.md。`,
     });
 
     if (promptError) {
       throw new ApiError(500, "AGENT_COPY_DRAFT_PROMPT_FAILED", promptError.message);
+    }
+  }
+
+  if (activeSoul) {
+    const { error: soulError } = await supabase.from("agent_soul_versions").insert({
+      agent_id: copied.id,
+      version_no: 1,
+      body: activeSoul.body,
+      status: "active",
+      change_note: `复制自 ${source.displayName} 的 active soul.md。`,
+      activated_at: new Date().toISOString(),
+    });
+
+    if (soulError) {
+      throw new ApiError(500, "AGENT_COPY_ACTIVE_SOUL_FAILED", soulError.message);
+    }
+  }
+
+  if (draftSoul) {
+    const { error: soulError } = await supabase.from("agent_soul_versions").insert({
+      agent_id: copied.id,
+      version_no: activeSoul ? 2 : 1,
+      body: draftSoul.body,
+      status: "draft",
+      change_note: `复制自 ${source.displayName} 的 draft soul.md。`,
+    });
+
+    if (soulError) {
+      throw new ApiError(500, "AGENT_COPY_DRAFT_SOUL_FAILED", soulError.message);
     }
   }
 
@@ -637,6 +686,7 @@ export async function copyAgentConfig(
       copiedSkillCount: skillBindings.length,
       copiedKnowledgeSetCount: knowledgeSetBindings.length,
       copiedPromptStates: prompts.map((prompt) => prompt.status),
+      copiedSoulStates: souls.map((soul) => soul.status),
     },
   });
 
@@ -711,7 +761,7 @@ async function assertAgentHasActivePrompt(agentId: string) {
     throw new ApiError(
       409,
       "AGENT_ACTIVE_PROMPT_REQUIRED",
-      "请先发布 System Prompt",
+      "请先发布 agent.md",
       { agentId },
     );
   }
@@ -751,7 +801,7 @@ export async function saveAgentPromptDraft(input: {
       eventType: "agent_prompt.draft_saved",
       targetType: "agent_prompt_version",
       targetId: draft.id,
-      summary: `保存 Agent Prompt 草稿 v${draft.versionNo}`,
+      summary: `保存 agent.md 草稿 v${draft.versionNo}`,
       details: {
         agentId: input.agentId,
         changeNote: input.changeNote ?? null,
@@ -784,7 +834,7 @@ export async function saveAgentPromptDraft(input: {
     eventType: "agent_prompt.draft_created",
     targetType: "agent_prompt_version",
     targetId: draft.id,
-    summary: `创建 Agent Prompt 草稿 v${draft.versionNo}`,
+    summary: `创建 agent.md 草稿 v${draft.versionNo}`,
     details: {
       agentId: input.agentId,
       changeNote: input.changeNote ?? null,
@@ -806,7 +856,7 @@ export async function publishAgentPromptDraft(input: {
     : prompts.find((prompt) => prompt.status === "draft");
 
   if (!draft) {
-    throw new ApiError(404, "AGENT_PROMPT_DRAFT_NOT_FOUND", "Prompt draft not found.");
+    throw new ApiError(404, "AGENT_PROMPT_DRAFT_NOT_FOUND", "agent.md draft not found.");
   }
 
   if (draft.status !== "draft") {
@@ -814,7 +864,7 @@ export async function publishAgentPromptDraft(input: {
   }
 
   if (!draft.body.trim()) {
-    throw new ApiError(400, "AGENT_PROMPT_EMPTY", "System Prompt 不能为空");
+    throw new ApiError(400, "AGENT_PROMPT_EMPTY", "agent.md 不能为空");
   }
 
   const active = prompts.find((prompt) => prompt.status === "active");
@@ -866,7 +916,7 @@ export async function publishAgentPromptDraft(input: {
     eventType: "agent_prompt.published",
     targetType: "agent_prompt_version",
     targetId: published.id,
-    summary: `发布 Agent Prompt v${published.versionNo}`,
+    summary: `发布 agent.md v${published.versionNo}`,
     details: {
       agentId: input.agentId,
       previousActivePromptVersionId: active?.id ?? null,
@@ -886,7 +936,7 @@ export async function rollbackAgentPromptVersion(input: {
   const target = prompts.find((prompt) => prompt.id === input.promptVersionId);
 
   if (!target) {
-    throw new ApiError(404, "AGENT_PROMPT_VERSION_NOT_FOUND", "Prompt version not found.");
+    throw new ApiError(404, "AGENT_PROMPT_VERSION_NOT_FOUND", "agent.md version not found.");
   }
 
   if (target.status !== "archived") {
@@ -894,7 +944,7 @@ export async function rollbackAgentPromptVersion(input: {
   }
 
   if (!target.body.trim()) {
-    throw new ApiError(400, "AGENT_PROMPT_EMPTY", "System Prompt 不能为空");
+    throw new ApiError(400, "AGENT_PROMPT_EMPTY", "agent.md 不能为空");
   }
 
   const active = prompts.find((prompt) => prompt.status === "active");
@@ -946,10 +996,292 @@ export async function rollbackAgentPromptVersion(input: {
     eventType: "agent_prompt.rolled_back",
     targetType: "agent_prompt_version",
     targetId: rolledBack.id,
-    summary: `回滚 Agent Prompt 到 v${rolledBack.versionNo}`,
+    summary: `回滚 agent.md 到 v${rolledBack.versionNo}`,
     details: {
       agentId: input.agentId,
       previousActivePromptVersionId: active?.id ?? null,
+    },
+  });
+
+  return rolledBack;
+}
+
+export async function listAgentSoulVersions(
+  agentId: string,
+): Promise<AgentSoulVersionDto[]> {
+  if (!isSupabaseAdminConfigured()) {
+    return [];
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("agent_soul_versions")
+    .select(agentSoulVersionSelect)
+    .eq("agent_id", agentId)
+    .order("version_no", { ascending: false });
+
+  if (error) {
+    throw new ApiError(500, "AGENT_SOUL_VERSIONS_LIST_FAILED", error.message);
+  }
+
+  return ((data ?? []) as unknown as AgentSoulVersionRow[]).map(mapAgentSoulVersion);
+}
+
+export async function getActiveAgentSoulVersion(
+  agentId: string,
+): Promise<AgentSoulVersionDto | null> {
+  if (!isSupabaseAdminConfigured()) {
+    return null;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("agent_soul_versions")
+    .select(agentSoulVersionSelect)
+    .eq("agent_id", agentId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error) {
+    throw new ApiError(500, "AGENT_ACTIVE_SOUL_FETCH_FAILED", error.message);
+  }
+
+  return data ? mapAgentSoulVersion(data as unknown as AgentSoulVersionRow) : null;
+}
+
+export async function saveAgentSoulDraft(input: {
+  agentId: string;
+  body: string;
+  changeNote?: string | null;
+  actorLabel?: string;
+}): Promise<AgentSoulVersionDto> {
+  requireSupabaseAdmin("AGENT_SOUL_DRAFT_SAVE_UNAVAILABLE");
+  await getAgentConfigById(input.agentId);
+  const supabase = createSupabaseAdminClient();
+  const existingDraft = (await listAgentSoulVersions(input.agentId)).find(
+    (soul) => soul.status === "draft",
+  );
+
+  if (existingDraft) {
+    const { data, error } = await supabase
+      .from("agent_soul_versions")
+      .update({
+        body: input.body,
+        change_note: input.changeNote ?? null,
+      })
+      .eq("id", existingDraft.id)
+      .select(agentSoulVersionSelect)
+      .single();
+
+    if (error || !data) {
+      throw new ApiError(500, "AGENT_SOUL_DRAFT_UPDATE_FAILED", error?.message ?? "Update failed.");
+    }
+
+    const draft = mapAgentSoulVersion(data as unknown as AgentSoulVersionRow);
+    await recordAgentConsoleAdminEvent({
+      actorLabel: input.actorLabel,
+      eventType: "agent_soul.draft_saved",
+      targetType: "agent_soul_version",
+      targetId: draft.id,
+      summary: `保存 soul.md 草稿 v${draft.versionNo}`,
+      details: {
+        agentId: input.agentId,
+        changeNote: input.changeNote ?? null,
+      },
+    });
+
+    return draft;
+  }
+
+  const nextVersionNo = await getNextSoulVersionNo(input.agentId);
+  const { data, error } = await supabase
+    .from("agent_soul_versions")
+    .insert({
+      agent_id: input.agentId,
+      version_no: nextVersionNo,
+      body: input.body,
+      status: "draft",
+      change_note: input.changeNote ?? null,
+    })
+    .select(agentSoulVersionSelect)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(500, "AGENT_SOUL_DRAFT_CREATE_FAILED", error?.message ?? "Create failed.");
+  }
+
+  const draft = mapAgentSoulVersion(data as unknown as AgentSoulVersionRow);
+  await recordAgentConsoleAdminEvent({
+    actorLabel: input.actorLabel,
+    eventType: "agent_soul.draft_created",
+    targetType: "agent_soul_version",
+    targetId: draft.id,
+    summary: `创建 soul.md 草稿 v${draft.versionNo}`,
+    details: {
+      agentId: input.agentId,
+      changeNote: input.changeNote ?? null,
+    },
+  });
+
+  return draft;
+}
+
+export async function publishAgentSoulDraft(input: {
+  agentId: string;
+  soulVersionId?: string;
+  actorLabel?: string;
+}): Promise<AgentSoulVersionDto> {
+  requireSupabaseAdmin("AGENT_SOUL_PUBLISH_UNAVAILABLE");
+  const souls = await listAgentSoulVersions(input.agentId);
+  const draft = input.soulVersionId
+    ? souls.find((soul) => soul.id === input.soulVersionId)
+    : souls.find((soul) => soul.status === "draft");
+
+  if (!draft) {
+    throw new ApiError(404, "AGENT_SOUL_DRAFT_NOT_FOUND", "soul.md draft not found.");
+  }
+
+  if (draft.status !== "draft") {
+    throw new ApiError(409, "AGENT_SOUL_NOT_DRAFT", "Only draft soul.md versions can be published.");
+  }
+
+  if (!draft.body.trim()) {
+    throw new ApiError(400, "AGENT_SOUL_EMPTY", "soul.md 不能为空");
+  }
+
+  const active = souls.find((soul) => soul.status === "active");
+  const supabase = createSupabaseAdminClient();
+  const now = new Date().toISOString();
+
+  if (active) {
+    const { error } = await supabase
+      .from("agent_soul_versions")
+      .update({
+        status: "archived",
+        archived_at: now,
+      })
+      .eq("id", active.id);
+
+    if (error) {
+      throw new ApiError(500, "AGENT_SOUL_ACTIVE_ARCHIVE_FAILED", error.message);
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("agent_soul_versions")
+    .update({
+      status: "active",
+      activated_at: now,
+      archived_at: null,
+    })
+    .eq("id", draft.id)
+    .select(agentSoulVersionSelect)
+    .single();
+
+  if (error || !data) {
+    if (active) {
+      await supabase
+        .from("agent_soul_versions")
+        .update({
+          status: "active",
+          archived_at: null,
+        })
+        .eq("id", active.id);
+    }
+
+    throw new ApiError(500, "AGENT_SOUL_PUBLISH_FAILED", error?.message ?? "Publish failed.");
+  }
+
+  const published = mapAgentSoulVersion(data as unknown as AgentSoulVersionRow);
+  await recordAgentConsoleAdminEvent({
+    actorLabel: input.actorLabel,
+    eventType: "agent_soul.published",
+    targetType: "agent_soul_version",
+    targetId: published.id,
+    summary: `发布 soul.md v${published.versionNo}`,
+    details: {
+      agentId: input.agentId,
+      previousActiveSoulVersionId: active?.id ?? null,
+    },
+  });
+
+  return published;
+}
+
+export async function rollbackAgentSoulVersion(input: {
+  agentId: string;
+  soulVersionId: string;
+  actorLabel?: string;
+}): Promise<AgentSoulVersionDto> {
+  requireSupabaseAdmin("AGENT_SOUL_ROLLBACK_UNAVAILABLE");
+  const souls = await listAgentSoulVersions(input.agentId);
+  const target = souls.find((soul) => soul.id === input.soulVersionId);
+
+  if (!target) {
+    throw new ApiError(404, "AGENT_SOUL_VERSION_NOT_FOUND", "soul.md version not found.");
+  }
+
+  if (target.status !== "archived") {
+    throw new ApiError(409, "AGENT_SOUL_NOT_ARCHIVED", "Only archived soul.md versions can be rolled back.");
+  }
+
+  if (!target.body.trim()) {
+    throw new ApiError(400, "AGENT_SOUL_EMPTY", "soul.md 不能为空");
+  }
+
+  const active = souls.find((soul) => soul.status === "active");
+  const supabase = createSupabaseAdminClient();
+  const now = new Date().toISOString();
+
+  if (active) {
+    const { error } = await supabase
+      .from("agent_soul_versions")
+      .update({
+        status: "archived",
+        archived_at: now,
+      })
+      .eq("id", active.id);
+
+    if (error) {
+      throw new ApiError(500, "AGENT_SOUL_ACTIVE_ARCHIVE_FAILED", error.message);
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("agent_soul_versions")
+    .update({
+      status: "active",
+      activated_at: now,
+      archived_at: null,
+    })
+    .eq("id", target.id)
+    .select(agentSoulVersionSelect)
+    .single();
+
+  if (error || !data) {
+    if (active) {
+      await supabase
+        .from("agent_soul_versions")
+        .update({
+          status: "active",
+          archived_at: null,
+        })
+        .eq("id", active.id);
+    }
+
+    throw new ApiError(500, "AGENT_SOUL_ROLLBACK_FAILED", error?.message ?? "Rollback failed.");
+  }
+
+  const rolledBack = mapAgentSoulVersion(data as unknown as AgentSoulVersionRow);
+  await recordAgentConsoleAdminEvent({
+    actorLabel: input.actorLabel,
+    eventType: "agent_soul.rolled_back",
+    targetType: "agent_soul_version",
+    targetId: rolledBack.id,
+    summary: `回滚 soul.md 到 v${rolledBack.versionNo}`,
+    details: {
+      agentId: input.agentId,
+      previousActiveSoulVersionId: active?.id ?? null,
     },
   });
 
@@ -2052,6 +2384,21 @@ function mapAgentPromptVersion(row: AgentPromptVersionRow): AgentPromptVersionDt
   };
 }
 
+function mapAgentSoulVersion(row: AgentSoulVersionRow): AgentSoulVersionDto {
+  return {
+    id: row.id,
+    agentId: row.agent_id,
+    versionNo: row.version_no,
+    body: row.body,
+    status: row.status,
+    changeNote: row.change_note,
+    createdByAdminId: row.created_by_admin_id,
+    createdAt: row.created_at,
+    activatedAt: row.activated_at,
+    archivedAt: row.archived_at,
+  };
+}
+
 function mapAgentSkill(row: AgentSkillRow): AgentSkillDto {
   return {
     id: row.id,
@@ -2301,6 +2648,16 @@ async function getNextPromptVersionNo(agentId: string) {
   return latestVersionNo + 1;
 }
 
+async function getNextSoulVersionNo(agentId: string) {
+  const souls = await listAgentSoulVersions(agentId);
+  const latestVersionNo = souls.reduce(
+    (latest, soul) => Math.max(latest, soul.versionNo),
+    0,
+  );
+
+  return latestVersionNo + 1;
+}
+
 async function getAgentSkillsByIds(skillIds: string[]) {
   if (skillIds.length === 0) {
     return [];
@@ -2433,6 +2790,19 @@ const agentConfigSelect = [
 ].join(", ");
 
 const agentPromptVersionSelect = [
+  "id",
+  "agent_id",
+  "version_no",
+  "body",
+  "status",
+  "change_note",
+  "created_by_admin_id",
+  "created_at",
+  "activated_at",
+  "archived_at",
+].join(", ");
+
+const agentSoulVersionSelect = [
   "id",
   "agent_id",
   "version_no",

@@ -2,6 +2,7 @@ import type {
   AgentConfigDto,
   AgentPromptVersionDto,
   AgentSkillDto,
+  AgentSoulVersionDto,
 } from "@/contracts/agent-console";
 import type {
   ConsultationSessionDetailDto,
@@ -46,6 +47,7 @@ export type ConsultationMentionRouting = {
 export type ConsultationAgentContainerSnapshot = {
   agent: AgentConfigDto;
   activePromptVersion: AgentPromptVersionDto | null;
+  activeSoulVersion: AgentSoulVersionDto | null;
   candidateSkills: ConsultationRuntimeSkill[];
   knowledgeSetIds: string[];
   knowledgeDocumentIds: string[];
@@ -61,6 +63,7 @@ export type ConsultationSkillDisclosure = {
 
 export type ConsultationAgentRuntimeSettings = ConsultationAgentSettingsDto & {
   container: ConsultationAgentContainerSnapshot | null;
+  soulPrompt: string | null;
   skillCatalog: ConsultationRuntimeSkill[];
   activeSkills: ConsultationRuntimeSkill[];
 };

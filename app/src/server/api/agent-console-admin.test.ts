@@ -11,6 +11,9 @@ const agentRoutesSource = [
   "../../app/api/platform-admin/agents/[agentId]/route.ts",
   "../../app/api/platform-admin/agents/[agentId]/copy/route.ts",
   "../../app/api/platform-admin/agents/[agentId]/set-online/route.ts",
+  "../../app/api/platform-admin/agents/[agentId]/soul-draft/route.ts",
+  "../../app/api/platform-admin/agents/[agentId]/publish-soul/route.ts",
+  "../../app/api/platform-admin/agents/[agentId]/rollback-soul/route.ts",
   "../../app/api/platform-admin/skills/route.ts",
   "../../app/api/platform-admin/skills/[skillId]/route.ts",
   "../../app/api/platform-admin/knowledge/documents/route.ts",
@@ -85,7 +88,21 @@ test("agent prompt draft publishing gates online visibility", () => {
   assert.match(agentConsoleRepositorySource, /assertAgentHasActivePrompt/);
   assert.match(agentConsoleRepositorySource, /AGENT_ACTIVE_PROMPT_REQUIRED/);
   assert.match(agentConsoleRepositorySource, /AGENT_DEFAULT_DISABLE_BLOCKED/);
-  assert.match(agentConsoleRepositorySource, /请先创建并发布 System Prompt，再启用 Agent/);
+  assert.match(agentConsoleRepositorySource, /请先创建并发布 agent\.md，再启用 Agent/);
+});
+
+test("agent console exposes agent.md soul.md and memory.md asset structure", () => {
+  assert.match(agentConsolePageSource, /agent\.md/);
+  assert.match(agentConsolePageSource, /soul\.md/);
+  assert.match(agentConsolePageSource, /memory\.md/);
+  assert.match(agentConsolePageSource, /saveSoulDraft/);
+  assert.match(agentConsolePageSource, /publishSoulDraft/);
+  assert.match(agentConsolePageSource, /rollbackSoul/);
+  assert.match(agentRoutesSource, /saveAgentSoulDraft/);
+  assert.match(agentRoutesSource, /publishAgentSoulDraft/);
+  assert.match(agentRoutesSource, /rollbackAgentSoulVersion/);
+  assert.match(agentConsoleRepositorySource, /agent_soul_versions/);
+  assert.match(agentConsolePageSource, /runtimeInjection: disabled/);
 });
 
 test("agent debug runs are saved without real consultation sessions", () => {

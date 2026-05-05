@@ -29,6 +29,7 @@ export type ConsultationRuntimeAssistantReply = {
 export type ConsultationRuntimeSnapshotRecord = {
   agentId: string | null;
   promptVersionId: string | null;
+  soulVersionId: string | null;
   candidateSkillIds: string[];
   actualSkillIds: string[];
   knowledgeSetIds: string[];
@@ -184,6 +185,7 @@ export function buildConsultationRuntimeSnapshotRecord(input: {
   return {
     agentId: agentContainer?.agent.id ?? null,
     promptVersionId: agentContainer?.activePromptVersion?.id ?? null,
+    soulVersionId: agentContainer?.activeSoulVersion?.id ?? null,
     candidateSkillIds: state.consultationAgent.skillCatalog.map((skill) => skill.id),
     actualSkillIds: state.consultationAgent.activeSkills.map((skill) => skill.id),
     knowledgeSetIds: agentContainer?.knowledgeSetIds ?? [],
@@ -195,6 +197,13 @@ export function buildConsultationRuntimeSnapshotRecord(input: {
       mentionRouting: state.mentionRouting,
       assistantMode: assistantReply.mode,
       assistantError: assistantReply.error ?? null,
+      agentAssetVersions: {
+        agentMdVersionId: agentContainer?.activePromptVersion?.id ?? null,
+        agentMdVersionNo: agentContainer?.activePromptVersion?.versionNo ?? null,
+        soulMdVersionId: agentContainer?.activeSoulVersion?.id ?? null,
+        soulMdVersionNo: agentContainer?.activeSoulVersion?.versionNo ?? null,
+        memoryMdPolicy: "placeholder_not_injected",
+      },
       plannerTrace: state.plannerTrace,
       skillDisclosure: {
         candidateSkillIds: state.consultationAgent.skillCatalog.map((skill) => skill.id),

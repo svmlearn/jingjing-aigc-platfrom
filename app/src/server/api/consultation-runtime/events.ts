@@ -48,6 +48,8 @@ export function buildAgentLoopStartedPayload(input: {
           displayName: state.consultationAgent.container.agent.displayName,
           activePromptVersion:
             state.consultationAgent.container.activePromptVersion?.versionNo ?? null,
+          activeSoulVersion:
+            state.consultationAgent.container.activeSoulVersion?.versionNo ?? null,
           candidateSkillIds: state.consultationAgent.skillCatalog.map((skill) => skill.id),
           activeSkillIds: state.consultationAgent.activeSkills.map((skill) => skill.id),
           knowledgeSetIds: state.consultationAgent.container.knowledgeSetIds,

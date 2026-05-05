@@ -50,6 +50,16 @@ test("consultation runtime resolves online agent prompt and skill bindings", () 
   assert.match(consultationServiceAndRuntimeSource, /agent\.serviceFlags\.skillsEnabled/);
 });
 
+test("consultation runtime injects soul.md and records asset versions", () => {
+  assert.match(consultationServiceAndRuntimeSource, /listAgentSoulVersions/);
+  assert.match(consultationServiceAndRuntimeSource, /buildAgentSoulPrompt/);
+  assert.match(consultationServiceAndRuntimeSource, /activeSoulVersion/);
+  assert.match(consultationServiceAndRuntimeSource, /soulPrompt/);
+  assert.match(consultationServiceAndRuntimeSource, /soulVersionId/);
+  assert.match(consultationServiceAndRuntimeSource, /agentAssetVersions/);
+  assert.match(consultationServiceAndRuntimeSource, /memoryMdPolicy: "placeholder_not_injected"/);
+});
+
 test("merchant consultation UI exposes expert roster and inserts mentions", () => {
   assert.match(serviceSource, /listConsultationExpertsForUser/);
   assert.match(serviceSource, /ConsultationExpertRosterItemDto/);

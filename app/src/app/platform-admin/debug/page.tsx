@@ -3,6 +3,7 @@ import {
   getAgentConsoleFoundationState,
   listAgentKnowledgeSetBindings,
   listAgentPromptVersions,
+  listAgentSoulVersions,
   listAgentSkillBindings,
 } from "@/lib/db/agent-console-repository";
 import { listPlatformMerchants } from "@/lib/db/platform-admin-repository";
@@ -11,10 +12,17 @@ export const dynamic = "force-dynamic";
 
 export default async function AgentDebugPage() {
   const foundationState = await getAgentConsoleFoundationState();
-  const [skillBindings, knowledgeSetBindings, promptVersionGroups, merchants] = await Promise.all([
+  const [
+    skillBindings,
+    knowledgeSetBindings,
+    promptVersionGroups,
+    soulVersionGroups,
+    merchants,
+  ] = await Promise.all([
     listAgentSkillBindings(),
     listAgentKnowledgeSetBindings(),
     Promise.all(foundationState.agents.map((agent) => listAgentPromptVersions(agent.id))),
+    Promise.all(foundationState.agents.map((agent) => listAgentSoulVersions(agent.id))),
     listPlatformMerchants(),
   ]);
 
@@ -24,6 +32,7 @@ export default async function AgentDebugPage() {
       skillBindings={skillBindings}
       knowledgeSetBindings={knowledgeSetBindings}
       promptVersions={promptVersionGroups.flat()}
+      soulVersions={soulVersionGroups.flat()}
       merchants={merchants}
     />
   );

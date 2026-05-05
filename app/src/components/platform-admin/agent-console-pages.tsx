@@ -40,6 +40,7 @@ import type {
   AgentServiceStatus,
   AgentSkillBindingDto,
   AgentSkillDto,
+  AgentSoulVersionDto,
   KnowledgeSetDto,
   PlatformAdminMerchantDto,
 } from "@/contracts/platform-admin";
@@ -50,6 +51,7 @@ type AgentConsolePagesProps = {
   skillBindings: AgentSkillBindingDto[];
   knowledgeSetBindings: AgentKnowledgeSetBindingDto[];
   promptVersions: AgentPromptVersionDto[];
+  soulVersions: AgentSoulVersionDto[];
 };
 
 function findOnlineAgentId(foundationState: AgentConsoleFoundationStateDto) {
@@ -71,6 +73,23 @@ function getLatestPrompt(
     promptVersions.filter(
       (promptVersion) =>
         promptVersion.agentId === agentId && (!status || promptVersion.status === status),
+    ),
+  )[0];
+}
+
+function sortSoulVersions(soulVersions: AgentSoulVersionDto[]) {
+  return [...soulVersions].sort((first, second) => second.versionNo - first.versionNo);
+}
+
+function getLatestSoul(
+  soulVersions: AgentSoulVersionDto[],
+  agentId: string,
+  status?: AgentSoulVersionDto["status"],
+) {
+  return sortSoulVersions(
+    soulVersions.filter(
+      (soulVersion) =>
+        soulVersion.agentId === agentId && (!status || soulVersion.status === status),
     ),
   )[0];
 }
@@ -274,6 +293,7 @@ type AgentBasicFormState = {
 
 type AgentActionKey = "create" | "copy" | "save" | "setOnline";
 type PromptActionKey = "saveDraft" | "publish";
+type SoulActionKey = "saveDraft" | "publish";
 
 type SkillFormState = {
   name: string;
@@ -371,10 +391,12 @@ export function AgentConfigAdminPage({
   skillBindings,
   knowledgeSetBindings,
   promptVersions,
+  soulVersions,
 }: AgentConsolePagesProps) {
   const [agents, setAgents] = useState(foundationState.agents);
   const [routeBindings, setRouteBindings] = useState(foundationState.routeBindings);
   const [localPromptVersions, setLocalPromptVersions] = useState(promptVersions);
+  const [localSoulVersions, setLocalSoulVersions] = useState(soulVersions);
   const [localKnowledgeSetBindings, setLocalKnowledgeSetBindings] =
     useState(knowledgeSetBindings);
   const agentState = useMemo(
@@ -390,6 +412,7 @@ export function AgentConfigAdminPage({
     onlineAgentId ?? foundationState.agents[0]?.id ?? "",
   );
   const [promptTab, setPromptTab] = useState<"draft" | "active" | "history">("draft");
+  const [soulTab, setSoulTab] = useState<"draft" | "active" | "history">("draft");
   const [localSkillBindings, setLocalSkillBindings] = useState(skillBindings);
   const [agentAction, setAgentAction] = useState<AgentActionKey | null>(null);
   const [agentActionError, setAgentActionError] = useState<string | null>(null);
@@ -397,6 +420,9 @@ export function AgentConfigAdminPage({
   const [promptAction, setPromptAction] = useState<PromptActionKey | null>(null);
   const [promptActionError, setPromptActionError] = useState<string | null>(null);
   const [promptActionMessage, setPromptActionMessage] = useState<string | null>(null);
+  const [soulAction, setSoulAction] = useState<SoulActionKey | null>(null);
+  const [soulActionError, setSoulActionError] = useState<string | null>(null);
+  const [soulActionMessage, setSoulActionMessage] = useState<string | null>(null);
   const [savingSkills, setSavingSkills] = useState(false);
   const [skillBindingError, setSkillBindingError] = useState<string | null>(null);
   const [skillBindingSaved, setSkillBindingSaved] = useState(false);
@@ -425,6 +451,12 @@ export function AgentConfigAdminPage({
   const draftPrompt = selectedAgent
     ? getLatestPrompt(localPromptVersions, selectedAgent.id, "draft")
     : undefined;
+  const activeSoul = selectedAgent
+    ? getLatestSoul(localSoulVersions, selectedAgent.id, "active")
+    : undefined;
+  const draftSoul = selectedAgent
+    ? getLatestSoul(localSoulVersions, selectedAgent.id, "draft")
+    : undefined;
   const [promptDraftState, setPromptDraftState] = useState<{
     agentId: string;
     body: string;
@@ -448,8 +480,34 @@ export function AgentConfigAdminPage({
             changeNote: draftPrompt?.changeNote ?? "",
           }
         : null;
+  const [soulDraftState, setSoulDraftState] = useState<{
+    agentId: string;
+    body: string;
+    changeNote: string;
+  } | null>(
+    selectedAgent
+      ? {
+          agentId: selectedAgent.id,
+          body: draftSoul?.body ?? activeSoul?.body ?? "",
+          changeNote: draftSoul?.changeNote ?? "",
+        }
+      : null,
+  );
+  const soulDraft =
+    selectedAgent && soulDraftState?.agentId === selectedAgent.id
+      ? soulDraftState
+      : selectedAgent
+        ? {
+            agentId: selectedAgent.id,
+            body: draftSoul?.body ?? activeSoul?.body ?? "",
+            changeNote: draftSoul?.changeNote ?? "",
+          }
+        : null;
   const selectedAgentPromptVersions = selectedAgent
     ? sortPromptVersions(localPromptVersions.filter((version) => version.agentId === selectedAgent.id))
+    : [];
+  const selectedAgentSoulVersions = selectedAgent
+    ? sortSoulVersions(localSoulVersions.filter((version) => version.agentId === selectedAgent.id))
     : [];
   const boundSkills = selectedAgent
     ? getBoundSkills(selectedAgent.id, agentState.skills, localSkillBindings)
@@ -510,6 +568,10 @@ export function AgentConfigAdminPage({
     Boolean(selectedAgent && promptDraft) &&
     (promptDraft?.body !== (draftPrompt?.body ?? activePrompt?.body ?? "") ||
       promptDraft?.changeNote !== (draftPrompt?.changeNote ?? ""));
+  const soulDraftDirty =
+    Boolean(selectedAgent && soulDraft) &&
+    (soulDraft?.body !== (draftSoul?.body ?? activeSoul?.body ?? "") ||
+      soulDraft?.changeNote !== (draftSoul?.changeNote ?? ""));
 
   function mergeAgent(agent: AgentConfigDto) {
     setAgents((current) => {
@@ -533,6 +595,14 @@ export function AgentConfigAdminPage({
       const withoutCurrent = current.filter((version) => version.id !== promptVersion.id);
 
       return [promptVersion, ...withoutCurrent];
+    });
+  }
+
+  function mergeSoulVersion(soulVersion: AgentSoulVersionDto) {
+    setLocalSoulVersions((current) => {
+      const withoutCurrent = current.filter((version) => version.id !== soulVersion.id);
+
+      return [soulVersion, ...withoutCurrent];
     });
   }
 
@@ -569,6 +639,20 @@ export function AgentConfigAdminPage({
     setPromptActionMessage(null);
   }
 
+  function setSoulDraftField(key: "body" | "changeNote", value: string) {
+    if (!selectedAgent || !soulDraft) {
+      return;
+    }
+
+    setSoulDraftState({
+      ...soulDraft,
+      agentId: selectedAgent.id,
+      [key]: value,
+    });
+    setSoulActionError(null);
+    setSoulActionMessage(null);
+  }
+
   async function persistPromptDraft() {
     if (!selectedAgent || !promptDraft) {
       return null;
@@ -586,7 +670,7 @@ export function AgentConfigAdminPage({
     });
     const data = await readAdminJson<{ promptVersion: AgentPromptVersionDto }>(
       response,
-      "Prompt 草稿保存失败",
+      "agent.md 草稿保存失败",
     );
 
     mergePromptVersion(data.promptVersion);
@@ -599,6 +683,36 @@ export function AgentConfigAdminPage({
     return data.promptVersion;
   }
 
+  async function persistSoulDraft() {
+    if (!selectedAgent || !soulDraft) {
+      return null;
+    }
+
+    const response = await fetch(`/api/platform-admin/agents/${selectedAgent.id}/soul-draft`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        body: soulDraft.body,
+        changeNote: soulDraft.changeNote.trim() || null,
+      }),
+    });
+    const data = await readAdminJson<{ soulVersion: AgentSoulVersionDto }>(
+      response,
+      "soul.md 草稿保存失败",
+    );
+
+    mergeSoulVersion(data.soulVersion);
+    setSoulDraftState({
+      agentId: selectedAgent.id,
+      body: data.soulVersion.body,
+      changeNote: data.soulVersion.changeNote ?? "",
+    });
+
+    return data.soulVersion;
+  }
+
   async function savePromptDraft() {
     setPromptAction("saveDraft");
     setPromptActionError(null);
@@ -606,11 +720,26 @@ export function AgentConfigAdminPage({
 
     try {
       await persistPromptDraft();
-      setPromptActionMessage("System Prompt 草稿已保存，当前 active 版本不受影响。");
+      setPromptActionMessage("agent.md 草稿已保存，当前 active 版本不受影响。");
     } catch (error) {
-      setPromptActionError(error instanceof Error ? error.message : "Prompt 草稿保存失败");
+      setPromptActionError(error instanceof Error ? error.message : "agent.md 草稿保存失败");
     } finally {
       setPromptAction(null);
+    }
+  }
+
+  async function saveSoulDraft() {
+    setSoulAction("saveDraft");
+    setSoulActionError(null);
+    setSoulActionMessage(null);
+
+    try {
+      await persistSoulDraft();
+      setSoulActionMessage("soul.md 草稿已保存，当前 active 版本不受影响。");
+    } catch (error) {
+      setSoulActionError(error instanceof Error ? error.message : "soul.md 草稿保存失败");
+    } finally {
+      setSoulAction(null);
     }
   }
 
@@ -620,7 +749,7 @@ export function AgentConfigAdminPage({
     }
 
     if (!promptDraft.body.trim()) {
-      setPromptActionError("System Prompt 不能为空");
+      setPromptActionError("agent.md 不能为空");
       return;
     }
 
@@ -634,7 +763,7 @@ export function AgentConfigAdminPage({
         : draftPrompt;
 
       if (!promptToPublish) {
-        throw new Error("Prompt 草稿不存在");
+        throw new Error("agent.md 草稿不存在");
       }
 
       const response = await fetch(`/api/platform-admin/agents/${selectedAgent.id}/publish-prompt`, {
@@ -646,7 +775,7 @@ export function AgentConfigAdminPage({
       });
       const data = await readAdminJson<{ promptVersion: AgentPromptVersionDto }>(
         response,
-        "Prompt 发布失败",
+        "agent.md 发布失败",
       );
       const now = new Date().toISOString();
 
@@ -666,11 +795,71 @@ export function AgentConfigAdminPage({
         changeNote: data.promptVersion.changeNote ?? "",
       });
       setPromptTab("active");
-      setPromptActionMessage("System Prompt 已发布，下一轮真实咨询会读取新的 active 版本。");
+      setPromptActionMessage("agent.md 已发布，下一轮真实咨询会读取新的 active 版本。");
     } catch (error) {
-      setPromptActionError(error instanceof Error ? error.message : "Prompt 发布失败");
+      setPromptActionError(error instanceof Error ? error.message : "agent.md 发布失败");
     } finally {
       setPromptAction(null);
+    }
+  }
+
+  async function publishSoulDraft() {
+    if (!selectedAgent || !soulDraft) {
+      return;
+    }
+
+    if (!soulDraft.body.trim()) {
+      setSoulActionError("soul.md 不能为空");
+      return;
+    }
+
+    setSoulAction("publish");
+    setSoulActionError(null);
+    setSoulActionMessage(null);
+
+    try {
+      const soulToPublish = soulDraftDirty || !draftSoul
+        ? await persistSoulDraft()
+        : draftSoul;
+
+      if (!soulToPublish) {
+        throw new Error("soul.md 草稿不存在");
+      }
+
+      const response = await fetch(`/api/platform-admin/agents/${selectedAgent.id}/publish-soul`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ soulVersionId: soulToPublish.id }),
+      });
+      const data = await readAdminJson<{ soulVersion: AgentSoulVersionDto }>(
+        response,
+        "soul.md 发布失败",
+      );
+      const now = new Date().toISOString();
+
+      setLocalSoulVersions((current) => [
+        data.soulVersion,
+        ...current
+          .filter((version) => version.id !== data.soulVersion.id)
+          .map((version) =>
+            version.agentId === selectedAgent.id && version.status === "active"
+              ? { ...version, status: "archived" as const, archivedAt: now }
+              : version,
+          ),
+      ]);
+      setSoulDraftState({
+        agentId: selectedAgent.id,
+        body: data.soulVersion.body,
+        changeNote: data.soulVersion.changeNote ?? "",
+      });
+      setSoulTab("active");
+      setSoulActionMessage("soul.md 已发布，下一轮真实咨询会读取新的 active 版本。");
+    } catch (error) {
+      setSoulActionError(error instanceof Error ? error.message : "soul.md 发布失败");
+    } finally {
+      setSoulAction(null);
     }
   }
 
@@ -693,7 +882,7 @@ export function AgentConfigAdminPage({
       });
       const data = await readAdminJson<{ promptVersion: AgentPromptVersionDto }>(
         response,
-        "Prompt 回滚失败",
+        "agent.md 回滚失败",
       );
       const now = new Date().toISOString();
 
@@ -713,11 +902,58 @@ export function AgentConfigAdminPage({
         changeNote: data.promptVersion.changeNote ?? "",
       });
       setPromptTab("active");
-      setPromptActionMessage("System Prompt 已回滚为选中的历史版本。");
+      setPromptActionMessage("agent.md 已回滚为选中的历史版本。");
     } catch (error) {
-      setPromptActionError(error instanceof Error ? error.message : "Prompt 回滚失败");
+      setPromptActionError(error instanceof Error ? error.message : "agent.md 回滚失败");
     } finally {
       setPromptAction(null);
+    }
+  }
+
+  async function rollbackSoul(soulVersionId: string) {
+    if (!selectedAgent) {
+      return;
+    }
+
+    setSoulAction("publish");
+    setSoulActionError(null);
+    setSoulActionMessage(null);
+
+    try {
+      const response = await fetch(`/api/platform-admin/agents/${selectedAgent.id}/rollback-soul`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ soulVersionId }),
+      });
+      const data = await readAdminJson<{ soulVersion: AgentSoulVersionDto }>(
+        response,
+        "soul.md 回滚失败",
+      );
+      const now = new Date().toISOString();
+
+      setLocalSoulVersions((current) => [
+        data.soulVersion,
+        ...current
+          .filter((version) => version.id !== data.soulVersion.id)
+          .map((version) =>
+            version.agentId === selectedAgent.id && version.status === "active"
+              ? { ...version, status: "archived" as const, archivedAt: now }
+              : version,
+          ),
+      ]);
+      setSoulDraftState({
+        agentId: selectedAgent.id,
+        body: data.soulVersion.body,
+        changeNote: data.soulVersion.changeNote ?? "",
+      });
+      setSoulTab("active");
+      setSoulActionMessage("soul.md 已回滚为选中的历史版本。");
+    } catch (error) {
+      setSoulActionError(error instanceof Error ? error.message : "soul.md 回滚失败");
+    } finally {
+      setSoulAction(null);
     }
   }
 
@@ -761,6 +997,7 @@ export function AgentConfigAdminPage({
       setSelectedAgentId(data.agent.id);
       setAgentFormState({ agentId: data.agent.id, values: toAgentBasicForm(data.agent) });
       setPromptTab("draft");
+      setSoulTab("draft");
       setAgentActionMessage("Agent 已创建。保存为已启用后，会出现在商家端 @ 专家列表。");
     } catch (error) {
       setAgentActionError(error instanceof Error ? error.message : "Agent 创建失败");
@@ -797,6 +1034,7 @@ export function AgentConfigAdminPage({
         detail: {
           agent: AgentConfigDto;
           promptVersions: AgentPromptVersionDto[];
+          soulVersions: AgentSoulVersionDto[];
           skillBindings: AgentSkillBindingDto[];
           knowledgeSetBindings: AgentKnowledgeSetBindingDto[];
         };
@@ -804,6 +1042,7 @@ export function AgentConfigAdminPage({
 
       mergeAgent(data.detail.agent);
       setLocalPromptVersions((current) => [...data.detail.promptVersions, ...current]);
+      setLocalSoulVersions((current) => [...data.detail.soulVersions, ...current]);
       setLocalSkillBindings((current) => [...data.detail.skillBindings, ...current]);
       setLocalKnowledgeSetBindings((current) => [
         ...data.detail.knowledgeSetBindings,
@@ -815,6 +1054,7 @@ export function AgentConfigAdminPage({
         values: toAgentBasicForm(data.detail.agent),
       });
       setPromptTab("draft");
+      setSoulTab("draft");
       setAgentActionMessage("Agent 已复制为草稿。保存为已启用后，会出现在商家端 @ 专家列表。");
     } catch (error) {
       setAgentActionError(error instanceof Error ? error.message : "Agent 复制失败");
@@ -1141,7 +1381,7 @@ export function AgentConfigAdminPage({
         <AdminPageHeader
           eyebrow="Agent 配置"
           title={selectedAgent.displayName}
-          description="以 Agent 容器组织 System Prompt、Skill 与 Knowledge Set。Skill 挂载会进入商家端咨询运行时，并按触发条件渐进式披露。"
+          description="以 Agent 容器组织 agent.md、soul.md、memory.md、Skill 与 Knowledge Set。Skill 挂载会进入商家端咨询运行时，并按触发条件渐进式披露。"
           action={
             <div className="flex flex-wrap gap-2">
               <MiniButton
@@ -1269,7 +1509,7 @@ export function AgentConfigAdminPage({
 
         <AdminPanel>
           <AdminPanelHeader
-            eyebrow="System Prompt"
+            eyebrow="agent.md"
             action={
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex flex-wrap gap-2">
@@ -1343,7 +1583,7 @@ export function AgentConfigAdminPage({
                   rows={10}
                   value={promptDraft?.body ?? ""}
                   onChange={(event) => setPromptDraftField("body", event.target.value)}
-                  placeholder="输入 System Prompt 草稿。保存草稿不会影响 active 版本。"
+                  placeholder="输入 agent.md 草稿。保存草稿不会影响 active 版本。"
                   disabled={promptAction !== null}
                   className={cn(adminTextareaClassName, "font-mono text-xs")}
                 />
@@ -1395,10 +1635,169 @@ export function AgentConfigAdminPage({
                     </div>
                   ))
                 ) : (
-                  <AdminEmptyState title="暂无 Prompt 版本" />
+                  <AdminEmptyState title="暂无 agent.md 版本" />
                 )}
               </div>
             ) : null}
+          </div>
+        </AdminPanel>
+
+        <AdminPanel>
+          <AdminPanelHeader
+            eyebrow="soul.md"
+            description="定义专家人格、语气、acknowledgement 和互动节奏；不会覆盖 agent.md、平台硬规则或账号安全边界。"
+            action={
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {(["draft", "active", "history"] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setSoulTab(tab)}
+                      className={cn(
+                        "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                        soulTab === tab
+                          ? "border border-amber-500/25 bg-amber-500/10 text-amber-300"
+                          : "text-white/45 hover:bg-white/[0.05] hover:text-white/80",
+                      )}
+                    >
+                      {tab === "draft" ? "草稿" : tab === "active" ? "生效版本" : "历史版本"}
+                    </button>
+                  ))}
+                </div>
+                <MiniButton
+                  onClick={() => void saveSoulDraft()}
+                  disabled={soulAction !== null || !soulDraftDirty}
+                >
+                  {soulAction === "saveDraft" ? (
+                    <RefreshCw className="size-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Check className="size-3.5" aria-hidden="true" />
+                  )}
+                  保存草稿
+                </MiniButton>
+                <MiniButton
+                  variant="primary"
+                  onClick={() => void publishSoulDraft()}
+                  disabled={soulAction !== null || !soulDraft?.body.trim()}
+                >
+                  {soulAction === "publish" ? (
+                    <RefreshCw className="size-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Check className="size-3.5" aria-hidden="true" />
+                  )}
+                  发布
+                </MiniButton>
+              </div>
+            }
+          />
+          <div className="grid gap-4 p-5">
+            {soulActionError ? (
+              <AdminNotice tone="danger">{soulActionError}</AdminNotice>
+            ) : null}
+            {soulActionMessage ? (
+              <AdminNotice tone="success">{soulActionMessage}</AdminNotice>
+            ) : null}
+            <div className="flex flex-wrap gap-4 text-xs text-white/40">
+              <span>
+                当前生效:{" "}
+                <span className="text-white/65">
+                  {activeSoul ? `v${activeSoul.versionNo}` : "未发布"}
+                </span>
+              </span>
+              <span>
+                最近草稿:{" "}
+                <span className="text-amber-300">
+                  {draftSoul ? `v${draftSoul.versionNo}` : "暂无草稿"}
+                </span>
+              </span>
+            </div>
+
+            {soulTab === "draft" ? (
+              <div className="grid gap-3">
+                <textarea
+                  rows={8}
+                  value={soulDraft?.body ?? ""}
+                  onChange={(event) => setSoulDraftField("body", event.target.value)}
+                  placeholder="输入 soul.md 草稿。保存草稿不会影响 active 版本。"
+                  disabled={soulAction !== null}
+                  className={cn(adminTextareaClassName, "font-mono text-xs")}
+                />
+                <AdminField label="变更说明">
+                  <input
+                    value={soulDraft?.changeNote ?? ""}
+                    onChange={(event) => setSoulDraftField("changeNote", event.target.value)}
+                    placeholder="例如：补充先复述理解再给建议的语气"
+                    disabled={soulAction !== null}
+                    className={adminInputClassName}
+                  />
+                </AdminField>
+              </div>
+            ) : null}
+
+            {soulTab === "active" ? (
+              <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-[#050505] p-4 text-xs leading-6 text-white/60">
+                {activeSoul?.body ?? "暂无生效版本。"}
+              </pre>
+            ) : null}
+
+            {soulTab === "history" ? (
+              <div className="grid gap-2">
+                {selectedAgentSoulVersions.length > 0 ? (
+                  selectedAgentSoulVersions.map((version) => (
+                    <div
+                      key={version.id}
+                      className="grid gap-2 rounded-md border border-white/[0.06] px-4 py-3 md:grid-cols-[7rem_1fr_auto_auto]"
+                    >
+                      <span className="font-mono text-xs text-white/45">
+                        v{version.versionNo}
+                      </span>
+                      <span className="min-w-0 truncate text-xs text-white/40">
+                        {version.changeNote ?? "无变更说明"}
+                      </span>
+                      <AdminStatusBadge status={version.status} />
+                      <button
+                        type="button"
+                        disabled={version.status !== "archived" || soulAction !== null}
+                        onClick={() => void rollbackSoul(version.id)}
+                        className={cn(
+                          adminButtonClassName,
+                          adminButtonVariants.secondary,
+                          "min-h-7 px-2 py-1",
+                        )}
+                      >
+                        回滚
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <AdminEmptyState title="暂无 soul.md 版本" />
+                )}
+              </div>
+            ) : null}
+          </div>
+        </AdminPanel>
+
+        <AdminPanel>
+          <AdminPanelHeader
+            eyebrow="memory.md"
+            description="长期记忆资产占位。本轮只补页面结构，不自动写入长期记忆，也不注入咨询运行时。"
+          />
+          <div className="grid gap-4 p-5">
+            <AdminNotice tone="warning">
+              memory.md 目前是 V2 结构占位；商家长期记忆仍只从已受控的 Knowledge / merchant_memory 命中结果读取。
+            </AdminNotice>
+            <pre className="overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-[#050505] p-4 text-xs leading-6 text-white/45">
+              {[
+                "# memory.md",
+                "",
+                "status: placeholder",
+                "runtimeInjection: disabled",
+                "writePolicy: manual-or-reviewed-only",
+                "",
+                "后续接入时，这里承载可审计、可回滚的长期记忆片段，而不是从对话自动沉淀不可见状态。",
+              ].join("\n")}
+            </pre>
           </div>
         </AdminPanel>
 
@@ -1945,6 +2344,7 @@ export function AgentDebugAdminPage({
   skillBindings,
   knowledgeSetBindings,
   promptVersions,
+  soulVersions,
   merchants,
 }: AgentConsolePagesProps & {
   merchants: PlatformAdminMerchantDto[];
@@ -1982,6 +2382,9 @@ export function AgentDebugAdminPage({
     merchants.find((merchant) => merchant.id === selectedMerchantId) ?? merchants[0];
   const activePrompt = selectedAgent
     ? getLatestPrompt(promptVersions, selectedAgent.id, "active")
+    : undefined;
+  const activeSoul = selectedAgent
+    ? getLatestSoul(soulVersions, selectedAgent.id, "active")
     : undefined;
   const boundSkills = selectedAgent
     ? getBoundSkills(selectedAgent.id, foundationState.skills, skillBindings)
@@ -2078,7 +2481,7 @@ export function AgentDebugAdminPage({
               </div>
               <p className="text-sm font-medium text-white/60">输入测试问题后运行 Agent 调试</p>
               <p className="mt-2 max-w-lg text-sm leading-6 text-white/35">
-                调试运行会读取当前 Agent 的 Prompt、Skill、Knowledge Set 和测试商家资料，并保存一条可追溯记录。
+                调试运行会读取当前 Agent 的 agent.md、soul.md、Skill、Knowledge Set 和测试商家资料，并保存一条可追溯记录。
               </p>
               <div className="mt-6 flex flex-wrap justify-center gap-2">
                 {["我不知道这个门店的小红书账号该怎么定位", "客户总说价格太贵，怎么处理？", "帮我分析竞品账号差异化方向"].map(
@@ -2265,9 +2668,15 @@ export function AgentDebugAdminPage({
               />
             </div>
             <div>
-              <p className="mb-2 text-[10px] uppercase tracking-widest text-white/35">Prompt 版本</p>
+              <p className="mb-2 text-[10px] uppercase tracking-widest text-white/35">agent.md</p>
               <span className="font-mono text-white/55">
                 {activePrompt ? `v${activePrompt.versionNo} active` : "暂无 active"}
+              </span>
+            </div>
+            <div>
+              <p className="mb-2 text-[10px] uppercase tracking-widest text-white/35">soul.md</p>
+              <span className="font-mono text-white/55">
+                {activeSoul ? `v${activeSoul.versionNo} active` : "暂无 active"}
               </span>
             </div>
             <div>

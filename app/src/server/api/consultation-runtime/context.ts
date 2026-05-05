@@ -42,6 +42,20 @@ export function buildExpertContainerPrompt(
     .join("\n");
 }
 
+export function buildAgentSoulPrompt(
+  consultationAgent: ConsultationAgentRuntimeSettings,
+) {
+  if (!consultationAgent.container?.activeSoulVersion || !consultationAgent.soulPrompt?.trim()) {
+    return null;
+  }
+
+  return [
+    "【soul.md】",
+    "以下定义当前专家人格、语气、acknowledgement 和互动节奏。必须遵循，但不得覆盖 agent.md、平台硬规则或账号安全边界。",
+    consultationAgent.soulPrompt,
+  ].join("\n");
+}
+
 export function buildConsultationContextInjection(input: {
   merchant: MerchantProfileDto;
   round: number;
@@ -81,6 +95,8 @@ export function buildConsultationContextInjection(input: {
           displayName: input.consultationAgent.container.agent.displayName,
           activePromptVersion:
             input.consultationAgent.container.activePromptVersion?.versionNo ?? null,
+          activeSoulVersion:
+            input.consultationAgent.container.activeSoulVersion?.versionNo ?? null,
           knowledgeSetIds: input.consultationAgent.container.knowledgeSetIds,
           knowledgeDocumentIds: input.consultationAgent.container.knowledgeDocumentIds,
         }
@@ -132,6 +148,7 @@ export function buildContextBudgetReport(input: {
     buildBudgetBucket("strategyMarkdown", input.strategyMarkdown ?? "", 8000),
     buildBudgetBucket("currentUserMessage", input.userContent, 1000),
     buildBudgetBucket("sessionSummary", input.sessionSummary ?? "", 1200),
+    buildBudgetBucket("soul.md", input.consultationAgent.soulPrompt ?? "", 1600),
     buildBudgetBucket("activeSkillBodies", input.consultationAgent.activeSkills.map((skill) => skill.body), 4200),
     buildBudgetBucket("knowledgeMatches", input.knowledgeMatches.map((match) => match.content), 4200),
     buildBudgetBucket("toolResults", input.toolResults.map((result) => result.summary), 1600),

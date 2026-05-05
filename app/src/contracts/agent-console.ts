@@ -63,6 +63,19 @@ export type AgentPromptVersionDto = {
   archivedAt?: string | null;
 };
 
+export type AgentSoulVersionDto = {
+  id: string;
+  agentId: string;
+  versionNo: number;
+  body: string;
+  status: AgentPromptVersionStatus;
+  changeNote?: string | null;
+  createdByAdminId?: string | null;
+  createdAt: string;
+  activatedAt?: string | null;
+  archivedAt?: string | null;
+};
+
 export type AgentSkillDto = {
   id: string;
   skillKey?: string | null;
@@ -228,7 +241,9 @@ export type AgentConsoleFoundationStateDto = {
 export type AgentConfigDetailDto = {
   agent: AgentConfigDto;
   promptVersions: AgentPromptVersionDto[];
+  soulVersions: AgentSoulVersionDto[];
   activePromptVersion?: AgentPromptVersionDto | null;
+  activeSoulVersion?: AgentSoulVersionDto | null;
   skillBindings: AgentSkillBindingDto[];
   knowledgeSetBindings: AgentKnowledgeSetBindingDto[];
 };

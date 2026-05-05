@@ -73,6 +73,19 @@ export const rollbackAgentPromptSchema = z.object({
   promptVersionId: z.uuid(),
 });
 
+export const saveAgentSoulDraftSchema = z.object({
+  body: z.string().max(12000),
+  changeNote: z.string().trim().max(300).nullish(),
+});
+
+export const publishAgentSoulSchema = z.object({
+  soulVersionId: z.uuid().optional(),
+});
+
+export const rollbackAgentSoulSchema = z.object({
+  soulVersionId: z.uuid(),
+});
+
 export const updateAgentSkillBindingsSchema = z.object({
   skillIds: z.array(z.uuid()).max(100),
 });

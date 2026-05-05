@@ -8,6 +8,7 @@ import {
   listAgentConfigs,
   listAgentKnowledgeSetBindings,
   listAgentPromptVersions,
+  listAgentSoulVersions,
   listAgentSkillBindings,
   listAgentSkills,
   listKnowledgeSets,
@@ -39,6 +40,7 @@ export async function resolveConsultationAgentRuntime(input: {
   const fallbackRuntime: ConsultationAgentRuntimeSettings = {
     ...fallback,
     container: null,
+    soulPrompt: null,
     skillCatalog: [],
     activeSkills: [],
   };
@@ -68,12 +70,14 @@ export async function resolveConsultationAgentRuntime(input: {
 
     const [
       promptVersions,
+      soulVersions,
       skillBindings,
       skills,
       knowledgeSetBindings,
       knowledgeSets,
     ] = await Promise.all([
       listAgentPromptVersions(agent.id),
+      listAgentSoulVersions(agent.id),
       listAgentSkillBindings({ agentId: agent.id }),
       listAgentSkills(),
       listAgentKnowledgeSetBindings({ agentId: agent.id }),
@@ -90,6 +94,17 @@ export async function resolveConsultationAgentRuntime(input: {
     ) ?? null;
     const selectedPrompt =
       input.promptMode === "draft_or_active" ? draftPrompt ?? activePrompt : activePrompt;
+    const sortedSoulVersions = soulVersions.sort(
+      (first, second) => second.versionNo - first.versionNo,
+    );
+    const activeSoul = sortedSoulVersions.find(
+      (soulVersion) => soulVersion.status === "active",
+    ) ?? null;
+    const draftSoul = sortedSoulVersions.find(
+      (soulVersion) => soulVersion.status === "draft",
+    ) ?? null;
+    const selectedSoul =
+      input.promptMode === "draft_or_active" ? draftSoul ?? activeSoul : activeSoul;
     const enabledSkillIds = new Set(
       skillBindings
         .filter((binding) => binding.status === "enabled")
@@ -129,10 +144,12 @@ export async function resolveConsultationAgentRuntime(input: {
         container: {
           agent,
           activePromptVersion: selectedPrompt,
+          activeSoulVersion: selectedSoul,
           candidateSkills,
           knowledgeSetIds,
           knowledgeDocumentIds,
         },
+        soulPrompt: selectedSoul?.body?.trim() ? selectedSoul.body : null,
         skillCatalog: agent.serviceFlags.skillsEnabled ? candidateSkills : [],
         activeSkills: [],
       },
