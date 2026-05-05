@@ -85,3 +85,44 @@ pnpm lint
    - `/login` 返回 `HTTP/2 200`
    - `/platform-admin-login` 返回 `HTTP/2 200`
 7. Vercel production 最近 1 小时 error logs：未发现日志。
+
+## 2026-05-05 真实商家验收补充
+
+使用线上商家账号登录 `https://jingjing-content-platform-staging.vercel.app/dashboard/content`，验证素材中心 TikHub 工具。
+
+验收过程中发现并修复两个真实问题：
+
+1. `source_items` 的唯一索引是 partial unique index，PostgREST `upsert(... onConflict ...)` 不识别该冲突目标。
+   - 修复提交：`68f3139 fix: save provider materials without partial-index upsert`
+   - 改为显式查询已存在素材，再 `update` 或 `insert`。
+2. 小红书标准主页 URL 不能直接传给 TikHub `app_v2/get_user_posted_notes` 的 `share_text`。
+   - 修复提交：`819afc0 fix: support xhs profile urls for tikhub materials`
+   - 标准 `xiaohongshu.com/user/profile/<user_id>` 先解析 `user_id`，再走 `web_v3/fetch_user_notes`。
+   - 短链 / 分享文本仍保留 `app_v2/get_user_posted_notes` 兜底。
+
+最终线上验收结果：
+
+1. 商家登录成功。
+2. 关键词检索：
+   - 平台：小红书
+   - 关键词：`咖啡探店`
+   - 返回：`201`
+   - 入库：5 条 ready 素材
+   - 页面刷新后素材中心可见 5 条素材。
+3. 博主主页导入：
+   - 平台：小红书
+   - 主页 URL：标准 `xiaohongshu.com/user/profile/<user_id>` 格式
+   - 返回：`201`
+   - 入库：5 条 ready 素材
+   - 页面刷新后素材中心可见共 10 条素材。
+4. 二次相同关键词检索：
+   - 返回：`201`
+   - 返回 5 条素材
+   - `providerCacheHit` 均为 `true`
+   - 素材总数从 10 保持为 10，未重复插入。
+5. 最终 Vercel 部署：
+   - Inspect URL: `https://vercel.com/neveraloofwy-4960s-projects/jingjing-content-platform-staging/BtN31TbF55FHXvPJwj1tVwcaCJu6`
+   - Deployment URL: `https://jingjing-content-platform-staging-ie7wok2vb.vercel.app`
+   - Production alias: `https://jingjing-content-platform-staging.vercel.app`
+   - Status: `Ready`
+6. Vercel production 最近 1 小时 error logs：未发现日志。
