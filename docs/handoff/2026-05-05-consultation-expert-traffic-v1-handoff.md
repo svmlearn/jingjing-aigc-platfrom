@@ -74,12 +74,12 @@ python3 .codex/skills/long-task-gate/scripts/check.py
 
 - Worktree：`/Users/wy/.codex/worktrees/consultation-expert-traffic-v1`
 - Branch：`codex/consultation-expert-traffic-v1`
-- Commit：待创建
+- Commit：已创建；以当前 branch HEAD 为准
 - Push：未 push
 - Merge：未 merge
 - Deploy：未部署
 
 ## 下一步建议
 
-1. 创建 commit 冻结本轮结果。
-2. 用户验收后再决定是否 push / merge / deploy。
+1. 用户验收当前 worktree / branch。
+2. 再决定是否 push / merge / deploy。
