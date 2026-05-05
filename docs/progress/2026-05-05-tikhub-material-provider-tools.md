@@ -60,3 +60,28 @@ pnpm lint
 2. 还没有在页面上区分展示“命中本地缓存 / 新查 TikHub / TikHub 未配置”的更细状态。
 3. 还没有做 Supabase staging 的真实端到端写入验证，本轮只做了类型检查、lint 和 TikHub raw API 探测。
 4. 后续如果营销专家默认启用该工具，需要在后台专家配置中明确勾选，避免普通咨询消息无意触发付费 API。
+
+## 2026-05-05 合并与部署补充
+
+用户确认可以合并当前分支并推到 Supabase + Vercel 后，已完成：
+
+1. 将 `codex/v2.2-roundtable-multi-agent` fast-forward 合并到 `main`。
+2. 推送 `main` 到 GitHub `origin/main` 和 Gitee `gitee/main`。
+3. Supabase：
+   - `supabase migration list` 远端与本地一致。
+   - `supabase db push --linked --dry-run` 返回 `Remote database is up to date.`
+   - `supabase db push --linked --yes` 返回 `Remote database is up to date.`
+4. Vercel Production 环境变量已新增/覆盖：
+   - `TIKHUB_API_KEY`
+   - `TIKHUB_BASE_URL`
+   - `TIKHUB_MATERIAL_CACHE_TTL_HOURS`
+5. Vercel Production 已重新部署：
+   - Inspect URL: `https://vercel.com/neveraloofwy-4960s-projects/jingjing-content-platform-staging/4LXdjCapqFtoRLQDpyg3ZyHB1QsW`
+   - Deployment URL: `https://jingjing-content-platform-staging-nb914pxf9.vercel.app`
+   - Production alias: `https://jingjing-content-platform-staging.vercel.app`
+   - Status: `Ready`
+6. 线上入口检查：
+   - `/` 返回 `HTTP/2 200`
+   - `/login` 返回 `HTTP/2 200`
+   - `/platform-admin-login` 返回 `HTTP/2 200`
+7. Vercel production 最近 1 小时 error logs：未发现日志。
