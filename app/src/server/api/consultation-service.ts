@@ -283,13 +283,41 @@ function attachStrategyAssetToSession<T extends ConsultationSessionDetailDto>(
   };
 }
 
+type QueuedConsultationMessageProcessing = {
+  status: "queued";
+  userMessageId: string;
+  entitlement: ConsultationEntitlementCheck;
+};
+
 export async function sendConsultationMessageForUser(input: {
   userId: string;
   sessionId: string;
   content: string;
 }) {
+  const queued = await enqueueConsultationMessageForUser(input);
+
+  if (!queued.processing) {
+    return queued.session;
+  }
+
+  return processQueuedConsultationMessageForUser({
+    userId: input.userId,
+    sessionId: input.sessionId,
+    userMessageId: queued.processing.userMessageId,
+    entitlement: queued.processing.entitlement,
+  });
+}
+
+export async function enqueueConsultationMessageForUser(input: {
+  userId: string;
+  sessionId: string;
+  content: string;
+}): Promise<{
+  session: ConsultationSessionDetailDto;
+  processing: QueuedConsultationMessageProcessing | null;
+}> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const [{ consultationAgent, knowledgeRuntime, llmRuntime, membershipPlans }, session, existingMerchantStrategyAsset] = await Promise.all([
+  const [{ consultationAgent, membershipPlans }, session, existingMerchantStrategyAsset] = await Promise.all([
     getPlatformSettings(),
     getConsultationSessionDetail({
       merchantId: merchant.id,
@@ -307,7 +335,18 @@ export async function sendConsultationMessageForUser(input: {
   };
 
   if (resolveRoundtableState(effectiveSession)) {
-    return sendRoundtableMessageForUser(input);
+    return {
+      session: await sendRoundtableMessageForUser(input),
+      processing: null,
+    };
+  }
+
+  if (hasPendingAssistantReply(effectiveSession)) {
+    throw new ApiError(
+      409,
+      "CONSULTATION_REPLY_PENDING",
+      "上一条消息还在处理中，请等 AI 回复完成后再继续发送。",
+    );
   }
 
   const routedRuntime = await resolveMentionedConsultationAgentRuntime({
@@ -319,7 +358,6 @@ export async function sendConsultationMessageForUser(input: {
     consultationAgent: routedRuntime.consultationAgent,
     mentionRouting: routedRuntime.routing,
   });
-  const effectiveUserContent = routedRuntime.routing.cleanedContent;
   const entitlement = await checkConsultationEntitlement({
     merchant,
     agentId: routedRuntime.consultationAgent.container?.agent.id ?? null,
@@ -332,10 +370,141 @@ export async function sendConsultationMessageForUser(input: {
     content: input.content,
     stageLabel: effectiveSession.currentStage,
   });
-  const allUserMessages = [...effectiveSession.messages, userMessage]
+
+  await createConsultationEvent({
+    sessionId: effectiveSession.id,
+    eventType: "agent.loop.queued",
+    stageLabel: "思考中",
+    payload: {
+      mode: "async_background_v1",
+      sourceMessageId: userMessage.id,
+      mentionRouting: routedRuntime.routing,
+      agentContainer: routedRuntime.consultationAgent.container
+        ? {
+            agentId: routedRuntime.consultationAgent.container.agent.id,
+            agentKey: routedRuntime.consultationAgent.container.agent.agentKey,
+            displayName: routedRuntime.consultationAgent.container.agent.displayName,
+            activePromptVersion: routedRuntime.consultationAgent.container.activePromptVersion?.versionNo ?? null,
+            activeSoulVersion: routedRuntime.consultationAgent.container.activeSoulVersion?.versionNo ?? null,
+          }
+        : null,
+    },
+  });
+
+  const updatedSession = await getConsultationSessionDetail({
+    merchantId: merchant.id,
+    sessionId: effectiveSession.id,
+  });
+
+  return {
+    session: attachRoundtableState(
+      attachStrategyAssetToSession(updatedSession, existingMerchantStrategyAsset),
+    ),
+    processing: {
+      status: "queued",
+      userMessageId: userMessage.id,
+      entitlement,
+    },
+  };
+}
+
+export async function processQueuedConsultationMessageForUser(input: {
+  userId: string;
+  sessionId: string;
+  userMessageId: string;
+  entitlement?: ConsultationEntitlementCheck;
+}) {
+  try {
+    return await processQueuedConsultationMessageForUserUnsafe(input);
+  } catch (error) {
+    await markQueuedConsultationMessageFailed({
+      ...input,
+      error,
+    });
+    throw error;
+  }
+}
+
+async function processQueuedConsultationMessageForUserUnsafe(input: {
+  userId: string;
+  sessionId: string;
+  userMessageId: string;
+  entitlement?: ConsultationEntitlementCheck;
+}) {
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  const [{ consultationAgent, knowledgeRuntime, llmRuntime, membershipPlans }, session, existingMerchantStrategyAsset] = await Promise.all([
+    getPlatformSettings(),
+    getConsultationSessionDetail({
+      merchantId: merchant.id,
+      sessionId: input.sessionId,
+    }),
+    getMerchantStrategyAssetDocument(merchant.id),
+  ]);
+  const effectiveSession: ConsultationSessionDetailDto = {
+    ...session,
+    strategySnapshot: existingMerchantStrategyAsset?.strategySnapshot ?? session.strategySnapshot,
+    strategyAsset: existingMerchantStrategyAsset ?? null,
+  };
+  const sourceMessageIndex = effectiveSession.messages.findIndex(
+    (message) => message.id === input.userMessageId && message.role === "user",
+  );
+
+  if (sourceMessageIndex < 0) {
+    throw new ApiError(
+      404,
+      "CONSULTATION_MESSAGE_NOT_FOUND",
+      "Queued consultation message not found.",
+    );
+  }
+
+  const messagesAfterSource = effectiveSession.messages.slice(sourceMessageIndex + 1);
+
+  if (messagesAfterSource.some((message) => message.role === "assistant")) {
+    return attachRoundtableState(
+      attachStrategyAssetToSession(effectiveSession, existingMerchantStrategyAsset),
+    );
+  }
+
+  if (resolveRoundtableState(effectiveSession)) {
+    return attachRoundtableState(
+      attachStrategyAssetToSession(effectiveSession, existingMerchantStrategyAsset),
+    );
+  }
+
+  const sourceMessage = effectiveSession.messages[sourceMessageIndex];
+  if (!sourceMessage) {
+    throw new ApiError(
+      404,
+      "CONSULTATION_MESSAGE_NOT_FOUND",
+      "Queued consultation message not found.",
+    );
+  }
+  const previousMessages = effectiveSession.messages.slice(0, sourceMessageIndex);
+  const messagesThroughSource = effectiveSession.messages.slice(0, sourceMessageIndex + 1);
+  const runtime = await resolveConsultationAgentRuntime({
+    fallback: consultationAgent,
+  });
+  const routedRuntime = await resolveMentionedConsultationAgentRuntime({
+    fallback: consultationAgent,
+    defaultRuntime: runtime.consultationAgent,
+    content: sourceMessage.content,
+  });
+  await assertConsultationAgentAvailable({
+    consultationAgent: routedRuntime.consultationAgent,
+    mentionRouting: routedRuntime.routing,
+  });
+  const effectiveUserContent = routedRuntime.routing.cleanedContent;
+  const entitlement =
+    input.entitlement ??
+    (await checkConsultationEntitlement({
+      merchant,
+      agentId: routedRuntime.consultationAgent.container?.agent.id ?? null,
+      membershipPlans,
+    }));
+  const allUserMessages = messagesThroughSource
     .filter((message) => message.role === "user")
     .map((message) => message.content);
-  const conversationMessages = [...effectiveSession.messages, userMessage]
+  const conversationMessages = messagesThroughSource
     .filter(
       (message): message is typeof message & { role: "user" | "assistant" } =>
         message.role === "user" || message.role === "assistant",
@@ -346,7 +515,10 @@ export async function sendConsultationMessageForUser(input: {
     }));
   const loopResult = await runConsultationAgentLoop({
     merchant,
-    session: effectiveSession,
+    session: {
+      ...effectiveSession,
+      messages: previousMessages,
+    },
     userContent: effectiveUserContent,
     userMessages: allUserMessages,
     conversationMessages,
@@ -365,7 +537,7 @@ export async function sendConsultationMessageForUser(input: {
 
   await recordConsultationRuntimeSnapshotSafely({
     sessionId: effectiveSession.id,
-    messageId: userMessage.id,
+    messageId: sourceMessage.id,
     stageLabel: loopResult.nextStage,
     runtimeSnapshot: loopResult.runtimeSnapshot,
   });
@@ -441,11 +613,96 @@ export async function sendConsultationMessageForUser(input: {
   return getConsultationSessionDetail({
     merchantId: merchant.id,
     sessionId: effectiveSession.id,
-  }).then((updatedSession) => ({
-    ...updatedSession,
-    strategySnapshot: loopResult.strategySnapshot,
-    strategyAsset: persistedStrategyAsset,
-  }));
+  }).then((updatedSession) =>
+    attachRoundtableState({
+      ...updatedSession,
+      strategySnapshot: loopResult.strategySnapshot,
+      strategyAsset: persistedStrategyAsset,
+    }),
+  );
+}
+
+function hasPendingAssistantReply(session: ConsultationSessionDetailDto) {
+  return session.messages.at(-1)?.role === "user";
+}
+
+async function markQueuedConsultationMessageFailed(input: {
+  userId: string;
+  sessionId: string;
+  userMessageId: string;
+  entitlement?: ConsultationEntitlementCheck;
+  error: unknown;
+}) {
+  const errorCode =
+    input.error instanceof ApiError
+      ? input.error.code
+      : input.error instanceof Error
+        ? input.error.name
+        : "UNKNOWN_ERROR";
+
+  if (input.entitlement?.reservedUsageEventId) {
+    await updateMerchantUsageEvent({
+      usageEventId: input.entitlement.reservedUsageEventId,
+      actualCost: 0,
+      status: "failed",
+      metadata: {
+        reason: "async_consultation_runtime_failed",
+        sourceMessageId: input.userMessageId,
+        errorCode,
+      },
+    }).catch(() => null);
+  }
+
+  try {
+    const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+    const session = await getConsultationSessionDetail({
+      merchantId: merchant.id,
+      sessionId: input.sessionId,
+    });
+    const sourceMessageIndex = session.messages.findIndex(
+      (message) => message.id === input.userMessageId && message.role === "user",
+    );
+
+    if (sourceMessageIndex < 0) {
+      return;
+    }
+
+    const alreadyAnswered = session.messages
+      .slice(sourceMessageIndex + 1)
+      .some((message) => message.role === "assistant");
+
+    if (alreadyAnswered) {
+      return;
+    }
+
+    await createConsultationEvent({
+      sessionId: input.sessionId,
+      eventType: "agent.loop.failed",
+      stageLabel: "处理失败",
+      payload: {
+        mode: "async_background_v1",
+        sourceMessageId: input.userMessageId,
+        errorCode,
+      },
+    });
+    await createConsultationMessage({
+      sessionId: input.sessionId,
+      role: "assistant",
+      content: "刚才这条消息我已经收到，但后台处理时中断了。你可以稍后重发，或者换一种更短的方式继续。",
+      stageLabel: session.currentStage ?? "处理失败",
+      visibleSummary: {
+        agentLoop: {
+          mode: "async_background_v1",
+          status: "failed",
+          sourceMessageId: input.userMessageId,
+          errorCode,
+        },
+        nextAction: "稍后重试，或把问题拆成更短的一条继续。",
+      },
+    });
+  } catch {
+    // Background failure recovery must not mask the original runtime error.
+  }
 }
 
 export async function runAgentDebugTest(input: {

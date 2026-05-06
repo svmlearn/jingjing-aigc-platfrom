@@ -46,6 +46,7 @@ export function ConsultationWorkspace() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toolCardsCollapsed, setToolCardsCollapsed] = useState(true);
+  const assistantPending = isConsultationAssistantPending(session);
 
   function redirectToLogin() {
     const next = `${window.location.pathname}${window.location.search}`;
@@ -114,17 +115,34 @@ export function ConsultationWorkspace() {
     }
   }
 
+  async function fetchSessionDetail(nextSessionId: string) {
+    const response = await fetch(`/api/consultation/sessions/${nextSessionId}`, {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    const data = await readApiJson<{
+      session?: ConsultationSessionDetailDto;
+    }>(response, "咨询详情加载失败");
+
+    return data.session ?? null;
+  }
+
   async function loadSession(nextSessionId: string) {
     try {
-      const response = await fetch(`/api/consultation/sessions/${nextSessionId}`, {
-        cache: "no-store",
-        credentials: "same-origin",
-      });
-      const data = await readApiJson<{
-        session?: ConsultationSessionDetailDto;
-      }>(response, "咨询详情加载失败");
+      setSession(await fetchSessionDetail(nextSessionId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "咨询详情加载失败");
+    }
+  }
 
-      setSession(data.session ?? null);
+  async function refreshPendingSession(nextSessionId: string) {
+    try {
+      const nextSession = await fetchSessionDetail(nextSessionId);
+      setSession(nextSession);
+
+      if (nextSession && !isConsultationAssistantPending(nextSession)) {
+        await loadSessions(nextSession.id);
+      }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "咨询详情加载失败");
     }
@@ -189,6 +207,10 @@ export function ConsultationWorkspace() {
     await loadSession(nextSessionId);
   });
 
+  const refreshPendingSessionFromEffect = useEffectEvent(async (nextSessionId: string) => {
+    await refreshPendingSession(nextSessionId);
+  });
+
   const loadExpertsFromEffect = useEffectEvent(async () => {
     await loadExperts();
   });
@@ -230,11 +252,26 @@ export function ConsultationWorkspace() {
     };
   }, [sessionId]);
 
+  useEffect(() => {
+    if (!sessionId || !assistantPending) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshPendingSessionFromEffect(sessionId);
+    }, 2500);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [assistantPending, sessionId]);
+
   const latestAssistantMessage =
     [...(session?.messages ?? [])].reverse().find((message) => message.role === "assistant") ?? null;
   const toolCards = latestAssistantMessage?.toolCards ?? [];
   const strategySnapshot = session?.strategySnapshot ?? null;
   const isLegacyRoundtable = Boolean(session?.roundtable);
+  const composerDisabled = sending || assistantPending || isLegacyRoundtable;
 
   function selectHistorySession(nextSessionId: string) {
     setSessionId(nextSessionId);
@@ -321,6 +358,7 @@ export function ConsultationWorkspace() {
       return;
     }
 
+    const submittedContent = input.trim();
     setSending(true);
     setError(null);
 
@@ -331,12 +369,16 @@ export function ConsultationWorkspace() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          content: input.trim(),
+          content: submittedContent,
         }),
         credentials: "same-origin",
       });
       const data = await readApiJson<{
         session?: ConsultationSessionDetailDto;
+        processing?: {
+          status: "queued";
+          userMessageId: string;
+        } | null;
       }>(response, "发送消息失败");
 
       if (!data.session) {
@@ -361,7 +403,7 @@ export function ConsultationWorkspace() {
             AI 咨询诊断
           </h1>
           <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.25em] text-amber-500">
-            {session?.currentStage ?? "准备中"}
+            {assistantPending ? "思考中" : session?.currentStage ?? "准备中"}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -687,6 +729,7 @@ export function ConsultationWorkspace() {
                       </div>
                     );
                   })}
+                  {assistantPending ? <AssistantThinkingBubble /> : null}
                 </div>
               )}
             </div>
@@ -714,17 +757,19 @@ export function ConsultationWorkspace() {
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                disabled={isLegacyRoundtable}
+                disabled={isLegacyRoundtable || assistantPending}
                 placeholder={
                   isLegacyRoundtable
                     ? "这个旧圆桌会话已不再作为主入口，请新开普通咨询后用 @ 专家继续。"
+                    : assistantPending
+                      ? "AI 正在思考中..."
                     : "告诉我你的业务目标、主力客群、成交异议或想优先拿下的场景..."
                 }
                 className="max-h-36 min-h-[72px] flex-1 resize-y rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 disabled:cursor-not-allowed disabled:opacity-60"
               />
               <button
                 type="submit"
-                disabled={sending || !input.trim() || isLegacyRoundtable}
+                disabled={composerDisabled || !input.trim()}
                 className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-600 text-white transition-colors hover:bg-amber-500 disabled:opacity-60"
               >
                 <Send className="h-4 w-4" />
@@ -736,8 +781,9 @@ export function ConsultationWorkspace() {
                   <button
                     key={prompt}
                     type="button"
+                    disabled={assistantPending}
                     onClick={() => setInput(prompt)}
-                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/55 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {prompt}
                   </button>
@@ -856,6 +902,26 @@ function LegacyRoundtableNotice() {
   );
 }
 
+function AssistantThinkingBubble() {
+  return (
+    <div className="flex gap-4 justify-start">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-500">
+        <Sparkles className="h-4 w-4" />
+      </div>
+      <div className="max-w-2xl rounded-2xl border border-white/10 bg-[#111111] px-4 py-3 text-sm leading-7 text-white/75">
+        <div className="flex items-center gap-2">
+          <span>思考中</span>
+          <span className="flex items-center gap-1" aria-hidden="true">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400 [animation-delay:120ms]" />
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400 [animation-delay:240ms]" />
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Card(props: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -866,6 +932,10 @@ function Card(props: { title: string; children: React.ReactNode }) {
       <div className="mt-3">{props.children}</div>
     </div>
   );
+}
+
+function isConsultationAssistantPending(session: ConsultationSessionDetailDto | null) {
+  return session?.messages.at(-1)?.role === "user";
 }
 
 function StrategyAssetDocument({ markdown }: { markdown: string }) {

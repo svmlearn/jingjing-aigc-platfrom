@@ -37,6 +37,10 @@ const consultationWorkspaceSource = readFileSync(
   new URL("../../components/merchant/consultation-workspace.tsx", import.meta.url),
   "utf8",
 );
+const consultationMessagesRouteSource = readFileSync(
+  new URL("../../app/api/consultation/sessions/[sessionId]/messages/route.ts", import.meta.url),
+  "utf8",
+);
 
 test("consultation runtime resolves online agent prompt and skill bindings", () => {
   assert.match(consultationServiceAndRuntimeSource, /getConsultationDefaultRouteBinding/);
@@ -293,6 +297,18 @@ test("consultation runtime records replayable snapshots without blocking replies
   assert.match(agentConsoleRepositorySource, /agent_runtime_snapshots/);
   assert.match(agentConsoleRepositorySource, /tool_call_summary/);
   assert.match(agentConsoleRepositorySource, /mapAgentRuntimeSnapshot/);
+});
+
+test("consultation message send is queued and completed in the background", () => {
+  assert.match(serviceSource, /enqueueConsultationMessageForUser/);
+  assert.match(serviceSource, /processQueuedConsultationMessageForUser/);
+  assert.match(serviceSource, /agent\.loop\.queued/);
+  assert.match(serviceSource, /hasPendingAssistantReply/);
+  assert.match(consultationMessagesRouteSource, /after\(\(\) =>/);
+  assert.match(consultationMessagesRouteSource, /status: queued\.processing \? 202 : 200/);
+  assert.match(consultationWorkspaceSource, /AssistantThinkingBubble/);
+  assert.match(consultationWorkspaceSource, /isConsultationAssistantPending/);
+  assert.match(consultationWorkspaceSource, /refreshPendingSession/);
 });
 
 test("strategy asset editor is a full-document tool call, not runtime semantic parsing", () => {

@@ -1,7 +1,12 @@
+import { after } from "next/server";
+
 import { getAuthenticatedUser } from "@/lib/auth/current-user";
 import { handleApiError } from "@/server/api/errors";
 import { sendConsultationMessageSchema } from "@/server/api/schemas";
-import { sendConsultationMessageForUser } from "@/server/api/consultation-service";
+import {
+  enqueueConsultationMessageForUser,
+  processQueuedConsultationMessageForUser,
+} from "@/server/api/consultation-service";
 
 export const runtime = "nodejs";
 
@@ -13,13 +18,39 @@ export async function POST(
     const user = await getAuthenticatedUser();
     const payload = sendConsultationMessageSchema.parse(await request.json());
     const { sessionId } = await context.params;
-    const session = await sendConsultationMessageForUser({
+    const queued = await enqueueConsultationMessageForUser({
       userId: user.id,
       sessionId,
       content: payload.content,
     });
 
-    return Response.json({ session });
+    if (queued.processing) {
+      const { userMessageId, entitlement } = queued.processing;
+
+      after(() =>
+        processQueuedConsultationMessageForUser({
+          userId: user.id,
+          sessionId,
+          userMessageId,
+          entitlement,
+        }).catch((error) => {
+          console.error("Async consultation message processing failed", error);
+        }),
+      );
+    }
+
+    return Response.json(
+      {
+        session: queued.session,
+        processing: queued.processing
+          ? {
+              status: queued.processing.status,
+              userMessageId: queued.processing.userMessageId,
+            }
+          : null,
+      },
+      { status: queued.processing ? 202 : 200 },
+    );
   } catch (error) {
     return handleApiError(error);
   }
