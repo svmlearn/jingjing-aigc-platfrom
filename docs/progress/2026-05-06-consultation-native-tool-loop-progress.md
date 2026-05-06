@@ -91,12 +91,13 @@ pnpm lint
   - 曾尝试 `pnpm dlx supabase migration list --linked`，但卡在 Supabase CLI 二进制下载阶段，已终止；因此本轮 Supabase 结论以代码 diff 为准：无 migration 需要 apply。
 - Vercel：
   - 执行目录：`app/`
-  - 命令：`npx --yes vercel@latest deploy --prod --yes --debug`
-  - Deployment ID：`dpl_6W1ew3qStUHm9NqibsaQbidmQR4L`
-  - Deployment URL：`https://jingjing-content-platform-staging-c6jw9ms14.vercel.app`
+  - 命令：`npx --yes vercel@latest deploy --prod --yes`
+  - Deployment ID：`dpl_JDHFQ9D4HcQcUamJjt5tRXTbaDhw`
+  - Deployment URL：`https://jingjing-content-platform-staging-op7gn8l8c.vercel.app`
   - Stable alias：`https://jingjing-content-platform-staging.vercel.app`
-  - Inspect：`https://vercel.com/neveraloofwy-4960s-projects/jingjing-content-platform-staging/6W1ew3qStUHm9NqibsaQbidmQR4L`
+  - Inspect：`https://vercel.com/neveraloofwy-4960s-projects/jingjing-content-platform-staging/JDHFQ9D4HcQcUamJjt5tRXTbaDhw`
   - 状态：Vercel API 返回 `READY`，alias 已分配。
+  - Vercel metadata 对应 `main` 的 `1a17e126ffa665f460e026d11135587957381183`；由于根工作区存在本轮开始前的未关联脏文件，metadata 里 `gitDirty=1`，但部署执行目录为 `app/`。
 - 部署后 smoke：
   - 本机 `curl` 到 stable alias `/` 和 deployment URL `/login` 均在 20-30 秒内超时，未拿到 HTTP 响应。
   - Vercel deployment 状态正常；建议后续用浏览器或异地网络补一次页面级 smoke。

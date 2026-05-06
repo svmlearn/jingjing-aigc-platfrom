@@ -65,11 +65,13 @@
 - Supabase: 本轮无 `app/supabase/migrations` 变更，未执行 DDL；`pnpm dlx supabase migration list --linked` 卡在 CLI 二进制下载阶段，已终止。
 - Vercel: 已部署 production，并挂稳定 alias。
   - Stable alias: `https://jingjing-content-platform-staging.vercel.app`
-  - Deployment: `https://jingjing-content-platform-staging-c6jw9ms14.vercel.app`
-  - Inspect: `https://vercel.com/neveraloofwy-4960s-projects/jingjing-content-platform-staging/6W1ew3qStUHm9NqibsaQbidmQR4L`
+  - Deployment ID: `dpl_JDHFQ9D4HcQcUamJjt5tRXTbaDhw`
+  - Deployment: `https://jingjing-content-platform-staging-op7gn8l8c.vercel.app`
+  - Inspect: `https://vercel.com/neveraloofwy-4960s-projects/jingjing-content-platform-staging/JDHFQ9D4HcQcUamJjt5tRXTbaDhw`
 - 最终代码提交：`c77311fe25aaa4b89c16c6c3570ab82f4a074bf7`
 
 ## 部署后备注
 
 - Vercel API 返回 deployment `READY`，alias 已分配。
+- Vercel metadata 对应 `main` 的 `1a17e126ffa665f460e026d11135587957381183`；由于根工作区存在本轮开始前的未关联脏文件，Vercel metadata 里 `gitDirty=1`，但部署执行目录为 `app/`。
 - 本机 `curl` 到稳定 alias 和 deployment URL 在 20-30 秒内超时，未拿到 HTTP 响应；暂按 Vercel deployment 状态作为部署成功依据，后续建议用浏览器或异地网络补一次页面级 smoke。
