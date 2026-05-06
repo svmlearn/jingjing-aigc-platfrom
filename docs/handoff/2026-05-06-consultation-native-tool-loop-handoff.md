@@ -60,7 +60,16 @@
 
 ## 合并状态
 
-- merge: 未执行
-- push: 未执行
-- 最终提交：以本分支 HEAD 为准，收口时用 `git rev-parse HEAD` 复核。
+- merge: 已 fast-forward 合并到 `main`
+- git push: 已推送 `origin/main`
+- Supabase: 本轮无 `app/supabase/migrations` 变更，未执行 DDL；`pnpm dlx supabase migration list --linked` 卡在 CLI 二进制下载阶段，已终止。
+- Vercel: 已部署 production，并挂稳定 alias。
+  - Stable alias: `https://jingjing-content-platform-staging.vercel.app`
+  - Deployment: `https://jingjing-content-platform-staging-c6jw9ms14.vercel.app`
+  - Inspect: `https://vercel.com/neveraloofwy-4960s-projects/jingjing-content-platform-staging/6W1ew3qStUHm9NqibsaQbidmQR4L`
+- 最终代码提交：`c77311fe25aaa4b89c16c6c3570ab82f4a074bf7`
 
+## 部署后备注
+
+- Vercel API 返回 deployment `READY`，alias 已分配。
+- 本机 `curl` 到稳定 alias 和 deployment URL 在 20-30 秒内超时，未拿到 HTTP 响应；暂按 Vercel deployment 状态作为部署成功依据，后续建议用浏览器或异地网络补一次页面级 smoke。

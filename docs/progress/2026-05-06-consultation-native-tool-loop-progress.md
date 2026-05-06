@@ -79,3 +79,24 @@ pnpm lint
 - 回滚：将目标 Agent `modelConfig.plannerMode` 设置为 `deterministic` 或 `model_json_planner`；也可 revert 本分支改动。
 - 未新增 Supabase migration，未修改前端交互，未触碰 roundtable legacy 和 worker。
 
+## 部署记录
+
+时间：2026-05-06
+
+- main 合并：已 fast-forward 到 `c77311fe25aaa4b89c16c6c3570ab82f4a074bf7`。
+- git push：已推送 `origin/main`。
+- Supabase：
+  - 本轮没有新增或修改 `app/supabase/migrations`。
+  - 未执行数据库 DDL。
+  - 曾尝试 `pnpm dlx supabase migration list --linked`，但卡在 Supabase CLI 二进制下载阶段，已终止；因此本轮 Supabase 结论以代码 diff 为准：无 migration 需要 apply。
+- Vercel：
+  - 执行目录：`app/`
+  - 命令：`npx --yes vercel@latest deploy --prod --yes --debug`
+  - Deployment ID：`dpl_6W1ew3qStUHm9NqibsaQbidmQR4L`
+  - Deployment URL：`https://jingjing-content-platform-staging-c6jw9ms14.vercel.app`
+  - Stable alias：`https://jingjing-content-platform-staging.vercel.app`
+  - Inspect：`https://vercel.com/neveraloofwy-4960s-projects/jingjing-content-platform-staging/6W1ew3qStUHm9NqibsaQbidmQR4L`
+  - 状态：Vercel API 返回 `READY`，alias 已分配。
+- 部署后 smoke：
+  - 本机 `curl` 到 stable alias `/` 和 deployment URL `/login` 均在 20-30 秒内超时，未拿到 HTTP 响应。
+  - Vercel deployment 状态正常；建议后续用浏览器或异地网络补一次页面级 smoke。
