@@ -586,8 +586,14 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
       strategyTags: loopResult.strategySnapshot.strategyTags,
       knowledgeContext: buildKnowledgeContextBlock(loopResult.knowledgeMatches),
       agentLoop: {
-        mode: "bounded_tool_loop",
-        runtimeDesign: "bounded_business_tool_loop_v1",
+        mode:
+          loopResult.runtimeDesign === "native_tool_calling_loop_v1"
+            ? "native_tool_calling_loop"
+            : "bounded_tool_loop",
+        runtimeDesign: loopResult.runtimeDesign,
+        plannerMode: loopResult.plannerMode,
+        terminalReason: loopResult.terminalReason,
+        fallbackReason: loopResult.fallbackReason,
         agentContainer: loopResult.agentContainer,
         mentionRouting: loopResult.mentionRouting,
         expertTraffic: {
@@ -1270,6 +1276,11 @@ async function runConsultationAgentLoop(input: {
         sharedConsultationState: currentState.sharedConsultationState,
         expertTurnNotes: currentState.expertTurnNotes,
       }),
+    buildNativeToolCallingMessages: ({ state: currentState, toolResults }) =>
+      buildNativeToolCallingMessages({
+        state: currentState,
+        toolResults,
+      }),
   });
   const nextStage = resolveConsultationStageLabel({
     userContent: state.userContent,
@@ -1301,6 +1312,10 @@ async function runConsultationAgentLoop(input: {
     expertTurnNotes: state.expertTurnNotes,
     latestExpertTurnNote: runtimeResult.latestExpertTurnNote,
     assistantContent: runtimeResult.assistantReply.content,
+    runtimeDesign: runtimeResult.runtimeDesign,
+    plannerMode: runtimeResult.plannerMode,
+    terminalReason: runtimeResult.terminalReason,
+    fallbackReason: runtimeResult.fallbackReason,
     runtimeSnapshot: runtimeResult.runtimeSnapshot,
   };
 }
@@ -1743,6 +1758,88 @@ async function buildAssistantReplyWithModel(input: {
             : "Unknown AI runtime error.",
     };
   }
+}
+
+function buildNativeToolCallingMessages(input: {
+  state: ConsultationAgentLoopState;
+  toolResults: ConsultationAgentToolResult[];
+}): ChatMessage[] {
+  const fallbackDraft = buildAssistantReply({
+    merchant: input.state.merchant,
+    round: input.state.nextRound,
+    userContent: input.state.userContent,
+    sessionSummary: input.state.session.summaryText ?? null,
+    strategySnapshot: input.state.strategySnapshot,
+    strategyMarkdown: input.state.strategyMarkdown,
+    knowledgeMatches: input.state.knowledgeMatches,
+    toolResults: input.toolResults,
+  });
+  const contextInjection = buildConsultationContextInjection({
+    merchant: input.state.merchant,
+    round: input.state.nextRound,
+    userContent: input.state.userContent,
+    sessionSummary: input.state.session.summaryText ?? null,
+    strategySnapshot: input.state.strategySnapshot,
+    strategyMarkdown: input.state.strategyMarkdown,
+    consultationAgent: input.state.consultationAgent,
+    knowledgeMatches: input.state.knowledgeMatches,
+    toolResults: input.toolResults,
+    sharedConsultationState: input.state.sharedConsultationState,
+    expertTurnNotes: input.state.expertTurnNotes,
+  });
+
+  return [
+    {
+      role: "system",
+      content: [
+        input.state.consultationAgent.systemPrompt,
+        buildAgentSoulPrompt(input.state.consultationAgent),
+        buildExpertContainerPrompt(input.state.consultationAgent),
+        buildSkillCatalogPrompt(input.state.consultationAgent),
+        buildActiveSkillPrompt(input.state.consultationAgent.activeSkills),
+        buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
+        buildContextInjectionSystemPrompt(contextInjection),
+        "你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。",
+        "你可以不调用工具，直接给商家中文自然语言回复。",
+        "只有在用户明确要求沉淀、补充、写进右侧策略资产，或当前信息已经足够形成业务结论时，才调用 update_strategy_snapshot。",
+        "轻问答、寒暄、流程追问、信息不足时，不要调用 update_strategy_snapshot；应该直接回答或追问一个关键事实。",
+        "用户要求找对标、竞品、爆款、博主主页或提供小红书/抖音链接时，优先调用 search_benchmark_materials。",
+        "需要方法论、案例、商家资料依据时，调用 retrieve_knowledge_base；用户提到刚才、上次、前面时，调用 read_history。",
+        "工具返回 skipped 或 guardrail 拒写时，最终回复必须承认本轮未写入，不能声称已经更新。",
+        "最终可见回复只输出给商家的中文自然语言，不要输出内部工具名、JSON、Markdown 表格或 debug payload。",
+      ]
+        .filter((item): item is string => Boolean(item))
+        .join("\n"),
+    },
+    {
+      role: "user",
+      content: JSON.stringify({
+        merchant: {
+          name: input.state.merchant.name,
+          industry: input.state.merchant.industry,
+          serviceItems: input.state.merchant.serviceItems,
+          defaultCta: input.state.merchant.defaultCta,
+        },
+        userMessage: input.state.userContent,
+        round: input.state.nextRound,
+        contextInjection,
+        strategySnapshot: input.state.strategySnapshot,
+        knowledgeMatches: input.state.knowledgeMatches.map((match) => ({
+          title: match.documentTitle,
+          score: match.score,
+          content: match.content.slice(0, 600),
+        })),
+        toolResults: input.toolResults.map((result) => ({
+          label: getConsultationToolDisplayLabel(result.toolName),
+          status: result.status,
+          summary: result.summary,
+          guardrail: result.payload.guardrail ?? null,
+        })),
+        skillDisclosure: buildSkillDisclosure(input.state.consultationAgent),
+        fallbackDraft,
+      }),
+    },
+  ];
 }
 
 function buildToolCards(input: {

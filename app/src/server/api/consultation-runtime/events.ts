@@ -7,8 +7,13 @@ import type {
   ConsultationAgentLoopState,
   ConsultationAgentToolCall,
   ConsultationAgentToolResult,
+  ConsultationPlannerMode,
   ConsultationPlannerTraceItem,
 } from "@/server/api/consultation-runtime/types";
+
+type ConsultationRuntimeDesign =
+  | "bounded_business_tool_loop_v1"
+  | "native_tool_calling_loop_v1";
 
 export type ConsultationRuntimeEventInput = {
   eventType: string;
@@ -63,8 +68,8 @@ export function buildAgentLoopStartedPayload(input: {
     },
     skillDisclosure: buildSkillDisclosure(state.consultationAgent),
     skillDependencyWarnings: buildSkillDependencyWarnings(state.consultationAgent),
-    plannerMode: "model_tool_json_with_deterministic_fallback",
-    runtimeDesign: "bounded_business_tool_loop_v1",
+    plannerMode: state.consultationAgent.plannerMode,
+    runtimeDesign: resolveRuntimeDesign(state.consultationAgent.plannerMode),
   };
 }
 
@@ -96,8 +101,16 @@ export function buildKnowledgeRetrievedPayload(result: ConsultationAgentToolResu
 export function buildLoopCompletedPayload(input: {
   state: ConsultationAgentLoopState;
   toolResults: ConsultationAgentToolResult[];
+  runtimeDesign?: ConsultationRuntimeDesign;
+  plannerMode?: ConsultationPlannerMode;
+  terminalReason?: string;
+  fallbackReason?: string | null;
 }) {
   return {
+    runtimeDesign: input.runtimeDesign ?? resolveRuntimeDesign(input.state.consultationAgent.plannerMode),
+    plannerMode: input.plannerMode ?? input.state.consultationAgent.plannerMode,
+    terminalReason: input.terminalReason ?? "assistant_final",
+    fallbackReason: input.fallbackReason ?? null,
     toolCount: input.toolResults.length,
     completedTools: input.toolResults
       .filter((result) => result.status === "completed")
@@ -115,4 +128,12 @@ export function buildLoopCompletedPayload(input: {
       latestExpertTurnNote: input.state.latestExpertTurnNote ?? null,
     },
   };
+}
+
+function resolveRuntimeDesign(
+  plannerMode: ConsultationPlannerMode,
+): ConsultationRuntimeDesign {
+  return plannerMode === "native_tool_calling"
+    ? "native_tool_calling_loop_v1"
+    : "bounded_business_tool_loop_v1";
 }

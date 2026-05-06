@@ -2,12 +2,17 @@ import { randomUUID } from "node:crypto";
 
 import { z } from "zod";
 
-import { getConsultationBusinessToolCatalog } from "@/server/api/consultation-runtime/tools";
+import {
+  buildConsultationToolArgs,
+  getConsultationBusinessToolCatalog,
+  isConsultationAgentToolKey,
+} from "@/server/api/consultation-runtime/tools";
 import type {
   ConsultationAgentLoopState,
   ConsultationAgentToolCall,
   ConsultationAgentToolKey,
   ConsultationAgentToolResult,
+  ConsultationPlannerMode,
   ConsultationPlannerTraceItem,
 } from "@/server/api/consultation-runtime/types";
 import { clipText, toStringArrayValue } from "@/server/api/consultation-runtime/utils";
@@ -49,7 +54,7 @@ export function planConsultationToolCalls(
     .map((toolName) => ({
       id: randomUUID(),
       toolName,
-      args: buildToolArgs(toolName, state),
+      args: buildConsultationToolArgs(toolName, state),
     }));
 }
 
@@ -57,10 +62,12 @@ export async function planNextConsultationToolCall(input: {
   state: ConsultationAgentLoopState;
   completedToolNames: ConsultationAgentToolKey[];
   toolResults: ConsultationAgentToolResult[];
+  plannerMode?: Exclude<ConsultationPlannerMode, "native_tool_calling">;
 }): Promise<ConsultationPlannerDecision> {
   const turn = input.toolResults.length + 1;
   const readyToolNames = getReadyToolNames(input.state, input.completedToolNames);
   const fallbackToolName = readyToolNames[0] ?? null;
+  const plannerMode = input.plannerMode ?? "model_json_planner";
 
   if (!fallbackToolName) {
     return {
@@ -75,12 +82,15 @@ export async function planNextConsultationToolCall(input: {
     };
   }
 
-  if (!getAiRuntimeApiKey()) {
+  if (plannerMode === "deterministic" || !getAiRuntimeApiKey()) {
     return buildFallbackPlannerDecision({
       state: input.state,
       turn,
       toolName: fallbackToolName,
-      reason: "AI runtime API key 未配置，使用确定性 planner。",
+      reason:
+        plannerMode === "deterministic"
+          ? "使用确定性 planner 兜底执行受控业务工具。"
+          : "AI runtime API key 未配置，使用确定性 planner。",
     });
   }
 
@@ -175,7 +185,7 @@ function buildFallbackPlannerDecision(input: {
     call: {
       id: randomUUID(),
       toolName: input.toolName,
-      args: buildToolArgs(input.toolName, input.state),
+      args: buildConsultationToolArgs(input.toolName, input.state),
     },
     trace: {
       turn: input.turn,
@@ -328,15 +338,7 @@ function parsePlannerDecision(value: string):
 }
 
 function parseToolKey(value: unknown): ConsultationAgentToolKey | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const toolName = value.trim();
-
-  return orderedTools.includes(toolName as ConsultationAgentToolKey)
-    ? (toolName as ConsultationAgentToolKey)
-    : null;
+  return isConsultationAgentToolKey(value) ? value : null;
 }
 
 function mergePlannerToolArgs(input: {
@@ -344,7 +346,7 @@ function mergePlannerToolArgs(input: {
   toolName: ConsultationAgentToolKey;
   plannerArgs: Record<string, unknown>;
 }) {
-  const baseArgs = buildToolArgs(input.toolName, input.state);
+  const baseArgs = buildConsultationToolArgs(input.toolName, input.state);
 
   if (input.toolName !== "retrieve_knowledge_base") {
     return baseArgs;
@@ -373,101 +375,6 @@ function mergePlannerToolArgs(input: {
   };
 }
 
-function buildToolArgs(
-  toolName: ConsultationAgentToolKey,
-  state: ConsultationAgentLoopState,
-): Record<string, unknown> {
-  if (toolName === "retrieve_knowledge_base") {
-    return {
-      query: buildKnowledgeQuery({
-        merchant: state.merchant,
-        userContent: state.userContent,
-        previousSnapshot: state.session.strategySnapshot,
-      }),
-      knowledgeDocumentIds: state.consultationAgent.container?.knowledgeDocumentIds ?? [],
-      topK: Math.max(
-        0,
-        Math.min(state.consultationAgent.retrievalTopK, state.knowledgeRuntime.retrievalTopK),
-      ),
-      contextPolicy: "controlled_context_chunks_only",
-    };
-  }
-
-  if (toolName === "read_history") {
-    return {
-      sessionId: state.session.id,
-      previousMessageCount: state.session.messages.length,
-      previousSummary: state.session.summaryText,
-    };
-  }
-
-  if (toolName === "search_benchmark_materials") {
-    const profileUrl = extractBenchmarkProfileUrl(state.userContent);
-    const platform = inferBenchmarkPlatform({
-      userContent: state.userContent,
-      profileUrl,
-    });
-    const keyword = buildBenchmarkKeyword({
-      userContent: state.userContent,
-      merchant: state.merchant,
-    });
-
-    return {
-      platform,
-      findMethod: profileUrl ? "profile" : "keyword",
-      keyword: profileUrl ? "" : keyword,
-      profileUrl: profileUrl ?? "",
-      count: 5,
-      cachePolicy: "provider_cache_first",
-    };
-  }
-
-  return {
-    merchantId: state.merchant.id,
-    round: state.nextRound,
-    stage: state.nextStage,
-  };
-}
-
-function extractBenchmarkProfileUrl(content: string) {
-  const match = content.match(/https?:\/\/[^\s，。)）]+/i);
-  const url = match?.[0]?.trim();
-
-  if (!url) {
-    return null;
-  }
-
-  return /xiaohongshu|xhslink|douyin|iesdouyin/i.test(url) ? url : null;
-}
-
-function inferBenchmarkPlatform(input: {
-  userContent: string;
-  profileUrl: string | null;
-}) {
-  const source = `${input.profileUrl ?? ""} ${input.userContent}`.toLowerCase();
-
-  return source.includes("douyin") || source.includes("抖音") || source.includes("iesdouyin")
-    ? "douyin"
-    : "xiaohongshu";
-}
-
-function buildBenchmarkKeyword(input: {
-  userContent: string;
-  merchant: ConsultationAgentLoopState["merchant"];
-}) {
-  const content = input.userContent
-    .replace(/^@[^\s@，,：:]+[\s，,：:]*/, "")
-    .replace(/https?:\/\/[^\s，。)）]+/gi, "")
-    .replace(/[，。！？、,.!?;；:：()[\]{}"'`]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const service = input.merchant.serviceItems[0] ?? "";
-  const industry = input.merchant.industry ?? "";
-  const candidate = content || [industry, service].filter(Boolean).join(" ");
-
-  return candidate.slice(0, 80) || "本地生活";
-}
-
 export function repairConsultationToolCall(
   call: ConsultationAgentToolCall,
   state: ConsultationAgentLoopState,
@@ -494,21 +401,4 @@ export function repairConsultationToolCall(
         .join(" "),
     },
   };
-}
-
-function buildKnowledgeQuery(input: {
-  merchant: ConsultationAgentLoopState["merchant"];
-  userContent: string;
-  previousSnapshot: ConsultationAgentLoopState["strategySnapshot"];
-}) {
-  return [
-    input.userContent,
-    input.merchant.industry ?? "",
-    input.merchant.serviceItems.join(" "),
-    input.previousSnapshot.positioning,
-    input.previousSnapshot.strategyTags.join(" "),
-    input.previousSnapshot.targetAudiences.join(" "),
-  ]
-    .filter(Boolean)
-    .join(" ");
 }

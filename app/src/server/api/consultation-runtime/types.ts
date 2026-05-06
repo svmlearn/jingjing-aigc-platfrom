@@ -19,6 +19,11 @@ import type { getPlatformSettings } from "@/lib/db/platform-admin-repository";
 
 export type ConsultationAgentToolKey = ConsultationAgentSettingsDto["enabledTools"][number];
 
+export type ConsultationPlannerMode =
+  | "deterministic"
+  | "model_json_planner"
+  | "native_tool_calling";
+
 export type ConsultationRuntimeSkill = Pick<
   AgentSkillDto,
   "id" | "skillKey" | "name" | "description" | "whenToUse" | "body" | "dependencies"
@@ -66,6 +71,7 @@ export type ConsultationAgentRuntimeSettings = ConsultationAgentSettingsDto & {
   soulPrompt: string | null;
   skillCatalog: ConsultationRuntimeSkill[];
   activeSkills: ConsultationRuntimeSkill[];
+  plannerMode: ConsultationPlannerMode;
 };
 
 export type ConsultationAgentToolCall = {
@@ -86,8 +92,13 @@ export type ConsultationAgentToolResult = {
 
 export type ConsultationPlannerTraceItem = {
   turn: number;
-  mode: "deterministic" | "model_tool_json" | "model_tool_json_fallback";
-  status: "planned" | "fallback" | "stopped";
+  mode:
+    | "deterministic"
+    | "model_tool_json"
+    | "model_tool_json_fallback"
+    | "native_tool_calling"
+    | "native_tool_calling_fallback";
+  status: "planned" | "fallback" | "stopped" | "rejected";
   toolName: ConsultationAgentToolKey | null;
   reason: string;
   error?: string | null;

@@ -19,6 +19,7 @@ import { toRuntimeSkill } from "@/server/api/consultation-runtime/skills";
 import { getConsultationBusinessToolCatalog } from "@/server/api/consultation-runtime/tools";
 import type {
   ConsultationAgentRuntimeSettings,
+  ConsultationPlannerMode,
   ConsultationAgentToolKey,
   ConsultationMentionRouting,
 } from "@/server/api/consultation-runtime/types";
@@ -39,6 +40,7 @@ export async function resolveConsultationAgentRuntime(input: {
   const fallback = input.fallback ?? (await getPlatformSettings()).consultationAgent;
   const fallbackRuntime: ConsultationAgentRuntimeSettings = {
     ...fallback,
+    plannerMode: "native_tool_calling",
     container: null,
     soulPrompt: null,
     skillCatalog: [],
@@ -162,12 +164,14 @@ export async function resolveConsultationAgentRuntime(input: {
 function resolveAgentRuntimeOverrides(input: {
   fallback: ConsultationAgentSettingsDto;
   agent: AgentConfigDto;
-}): ConsultationAgentSettingsDto {
+}): ConsultationAgentSettingsDto & { plannerMode: ConsultationPlannerMode } {
   const modelConfig = input.agent.modelConfig;
   const enabledTools = toAgentEnabledTools(modelConfig.enabledTools);
+  const plannerMode = toConsultationPlannerMode(modelConfig.plannerMode);
 
   return {
     ...input.fallback,
+    plannerMode: plannerMode ?? "native_tool_calling",
     enabledTools: enabledTools.length > 0 ? enabledTools : input.fallback.enabledTools,
     maxRounds:
       typeof modelConfig.maxRounds === "number"
@@ -186,6 +190,18 @@ function resolveAgentRuntimeOverrides(input: {
         ? Math.max(0, Math.min(modelConfig.temperature, 2))
         : input.fallback.temperature,
   };
+}
+
+function toConsultationPlannerMode(value: unknown): ConsultationPlannerMode | null {
+  if (
+    value === "deterministic" ||
+    value === "model_json_planner" ||
+    value === "native_tool_calling"
+  ) {
+    return value;
+  }
+
+  return null;
 }
 
 function toAgentEnabledTools(value: unknown): ConsultationAgentToolKey[] {

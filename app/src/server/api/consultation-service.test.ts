@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const serviceSource = readFileSync(new URL("./consultation-service.ts", import.meta.url), "utf8");
+const aiRuntimeSource = readFileSync(new URL("./ai-runtime.ts", import.meta.url), "utf8");
 const consultationRuntimeSource = [
   "context.ts",
   "events.ts",
@@ -166,16 +167,36 @@ test("consultation runtime exposes right panel assets through bounded business t
   assert.match(consultationServiceAndRuntimeSource, /strategySnapshot\.contentCalendarDraft/);
 });
 
-test("consultation planner uses model JSON decisions with deterministic fallback", () => {
+test("consultation planner supports native tool calling with deterministic fallback", () => {
+  assert.match(consultationServiceAndRuntimeSource, /plannerMode: "native_tool_calling"/);
+  assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_loop_v1/);
+  assert.match(consultationServiceAndRuntimeSource, /buildNativeToolCallingMessages/);
+  assert.match(consultationServiceAndRuntimeSource, /buildConsultationAiRuntimeTools/);
+  assert.match(consultationServiceAndRuntimeSource, /parseNativeConsultationToolCall/);
+  assert.match(consultationServiceAndRuntimeSource, /toolChoice: "auto"/);
+  assert.match(consultationServiceAndRuntimeSource, /agent\.tool\.requested/);
+  assert.match(consultationServiceAndRuntimeSource, /source: "model_tool_calls"/);
+  assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_fallback/);
+  assert.match(consultationServiceAndRuntimeSource, /fallback_deterministic/);
+  assert.match(consultationServiceAndRuntimeSource, /tool_arguments_validation_failed/);
   assert.match(consultationServiceAndRuntimeSource, /planNextConsultationToolCall/);
   assert.match(consultationServiceAndRuntimeSource, /responseFormat: "json_object"/);
   assert.match(consultationServiceAndRuntimeSource, /plannerDecisionSchema/);
-  assert.match(consultationServiceAndRuntimeSource, /model_tool_json_with_deterministic_fallback/);
+  assert.match(consultationServiceAndRuntimeSource, /model_json_planner/);
   assert.match(consultationServiceAndRuntimeSource, /getReadyToolNames/);
   assert.match(consultationServiceAndRuntimeSource, /getToolDependencies/);
   assert.match(consultationServiceAndRuntimeSource, /mergePlannerToolArgs/);
   assert.match(consultationServiceAndRuntimeSource, /模型 planner 选择了不可执行工具/);
   assert.match(consultationServiceAndRuntimeSource, /plannerTrace/);
+});
+
+test("AI runtime preserves native tool call/result pairs when trimming messages", () => {
+  assert.match(aiRuntimeSource, /selectMessagesForChatCompletion/);
+  assert.match(aiRuntimeSource, /assistant\.toolCalls/);
+  assert.match(aiRuntimeSource, /role: "tool"/);
+  assert.match(aiRuntimeSource, /tool_call_id/);
+  assert.match(aiRuntimeSource, /tool_calls: message\.toolCalls/);
+  assert.doesNotMatch(aiRuntimeSource, /messages: input\.messages\.slice\(0, 20\)/);
 });
 
 test("consultation runtime does not treat skipped strategy writes as completed dependencies", () => {

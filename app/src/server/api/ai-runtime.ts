@@ -129,7 +129,7 @@ export async function createChatCompletion(input: ChatCompletionInput): Promise<
   const model = input.model || input.runtime.primaryModel;
   const payload = {
     model,
-    messages: input.messages.slice(0, 20).map(toOpenAiMessage),
+    messages: selectMessagesForChatCompletion(input.messages).map(toOpenAiMessage),
     temperature: input.runtime.temperature,
     max_tokens: input.runtime.maxTokens,
     stream: false,
@@ -254,6 +254,59 @@ async function postOpenAiCompatible(input: {
   }
 
   return toRecord(body);
+}
+
+function selectMessagesForChatCompletion(messages: ChatMessage[], limit = 20): ChatMessage[] {
+  if (messages.length <= limit) {
+    return messages;
+  }
+
+  const systemMessages = messages.filter((message) => message.role === "system");
+  const nonSystemMessages = messages.filter((message) => message.role !== "system");
+  const budget = Math.max(1, limit - systemMessages.length);
+  const recentGroups: ChatMessage[][] = [];
+  let used = 0;
+
+  for (let index = nonSystemMessages.length - 1; index >= 0;) {
+    const group: ChatMessage[] = [];
+    const message = nonSystemMessages[index];
+
+    if (message?.role === "tool") {
+      while (index >= 0 && nonSystemMessages[index]?.role === "tool") {
+        group.unshift(nonSystemMessages[index] as ChatMessage);
+        index -= 1;
+      }
+
+      const assistant = nonSystemMessages[index];
+
+      if (assistant?.role === "assistant" && assistant.toolCalls?.length) {
+        group.unshift(assistant);
+        index -= 1;
+      }
+    } else if (message) {
+      group.unshift(message);
+      index -= 1;
+    } else {
+      index -= 1;
+    }
+
+    if (group.length === 0) {
+      continue;
+    }
+
+    if (used + group.length > budget && recentGroups.length > 0) {
+      break;
+    }
+
+    recentGroups.unshift(group);
+    used += group.length;
+
+    if (used >= budget) {
+      break;
+    }
+  }
+
+  return [...systemMessages, ...recentGroups.flat()];
 }
 
 function toRecord(value: unknown): Record<string, unknown> {
