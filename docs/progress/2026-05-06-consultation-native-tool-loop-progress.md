@@ -100,4 +100,5 @@ pnpm lint
   - Vercel metadata 对应 `main` 的 `1a17e126ffa665f460e026d11135587957381183`；由于根工作区存在本轮开始前的未关联脏文件，metadata 里 `gitDirty=1`，但部署执行目录为 `app/`。
 - 部署后 smoke：
   - 本机 `curl` 到 stable alias `/` 和 deployment URL `/login` 均在 20-30 秒内超时，未拿到 HTTP 响应。
-  - Vercel deployment 状态正常；建议后续用浏览器或异地网络补一次页面级 smoke。
+  - Vercel deployment 状态正常。
+  - 已通过 Vercel fetch 工具访问 stable alias `/login`，返回 `200 OK`，页面 HTML 正常。

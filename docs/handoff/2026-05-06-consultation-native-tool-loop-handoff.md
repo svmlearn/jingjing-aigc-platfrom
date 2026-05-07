@@ -75,3 +75,4 @@
 - Vercel API 返回 deployment `READY`，alias 已分配。
 - Vercel metadata 对应 `main` 的 `1a17e126ffa665f460e026d11135587957381183`；由于根工作区存在本轮开始前的未关联脏文件，Vercel metadata 里 `gitDirty=1`，但部署执行目录为 `app/`。
 - 本机 `curl` 到稳定 alias 和 deployment URL 在 20-30 秒内超时，未拿到 HTTP 响应；暂按 Vercel deployment 状态作为部署成功依据，后续建议用浏览器或异地网络补一次页面级 smoke。
+- 已通过 Vercel fetch 工具访问 `https://jingjing-content-platform-staging.vercel.app/login`，返回 `200 OK`，页面 HTML 正常。
