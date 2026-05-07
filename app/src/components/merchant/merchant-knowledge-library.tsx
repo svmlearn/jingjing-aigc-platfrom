@@ -81,12 +81,12 @@ export function MerchantKnowledgeLibrary() {
       const data = (await response.json()) as ApiDocumentResponse;
 
       if (!response.ok || !data.documents) {
-        throw new Error(data.error?.message ?? "商家知识库加载失败");
+        throw new Error(data.error?.message ?? "用户知识库加载失败");
       }
 
       setDocuments(data.documents);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "商家知识库加载失败");
+      setError(requestError instanceof Error ? requestError.message : "用户知识库加载失败");
     } finally {
       setLoading(false);
     }
@@ -129,9 +129,9 @@ export function MerchantKnowledgeLibrary() {
       setDocumentTitle("");
       setSelectedFile(null);
       setFileInputKey((current) => current + 1);
-      setNotice("商家资料已提交处理。");
+      setNotice("用户资料已提交处理。");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "商家资料上传失败");
+      setError(requestError instanceof Error ? requestError.message : "用户资料上传失败");
     } finally {
       setSubmitting(null);
     }
@@ -147,12 +147,12 @@ export function MerchantKnowledgeLibrary() {
     }
 
     if (!memoryText.trim()) {
-      setError("商家记忆正文不能为空。");
+      setError("用户记忆正文不能为空。");
       return;
     }
 
     if (memoryCharCount > 1000) {
-      setError("商家记忆正文不能超过 1000 个可见字符。");
+      setError("用户记忆正文不能超过 1000 个可见字符。");
       return;
     }
 
@@ -171,9 +171,9 @@ export function MerchantKnowledgeLibrary() {
       setDocuments((current) => [document, ...current.filter((item) => item.id !== document.id)]);
       setMemoryTitle("");
       setMemoryText("");
-      setNotice("商家记忆已提交处理。");
+      setNotice("用户记忆已提交处理。");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "商家记忆保存失败");
+      setError(requestError instanceof Error ? requestError.message : "用户记忆保存失败");
     } finally {
       setSubmitting(null);
     }
@@ -246,7 +246,7 @@ export function MerchantKnowledgeLibrary() {
   }
 
   async function deleteDocument(documentId: string) {
-    if (!window.confirm("确认删除这条商家知识库内容？")) {
+    if (!window.confirm("确认删除这条用户知识库内容？")) {
       return;
     }
 
@@ -317,7 +317,7 @@ export function MerchantKnowledgeLibrary() {
             <Brain className="h-4 w-4 text-cyan-300" />
             <div>
               <h2 className="text-sm font-medium text-white">记忆录入</h2>
-              <p className="mt-1 text-xs text-white/45">手动记录可编辑的商家记忆，最多 1000 个可见字符。</p>
+              <p className="mt-1 text-xs text-white/45">手动记录可编辑的用户记忆，最多 1000 个可见字符。</p>
             </div>
           </div>
           <div className="space-y-3">
@@ -373,7 +373,7 @@ export function MerchantKnowledgeLibrary() {
       <section className="rounded-2xl border border-white/10 bg-white/[0.03]">
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
-            <h2 className="text-sm font-medium text-white">商家知识库内容</h2>
+            <h2 className="text-sm font-medium text-white">用户知识库内容</h2>
             <p className="mt-1 text-xs text-white/40">只有“可用于咨询”的内容会进入咨询上下文。</p>
           </div>
           <button
@@ -390,10 +390,10 @@ export function MerchantKnowledgeLibrary() {
         </div>
 
         {loading ? (
-          <div className="px-5 py-10 text-center text-sm text-white/45">正在读取商家知识库...</div>
+          <div className="px-5 py-10 text-center text-sm text-white/45">正在读取用户知识库...</div>
         ) : documents.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-white/45">
-            还没有商家资料或商家记忆。
+            还没有用户资料或用户记忆。
           </div>
         ) : (
           <div className="divide-y divide-white/10">
@@ -538,7 +538,7 @@ function isMerchantMemory(document: KnowledgeDocumentWithStatsDto) {
 
 function getContentTypeLabel(document: KnowledgeDocumentWithStatsDto) {
   if (isMerchantMemory(document)) {
-    return "商家记忆";
+    return "用户记忆";
   }
 
   const sourceName = document.sourceName?.toLowerCase() ?? "";

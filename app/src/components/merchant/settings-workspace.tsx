@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpenText, Save, Settings, Store, Tag, Target, Users, Zap } from "lucide-react";
+import { BookOpenText, Save, Settings, Tag, Target, UserRound, Users, Zap } from "lucide-react";
 
 import type { MerchantProfileDto } from "@/contracts/merchant";
 import { cn } from "@/lib/utils";
 import { MerchantKnowledgeLibrary } from "@/components/merchant/merchant-knowledge-library";
 
 const tabs = [
-  { id: "basic", label: "基本属性信息", icon: Store },
-  { id: "brand", label: "品牌定位矩阵", icon: Tag },
-  { id: "products", label: "产品与服务体系", icon: Zap },
-  { id: "audience", label: "目标客群特征", icon: Users },
-  { id: "marketing", label: "营销转化目标", icon: Target },
-  { id: "knowledge", label: "商家知识库", icon: BookOpenText },
+  { id: "basic", label: "基本信息", icon: UserRound },
+  { id: "brand", label: "职业与定位", icon: Tag },
+  { id: "products", label: "可提供的价值", icon: Zap },
+  { id: "audience", label: "目标对象与场景", icon: Users },
+  { id: "marketing", label: "行动目标", icon: Target },
+  { id: "knowledge", label: "用户知识库", icon: BookOpenText },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -39,12 +39,12 @@ export function SettingsWorkspace() {
       };
 
       if (!response.ok || !data.merchantProfile) {
-        throw new Error(data.error?.message ?? "商家资料加载失败");
+        throw new Error(data.error?.message ?? "用户信息加载失败");
       }
 
       setProfile(data.merchantProfile);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "商家资料加载失败");
+      setError(requestError instanceof Error ? requestError.message : "用户信息加载失败");
     } finally {
       setLoading(false);
     }
@@ -67,9 +67,6 @@ export function SettingsWorkspace() {
         body: JSON.stringify({
           name: profile.name,
           industry: profile.industry,
-          contactName: profile.contactName,
-          contactPhone: profile.contactPhone,
-          address: profile.address,
           serviceItems: profile.serviceItems,
           brandSummary: profile.brandSummary,
           regionSummary: profile.regionSummary,
@@ -84,12 +81,12 @@ export function SettingsWorkspace() {
       };
 
       if (!response.ok || !data.merchantProfile) {
-        throw new Error(data.error?.message ?? "商家资料保存失败");
+        throw new Error(data.error?.message ?? "用户信息保存失败");
       }
 
       setProfile(data.merchantProfile);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "商家资料保存失败");
+      setError(requestError instanceof Error ? requestError.message : "用户信息保存失败");
     } finally {
       setSaving(false);
     }
@@ -103,7 +100,7 @@ export function SettingsWorkspace() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-white/40">
-        正在读取商家设置...
+        正在读取用户信息...
       </div>
     );
   }
@@ -112,8 +109,8 @@ export function SettingsWorkspace() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-16 items-center justify-between border-b border-white/10 px-8">
         <div>
-          <h1 className="text-xl tracking-tight [font-family:var(--font-cormorant)]">商家设置</h1>
-          <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">咨询、图文、视频共同上下文</p>
+          <h1 className="text-xl tracking-tight [font-family:var(--font-cormorant)]">用户信息</h1>
+          <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">咨询、图文、视频共同参考</p>
         </div>
         {activeTab === "knowledge" ? null : (
           <button
@@ -125,7 +122,7 @@ export function SettingsWorkspace() {
             className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-5 py-2 text-[10px] uppercase tracking-[0.25em] text-amber-500 disabled:opacity-60"
           >
             <Save className="h-3.5 w-3.5" />
-            {saving ? "保存中" : "保存设置"}
+            {saving ? "保存中" : "保存信息"}
           </button>
         )}
       </div>
@@ -163,47 +160,26 @@ export function SettingsWorkspace() {
             <div className="mx-auto max-w-3xl space-y-6">
               {activeTab === "basic" ? (
                 <>
-                  <Field label="店铺/商家名称">
+                  <Field label="昵称 / 展示名称">
                     <input
                       value={profile.name}
                       onChange={(event) => setProfile({ ...profile, name: event.target.value })}
                       className="w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none"
                     />
                   </Field>
-                  <Field label="所在城市及具体位置">
-                    <input
-                      value={profile.address ?? ""}
-                      onChange={(event) => setProfile({ ...profile, address: event.target.value })}
-                      className="w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none"
-                    />
-                  </Field>
-                  <Field label="联系人 / 电话">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <input
-                        value={profile.contactName ?? ""}
-                        onChange={(event) => setProfile({ ...profile, contactName: event.target.value })}
-                        className="w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none"
-                      />
-                      <input
-                        value={profile.contactPhone ?? ""}
-                        onChange={(event) => setProfile({ ...profile, contactPhone: event.target.value })}
-                        className="w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none"
-                      />
-                    </div>
-                  </Field>
                 </>
               ) : null}
 
               {activeTab === "brand" ? (
                 <>
-                  <Field label="行业分类">
+                  <Field label="职业 / 领域标签">
                     <input
                       value={profile.industry ?? ""}
                       onChange={(event) => setProfile({ ...profile, industry: event.target.value })}
                       className="w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none"
                     />
                   </Field>
-                  <Field label="品牌摘要">
+                  <Field label="个人介绍 / 背景摘要">
                     <textarea
                       value={profile.brandSummary ?? ""}
                       onChange={(event) => setProfile({ ...profile, brandSummary: event.target.value })}
@@ -211,7 +187,7 @@ export function SettingsWorkspace() {
                       className="w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none"
                     />
                   </Field>
-                  <Field label="品牌语气 / 人设风格">
+                  <Field label="表达风格 / 希望呈现的状态">
                     <textarea
                       value={profile.toneStyle ?? ""}
                       onChange={(event) => setProfile({ ...profile, toneStyle: event.target.value })}
@@ -223,7 +199,7 @@ export function SettingsWorkspace() {
               ) : null}
 
               {activeTab === "products" ? (
-                <Field label="产品与服务项（每行一项）">
+                <Field label="可提供的能力或服务（每行一项）">
                   <textarea
                     value={profile.serviceItems.join("\n")}
                     onChange={(event) =>
@@ -240,7 +216,7 @@ export function SettingsWorkspace() {
 
               {activeTab === "audience" ? (
                 <>
-                  <Field label="区域 / 场景摘要">
+                  <Field label="适用对象 / 使用场景">
                     <textarea
                       value={profile.regionSummary ?? ""}
                       onChange={(event) => setProfile({ ...profile, regionSummary: event.target.value })}
@@ -266,7 +242,7 @@ export function SettingsWorkspace() {
 
               {activeTab === "marketing" ? (
                 <>
-                  <Field label="默认 CTA（每行一项）">
+                  <Field label="希望引导对方做的下一步（每行一项）">
                     <textarea
                       value={profile.defaultCta.join("\n")}
                       onChange={(event) =>
@@ -282,7 +258,7 @@ export function SettingsWorkspace() {
                   <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                     <div className="flex items-center gap-3">
                       <Settings className="h-4 w-4 text-amber-500" />
-                      <p className="text-sm text-white/80">这里保存的资料会直接影响咨询、图文和视频三条链路的输出结果。</p>
+                      <p className="text-sm text-white/80">这里保存的信息会影响咨询、图文和视频三条链路的输出结果。</p>
                     </div>
                   </div>
                 </>

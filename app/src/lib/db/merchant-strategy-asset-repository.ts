@@ -149,11 +149,11 @@ export async function ensureMerchantStrategyAssetDocument(input: {
 
 export function buildStrategyAssetMarkdown(snapshot: StrategySnapshotDto): string {
   const sections = [
-    "# 商家策略资产",
+    "# 策略资产",
     markdownSection("当前定位", snapshot.positioning || "继续通过咨询补充。"),
-    markdownListSection("高价值用户洞察", snapshot.targetAudiences, "继续补充目标客群。"),
+    markdownListSection("目标对象洞察", snapshot.targetAudiences, "继续补充目标对象。"),
     markdownListSection("核心卖点", snapshot.coreSellingPoints, "继续补充核心卖点。"),
-    markdownListSection("核心场景", snapshot.keyScenes, "继续补充用户决策和到店场景。"),
+    markdownListSection("核心场景", snapshot.keyScenes, "继续补充用户决策和使用场景。"),
     markdownSection("小红书表达方向", buildXiaohongshuDirection(snapshot)),
     markdownSection("风控边界", "不编造价格、疗效、收益、资质、真实案例、活动承诺；不使用绝对化或功效承诺表达。"),
     markdownSection("当前建议", snapshot.currentSuggestion || "继续补充信息后同步咨询建议。"),

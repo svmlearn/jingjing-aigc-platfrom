@@ -20,7 +20,7 @@ const navItems = [
   { href: "/dashboard/video", label: "视频工作台", icon: Video },
   { href: "/dashboard/content", label: "素材中心", icon: Library },
   { href: "/dashboard/history", label: "我的内容", icon: FolderGit2 },
-  { href: "/dashboard/settings", label: "商家设置", icon: Settings },
+  { href: "/dashboard/settings", label: "用户信息", icon: Settings },
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -39,7 +39,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 AI 咨询工作台
               </p>
               <p className="text-[10px] uppercase tracking-[0.3em] text-white/35">
-                Merchant Demo
+                User Workspace
               </p>
             </div>
           </div>
@@ -78,10 +78,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs">
-                  商
+                  我
                 </div>
                 <div>
-                  <p className="text-sm">商家账号</p>
+                  <p className="text-sm">用户账号</p>
                   <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">Owner</p>
                 </div>
               </Link>

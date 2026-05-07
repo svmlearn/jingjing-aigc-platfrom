@@ -26,13 +26,13 @@ const consultationSkillOptions: Array<{
 }> = [
   {
     key: "read_merchant_profile",
-    label: "读取商家资料",
-    description: "把门店、服务、CTA、禁忌词纳入上下文。",
+    label: "读取用户信息",
+    description: "把用户背景、能力项、行动目标和禁忌词纳入上下文。",
   },
   {
     key: "retrieve_knowledge_base",
-    label: "检索平台方法论与商家上下文",
-    description: "按 knowledge runtime 召回平台方法论与当前商家的 indexed chunks。",
+    label: "检索平台方法论与用户知识库",
+    description: "按 knowledge runtime 召回平台方法论与当前用户的 indexed chunks。",
   },
   {
     key: "read_history",

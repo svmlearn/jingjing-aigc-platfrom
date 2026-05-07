@@ -763,7 +763,7 @@ export function ConsultationWorkspace() {
                     ? "这个旧圆桌会话已不再作为主入口，请新开普通咨询后用 @ 专家继续。"
                     : assistantPending
                       ? "AI 正在思考中..."
-                    : "告诉我你的业务目标、主力客群、成交异议或想优先拿下的场景..."
+                    : "告诉我你的背景、擅长能力、想服务的人或当前卡住的问题..."
                 }
                 className="max-h-36 min-h-[72px] flex-1 resize-y rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 disabled:cursor-not-allowed disabled:opacity-60"
               />
@@ -777,7 +777,7 @@ export function ConsultationWorkspace() {
             </form>
             {!isLegacyRoundtable ? (
               <div className="mx-auto mt-3 flex max-w-3xl flex-wrap gap-2">
-                {["我们在客流上有瓶颈", "我不太清楚怎么拍视频"].map((prompt) => (
+                {["我想先理清自己的定位", "我不太清楚怎么表达优势"].map((prompt) => (
                   <button
                     key={prompt}
                     type="button"
@@ -1012,7 +1012,7 @@ function normalizeMarkdownSection(section: { title: string; lines: string[] }) {
     .join("\n");
 
   return {
-    title: section.title.replace(/^商家策略资产$/, "当前资产"),
+    title: section.title.replace(/^商家策略资产$/, "当前资产").replace(/^策略资产$/, "当前资产"),
     body,
     items,
   };
@@ -1022,13 +1022,13 @@ function buildFallbackStrategyMarkdown(
   snapshot: ConsultationSessionDetailDto["strategySnapshot"] | null,
 ) {
   if (!snapshot) {
-    return "# 商家策略资产\n\n## 当前定位\n等待咨询中...";
+    return "# 策略资产\n\n## 当前定位\n等待咨询中...";
   }
 
   return [
-    "# 商家策略资产",
+    "# 策略资产",
     `## 当前定位\n${snapshot.positioning || "继续补充。"}`,
-    `## 高价值用户洞察\n${formatMarkdownList(snapshot.targetAudiences, "继续补充客群。")}`,
+    `## 目标对象洞察\n${formatMarkdownList(snapshot.targetAudiences, "继续补充目标对象。")}`,
     `## 核心卖点\n${formatMarkdownList(snapshot.coreSellingPoints, "继续补充卖点。")}`,
     `## 核心场景\n${formatMarkdownList(snapshot.keyScenes, "继续补充场景。")}`,
     `## 当前建议\n${snapshot.currentSuggestion || "继续补充信息后同步咨询建议。"}`,

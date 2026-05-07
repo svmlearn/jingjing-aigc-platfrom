@@ -147,7 +147,7 @@ export async function uploadKnowledgeDocumentForMerchant(input: {
     throw new ApiError(
       415,
       "MERCHANT_KNOWLEDGE_FILE_UNSUPPORTED",
-      "商家知识库上传仅支持 txt 或 md 文件。",
+      "用户知识库上传仅支持 txt 或 md 文件。",
     );
   }
 
@@ -172,7 +172,7 @@ export async function createMerchantMemoryForMerchant(input: {
   title?: string | null;
   textContent?: string | null;
 }): Promise<KnowledgeDocumentWithStatsDto> {
-  const title = prepareRequiredTitle(input.title, "商家记忆名称必填。");
+  const title = prepareRequiredTitle(input.title, "用户记忆名称必填。");
   const text = prepareMerchantMemoryText(input.textContent);
   const document = await createKnowledgeDocument({
     id: randomUUID(),
@@ -223,7 +223,7 @@ export async function updateKnowledgeDocumentForMerchant(input: {
     throw new ApiError(
       400,
       "MERCHANT_KNOWLEDGE_FILE_BODY_IMMUTABLE",
-      "文件型商家资料不支持在线修改正文，请删除后重新上传。",
+      "文件型用户资料不支持在线修改正文，请删除后重新上传。",
     );
   }
 
@@ -555,7 +555,7 @@ async function getMerchantOwnedKnowledgeDocument(input: {
     throw new ApiError(
       404,
       "MERCHANT_KNOWLEDGE_DOCUMENT_NOT_FOUND",
-      "商家知识库内容不存在或无权访问。",
+      "用户知识库内容不存在或无权访问。",
     );
   }
 
@@ -587,7 +587,7 @@ function prepareMerchantMemoryText(input: string | null | undefined) {
     throw new ApiError(
       400,
       "MERCHANT_MEMORY_TEXT_REQUIRED",
-      "商家记忆正文不能为空。",
+      "用户记忆正文不能为空。",
     );
   }
 
@@ -595,7 +595,7 @@ function prepareMerchantMemoryText(input: string | null | undefined) {
     throw new ApiError(
       400,
       "MERCHANT_MEMORY_TEXT_TOO_LONG",
-      `商家记忆正文不能超过 ${maxMerchantMemoryChars} 个可见字符。`,
+      `用户记忆正文不能超过 ${maxMerchantMemoryChars} 个可见字符。`,
     );
   }
 

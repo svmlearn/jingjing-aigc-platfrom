@@ -47,7 +47,7 @@ const consultationMessagesRouteSource = readFileSync(
   "utf8",
 );
 const consultationPromptSoulMigrationSource = readFileSync(
-  new URL("../../../supabase/migrations/202605070005_consultation_agent_prompt_debias_terms.sql", import.meta.url),
+  new URL("../../../supabase/migrations/202605070006_consultation_user_context_language.sql", import.meta.url),
   "utf8",
 );
 
@@ -224,21 +224,37 @@ test("consultation runtime does not treat skipped strategy writes as completed d
   );
 });
 
-test("consultation fallback replies hide internal tool keys and avoid false write claims", () => {
-  assert.match(serviceSource, /isLowInformationConsultationTurn/);
-  assert.match(serviceSource, /isConsultationProcessQuestion/);
-  assert.match(serviceSource, /真正的咨询应该先问实际情况/);
-  assert.match(serviceSource, /我先不改右侧策略资产/);
-  assert.match(serviceSource, /为了避免套模板/);
-  assert.match(serviceSource, /hasCompletedConsultationTool/);
-  assert.match(serviceSource, /strategyWriteCompleted/);
+test("consultation code fallback only reports runtime errors instead of drafting strategy", () => {
+  assert.match(serviceSource, /buildAssistantErrorReply/);
+  assert.match(serviceSource, /AI 咨询服务暂时出现问题/);
+  assert.match(serviceSource, /fallback_no_key/);
+  assert.match(serviceSource, /fallback_error/);
   assert.match(serviceSource, /getConsultationToolDisplayLabel/);
   assert.match(serviceSource, /label: getConsultationToolDisplayLabel\(result\.toolName\)/);
+  assert.doesNotMatch(serviceSource, /function buildAssistantReply\(/);
+  assert.doesNotMatch(serviceSource, /buildFallbackPositioning/);
+  assert.doesNotMatch(serviceSource, /buildFallbackCurrentSuggestion/);
+  assert.doesNotMatch(serviceSource, /fallbackDraft/);
+  assert.doesNotMatch(serviceSource, /真正的咨询应该先问实际情况/);
+  assert.doesNotMatch(serviceSource, /商家资料/);
+  assert.doesNotMatch(serviceSource, /商家上下文/);
+  assert.doesNotMatch(serviceSource, /到店咨询/);
+  assert.doesNotMatch(serviceSource, /到店转化主线/);
+  assert.doesNotMatch(serviceSource, /到店咨询、私信转化、账号人设种草/);
   assert.doesNotMatch(
     serviceSource,
     /toolResults: \(input\.toolResults \?\? \[\]\)\.map\(\(result\) => \(\{\n\s*tool: result\.toolName/,
   );
   assert.equal(serviceSource.includes('join(" / ")'), false);
+});
+
+test("consultation visible tool language uses user context, not merchant context", () => {
+  assert.match(consultationServiceAndRuntimeSource, /读取用户信息/);
+  assert.match(consultationServiceAndRuntimeSource, /检索平台方法论与用户知识库/);
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /读取商家资料/);
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /检索平台方法论与商家上下文/);
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /商家画像读取/);
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /到店咨询、私信转化、账号人设种草/);
 });
 
 test("consultation stage label follows completed tools instead of message count", () => {
@@ -289,11 +305,11 @@ test("empty merchant profiles do not seed local-service strategy assets", () => 
 });
 
 test("initial consultation agent prompt and soul keep empty profile facts unknown", () => {
-  assert.match(consultationPromptSoulMigrationSource, /初始咨询 Agent agent\.md v3/);
-  assert.match(consultationPromptSoulMigrationSource, /初始咨询 Agent soul\.md v2/);
+  assert.match(consultationPromptSoulMigrationSource, /初始咨询 Agent agent\.md v4/);
+  assert.match(consultationPromptSoulMigrationSource, /初始咨询 Agent soul\.md v3/);
   assert.match(consultationPromptSoulMigrationSource, /agent_prompt_versions/);
   assert.match(consultationPromptSoulMigrationSource, /agent_soul_versions/);
-  assert.match(consultationPromptSoulMigrationSource, /不要从商家名称、邮箱、账号名、空白资料、旧默认配置或平台业务推断行业/);
+  assert.match(consultationPromptSoulMigrationSource, /不要从用户名称、邮箱、账号名、空白资料、旧默认配置或平台业务推断行业/);
   assert.match(consultationPromptSoulMigrationSource, /区分“已确认事实 \/ 合理假设 \/ 待验证问题”/);
   assert.match(consultationPromptSoulMigrationSource, /一轮只问一个关键问题/);
   assert.doesNotMatch(consultationPromptSoulMigrationSource, /目标是帮助本地生活商家/);

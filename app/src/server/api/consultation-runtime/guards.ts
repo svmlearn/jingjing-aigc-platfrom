@@ -337,7 +337,6 @@ function hasBusinessAssetSignal(value: string) {
     "价格",
     "转化",
     "私信",
-    "到店",
     "视频",
     "图文",
     "小红书",

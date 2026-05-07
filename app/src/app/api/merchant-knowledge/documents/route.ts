@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       throw new ApiError(
         400,
         "MERCHANT_KNOWLEDGE_ACTION_INVALID",
-        "商家知识库操作类型无效。",
+        "用户知识库操作类型无效。",
       );
     }
 

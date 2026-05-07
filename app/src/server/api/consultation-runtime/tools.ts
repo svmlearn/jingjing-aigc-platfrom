@@ -46,7 +46,7 @@ const merchantRoundParameters = {
   properties: {
     merchantId: {
       type: "string",
-      description: "当前商家 ID。可省略，runtime 会以受控上下文补齐。",
+      description: "当前用户资料 ID。可省略，runtime 会以受控上下文补齐。",
     },
     round: {
       type: "number",
@@ -99,8 +99,8 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
   return [
     {
       key: "read_merchant_profile",
-      label: "读取商家资料",
-      purpose: "读取商家基础信息、服务项目、品牌语气和默认 CTA。",
+      label: "读取用户信息",
+      purpose: "读取用户基础信息、能力项、背景摘要、表达风格和希望引导的下一步。",
       writes: "只读上下文",
       parameters: {
         type: "object",
@@ -108,7 +108,7 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
         properties: {
           merchantId: {
             type: "string",
-            description: "当前商家 ID。可省略，runtime 会从受控上下文读取。",
+            description: "当前用户资料 ID。可省略，runtime 会从受控上下文读取。",
           },
         },
       },
@@ -128,8 +128,8 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
     },
     {
       key: "retrieve_knowledge_base",
-      label: "检索平台方法论与商家上下文",
-      purpose: "检索平台方法论、商家资料和可用于咨询的知识片段。",
+      label: "检索平台方法论与用户知识库",
+      purpose: "检索平台方法论、用户资料和可用于咨询的知识片段。",
       writes: "knowledgeMatches / 受控上下文",
       parameters: {
         type: "object",
@@ -561,7 +561,7 @@ function buildBenchmarkKeyword(input: {
   const industry = input.merchant.industry ?? "";
   const candidate = content || [industry, service].filter(Boolean).join(" ");
 
-  return candidate.slice(0, 80) || "本地生活";
+  return candidate.slice(0, 80) || "用户提供的方向";
 }
 
 function buildKnowledgeQuery(input: {

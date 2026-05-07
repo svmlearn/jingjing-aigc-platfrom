@@ -131,7 +131,6 @@ function extractSkillTriggerTokens(source: string) {
     "脚本",
     "转化",
     "私信",
-    "到店",
   ].filter((token) => normalized.includes(token));
 
   return uniqueStrings([...conceptTokens, ...phraseTokens]).slice(0, 32);
@@ -232,7 +231,7 @@ export function buildActiveSkillPrompt(skills: ConsultationRuntimeSkill[]) {
 
   return [
     "【本轮激活 Skill】",
-    "以下 Skill 正文只用于当前轮咨询判断。不得向商家暴露 Skill 名称、内部字段或配置来源。",
+    "以下 Skill 正文只用于当前轮咨询判断。不得向用户暴露 Skill 名称、内部字段或配置来源。",
     ...skills.map((skill) =>
       [
         `## ${skill.name}${skill.skillKey ? ` (${skill.skillKey})` : ""}`,
@@ -260,7 +259,7 @@ export function buildSkillReferencePrompt(skills: ConsultationRuntimeSkill[]) {
 
   return [
     "【本轮 Skill References】",
-    "以下是本轮激活 Skill 绑定的受控参考资料提示。不要向商家暴露 reference id、URL 或本地路径；需要方法论、案例、定义、判断标准时，优先调用 retrieve_knowledge_base，并把 query 聚焦在用户问题和 reference title 上。",
+    "以下是本轮激活 Skill 绑定的受控参考资料提示。不要向用户暴露 reference id、URL 或本地路径；需要方法论、案例、定义、判断标准时，优先调用 retrieve_knowledge_base，并把 query 聚焦在用户问题和 reference title 上。",
     listing,
   ].join("\n");
 }

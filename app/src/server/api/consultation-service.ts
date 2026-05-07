@@ -189,17 +189,17 @@ export async function createConsultationSessionForUser(input: {
   const session = await createConsultationSession({
     merchantId: merchant.id,
     title: input.title ?? `${merchant.name} 咨询诊断`,
-    currentStage: "商家画像读取",
+    currentStage: "用户信息读取",
     strategySnapshot: strategyAsset.strategySnapshot,
-    summaryText: `${merchant.name} 的首轮咨询会话已建立，等待补充客群与经营场景。`,
+    summaryText: `${merchant.name} 的首轮咨询会话已建立，等待补充个人背景、可提供价值与当前目标。`,
   });
 
   await createConsultationEvent({
     sessionId: session.id,
     eventType: "session.created",
-    stageLabel: "商家画像读取",
+    stageLabel: "用户信息读取",
     payload: {
-      merchantName: merchant.name,
+      userName: merchant.name,
       enabledTools: consultationAgent.enabledTools,
       agentContainer: consultationAgent.container
         ? {
@@ -217,15 +217,15 @@ export async function createConsultationSessionForUser(input: {
     sessionId: session.id,
     role: "assistant",
     content: buildGreetingMessage(merchant),
-    stageLabel: "商家画像读取",
+    stageLabel: "用户信息读取",
     toolCards: buildToolCards({
       merchant,
       settings: consultationAgent,
-      stageLabel: "商家画像读取",
+      stageLabel: "用户信息读取",
     }),
     visibleSummary: {
       positioning: strategyAsset.strategySnapshot.positioning,
-      nextAction: "先补充你的主力客群、核心服务和最想解决的获客问题。",
+      nextAction: "先补充你的个人背景、可提供的能力和当前最想解决的问题。",
     },
   });
 
@@ -1327,7 +1327,7 @@ async function dispatchConsultationTool(
       callId: call.id,
       toolName: call.toolName,
       status: "completed",
-      summary: `已读取 ${state.merchant.name} 的商家资料、服务项目与品牌上下文。`,
+      summary: `已读取 ${state.merchant.name} 的用户信息、已填写能力项与背景上下文。`,
       payload: {
         merchantId: state.merchant.id,
         serviceItems: state.merchant.serviceItems,
@@ -1353,8 +1353,8 @@ async function dispatchConsultationTool(
       status: matches.length > 0 ? "completed" : "skipped",
       summary:
         matches.length > 0
-          ? `检索平台方法论与商家上下文，命中 ${matches.length} 个受控片段。`
-          : "暂无 indexed 知识片段命中，使用商家基础资料与会话上下文兜底。",
+          ? `检索平台方法论与用户知识库，命中 ${matches.length} 个受控片段。`
+          : "暂无 indexed 知识片段命中，继续使用用户信息与会话上下文。",
       payload: {
         ...retrieval.payload,
         queryMode: call.args.contextPolicy,
@@ -1594,60 +1594,10 @@ function buildGreetingMessage(merchant: MerchantProfileDto) {
   const service = getMerchantServiceAnchor(merchant);
 
   if (service) {
-    return `你好，欢迎来到静境商家平台。我已经先读取了 ${merchant.name} 的基础资料。接下来我会帮你把「${service}」这条业务线梳理成更清晰的定位、卖点、目标客群和内容策略。先告诉我：你现在最想提升的是咨询转化、内容选题，还是账号的人设种草？`;
+    return `你好，欢迎来到静境咨询台。我已经先读取了 ${merchant.name} 的用户信息。接下来我会帮你把「${service}」这个方向梳理成更清晰的定位、可提供价值、目标对象和内容策略。先告诉我：你现在最想先看个人优势、服务切口，还是内容表达方向？`;
   }
 
-  return `你好，欢迎来到静境商家平台。我已经先读取了 ${merchant.name} 的基础资料。不过当前资料里还没有主营业务、服务项目和目标用户信息，我不会先替你假设行业。先告诉我：你是谁、主要做什么、现在最想解决获客、转化还是内容方向里的哪一个问题？`;
-}
-
-function buildAssistantReply(input: {
-  merchant: MerchantProfileDto;
-  round: number;
-  userContent: string;
-  sessionSummary?: string | null;
-  strategySnapshot: StrategySnapshotDto;
-  strategyMarkdown?: string | null;
-  knowledgeMatches: KnowledgeSearchMatchDto[];
-  toolResults?: ConsultationAgentToolResult[];
-}) {
-  const knowledgeHint = buildKnowledgeReplyHint(input.knowledgeMatches);
-  const loopHint = buildAgentLoopReplyHint(input.toolResults ?? []);
-  const strategyWriteCompleted = hasCompletedConsultationTool(
-    input.toolResults ?? [],
-    "update_strategy_snapshot",
-  );
-  const contentCalendarCompleted = hasCompletedConsultationTool(
-    input.toolResults ?? [],
-    "update_content_calendar",
-  );
-  const lowInformationTurn = isLowInformationConsultationTurn(input.userContent);
-  const processQuestion = isConsultationProcessQuestion(input.userContent);
-
-  if (processQuestion) {
-    return `你说得对，真正的咨询应该先问实际情况。${loopHint}${knowledgeHint}我先不改右侧策略资产，也不把现有模板当成结论。先从四个事实里选一个告诉我就行：你现在最想提升到店、私信还是账号人设？当前最想推的服务是哪一个？最近客户最常问或最犹豫的点是什么？你希望内容把用户引到什么动作？`;
-  }
-
-  if (lowInformationTurn) {
-    const service = input.merchant.serviceItems[0] ?? input.merchant.industry ?? "核心服务";
-    return `你现在还不确定方向也没关系。${loopHint}${knowledgeHint}我先不改右侧策略资产，建议先从三个入口里选一个：到店咨询、私信转化、账号人设种草。如果让我给默认建议，我会先围绕「${service}」做一条到店转化主线，再反推人设内容和场景种草。你更想先看哪一个方向？`;
-  }
-
-  if (!strategyWriteCompleted) {
-    return `我先不急着把策略沉淀成结论。${loopHint}${knowledgeHint}为了避免套模板，先确认一个最关键事实：你现在最想解决的是“没人咨询”“有人问但不成交”“内容不知道发什么”，还是“想把某个服务项目推起来”？你先回答一个点，我再把它写进右侧策略资产。`;
-  }
-
-  if (input.round === 1) {
-    return `收到，我已经把这轮目标收进右侧策略资产里。${loopHint}${knowledgeHint}现在看，${input.strategySnapshot.positioning}。下一步我想把人群和场景再钉牢一点: 你最优先想拿下的是哪一类人，她们通常会在什么场景下开始认真考虑你这项服务？`;
-  }
-
-  if (input.round === 2) {
-    return `这条信息很关键，我已经把它合并到右侧客群和内容场景里。${loopHint}${knowledgeHint}当前建议是：${input.strategySnapshot.currentSuggestion}。再补最后一个关键问题: 现阶段最容易卡成交的异议是什么，是价格、效果可信度、时间安排，还是门店距离与体验顾虑？`;
-  }
-
-  const calendarHint = contentCalendarCompleted
-    ? "右侧内容日历已经更新，你现在可以进入图文工作台生成笔记草稿，或者进入视频工作台生成脚本并继续推进视频任务。"
-    : "下一步先确认右侧策略资产，再生成内容日历和图文/视频任务会更稳。";
-  return `策略已经够落地了，我先帮你沉淀成可执行结论。${loopHint}${knowledgeHint}${input.strategySnapshot.currentSuggestion}。${calendarHint}`;
+  return `你好，欢迎来到静境咨询台。我已经先读取了 ${merchant.name} 的用户信息。不过当前信息里还没有你的职业背景、可提供能力和目标对象，我不会先替你假设行业。先告诉我：你是谁、主要擅长什么、现在最想先厘清个人优势、定位切口还是内容方向？`;
 }
 
 async function buildAssistantReplyWithModel(input: {
@@ -1669,7 +1619,6 @@ async function buildAssistantReplyWithModel(input: {
   model?: string;
   error?: string;
 }> {
-  const fallback = buildAssistantReply(input);
   const contextInjection = buildConsultationContextInjection({
     merchant: input.merchant,
     round: input.round,
@@ -1686,7 +1635,7 @@ async function buildAssistantReplyWithModel(input: {
 
   if (!getAiRuntimeApiKey()) {
     return {
-      content: fallback,
+      content: buildAssistantErrorReply("AI 咨询服务暂时不可用，当前环境没有配置可用的模型密钥。"),
       mode: "fallback_no_key",
     };
   }
@@ -1707,7 +1656,7 @@ async function buildAssistantReplyWithModel(input: {
             buildSkillReferencePrompt(input.consultationAgent.activeSkills),
             buildBusinessToolPrompt(input.consultationAgent.enabledTools),
             buildContextInjectionSystemPrompt(contextInjection),
-            "你只输出给商家的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
+        "你只输出给用户的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
             "必须基于已完成工具结果、策略快照和受控知识库片段回答；如果信息不足，提出一个最关键的追问。",
             "如果工具结果已经显示策略资产被编辑，要先确认已按用户要求写入；不要反过来劝用户保持旧结构，也不要把已执行的明确编辑再改成优先级追问。",
             "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshot 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
@@ -1739,7 +1688,6 @@ async function buildAssistantReplyWithModel(input: {
               summary: result.summary,
             })),
             skillDisclosure: buildSkillDisclosure(input.consultationAgent),
-            fallbackDraft: fallback,
           }),
         },
       ],
@@ -1751,33 +1699,29 @@ async function buildAssistantReplyWithModel(input: {
       model: response.model,
     };
   } catch (error) {
+    const errorMessage =
+      error instanceof AiRuntimeError
+        ? `${error.message}${error.status ? ` (${error.status})` : ""}`
+        : error instanceof Error
+          ? error.message
+          : "Unknown AI runtime error.";
+
     return {
-      content: fallback,
+      content: buildAssistantErrorReply(errorMessage),
       mode: "fallback_error",
-      error:
-        error instanceof AiRuntimeError
-          ? `${error.message}${error.status ? ` (${error.status})` : ""}`
-          : error instanceof Error
-            ? error.message
-            : "Unknown AI runtime error.",
+      error: errorMessage,
     };
   }
+}
+
+function buildAssistantErrorReply(detail: string) {
+  return `抱歉，AI 咨询服务暂时出现问题，这条回复没有成功生成。问题：${detail} 请稍后重试。`;
 }
 
 function buildNativeToolCallingMessages(input: {
   state: ConsultationAgentLoopState;
   toolResults: ConsultationAgentToolResult[];
 }): ChatMessage[] {
-  const fallbackDraft = buildAssistantReply({
-    merchant: input.state.merchant,
-    round: input.state.nextRound,
-    userContent: input.state.userContent,
-    sessionSummary: input.state.session.summaryText ?? null,
-    strategySnapshot: input.state.strategySnapshot,
-    strategyMarkdown: input.state.strategyMarkdown,
-    knowledgeMatches: input.state.knowledgeMatches,
-    toolResults: input.toolResults,
-  });
   const contextInjection = buildConsultationContextInjection({
     merchant: input.state.merchant,
     round: input.state.nextRound,
@@ -1805,13 +1749,13 @@ function buildNativeToolCallingMessages(input: {
         buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
         buildContextInjectionSystemPrompt(contextInjection),
         "你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。",
-        "你可以不调用工具，直接给商家中文自然语言回复。",
+        "你可以不调用工具，直接给用户中文自然语言回复。",
         "只有在用户明确要求沉淀、补充、写进右侧策略资产，或当前信息已经足够形成业务结论时，才调用 update_strategy_snapshot。",
         "轻问答、寒暄、流程追问、信息不足时，不要调用 update_strategy_snapshot；应该直接回答或追问一个关键事实。",
         "用户要求找对标、竞品、爆款、博主主页或提供小红书/抖音链接时，优先调用 search_benchmark_materials。",
-        "需要方法论、案例、商家资料依据时，调用 retrieve_knowledge_base；用户提到刚才、上次、前面时，调用 read_history。",
+        "需要方法论、案例、用户资料依据时，调用 retrieve_knowledge_base；用户提到刚才、上次、前面时，调用 read_history。",
         "工具返回 skipped 或 guardrail 拒写时，最终回复必须承认本轮未写入，不能声称已经更新。",
-        "最终可见回复只输出给商家的中文自然语言，不要输出内部工具名、JSON、Markdown 表格或 debug payload。",
+        "最终可见回复只输出给用户的中文自然语言，不要输出内部工具名、JSON、Markdown 表格或 debug payload。",
       ]
         .filter((item): item is string => Boolean(item))
         .join("\n"),
@@ -1841,7 +1785,6 @@ function buildNativeToolCallingMessages(input: {
           guardrail: result.payload.guardrail ?? null,
         })),
         skillDisclosure: buildSkillDisclosure(input.state.consultationAgent),
-        fallbackDraft,
       }),
     },
   ];
@@ -1863,13 +1806,13 @@ function buildToolCards(input: {
   const cards: Record<string, ConsultationToolCardDto> = {
     read_merchant_profile: {
       key: "read_merchant_profile",
-      label: "读取商家资料",
-      summary: `已读取 ${merchant.name} 的基础资料与服务信息。`,
+      label: "读取用户信息",
+      summary: `已读取 ${merchant.name} 的基础信息与已填写背景。`,
       status: "completed",
     },
     retrieve_knowledge_base: {
       key: "retrieve_knowledge_base",
-      label: "检索平台方法论与商家上下文",
+      label: "检索平台方法论与用户知识库",
       summary:
         knowledgeMatches.length > 0
           ? `已按受控上下文策略注入 ${knowledgeMatches.length} 个片段，来源：${matchedTitles.join("、")}。`
@@ -1963,19 +1906,21 @@ function buildStrategySnapshot(input: {
     fallback: [
       ...(input.previousSnapshot?.targetAudiences ?? []),
       ...extractKeywordMatches(mergedUserText, [
-        "白领女性",
-        "产后妈妈",
-        "附近居民",
-        "精致宝妈",
-        "健身人群",
-        "体态调整人群",
+        "创业者",
+        "企业团队",
+        "产品经理",
+        "职场人",
+        "转型人群",
+        "AI团队",
       ]),
-      ...extractKeywordMatches(knowledgeText, ["白领女性", "产后妈妈", "附近居民", "体态调整人群"]),
+      ...extractKeywordMatches(knowledgeText, ["创业者", "企业团队", "产品经理", "职场人", "转型人群", "AI团队"]),
       ...extractKeywordMatches(input.merchant.brandSummary ?? "", [
-        "白领女性",
-        "产后妈妈",
-        "附近居民",
-        "体态调整人群",
+        "创业者",
+        "企业团队",
+        "产品经理",
+        "职场人",
+        "转型人群",
+        "AI团队",
       ]),
     ],
     maxItems: strategyAssetListLimits.targetAudiences,
@@ -1987,10 +1932,10 @@ function buildStrategySnapshot(input: {
       ...input.merchant.serviceItems.slice(0, 3),
       ...extractKeywordMatches(knowledgeText, [
         "真实案例",
-        "专业评估",
-        "体验课",
-        "私教跟进",
-        "到店转化",
+        "产品判断",
+        "方案设计",
+        "方法论",
+        "实战经验",
         "信任建立",
       ]),
       input.merchant.brandSummary ?? "",
@@ -2003,15 +1948,14 @@ function buildStrategySnapshot(input: {
     fallback: [
       ...(input.previousSnapshot?.keyScenes ?? []),
       ...extractKeywordMatches(mergedUserText, [
-        "下班后恢复",
-        "产后恢复",
-        "周末探店",
-        "首次体验课",
-        "体态调整",
-        "减脂塑形",
-        "门店到访前决策",
+        "职业转型",
+        "产品设计",
+        "方案评审",
+        "需求拆解",
+        "AI落地",
+        "内容表达",
       ]),
-      ...extractKeywordMatches(knowledgeText, ["首次体验课", "门店到访前决策", "成交异议"]),
+      ...extractKeywordMatches(knowledgeText, ["职业转型", "产品设计", "方案评审", "需求拆解", "AI落地", "内容表达"]),
       input.merchant.regionSummary ?? "",
     ],
     maxItems: strategyAssetListLimits.keyScenes,
@@ -2026,15 +1970,12 @@ function buildStrategySnapshot(input: {
   const contentAnchor = serviceAnchor ?? sellingPoints[0] ?? "";
   const positioning =
     assetEdit?.positioning ??
-    buildFallbackPositioning({
-      merchantName: input.merchant.name,
-      serviceAnchor,
-      audience: audiences[0],
-      sellingPoint: sellingPoints[0],
-    });
+    input.previousSnapshot?.positioning ??
+    "";
   const currentSuggestion =
     assetEdit?.currentSuggestion ??
-    buildFallbackCurrentSuggestion(strategyTags);
+    input.previousSnapshot?.currentSuggestion ??
+    "";
 
   return {
     positioning,
@@ -2147,27 +2088,6 @@ function firstConcreteStrategyText(values?: string[] | null) {
 
 function firstCleanText(values: Array<string | null | undefined>) {
   return values.map((value) => value?.trim()).find((value): value is string => Boolean(value));
-}
-
-function buildFallbackPositioning(input: {
-  merchantName: string;
-  serviceAnchor?: string | null;
-  audience?: string | null;
-  sellingPoint?: string | null;
-}) {
-  const servicePart = input.serviceAnchor ? `围绕 ${input.serviceAnchor}` : "围绕已确认的核心业务";
-  const audiencePart = input.audience ? `服务 ${input.audience}` : "服务明确目标用户";
-  const sellingPart = input.sellingPoint ? `，内容上优先突出 ${input.sellingPoint}` : "";
-
-  return `${input.merchantName} ${servicePart} ${audiencePart}${sellingPart}。`;
-}
-
-function buildFallbackCurrentSuggestion(strategyTags: string[]) {
-  if (strategyTags.length >= 2) {
-    return `建议先用「${strategyTags[0]} + ${strategyTags[1]}」梳理 3 条信任建立内容，再把咨询动作落到明确的转化路径。`;
-  }
-
-  return "建议先补充主营业务、目标用户和当前转化目标，再沉淀内容策略。";
 }
 
 async function resolveStrategyAssetEditorPatch(input: {
@@ -2345,7 +2265,7 @@ function buildStrategyAssetEditorMessages(
         "如果用户要求追加、补充或把刚才提到的内容放进策略资产，你要基于 currentStrategySnapshot 合并，并结合 recentConversation 理解指代。",
         "如果用户说'这5个'、'这些'、'刚才你说的'，由你根据 recentConversation 判断具体条目；runtime 不会替你解析中文指代。",
         "固定字段只写干净业务内容，不要包含聊天口语、编辑动作、Markdown 标记、引号或额外解释；strategyMarkdown 可以包含 Markdown 标题和列表。",
-        "不要凭空补默认门店客群、到店人群或与当前商家不匹配的旧模板。",
+        "不要凭空补默认目标对象、经营场景或与当前用户不匹配的旧模板。",
         "如果用户只是追问、聊天或信息不足，strategyAsset 原样返回 currentStrategySnapshot，changedFields 传空数组。",
         "字段说明：positioning=我们是谁；targetAudiences=服务谁；keyScenes=核心场景；coreSellingPoints=核心卖点；currentSuggestion=当前建议；strategyMarkdown=完整策略资产文档。",
       ]
@@ -2474,7 +2394,7 @@ const strategyAssetEditorTool: AiRuntimeTool = {
         },
         changeSummary: {
           type: "string",
-          description: "本轮修改摘要，给 runtime 记录用，不展示给商家。",
+          description: "本轮修改摘要，给 runtime 记录用，不展示给用户。",
         },
       },
       required: ["changedFields", "strategyAsset"],
@@ -2666,34 +2586,6 @@ function uniqueFieldKeys(values: StrategyAssetFieldKey[]) {
   return result;
 }
 
-function buildKnowledgeReplyHint(matches: KnowledgeSearchMatchDto[]) {
-  if (matches.length === 0) {
-    return "";
-  }
-
-  const titles = uniqueStrings(matches.map((match) => match.documentTitle)).slice(0, 2);
-  return `我还参考了「${titles.join("、")}」里的平台方法论或商家上下文片段，先把它作为受控上下文合并进判断。`;
-}
-
-function buildAgentLoopReplyHint(toolResults: ConsultationAgentToolResult[]) {
-  const completedToolNames = toolResults
-    .filter((result) => result.status === "completed")
-    .map((result) => result.toolName);
-  const contextLabels = completedToolNames
-    .filter((toolName) =>
-      toolName === "read_merchant_profile" ||
-      toolName === "retrieve_knowledge_base" ||
-      toolName === "read_history",
-    )
-    .map((toolName) => getConsultationToolDisplayLabel(toolName));
-
-  if (contextLabels.length === 0) {
-    return "";
-  }
-
-  return `我先参考了${contextLabels.slice(0, 3).join("、")}。`;
-}
-
 function getConsultationToolDisplayLabel(
   toolName: ConsultationAgentToolResult["toolName"],
 ) {
@@ -2743,7 +2635,7 @@ function isLowInformationConsultationTurn(content: string) {
       normalized,
     );
   const hasConcreteStrategySignal =
-    /定位|客群|人群|卖点|价格|异议|效果|时间|距离|到店|私信|转化|门店|内容|小红书|抖音|套餐|课程|服务|项目|体验/.test(
+    /定位|客群|人群|对象|用户|价值|优势|天赋|闪光点|职业|案例|价格|异议|效果|时间|内容|小红书|抖音|课程|服务|项目|体验/.test(
       normalized,
     );
 
@@ -2783,7 +2675,7 @@ function buildContentCalendar(input: {
   strategyTags: string[];
   sellingPoints: string[];
 }): StrategySnapshotDto["contentCalendarDraft"] {
-  const tags = input.strategyTags.length > 0 ? input.strategyTags : ["专业人设", "场景种草", "到店转化"];
+  const tags = input.strategyTags.length > 0 ? input.strategyTags : ["专业表达", "案例拆解", "行动路径"];
   const sellingPoint = input.sellingPoints[0] || input.serviceAnchor;
 
   return [
@@ -2800,24 +2692,24 @@ function buildContentCalendar(input: {
       dayLabel: "周三",
       contentType: "video",
       strategyTag: tags[1] ?? tags[0],
-      title: `${input.merchantName} 门店一镜到底体验`,
-      summary: "展示门店环境、真实体验流程和用户会感知到的安全感。",
+      title: `${input.merchantName} 的真实案例拆解`,
+      summary: "展示一个具体问题从判断、拆解到方案形成的过程。",
     },
     {
       id: randomUUID(),
       dayLabel: "周五",
       contentType: "article",
       strategyTag: tags[2] ?? tags[0],
-      title: `${input.serviceAnchor} 到店前最常见的顾虑`,
-      summary: "正面回答价格、效果、时间安排等成交前异议。",
+      title: `${input.serviceAnchor} 最常见的决策顾虑`,
+      summary: "正面回答可信度、交付边界、时间成本等合作前疑问。",
     },
     {
       id: randomUUID(),
       dayLabel: "周日",
       contentType: "video",
       strategyTag: tags.at(-1) ?? tags[0],
-      title: "体验邀约短视频",
-      summary: "把咨询动作落到私信、预约或体验券领取上。",
+      title: "方法论短视频",
+      summary: "用一个清晰判断框架引导用户继续了解或发起沟通。",
     },
   ];
 }
