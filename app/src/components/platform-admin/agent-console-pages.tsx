@@ -302,6 +302,7 @@ type SkillFormState = {
   body: string;
   status: AgentAssetStatus;
   dependenciesText: string;
+  referencesText: string;
 };
 
 type SkillActionKey = "create" | "save" | "toggle";
@@ -335,6 +336,7 @@ function toSkillForm(skill: AgentSkillDto): SkillFormState {
     body: skill.body,
     status: skill.status,
     dependenciesText: skill.dependencies.join("\n"),
+    referencesText: stringifySkillReferences(skill.metadata),
   };
 }
 
@@ -347,6 +349,35 @@ function parseDependencies(value: string) {
         .filter(Boolean),
     ),
   );
+}
+
+function stringifySkillReferences(metadata: Record<string, unknown>) {
+  const references = Array.isArray(metadata.references) ? metadata.references : [];
+
+  return references.length > 0 ? JSON.stringify(references, null, 2) : "";
+}
+
+function mergeSkillReferencesMetadata(input: {
+  metadata: Record<string, unknown>;
+  referencesText: string;
+}) {
+  const nextMetadata = { ...input.metadata };
+  const trimmed = input.referencesText.trim();
+
+  if (!trimmed) {
+    delete nextMetadata.references;
+    return nextMetadata;
+  }
+
+  const parsed = JSON.parse(trimmed) as unknown;
+
+  if (!Array.isArray(parsed)) {
+    throw new Error("References 必须是 JSON array。");
+  }
+
+  nextMetadata.references = parsed;
+
+  return nextMetadata;
 }
 
 type SkillDependencyWarningDto = {
@@ -1960,7 +1991,8 @@ export function SkillManagementAdminPage({
       skillForm?.whenToUse !== selectedSkill?.whenToUse ||
       skillForm?.body !== selectedSkill?.body ||
       skillForm?.status !== selectedSkill?.status ||
-      skillForm?.dependenciesText !== selectedSkill?.dependencies.join("\n"));
+      skillForm?.dependenciesText !== selectedSkill?.dependencies.join("\n") ||
+      skillForm?.referencesText !== stringifySkillReferences(selectedSkill.metadata));
 
   const mountedAgentNames = useMemo(() => {
     if (!selectedSkill) {
@@ -2032,6 +2064,7 @@ export function SkillManagementAdminPage({
           body: "",
           status: "draft",
           dependencies: [],
+          metadata: {},
         }),
       });
       const data = await readAdminJson<{ skill: AgentSkillDto }>(
@@ -2055,6 +2088,18 @@ export function SkillManagementAdminPage({
       return;
     }
 
+    let metadata: Record<string, unknown>;
+
+    try {
+      metadata = mergeSkillReferencesMetadata({
+        metadata: selectedSkill.metadata,
+        referencesText: skillForm.referencesText,
+      });
+    } catch (error) {
+      setSkillActionError(error instanceof Error ? error.message : "References JSON 不合法。");
+      return;
+    }
+
     const payload = {
       name: skillForm.name.trim(),
       description: skillForm.description.trim(),
@@ -2062,6 +2107,7 @@ export function SkillManagementAdminPage({
       body: skillForm.body,
       status: skillForm.status,
       dependencies: parseDependencies(skillForm.dependenciesText),
+      metadata,
     };
 
     if (!payload.name) {
@@ -2297,6 +2343,21 @@ export function SkillManagementAdminPage({
                   value={skillForm?.dependenciesText ?? ""}
                   onChange={(event) => setSkillFormField("dependenciesText", event.target.value)}
                   disabled={skillAction !== null}
+                  className={cn(adminTextareaClassName, "font-mono text-xs")}
+                />
+              </AdminField>
+            </div>
+            <div className="md:col-span-2">
+              <AdminField
+                label="References（metadata.references）"
+                hint="JSON array。推荐绑定 knowledge_document / knowledge_set，并用 retrieve_when_active 或 retrieve_when_needed 控制检索时机。"
+              >
+                <textarea
+                  rows={6}
+                  value={skillForm?.referencesText ?? ""}
+                  onChange={(event) => setSkillFormField("referencesText", event.target.value)}
+                  disabled={skillAction !== null}
+                  placeholder={'[\n  {\n    "type": "knowledge_set",\n    "title": "DBS 商业诊断知识包",\n    "knowledgeSetId": "...",\n    "usage": "retrieve_when_needed"\n  }\n]'}
                   className={cn(adminTextareaClassName, "font-mono text-xs")}
                 />
               </AdminField>

@@ -79,6 +79,7 @@ import {
   buildSkillCatalogPrompt,
   buildSkillDependencyWarnings,
   buildSkillDisclosure,
+  buildSkillReferencePrompt,
   selectActiveConsultationSkills,
 } from "@/server/api/consultation-runtime/skills";
 import {
@@ -1701,6 +1702,7 @@ async function buildAssistantReplyWithModel(input: {
             buildExpertContainerPrompt(input.consultationAgent),
             buildSkillCatalogPrompt(input.consultationAgent),
             buildActiveSkillPrompt(input.consultationAgent.activeSkills),
+            buildSkillReferencePrompt(input.consultationAgent.activeSkills),
             buildBusinessToolPrompt(input.consultationAgent.enabledTools),
             buildContextInjectionSystemPrompt(contextInjection),
             "你只输出给商家的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
@@ -1797,6 +1799,7 @@ function buildNativeToolCallingMessages(input: {
         buildExpertContainerPrompt(input.state.consultationAgent),
         buildSkillCatalogPrompt(input.state.consultationAgent),
         buildActiveSkillPrompt(input.state.consultationAgent.activeSkills),
+        buildSkillReferencePrompt(input.state.consultationAgent.activeSkills),
         buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
         buildContextInjectionSystemPrompt(contextInjection),
         "你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。",

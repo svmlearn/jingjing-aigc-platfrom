@@ -65,6 +65,9 @@ test("skill management can create edit and toggle skills", () => {
   assert.match(agentConsolePageSource, /createSkill/);
   assert.match(agentConsolePageSource, /saveSkill/);
   assert.match(agentConsolePageSource, /toggleSkillStatus/);
+  assert.match(agentConsolePageSource, /metadata\.references/);
+  assert.match(agentConsolePageSource, /mergeSkillReferencesMetadata/);
+  assert.match(agentConsolePageSource, /References 必须是 JSON array/);
   assert.match(agentConsolePageSource, /\/api\/platform-admin\/skills/);
   assert.match(agentRoutesSource, /createAgentSkill/);
   assert.match(agentRoutesSource, /updateAgentSkill/);

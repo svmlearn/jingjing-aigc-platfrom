@@ -1,4 +1,9 @@
-import type { AgentSkillDto } from "@/contracts/agent-console";
+import type {
+  AgentSkillReferenceDto,
+  AgentSkillReferenceType,
+  AgentSkillReferenceUsage,
+  AgentSkillDto,
+} from "@/contracts/agent-console";
 import type {
   ConsultationAgentRuntimeSettings,
   ConsultationRuntimeSkill,
@@ -22,6 +27,7 @@ export function toRuntimeSkill(skill: AgentSkillDto): ConsultationRuntimeSkill {
     whenToUse: skill.whenToUse,
     body: skill.body,
     dependencies: skill.dependencies,
+    references: parseSkillReferences(skill.metadata),
   };
 }
 
@@ -190,6 +196,8 @@ function toSkillDisclosureItem(skill: ConsultationRuntimeSkill) {
     whenToUse: skill.whenToUse,
     score: skill.score,
     triggerReasons: skill.triggerReasons,
+    referenceCount: skill.references.length,
+    referenceTitles: skill.references.map((reference) => reference.title).slice(0, 8),
   };
 }
 
@@ -232,4 +240,154 @@ export function buildActiveSkillPrompt(skills: ConsultationRuntimeSkill[]) {
       ].join("\n"),
     ),
   ].join("\n\n");
+}
+
+export function buildSkillReferencePrompt(skills: ConsultationRuntimeSkill[]) {
+  const references = buildSkillReferenceHints(skills);
+
+  if (references.length === 0) {
+    return "";
+  }
+
+  const listing = references
+    .map((reference) =>
+      [
+        `- ${reference.skillName} -> ${reference.title}`,
+        `  Type: ${reference.type}; usage: ${reference.usage}`,
+      ].join("\n"),
+    )
+    .join("\n");
+
+  return [
+    "【本轮 Skill References】",
+    "以下是本轮激活 Skill 绑定的受控参考资料提示。不要向商家暴露 reference id、URL 或本地路径；需要方法论、案例、定义、判断标准时，优先调用 retrieve_knowledge_base，并把 query 聚焦在用户问题和 reference title 上。",
+    listing,
+  ].join("\n");
+}
+
+export function buildSkillReferencePlannerHints(skills: ConsultationRuntimeSkill[]) {
+  return buildSkillReferenceHints(skills).map((reference) => ({
+    skillName: reference.skillName,
+    title: reference.title,
+    type: reference.type,
+    usage: reference.usage,
+    documentId: reference.documentId ?? null,
+    knowledgeSetId: reference.knowledgeSetId ?? null,
+  }));
+}
+
+export function buildSkillReferenceQueryText(skills: ConsultationRuntimeSkill[]) {
+  return uniqueStrings(
+    buildSkillReferenceHints(skills).flatMap((reference) => [
+      reference.skillName,
+      reference.title,
+    ]),
+  )
+    .join(" ")
+    .slice(0, 360);
+}
+
+type SkillReferenceHint = AgentSkillReferenceDto & {
+  skillName: string;
+};
+
+function buildSkillReferenceHints(skills: ConsultationRuntimeSkill[]): SkillReferenceHint[] {
+  return skills
+    .flatMap((skill) =>
+      skill.references.map((reference) => ({
+        ...reference,
+        skillName: skill.name,
+      })),
+    )
+    .slice(0, 12);
+}
+
+function parseSkillReferences(metadata: Record<string, unknown>): AgentSkillReferenceDto[] {
+  const rawReferences = Array.isArray(metadata.references) ? metadata.references : [];
+
+  return rawReferences
+    .map(parseSkillReference)
+    .filter((reference): reference is AgentSkillReferenceDto => Boolean(reference))
+    .slice(0, 30);
+}
+
+function parseSkillReference(value: unknown): AgentSkillReferenceDto | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const title = readNonEmptyString(value.title) ?? readReferenceFallbackTitle(value);
+
+  if (!title) {
+    return null;
+  }
+
+  const type = readReferenceType(value.type, value);
+  const usage = readReferenceUsage(value.usage);
+  const documentId = readNonEmptyString(value.documentId) ?? readNonEmptyString(value.knowledgeDocumentId);
+  const knowledgeSetId = readNonEmptyString(value.knowledgeSetId);
+  const url = readNonEmptyString(value.url);
+  const path = readNonEmptyString(value.path);
+  const notes = readNonEmptyString(value.notes);
+
+  return {
+    type,
+    title,
+    usage,
+    ...(documentId ? { documentId } : {}),
+    ...(knowledgeSetId ? { knowledgeSetId } : {}),
+    ...(url ? { url } : {}),
+    ...(path ? { path } : {}),
+    ...(notes ? { notes } : {}),
+  };
+}
+
+function readReferenceType(value: unknown, reference: Record<string, unknown>): AgentSkillReferenceType {
+  if (
+    value === "knowledge_document" ||
+    value === "knowledge_set" ||
+    value === "url" ||
+    value === "local_path"
+  ) {
+    return value;
+  }
+
+  if (readNonEmptyString(reference.documentId) || readNonEmptyString(reference.knowledgeDocumentId)) {
+    return "knowledge_document";
+  }
+
+  if (readNonEmptyString(reference.knowledgeSetId)) {
+    return "knowledge_set";
+  }
+
+  if (readNonEmptyString(reference.url)) {
+    return "url";
+  }
+
+  return "local_path";
+}
+
+function readReferenceUsage(value: unknown): AgentSkillReferenceUsage {
+  return value === "retrieve_when_active" ||
+    value === "retrieve_when_needed" ||
+    value === "load_when_active"
+    ? value
+    : "retrieve_when_needed";
+}
+
+function readReferenceFallbackTitle(value: Record<string, unknown>) {
+  return (
+    readNonEmptyString(value.documentTitle) ??
+    readNonEmptyString(value.knowledgeSetTitle) ??
+    readNonEmptyString(value.url) ??
+    readNonEmptyString(value.path)
+  );
+}
+
+function readNonEmptyString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

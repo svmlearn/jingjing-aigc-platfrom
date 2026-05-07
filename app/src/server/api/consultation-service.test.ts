@@ -131,15 +131,19 @@ test("consultation runtime uses progressive skill disclosure", () => {
   assert.match(consultationServiceAndRuntimeSource, /mode: "progressive_disclosure"/);
   assert.match(consultationServiceAndRuntimeSource, /buildSkillCatalogPrompt/);
   assert.match(consultationServiceAndRuntimeSource, /buildActiveSkillPrompt/);
+  assert.match(consultationServiceAndRuntimeSource, /buildSkillReferencePrompt/);
   assert.match(consultationServiceAndRuntimeSource, /buildSkillDependencyWarnings/);
   assert.match(consultationServiceAndRuntimeSource, /skillDependencyWarnings/);
   assert.match(consultationServiceAndRuntimeSource, /候选 Skills：渐进式披露/);
   assert.match(consultationServiceAndRuntimeSource, /本轮激活 Skill/);
+  assert.match(consultationServiceAndRuntimeSource, /本轮 Skill References/);
   assert.match(consultationServiceAndRuntimeSource, /selectActiveConsultationSkills/);
   assert.match(consultationServiceAndRuntimeSource, /scoreConsultationSkills/);
   assert.match(consultationServiceAndRuntimeSource, /triggerReasons/);
   assert.match(consultationServiceAndRuntimeSource, /usageSignal/);
   assert.match(consultationServiceAndRuntimeSource, /normalizeSkillMatchText/);
+  assert.match(consultationServiceAndRuntimeSource, /metadata\.references/);
+  assert.match(consultationServiceAndRuntimeSource, /activeSkillReferences/);
 });
 
 test("consultation context records budget and session summary", () => {

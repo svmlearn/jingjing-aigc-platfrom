@@ -1,6 +1,7 @@
 import type {
   AgentConfigDto,
   AgentPromptVersionDto,
+  AgentSkillReferenceDto,
   AgentSkillDto,
   AgentSoulVersionDto,
 } from "@/contracts/agent-console";
@@ -28,6 +29,7 @@ export type ConsultationRuntimeSkill = Pick<
   AgentSkillDto,
   "id" | "skillKey" | "name" | "description" | "whenToUse" | "body" | "dependencies"
 > & {
+  references: AgentSkillReferenceDto[];
   score?: number;
   triggerReasons?: string[];
 };
@@ -60,9 +62,16 @@ export type ConsultationAgentContainerSnapshot = {
 
 export type ConsultationSkillDisclosure = {
   mode: "progressive_disclosure";
-  candidateSkills: Array<Pick<ConsultationRuntimeSkill, "id" | "skillKey" | "name" | "whenToUse">>;
+  candidateSkills: Array<
+    Pick<ConsultationRuntimeSkill, "id" | "skillKey" | "name" | "whenToUse"> & {
+      referenceCount: number;
+    }
+  >;
   activeSkills: Array<
-    Pick<ConsultationRuntimeSkill, "id" | "skillKey" | "name" | "whenToUse" | "score" | "triggerReasons">
+    Pick<ConsultationRuntimeSkill, "id" | "skillKey" | "name" | "whenToUse" | "score" | "triggerReasons"> & {
+      referenceCount: number;
+      referenceTitles: string[];
+    }
   >;
 };
 

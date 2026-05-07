@@ -9,6 +9,7 @@ import type {
   ConsultationAgentToolCall,
   ConsultationAgentToolKey,
 } from "@/server/api/consultation-runtime/types";
+import { buildSkillReferenceQueryText } from "@/server/api/consultation-runtime/skills";
 import {
   uniqueStrings,
 } from "@/server/api/consultation-runtime/utils";
@@ -422,6 +423,7 @@ export function buildConsultationToolArgs(
         merchant: state.merchant,
         userContent: state.userContent,
         previousSnapshot: state.session.strategySnapshot,
+        skillReferenceQuery: buildSkillReferenceQueryText(state.consultationAgent.activeSkills),
       }),
       knowledgeDocumentIds: state.consultationAgent.container?.knowledgeDocumentIds ?? [],
       topK: Math.max(
@@ -566,6 +568,7 @@ function buildKnowledgeQuery(input: {
   merchant: ConsultationAgentLoopState["merchant"];
   userContent: string;
   previousSnapshot: ConsultationAgentLoopState["strategySnapshot"];
+  skillReferenceQuery?: string;
 }) {
   return [
     input.userContent,
@@ -574,6 +577,7 @@ function buildKnowledgeQuery(input: {
     input.previousSnapshot.positioning,
     input.previousSnapshot.strategyTags.join(" "),
     input.previousSnapshot.targetAudiences.join(" "),
+    input.skillReferenceQuery ?? "",
   ]
     .filter(Boolean)
     .join(" ");

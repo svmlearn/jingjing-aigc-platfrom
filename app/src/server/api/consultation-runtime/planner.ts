@@ -7,6 +7,7 @@ import {
   getConsultationBusinessToolCatalog,
   isConsultationAgentToolKey,
 } from "@/server/api/consultation-runtime/tools";
+import { buildSkillReferencePlannerHints } from "@/server/api/consultation-runtime/skills";
 import type {
   ConsultationAgentLoopState,
   ConsultationAgentToolCall,
@@ -296,6 +297,7 @@ function buildPlannerMessages(input: {
           status: result.status,
           summary: result.summary,
         })),
+        activeSkillReferences: buildSkillReferencePlannerHints(input.state.consultationAgent.activeSkills),
         readyTools: toolCatalog,
         allowedToolNames: input.readyToolNames,
       }),
