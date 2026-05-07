@@ -46,6 +46,10 @@ const consultationMessagesRouteSource = readFileSync(
   new URL("../../app/api/consultation/sessions/[sessionId]/messages/route.ts", import.meta.url),
   "utf8",
 );
+const consultationPromptSoulMigrationSource = readFileSync(
+  new URL("../../../supabase/migrations/202605070005_consultation_agent_prompt_debias_terms.sql", import.meta.url),
+  "utf8",
+);
 
 test("consultation runtime resolves online agent prompt and skill bindings", () => {
   assert.match(consultationServiceAndRuntimeSource, /getConsultationDefaultRouteBinding/);
@@ -282,6 +286,22 @@ test("empty merchant profiles do not seed local-service strategy assets", () => 
   assert.match(platformAdminRepositorySource, /资料不足时必须先追问/);
   assert.match(platformAdminRepositorySource, /不要替商家假设行业/);
   assert.doesNotMatch(platformAdminRepositorySource, /目标是帮助本地生活商家/);
+});
+
+test("initial consultation agent prompt and soul keep empty profile facts unknown", () => {
+  assert.match(consultationPromptSoulMigrationSource, /初始咨询 Agent agent\.md v3/);
+  assert.match(consultationPromptSoulMigrationSource, /初始咨询 Agent soul\.md v2/);
+  assert.match(consultationPromptSoulMigrationSource, /agent_prompt_versions/);
+  assert.match(consultationPromptSoulMigrationSource, /agent_soul_versions/);
+  assert.match(consultationPromptSoulMigrationSource, /不要从商家名称、邮箱、账号名、空白资料、旧默认配置或平台业务推断行业/);
+  assert.match(consultationPromptSoulMigrationSource, /区分“已确认事实 \/ 合理假设 \/ 待验证问题”/);
+  assert.match(consultationPromptSoulMigrationSource, /一轮只问一个关键问题/);
+  assert.doesNotMatch(consultationPromptSoulMigrationSource, /目标是帮助本地生活商家/);
+  assert.doesNotMatch(consultationPromptSoulMigrationSource, /本地生活服务/);
+  assert.doesNotMatch(consultationPromptSoulMigrationSource, /高意向用户/);
+  assert.doesNotMatch(consultationPromptSoulMigrationSource, /到店/);
+  assert.doesNotMatch(consultationPromptSoulMigrationSource, /客流/);
+  assert.doesNotMatch(consultationPromptSoulMigrationSource, /围绕本地生活服务 提供更适合/);
 });
 
 test("strategy asset markdown is the extensible primary document", () => {
