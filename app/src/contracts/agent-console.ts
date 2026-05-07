@@ -91,6 +91,28 @@ export type AgentSkillDto = {
   updatedAt: string;
 };
 
+export type AgentSkillReferenceType =
+  | "knowledge_document"
+  | "knowledge_set"
+  | "url"
+  | "local_path";
+
+export type AgentSkillReferenceUsage =
+  | "retrieve_when_active"
+  | "retrieve_when_needed"
+  | "load_when_active";
+
+export type AgentSkillReferenceDto = {
+  type: AgentSkillReferenceType;
+  title: string;
+  usage: AgentSkillReferenceUsage;
+  documentId?: string;
+  knowledgeSetId?: string;
+  url?: string;
+  path?: string;
+  notes?: string;
+};
+
 export type AgentSkillBindingDto = {
   id: string;
   agentId: string;

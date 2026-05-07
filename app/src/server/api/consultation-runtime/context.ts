@@ -150,6 +150,7 @@ export function buildContextBudgetReport(input: {
     buildBudgetBucket("sessionSummary", input.sessionSummary ?? "", 1200),
     buildBudgetBucket("soul.md", input.consultationAgent.soulPrompt ?? "", 1600),
     buildBudgetBucket("activeSkillBodies", input.consultationAgent.activeSkills.map((skill) => skill.body), 4200),
+    buildBudgetBucket("activeSkillReferences", input.consultationAgent.activeSkills.map((skill) => skill.references), 1200),
     buildBudgetBucket("knowledgeMatches", input.knowledgeMatches.map((match) => match.content), 4200),
     buildBudgetBucket("toolResults", input.toolResults.map((result) => result.summary), 1600),
     buildBudgetBucket("sharedConsultationState", input.sharedConsultationState ?? null, 2400),
