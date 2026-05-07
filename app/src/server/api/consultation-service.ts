@@ -105,6 +105,7 @@ import {
   toStringArrayValue,
   uniqueStrings,
 } from "@/server/api/consultation-runtime/utils";
+import { emptyStrategySnapshot } from "@/lib/strategy-snapshot";
 import {
   AiRuntimeError,
   type AiRuntimeTool,
@@ -180,11 +181,7 @@ export async function createConsultationSessionForUser(input: {
 
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const { consultationAgent } = await resolveConsultationAgentRuntime();
-  const initialStrategySnapshot = buildStrategySnapshot({
-    merchant,
-    previousSnapshot: null,
-    userMessages: [],
-  });
+  const initialStrategySnapshot = buildInitialStrategySnapshot(merchant);
   const strategyAsset = await ensureMerchantStrategyAssetDocument({
     merchantId: merchant.id,
     fallback: initialStrategySnapshot,
@@ -1594,8 +1591,13 @@ function parseBenchmarkPlatform(value: unknown): "xiaohongshu" | "douyin" {
 }
 
 function buildGreetingMessage(merchant: MerchantProfileDto) {
-  const service = merchant.serviceItems[0] ?? merchant.industry ?? "本地服务";
-  return `你好，欢迎来到静境商家平台。我已经先读取了 ${merchant.name} 的基础资料。接下来我会帮你把「${service}」这条业务线梳理成更清晰的定位、卖点、目标客群和内容策略。先告诉我：你现在最想提升的是到店咨询、私信转化，还是账号的人设种草？`;
+  const service = getMerchantServiceAnchor(merchant);
+
+  if (service) {
+    return `你好，欢迎来到静境商家平台。我已经先读取了 ${merchant.name} 的基础资料。接下来我会帮你把「${service}」这条业务线梳理成更清晰的定位、卖点、目标客群和内容策略。先告诉我：你现在最想提升的是咨询转化、内容选题，还是账号的人设种草？`;
+  }
+
+  return `你好，欢迎来到静境商家平台。我已经先读取了 ${merchant.name} 的基础资料。不过当前资料里还没有主营业务、服务项目和目标用户信息，我不会先替你假设行业。先告诉我：你是谁、主要做什么、现在最想解决获客、转化还是内容方向里的哪一个问题？`;
 }
 
 function buildAssistantReply(input: {
@@ -1942,8 +1944,20 @@ function buildStrategySnapshot(input: {
   const mergedUserText = input.userMessages.join(" ");
   const knowledgeText = (input.knowledgeMatches ?? []).map((match) => match.content).join(" ");
   const assetEdit = input.assetEdit;
+  const merchantServiceAnchor = getMerchantServiceAnchor(input.merchant);
   const serviceAnchor =
-    input.merchant.serviceItems[0] ?? input.merchant.industry ?? "本地生活服务";
+    merchantServiceAnchor ??
+    firstConcreteStrategyText(assetEdit?.coreSellingPoints) ??
+    firstConcreteStrategyText(input.previousSnapshot?.coreSellingPoints);
+  const hasUsableSeed =
+    hasMerchantStrategySeedFacts(input.merchant) ||
+    hasStrategyAssetEditorFacts(assetEdit) ||
+    hasUsableStrategySnapshot(input.previousSnapshot);
+
+  if (!hasUsableSeed) {
+    return createEmptyStrategySnapshot();
+  }
+
   const audiences = mergeEditedStrategyList({
     edited: assetEdit?.targetAudiences,
     fallback: [
@@ -2003,18 +2017,24 @@ function buildStrategySnapshot(input: {
     maxItems: strategyAssetListLimits.keyScenes,
   });
   const strategyTags = uniqueStrings([
-    "专业人设",
-    "场景种草",
-    "到店转化",
+    sellingPoints.length > 0 || serviceAnchor ? "专业人设" : "",
+    keyScenes.length > 0 || serviceAnchor ? "场景种草" : "",
+    input.merchant.defaultCta.length > 0 || mergedUserText.includes("转化") ? "转化路径" : "",
     knowledgeText ? "知识库命中" : "",
     mergedUserText.includes("视频") ? "视频优先" : "",
   ]).slice(0, 4);
+  const contentAnchor = serviceAnchor ?? sellingPoints[0] ?? "";
   const positioning =
     assetEdit?.positioning ??
-    `${input.merchant.name} 围绕 ${serviceAnchor} 提供更适合 ${audiences[0] || "高意向用户"} 的本地化服务，内容上优先突出 ${sellingPoints[0] || serviceAnchor}。`;
+    buildFallbackPositioning({
+      merchantName: input.merchant.name,
+      serviceAnchor,
+      audience: audiences[0],
+      sellingPoint: sellingPoints[0],
+    });
   const currentSuggestion =
     assetEdit?.currentSuggestion ??
-    `建议先用「${strategyTags[0]} + ${strategyTags[1]}」做 3 条信任建立内容，再用 ${strategyTags.at(-1) ?? "到店转化"} 把咨询引到体验或到店动作。`;
+    buildFallbackCurrentSuggestion(strategyTags);
 
   return {
     positioning,
@@ -2023,23 +2043,131 @@ function buildStrategySnapshot(input: {
     keyScenes,
     currentSuggestion,
     strategyTags,
-    contentCalendarDraft: buildContentCalendar({
-      merchantName: input.merchant.name,
-      serviceAnchor,
-      strategyTags,
-      sellingPoints,
-    }),
-    articleBrief: {
-      workingTitle: `${serviceAnchor} 的 3 个高转化内容切口`,
-      angle: `围绕 ${sellingPoints[0] || serviceAnchor} 做专业干货 + 场景共鸣`,
-      callToAction: input.merchant.defaultCta[0] ?? "引导用户私信领取体验或咨询方案",
-    },
-    videoBrief: {
-      workingTitle: `${input.merchant.name} 门店场景视频脚本`,
-      hook: `先用 3 秒钩子把 ${audiences[0] || "高意向用户"} 的典型痛点说透`,
-      outcome: "输出一条能直接进入视频工作台的门店信任感脚本",
-    },
+    contentCalendarDraft: contentAnchor
+      ? buildContentCalendar({
+          merchantName: input.merchant.name,
+          serviceAnchor: contentAnchor,
+          strategyTags,
+          sellingPoints,
+        })
+      : [],
+    articleBrief: contentAnchor
+      ? {
+          workingTitle: `${contentAnchor} 的 3 个内容切口`,
+          angle: `围绕 ${sellingPoints[0] || contentAnchor} 做专业干货 + 场景共鸣`,
+          callToAction: input.merchant.defaultCta[0] ?? "引导用户私信咨询或预约下一步",
+        }
+      : null,
+    videoBrief: contentAnchor
+      ? {
+          workingTitle: `${input.merchant.name} 场景视频脚本`,
+          hook: `先用 3 秒钩子把 ${audiences[0] || "目标用户"} 的典型痛点说透`,
+          outcome: "输出一条能直接进入视频工作台的信任感脚本",
+        }
+      : null,
   };
+}
+
+function buildInitialStrategySnapshot(merchant: MerchantProfileDto): StrategySnapshotDto {
+  if (!hasMerchantStrategySeedFacts(merchant)) {
+    return createEmptyStrategySnapshot();
+  }
+
+  return buildStrategySnapshot({
+    merchant,
+    previousSnapshot: null,
+    userMessages: [],
+  });
+}
+
+function createEmptyStrategySnapshot(): StrategySnapshotDto {
+  return {
+    ...emptyStrategySnapshot,
+    coreSellingPoints: [],
+    targetAudiences: [],
+    keyScenes: [],
+    strategyTags: [],
+    contentCalendarDraft: [],
+    articleBrief: null,
+    videoBrief: null,
+  };
+}
+
+function getMerchantServiceAnchor(merchant: MerchantProfileDto) {
+  return firstCleanText([merchant.serviceItems[0], merchant.industry]);
+}
+
+function hasMerchantStrategySeedFacts(merchant: MerchantProfileDto) {
+  return Boolean(
+    getMerchantServiceAnchor(merchant) ||
+      firstCleanText([
+        merchant.brandSummary,
+        merchant.regionSummary,
+        merchant.toneStyle,
+        merchant.defaultCta[0],
+      ]),
+  );
+}
+
+function hasStrategyAssetEditorFacts(assetEdit?: StrategyAssetEditorPatch) {
+  if (!assetEdit) {
+    return false;
+  }
+
+  return Boolean(
+    firstCleanText([
+      assetEdit.positioning,
+      assetEdit.currentSuggestion,
+      ...(assetEdit.coreSellingPoints ?? []),
+      ...(assetEdit.targetAudiences ?? []),
+      ...(assetEdit.keyScenes ?? []),
+    ]),
+  );
+}
+
+function hasUsableStrategySnapshot(snapshot: StrategySnapshotDto | null) {
+  if (!snapshot) {
+    return false;
+  }
+
+  return Boolean(
+    firstCleanText([
+      snapshot.positioning,
+      snapshot.currentSuggestion,
+      ...(snapshot.coreSellingPoints ?? []),
+      ...(snapshot.targetAudiences ?? []),
+      ...(snapshot.keyScenes ?? []),
+    ]),
+  );
+}
+
+function firstConcreteStrategyText(values?: string[] | null) {
+  return firstCleanText(values ?? []);
+}
+
+function firstCleanText(values: Array<string | null | undefined>) {
+  return values.map((value) => value?.trim()).find((value): value is string => Boolean(value));
+}
+
+function buildFallbackPositioning(input: {
+  merchantName: string;
+  serviceAnchor?: string | null;
+  audience?: string | null;
+  sellingPoint?: string | null;
+}) {
+  const servicePart = input.serviceAnchor ? `围绕 ${input.serviceAnchor}` : "围绕已确认的核心业务";
+  const audiencePart = input.audience ? `服务 ${input.audience}` : "服务明确目标用户";
+  const sellingPart = input.sellingPoint ? `，内容上优先突出 ${input.sellingPoint}` : "";
+
+  return `${input.merchantName} ${servicePart} ${audiencePart}${sellingPart}。`;
+}
+
+function buildFallbackCurrentSuggestion(strategyTags: string[]) {
+  if (strategyTags.length >= 2) {
+    return `建议先用「${strategyTags[0]} + ${strategyTags[1]}」梳理 3 条信任建立内容，再把咨询动作落到明确的转化路径。`;
+  }
+
+  return "建议先补充主营业务、目标用户和当前转化目标，再沉淀内容策略。";
 }
 
 async function resolveStrategyAssetEditorPatch(input: {

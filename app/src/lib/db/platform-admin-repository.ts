@@ -124,7 +124,7 @@ const defaultMembershipPlans: MembershipPlanSettingsDto = {
 
 const defaultConsultationAgent: ConsultationAgentSettingsDto = {
   systemPrompt:
-    "你是静境商家平台里的 AI 商业顾问。目标是帮助本地生活商家快速沉淀定位、卖点、目标客群、关键场景、内容策略和一周内容日历，并把结论转成后续图文与视频创作输入。",
+    "你是静境商家平台里的 AI 商业顾问。目标是帮助当前商家或经营者快速澄清自己是谁、主营业务、卖点、目标客群、关键场景、内容策略和一周内容日历，并把已确认结论转成后续图文与视频创作输入。资料不足时必须先追问，不要替商家假设行业、门店类型或本地化服务。",
   enabledTools: [
     "read_merchant_profile",
     "retrieve_knowledge_base",

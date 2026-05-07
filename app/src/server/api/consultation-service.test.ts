@@ -34,6 +34,10 @@ const agentConsoleRepositorySource = readFileSync(
   new URL("../../lib/db/agent-console-repository.ts", import.meta.url),
   "utf8",
 );
+const platformAdminRepositorySource = readFileSync(
+  new URL("../../lib/db/platform-admin-repository.ts", import.meta.url),
+  "utf8",
+);
 const consultationWorkspaceSource = readFileSync(
   new URL("../../components/merchant/consultation-workspace.tsx", import.meta.url),
   "utf8",
@@ -264,6 +268,20 @@ test("strategy assets are merchant-level and stable across consultation sessions
   assert.match(serviceSource, /strategySnapshot: loopResult\.strategySnapshot/);
   assert.match(serviceSource, /strategyMarkdown: loopResult\.strategyMarkdown/);
   assert.doesNotMatch(serviceSource, /previousSnapshot: null,\n\s*userMessages: \[\],\n\s*\}\);\n\s*const session = await createConsultationSession/);
+});
+
+test("empty merchant profiles do not seed local-service strategy assets", () => {
+  assert.match(serviceSource, /buildInitialStrategySnapshot/);
+  assert.match(serviceSource, /hasMerchantStrategySeedFacts/);
+  assert.match(serviceSource, /createEmptyStrategySnapshot/);
+  assert.match(serviceSource, /我不会先替你假设行业/);
+  assert.doesNotMatch(serviceSource, /\?\? "本地服务"/);
+  assert.doesNotMatch(serviceSource, /\?\? "本地生活服务"/);
+  assert.doesNotMatch(serviceSource, /围绕 \$\{serviceAnchor\} 提供更适合/);
+  assert.match(platformAdminRepositorySource, /当前商家或经营者/);
+  assert.match(platformAdminRepositorySource, /资料不足时必须先追问/);
+  assert.match(platformAdminRepositorySource, /不要替商家假设行业/);
+  assert.doesNotMatch(platformAdminRepositorySource, /目标是帮助本地生活商家/);
 });
 
 test("strategy asset markdown is the extensible primary document", () => {
