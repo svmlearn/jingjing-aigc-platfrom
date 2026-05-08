@@ -92,7 +92,7 @@ export type ConsultationAgentToolCall = {
 
 export type ConsultationAgentToolResult = {
   callId: string;
-  toolName: ConsultationAgentToolKey | "unknown_tool";
+  toolName: ConsultationAgentToolKey | "unknown_tool" | "request_user_clarification";
   rawToolName?: string;
   status: ConsultationToolCardDto["status"];
   summary: string;

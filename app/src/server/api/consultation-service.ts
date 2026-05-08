@@ -2496,6 +2496,10 @@ function getConsultationToolDisplayLabel(
     return "工具校验失败";
   }
 
+  if (toolName === "request_user_clarification") {
+    return "需要用户补充";
+  }
+
   return (
     getConsultationBusinessToolCatalog().find((tool) => tool.key === toolName)?.label ??
     "咨询步骤"

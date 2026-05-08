@@ -318,6 +318,10 @@ function getConsultationContextToolLabel(
     return "工具校验失败";
   }
 
+  if (toolName === "request_user_clarification") {
+    return "需要用户补充";
+  }
+
   return (
     getConsultationBusinessToolCatalog().find((tool) => tool.key === toolName)?.label ??
     "咨询步骤"
@@ -562,7 +566,7 @@ function summarizeExpertChanges(toolResults: ConsultationAgentToolResult[]) {
   );
 }
 
-function extractOpenQuestions(content: string) {
+export function extractOpenQuestions(content: string) {
   const normalized = content.replace(/\s+/g, " ").trim();
   const questions = normalized
     .split(/(?<=[？?])/u)

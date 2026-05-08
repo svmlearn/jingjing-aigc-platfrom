@@ -108,6 +108,15 @@
 - 资料不足时不得写策略资产，不得造行业。
 - UI 可把追问和未满足前置条件展示为事实状态。
 
+2026-05-08 追加进度：
+
+- 已新增 runtime fact：`request_user_clarification`。它不是可执行 business tool，也不进入 Agent enabledTools。
+- 当 assistant 最终回复提出问题，且本轮没有完成策略/内容资产写入时，runtime 会把第一条追问记录为结构化 tool result。
+- 该结果进入 `toolResults`、tool cards、runtime snapshot、context boundary，并额外产生 `agent.clarification.requested` 事件。
+- 该结果 `status: "completed"` 表示“澄清请求已记录”，不是表示策略资产完成。
+- 已用 `hasCompletedAssetWriteTool` 阻断“已经写资产后又把追问记录为资料不足”的误判。
+- 该阶段只记录一个关键问题，不新增业务默认话术，不自动生成行业/客群/场景。
+
 ### Phase 5：Agent run 心跳与中断恢复
 
 目标：从“最后一条消息附带卡片”升级到可观察运行中心。
@@ -123,6 +132,7 @@
 - Phase 1：工具拒绝/参数校验失败事实化。
 - Phase 2：工具执行异常安全壳。
 - Phase 3：上下文边界与可回放快照第一版。
+- Phase 4：用户补充问题结构化第一版。
 
 不做：
 

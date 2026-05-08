@@ -21,6 +21,7 @@ import { buildSkillDependencyWarnings } from "@/server/api/consultation-runtime/
 import {
   buildContextBoundarySnapshot,
   buildLatestExpertTurnNote,
+  extractOpenQuestions,
 } from "@/server/api/consultation-runtime/context";
 import {
   buildConsultationToolArgs,
@@ -160,6 +161,20 @@ export async function runConsultationRuntime(input: RunConsultationRuntimeInput)
     assistantReply = await input.buildAssistantReply({
       state: input.state,
       toolResults,
+    });
+  }
+
+  const clarificationResult = buildClarificationRequestResult({
+    state: input.state,
+    toolResults,
+    assistantReply,
+  });
+
+  if (clarificationResult) {
+    toolResults.push(clarificationResult);
+    await input.emitEvent({
+      eventType: "agent.clarification.requested",
+      payload: buildClarificationRequestedPayload(clarificationResult),
     });
   }
 
@@ -718,6 +733,85 @@ function isKnownConsultationToolResult(
   result: ConsultationAgentToolResult,
 ): result is ConsultationAgentToolResult & { toolName: ConsultationAgentToolKey } {
   return isConsultationAgentToolKey(result.toolName);
+}
+
+function buildClarificationRequestResult(input: {
+  state: ConsultationAgentLoopState;
+  toolResults: ConsultationAgentToolResult[];
+  assistantReply: ConsultationRuntimeAssistantReply;
+}): ConsultationAgentToolResult | null {
+  if (input.assistantReply.mode !== "llm") {
+    return null;
+  }
+
+  if (hasCompletedAssetWriteTool(input.toolResults)) {
+    return null;
+  }
+
+  const openQuestions = extractOpenQuestions(input.assistantReply.content);
+  const question = openQuestions[0];
+
+  if (!question) {
+    return null;
+  }
+
+  const reasonCode = inferClarificationReasonCode(input.toolResults);
+
+  return {
+    callId: `clarification_${randomUUID()}`,
+    toolName: "request_user_clarification",
+    status: "completed",
+    summary: `本轮需要用户补充一个关键事实：${clipText(question, 160)}`,
+    payload: {
+      resultKind: "request_user_clarification",
+      reasonCode,
+      question,
+      openQuestions: [question],
+      detectedQuestionCount: openQuestions.length,
+      blocksAssetWrite: true,
+      source: "assistant_final_question",
+    },
+  };
+}
+
+function hasCompletedAssetWriteTool(toolResults: ConsultationAgentToolResult[]) {
+  return toolResults.some(
+    (result) =>
+      result.status === "completed" &&
+      (
+        result.toolName === "update_strategy_snapshot" ||
+        result.toolName === "update_content_calendar" ||
+        result.toolName === "generate_article_brief" ||
+        result.toolName === "generate_video_brief"
+      ),
+  );
+}
+
+function inferClarificationReasonCode(
+  toolResults: ConsultationAgentToolResult[],
+) {
+  if (toolResults.some((result) => result.status === "failed")) {
+    return "tool_failed_needs_clarification";
+  }
+
+  if (toolResults.some((result) => result.toolName === "retrieve_knowledge_base")) {
+    return "context_read_needs_user_confirmation";
+  }
+
+  if (toolResults.some((result) => result.status === "skipped")) {
+    return "insufficient_context_after_skipped_tools";
+  }
+
+  return "insufficient_user_context";
+}
+
+function buildClarificationRequestedPayload(result: ConsultationAgentToolResult) {
+  return {
+    callId: result.callId,
+    status: result.status,
+    summary: result.summary,
+    payload: result.payload,
+  };
 }
 
 function classifyToolRuntimeError(

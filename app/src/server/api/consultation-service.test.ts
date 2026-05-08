@@ -263,6 +263,18 @@ test("consultation runtime wraps tool execution exceptions as failed tool result
   );
 });
 
+test("consultation runtime records clarification requests as structured runtime facts", () => {
+  assert.match(consultationRuntimeSource, /buildClarificationRequestResult/);
+  assert.match(consultationRuntimeSource, /request_user_clarification/);
+  assert.match(consultationRuntimeSource, /agent\.clarification\.requested/);
+  assert.match(consultationRuntimeSource, /assistant_final_question/);
+  assert.match(consultationRuntimeSource, /blocksAssetWrite: true/);
+  assert.match(consultationRuntimeSource, /hasCompletedAssetWriteTool/);
+  assert.match(consultationRuntimeSource, /inferClarificationReasonCode/);
+  assert.match(consultationServiceAndRuntimeSource, /需要用户补充/);
+  assert.match(consultationRuntimeSource, /extractOpenQuestions/);
+});
+
 test("knowledge retrieval can directly surface indexed user documents", () => {
   assert.match(consultationRuntimeSource, /listMerchantKnowledgeDocumentMatches/);
   assert.match(consultationRuntimeSource, /listKnowledgeDocuments/);
