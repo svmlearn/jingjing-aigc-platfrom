@@ -129,7 +129,7 @@ test("expert container can scope knowledge and runtime tool policy", () => {
   assert.match(consultationServiceAndRuntimeSource, /listAgentKnowledgeSetBindings/);
   assert.match(consultationServiceAndRuntimeSource, /listKnowledgeSetDocuments/);
   assert.match(consultationServiceAndRuntimeSource, /knowledgeDocumentIds/);
-  assert.match(consultationServiceAndRuntimeSource, /documentIds: toStringArrayValue\(input\.knowledgeDocumentIds\)/);
+  assert.match(consultationServiceAndRuntimeSource, /documentIds: expertKnowledgeDocumentIds/);
   assert.match(consultationServiceAndRuntimeSource, /resolveAgentRuntimeOverrides/);
   assert.match(consultationServiceAndRuntimeSource, /modelConfig\.enabledTools/);
   assert.match(consultationServiceAndRuntimeSource, /modelConfig\.retrievalTopK/);
@@ -200,6 +200,25 @@ test("consultation planner supports native tool calling with deterministic fallb
   assert.match(consultationServiceAndRuntimeSource, /mergePlannerToolArgs/);
   assert.match(consultationServiceAndRuntimeSource, /模型 planner 选择了不可执行工具/);
   assert.match(consultationServiceAndRuntimeSource, /plannerTrace/);
+});
+
+test("consultation runtime requires knowledge retrieval for explicit user knowledge reads", () => {
+  assert.match(consultationRuntimeSource, /isExplicitKnowledgeBaseReadRequest/);
+  assert.match(consultationRuntimeSource, /getRequiredOpeningToolNames/);
+  assert.match(consultationRuntimeSource, /runRequiredNativeToolCall/);
+  assert.match(consultationRuntimeSource, /runtime_required_tool_contract/);
+  assert.match(consultationRuntimeSource, /用户明确要求读取用户知识库或已上传文件/);
+  assert.match(serviceSource, /必须先调用 retrieve_knowledge_base/);
+  assert.match(serviceSource, /不要声称无法直接查看用户知识库或上传文件/);
+  assert.doesNotMatch(serviceSource, /你可以不调用工具，直接给用户中文自然语言回复/);
+});
+
+test("knowledge retrieval can directly surface indexed user documents", () => {
+  assert.match(consultationRuntimeSource, /listMerchantKnowledgeDocumentMatches/);
+  assert.match(consultationRuntimeSource, /listKnowledgeDocuments/);
+  assert.match(consultationRuntimeSource, /listKnowledgeChunksByDocumentId/);
+  assert.match(consultationRuntimeSource, /merchantKnowledgeDocumentIds/);
+  assert.match(consultationRuntimeSource, /mergeKnowledgeMatches/);
 });
 
 test("AI runtime preserves native tool call/result pairs when trimming messages", () => {
@@ -280,11 +299,14 @@ test("consultation stage label follows completed tools instead of message count"
   assert.doesNotMatch(serviceSource, /nextRound === 2/);
 });
 
-test("consultation tool cards do not mark unexecuted writer tools as completed", () => {
-  assert.match(serviceSource, /本轮尚未写入策略资产/);
-  assert.match(serviceSource, /策略资产确认前，本轮不生成内容日历/);
-  assert.match(serviceSource, /策略资产确认前，本轮不生成图文任务草案/);
-  assert.match(serviceSource, /策略资产确认前，本轮不生成视频任务草案/);
+test("consultation tool cards only render real executed tool results", () => {
+  assert.match(serviceSource, /return \(input\.toolResults \?\? \[\]\)\.map/);
+  assert.match(serviceSource, /summary: result\.summary/);
+  assert.match(serviceSource, /status: result\.status/);
+  assert.doesNotMatch(serviceSource, /本轮尚未写入策略资产/);
+  assert.doesNotMatch(serviceSource, /策略资产确认前，本轮不生成内容日历/);
+  assert.doesNotMatch(serviceSource, /策略资产确认前，本轮不生成图文任务草案/);
+  assert.doesNotMatch(serviceSource, /策略资产确认前，本轮不生成视频任务草案/);
   assert.doesNotMatch(serviceSource, /summary: "已生成图文与视频混合的一周内容草案。",\n\s*status: "completed"/);
   assert.doesNotMatch(serviceSource, /summary: "已准备好图文工作台的默认选题与标题方向。",\n\s*status: "completed"/);
   assert.doesNotMatch(serviceSource, /summary: "已准备好视频钩子、脚本方向和保底输出目标。",\n\s*status: "completed"/);

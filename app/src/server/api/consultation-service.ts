@@ -1656,8 +1656,9 @@ async function buildAssistantReplyWithModel(input: {
             buildSkillReferencePrompt(input.consultationAgent.activeSkills),
             buildBusinessToolPrompt(input.consultationAgent.enabledTools),
             buildContextInjectionSystemPrompt(contextInjection),
-        "你只输出给用户的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
+            "你只输出给用户的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
             "必须基于已完成工具结果、策略快照和受控知识库片段回答；如果信息不足，提出一个最关键的追问。",
+            "当 knowledgeMatches 已包含用户知识库片段时，直接基于这些片段总结；不要声称无法直接查看用户知识库或上传文件。",
             "如果工具结果已经显示策略资产被编辑，要先确认已按用户要求写入；不要反过来劝用户保持旧结构，也不要把已执行的明确编辑再改成优先级追问。",
             "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshot 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
           ]
@@ -1749,7 +1750,8 @@ function buildNativeToolCallingMessages(input: {
         buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
         buildContextInjectionSystemPrompt(contextInjection),
         "你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。",
-        "你可以不调用工具，直接给用户中文自然语言回复。",
+        "用户明确要求读取、查看、分析用户知识库或已上传文件时，必须先调用 retrieve_knowledge_base；不要声称无法读取用户知识库。",
+        "只有寒暄、轻问答、流程说明或完全不需要受控上下文时，才可以不调用工具直接回复。",
         "只有在用户明确要求沉淀、补充、写进右侧策略资产，或当前信息已经足够形成业务结论时，才调用 update_strategy_snapshot。",
         "轻问答、寒暄、流程追问、信息不足时，不要调用 update_strategy_snapshot；应该直接回答或追问一个关键事实。",
         "用户要求找对标、竞品、爆款、博主主页或提供小红书/抖音链接时，优先调用 search_benchmark_materials。",
@@ -1797,84 +1799,12 @@ function buildToolCards(input: {
   knowledgeMatches?: KnowledgeSearchMatchDto[];
   toolResults?: ConsultationAgentToolResult[];
 }): ConsultationToolCardDto[] {
-  const { merchant, settings, stageLabel } = input;
-  const knowledgeMatches = input.knowledgeMatches ?? [];
-  const resultByTool = new Map(
-    (input.toolResults ?? []).map((result) => [result.toolName, result]),
-  );
-  const matchedTitles = uniqueStrings(knowledgeMatches.map((match) => match.documentTitle)).slice(0, 2);
-  const cards: Record<string, ConsultationToolCardDto> = {
-    read_merchant_profile: {
-      key: "read_merchant_profile",
-      label: "读取用户信息",
-      summary: `已读取 ${merchant.name} 的基础信息与已填写背景。`,
-      status: "completed",
-    },
-    retrieve_knowledge_base: {
-      key: "retrieve_knowledge_base",
-      label: "检索平台方法论与用户知识库",
-      summary:
-        knowledgeMatches.length > 0
-          ? `已按受控上下文策略注入 ${knowledgeMatches.length} 个片段，来源：${matchedTitles.join("、")}。`
-          : `按 Top ${settings.retrievalTopK} 规则检索，暂无 indexed 知识片段命中。`,
-      status: knowledgeMatches.length > 0 ? "completed" : "skipped",
-    },
-    update_strategy_snapshot: {
-      key: "update_strategy_snapshot",
-      label: "编辑策略资产",
-      summary: `本轮尚未写入策略资产，等待明确业务信息后再同步到「${stageLabel}」。`,
-      status: "skipped",
-    },
-    update_content_calendar: {
-      key: "update_content_calendar",
-      label: "更新内容日历",
-      summary: "策略资产确认前，本轮不生成内容日历。",
-      status: "skipped",
-    },
-    generate_article_brief: {
-      key: "generate_article_brief",
-      label: "生成图文任务草案",
-      summary: "策略资产确认前，本轮不生成图文任务草案。",
-      status: "skipped",
-    },
-    generate_video_brief: {
-      key: "generate_video_brief",
-      label: "生成视频任务草案",
-      summary: "策略资产确认前，本轮不生成视频任务草案。",
-      status: "skipped",
-    },
-    read_history: {
-      key: "read_history",
-      label: "读取历史内容",
-      summary: "本轮尚未读取历史内容。",
-      status: "skipped",
-    },
-    search_benchmark_materials: {
-      key: "search_benchmark_materials",
-      label: "检索对标素材",
-      summary: "本轮尚未检索外部对标素材。",
-      status: "skipped",
-    },
-  };
-
-  return settings.enabledTools
-    .map((tool) => {
-      const result = resultByTool.get(tool);
-      const fallback = cards[tool];
-
-      if (!fallback) {
-        return null;
-      }
-
-      return result
-        ? {
-            ...fallback,
-            summary: result.summary,
-            status: result.status,
-          }
-        : fallback;
-    })
-    .filter((card): card is ConsultationToolCardDto => card !== null);
+  return (input.toolResults ?? []).map((result) => ({
+    key: result.toolName,
+    label: getConsultationToolDisplayLabel(result.toolName),
+    summary: result.summary,
+    status: result.status,
+  }));
 }
 
 function buildStrategySnapshot(input: {

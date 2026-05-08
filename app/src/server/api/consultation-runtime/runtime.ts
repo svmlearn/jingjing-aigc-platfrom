@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   AiRuntimeError,
   createChatCompletion,
@@ -18,6 +20,7 @@ import {
 import { buildSkillDependencyWarnings } from "@/server/api/consultation-runtime/skills";
 import { buildLatestExpertTurnNote } from "@/server/api/consultation-runtime/context";
 import {
+  buildConsultationToolArgs,
   buildConsultationAiRuntimeTools,
   parseNativeConsultationToolCall,
 } from "@/server/api/consultation-runtime/tools";
@@ -30,7 +33,11 @@ import type {
   ConsultationPlannerTraceItem,
   ExpertTurnNote,
 } from "@/server/api/consultation-runtime/types";
-import { clipText, uniqueStrings } from "@/server/api/consultation-runtime/utils";
+import {
+  clipText,
+  isExplicitKnowledgeBaseReadRequest,
+  uniqueStrings,
+} from "@/server/api/consultation-runtime/utils";
 
 export type ConsultationRuntimeAssistantReply = {
   content: string;
@@ -266,6 +273,25 @@ async function runNativeToolCallingLoop(input: {
     state: input.input.state,
     toolResults: input.toolResults,
   });
+  const requiredOpeningToolNames = getRequiredOpeningToolNames(input.input.state);
+
+  for (const toolName of requiredOpeningToolNames) {
+    if (hasToolResult(input.toolResults, toolName)) {
+      continue;
+    }
+
+    await runRequiredNativeToolCall({
+      input: input.input,
+      toolResults: input.toolResults,
+      messages,
+      toolName,
+      reason:
+        toolName === "retrieve_knowledge_base"
+          ? "用户明确要求读取用户知识库或已上传文件，runtime 按工具契约先执行检索。"
+          : "runtime 按工具契约先执行必要工具。",
+    });
+  }
+
   let consecutiveSkippedToolTurns = 0;
 
   for (let turn = 1; turn <= nativeMaxToolTurns; turn += 1) {
@@ -424,12 +450,117 @@ async function runNativeToolCallingLoop(input: {
   }
 }
 
+async function runRequiredNativeToolCall(input: {
+  input: RunConsultationRuntimeInput;
+  toolResults: ConsultationAgentToolResult[];
+  messages: ChatMessage[];
+  toolName: ConsultationAgentToolKey;
+  reason: string;
+}) {
+  const toolCall: ConsultationAgentToolCall = {
+    id: `required_${randomUUID()}`,
+    toolName: input.toolName,
+    args: buildConsultationToolArgs(input.toolName, input.input.state),
+  };
+  const rawToolCall = {
+    id: toolCall.id,
+    type: "function" as const,
+    function: {
+      name: toolCall.toolName,
+      arguments: JSON.stringify(toolCall.args),
+    },
+  };
+
+  input.messages.push({
+    role: "assistant",
+    content: null,
+    toolCalls: [rawToolCall],
+  });
+
+  await input.input.emitEvent({
+    eventType: "agent.tool.requested",
+    payload: {
+      source: "runtime_required_tool_contract",
+      runtimeDesign: "native_tool_calling_loop_v1",
+      toolCallId: toolCall.id,
+      toolName: toolCall.toolName,
+      rawArgumentsPreview: clipText(rawToolCall.function.arguments, 600),
+    },
+  });
+
+  const planner: ConsultationPlannerTraceItem = {
+    turn: input.toolResults.length + 1,
+    mode: "native_tool_calling",
+    status: "planned",
+    toolName: toolCall.toolName,
+    reason: input.reason,
+  };
+  input.input.state.plannerTrace.push(planner);
+
+  const result = await input.input.dispatchTool(input.input.state, toolCall);
+  input.input.applyToolResultToState(input.input.state, result);
+  input.toolResults.push(result);
+
+  await emitCompletedToolEvents({
+    input: input.input,
+    toolCall,
+    result,
+    planner,
+  });
+
+  input.messages.push({
+    role: "tool",
+    toolCallId: toolCall.id,
+    content: buildNativeToolResultContent(result),
+  });
+}
+
 export function getPlannerCompletedToolNames(
   toolResults: ConsultationAgentToolResult[],
 ): ConsultationAgentToolCall["toolName"][] {
   return toolResults
     .filter((result) => result.toolName !== "update_strategy_snapshot" || result.status === "completed")
     .map((result) => result.toolName);
+}
+
+function getRequiredOpeningToolNames(
+  state: ConsultationAgentLoopState,
+): ConsultationAgentToolKey[] {
+  const enabledTools = new Set(state.consultationAgent.enabledTools);
+
+  return [
+    enabledTools.has("retrieve_knowledge_base") &&
+    shouldRequireKnowledgeBaseRead(state)
+      ? "retrieve_knowledge_base"
+      : null,
+  ].filter((toolName): toolName is ConsultationAgentToolKey => toolName !== null);
+}
+
+function shouldRequireKnowledgeBaseRead(state: ConsultationAgentLoopState) {
+  if (isExplicitKnowledgeBaseReadRequest(state.userContent)) {
+    return true;
+  }
+
+  const normalizedCurrent = state.userContent.replace(/\s+/g, "");
+
+  if (!/(工具.*读|读.*工具|可以读|能读|读不了|无法读|不能读)/.test(normalizedCurrent)) {
+    return false;
+  }
+
+  const recentUserText = state.session.messages
+    .filter((message) => message.role === "user")
+    .slice(-3)
+    .map((message) => message.content)
+    .join("\n");
+
+  return isExplicitKnowledgeBaseReadRequest(`${recentUserText}\n${state.userContent}`);
+}
+
+function hasToolResult(
+  toolResults: ConsultationAgentToolResult[],
+  toolName: ConsultationAgentToolKey,
+) {
+  return toolResults.some((result) => result.toolName === toolName);
 }
 
 function getNativeUnavailableToolNames(
