@@ -42,6 +42,14 @@ const consultationWorkspaceSource = readFileSync(
   new URL("../../components/merchant/consultation-workspace.tsx", import.meta.url),
   "utf8",
 );
+const consultationContractSource = readFileSync(
+  new URL("../../contracts/consultation.ts", import.meta.url),
+  "utf8",
+);
+const consultationRepositorySource = readFileSync(
+  new URL("../../lib/db/consultation-repository.ts", import.meta.url),
+  "utf8",
+);
 const consultationMessagesRouteSource = readFileSync(
   new URL("../../app/api/consultation/sessions/[sessionId]/messages/route.ts", import.meta.url),
   "utf8",
@@ -211,6 +219,18 @@ test("consultation runtime requires knowledge retrieval for explicit user knowle
   assert.match(serviceSource, /必须先调用 retrieve_knowledge_base/);
   assert.match(serviceSource, /不要声称无法直接查看用户知识库或上传文件/);
   assert.doesNotMatch(serviceSource, /你可以不调用工具，直接给用户中文自然语言回复/);
+});
+
+test("consultation runtime surfaces native tool call rejections as failed tool facts", () => {
+  assert.match(consultationRuntimeSource, /buildNativeRejectedToolResult/);
+  assert.match(consultationRuntimeSource, /native_tool_call_rejected/);
+  assert.match(consultationRuntimeSource, /input\.toolResults\.push\(failedResult\)/);
+  assert.match(consultationRuntimeSource, /emitRejectedNativeToolEvent/);
+  assert.match(consultationRuntimeSource, /failedTools/);
+  assert.match(consultationContractSource, /status: "completed" \| "skipped" \| "failed"/);
+  assert.match(consultationRepositorySource, /function toToolCardStatus/);
+  assert.match(consultationWorkspaceSource, /failedToolCardCount/);
+  assert.match(consultationWorkspaceSource, /getToolCardStatusLabel/);
 });
 
 test("knowledge retrieval can directly surface indexed user documents", () => {

@@ -8,7 +8,7 @@ export type ConsultationToolCardDto = {
   key: string;
   label: string;
   summary: string;
-  status: "completed" | "skipped";
+  status: "completed" | "skipped" | "failed";
 };
 
 export type ContentCalendarItemDto = {

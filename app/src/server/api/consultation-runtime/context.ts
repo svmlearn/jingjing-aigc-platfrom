@@ -178,6 +178,10 @@ function buildBudgetBucket(key: string, value: unknown, limit: number) {
 function getConsultationContextToolLabel(
   toolName: ConsultationAgentToolResult["toolName"],
 ) {
+  if (toolName === "unknown_tool") {
+    return "工具校验失败";
+  }
+
   return (
     getConsultationBusinessToolCatalog().find((tool) => tool.key === toolName)?.label ??
     "咨询步骤"

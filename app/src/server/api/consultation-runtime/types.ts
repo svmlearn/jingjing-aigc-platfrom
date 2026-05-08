@@ -92,7 +92,8 @@ export type ConsultationAgentToolCall = {
 
 export type ConsultationAgentToolResult = {
   callId: string;
-  toolName: ConsultationAgentToolKey;
+  toolName: ConsultationAgentToolKey | "unknown_tool";
+  rawToolName?: string;
   status: ConsultationToolCardDto["status"];
   summary: string;
   payload: Record<string, unknown>;

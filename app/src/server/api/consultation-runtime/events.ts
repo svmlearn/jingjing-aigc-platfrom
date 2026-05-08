@@ -118,6 +118,9 @@ export function buildLoopCompletedPayload(input: {
     skippedTools: input.toolResults
       .filter((result) => result.status === "skipped")
       .map((result) => result.toolName),
+    failedTools: input.toolResults
+      .filter((result) => result.status === "failed")
+      .map((result) => result.rawToolName ?? result.toolName),
     strategyTags: input.state.strategySnapshot.strategyTags,
     mentionRouting: input.state.mentionRouting,
     plannerTrace: input.state.plannerTrace,

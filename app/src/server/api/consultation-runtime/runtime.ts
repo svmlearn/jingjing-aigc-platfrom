@@ -22,6 +22,7 @@ import { buildLatestExpertTurnNote } from "@/server/api/consultation-runtime/con
 import {
   buildConsultationToolArgs,
   buildConsultationAiRuntimeTools,
+  isConsultationAgentToolKey,
   parseNativeConsultationToolCall,
 } from "@/server/api/consultation-runtime/tools";
 import type {
@@ -360,18 +361,28 @@ async function runNativeToolCallingLoop(input: {
       const parsed = parseNativeConsultationToolCall(rawToolCall, input.input.state);
 
       if (!parsed.ok) {
-        input.input.state.plannerTrace.push({
+        const planner: ConsultationPlannerTraceItem = {
           turn,
           mode: "native_tool_calling",
           status: "rejected",
-          toolName: null,
+          toolName: isConsultationAgentToolKey(parsed.rawToolName) ? parsed.rawToolName : null,
           reason: parsed.error,
           error: parsed.rawToolName,
+        };
+        input.input.state.plannerTrace.push(planner);
+        const failedResult = buildNativeRejectedToolResult(parsed);
+        input.toolResults.push(failedResult);
+
+        await emitRejectedNativeToolEvent({
+          input: input.input,
+          result: failedResult,
+          planner,
         });
+
         messages.push({
           role: "tool",
           toolCallId: parsed.toolCallId,
-          content: buildNativeToolErrorContent(parsed.error),
+          content: buildNativeToolResultContent(failedResult),
         });
         continue;
       }
@@ -519,6 +530,7 @@ export function getPlannerCompletedToolNames(
   toolResults: ConsultationAgentToolResult[],
 ): ConsultationAgentToolCall["toolName"][] {
   return toolResults
+    .filter(isKnownConsultationToolResult)
     .filter((result) => result.toolName !== "update_strategy_snapshot" || result.status === "completed")
     .map((result) => result.toolName);
 }
@@ -567,7 +579,11 @@ function getNativeUnavailableToolNames(
   toolResults: ConsultationAgentToolResult[],
 ): ConsultationAgentToolKey[] {
   return Array.from(
-    new Set<ConsultationAgentToolKey>(toolResults.map((result) => result.toolName)),
+    new Set<ConsultationAgentToolKey>(
+      toolResults
+        .filter(isKnownConsultationToolResult)
+        .map((result) => result.toolName),
+    ),
   );
 }
 
@@ -596,6 +612,54 @@ async function emitCompletedToolEvents(input: {
       payload: buildKnowledgeRetrievedPayload(input.result),
     });
   }
+}
+
+function buildNativeRejectedToolResult(input: {
+  toolCallId: string;
+  rawToolName: string;
+  error: string;
+}): ConsultationAgentToolResult {
+  return {
+    callId: input.toolCallId,
+    toolName: isConsultationAgentToolKey(input.rawToolName)
+      ? input.rawToolName
+      : "unknown_tool",
+    rawToolName: input.rawToolName,
+    status: "failed",
+    summary: `工具调用未通过运行时校验：${input.error}`,
+    payload: {
+      errorType: "native_tool_call_rejected",
+      error: input.error,
+      rawToolName: input.rawToolName,
+      retryInstruction:
+        "请只从当前 tools 列表中选择工具，并按 JSON Schema 重新提供 arguments；如果不需要工具，请直接自然语言回复。",
+    },
+  };
+}
+
+async function emitRejectedNativeToolEvent(input: {
+  input: RunConsultationRuntimeInput;
+  result: ConsultationAgentToolResult;
+  planner: ConsultationPlannerTraceItem;
+}) {
+  await input.input.emitEvent({
+    eventType: "agent.tool.completed",
+    payload: {
+      callId: input.result.callId,
+      toolName: input.result.rawToolName ?? input.result.toolName,
+      repaired: false,
+      planner: input.planner,
+      status: input.result.status,
+      summary: input.result.summary,
+      payload: input.result.payload,
+    },
+  });
+}
+
+function isKnownConsultationToolResult(
+  result: ConsultationAgentToolResult,
+): result is ConsultationAgentToolResult & { toolName: ConsultationAgentToolKey } {
+  return isConsultationAgentToolKey(result.toolName);
 }
 
 export function buildConsultationRuntimeSnapshotRecord(input: {
@@ -672,6 +736,7 @@ export function buildConsultationRuntimeSnapshotRecord(input: {
       contextBudget: state.contextBudget ?? null,
       toolResults: toolResults.map((result) => ({
         toolName: result.toolName,
+        rawToolName: result.rawToolName ?? null,
         status: result.status,
         summary: result.summary,
         guardrail: result.payload.guardrail ?? null,
@@ -682,6 +747,9 @@ export function buildConsultationRuntimeSnapshotRecord(input: {
       skippedTools: toolResults
         .filter((result) => result.status === "skipped")
         .map((result) => result.toolName),
+      failedTools: toolResults
+        .filter((result) => result.status === "failed")
+        .map((result) => result.rawToolName ?? result.toolName),
       strategyWriteCount: toolResults.filter(
         (result) => result.toolName === "update_strategy_snapshot" && result.status === "completed",
       ).length,
@@ -711,20 +779,10 @@ function buildNativeToolResultContent(result: ConsultationAgentToolResult) {
   return JSON.stringify({
     ok: result.status === "completed",
     toolName: result.toolName,
+    rawToolName: result.rawToolName ?? null,
     status: result.status,
     summary: result.summary,
     payload: result.payload,
-  });
-}
-
-function buildNativeToolErrorContent(error: string) {
-  return JSON.stringify({
-    ok: false,
-    status: "skipped",
-    errorType: "tool_arguments_validation_failed",
-    error,
-    retryInstruction:
-      "请只从当前 tools 列表中选择工具，并按 JSON Schema 重新提供 arguments；如果不需要工具，请直接自然语言回复。",
   });
 }
 

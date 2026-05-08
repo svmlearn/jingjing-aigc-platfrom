@@ -515,10 +515,20 @@ function toToolCards(value: unknown): ConsultationToolCardDto[] {
         key: getString(record.key),
         label: getString(record.label),
         summary: getString(record.summary),
-        status: getString(record.status) === "skipped" ? "skipped" : "completed",
+        status: toToolCardStatus(record.status),
       } as ConsultationToolCardDto;
     })
     .filter((card) => card.key.length > 0 && card.label.length > 0);
+}
+
+function toToolCardStatus(value: unknown): ConsultationToolCardDto["status"] {
+  const status = getString(value);
+
+  if (status === "skipped" || status === "failed") {
+    return status;
+  }
+
+  return "completed";
 }
 
 function toRecord(value: unknown): Record<string, unknown> {

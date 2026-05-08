@@ -18,6 +18,7 @@ import {
 
 import type {
   ConsultationExpertRosterItemDto,
+  ConsultationToolCardDto,
   ContentCalendarItemDto,
   ConsultationSessionDetailDto,
   ConsultationSessionSummaryDto,
@@ -269,6 +270,7 @@ export function ConsultationWorkspace() {
   const latestAssistantMessage =
     [...(session?.messages ?? [])].reverse().find((message) => message.role === "assistant") ?? null;
   const toolCards = latestAssistantMessage?.toolCards ?? [];
+  const failedToolCardCount = toolCards.filter((tool) => tool.status === "failed").length;
   const strategySnapshot = session?.strategySnapshot ?? null;
   const isLegacyRoundtable = Boolean(session?.roundtable);
   const composerDisabled = sending || assistantPending || isLegacyRoundtable;
@@ -657,7 +659,8 @@ export function ConsultationWorkspace() {
                       Agent 执行过程
                     </p>
                     <p className="mt-1 truncate text-sm text-white/65">
-                      已执行 {toolCards.length} 项：
+                      记录 {toolCards.length} 项执行事实
+                      {failedToolCardCount > 0 ? `，${failedToolCardCount} 项失败` : ""}：
                       {toolCards.slice(0, 3).map((tool) => tool.label).join("、")}
                       {toolCards.length > 3 ? " 等" : ""}
                     </p>
@@ -675,11 +678,21 @@ export function ConsultationWorkspace() {
 
                 {!toolCardsCollapsed ? (
                   <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    {toolCards.map((tool) => (
-                      <div key={tool.key} className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                        <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">
-                          {tool.label}
-                        </p>
+                    {toolCards.map((tool, index) => (
+                      <div key={`${tool.key}-${index}`} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="min-w-0 text-[10px] uppercase tracking-[0.25em] text-white/35">
+                            {tool.label}
+                          </p>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-full border px-2 py-0.5 text-[10px]",
+                              getToolCardStatusClassName(tool.status),
+                            )}
+                          >
+                            {getToolCardStatusLabel(tool.status)}
+                          </span>
+                        </div>
                         <p className="mt-2 text-sm text-white/80">{tool.summary}</p>
                       </div>
                     ))}
@@ -854,6 +867,30 @@ export function ConsultationWorkspace() {
       </div>
     </div>
   );
+}
+
+function getToolCardStatusLabel(status: ConsultationToolCardDto["status"]) {
+  if (status === "failed") {
+    return "失败";
+  }
+
+  if (status === "skipped") {
+    return "跳过";
+  }
+
+  return "完成";
+}
+
+function getToolCardStatusClassName(status: ConsultationToolCardDto["status"]) {
+  if (status === "failed") {
+    return "border-red-500/30 bg-red-500/10 text-red-200";
+  }
+
+  if (status === "skipped") {
+    return "border-white/10 bg-white/5 text-white/45";
+  }
+
+  return "border-emerald-500/25 bg-emerald-500/10 text-emerald-200";
 }
 
 function ExpertMentionBar(props: {

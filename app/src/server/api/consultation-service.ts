@@ -96,6 +96,7 @@ import type {
   ConsultationAgentLoopState,
   ConsultationAgentRuntimeSettings,
   ConsultationAgentToolCall,
+  ConsultationAgentToolKey,
   ConsultationAgentToolResult,
   ConsultationConversationMessage,
   ConsultationMentionRouting,
@@ -603,6 +604,7 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
         skillDisclosure: loopResult.skillDisclosure,
         toolResults: loopResult.toolResults.map((result) => ({
           tool: result.toolName,
+          rawToolName: result.rawToolName ?? null,
           status: result.status,
           summary: result.summary,
         })),
@@ -2488,6 +2490,10 @@ function uniqueFieldKeys(values: StrategyAssetFieldKey[]) {
 function getConsultationToolDisplayLabel(
   toolName: ConsultationAgentToolResult["toolName"],
 ) {
+  if (toolName === "unknown_tool") {
+    return "工具校验失败";
+  }
+
   return (
     getConsultationBusinessToolCatalog().find((tool) => tool.key === toolName)?.label ??
     "咨询步骤"
@@ -2496,7 +2502,7 @@ function getConsultationToolDisplayLabel(
 
 function hasCompletedConsultationTool(
   toolResults: ConsultationAgentToolResult[],
-  toolName: ConsultationAgentToolResult["toolName"],
+  toolName: ConsultationAgentToolKey,
 ) {
   return toolResults.some((result) => result.toolName === toolName && result.status === "completed");
 }
