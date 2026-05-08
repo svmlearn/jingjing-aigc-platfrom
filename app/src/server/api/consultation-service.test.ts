@@ -233,6 +233,23 @@ test("consultation runtime surfaces native tool call rejections as failed tool f
   assert.match(consultationWorkspaceSource, /getToolCardStatusLabel/);
 });
 
+test("consultation runtime wraps tool execution exceptions as failed tool results", () => {
+  assert.match(consultationRuntimeSource, /dispatchToolWithRuntimeSafety/);
+  assert.match(consultationRuntimeSource, /buildToolRuntimeErrorResult/);
+  assert.match(consultationRuntimeSource, /classifyToolRuntimeError/);
+  assert.match(consultationRuntimeSource, /provider_error/);
+  assert.match(consultationRuntimeSource, /runtime_error/);
+  assert.match(consultationRuntimeSource, /status: "failed"/);
+  assert.match(consultationRuntimeSource, /retryable: errorType === "provider_error" \|\| errorType === "runtime_error"/);
+  assert.equal((consultationRuntimeSource.match(/input\.input\.dispatchTool\(/g) ?? []).length, 1);
+  assert.match(consultationRuntimeSource, /result\.status !== "failed"/);
+  assert.match(consultationRuntimeSource, /result\.status === "failed" \|\|/);
+  assert.match(
+    serviceSource,
+    /result\.toolName === "retrieve_knowledge_base" && result\.status !== "failed"/,
+  );
+});
+
 test("knowledge retrieval can directly surface indexed user documents", () => {
   assert.match(consultationRuntimeSource, /listMerchantKnowledgeDocumentMatches/);
   assert.match(consultationRuntimeSource, /listKnowledgeDocuments/);

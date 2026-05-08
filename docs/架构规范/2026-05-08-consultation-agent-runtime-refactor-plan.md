@@ -75,6 +75,14 @@
 - 失败 result 进入 tool cards、events、snapshot、assistant final context。
 - 对 `search_benchmark_materials`、RAG embedding 失败等已有局部兜底做归一化。
 
+2026-05-08 追加进度：
+
+- 已完成 `dispatchToolWithRuntimeSafety`，确定性 planner、native tool calls、runtime-required tool contract 三条路径都走同一安全壳。
+- 工具执行抛错会生成 `failed` tool result，并通过既有 `agent.tool.completed`、tool cards、loop completed、runtime snapshot 进入同一事实链路。
+- `provider_error`、`validation_failed`、`runtime_error` 已做第一层分类；`guardrail_rejected` 仍由 strategy asset guardrail 以 skipped + guardrail payload 表达，不伪装成异常。
+- 知识库工具执行失败时，不会清空本轮已有 `knowledgeMatches`。
+- `failed` 工具结果不作为完成依赖；确定性 planner loop 遇到 failed 会停止后续工具链，避免资产写入基于失败依赖继续推进。
+
 ### Phase 3：上下文边界与可回放快照
 
 目标：让长咨询能解释上下文来源和压缩边界。
@@ -102,7 +110,10 @@
 
 ## 5. 本轮落地范围
 
-本轮只落 Phase 1：工具失败事实化。
+本轮已落 Phase 1 与 Phase 2：
+
+- Phase 1：工具拒绝/参数校验失败事实化。
+- Phase 2：工具执行异常安全壳。
 
 不做：
 

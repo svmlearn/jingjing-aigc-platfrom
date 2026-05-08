@@ -1478,7 +1478,7 @@ function applyToolResultToState(
   result: ConsultationAgentToolResult,
   state: ConsultationAgentLoopState,
 ) {
-  if (result.toolName === "retrieve_knowledge_base") {
+  if (result.toolName === "retrieve_knowledge_base" && result.status !== "failed") {
     state.knowledgeMatches = result.knowledgeMatches ?? [];
   }
 

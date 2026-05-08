@@ -240,7 +240,10 @@ async function runBoundedBusinessToolLoop(input: {
     }
 
     const toolCall = repairConsultationToolCall(plannerDecision.call, input.input.state);
-    const result = await input.input.dispatchTool(input.input.state, toolCall);
+    const result = await dispatchToolWithRuntimeSafety({
+      input: input.input,
+      toolCall,
+    });
 
     input.input.applyToolResultToState(input.input.state, result);
     input.toolResults.push(result);
@@ -396,7 +399,10 @@ async function runNativeToolCallingLoop(input: {
       };
       input.input.state.plannerTrace.push(planner);
 
-      const result = await input.input.dispatchTool(input.input.state, parsed.call);
+      const result = await dispatchToolWithRuntimeSafety({
+        input: input.input,
+        toolCall: parsed.call,
+      });
       input.input.applyToolResultToState(input.input.state, result);
       input.toolResults.push(result);
 
@@ -508,7 +514,10 @@ async function runRequiredNativeToolCall(input: {
   };
   input.input.state.plannerTrace.push(planner);
 
-  const result = await input.input.dispatchTool(input.input.state, toolCall);
+  const result = await dispatchToolWithRuntimeSafety({
+    input: input.input,
+    toolCall,
+  });
   input.input.applyToolResultToState(input.input.state, result);
   input.toolResults.push(result);
 
@@ -531,6 +540,7 @@ export function getPlannerCompletedToolNames(
 ): ConsultationAgentToolCall["toolName"][] {
   return toolResults
     .filter(isKnownConsultationToolResult)
+    .filter((result) => result.status !== "failed")
     .filter((result) => result.toolName !== "update_strategy_snapshot" || result.status === "completed")
     .map((result) => result.toolName);
 }
@@ -588,7 +598,10 @@ function getNativeUnavailableToolNames(
 }
 
 function shouldStopAfterToolResult(result: ConsultationAgentToolResult) {
-  return result.toolName === "update_strategy_snapshot" && result.status !== "completed";
+  return (
+    result.status === "failed" ||
+    (result.toolName === "update_strategy_snapshot" && result.status !== "completed")
+  );
 }
 
 async function emitCompletedToolEvents(input: {
@@ -612,6 +625,41 @@ async function emitCompletedToolEvents(input: {
       payload: buildKnowledgeRetrievedPayload(input.result),
     });
   }
+}
+
+async function dispatchToolWithRuntimeSafety(input: {
+  input: RunConsultationRuntimeInput;
+  toolCall: ConsultationAgentToolCall;
+}): Promise<ConsultationAgentToolResult> {
+  try {
+    return await input.input.dispatchTool(input.input.state, input.toolCall);
+  } catch (error) {
+    return buildToolRuntimeErrorResult({
+      toolCall: input.toolCall,
+      error,
+    });
+  }
+}
+
+function buildToolRuntimeErrorResult(input: {
+  toolCall: ConsultationAgentToolCall;
+  error: unknown;
+}): ConsultationAgentToolResult {
+  const errorMessage = formatToolRuntimeError(input.error);
+  const errorType = classifyToolRuntimeError(input.error);
+
+  return {
+    callId: input.toolCall.id,
+    toolName: input.toolCall.toolName,
+    status: "failed",
+    summary: `工具执行失败：${clipText(errorMessage, 180)}`,
+    payload: {
+      errorType,
+      error: errorMessage,
+      retryable: errorType === "provider_error" || errorType === "runtime_error",
+      toolArgsPreview: clipText(JSON.stringify(input.toolCall.args), 600),
+    },
+  };
 }
 
 function buildNativeRejectedToolResult(input: {
@@ -660,6 +708,20 @@ function isKnownConsultationToolResult(
   result: ConsultationAgentToolResult,
 ): result is ConsultationAgentToolResult & { toolName: ConsultationAgentToolKey } {
   return isConsultationAgentToolKey(result.toolName);
+}
+
+function classifyToolRuntimeError(
+  error: unknown,
+): "provider_error" | "validation_failed" | "runtime_error" {
+  if (error instanceof AiRuntimeError) {
+    return "provider_error";
+  }
+
+  const message = error instanceof Error ? `${error.name} ${error.message}` : String(error);
+
+  return /validation|schema|zod|invalid/i.test(message)
+    ? "validation_failed"
+    : "runtime_error";
 }
 
 export function buildConsultationRuntimeSnapshotRecord(input: {
@@ -792,6 +854,16 @@ function formatAiRuntimeError(error: unknown) {
     : error instanceof Error
       ? error.message
       : "Unknown native tool calling error.";
+}
+
+function formatToolRuntimeError(error: unknown) {
+  if (error instanceof AiRuntimeError) {
+    return `${error.message}${error.status ? ` (${error.status})` : ""}`;
+  }
+
+  return error instanceof Error
+    ? error.message
+    : "Unknown consultation tool runtime error.";
 }
 
 function isMerchantMemoryMatch(match: { metadata: Record<string, unknown> }) {
