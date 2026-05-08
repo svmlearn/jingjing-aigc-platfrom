@@ -317,7 +317,7 @@ const demoInitialAgent: AgentConfigDto = {
   id: "demo_initial_consultation_agent",
   agentKey: "initial_consultation_agent",
   displayName: "初始咨询 Agent",
-  roleDescription: "本地生活商家内容咨询顾问",
+  roleDescription: "用户内容咨询顾问",
   description: "本地 demo fallback，仅在 Supabase service role 未配置时使用。",
   serviceStatus: "enabled",
   serviceFlags: {
@@ -351,7 +351,7 @@ const demoConsultationDefaultBinding: AgentRouteBindingDto = {
   routeKey: "consultation_default",
   agentId: demoInitialAgent.id,
   status: "active",
-  description: "商家端默认咨询入口绑定。",
+  description: "用户端默认咨询入口绑定。",
   createdByAdminId: null,
   createdAt: demoCreatedAt,
   updatedAt: demoCreatedAt,
@@ -2011,7 +2011,7 @@ export async function setConsultationDefaultAgent(input: {
         route_key: "consultation_default",
         agent_id: agent.id,
         status: "active",
-        description: "商家端默认咨询入口绑定。",
+        description: "用户端默认咨询入口绑定。",
       },
       { onConflict: "route_key" },
     )

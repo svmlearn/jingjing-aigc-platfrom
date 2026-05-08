@@ -16,8 +16,8 @@ const registrationErrorMessages: Record<string, string> = {
   INVITATION_CODE_NOT_FOUND: "邀请码不存在，请检查后再试。",
   INVITATION_CODE_EXPIRED: "邀请码已经过期，请联系平台重新生成。",
   INVITATION_CODE_UNAVAILABLE: "邀请码已不可用，可能已用完或已被停用。",
-  MERCHANT_NAME_REQUIRED: "请先填写商户名称，再继续创建账号。",
-  MERCHANT_OWNER_EXISTS: "这个账号已经绑定过商户，不能重复注册。",
+  MERCHANT_NAME_REQUIRED: "请先填写展示名称，再继续创建账号。",
+  MERCHANT_OWNER_EXISTS: "这个账号已经绑定过用户信息，不能重复注册。",
   AUTH_USER_CREATE_FAILED: "账号创建失败，邮箱可能已经被使用。",
 };
 
@@ -59,7 +59,7 @@ export function RegistrationFlow() {
     const merchantName = String(form.get("merchantName") ?? "").trim();
 
     if (!merchantName) {
-      setErrorMessage("请先填写商户名称，邀请码注册至少要先创建商户主体。");
+      setErrorMessage("请先填写展示名称，邀请码注册至少要先创建用户信息。");
       return;
     }
 
@@ -100,7 +100,7 @@ export function RegistrationFlow() {
         return;
       }
 
-      setSuccessMessage("账号和商户已创建，正在进入资料补全页。");
+      setSuccessMessage("账号和用户信息已创建，正在进入资料补全页。");
       router.push("/merchant/onboarding");
       router.refresh();
     } catch {
@@ -120,13 +120,13 @@ export function RegistrationFlow() {
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-amber-200/70">
-            Merchant Access
+            User Access
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-white [font-family:var(--font-cormorant)]">
             邀请码注册
           </h2>
           <p className="mt-1 text-sm leading-6 text-white/45">
-            创建 owner 账号后，将直接进入商户资料补全。
+            创建 owner 账号后，将直接进入用户信息补全。
           </p>
         </div>
       </div>
@@ -134,13 +134,13 @@ export function RegistrationFlow() {
       <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
         <div className="grid gap-2.5">
           <Label htmlFor="merchantName" className="text-white/70">
-            商户名称
+            展示名称
           </Label>
           <Input
             id="merchantName"
             name="merchantName"
             className="h-12 rounded-2xl border-white/10 bg-[#050505] px-4 text-white placeholder:text-white/25 focus-visible:border-amber-400/50 focus-visible:ring-amber-500/20"
-            placeholder="例如：静境测试门店"
+            placeholder="例如：young"
             required
           />
         </div>

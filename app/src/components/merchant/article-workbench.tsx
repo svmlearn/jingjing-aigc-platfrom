@@ -53,7 +53,7 @@ const articlePlaybooks: Array<{
   {
     value: "ip_persona",
     label: "IP 人设强化",
-    description: "强化主理人、老师和门店人格",
+    description: "强化主理人、专业身份和表达人格",
   },
 ];
 
@@ -463,7 +463,7 @@ export function ArticleWorkbench({
                 value={extraRequirement}
                 onChange={(event) => setExtraRequirement(event.target.value)}
                 rows={5}
-                placeholder="例如：更口语一点，末尾引导预约体验课，强调门店环境和信任感。"
+                placeholder="例如：更口语一点，末尾引导预约一次沟通，强调真实经验和信任感。"
                 className="mt-3 w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25"
               />
             </section>
@@ -578,7 +578,7 @@ export function ArticleWorkbench({
                     value={revisionInstruction}
                     onChange={(event) => setRevisionInstruction(event.target.value)}
                     rows={4}
-                    placeholder="例如：更口语一点，开头别太吓人，强调门店环境。"
+                    placeholder="例如：更口语一点，开头别太吓人，强调真实经验。"
                     className="w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25"
                   />
                   <div className="flex justify-end">
@@ -622,7 +622,7 @@ export function ArticleWorkbench({
                       ? imageStructureSuggestions
                       : [
                           "封面优先使用强对比痛点提问，标题与正文主张一致。",
-                          "中间页重点展示商家差异点和真实场景，不要堆抽象词。",
+                          "中间页重点展示用户差异点和真实场景，不要堆抽象词。",
                           "最后一页保留明确 CTA，和笔记末尾动作一致。",
                         ]
                     ).map((item) => (

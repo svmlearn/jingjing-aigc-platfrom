@@ -228,7 +228,7 @@ export function PlatformAdminOverviewPage({
     foundationState?.knowledgeSets.filter((set) => set.status === "enabled").length ?? 0;
   const stats = [
     {
-      label: "商户总数",
+      label: "用户总数",
       value: adminMerchants.length,
       sub: "当前运营样本",
       tone: "neutral",
@@ -415,7 +415,7 @@ export function InvitationCodesAdminPage({
 
       {createdCode ? (
         <AdminNotice tone="success">
-          邀请码 <span className="font-mono font-semibold">{createdCode}</span> 已生成，现在可以复制给要注册的商家。
+          邀请码 <span className="font-mono font-semibold">{createdCode}</span> 已生成，现在可以复制给要注册的用户。
         </AdminNotice>
       ) : null}
 
@@ -563,9 +563,9 @@ export function MerchantsAdminPage() {
   return (
     <div className="grid gap-6">
       <AdminPageHeader
-        title="商户管理"
-        description="按商户维度查看状态、会员档位、积分余额和咨询活跃度。当前商户列表仍在 UI adapter 边界，后续接真实商户/会员 contract。"
-        action={<span className="text-xs text-white/30">{adminMerchants.length} 个商户</span>}
+        title="用户管理"
+        description="按用户维度查看状态、会员档位、积分余额和咨询活跃度。当前列表仍在 UI adapter 边界，后续接真实用户/会员 contract。"
+        action={<span className="text-xs text-white/30">{adminMerchants.length} 个用户</span>}
       />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
@@ -573,7 +573,7 @@ export function MerchantsAdminPage() {
           <Table>
             <TableHeader>
               <TableRow className="border-white/[0.06] hover:bg-transparent">
-                <TableHead className={tableHeadClassName("min-w-44")}>商户名称</TableHead>
+                <TableHead className={tableHeadClassName("min-w-44")}>展示名称</TableHead>
                 <TableHead className={tableHeadClassName()}>会员档位</TableHead>
                 <TableHead className={tableHeadClassName()}>状态</TableHead>
                 <TableHead className={tableHeadClassName()}>积分余额</TableHead>
@@ -620,7 +620,7 @@ export function MerchantsAdminPage() {
 
         {previewMerchant ? (
           <AdminPanel>
-            <AdminPanelHeader eyebrow="商户详情" />
+            <AdminPanelHeader eyebrow="用户详情" />
             <div className="grid gap-5 p-5">
               <div>
                 <div className="mb-2 truncate text-base font-semibold text-white">
@@ -654,7 +654,7 @@ export function MerchantsAdminPage() {
         ) : (
           <AdminEmptyState
             icon={Users}
-            title="选择商户查看详情"
+            title="选择用户查看详情"
             className="min-h-full"
           />
         )}
@@ -688,11 +688,11 @@ export function MerchantDetailAdminPage({ merchant }: { merchant: AdminMerchant 
     <div className="grid gap-6">
       <AdminPageHeader
         title={merchant.name}
-        description="商户详情聚合基础信息、会员积分和最近任务概况。状态切换操作先保持权限禁用态，等待商户 API 分支接入。"
+        description="用户详情聚合基础信息、会员积分和最近任务概况。状态切换操作先保持权限禁用态，等待用户 API 分支接入。"
         action={
           <AdminActionLink href="/platform-admin/merchants">
             <ArrowLeft className="size-3.5" aria-hidden="true" />
-            返回商户管理
+            返回用户管理
           </AdminActionLink>
         }
       />
@@ -710,12 +710,10 @@ export function MerchantDetailAdminPage({ merchant }: { merchant: AdminMerchant 
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <AdminPanel>
-          <AdminPanelHeader eyebrow="商户基础信息" />
+          <AdminPanelHeader eyebrow="用户基础信息" />
           <dl className="grid gap-4 p-5 md:grid-cols-2">
             {[
               { label: "Owner", value: merchant.ownerName, sub: merchant.ownerEmail },
-              { label: "联系电话", value: merchant.contactPhone },
-              { label: "地址", value: merchant.address },
               { label: "加入时间", value: merchant.joinedAt },
               { label: "服务范围", value: merchant.serviceSummary, wide: true },
               { label: "运营备注", value: merchant.note, wide: true },
@@ -782,9 +780,9 @@ export function MerchantDetailAdminPage({ merchant }: { merchant: AdminMerchant 
             </div>
 
             <AdminNotice tone="info">
-              当前商户为 <span className="font-medium text-white">{merchant.plan}</span> 档，每日默认{" "}
+              当前用户为 <span className="font-medium text-white">{merchant.plan}</span> 档，每日默认{" "}
               <span className="font-medium text-white">{merchant.dailyCredits}</span> 点。
-              这里是权限禁用态，等商户状态和积分规则 API 接入后再开放写操作。
+              这里是权限禁用态，等用户状态和积分规则 API 接入后再开放写操作。
             </AdminNotice>
           </div>
         </AdminPanel>

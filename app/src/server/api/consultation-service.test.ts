@@ -234,6 +234,9 @@ test("consultation code fallback only reports runtime errors instead of drafting
   assert.doesNotMatch(serviceSource, /function buildAssistantReply\(/);
   assert.doesNotMatch(serviceSource, /buildFallbackPositioning/);
   assert.doesNotMatch(serviceSource, /buildFallbackCurrentSuggestion/);
+  assert.doesNotMatch(serviceSource, /function buildContentCalendar/);
+  assert.doesNotMatch(serviceSource, /引导用户私信咨询或预约下一步/);
+  assert.doesNotMatch(serviceSource, /专业人设|场景种草|转化路径/);
   assert.doesNotMatch(serviceSource, /fallbackDraft/);
   assert.doesNotMatch(serviceSource, /真正的咨询应该先问实际情况/);
   assert.doesNotMatch(serviceSource, /商家资料/);
@@ -246,6 +249,14 @@ test("consultation code fallback only reports runtime errors instead of drafting
     /toolResults: \(input\.toolResults \?\? \[\]\)\.map\(\(result\) => \(\{\n\s*tool: result\.toolName/,
   );
   assert.equal(serviceSource.includes('join(" / ")'), false);
+});
+
+test("content generation does not return business draft fallbacks", () => {
+  assert.match(contentGenerationSource, /ARTICLE_GENERATION_MODEL_UNAVAILABLE/);
+  assert.match(contentGenerationSource, /ARTICLE_GENERATION_MODEL_FAILED/);
+  assert.doesNotMatch(contentGenerationSource, /buildFallbackArticle/);
+  assert.doesNotMatch(contentGenerationSource, /fallback_viral_generation|fallback_traffic_rewrite|fallback_compliance_safe|fallback_ip_persona/);
+  assert.doesNotMatch(contentGenerationSource, /私信我领取|到店咨询|专业干货 \+ 场景/);
 });
 
 test("consultation visible tool language uses user context, not merchant context", () => {
@@ -298,9 +309,9 @@ test("empty merchant profiles do not seed local-service strategy assets", () => 
   assert.doesNotMatch(serviceSource, /\?\? "本地服务"/);
   assert.doesNotMatch(serviceSource, /\?\? "本地生活服务"/);
   assert.doesNotMatch(serviceSource, /围绕 \$\{serviceAnchor\} 提供更适合/);
-  assert.match(platformAdminRepositorySource, /当前商家或经营者/);
+  assert.match(platformAdminRepositorySource, /当前用户或经营者/);
   assert.match(platformAdminRepositorySource, /资料不足时必须先追问/);
-  assert.match(platformAdminRepositorySource, /不要替商家假设行业/);
+  assert.match(platformAdminRepositorySource, /不要替用户假设行业/);
   assert.doesNotMatch(platformAdminRepositorySource, /目标是帮助本地生活商家/);
 });
 
@@ -436,6 +447,9 @@ test("roundtable phase outputs are model structured, not keyword matched placeho
   assert.match(roundtableSource, /阶段摘要模型输出不可用或结构化校验失败/);
   assert.match(roundtableSource, /用户说「没懂」「什么意思」「不知道」这类内容/);
   assert.doesNotMatch(roundtableSource, /buildFallbackQuestion/);
+  assert.doesNotMatch(roundtableSource, /本地生活服务/);
+  assert.doesNotMatch(roundtableSource, /提供本地化服务/);
+  assert.doesNotMatch(roundtableSource, /商家资料/);
   assert.doesNotMatch(roundtableSource, /buildFieldItems/);
   assert.doesNotMatch(roundtableSource, /keywordHits/);
   assert.doesNotMatch(roundtableSource, /真实案例 \+ 方法说明 \+ 风险边界/);

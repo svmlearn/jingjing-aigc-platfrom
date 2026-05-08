@@ -29,7 +29,7 @@ export default async function NewInvitationCodePage() {
           }
         />
         <AdminNotice tone="warning">
-          生成邀请码会影响新商户准入，当前仅 super_admin 可以操作。
+          生成邀请码会影响新用户准入，当前仅 super_admin 可以操作。
         </AdminNotice>
       </div>
     );

@@ -11,8 +11,8 @@ import {
   LogOut,
   Settings,
   Sparkles,
-  Store,
   Ticket,
+  UserRound,
   Zap,
 } from "lucide-react";
 
@@ -26,7 +26,7 @@ const navGroups = [
     items: [
       { href: "/platform-admin", label: "总览", icon: LayoutDashboard },
       { href: "/platform-admin/invitation-codes", label: "邀请码管理", icon: Ticket },
-      { href: "/platform-admin/merchants", label: "商户管理", icon: Store },
+      { href: "/platform-admin/merchants", label: "用户管理", icon: UserRound },
       { href: "/platform-admin/knowledge", label: "方法论知识库", icon: BookOpenText },
     ],
   },
@@ -121,7 +121,7 @@ export function PlatformAdminShell({
             className="inline-flex min-h-10 items-center gap-2 rounded-md border border-white/10 bg-white/[0.04] px-3 text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-white/10"
           >
             <Files className="size-4" aria-hidden="true" />
-            <span className="truncate">返回商家工作台</span>
+            <span className="truncate">返回用户工作台</span>
           </Link>
           <form action={signOutFromPlatformAdmin}>
             <button
@@ -151,7 +151,7 @@ export function PlatformAdminShell({
                 href="/dashboard/import"
                 className="rounded-md border border-white/10 px-3 py-2 text-xs font-medium text-white/60"
               >
-                商家工作台
+                用户工作台
               </Link>
               <form action={signOutFromPlatformAdmin}>
                 <button

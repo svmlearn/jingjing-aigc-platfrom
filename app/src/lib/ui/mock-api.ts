@@ -195,7 +195,7 @@ export const importedComments: ImportedCommentDto[] = [
     externalCommentId: "dy-c-002",
     parentExternalCommentId: null,
     authorName: "江边晚风",
-    content: "这种内容适合做成到店检测吗？想先知道自己是不是屏障受损。",
+    content: "这种内容适合做成线上评估吗？想先知道自己是不是屏障受损。",
     likeCount: 97,
     replyCount: 6,
     publishedAt: "2026-04-20 08:36",
@@ -209,7 +209,7 @@ export const contentDrafts: ContentDraftDto[] = [
     sourceItemId: "source-xhs-sensitive-repair",
     merchantId: merchantProfile.id,
     workingTitle: "换季泛红急救护理",
-    rewriteGoal: "本地化种草",
+    rewriteGoal: "内容改写",
     status: "drafting",
     selectedVariantId: "variant-sensitive-xhs-a",
     createdAt: "2026-04-20 10:39",
@@ -317,39 +317,15 @@ export function getCommentSummary(sourceItemId: string) {
   return commentSummaries[sourceItemId] ?? commentSummary;
 }
 
-function createFallbackDraft(sourceItem: SourceItemDto): ContentDraftDto {
+function createEmptyDraft(sourceItem: SourceItemDto): ContentDraftDto {
   return {
     id: `draft-${sourceItem.id}`,
     sourceItemId: sourceItem.id,
     merchantId: merchantProfile.id,
     workingTitle: sourceItem.title ?? "导入内容改写草稿",
-    rewriteGoal: sourceItem.platform === "douyin" ? "抖音口播" : "本地化种草",
+    rewriteGoal: null,
     status: "drafting",
-    selectedVariantId: `variant-${sourceItem.id}-a`,
-    createdAt: "刚刚",
-    updatedAt: "刚刚",
-  };
-}
-
-function createFallbackVariant(sourceItem: SourceItemDto, draftId: string): ContentVariantDto {
-  const isDouyin = sourceItem.platform === "douyin";
-
-  return {
-    id: `variant-${sourceItem.id}-a`,
-    draftId,
-    platform: sourceItem.platform,
-    variantType: isDouyin ? "video_script" : "note",
-    versionNo: 1,
-    title: sourceItem.title ? `${sourceItem.title}｜本地化改写` : "导入内容改写草稿",
-    bodyText: isDouyin
-      ? null
-      : `结合 ${merchantProfile.name} 的服务项目，把这条来源内容改写成一篇更适合本地用户咨询的笔记。`,
-    scriptText: isDouyin
-      ? `结合 ${merchantProfile.name} 的服务项目，把这条来源内容改写成一段适合抖音的短口播。`
-      : null,
-    hashtags: isDouyin ? ["本地生活", "皮肤管理"] : ["本地种草", "皮肤管理"],
-    ctaText: "想了解自己适合哪种护理，可以先预约一次基础评估。",
-    reviewStatus: "editing",
+    selectedVariantId: null,
     createdAt: "刚刚",
     updatedAt: "刚刚",
   };
@@ -385,7 +361,7 @@ export function getDraftBundle(draftId: string): DraftBundle {
 
   return {
     draft,
-    variants: variants.length > 0 ? variants : [createFallbackVariant(sourceItem, draft.id)],
+    variants,
     sourceItem,
   };
 }
@@ -394,12 +370,12 @@ export function rewriteSourceItem(sourceItemId: string): RewriteResult {
   const sourceItem = getSourceItem(sourceItemId);
   const draft =
     contentDrafts.find((item) => item.sourceItemId === sourceItem.id) ??
-    createFallbackDraft(sourceItem);
+    createEmptyDraft(sourceItem);
   const variants = contentVariants.filter((variant) => variant.draftId === draft.id);
 
   return {
     draft,
-    variants: variants.length > 0 ? variants : [createFallbackVariant(sourceItem, draft.id)],
+    variants,
     sourceItem,
     commentSummary: getCommentSummary(sourceItem.id),
   };

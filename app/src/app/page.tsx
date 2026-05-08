@@ -1,19 +1,19 @@
 import Link from "next/link";
-import { ArrowRight, Building2, KeyRound, ShieldCheck } from "lucide-react";
+import { ArrowRight, KeyRound, ShieldCheck, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
 const entryCards = [
   {
-    title: "商家登录",
-    description: "已有 owner 账号的商家从这里进入咨询诊断和内容工作台。",
+    title: "用户登录",
+    description: "已有 owner 账号的用户从这里进入咨询诊断和内容工作台。",
     href: "/login",
     icon: KeyRound,
     primary: true,
   },
   {
     title: "平台管理",
-    description: "平台管理员进入邀请码、商户治理、Agent 和知识库配置。",
+    description: "平台管理员进入邀请码、用户治理、Agent 和知识库配置。",
     href: "/platform-admin-login",
     icon: ShieldCheck,
     primary: false,
@@ -26,7 +26,7 @@ export default function Home() {
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col justify-center gap-8 py-8">
         <section className="max-w-3xl">
           <div className="mb-5 flex size-12 rotate-45 items-center justify-center rounded-2xl border border-amber-200/30 bg-gradient-to-br from-amber-600 to-amber-200 text-black shadow-[0_0_36px_rgba(245,158,11,0.22)]">
-            <Building2 className="-rotate-45 size-5" aria-hidden="true" />
+            <UserRound className="-rotate-45 size-5" aria-hidden="true" />
           </div>
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-amber-200/70">
             Jingjing Content Platform
@@ -35,7 +35,7 @@ export default function Home() {
             静境内容获客平台
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-white/55">
-            请选择要进入的身份入口。商家工作台先登录进入，没有商家账号时可在登录页使用邀请码注册。
+            请选择要进入的身份入口。用户工作台先登录进入，没有账号时可在登录页使用邀请码注册。
           </p>
         </section>
 
@@ -72,7 +72,7 @@ export default function Home() {
             className="h-11 rounded-2xl border border-amber-300/20 bg-amber-600 px-5 text-white shadow-[0_14px_34px_rgba(180,83,9,0.25)] hover:bg-amber-500"
             asChild
           >
-            <Link href="/login">商家登录</Link>
+            <Link href="/login">用户登录</Link>
           </Button>
           <Button
             variant="outline"

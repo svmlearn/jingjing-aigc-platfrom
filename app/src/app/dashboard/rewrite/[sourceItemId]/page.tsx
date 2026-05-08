@@ -15,7 +15,7 @@ export default async function RewritePage({
       <PageHeader
         eyebrow="Rewrite"
         title="改写工作台"
-        description={`把「${sourceItem.title ?? "这条导入内容"}」改写成当前商户可发布的草稿。`}
+        description={`把「${sourceItem.title ?? "这条导入内容"}」改写成当前用户可发布的草稿。`}
       />
       <RewriteWorkbench sourceItemId={sourceItemId} />
     </>

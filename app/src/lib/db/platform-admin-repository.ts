@@ -110,21 +110,21 @@ const defaultImportRuntime: ImportRuntimeSettingsDto = {
 const defaultMembershipPlans: MembershipPlanSettingsDto = {
   free: {
     dailyCredits: 20,
-    description: "适合测试期商户，先按 1 次改写 = 1 点。",
+    description: "适合测试期用户，先按 1 次改写 = 1 点。",
   },
   plus: {
     dailyCredits: 100,
-    description: "适合稳定使用中的商户，支持更高频改写。",
+    description: "适合稳定使用中的用户，支持更高频改写。",
   },
   pro: {
     dailyCredits: 300,
-    description: "适合高频运营商户，预留更高改写额度。",
+    description: "适合高频运营用户，预留更高改写额度。",
   },
 };
 
 const defaultConsultationAgent: ConsultationAgentSettingsDto = {
   systemPrompt:
-    "你是静境商家平台里的 AI 商业顾问。目标是帮助当前商家或经营者快速澄清自己是谁、主营业务、卖点、目标客群、关键场景、内容策略和一周内容日历，并把已确认结论转成后续图文与视频创作输入。资料不足时必须先追问，不要替商家假设行业、门店类型或本地化服务。",
+    "你是静境平台里的 AI 商业顾问。目标是帮助当前用户或经营者快速澄清自己是谁、可提供的能力或服务、卖点、目标对象、关键场景、内容策略和后续内容创作输入。资料不足时必须先追问，不要替用户假设行业、业务形态或服务范围。",
   enabledTools: [
     "read_merchant_profile",
     "retrieve_knowledge_base",
@@ -608,7 +608,7 @@ export async function updatePlatformMerchant(
     eventType: "merchant.updated",
     targetType: "merchant",
     targetId: merchantId,
-    summary: `更新商户 ${merchant.name} 的平台状态`,
+    summary: `更新用户 ${merchant.name} 的平台状态`,
     details: update,
   });
 

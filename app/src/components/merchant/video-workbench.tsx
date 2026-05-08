@@ -919,8 +919,8 @@ export function VideoWorkbench({
 
     const parsedScenes = parseScriptTextToScenes(selectedVariant?.scriptText ?? "");
 
-    return parsedScenes.length > 0 ? parsedScenes : buildPlaceholderScenes(goal, routeContext.strategyTag);
-  }, [goal, routeContext.strategyTag, selectedVariant]);
+    return parsedScenes;
+  }, [selectedVariant]);
   const jobIsRunning = job && ["pending", "queued", "preparing", "running"].includes(job.status);
   const scriptApproved = selectedVariant?.reviewStatus === "approved";
   const jobCanRetry = job?.status === "failed_retryable";
@@ -1500,7 +1500,7 @@ function parseSceneBlock(block: string, index: number): VideoScriptSceneDto {
     materials,
     cameraMovement: readTaggedText(block, ["运镜"]) ?? "按现场素材选择固定机位或轻微推进",
     purpose: readTaggedText(block, ["目的"]) ?? "服务本镜头的信息表达",
-    fallbackShot: readTaggedText(block, ["备选", "替代拍法"]) ?? "素材不足时使用同场景近景替代",
+    fallbackShot: readTaggedText(block, ["备选", "替代拍法"]) ?? "",
   };
 }
 
@@ -1530,50 +1530,6 @@ function normalizeSceneTime(value: string | undefined) {
 function fallbackTimeRange(index: number) {
   const ranges = ["00:00 - 00:05", "00:05 - 00:18", "00:18 - 00:35", "00:35 - 00:45"];
   return ranges[index] ?? `镜头 ${index + 1}`;
-}
-
-function buildPlaceholderScenes(goal: string, strategyTag?: string | null): VideoScriptSceneDto[] {
-  const target = goal || "门店场景视频";
-  const strategy = strategyTag ?? "种草";
-
-  return [
-    {
-      sceneNo: 1,
-      timeRange: "00:00 - 00:05",
-      shotRequirement: `开头用「${target}」相关痛点或场景钩子抓注意力。`,
-      visual: "真实门店、人物动作或细节特写。",
-      voiceover: `这条内容先围绕「${strategy}」建立观看理由。`,
-      subtitle: `先看这个细节`,
-      materials: ["门店环境", "人物动作"],
-      cameraMovement: "固定机位或轻微推进",
-      purpose: "建立钩子",
-      fallbackShot: "没有人物时用门店细节特写替代。",
-    },
-    {
-      sceneNo: 2,
-      timeRange: "00:05 - 00:25",
-      shotRequirement: "中段展示服务流程、专业资质或客户常见问题。",
-      visual: "门店空间、服务过程和老师讲解。",
-      voiceover: "真正影响体验的，是这些细节是否稳定、清楚、可验证。",
-      subtitle: "看细节，不只看宣传词",
-      materials: ["服务流程", "讲解镜头"],
-      cameraMovement: "中景切近景",
-      purpose: "建立信任",
-      fallbackShot: "没有完整流程时用细节镜头组合替代。",
-    },
-    {
-      sceneNo: 3,
-      timeRange: "00:25 - 00:45",
-      shotRequirement: "结尾给出明确行动，承接咨询或预约。",
-      visual: "回到预约、私信或门店收尾画面。",
-      voiceover: "想了解自己是否适合，可以私信咨询或预约体验。",
-      subtitle: "私信咨询 / 预约体验",
-      materials: ["预约入口", "门店收尾"],
-      cameraMovement: "固定机位",
-      purpose: "完成 CTA",
-      fallbackShot: "不能展示界面时，用口播加字幕说明。",
-    },
-  ];
 }
 
 function formatApiError(error: ApiErrorPayload | undefined, fallback: string) {

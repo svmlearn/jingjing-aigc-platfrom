@@ -49,3 +49,18 @@ test("buildVideoChainTestDraftFixture creates an approved placeholder video scri
   assert.match(fixture.variant.scriptText, /Scene 3 \| 00:18-00:35/);
   assert.equal(fixture.variant.productionScenes.length, 3);
 });
+
+test("buildVideoChainTestDraftFixture does not invent service or CTA defaults", () => {
+  const fixture = buildVideoChainTestDraftFixture({
+    merchantName: "young",
+    serviceItems: [],
+    defaultCta: [],
+    forbiddenWords: [],
+    now: "2026-04-28T08:00:00.000Z",
+  });
+
+  assert.equal(fixture.variant.ctaText, null);
+  assert.match(fixture.variant.scriptText, /展示用户已提供的可用测试素材/);
+  assert.doesNotMatch(fixture.variant.scriptText, /核心服务|私信咨询|预约体验/);
+  assert.doesNotMatch(JSON.stringify(fixture.variant.productionScenes), /核心服务|私信咨询|预约体验/);
+});

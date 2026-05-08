@@ -25,8 +25,8 @@ export function isVideoChainTestDraftEnabled(
 
 export function buildVideoChainTestDraftFixture(input: VideoChainTestDraftInput) {
   const now = input.now ?? new Date().toISOString();
-  const cta = firstNonEmpty(input.defaultCta) ?? "私信咨询或预约体验";
-  const service = firstNonEmpty(input.serviceItems) ?? "核心服务";
+  const cta = firstNonEmpty(input.defaultCta) ?? "";
+  const service = firstNonEmpty(input.serviceItems) ?? "";
   const forbiddenWords = input.forbiddenWords.filter(Boolean);
   const title = "视频链路验证占位脚本";
   const scriptText = [
@@ -38,7 +38,7 @@ export function buildVideoChainTestDraftFixture(input: VideoChainTestDraftInput)
     "字幕：素材上传测试",
     "",
     "Scene 2 | 00:05-00:18",
-    `画面：上传的第二段素材，展示${service}相关细节。`,
+    `画面：上传的第二段素材，${service ? `展示${service}相关细节。` : "展示用户已提供的可用测试素材。"}`,
     "台词：这一段用于验证 worker 能否读取脚本、素材和剪辑指令。",
     "字幕：生成任务测试",
     "",
@@ -89,7 +89,7 @@ export function buildVideoChainTestDraftFixture(input: VideoChainTestDraftInput)
       title,
       scriptText,
       hashtags: ["视频链路测试", "素材上传测试"],
-      ctaText: cta,
+      ctaText: cta || null,
       reviewStatus: "approved" as const,
       productionScenes: [
         {
@@ -108,7 +108,7 @@ export function buildVideoChainTestDraftFixture(input: VideoChainTestDraftInput)
           sceneNo: 2,
           timeRange: "00:05-00:18",
           shotRequirement: "使用任意第二段素材，验证 worker 可以读取脚本和 input_assets。",
-          visual: `${service}相关细节或任意可用测试素材。`,
+          visual: service ? `${service}相关细节或任意可用测试素材。` : "用户已提供的可用测试素材。",
           voiceover: "这一段用于验证 worker 能否读取脚本、素材和剪辑指令。",
           subtitle: "生成任务测试",
           materials: ["第二段测试素材"],

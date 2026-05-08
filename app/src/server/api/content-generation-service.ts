@@ -167,12 +167,11 @@ export async function generateArticleDraftForUser(input: {
       material_reference_id: materialContext.reference?.id ?? input.materialReferenceId ?? null,
     },
   });
-  const cta = merchant.defaultCta[0] ?? "私信我领取体验方案或预约到店咨询";
   const angle =
     input.goal ??
     generationContext.selectedCalendarItem?.summary ??
     session.strategySnapshot.articleBrief?.angle ??
-    "专业干货 + 场景信任";
+    null;
   const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
   const articleContext = buildArticlePromptContext({
     selectedCalendarItem: generationContext.selectedCalendarItem,
@@ -185,18 +184,9 @@ export async function generateArticleDraftForUser(input: {
     extraRequirement: input.extraRequirement ?? null,
     toneStyle: input.toneStyle ?? null,
   });
-  const fallbackVariants = buildFallbackArticleVariants({
-    merchantName: merchant.name,
-    angle,
-    session,
-    cta,
-    material: materialContext.material,
-    mode,
-  });
   const articleGeneration = await generateArticleVariantsWithLlm({
     mode,
     context: articleContext,
-    fallbackVariants,
     expectedVariantCount: "multiple",
   });
 
@@ -248,7 +238,7 @@ export async function generateArticleDraftForUser(input: {
       title: variant.title,
       bodyText: variant.bodyText,
       hashtags: variant.hashtags.length ? variant.hashtags : buildHashtags(session),
-      ctaText: variant.ctaText || cta,
+      ctaText: variant.ctaText || null,
     })),
   });
 
@@ -294,10 +284,6 @@ export async function reviseArticleDraftForUser(input: {
   }
 
   const originalContext = toRecord(currentVariant.inputSnapshot);
-  const fallbackVariants = buildFallbackArticleRevisionVariants({
-    currentVariant,
-    revisionInstruction: input.revisionInstruction,
-  });
   const articleGeneration = await generateArticleVariantsWithLlm({
     mode: "revise",
     context: buildArticlePromptContext({
@@ -320,7 +306,6 @@ export async function reviseArticleDraftForUser(input: {
       ctaText: currentVariant.ctaText,
     },
     revisionInstruction: input.revisionInstruction,
-    fallbackVariants,
     expectedVariantCount: "single",
   });
   const revised = articleGeneration.variants[0];
@@ -645,7 +630,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
         merchantId: merchant.id,
         sourceItemId: sourceItem.id,
         workingTitle,
-        rewriteGoal: input.goal ?? session.strategySnapshot.videoBrief?.hook ?? "门店场景视频脚本",
+        rewriteGoal: input.goal ?? session.strategySnapshot.videoBrief?.hook ?? null,
         inputSnapshot: {
           source: generationContext.source,
           consultationSessionId: session.id,
@@ -1243,47 +1228,9 @@ export async function getContentRecordForUser(input: {
   });
 }
 
-function buildArticleBody(input: {
-  merchantName: string;
-  angle: string;
-  session: Awaited<ReturnType<typeof getConsultationSessionDetail>>;
-  variantLabel: string;
-  cta: string;
-  material?: MaterialLibraryItemDto | null;
-}) {
-  const audiences = input.session.strategySnapshot.targetAudiences.join("、") || "高意向用户";
-  const sellingPoints =
-    input.session.strategySnapshot.coreSellingPoints.join("、") || input.merchantName;
-  const scenes = input.session.strategySnapshot.keyScenes.join("、") || "真实到店前决策";
-
-  return [
-    `【${input.variantLabel}】`,
-    `如果你最近在做内容，但总感觉发了也没人来问，大概率不是你不努力，而是内容没有真正围绕「${audiences}」的决策场景展开。`,
-    "",
-    `这次我先把 ${input.merchantName} 的策略资产压成一个更好用的创作角度: ${input.angle}。`,
-    input.material
-      ? `同时参考了素材「${input.material.title}」：${input.material.description ?? "保留其内容结构、开头钩子和转化动作。"}`
-      : null,
-    "",
-    `1. 先把用户最想听的场景说透`,
-    `我们重点围绕 ${scenes} 去讲，因为这类场景最容易触发咨询和收藏。`,
-    "",
-    `2. 把门店真正的差异点讲具体`,
-    `别只说“专业”“靠谱”，要把 ${sellingPoints} 这些真实可感知的信息讲出来。`,
-    "",
-    `3. 最后给一个明确动作`,
-    `${input.cta}。`,
-    "",
-    `把这一条跑通后，再去扩更多选题，内容效率会比“想到什么发什么”稳定很多。`,
-  ]
-    .filter((line) => line !== null)
-    .join("\n");
-}
-
 async function generateArticleVariantsWithLlm(input: {
   mode: ArticlePromptMode;
   context: ArticlePromptContext;
-  fallbackVariants: ArticleGeneratedVariant[];
   currentVariant?: {
     title?: string | null;
     bodyText?: string | null;
@@ -1303,14 +1250,11 @@ async function generateArticleVariantsWithLlm(input: {
   };
 }> {
   if (!getAiRuntimeApiKey()) {
-    return {
-      variants: input.fallbackVariants,
-      riskNotes: [],
-      trace: {
-        promptVersion: ARTICLE_PROMPT_VERSION,
-        mode: "fallback_no_key",
-      },
-    };
+    throw new ApiError(
+      503,
+      "ARTICLE_GENERATION_MODEL_UNAVAILABLE",
+      "AI 图文生成服务暂时不可用，当前环境没有配置可用模型密钥。",
+    );
   }
 
   const platformSettings = await getPlatformSettings();
@@ -1340,8 +1284,6 @@ async function generateArticleVariantsWithLlm(input: {
       },
     };
   } catch (error) {
-    const mode: ArticlePromptTraceMode =
-      error instanceof ArticlePromptParseError ? "fallback_parse_error" : "fallback_error";
     const errorMessage =
       error instanceof AiRuntimeError
         ? `${error.message}${error.status ? ` (${error.status})` : ""}`
@@ -1349,23 +1291,23 @@ async function generateArticleVariantsWithLlm(input: {
           ? error.message
           : "Unknown article generation error.";
 
-    console.error("[article-generation] llm fallback", {
-      mode,
+    console.error("[article-generation] llm error", {
+      mode: error instanceof ArticlePromptParseError ? "parse_error" : "runtime_error",
       provider: platformSettings.llmRuntime.providerLabel,
       baseUrl: platformSettings.llmRuntime.baseUrl,
       model: platformSettings.llmRuntime.primaryModel,
       error: errorMessage,
     });
 
-    return {
-      variants: input.fallbackVariants,
-      riskNotes: [],
-      trace: {
-        promptVersion: ARTICLE_PROMPT_VERSION,
-        mode,
-        error: errorMessage,
-      },
-    };
+    throw new ApiError(
+      error instanceof ArticlePromptParseError ? 502 : 503,
+      error instanceof ArticlePromptParseError
+        ? "ARTICLE_GENERATION_MODEL_OUTPUT_INVALID"
+        : "ARTICLE_GENERATION_MODEL_FAILED",
+      error instanceof ArticlePromptParseError
+        ? `AI 图文生成返回内容无法解析：${errorMessage}`
+        : `AI 图文生成失败：${errorMessage}`,
+    );
   }
 }
 
@@ -1392,91 +1334,6 @@ function buildArticlePromptContext(input: {
     toneStyle: input.toneStyle,
     platform: "xiaohongshu",
   };
-}
-
-function buildFallbackArticleVariants(input: {
-  merchantName: string;
-  angle: string;
-  session: Awaited<ReturnType<typeof getConsultationSessionDetail>>;
-  cta: string;
-  material?: MaterialLibraryItemDto | null;
-  mode: GenerationMode;
-}): ArticleGeneratedVariant[] {
-  return [
-    {
-      styleLabel: "专业干货版",
-      title:
-        input.mode === "rewrite"
-          ? `参考这个结构，重写 ${input.merchantName} 的到店笔记`
-          : `别再盲目发内容了，${input.merchantName} 先把这 3 个点讲清楚`,
-      bodyText: buildArticleBody({
-        merchantName: input.merchantName,
-        angle: input.angle,
-        session: input.session,
-        variantLabel: "专业干货版",
-        cta: input.cta,
-        material: input.material,
-      }),
-      hashtags: buildHashtags(input.session),
-      ctaText: input.cta,
-      rationale: "AI 生成服务暂不可用，先使用稳定模板生成可编辑草稿。",
-      coverCopySuggestions: ["先别急着下单，先看这 3 个细节"],
-      imageStructureSuggestions: [
-        "首图用用户最关心的问题做封面花字。",
-        "第二页展示真实场景或服务流程。",
-        "第三页解释核心卖点和判断标准。",
-        "最后一页保留明确 CTA。",
-      ],
-    },
-    {
-      styleLabel: "场景共鸣版",
-      title: `${input.session.strategySnapshot.targetAudiences[0] ?? "高意向用户"} 最在意的，其实不是价格`,
-      bodyText: buildArticleBody({
-        merchantName: input.merchantName,
-        angle: input.angle,
-        session: input.session,
-        variantLabel: "场景共鸣版",
-        cta: input.cta,
-        material: input.material,
-      }),
-      hashtags: buildHashtags(input.session),
-      ctaText: input.cta,
-      rationale: "AI 生成服务暂不可用，先使用稳定模板生成可编辑草稿。",
-      coverCopySuggestions: ["真正影响体验的，其实不是价格"],
-      imageStructureSuggestions: [
-        "首图抛出场景化顾虑。",
-        "中间页拆解顾虑背后的真实判断点。",
-        "末页用门店事实和 CTA 承接咨询。",
-      ],
-    },
-  ];
-}
-
-function buildFallbackArticleRevisionVariants(input: {
-  currentVariant: {
-    title?: string | null;
-    bodyText?: string | null;
-    hashtags: string[];
-    ctaText?: string | null;
-  };
-  revisionInstruction: string;
-}): ArticleGeneratedVariant[] {
-  return [
-    {
-      styleLabel: "按要求修改版",
-      title: input.currentVariant.title ?? "按要求修改后的图文版本",
-      bodyText: [
-        input.currentVariant.bodyText ?? "",
-        "",
-        `【修改备注】${input.revisionInstruction}`,
-      ].join("\n"),
-      hashtags: input.currentVariant.hashtags,
-      ctaText: input.currentVariant.ctaText ?? "私信我了解更多到店建议",
-      rationale: "AI 生成服务暂不可用，先追加一版带修改备注的可编辑草稿。",
-      coverCopySuggestions: ["按修改意见优化后的封面方向"],
-      imageStructureSuggestions: ["沿用原配图结构，并按修改意见调整重点。"],
-    },
-  ];
 }
 
 function buildHashtags(session: Awaited<ReturnType<typeof getConsultationSessionDetail>>) {

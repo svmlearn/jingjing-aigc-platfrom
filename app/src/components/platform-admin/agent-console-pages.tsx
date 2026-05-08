@@ -1008,7 +1008,7 @@ export function AgentConfigAdminPage({
         },
         body: JSON.stringify({
           displayName: trimmedName,
-          roleDescription: "本地生活商家咨询专家",
+          roleDescription: "用户内容咨询专家",
           description: "从后台新建的咨询 Agent。",
           serviceStatus: "draft",
           serviceFlags: {
@@ -1029,7 +1029,7 @@ export function AgentConfigAdminPage({
       setAgentFormState({ agentId: data.agent.id, values: toAgentBasicForm(data.agent) });
       setPromptTab("draft");
       setSoulTab("draft");
-      setAgentActionMessage("Agent 已创建。保存为已启用后，会出现在商家端 @ 专家列表。");
+      setAgentActionMessage("Agent 已创建。保存为已启用后，会出现在用户端 @ 专家列表。");
     } catch (error) {
       setAgentActionError(error instanceof Error ? error.message : "Agent 创建失败");
     } finally {
@@ -1086,7 +1086,7 @@ export function AgentConfigAdminPage({
       });
       setPromptTab("draft");
       setSoulTab("draft");
-      setAgentActionMessage("Agent 已复制为草稿。保存为已启用后，会出现在商家端 @ 专家列表。");
+      setAgentActionMessage("Agent 已复制为草稿。保存为已启用后，会出现在用户端 @ 专家列表。");
     } catch (error) {
       setAgentActionError(error instanceof Error ? error.message : "Agent 复制失败");
     } finally {
@@ -1127,7 +1127,7 @@ export function AgentConfigAdminPage({
       setAgentFormState({ agentId: data.agent.id, values: toAgentBasicForm(data.agent) });
       setAgentActionMessage(
         data.agent.serviceStatus === "enabled"
-          ? "Agent 已保存为已启用，会出现在商家端 @ 专家列表。"
+          ? "Agent 已保存为已启用，会出现在用户端 @ 专家列表。"
           : "Agent 已保存。",
       );
       return data.agent;
@@ -1185,7 +1185,7 @@ export function AgentConfigAdminPage({
 
       mergeRouteBinding(data.routeBinding);
       setSelectedAgentId(targetAgent.id);
-      setAgentActionMessage("Agent 已设为线上默认咨询入口，并会出现在商家端 @ 专家列表。");
+      setAgentActionMessage("Agent 已设为线上默认咨询入口，并会出现在用户端 @ 专家列表。");
     } catch (error) {
       setAgentActionError(error instanceof Error ? error.message : "Agent 设为线上失败");
     } finally {
@@ -1412,7 +1412,7 @@ export function AgentConfigAdminPage({
         <AdminPageHeader
           eyebrow="Agent 配置"
           title={selectedAgent.displayName}
-          description="以 Agent 容器组织 agent.md、soul.md、memory.md、Skill 与 Knowledge Set。Skill 挂载会进入商家端咨询运行时，并按触发条件渐进式披露。"
+          description="以 Agent 容器组织 agent.md、soul.md、memory.md、Skill 与 Knowledge Set。Skill 挂载会进入用户端咨询运行时，并按触发条件渐进式披露。"
           action={
             <div className="flex flex-wrap gap-2">
               <MiniButton
@@ -1462,7 +1462,7 @@ export function AgentConfigAdminPage({
         ) : null}
 
         <AdminNotice tone="warning">
-          已启用 Agent 会出现在商家端咨询页的 @ 专家列表；设为线上会成为默认咨询入口。
+          已启用 Agent 会出现在用户端咨询页的 @ 专家列表；设为线上会成为默认咨询入口。
         </AdminNotice>
 
         {defaultBindingInvalid ? (
@@ -1473,7 +1473,7 @@ export function AgentConfigAdminPage({
 
         {selectedAgent.serviceStatus === "disabled" && isOnline ? (
           <AdminNotice tone="danger">
-            当前 Agent 已禁用，但仍被线上咨询入口引用。商家端应展示「服务维护中」。
+            当前 Agent 已禁用，但仍被线上咨询入口引用。用户端应展示「服务维护中」。
           </AdminNotice>
         ) : null}
 
@@ -1816,7 +1816,7 @@ export function AgentConfigAdminPage({
           />
           <div className="grid gap-4 p-5">
             <AdminNotice tone="warning">
-              memory.md 目前是 V2 结构占位；商家长期记忆仍只从已受控的 Knowledge / merchant_memory 命中结果读取。
+              memory.md 目前是 V2 结构占位；用户长期记忆仍只从已受控的 Knowledge / merchant_memory 命中结果读取。
             </AdminNotice>
             <pre className="overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-[#050505] p-4 text-xs leading-6 text-white/45">
               {[
@@ -1861,7 +1861,7 @@ export function AgentConfigAdminPage({
               ) : null}
               {skillBindingSaved ? (
                 <AdminNotice tone="success" className="m-3">
-                  Skill 挂载已保存，商家端咨询 Agent 下一轮运行会读取最新候选集。
+                  Skill 挂载已保存，用户端咨询 Agent 下一轮运行会读取最新候选集。
                 </AdminNotice>
               ) : null}
               {skillDependencyWarnings.length > 0 ? (
@@ -1918,7 +1918,7 @@ export function AgentConfigAdminPage({
               ) : null}
               {knowledgeSetBindingSaved ? (
                 <AdminNotice tone="success" className="m-3">
-                  Knowledge Set 挂载已保存，商家端咨询下一轮检索会读取最新范围。
+                  Knowledge Set 挂载已保存，用户端咨询下一轮检索会读取最新范围。
                 </AdminNotice>
               ) : null}
               {boundKnowledgeSets.length === 0 ? (
@@ -2040,7 +2040,7 @@ export function SkillManagementAdminPage({
   }
 
   async function createSkill() {
-    const name = window.prompt("输入新 Skill 名称，例如：门店定位方法");
+    const name = window.prompt("输入新 Skill 名称，例如：定位澄清方法");
     const trimmedName = name?.trim();
 
     if (!trimmedName) {
@@ -2206,7 +2206,7 @@ export function SkillManagementAdminPage({
         <AdminEmptyState
           icon={Zap}
           title="暂无技能"
-          description="创建一个门店定位、成交异议或平台口吻策略 Skill，作为 Agent 的候选能力片段。"
+          description="创建一个定位澄清、成交异议或平台口吻策略 Skill，作为 Agent 的候选能力片段。"
         />
       </div>
     );
@@ -2415,7 +2415,7 @@ export function AgentDebugAdminPage({
     onlineAgentId ?? foundationState.agents[0]?.id ?? "",
   );
   const [selectedMerchantId, setSelectedMerchantId] = useState(merchants[0]?.id ?? "");
-  const [debugInput, setDebugInput] = useState("我不知道这个门店的小红书账号该怎么定位");
+  const [debugInput, setDebugInput] = useState("我还不确定自己的小红书账号该怎么定位");
   const [debugRunning, setDebugRunning] = useState(false);
   const [debugError, setDebugError] = useState<string | null>(null);
   const [debugResult, setDebugResult] = useState<{
@@ -2499,7 +2499,7 @@ export function AgentDebugAdminPage({
           <AdminPageHeader
             eyebrow="平台管理台 · Agent 调试"
             title="Agent 调试"
-            description="选择任意 Agent 和测试商家运行后台调试；结果保存到 agent_test_runs，不写真实咨询会话，不扣商家积分。"
+            description="选择任意 Agent 和测试用户运行后台调试；结果保存到 agent_test_runs，不写真实咨询会话，不扣用户积分。"
             action={
               <span className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/45">
                 测试不扣积分 · 保存调试记录
@@ -2542,10 +2542,10 @@ export function AgentDebugAdminPage({
               </div>
               <p className="text-sm font-medium text-white/60">输入测试问题后运行 Agent 调试</p>
               <p className="mt-2 max-w-lg text-sm leading-6 text-white/35">
-                调试运行会读取当前 Agent 的 agent.md、soul.md、Skill、Knowledge Set 和测试商家资料，并保存一条可追溯记录。
+                调试运行会读取当前 Agent 的 agent.md、soul.md、Skill、Knowledge Set 和测试用户信息，并保存一条可追溯记录。
               </p>
               <div className="mt-6 flex flex-wrap justify-center gap-2">
-                {["我不知道这个门店的小红书账号该怎么定位", "客户总说价格太贵，怎么处理？", "帮我分析竞品账号差异化方向"].map(
+                {["我还不确定自己的小红书账号该怎么定位", "用户总说价格太贵，怎么处理？", "帮我分析竞品账号差异化方向"].map(
                   (question) => (
                     <button
                       key={question}
@@ -2663,7 +2663,7 @@ export function AgentDebugAdminPage({
                       debugResult.memoryMatches.map((match) => (
                         <div key={match.chunkId ?? match.documentTitle} className="p-4">
                           <div className="text-sm font-medium text-white/65">
-                            {match.documentTitle ?? "商家记忆"}
+                            {match.documentTitle ?? "用户记忆"}
                           </div>
                           <div className="mt-2 text-xs text-white/35">
                             {match.chunkId ?? "memory"} · score {match.score ?? "-"}
@@ -2672,7 +2672,7 @@ export function AgentDebugAdminPage({
                       ))
                     ) : (
                       <div className="p-5 text-sm text-white/35">
-                        本轮未命中商家长期记忆。
+                        本轮未命中用户长期记忆。
                       </div>
                     )}
                   </div>
@@ -2709,7 +2709,7 @@ export function AgentDebugAdminPage({
             {debugResult?.testRun
               ? `1 条调试记录 · ${debugResult.testRun.createdAt}`
               : "0 条调试记录"}{" "}
-            · 测试商家：{selectedMerchant?.name ?? "未选择"}
+            · 测试用户：{selectedMerchant?.name ?? "未选择"}
           </div>
         </div>
       </div>

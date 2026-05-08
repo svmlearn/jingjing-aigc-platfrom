@@ -26,6 +26,7 @@ import {
   ensureMerchantStrategyAsset,
   upsertMerchantStrategyAsset,
 } from "@/lib/db/merchant-strategy-asset-repository";
+import { emptyStrategySnapshot } from "@/lib/strategy-snapshot";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import { getPlatformSettings } from "@/lib/db/platform-admin-repository";
 import { createChatCompletion, getAiRuntimeApiKey } from "@/server/api/ai-runtime";
@@ -71,13 +72,13 @@ const expertContainers: Record<RoundtableInterviewPhaseKey, RoundtableExpertCont
     outputTitle: "asset_diagnosis",
     outputFields: ["life_context", "available_assets", "real_stories", "material_clues", "constraints", "risk_boundaries"],
     focus: "生活状态、经营资源、过往经历、真实案例、素材线索和表达禁区",
-    evidenceRule: "只记录用户明确说过或能从商家资料直接得出的资产事实；用户反问、没听懂、情绪反馈不能写成资产。",
+    evidenceRule: "只记录用户明确说过或能从用户信息直接得出的资产事实；用户反问、没听懂、情绪反馈不能写成资产。",
     container: {
       agentKey: "roundtable_asset_manager",
       displayName: "资产盘点官",
-      systemPrompt: "专注盘点商家的真实资产、生活状态、经营资源、故事素材与表达边界。",
+      systemPrompt: "专注盘点用户的真实资产、生活状态、经营资源、故事素材与表达边界。",
       skills: ["资产追问", "事实抽取", "素材边界识别"],
-      knowledgePolicy: "读取商家资料和本阶段 transcript；只接收前序结构化摘要，不默认读取全量跨阶段 transcript。",
+      knowledgePolicy: "读取用户信息和本阶段 transcript；只接收前序结构化摘要，不默认读取全量跨阶段 transcript。",
       toolPolicy: "interview_only",
     },
   },
@@ -113,7 +114,7 @@ const expertContainers: Record<RoundtableInterviewPhaseKey, RoundtableExpertCont
       displayName: "营销策略官",
       systemPrompt: "专注把资产与技能阶段产物转成内容定位、目标客群、卖点、选题与 CTA。",
       skills: ["定位收束", "卖点表达", "内容策略设计"],
-      knowledgePolicy: "读取资产与技能阶段摘要、本阶段访谈和商家资料；策略判断必须可追溯到前序事实。",
+      knowledgePolicy: "读取资产与技能阶段摘要、本阶段访谈和用户信息；策略判断必须可追溯到前序事实。",
       toolPolicy: "synthesize_strategy",
     },
   },
@@ -201,7 +202,7 @@ export async function createRoundtableConsultationSessionForUser(input: {
   const now = new Date().toISOString();
   const strategySnapshot = await ensureMerchantStrategyAsset({
     merchantId: merchant.id,
-    fallback: buildInitialStrategySnapshot(merchant),
+    fallback: buildInitialStrategySnapshot(),
   });
   const state = buildInitialRoundtableState(now);
   const session = await createConsultationSession({
@@ -283,7 +284,7 @@ export async function sendRoundtableMessageForUser(input: {
     visibleSummary: buildRoundtableVisibleSummary({
       state,
       phaseKey,
-      agentName: "商家",
+      agentName: "用户",
     }),
   });
   const nextMessages = [...session.messages, userMessage];
@@ -856,7 +857,7 @@ async function buildRoundtableQuestion(input: {
             "如果用户表示没听懂、反问或困惑，先用更具体的话解释你想问什么，再换一种问法；不要重复原问题。",
             "每次只提出 1 个主问题，可以附 1 到 2 个具体示例帮助用户回答。",
             "不得跨阶段做其他专家的工作，不得编造用户没有说过的事实。",
-            '只输出 JSON：{"message":"给商家的自然语言回复","intent":"本轮追问意图","shouldSuggestPhaseComplete":false}。',
+            '只输出 JSON：{"message":"给用户的自然语言回复","intent":"本轮追问意图","shouldSuggestPhaseComplete":false}。',
           ].join("\n"),
         },
         {
@@ -907,19 +908,9 @@ function buildInitialRoundtableState(now: string): RoundtableStateDto {
   };
 }
 
-function buildInitialStrategySnapshot(merchant: MerchantProfileDto): StrategySnapshotDto {
-  const serviceAnchor = merchant.serviceItems[0] ?? merchant.industry ?? "本地生活服务";
-
+function buildInitialStrategySnapshot(): StrategySnapshotDto {
   return {
-    positioning: `${merchant.name} 围绕 ${serviceAnchor} 提供本地化服务，等待圆桌咨询补齐真实资产、技能优势和营销策略。`,
-    coreSellingPoints: merchant.serviceItems.slice(0, 3),
-    targetAudiences: [],
-    keyScenes: [],
-    currentSuggestion: "先完成圆桌咨询，再保存为策略快照并进入内容生产。",
-    strategyTags: ["圆桌咨询"],
-    contentCalendarDraft: [],
-    articleBrief: null,
-    videoBrief: null,
+    ...emptyStrategySnapshot,
   };
 }
 
@@ -1074,7 +1065,7 @@ async function buildRoundtableStrategyCandidateWithModel(input: {
             "你是圆桌咨询主持人的策略汇总 Agent。",
             "你只能读取三阶段结构化产物，不读取全量 transcript。",
             "输出必须是可保存的 strategySnapshot JSON，字段包括 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion、strategyTags、contentCalendarDraft、articleBrief、videoBrief。",
-            "不得编造阶段产物没有支持的商家事实；如果需要泛化，只能写成策略假设和低承诺表达。",
+            "不得编造阶段产物没有支持的用户事实；如果需要泛化，只能写成策略假设和低承诺表达。",
             "内容日历必须能进入图文/视频工作台，至少 3 条，图文和视频都要有。",
             "不要输出 Markdown，只输出 JSON。",
           ].join("\n"),

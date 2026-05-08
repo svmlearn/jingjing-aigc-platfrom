@@ -1887,11 +1887,6 @@ function buildStrategySnapshot(input: {
   const mergedUserText = input.userMessages.join(" ");
   const knowledgeText = (input.knowledgeMatches ?? []).map((match) => match.content).join(" ");
   const assetEdit = input.assetEdit;
-  const merchantServiceAnchor = getMerchantServiceAnchor(input.merchant);
-  const serviceAnchor =
-    merchantServiceAnchor ??
-    firstConcreteStrategyText(assetEdit?.coreSellingPoints) ??
-    firstConcreteStrategyText(input.previousSnapshot?.coreSellingPoints);
   const hasUsableSeed =
     hasMerchantStrategySeedFacts(input.merchant) ||
     hasStrategyAssetEditorFacts(assetEdit) ||
@@ -1961,13 +1956,10 @@ function buildStrategySnapshot(input: {
     maxItems: strategyAssetListLimits.keyScenes,
   });
   const strategyTags = uniqueStrings([
-    sellingPoints.length > 0 || serviceAnchor ? "专业人设" : "",
-    keyScenes.length > 0 || serviceAnchor ? "场景种草" : "",
-    input.merchant.defaultCta.length > 0 || mergedUserText.includes("转化") ? "转化路径" : "",
+    ...(input.previousSnapshot?.strategyTags ?? []),
     knowledgeText ? "知识库命中" : "",
     mergedUserText.includes("视频") ? "视频优先" : "",
   ]).slice(0, 4);
-  const contentAnchor = serviceAnchor ?? sellingPoints[0] ?? "";
   const positioning =
     assetEdit?.positioning ??
     input.previousSnapshot?.positioning ??
@@ -1984,28 +1976,9 @@ function buildStrategySnapshot(input: {
     keyScenes,
     currentSuggestion,
     strategyTags,
-    contentCalendarDraft: contentAnchor
-      ? buildContentCalendar({
-          merchantName: input.merchant.name,
-          serviceAnchor: contentAnchor,
-          strategyTags,
-          sellingPoints,
-        })
-      : [],
-    articleBrief: contentAnchor
-      ? {
-          workingTitle: `${contentAnchor} 的 3 个内容切口`,
-          angle: `围绕 ${sellingPoints[0] || contentAnchor} 做专业干货 + 场景共鸣`,
-          callToAction: input.merchant.defaultCta[0] ?? "引导用户私信咨询或预约下一步",
-        }
-      : null,
-    videoBrief: contentAnchor
-      ? {
-          workingTitle: `${input.merchant.name} 场景视频脚本`,
-          hook: `先用 3 秒钩子把 ${audiences[0] || "目标用户"} 的典型痛点说透`,
-          outcome: "输出一条能直接进入视频工作台的信任感脚本",
-        }
-      : null,
+    contentCalendarDraft: input.previousSnapshot?.contentCalendarDraft ?? [],
+    articleBrief: input.previousSnapshot?.articleBrief ?? null,
+    videoBrief: input.previousSnapshot?.videoBrief ?? null,
   };
 }
 
@@ -2080,10 +2053,6 @@ function hasUsableStrategySnapshot(snapshot: StrategySnapshotDto | null) {
       ...(snapshot.keyScenes ?? []),
     ]),
   );
-}
-
-function firstConcreteStrategyText(values?: string[] | null) {
-  return firstCleanText(values ?? []);
 }
 
 function firstCleanText(values: Array<string | null | undefined>) {
@@ -2667,51 +2636,6 @@ function isStrategySnapshot(value: unknown): value is StrategySnapshotDto {
     Array.isArray(record.strategyTags) &&
     Array.isArray(record.contentCalendarDraft)
   );
-}
-
-function buildContentCalendar(input: {
-  merchantName: string;
-  serviceAnchor: string;
-  strategyTags: string[];
-  sellingPoints: string[];
-}): StrategySnapshotDto["contentCalendarDraft"] {
-  const tags = input.strategyTags.length > 0 ? input.strategyTags : ["专业表达", "案例拆解", "行动路径"];
-  const sellingPoint = input.sellingPoints[0] || input.serviceAnchor;
-
-  return [
-    {
-      id: randomUUID(),
-      dayLabel: "周一",
-      contentType: "article",
-      strategyTag: tags[0],
-      title: `${input.serviceAnchor} 常见误区拆解`,
-      summary: `用一篇干货内容把 ${sellingPoint} 的专业价值讲清楚。`,
-    },
-    {
-      id: randomUUID(),
-      dayLabel: "周三",
-      contentType: "video",
-      strategyTag: tags[1] ?? tags[0],
-      title: `${input.merchantName} 的真实案例拆解`,
-      summary: "展示一个具体问题从判断、拆解到方案形成的过程。",
-    },
-    {
-      id: randomUUID(),
-      dayLabel: "周五",
-      contentType: "article",
-      strategyTag: tags[2] ?? tags[0],
-      title: `${input.serviceAnchor} 最常见的决策顾虑`,
-      summary: "正面回答可信度、交付边界、时间成本等合作前疑问。",
-    },
-    {
-      id: randomUUID(),
-      dayLabel: "周日",
-      contentType: "video",
-      strategyTag: tags.at(-1) ?? tags[0],
-      title: "方法论短视频",
-      summary: "用一个清晰判断框架引导用户继续了解或发起沟通。",
-    },
-  ];
 }
 
 function extractKeywordMatches(source: string, keywords: string[]) {

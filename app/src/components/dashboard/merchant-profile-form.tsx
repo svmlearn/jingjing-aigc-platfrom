@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, LoaderCircle, Store } from "lucide-react";
+import { CheckCircle2, LoaderCircle, UserRound } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
 import type { MerchantProfileDto } from "@/contracts/merchant";
@@ -16,9 +16,6 @@ type MerchantProfileResponse = {
 
 type MerchantProfileFormValues = {
   name: string;
-  contactPhone: string;
-  contactName: string;
-  address: string;
   servicesText: string;
 };
 
@@ -69,9 +66,6 @@ export function MerchantProfileForm({
 }) {
   const [values, setValues] = useState<MerchantProfileFormValues>({
     name: "",
-    contactPhone: "",
-    contactName: "",
-    address: "",
     servicesText: "",
   });
   const [loaded, setLoaded] = useState(false);
@@ -93,7 +87,7 @@ export function MerchantProfileForm({
         if (!response.ok || !payload || !("merchantProfile" in payload)) {
           if (active) {
             setLoadError(
-              getMerchantProfileErrorMessage(payload, "当前还没有拿到商户资料，请先完成邀请码注册。"),
+              getMerchantProfileErrorMessage(payload, "当前还没有拿到用户信息，请先完成邀请码注册。"),
             );
             setLoaded(true);
           }
@@ -106,15 +100,12 @@ export function MerchantProfileForm({
 
         setValues({
           name: payload.merchantProfile.name ?? "",
-          contactPhone: payload.merchantProfile.contactPhone ?? "",
-          contactName: payload.merchantProfile.contactName ?? "",
-          address: payload.merchantProfile.address ?? "",
           servicesText: toServicesText(payload.merchantProfile.serviceItems),
         });
         setLoaded(true);
       } catch {
         if (active) {
-          setLoadError("商户资料加载失败，请稍后重试。");
+          setLoadError("用户信息加载失败，请稍后重试。");
           setLoaded(true);
         }
       }
@@ -151,9 +142,9 @@ export function MerchantProfileForm({
         },
         body: JSON.stringify({
           name: values.name.trim(),
-          contactName: values.contactName.trim() || null,
-          contactPhone: values.contactPhone.trim() || null,
-          address: values.address.trim() || null,
+          contactName: null,
+          contactPhone: null,
+          address: null,
           serviceItems: toServiceItems(values.servicesText),
         }),
       });
@@ -161,13 +152,13 @@ export function MerchantProfileForm({
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setLoadError(getMerchantProfileErrorMessage(payload, "商户资料保存失败，请稍后重试。"));
+        setLoadError(getMerchantProfileErrorMessage(payload, "用户信息保存失败，请稍后重试。"));
         return;
       }
 
-      setSaveMessage("商户资料已保存到真实商户记录。");
+      setSaveMessage("用户信息已保存。");
     } catch {
-      setLoadError("商户资料保存失败，请确认网络后重试。");
+      setLoadError("用户信息保存失败，请确认网络后重试。");
     } finally {
       setIsSaving(false);
     }
@@ -179,11 +170,11 @@ export function MerchantProfileForm({
         <div>
           <div className="mb-4 flex size-12 rotate-45 items-center justify-center rounded-2xl border border-amber-200/30 bg-gradient-to-br from-amber-600 to-amber-200 text-black shadow-[0_0_36px_rgba(245,158,11,0.22)]">
             <div className="-rotate-45">
-              <Store className="size-5" aria-hidden="true" />
+              <UserRound className="size-5" aria-hidden="true" />
             </div>
           </div>
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-amber-200/70">
-            Merchant Profile
+            User Profile
           </p>
           <h1 className="mt-2 text-3xl font-semibold text-white [font-family:var(--font-cormorant)]">
             {title}
@@ -202,7 +193,7 @@ export function MerchantProfileForm({
       {!loaded ? (
         <div className="mt-5 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/55">
           <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-          正在加载商户资料...
+          正在加载用户信息...
         </div>
       ) : null}
 
@@ -213,10 +204,10 @@ export function MerchantProfileForm({
       ) : null}
 
       <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5">
           <div className="grid gap-2.5">
             <Label htmlFor="merchant-name" className={labelClassName}>
-              商户名称
+              昵称 / 展示名称
             </Label>
             <Input
               id="merchant-name"
@@ -228,49 +219,10 @@ export function MerchantProfileForm({
               disabled={!loaded || isSaving}
             />
           </div>
-          <div className="grid gap-2.5">
-            <Label htmlFor="merchant-phone" className={labelClassName}>
-              联系电话
-            </Label>
-            <Input
-              id="merchant-phone"
-              name="contactPhone"
-              className={inputClassName}
-              value={values.contactPhone}
-              onChange={(event) => updateValue("contactPhone", event.target.value)}
-              disabled={!loaded || isSaving}
-            />
-          </div>
-          <div className="grid gap-2.5">
-            <Label htmlFor="merchant-contact" className={labelClassName}>
-              联系人
-            </Label>
-            <Input
-              id="merchant-contact"
-              name="contactName"
-              className={inputClassName}
-              value={values.contactName}
-              onChange={(event) => updateValue("contactName", event.target.value)}
-              disabled={!loaded || isSaving}
-            />
-          </div>
-          <div className="grid gap-2.5">
-            <Label htmlFor="merchant-address" className={labelClassName}>
-              地址
-            </Label>
-            <Input
-              id="merchant-address"
-              name="address"
-              className={inputClassName}
-              value={values.address}
-              onChange={(event) => updateValue("address", event.target.value)}
-              disabled={!loaded || isSaving}
-            />
-          </div>
         </div>
         <div className="grid gap-2.5">
           <Label htmlFor="merchant-services" className={labelClassName}>
-            服务项目
+            可提供的能力或服务
           </Label>
           <Textarea
             id="merchant-services"
@@ -278,7 +230,7 @@ export function MerchantProfileForm({
             className={textareaClassName}
             value={values.servicesText}
             onChange={(event) => updateValue("servicesText", event.target.value)}
-            placeholder="每行一个服务项目，例如：\n肩颈调理\n产后修复\n私教体验课"
+            placeholder="每行一项，例如：\nAI 产品设计咨询\n需求拆解\n方案评审"
             disabled={!loaded || isSaving}
           />
         </div>
@@ -310,7 +262,7 @@ export function MerchantProfileForm({
                 保存中
               </>
             ) : (
-              "保存商户资料"
+              "保存用户信息"
             )}
           </Button>
           <Button

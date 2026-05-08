@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogIn, Store } from "lucide-react";
+import { LogIn, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,14 +18,14 @@ export function MerchantLoginForm({
     <section className="w-full rounded-[2rem] border border-white/10 bg-[#0d0d0d]/95 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.55)] sm:p-7">
       <div className="flex items-start gap-4 border-b border-white/10 pb-5">
         <div className="flex size-12 rotate-45 items-center justify-center rounded-2xl border border-amber-200/30 bg-gradient-to-br from-amber-600 to-amber-200 text-black shadow-[0_0_36px_rgba(245,158,11,0.22)]">
-          <Store className="-rotate-45 size-5" aria-hidden="true" />
+          <UserRound className="-rotate-45 size-5" aria-hidden="true" />
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-amber-200/70">
-            Merchant Access
+            User Access
           </p>
           <h1 className="mt-2 text-3xl font-semibold text-white [font-family:var(--font-cormorant)]">
-            登录商家工作台
+            登录用户工作台
           </h1>
           <p className="mt-1 text-sm leading-6 text-white/45">
             使用 owner 邮箱和密码进入咨询诊断、图文工作台和视频工作台。
@@ -79,7 +79,7 @@ export function MerchantLoginForm({
       </form>
 
       <div className="mt-5 flex flex-col gap-3 border-t border-white/10 pt-5 text-sm text-white/50 sm:flex-row sm:items-center sm:justify-between">
-        <span>还没有商家账号？</span>
+        <span>还没有账号？</span>
         <Link className="font-medium text-amber-200 hover:text-amber-100" href="/register">
           使用邀请码注册
         </Link>

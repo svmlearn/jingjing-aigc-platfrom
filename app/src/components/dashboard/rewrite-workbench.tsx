@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Sparkles, Store, Wand2 } from "lucide-react";
+import { CheckCircle2, Sparkles, UserRound, Wand2 } from "lucide-react";
 import { useState } from "react";
 
 import type { Platform } from "@/contracts/import";
@@ -20,7 +20,7 @@ import {
 } from "@/lib/ui/mock-api";
 import { platformLabel } from "@/lib/ui/format";
 
-const rewriteGoals = ["本地化种草", "活动引流", "抖音口播", "评论答疑"];
+const rewriteGoals = ["内容改写", "行动引导", "抖音口播", "评论答疑"];
 
 export function RewriteWorkbench({ sourceItemId }: { sourceItemId: string }) {
   const sourceItem = getSourceItem(sourceItemId);
@@ -28,7 +28,7 @@ export function RewriteWorkbench({ sourceItemId }: { sourceItemId: string }) {
   const sourceCommentSummary = getCommentSummary(sourceItemId);
   const [targetPlatform, setTargetPlatform] = useState<Platform>(sourceItem.platform);
   const [goal, setGoal] = useState(rewriteGoals[0]);
-  const [prompt, setPrompt] = useState("突出低刺激、流程时长、不强制办卡，语气像真实门店顾问。");
+  const [prompt, setPrompt] = useState("突出真实经验、问题边界和下一步行动，语气自然可信。");
   const [result, setResult] = useState<RewriteResult | null>(null);
   const [savedVariantId, setSavedVariantId] = useState<string | null>(null);
 
@@ -133,20 +133,20 @@ export function RewriteWorkbench({ sourceItemId }: { sourceItemId: string }) {
       <aside className="grid gap-5 xl:sticky xl:top-6 xl:self-start">
         <section className="rounded-md border border-[#dde3ea] bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
-            <Store className="size-4 text-[#0f766e]" aria-hidden="true" />
-            <h2 className="font-semibold">商户资料摘要</h2>
+            <UserRound className="size-4 text-[#0f766e]" aria-hidden="true" />
+            <h2 className="font-semibold">用户信息摘要</h2>
           </div>
           <dl className="mt-4 grid gap-3 text-sm">
             <div>
-              <dt className="text-[#5d6b7a]">商户</dt>
+              <dt className="text-[#5d6b7a]">展示名称</dt>
               <dd className="mt-1 font-medium">{merchantProfile.name}</dd>
             </div>
             <div>
-              <dt className="text-[#5d6b7a]">地址</dt>
+              <dt className="text-[#5d6b7a]">适用对象 / 场景</dt>
               <dd className="mt-1">{merchantProfile.address}</dd>
             </div>
             <div>
-              <dt className="text-[#5d6b7a]">服务项目</dt>
+              <dt className="text-[#5d6b7a]">可提供的能力或服务</dt>
               <dd className="mt-1 leading-6">{merchantProfile.services}</dd>
             </div>
           </dl>

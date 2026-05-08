@@ -521,7 +521,7 @@ export function PlatformKnowledgeManager({
                 <div className="flex min-w-0 items-center justify-between gap-2">
                   <span className="truncate text-sm">{knowledgeSet.name}</span>
                   <span className="shrink-0 text-xs text-white/30">
-                    {knowledgeSet.scope === "platform" ? "平台" : "商户"}
+                    {knowledgeSet.scope === "platform" ? "平台" : "用户"}
                   </span>
                 </div>
                 <div className="mt-2">
@@ -732,7 +732,7 @@ export function PlatformKnowledgeManager({
                 <input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
-                  placeholder="例如：普拉提门店小红书内容方法论"
+                  placeholder="例如：AI 产品咨询小红书内容方法论"
                   className={adminInputClassName}
                 />
               </AdminField>

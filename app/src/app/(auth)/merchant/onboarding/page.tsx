@@ -16,8 +16,8 @@ export default async function MerchantOnboardingPage() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent" />
       <div className="relative z-10 mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-4xl items-center py-8">
         <MerchantProfileForm
-          title="补全商户资料"
-          description="这些信息会进入改写上下文，先保持准确、具体、够销售使用。"
+          title="补全用户信息"
+          description="这些信息会进入咨询、图文和视频上下文，先保持准确、具体。"
           nextHref="/dashboard/import"
           nextLabel="进入导入页"
         />

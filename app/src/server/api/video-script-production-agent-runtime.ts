@@ -424,7 +424,7 @@ function questionForMissingField(field: string) {
     case "product_or_service_info":
       return "咨询台上下文没有带入主卖点、产品或服务信息，请先补齐业务信息。";
     case "cta":
-      return "咨询台上下文没有带入明确 CTA，请先确认希望用户看完后私信、预约、领取方案或到店咨询。";
+      return "咨询台上下文没有带入明确 CTA，请先确认希望用户看完后采取什么下一步行动。";
     case "available_material_or_scene":
       return "视频工作台还缺少可用素材、可拍摄场景或拍摄限制，请补充可拍什么、不能拍什么，或先绑定素材。";
     default:

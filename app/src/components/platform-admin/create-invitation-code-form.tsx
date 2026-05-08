@@ -143,7 +143,7 @@ export function CreateInvitationCodeForm() {
     <div className="grid gap-6">
       <AdminPageHeader
         title="生成邀请码"
-        description="这里只保留真正需要填的内容：邀请码名称、可使用次数，以及是否手动指定邀请码。用途固定为商户注册。"
+        description="这里只保留真正需要填的内容：邀请码名称、可使用次数，以及是否手动指定邀请码。用途固定为用户注册。"
         action={
           <Link
             href="/platform-admin/invitation-codes"
@@ -179,7 +179,7 @@ export function CreateInvitationCodeForm() {
             </AdminField>
 
             <AdminNotice tone="info">
-              当前这批邀请码固定用于 <AdminStatusBadge status="active" label="商户注册" />，
+              当前这批邀请码固定用于 <AdminStatusBadge status="active" label="用户注册" />，
               提交后会直接写入真实邀请码记录。
             </AdminNotice>
 
@@ -260,7 +260,7 @@ export function CreateInvitationCodeForm() {
             <div className="min-w-0">
               <p className="font-medium text-white/80">当前生成规则</p>
               <ul className="mt-3 grid gap-2 text-sm leading-6 text-white/40">
-                <li>名称字段用于内部识别来源，不会暴露给商家。</li>
+                <li>名称字段用于内部识别来源，不会暴露给用户。</li>
                 <li>不填过期时间就表示长期有效，直到被用完或手动停用。</li>
                 <li>提交后写入真实邀请码 API，不做本地假列表。</li>
               </ul>

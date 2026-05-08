@@ -3,8 +3,8 @@ import { MerchantLoginForm } from "@/components/app/merchant-login-form";
 
 const errorMessages: Record<string, string> = {
   "invalid-credentials": "邮箱或密码不正确，请重新输入。",
-  "no-merchant-profile": "这个账号还没有绑定商户，请使用邀请码注册，或联系平台管理员处理。",
-  unauthenticated: "请先登录商家账号，再进入工作台。",
+  "no-merchant-profile": "这个账号还没有绑定用户信息，请使用邀请码注册，或联系平台管理员处理。",
+  unauthenticated: "请先登录账号，再进入工作台。",
 };
 
 function getSafeNextParam(value?: string) {

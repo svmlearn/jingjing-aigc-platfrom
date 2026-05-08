@@ -8,43 +8,43 @@ import {
 
 const session = {
   id: "session-1",
-  summaryText: "用户希望提高首次咨询前的信任感。",
+  summaryText: "用户希望提高 AI 产品咨询前的信任感。",
   strategySnapshot: {
-    positioning: "专业可信的本地门店",
-    coreSellingPoints: ["真实环境", "稳定交付"],
-    targetAudiences: ["首次咨询前还在比较的用户"],
-    keyScenes: ["到店前决策"],
-    currentSuggestion: "先建立信任，再引导私信。",
+    positioning: "AI 产品设计咨询顾问",
+    coreSellingPoints: ["产品判断", "方案设计"],
+    targetAudiences: ["需要落地 AI 产品的团队"],
+    keyScenes: ["AI 产品需求拆解"],
+    currentSuggestion: "先建立专业信任，再引导预约沟通。",
     strategyTags: ["信任建立"],
     contentCalendarDraft: [],
     articleBrief: null,
     videoBrief: {
-      workingTitle: "第一次到店前，先看这 3 个细节",
-      hook: "不知道怎么判断一家店靠不靠谱？",
-      outcome: "私信预约体验",
+      workingTitle: "AI 产品落地前先问清这 3 件事",
+      hook: "AI 产品不是先堆功能。",
+      outcome: "预约一次需求诊断",
     },
   },
 };
 
 const merchant = {
-  name: "静境普拉提",
-  industry: "本地生活 / 普拉提门店",
-  serviceItems: ["普拉提私教"],
-  defaultCta: ["私信预约体验"],
+  name: "young",
+  industry: "AI 产品设计咨询",
+  serviceItems: ["AI 产品设计咨询"],
+  defaultCta: ["预约一次需求诊断"],
   toneStyle: "专业、温柔、可信",
-  forbiddenWords: ["包瘦"],
+  forbiddenWords: ["保证成功"],
 };
 
 test("buildVideoScriptContext includes consultation context for video drafting", () => {
   const scriptContext = buildVideoScriptContext({
     merchant,
     session,
-    strategyAssetMarkdown: "# 商家策略资产\n\n## 当前定位\n专业可信的本地门店",
+    strategyAssetMarkdown: "# 用户策略资产\n\n## 当前定位\nAI 产品设计咨询顾问",
     extraRequirement: "更强调专业信任感",
     materialContext: {
       referenceId: "reference-1",
       materialId: "material-1",
-      title: "门店环境视频",
+      title: "产品案例讲解视频",
     },
     strategyTag: "信任建立",
     selectedCalendarItem: {
@@ -52,8 +52,8 @@ test("buildVideoScriptContext includes consultation context for video drafting",
       dayLabel: "周三",
       contentType: "video",
       strategyTag: "信任建立",
-      title: "门店一镜到底体验",
-      summary: "展示门店环境、真实体验流程和用户会感知到的安全感。",
+      title: "AI 产品需求拆解",
+      summary: "展示一次需求判断、方案取舍和可落地边界。",
     },
   });
 
@@ -66,19 +66,20 @@ test("buildVideoScriptContext includes consultation context for video drafting",
   assert.equal(scriptContext.critique.passForDrafting, true);
   assert.match(
     scriptContext.contextDigest.consultationSummary.strategyAssetMarkdown ?? "",
-    /商家策略资产/,
+    /用户策略资产/,
   );
   assert.deepEqual(scriptContext.contextDigest.selectedCalendarItem, {
     id: "calendar-video-1",
     contentType: "video",
     strategyTag: "信任建立",
-    title: "门店一镜到底体验",
+    title: "AI 产品需求拆解",
     dayLabel: "周三",
-    summary: "展示门店环境、真实体验流程和用户会感知到的安全感。",
+    summary: "展示一次需求判断、方案取舍和可落地边界。",
   });
+  assert.doesNotMatch(JSON.stringify(scriptContext), /本地生活|门店|到店/);
 });
 
-test("buildVideoScriptCandidates creates three traceable video script variants", () => {
+test("buildVideoScriptCandidates does not create deterministic script variants", () => {
   const scriptContext = buildVideoScriptContext({
     merchant,
     session,
@@ -96,12 +97,46 @@ test("buildVideoScriptCandidates creates three traceable video script variants",
   });
 
   assert.deepEqual(
-    candidates.map((candidate) => candidate.candidateType),
-    ["safe_conversion", "strong_hook", "trust_expert"],
+    candidates,
+    [],
   );
-  for (const candidate of candidates) {
-    assert.equal(candidate.strategyTrace.acquisitionGoal, scriptContext.strategy.acquisitionGoal);
-    assert.match(candidate.scriptText, /Scene 1/);
-    assert.ok(candidate.whyThisWorks.length > 0);
-  }
+});
+
+test("buildVideoScriptContext marks missing context instead of filling industry defaults", () => {
+  const scriptContext = buildVideoScriptContext({
+    merchant: {
+      ...merchant,
+      serviceItems: [],
+      defaultCta: [],
+    },
+    session: {
+      id: "session-empty",
+      summaryText: null,
+      strategySnapshot: {
+        positioning: "",
+        coreSellingPoints: [],
+        targetAudiences: [],
+        keyScenes: [],
+        currentSuggestion: "",
+        strategyTags: [],
+        contentCalendarDraft: [],
+        articleBrief: null,
+        videoBrief: null,
+      },
+    },
+    extraRequirement: null,
+    materialContext: null,
+    strategyTag: null,
+  });
+
+  assert.equal(scriptContext.critique.passForDrafting, false);
+  assert.deepEqual(scriptContext.scriptCandidates, []);
+  assert.deepEqual(scriptContext.critique.missingInputs, [
+    "targetAudiences",
+    "coreSellingPoints",
+    "keyScenes",
+    "cta",
+    "videoHookOrTopic",
+  ]);
+  assert.doesNotMatch(JSON.stringify(scriptContext), /本地生活|门店|到店|私信预约体验/);
 });
