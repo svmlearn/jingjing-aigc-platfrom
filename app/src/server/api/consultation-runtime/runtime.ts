@@ -18,7 +18,10 @@ import {
   repairConsultationToolCall,
 } from "@/server/api/consultation-runtime/planner";
 import { buildSkillDependencyWarnings } from "@/server/api/consultation-runtime/skills";
-import { buildLatestExpertTurnNote } from "@/server/api/consultation-runtime/context";
+import {
+  buildContextBoundarySnapshot,
+  buildLatestExpertTurnNote,
+} from "@/server/api/consultation-runtime/context";
 import {
   buildConsultationToolArgs,
   buildConsultationAiRuntimeTools,
@@ -159,6 +162,13 @@ export async function runConsultationRuntime(input: RunConsultationRuntimeInput)
       toolResults,
     });
   }
+
+  const contextBoundary = buildContextBoundarySnapshot({
+    state: input.state,
+    toolResults,
+  });
+  input.state.contextBoundary = contextBoundary;
+  input.state.contextBudget = contextBoundary.budget;
 
   await input.emitEvent({
     eventType:
@@ -796,6 +806,7 @@ export function buildConsultationRuntimeSnapshotRecord(input: {
         documentTitle: match.documentTitle,
       })),
       contextBudget: state.contextBudget ?? null,
+      contextBoundary: state.contextBoundary ?? null,
       toolResults: toolResults.map((result) => ({
         toolName: result.toolName,
         rawToolName: result.rawToolName ?? null,

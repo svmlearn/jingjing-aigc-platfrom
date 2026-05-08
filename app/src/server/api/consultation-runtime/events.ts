@@ -124,6 +124,7 @@ export function buildLoopCompletedPayload(input: {
     strategyTags: input.state.strategySnapshot.strategyTags,
     mentionRouting: input.state.mentionRouting,
     plannerTrace: input.state.plannerTrace,
+    contextBoundary: input.state.contextBoundary ?? null,
     expertTraffic: {
       policy: "short_term_expert_traffic_v1",
       sharedConsultationState: input.state.sharedConsultationState,

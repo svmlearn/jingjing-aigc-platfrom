@@ -163,4 +163,5 @@ export type ConsultationAgentLoopState = {
   expertTurnNotes: ExpertTurnNote[];
   latestExpertTurnNote?: ExpertTurnNote | null;
   contextBudget?: Record<string, unknown>;
+  contextBoundary?: Record<string, unknown>;
 };

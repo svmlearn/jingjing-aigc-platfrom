@@ -170,6 +170,19 @@ test("consultation context records budget and session summary", () => {
   assert.match(consultationServiceAndRuntimeSource, /contextBudget/);
 });
 
+test("consultation context records replayable context boundary snapshots", () => {
+  assert.match(consultationRuntimeSource, /buildContextBoundarySnapshot/);
+  assert.match(consultationRuntimeSource, /consultation_context_boundary_v1/);
+  assert.match(consultationRuntimeSource, /context_compact_boundary_v1/);
+  assert.match(consultationRuntimeSource, /phase_3_snapshot_only_no_compaction_yet/);
+  assert.match(consultationRuntimeSource, /state\.contextBoundary = contextBoundary/);
+  assert.match(consultationRuntimeSource, /state\.contextBudget = contextBoundary\.budget/);
+  assert.match(consultationRuntimeSource, /contextBoundary: state\.contextBoundary \?\? null/);
+  assert.match(consultationServiceAndRuntimeSource, /recentConversation/);
+  assert.match(consultationServiceAndRuntimeSource, /memoryMatchIds/);
+  assert.match(serviceSource, /runtimeSnapshot\.toolCallSummary\.contextBoundary/);
+});
+
 test("consultation runtime exposes right panel assets through bounded business tools", () => {
   assert.match(consultationServiceAndRuntimeSource, /getConsultationBusinessToolCatalog/);
   assert.match(consultationServiceAndRuntimeSource, /update_strategy_snapshot/);

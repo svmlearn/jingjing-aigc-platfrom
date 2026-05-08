@@ -602,6 +602,8 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
           latestExpertTurnNote: loopResult.latestExpertTurnNote,
         },
         skillDisclosure: loopResult.skillDisclosure,
+        contextBoundary:
+          loopResult.runtimeSnapshot.toolCallSummary.contextBoundary ?? null,
         toolResults: loopResult.toolResults.map((result) => ({
           tool: result.toolName,
           rawToolName: result.rawToolName ?? null,

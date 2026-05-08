@@ -2,6 +2,7 @@ import type { StrategySnapshotDto } from "@/contracts/consultation";
 import type { MerchantProfileDto } from "@/contracts/merchant";
 import type { KnowledgeSearchMatchDto } from "@/contracts/knowledge";
 import type {
+  ConsultationAgentLoopState,
   ConsultationAgentRuntimeSettings,
   ConsultationAgentToolResult,
   ConsultationMentionRouting,
@@ -20,6 +21,19 @@ export type ContextBudgetReport = {
     limit: number;
     truncated: boolean;
   }>;
+};
+
+export type ConsultationContextBoundarySnapshot = {
+  policy: "consultation_context_boundary_v1";
+  boundaryId: string;
+  budget: ContextBudgetReport;
+  compactBoundary: {
+    policy: "context_compact_boundary_v1";
+    status: "not_applied";
+    reason: string;
+  };
+  budgetBuckets: ContextBudgetReport["buckets"];
+  sources: Record<string, unknown>;
 };
 
 export function buildExpertContainerPrompt(
@@ -161,6 +175,128 @@ export function buildContextBudgetReport(input: {
     policy: "char_budget_v1",
     totalChars: buckets.reduce((sum, bucket) => sum + bucket.chars, 0),
     buckets,
+  };
+}
+
+export function buildContextBoundarySnapshot(input: {
+  state: ConsultationAgentLoopState;
+  toolResults: ConsultationAgentToolResult[];
+}): ConsultationContextBoundarySnapshot {
+  const { state } = input;
+  const budget = buildContextBudgetReport({
+    merchant: state.merchant,
+    strategySnapshot: state.strategySnapshot,
+    strategyMarkdown: state.strategyMarkdown,
+    userContent: state.userContent,
+    sessionSummary: state.session.summaryText ?? null,
+    consultationAgent: state.consultationAgent,
+    knowledgeMatches: state.knowledgeMatches,
+    toolResults: input.toolResults,
+    sharedConsultationState: state.sharedConsultationState,
+    expertTurnNotes: state.expertTurnNotes,
+  });
+  const agentContainer = state.consultationAgent.container;
+  const recentConversation = state.conversationMessages.slice(-8);
+  const memoryMatches = state.knowledgeMatches.filter(
+    (match) => match.metadata.contentKind === "merchant_memory",
+  );
+
+  return {
+    policy: "consultation_context_boundary_v1",
+    boundaryId: `${state.session.id}:round:${state.nextRound}:context`,
+    budget,
+    compactBoundary: {
+      policy: "context_compact_boundary_v1",
+      status: "not_applied",
+      reason: "phase_3_snapshot_only_no_compaction_yet",
+    },
+    budgetBuckets: budget.buckets,
+    sources: {
+      session: {
+        sessionId: state.session.id,
+        round: state.nextRound,
+        summaryPresent: Boolean(state.session.summaryText?.trim()),
+        summaryChars: state.session.summaryText?.length ?? 0,
+        previousMessageCount: state.session.messages.length,
+        conversationMessageCount: state.conversationMessages.length,
+        recentConversation: recentConversation.map((message, index) => ({
+          offsetFromTail: recentConversation.length - index,
+          role: message.role,
+          chars: message.content.length,
+        })),
+      },
+      currentUserMessage: {
+        chars: state.userContent.length,
+        mentionRouting: state.mentionRouting,
+      },
+      strategyAsset: {
+        markdownChars: state.strategyMarkdown.length,
+        strategyTags: state.strategySnapshot.strategyTags,
+        fieldCounts: {
+          coreSellingPoints: state.strategySnapshot.coreSellingPoints.length,
+          targetAudiences: state.strategySnapshot.targetAudiences.length,
+          keyScenes: state.strategySnapshot.keyScenes.length,
+          contentCalendarDraft: state.strategySnapshot.contentCalendarDraft.length,
+        },
+        hasArticleBrief: Boolean(state.strategySnapshot.articleBrief),
+        hasVideoBrief: Boolean(state.strategySnapshot.videoBrief),
+      },
+      agentAssets: {
+        agentId: agentContainer?.agent.id ?? null,
+        agentKey: agentContainer?.agent.agentKey ?? null,
+        promptVersionId: agentContainer?.activePromptVersion?.id ?? null,
+        promptVersionNo: agentContainer?.activePromptVersion?.versionNo ?? null,
+        soulVersionId: agentContainer?.activeSoulVersion?.id ?? null,
+        soulVersionNo: agentContainer?.activeSoulVersion?.versionNo ?? null,
+      },
+      skills: {
+        candidateSkillIds: state.consultationAgent.skillCatalog.map((skill) => skill.id),
+        activeSkillIds: state.consultationAgent.activeSkills.map((skill) => skill.id),
+        activeSkillReferenceCount: state.consultationAgent.activeSkills.reduce(
+          (sum, skill) => sum + skill.references.length,
+          0,
+        ),
+      },
+      knowledge: {
+        policy: "controlled_context_chunks_only",
+        matchCount: state.knowledgeMatches.length,
+        matchIds: uniqueStrings(state.knowledgeMatches.map((match) => match.chunkId)),
+        matches: state.knowledgeMatches.map((match) => ({
+          chunkId: match.chunkId,
+          documentId: match.documentId,
+          documentTitle: match.documentTitle,
+          scope: match.scope,
+          score: match.score,
+          contentKind: match.metadata.contentKind ?? null,
+        })),
+        memoryMatchIds: uniqueStrings(memoryMatches.map((match) => match.chunkId)),
+      },
+      tools: {
+        count: input.toolResults.length,
+        completed: input.toolResults
+          .filter((result) => result.status === "completed")
+          .map((result) => result.toolName),
+        skipped: input.toolResults
+          .filter((result) => result.status === "skipped")
+          .map((result) => result.toolName),
+        failed: input.toolResults
+          .filter((result) => result.status === "failed")
+          .map((result) => result.rawToolName ?? result.toolName),
+        results: input.toolResults.map((result) => ({
+          callId: result.callId,
+          toolName: result.toolName,
+          rawToolName: result.rawToolName ?? null,
+          status: result.status,
+          summary: result.summary,
+          errorType: result.payload.errorType ?? null,
+        })),
+      },
+      expertTraffic: {
+        sharedStateKnownFacts: state.sharedConsultationState.knownFacts.length,
+        sharedStateOpenQuestions: state.sharedConsultationState.openQuestions.length,
+        expertTurnNoteCount: state.expertTurnNotes.length,
+      },
+    },
   };
 }
 

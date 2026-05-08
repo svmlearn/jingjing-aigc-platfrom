@@ -91,6 +91,14 @@
 - 记录本轮使用了哪些 session summary、recent messages、knowledge chunks、strategy asset version。
 - 当摘要替代旧消息时，在 snapshot 中保存边界说明和被摘要消息范围。
 
+2026-05-08 追加进度：
+
+- 已新增 `consultation_context_boundary_v1`，在每轮回复生成后写入 `state.contextBoundary`。
+- runtime snapshot、`agent.loop.completed` 事件、assistant visible summary 都会带上 `contextBoundary`。
+- `state.contextBudget` 改为使用工具执行后的最终上下文预算，包含实际 `knowledgeMatches`、`toolResults`、最新 `strategyMarkdown` 和专家交接信息。
+- 当前 `compactBoundary.status` 固定为 `not_applied`，只先记录边界，不做自动压缩。
+- 已记录 session summary 状态、recent conversation 索引、strategy asset 规模、agent/soul 版本、active skills、knowledge chunk ids、memory ids、tool result 状态和 expert traffic 计数。
+
 ### Phase 4：用户补充问题工具化
 
 目标：资料不足时形成结构化“需要补充”结果，而不是正文里散问。
@@ -114,6 +122,7 @@
 
 - Phase 1：工具拒绝/参数校验失败事实化。
 - Phase 2：工具执行异常安全壳。
+- Phase 3：上下文边界与可回放快照第一版。
 
 不做：
 
