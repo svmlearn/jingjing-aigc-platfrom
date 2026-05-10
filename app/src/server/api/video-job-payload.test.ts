@@ -69,6 +69,8 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     fallbackMode: null,
     excludedAssetIds: [],
     missingVideoAssetHints: [],
+    sceneAssetQueries: [],
+    assetMatchPlan: [],
   });
   assert.deepEqual(payload.input_assets, [
     {
@@ -284,6 +286,38 @@ test("buildVideoEditJobInputPayload rejects confirmed material references withou
   );
 });
 
+test("buildVideoEditJobInputPayload exposes missing video hints from scene asset queries", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      scriptText: "Scene 1\n画面：项目外立面远景\n台词：先看真实细节。",
+    },
+    materialReferences: [],
+    assets: [],
+  });
+
+  assert.deepEqual(payload.materialContext.sceneAssetQueries, [
+    {
+      sceneNo: 1,
+      timeRange: null,
+      query: "项目外立面远景",
+      visualRequirement: "项目外立面远景",
+      fallbackShot: null,
+    },
+  ]);
+  assert.deepEqual(payload.materialContext.assetMatchPlan, [
+    {
+      sceneNo: 1,
+      query: "项目外立面远景",
+      matchedAssetIds: [],
+      missing: true,
+      reason: "no_video_asset",
+    },
+  ]);
+  assert.deepEqual(payload.materialContext.missingVideoAssetHints, ["项目外立面远景"]);
+});
+
 test("buildVideoEditJobInputPayload only sends video assets to worker and orders input assets", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",
@@ -338,4 +372,56 @@ test("buildVideoEditJobInputPayload only sends video assets to worker and orders
     ],
   );
   assert.deepEqual(payload.materialContext.excludedAssetIds, ["asset-2"]);
+});
+
+test("buildVideoEditJobInputPayload builds scene asset queries from production scenes", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      productionScenes: [
+        {
+          sceneNo: 2,
+          timeRange: "00:05-00:10",
+          shotRequirement: "样板间客厅横移",
+          visual: "客厅空间感和采光",
+          materials: ["样板间", "客厅"],
+          fallbackShot: "用同户型空间细节替代",
+        },
+      ],
+    },
+    materialReferences: [],
+    assets: [
+      {
+        id: "asset-living-room",
+        assetType: "video",
+        storageProvider: "tencent_cos",
+        bucketName: "jj-content-staging-1341668543",
+        storageKey: "draft-inputs/样板间-客厅.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123,
+        etag: "etag",
+        sortOrder: 0,
+      },
+    ],
+  });
+
+  assert.deepEqual(payload.materialContext.sceneAssetQueries, [
+    {
+      sceneNo: 2,
+      timeRange: "00:05-00:10",
+      query: "样板间客厅横移 客厅空间感和采光 样板间 客厅",
+      visualRequirement: "样板间客厅横移",
+      fallbackShot: "用同户型空间细节替代",
+    },
+  ]);
+  assert.deepEqual(payload.materialContext.assetMatchPlan, [
+    {
+      sceneNo: 2,
+      query: "样板间客厅横移 客厅空间感和采光 样板间 客厅",
+      matchedAssetIds: ["asset-living-room"],
+      missing: false,
+      reason: "filename_keyword_match",
+    },
+  ]);
 });

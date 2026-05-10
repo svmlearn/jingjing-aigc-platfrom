@@ -39,6 +39,7 @@ import {
   buildMaterialRoutingTrace,
   materialMatchesRetrievalTarget,
 } from "@/lib/material-routing";
+import { readMaterialRetrievalTrace } from "@/lib/material-retrieval";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import { getDailyContentTaskForUser } from "@/server/api/daily-content-task-service";
 import { searchKnowledgeChunks } from "@/lib/db/knowledge-repository";
@@ -91,9 +92,14 @@ type RetrievalReference = {
   source: "knowledge_base" | "material_library";
   usageType?: string | null;
   score?: number | null;
+  matchReasons?: string[];
 };
 type ArticleMaterialRetrievalContext = {
   target: "copy_context" | "article_image_asset";
+  retrievalQueries: {
+    copyContext: string;
+    articleImageAsset: string;
+  };
   copyContextRefs: RetrievalReference[];
   imageAssetRefs: Array<Record<string, unknown>>;
   imageBrief: {
@@ -1404,7 +1410,7 @@ async function collectArticleMaterialRetrieval(input: {
   extraRequirement?: string | null;
 }): Promise<ArticleMaterialRetrievalContext> {
   const platformSettings = await getPlatformSettings();
-  const query = compactStrings([
+  const copyQuery = compactStrings([
     input.selectedCalendarItem?.title ?? "",
     input.selectedCalendarItem?.summary ?? "",
     input.contentGoal ?? "",
@@ -1414,20 +1420,31 @@ async function collectArticleMaterialRetrieval(input: {
     ...input.session.strategySnapshot.targetAudiences,
     ...input.session.strategySnapshot.strategyTags,
   ]).join(" ");
+  const imageQuery = compactStrings([
+    input.selectedCalendarItem?.title ?? "",
+    input.selectedCalendarItem?.summary ?? "",
+    input.contentGoal ?? "",
+    input.extraRequirement ?? "",
+    ...input.session.strategySnapshot.keyScenes,
+    ...input.session.strategySnapshot.coreSellingPoints,
+    ...input.session.strategySnapshot.strategyTags,
+  ]).join(" ");
   const [knowledgeMatches, copyContextMaterials, imageMaterials] = await Promise.all([
     searchKnowledgeChunks({
       merchantId: input.merchantId,
-      query,
+      query: copyQuery,
       limit: Math.min(platformSettings.knowledgeRuntime.retrievalTopK, 6),
     }),
     listMaterialLibraryItems({
       merchantId: input.merchantId,
       retrievalTarget: "copy_context",
+      query: copyQuery,
       limit: 6,
     }).catch(() => []),
     listMaterialLibraryItems({
       merchantId: input.merchantId,
       retrievalTarget: "article_image_asset",
+      query: imageQuery,
       limit: 6,
     }).catch(() => []),
   ]);
@@ -1457,6 +1474,7 @@ async function collectArticleMaterialRetrieval(input: {
       material.title,
     ),
     description: material.description ?? null,
+    retrievalTrace: readMaterialRetrievalTrace(material),
   }));
   const degradationNotices = compactStrings([
     copyContextRefs.length
@@ -1469,6 +1487,10 @@ async function collectArticleMaterialRetrieval(input: {
 
   return {
     target: "copy_context",
+    retrievalQueries: {
+      copyContext: copyQuery,
+      articleImageAsset: imageQuery,
+    },
     copyContextRefs,
     imageAssetRefs,
     imageBrief: imageAssetRefs.length
@@ -1499,6 +1521,7 @@ async function collectScriptProductionEvidence(input: {
   const scriptReferenceMaterials = await listMaterialLibraryItems({
     merchantId: input.merchantId,
     retrievalTarget: "script_context",
+    query,
     limit: Math.max(3, input.retrievalTopK),
   }).catch(() => []);
 
@@ -1516,11 +1539,13 @@ async function collectScriptProductionEvidence(input: {
   }
 
   for (const material of scriptReferenceMaterials) {
+    const retrievalTrace = readMaterialRetrievalTrace(material);
+
     references.push({
       title: material.title,
       content: summarizeMaterialReference(material),
       source: "material",
-      score: null,
+      score: retrievalTrace?.score ?? null,
     });
   }
 
@@ -1554,13 +1579,16 @@ async function collectScriptProductionEvidence(input: {
 }
 
 function materialToRetrievalReference(material: MaterialLibraryItemDto): RetrievalReference {
+  const retrievalTrace = readMaterialRetrievalTrace(material);
+
   return {
     id: material.id,
     title: material.title,
     summary: summarizeMaterialReference(material),
     source: "material_library",
     usageType: material.usageType,
-    score: null,
+    score: retrievalTrace?.score ?? null,
+    matchReasons: retrievalTrace?.matchReasons.map((reason) => reason.label),
   };
 }
 

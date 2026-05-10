@@ -69,19 +69,7 @@ async function getOrCreateDailyContentTaskForUser(input: {
     return existing;
   }
 
-  const [strategyAsset, articleImageMaterials, copyContextMaterials] = await Promise.all([
-    getMerchantStrategyAssetDocument(input.merchantId),
-    listMaterialLibraryItems({
-      merchantId: input.merchantId,
-      retrievalTarget: "article_image_asset",
-      limit: 24,
-    }).catch(() => []),
-    listMaterialLibraryItems({
-      merchantId: input.merchantId,
-      retrievalTarget: "copy_context",
-      limit: 12,
-    }).catch(() => []),
-  ]);
+  const strategyAsset = await getMerchantStrategyAssetDocument(input.merchantId);
   const snapshot = strategyAsset?.strategySnapshot ?? null;
   const calendar = snapshot?.contentCalendarDraft ?? [];
   const seed = hashSeed(`${input.userId}:${input.taskDate}`);
@@ -92,6 +80,26 @@ async function getOrCreateDailyContentTaskForUser(input: {
     videoItem?.strategyTag ||
     snapshot?.strategyTags[seed % Math.max(snapshot.strategyTags.length, 1)] ||
     "今日项目内容";
+  const retrievalQuery = buildDailyMaterialRetrievalQuery({
+    theme,
+    articleItem,
+    videoItem,
+    snapshot,
+  });
+  const [articleImageMaterials, copyContextMaterials] = await Promise.all([
+    listMaterialLibraryItems({
+      merchantId: input.merchantId,
+      retrievalTarget: "article_image_asset",
+      query: retrievalQuery,
+      limit: 24,
+    }).catch(() => []),
+    listMaterialLibraryItems({
+      merchantId: input.merchantId,
+      retrievalTarget: "copy_context",
+      query: retrievalQuery,
+      limit: 12,
+    }).catch(() => []),
+  ]);
   const materialRefs = articleImageMaterials.slice(0, 6).map((item) => ({
     ...buildMaterialRoutingTrace(item),
     platform: item.platform,
@@ -139,6 +147,25 @@ async function getOrCreateDailyContentTaskForUser(input: {
     ],
     materialRefs,
   });
+}
+
+function buildDailyMaterialRetrievalQuery(input: {
+  theme: string;
+  articleItem: ContentCalendarItemDto | null;
+  videoItem: ContentCalendarItemDto | null;
+  snapshot: StrategySnapshotDto | null;
+}) {
+  return compactStrings([
+    input.theme,
+    input.articleItem?.title,
+    input.articleItem?.summary,
+    input.videoItem?.title,
+    input.videoItem?.summary,
+    ...(input.snapshot?.coreSellingPoints ?? []),
+    ...(input.snapshot?.targetAudiences ?? []),
+    ...(input.snapshot?.keyScenes ?? []),
+    ...(input.snapshot?.strategyTags ?? []),
+  ]).join(" ");
 }
 
 function buildTaskItem(input: {

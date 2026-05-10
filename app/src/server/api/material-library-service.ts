@@ -29,12 +29,14 @@ export async function listMaterialLibraryForUser(input: {
   userId: string;
   limit?: number;
   retrievalTarget?: MaterialRetrievalTarget;
+  query?: string | null;
 }): Promise<MaterialLibraryItemDto[]> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   return listMaterialLibraryItems({
     merchantId: merchant.id,
     limit: input.limit,
     retrievalTarget: input.retrievalTarget,
+    query: input.query,
   });
 }
 

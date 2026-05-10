@@ -12,10 +12,8 @@ import type {
   MaterialWorkbenchReferenceDto,
   MaterialWorkbenchTarget,
 } from "@/contracts/material";
-import {
-  materialMatchesRetrievalTarget,
-  normalizeMaterialRouting,
-} from "@/lib/material-routing";
+import { normalizeMaterialRouting } from "@/lib/material-routing";
+import { rankMaterialLibraryItemsForRetrieval } from "@/lib/material-retrieval";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -102,28 +100,33 @@ export async function listMaterialLibraryItems(input: {
   merchantId: string;
   limit?: number;
   retrievalTarget?: MaterialRetrievalTarget;
+  query?: string | null;
 }): Promise<MaterialLibraryItemDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    const materials = Array.from(demoMaterialItems.values())
-      .filter((item) => item.merchantId === input.merchantId && item.status !== "archived")
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-      .filter((item) =>
-        input.retrievalTarget
-          ? materialMatchesRetrievalTarget(item, input.retrievalTarget)
-          : true,
-      );
+    const materials = Array.from(demoMaterialItems.values()).filter(
+      (item) => item.merchantId === input.merchantId && item.status !== "archived",
+    );
 
-    return materials.slice(0, input.limit ?? 50);
+    return rankMaterialLibraryItemsForRetrieval({
+      materials,
+      retrievalTarget: input.retrievalTarget,
+      query: input.query,
+      limit: input.limit ?? 50,
+    });
   }
 
   const supabase = createSupabaseAdminClient();
+  const candidateLimit =
+    input.retrievalTarget || input.query
+      ? Math.max(input.limit ?? 50, 160)
+      : input.limit ?? 50;
   const { data, error } = await supabase
     .from("source_items")
     .select(sourceItemMaterialSelect)
     .eq("merchant_id", input.merchantId)
     .contains("trace_payload", { materialLibrary: true })
     .order("created_at", { ascending: false })
-    .limit(input.retrievalTarget ? Math.max(input.limit ?? 50, 120) : input.limit ?? 50);
+    .limit(candidateLimit);
 
   if (error) {
     throw new ApiError(500, "MATERIAL_LIBRARY_LIST_FAILED", error.message);
@@ -131,13 +134,12 @@ export async function listMaterialLibraryItems(input: {
 
   const materials = ((data ?? []) as unknown as SourceItemMaterialRow[]).map(mapSourceItemToMaterial);
 
-  if (!input.retrievalTarget) {
-    return materials;
-  }
-
-  return materials
-    .filter((item) => materialMatchesRetrievalTarget(item, input.retrievalTarget!))
-    .slice(0, input.limit ?? 50);
+  return rankMaterialLibraryItemsForRetrieval({
+    materials,
+    retrievalTarget: input.retrievalTarget,
+    query: input.query,
+    limit: input.limit ?? 50,
+  });
 }
 
 export async function getMaterialLibraryItemById(input: {

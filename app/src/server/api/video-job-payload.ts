@@ -1,4 +1,5 @@
 import type { ProductionConfig, VoiceoverProvider } from "@/contracts/video";
+import { tokenizeMaterialRetrievalQuery } from "../../lib/material-retrieval.ts";
 
 export type VideoJobPayloadAsset = {
   id: string;
@@ -21,7 +22,17 @@ export type VideoJobPayloadVariant = {
   contentVariantId: string;
   draftId: string;
   scriptText?: string | null;
+  productionScenes?: VideoJobPayloadSceneInput[];
   reviewStatus: string;
+};
+
+export type VideoJobPayloadSceneInput = {
+  sceneNo?: number | null;
+  timeRange?: string | null;
+  shotRequirement?: string | null;
+  visual?: string | null;
+  materials?: string[] | null;
+  fallbackShot?: string | null;
 };
 
 export type VideoEditJobInputAsset = {
@@ -34,6 +45,25 @@ export type VideoEditJobInputAsset = {
   file_size_bytes: number | null;
   etag: string | null;
   sort_order: number;
+};
+
+export type VideoEditJobSceneAssetQuery = {
+  sceneNo: number;
+  timeRange: string | null;
+  query: string;
+  visualRequirement: string;
+  fallbackShot: string | null;
+};
+
+export type VideoEditJobAssetMatchPlanItem = {
+  sceneNo: number;
+  query: string;
+  matchedAssetIds: string[];
+  missing: boolean;
+  reason:
+    | "filename_keyword_match"
+    | "draft_video_assets_available_no_scene_index"
+    | "no_video_asset";
 };
 
 export type VideoEditJobInputPayload = {
@@ -62,6 +92,8 @@ export type VideoEditJobInputPayload = {
     fallbackMode: string | null;
     excludedAssetIds: string[];
     missingVideoAssetHints: string[];
+    sceneAssetQueries: VideoEditJobSceneAssetQuery[];
+    assetMatchPlan: VideoEditJobAssetMatchPlanItem[];
   };
   input_assets: VideoEditJobInputAsset[];
   assembled_from_owner_type: "content_draft";
@@ -143,6 +175,11 @@ export function buildVideoEditJobInputPayload(input: {
     );
   const materialReferenceIds = uniqueStrings(input.materialReferences.map((item) => item.id));
   const materialIds = uniqueStrings(input.materialReferences.map((item) => item.materialItemId));
+  const sceneAssetQueries = buildSceneAssetQueries(input.variant);
+  const assetMatchPlan = buildAssetMatchPlan({
+    sceneAssetQueries,
+    inputAssets,
+  });
 
   if (materialReferenceIds.length > 0 && inputAssets.length === 0) {
     throw new VideoJobPayloadValidationError(
@@ -177,7 +214,14 @@ export function buildVideoEditJobInputPayload(input: {
       selectionMode: materialReferenceIds.length > 0 ? "user_confirmed" : "none",
       fallbackMode: materialReferenceIds.length > 0 ? null : "no_material_reference",
       excludedAssetIds: excludedAssets.map((asset) => asset.id),
-      missingVideoAssetHints: inputAssets.length > 0 ? [] : buildMissingVideoAssetHints(input.variant.scriptText),
+      missingVideoAssetHints:
+        inputAssets.length > 0
+          ? []
+          : buildMissingVideoAssetHints({
+              sceneAssetQueries,
+            }),
+      sceneAssetQueries,
+      assetMatchPlan,
     },
     input_assets: inputAssets,
     assembled_from_owner_type: "content_draft",
@@ -185,6 +229,77 @@ export function buildVideoEditJobInputPayload(input: {
     assembled_at: input.now ?? new Date().toISOString(),
     render_mode: inputAssets.length > 0 ? "asset_driven" : "script_only_fallback",
   };
+}
+
+function buildSceneAssetQueries(
+  variant: VideoJobPayloadVariant,
+): VideoEditJobSceneAssetQuery[] {
+  const sceneQueries = (variant.productionScenes ?? [])
+    .map((scene, index) => {
+      const visualRequirement = firstNonEmptyString(
+        scene.shotRequirement,
+        scene.visual,
+        ...(scene.materials ?? []),
+      );
+
+      if (!visualRequirement) {
+        return null;
+      }
+
+      return {
+        sceneNo: normalizePositiveInteger(scene.sceneNo) ?? index + 1,
+        timeRange: normalizeOptionalString(scene.timeRange) ?? null,
+        query: uniqueStrings([
+          visualRequirement,
+          scene.visual ?? "",
+          ...(scene.materials ?? []),
+        ]).join(" "),
+        visualRequirement,
+        fallbackShot: normalizeOptionalString(scene.fallbackShot) ?? null,
+      };
+    })
+    .filter((item): item is VideoEditJobSceneAssetQuery => Boolean(item));
+
+  if (sceneQueries.length > 0) {
+    return sceneQueries.slice(0, 12);
+  }
+
+  return extractSceneAssetQueriesFromScript(variant.scriptText).slice(0, 12);
+}
+
+function buildAssetMatchPlan(input: {
+  sceneAssetQueries: VideoEditJobSceneAssetQuery[];
+  inputAssets: VideoEditJobInputAsset[];
+}): VideoEditJobAssetMatchPlanItem[] {
+  if (input.sceneAssetQueries.length === 0) {
+    return [];
+  }
+
+  return input.sceneAssetQueries.map((sceneQuery) => {
+    if (input.inputAssets.length === 0) {
+      return {
+        sceneNo: sceneQuery.sceneNo,
+        query: sceneQuery.query,
+        matchedAssetIds: [],
+        missing: true,
+        reason: "no_video_asset" as const,
+      };
+    }
+
+    const matchedAssets = matchInputAssetsByQuery(sceneQuery.query, input.inputAssets);
+    const candidateAssets = matchedAssets.length > 0 ? matchedAssets : input.inputAssets;
+
+    return {
+      sceneNo: sceneQuery.sceneNo,
+      query: sceneQuery.query,
+      matchedAssetIds: candidateAssets.map((asset) => asset.asset_id),
+      missing: false,
+      reason:
+        matchedAssets.length > 0
+          ? ("filename_keyword_match" as const)
+          : ("draft_video_assets_available_no_scene_index" as const),
+    };
+  });
 }
 
 function normalizeProductionConfig(
@@ -366,22 +481,84 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
   };
 }
 
-function buildMissingVideoAssetHints(scriptText: string | null | undefined) {
+function extractSceneAssetQueriesFromScript(
+  scriptText: string | null | undefined,
+): VideoEditJobSceneAssetQuery[] {
   const text = scriptText?.trim();
 
   if (!text) {
-    return ["请先确认每个分镜需要的视频画面，再上传可剪辑视频素材。"];
+    return [];
   }
 
-  const hints = text
+  return text
     .split(/\n+/)
     .map((line) => line.trim())
     .filter((line) => /镜头要求|所需画面|素材|画面/.test(line))
+    .map((line, index) => {
+      const query = line.replace(/^(镜头要求|所需画面|素材|画面)[：:]\s*/, "").trim();
+
+      return {
+        sceneNo: index + 1,
+        timeRange: null,
+        query: query || line,
+        visualRequirement: query || line,
+        fallbackShot: null,
+      };
+    });
+}
+
+function matchInputAssetsByQuery(
+  query: string,
+  inputAssets: VideoEditJobInputAsset[],
+) {
+  const terms = tokenizeMaterialRetrievalQuery(query);
+
+  if (terms.length === 0) {
+    return [];
+  }
+
+  return inputAssets.filter((asset) => {
+    const assetText = [
+      asset.asset_id,
+      asset.storage_key,
+      asset.mime_type ?? "",
+      asset.etag ?? "",
+    ]
+      .join(" ")
+      .normalize("NFKC")
+      .toLowerCase();
+
+    return terms.some((term) => assetText.includes(term));
+  });
+}
+
+function buildMissingVideoAssetHints(input: {
+  sceneAssetQueries: VideoEditJobSceneAssetQuery[];
+}) {
+  const hints = input.sceneAssetQueries
+    .map((scene) => scene.visualRequirement || scene.query)
+    .filter(Boolean)
     .slice(0, 6);
 
   return hints.length
     ? hints
     : ["当前草稿没有可剪辑视频素材，请上传项目外立面、样板间、周边配套或口播片段后重试。"];
+}
+
+function firstNonEmptyString(...values: Array<string | null | undefined>) {
+  for (const value of values) {
+    const normalized = normalizeOptionalString(value);
+
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return null;
+}
+
+function normalizePositiveInteger(value: number | null | undefined) {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
 }
 
 function uniqueStrings(values: string[]) {

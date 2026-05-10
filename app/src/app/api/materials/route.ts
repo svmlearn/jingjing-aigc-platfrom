@@ -21,6 +21,7 @@ export async function GET(request: Request) {
       userId: user.id,
       limit: payload.limit,
       retrievalTarget: payload.retrievalTarget,
+      query: payload.query,
     });
 
     return Response.json({ materials });
