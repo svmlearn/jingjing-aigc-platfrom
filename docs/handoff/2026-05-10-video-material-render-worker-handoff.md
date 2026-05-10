@@ -22,45 +22,41 @@
 
 ## 当前未完成
 
-带素材任务 `6fd28e7b-507c-400a-bee4-c81dd7c37556` 在约 4 分钟轮询内始终停留在：
+2026-05-11 更新：带素材任务 `6fd28e7b-507c-400a-bee4-c81dd7c37556` 后续已被远端 `video-worker` 认领并下载输入素材，但没有生成成片。最终状态为：
 
-- `status = pending`
-- `currentStage = null`
-- `progressPct = 0`
+- `status = failed_retryable`
+- `currentStage = openstoryline_rendering_failed`
+- `progressPct = 50`
 - `resultAssets = []`
+- `failureReason = engine_run_failed: failed to run OpenStoryline engine: Server error '500 Internal Server Error' for url 'http://openstoryline-engine:8000/v1/runs'`
 
-这说明“上传素材 -> 创建 worker 输入 payload”通过，但“staging worker 认领任务 -> OpenStoryline 渲染 -> 回写成片资产”尚未通过。
+这说明“上传素材 -> 创建 worker 输入 payload -> worker 认领 -> 下载 COS 输入素材”通过，但“OpenStoryline/FireRed 渲染 -> 回写成片资产”尚未通过。
 
 ## 当前判断
 
-更像 worker 侧问题，而不是 app payload 问题：
+更像 FireRed/OpenStoryline 真实出片问题，而不是 app payload 或 COS 输入问题：
 
-- worker 代码的 `claim_next_job()` 会轮询 `status = pending` 的任务。
-- 当前任务已是 `pending` 且具备合法视频输入素材。
-- 旧任务曾长时间停在 `openstoryline_rendering / 50%`，可能导致远端 worker 阻塞。
-- 本机尝试 `ssh -o BatchMode=yes mdeploy@43.160.208.189` 失败，返回 `Permission denied (publickey,password)`，因此本轮无法读取远端容器日志。
+- `video-worker` 日志确认已领取 `6fd28e7b-507c-400a-bee4-c81dd7c37556`。
+- `runtimePayload.input_assets[0].local_path` 确认输入视频曾被下载到 `/srv/jingjing-video-worker/tmp/jobs/.../inputs/...project-broll-test.mp4`。
+- `openstoryline-engine` 对 `/v1/runs` 返回 500。
+- `firered-openstoryline` 日志显示直接原因：`ValueError: timeline result has no video track`。
+- 旧任务取消后又被 worker 写回 `failed_retryable`，暴露出取消终态可被 worker 后续失败覆盖的问题。
 
 ## 下一步建议
 
-1. 登录轻量服务器 `openstoryline-test-sg`。
-2. 进入 `/srv/jingjing-video-worker`。
-3. 执行 `docker compose ps`，确认 `video-worker` 和 `openstoryline-engine` 是否运行。
-4. 查看日志：
-   - `docker compose logs --tail=200 video-worker`
-   - `docker compose logs --tail=200 openstoryline-engine`
-5. 如果 worker 仍卡旧任务或不再轮询，执行 `docker compose restart video-worker`。
-6. 重启后继续观察 job `6fd28e7b-507c-400a-bee4-c81dd7c37556` 是否进入：
-   - `claimed`
-   - `downloading_inputs`
-   - `openstoryline_rendering`
-   - `uploading_outputs`
-   - `succeeded`
-7. 若任务失败，优先看 `failureReason` 和 `logPayload.steps`，再决定是 COS 下载、OpenStoryline 渲染、输出校验还是输出上传问题。
+详见 `docs/handoff/2026-05-11-video-render-cloud-bugs-handoff.md`。明天优先：
+
+1. 修 worker 状态写回 guard，防止 `cancelled` 被后续失败覆盖。
+2. 增强 OpenStoryline / FireRed 失败错误透传。
+3. 失败时保留 workspace/output 现场。
+4. 修 FireRed `timeline result has no video track`，或做保底剪辑链路。
+5. 预热约 1.05G 的 TransNetV2 模型，减少首次真实出片冷启动。
 
 ## 改动文件
 
 - `docs/test/2026-05-10-v2.4-retrieval-routing-click-test.md`
 - `docs/handoff/2026-05-10-video-material-render-worker-handoff.md`
+- `docs/handoff/2026-05-11-video-render-cloud-bugs-handoff.md`
 
 ## Branch / commit
 
