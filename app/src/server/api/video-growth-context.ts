@@ -45,6 +45,9 @@ type VideoGrowthMaterialContext = {
   platform?: string | null;
   materialType?: string | null;
   sourceKind?: string | null;
+  usageType?: string | null;
+  retrievalTargets?: string[];
+  status?: string | null;
   engagementLabel?: string | null;
   description?: string | null;
 } | null;

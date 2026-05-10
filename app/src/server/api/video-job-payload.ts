@@ -52,6 +52,7 @@ export type VideoEditJobInputPayload = {
   };
   productionConfig: NormalizedProductionConfig;
   materialContext: {
+    retrievalTarget: "video_edit_asset";
     assetPlanId: string | null;
     assetMatchReportId: string | null;
     scriptBindingId: string;
@@ -59,6 +60,8 @@ export type VideoEditJobInputPayload = {
     materialReferenceIds: string[];
     selectionMode: "user_confirmed" | "none";
     fallbackMode: string | null;
+    excludedAssetIds: string[];
+    missingVideoAssetHints: string[];
   };
   input_assets: VideoEditJobInputAsset[];
   assembled_from_owner_type: "content_draft";
@@ -129,8 +132,9 @@ export function buildVideoEditJobInputPayload(input: {
 }): VideoEditJobInputPayload {
   assertApprovedScript(input.variant);
 
+  const excludedAssets = input.assets.filter((asset) => asset.assetType !== "video");
   const inputAssets = input.assets
-    .filter((asset) => asset.assetType === "image" || asset.assetType === "video")
+    .filter((asset) => asset.assetType === "video")
     .map(mapInputAsset)
     .sort(
       (left, right) =>
@@ -164,6 +168,7 @@ export function buildVideoEditJobInputPayload(input: {
     },
     productionConfig: normalizeProductionConfig(input.productionConfig),
     materialContext: {
+      retrievalTarget: "video_edit_asset",
       assetPlanId: null,
       assetMatchReportId: null,
       scriptBindingId: input.variant.contentVariantId,
@@ -171,6 +176,8 @@ export function buildVideoEditJobInputPayload(input: {
       materialReferenceIds,
       selectionMode: materialReferenceIds.length > 0 ? "user_confirmed" : "none",
       fallbackMode: materialReferenceIds.length > 0 ? null : "no_material_reference",
+      excludedAssetIds: excludedAssets.map((asset) => asset.id),
+      missingVideoAssetHints: inputAssets.length > 0 ? [] : buildMissingVideoAssetHints(input.variant.scriptText),
     },
     input_assets: inputAssets,
     assembled_from_owner_type: "content_draft",
@@ -357,6 +364,24 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
     etag: asset.etag ?? null,
     sort_order: asset.sortOrder,
   };
+}
+
+function buildMissingVideoAssetHints(scriptText: string | null | undefined) {
+  const text = scriptText?.trim();
+
+  if (!text) {
+    return ["请先确认每个分镜需要的视频画面，再上传可剪辑视频素材。"];
+  }
+
+  const hints = text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter((line) => /镜头要求|所需画面|素材|画面/.test(line))
+    .slice(0, 6);
+
+  return hints.length
+    ? hints
+    : ["当前草稿没有可剪辑视频素材，请上传项目外立面、样板间、周边配套或口播片段后重试。"];
 }
 
 function uniqueStrings(values: string[]) {

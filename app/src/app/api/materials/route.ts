@@ -20,6 +20,7 @@ export async function GET(request: Request) {
     const materials = await listMaterialLibraryForUser({
       userId: user.id,
       limit: payload.limit,
+      retrievalTarget: payload.retrievalTarget,
     });
 
     return Response.json({ materials });

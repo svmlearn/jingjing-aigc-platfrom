@@ -7,6 +7,7 @@ import type {
   DailyContentWorkspaceDto,
 } from "@/contracts/daily-task";
 import { listMaterialLibraryItems } from "@/lib/db/material-library-repository";
+import { buildMaterialRoutingTrace } from "@/lib/material-routing";
 import { getOperationalMerchantWorkspaceByUserId } from "@/lib/db/merchant-repository";
 import { getMerchantStrategyAssetDocument } from "@/lib/db/merchant-strategy-asset-repository";
 import {
@@ -68,9 +69,18 @@ async function getOrCreateDailyContentTaskForUser(input: {
     return existing;
   }
 
-  const [strategyAsset, materials] = await Promise.all([
+  const [strategyAsset, articleImageMaterials, copyContextMaterials] = await Promise.all([
     getMerchantStrategyAssetDocument(input.merchantId),
-    listMaterialLibraryItems({ merchantId: input.merchantId, limit: 24 }).catch(() => []),
+    listMaterialLibraryItems({
+      merchantId: input.merchantId,
+      retrievalTarget: "article_image_asset",
+      limit: 24,
+    }).catch(() => []),
+    listMaterialLibraryItems({
+      merchantId: input.merchantId,
+      retrievalTarget: "copy_context",
+      limit: 12,
+    }).catch(() => []),
   ]);
   const snapshot = strategyAsset?.strategySnapshot ?? null;
   const calendar = snapshot?.contentCalendarDraft ?? [];
@@ -82,14 +92,11 @@ async function getOrCreateDailyContentTaskForUser(input: {
     videoItem?.strategyTag ||
     snapshot?.strategyTags[seed % Math.max(snapshot.strategyTags.length, 1)] ||
     "今日项目内容";
-  const materialRefs = materials.slice(0, 6).map((item) => ({
-    id: item.id,
-    title: item.title,
-    materialType: item.materialType,
+  const materialRefs = articleImageMaterials.slice(0, 6).map((item) => ({
+    ...buildMaterialRoutingTrace(item),
     platform: item.platform,
-    sourceKind: item.sourceKind,
   }));
-  const materialHints = materials.slice(0, 4).map((item) => item.title);
+  const materialHints = copyContextMaterials.slice(0, 4).map((item) => item.title);
 
   return upsertDailyContentTask({
     merchantId: input.merchantId,
@@ -122,6 +129,13 @@ async function getOrCreateDailyContentTaskForUser(input: {
         title: "团队内容日历",
         summary: snapshot?.currentSuggestion ?? "使用团队共享项目资料生成。",
       },
+      ...copyContextMaterials.slice(0, 4).map((item) => ({
+        source: "material_library",
+        title: item.title,
+        summary: item.description ?? item.engagementLabel ?? "可作为文案/脚本表达参考。",
+        usageType: item.usageType,
+        retrievalTargets: item.retrievalTargets,
+      })),
     ],
     materialRefs,
   });

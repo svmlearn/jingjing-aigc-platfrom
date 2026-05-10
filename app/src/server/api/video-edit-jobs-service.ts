@@ -9,7 +9,11 @@ import {
   listLocalRealChainAssetObjectsByOwner,
 } from "@/lib/db/local-real-chain-repository";
 import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
-import { listMaterialWorkbenchReferencesByDraft } from "@/lib/db/material-library-repository";
+import {
+  getMaterialLibraryItemById,
+  listMaterialWorkbenchReferencesByDraft,
+} from "@/lib/db/material-library-repository";
+import { materialMatchesRetrievalTarget } from "@/lib/material-routing";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import {
   assertVideoScriptVariantAccess,
@@ -282,16 +286,48 @@ async function buildServerManagedInputPayload(input: {
     }),
   ]);
 
+  const videoEditMaterialReferences = await filterVideoEditMaterialReferences({
+    merchantId: input.merchantId,
+    references: materialReferences,
+  });
+
   return buildVideoEditJobPayloadOrThrow({
     draftId: input.draftId,
     variant: input.variant,
-    materialReferences: materialReferences.map((reference) => ({
+    materialReferences: videoEditMaterialReferences.map((reference) => ({
       id: reference.id,
       materialItemId: reference.materialItemId,
     })),
     assets,
     productionConfig: input.productionConfig,
   });
+}
+
+async function filterVideoEditMaterialReferences(input: {
+  merchantId: string;
+  references: Array<{
+    id: string;
+    materialItemId: string;
+  }>;
+}) {
+  const pairs = await Promise.all(
+    input.references.map(async (reference) => {
+      try {
+        const material = await getMaterialLibraryItemById({
+          merchantId: input.merchantId,
+          materialItemId: reference.materialItemId,
+        });
+
+        return materialMatchesRetrievalTarget(material, "video_edit_asset")
+          ? reference
+          : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  return pairs.filter((reference): reference is NonNullable<typeof reference> => Boolean(reference));
 }
 
 function buildVideoEditJobPayloadOrThrow(input: Parameters<typeof buildVideoEditJobInputPayload>[0]) {

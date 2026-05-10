@@ -5,12 +5,17 @@ import { randomUUID } from "node:crypto";
 import type {
   MaterialLibraryItemDto,
   MaterialPlatform,
+  MaterialRetrievalTarget,
   MaterialSourceKind,
   MaterialStatus,
   MaterialType,
   MaterialWorkbenchReferenceDto,
   MaterialWorkbenchTarget,
 } from "@/contracts/material";
+import {
+  materialMatchesRetrievalTarget,
+  normalizeMaterialRouting,
+} from "@/lib/material-routing";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -96,12 +101,19 @@ const demoWorkbenchReferences = new Map<string, MaterialWorkbenchReferenceDto>()
 export async function listMaterialLibraryItems(input: {
   merchantId: string;
   limit?: number;
+  retrievalTarget?: MaterialRetrievalTarget;
 }): Promise<MaterialLibraryItemDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return Array.from(demoMaterialItems.values())
+    const materials = Array.from(demoMaterialItems.values())
       .filter((item) => item.merchantId === input.merchantId && item.status !== "archived")
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-      .slice(0, input.limit ?? 50);
+      .filter((item) =>
+        input.retrievalTarget
+          ? materialMatchesRetrievalTarget(item, input.retrievalTarget)
+          : true,
+      );
+
+    return materials.slice(0, input.limit ?? 50);
   }
 
   const supabase = createSupabaseAdminClient();
@@ -111,13 +123,21 @@ export async function listMaterialLibraryItems(input: {
     .eq("merchant_id", input.merchantId)
     .contains("trace_payload", { materialLibrary: true })
     .order("created_at", { ascending: false })
-    .limit(input.limit ?? 50);
+    .limit(input.retrievalTarget ? Math.max(input.limit ?? 50, 120) : input.limit ?? 50);
 
   if (error) {
     throw new ApiError(500, "MATERIAL_LIBRARY_LIST_FAILED", error.message);
   }
 
-  return ((data ?? []) as unknown as SourceItemMaterialRow[]).map(mapSourceItemToMaterial);
+  const materials = ((data ?? []) as unknown as SourceItemMaterialRow[]).map(mapSourceItemToMaterial);
+
+  if (!input.retrievalTarget) {
+    return materials;
+  }
+
+  return materials
+    .filter((item) => materialMatchesRetrievalTarget(item, input.retrievalTarget!))
+    .slice(0, input.limit ?? 50);
 }
 
 export async function getMaterialLibraryItemById(input: {
@@ -162,8 +182,28 @@ export async function createMaterialLibraryItem(input: {
   creatorName?: string | null;
   engagementLabel?: string | null;
   analysisPayload?: Record<string, unknown>;
+  usageType?: MaterialLibraryItemDto["usageType"];
   status?: MaterialStatus;
 }): Promise<MaterialLibraryItemDto> {
+  const status = input.status ?? "ready";
+  const rawAnalysisPayload = input.usageType
+    ? {
+        ...(input.analysisPayload ?? {}),
+        materialUsageType: input.usageType,
+      }
+    : input.analysisPayload ?? {};
+  const routing = normalizeMaterialRouting({
+    materialType: input.materialType,
+    sourceKind: input.sourceKind,
+    status,
+    analysisPayload: rawAnalysisPayload,
+  });
+  const materialAnalysisPayload = {
+    ...rawAnalysisPayload,
+    materialUsageType: routing.usageType,
+    retrievalTargets: routing.retrievalTargets,
+  };
+
   if (!isSupabaseAdminConfigured()) {
     const now = new Date().toISOString();
     const item: MaterialLibraryItemDto = {
@@ -173,13 +213,15 @@ export async function createMaterialLibraryItem(input: {
       platform: input.platform,
       materialType: input.materialType,
       sourceKind: input.sourceKind,
-      status: input.status ?? "ready",
+      usageType: routing.usageType,
+      retrievalTargets: routing.retrievalTargets,
+      status,
       title: input.title,
       description: input.description ?? null,
       originalUrl: input.originalUrl ?? null,
       creatorName: input.creatorName ?? null,
       engagementLabel: input.engagementLabel ?? null,
-      analysisPayload: input.analysisPayload ?? {},
+      analysisPayload: materialAnalysisPayload,
       createdAt: now,
       updatedAt: now,
     };
@@ -200,8 +242,10 @@ export async function createMaterialLibraryItem(input: {
     script_text: input.materialType === "video" ? input.description ?? null : null,
     structure_summary: {
       materialType: input.materialType,
-      materialStatus: input.status ?? "ready",
+      materialStatus: status,
       materialSourceKind: input.sourceKind,
+      materialUsageType: routing.usageType,
+      retrievalTargets: routing.retrievalTargets,
     },
     engagement_snapshot: {
       label: input.engagementLabel ?? null,
@@ -209,7 +253,9 @@ export async function createMaterialLibraryItem(input: {
     trace_payload: {
       materialLibrary: true,
       materialSourceKind: input.sourceKind,
-      materialAnalysis: input.analysisPayload ?? {},
+      materialUsageType: routing.usageType,
+      retrievalTargets: routing.retrievalTargets,
+      materialAnalysis: materialAnalysisPayload,
       createdByUserId: input.createdByUserId,
     },
     is_selected_for_rewrite: false,
@@ -320,6 +366,8 @@ export async function upsertMaterialLibraryItemsFromProvider(input: {
         platform: item.platform,
         materialType: item.materialType,
         sourceKind: item.sourceKind,
+        usageType: "viral_reference",
+        retrievalTargets: ["copy_context", "script_context"],
         status: "ready",
         title: item.title,
         description: item.description ?? null,
@@ -362,12 +410,16 @@ export async function upsertMaterialLibraryItemsFromProvider(input: {
       materialType: item.materialType,
       materialStatus: "ready",
       materialSourceKind: item.sourceKind,
+      materialUsageType: "viral_reference",
+      retrievalTargets: ["copy_context", "script_context"],
     },
     engagement_snapshot: item.engagementSnapshot ?? {},
     trace_payload: {
       ...(item.tracePayload ?? {}),
       materialLibrary: true,
       materialSourceKind: item.sourceKind,
+      materialUsageType: "viral_reference",
+      retrievalTargets: ["copy_context", "script_context"],
       createdByUserId: input.createdByUserId,
     },
     is_selected_for_rewrite: false,
@@ -789,6 +841,18 @@ function mapSourceItemToMaterial(row: SourceItemMaterialRow): MaterialLibraryIte
   const materialType = normalizeMaterialType(structureSummary.materialType, row.script_text);
   const sourceKind = normalizeSourceKind(tracePayload.materialSourceKind, row.source_type);
   const status = normalizeMaterialStatus(structureSummary.materialStatus);
+  const analysisPayload = {
+    structureSummary,
+    engagementSnapshot,
+    tracePayload,
+    selectedForRewrite: row.is_selected_for_rewrite,
+  };
+  const routing = normalizeMaterialRouting({
+    materialType,
+    sourceKind,
+    status,
+    analysisPayload,
+  });
 
   return {
     id: row.id,
@@ -797,6 +861,8 @@ function mapSourceItemToMaterial(row: SourceItemMaterialRow): MaterialLibraryIte
     platform: row.platform,
     materialType,
     sourceKind,
+    usageType: routing.usageType,
+    retrievalTargets: routing.retrievalTargets,
     status,
     title: row.title ?? "未命名素材",
     description: materialType === "video" ? row.script_text : row.body_text,
@@ -804,12 +870,7 @@ function mapSourceItemToMaterial(row: SourceItemMaterialRow): MaterialLibraryIte
     creatorName: row.creator_name,
     engagementLabel:
       typeof engagementSnapshot.label === "string" ? engagementSnapshot.label : null,
-    analysisPayload: {
-      structureSummary,
-      engagementSnapshot,
-      tracePayload,
-      selectedForRewrite: row.is_selected_for_rewrite,
-    },
+    analysisPayload,
     createdAt: row.created_at,
     updatedAt: row.created_at,
   };

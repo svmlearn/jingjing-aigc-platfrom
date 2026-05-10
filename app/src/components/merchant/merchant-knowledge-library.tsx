@@ -734,7 +734,13 @@ export function MerchantKnowledgeLibrary() {
                         {isVideo ? "视频素材" : "图片素材"}
                       </span>
                       <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] text-white/55">
-                        {material.engagementLabel ?? "项目素材"}
+                        {material.status === "parsing"
+                          ? "识别中"
+                          : material.retrievalTargets.includes("article_image_asset")
+                            ? "可用于图文配图"
+                            : material.retrievalTargets.includes("video_edit_asset")
+                              ? "可用于AI剪辑"
+                              : material.engagementLabel ?? "项目素材"}
                       </span>
                     </div>
                     <p className="text-xs text-white/35">
@@ -818,7 +824,7 @@ function getUploadStageLabel(stage: DraftMediaUploadStage | null) {
 }
 
 function isProjectMediaMaterial(material: MaterialLibraryItemDto) {
-  return getProjectMediaAnalysis(material).materialCategory === "project_media_asset";
+  return material.usageType === "image_asset" || material.usageType === "video_asset";
 }
 
 function getProjectMediaAssetType(material: MaterialLibraryItemDto) {
@@ -832,6 +838,10 @@ function getProjectMediaFileName(material: MaterialLibraryItemDto) {
 }
 
 function getProjectMediaAnalysis(material: MaterialLibraryItemDto) {
+  if (material.analysisPayload.materialCategory === "project_media_asset") {
+    return material.analysisPayload;
+  }
+
   const tracePayload = toRecord(material.analysisPayload.tracePayload);
   return toRecord(tracePayload.materialAnalysis);
 }

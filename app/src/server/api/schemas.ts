@@ -500,6 +500,9 @@ const materialPlatformSchema = z.enum(["xiaohongshu", "douyin"]);
 
 export const listMaterialLibraryQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
+  retrievalTarget: z
+    .enum(["copy_context", "script_context", "article_image_asset", "video_edit_asset"])
+    .optional(),
 });
 
 export const createMaterialLibraryItemSchema = z.object({

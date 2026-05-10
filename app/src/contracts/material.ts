@@ -8,6 +8,18 @@ export type MaterialStatus = "ready" | "parsing" | "failed" | "archived";
 
 export type MaterialWorkbenchTarget = "article" | "video";
 
+export type MaterialUsageType =
+  | "text_knowledge"
+  | "viral_reference"
+  | "image_asset"
+  | "video_asset";
+
+export type MaterialRetrievalTarget =
+  | "copy_context"
+  | "script_context"
+  | "article_image_asset"
+  | "video_edit_asset";
+
 export type MaterialLibraryItemDto = {
   id: string;
   merchantId: string;
@@ -15,6 +27,8 @@ export type MaterialLibraryItemDto = {
   platform: MaterialPlatform;
   materialType: MaterialType;
   sourceKind: MaterialSourceKind;
+  usageType: MaterialUsageType;
+  retrievalTargets: MaterialRetrievalTarget[];
   status: MaterialStatus;
   title: string;
   description?: string | null;

@@ -33,7 +33,12 @@ import {
   consumeMaterialWorkbenchReference,
   getMaterialLibraryItemById,
   getMaterialWorkbenchReference,
+  listMaterialLibraryItems,
 } from "@/lib/db/material-library-repository";
+import {
+  buildMaterialRoutingTrace,
+  materialMatchesRetrievalTarget,
+} from "@/lib/material-routing";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import { getDailyContentTaskForUser } from "@/server/api/daily-content-task-service";
 import { searchKnowledgeChunks } from "@/lib/db/knowledge-repository";
@@ -78,6 +83,24 @@ type ContentVariantAccessContext = Awaited<ReturnType<typeof assertContentVarian
 type SelectedCalendarItemSnapshot = ContentCalendarItemDto & {
   targetPlatform: "xiaohongshu" | "douyin";
   contentGoal: string | null;
+};
+type RetrievalReference = {
+  id: string;
+  title: string;
+  summary: string | null;
+  source: "knowledge_base" | "material_library";
+  usageType?: string | null;
+  score?: number | null;
+};
+type ArticleMaterialRetrievalContext = {
+  target: "copy_context" | "article_image_asset";
+  copyContextRefs: RetrievalReference[];
+  imageAssetRefs: Array<Record<string, unknown>>;
+  imageBrief: {
+    prompt: string;
+    reason: string;
+  } | null;
+  degradationNotices: string[];
 };
 
 async function getConsultationSessionWithMerchantStrategy(input: {
@@ -302,6 +325,14 @@ export async function generateArticleDraftForUser(input: {
     session.strategySnapshot.articleBrief?.angle ??
     null;
   const materialSnapshot = buildMaterialSnapshot(materialContext.material, materialContext.reference);
+  const articleRetrieval = await collectArticleMaterialRetrieval({
+    merchantId: merchant.id,
+    selectedMaterial: materialContext.material,
+    session,
+    selectedCalendarItem: generationContext.selectedCalendarItem,
+    contentGoal: angle,
+    extraRequirement: input.extraRequirement ?? null,
+  });
   const articleContext = buildArticlePromptContext({
     selectedCalendarItem: generationContext.selectedCalendarItem,
     strategySnapshot: session.strategySnapshot,
@@ -309,6 +340,7 @@ export async function generateArticleDraftForUser(input: {
     articlePlaybook: input.articlePlaybook ?? "balanced_seed",
     merchantProfile: buildMerchantSnapshot(merchant),
     materialContext: materialSnapshot,
+    retrievalContext: articleRetrieval,
     contentGoal: angle,
     extraRequirement: input.extraRequirement ?? null,
     toneStyle: input.toneStyle ?? null,
@@ -346,8 +378,12 @@ export async function generateArticleDraftForUser(input: {
       strategyAssetMarkdown: articleContext.strategyAssetMarkdown,
       roundtableContext,
       merchantProfile: buildMerchantSnapshot(merchant),
-      matchedProjectMaterials: dailyTask?.materialRefs ?? [],
-      knowledgeRefs: dailyTask?.knowledgeRefs ?? [],
+      matchedProjectMaterials: articleRetrieval.imageAssetRefs,
+      knowledgeRefs: [
+        ...(dailyTask?.knowledgeRefs ?? []),
+        ...articleRetrieval.copyContextRefs,
+      ],
+      materialRetrieval: articleRetrieval,
       generationMode: mode,
       strategyTag: generationContext.strategyTag,
       articlePlaybook: articleContext.articlePlaybook,
@@ -358,7 +394,10 @@ export async function generateArticleDraftForUser(input: {
         articleGeneration.variants.flatMap((variant) => variant.coverCopySuggestions),
       ).slice(0, 3),
       imageStructureSuggestions: compactStrings(
-        articleGeneration.variants.flatMap((variant) => variant.imageStructureSuggestions),
+        [
+          ...articleGeneration.variants.flatMap((variant) => variant.imageStructureSuggestions),
+          articleRetrieval.imageBrief?.prompt ?? "",
+        ],
       ).slice(0, 5),
       writingNotes: articleGeneration.variants.map((variant) => variant.rationale).filter(Boolean),
       promptMode: mode,
@@ -440,6 +479,7 @@ export async function reviseArticleDraftForUser(input: {
       articlePlaybook: normalizeArticlePlaybook(originalContext.articlePlaybook),
       merchantProfile: originalContext.merchantProfile ?? buildMerchantSnapshot(merchant),
       materialContext: originalContext.materialContext ?? null,
+      retrievalContext: originalContext.materialRetrieval ?? null,
       contentGoal: firstString(originalContext.contentGoal, originalContext.rewriteGoal) ?? null,
       extraRequirement: firstString(originalContext.extraRequirement) ?? null,
       toneStyle: input.toneStyle ?? firstString(originalContext.toneStyle) ?? null,
@@ -628,6 +668,18 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
     ...scriptProductionBriefBase,
     evidenceReferences: scriptEvidenceReferences,
   };
+  const scriptRetrievalContext = {
+    target: "script_context",
+    evidenceReferences: scriptEvidenceReferences,
+    degradationNotices: compactStrings([
+      scriptEvidenceReferences.some((reference) => reference.source === "knowledge_base")
+        ? ""
+        : "没有命中文本知识库，视频脚本将基于咨询策略和基础项目资料降级生成。",
+      scriptEvidenceReferences.some((reference) => reference.source === "material")
+        ? ""
+        : "没有命中爆款内容参考，脚本将使用内置结构模板组织 hook 和节奏。",
+    ]),
+  };
   const briefValidation = validateScriptProductionBrief(scriptProductionBrief);
   const forceToolMode =
     input.intent === "generate"
@@ -714,6 +766,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
         ctaText: currentVariant?.ctaText ?? null,
       },
       materialContext: materialSnapshot,
+      retrievalContext: scriptRetrievalContext,
       briefValidation,
     },
     setVideoScript: async (toolInput) => {
@@ -823,6 +876,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
           materialContext: materialSnapshot,
           scriptContext,
           scriptProductionBrief,
+          materialRetrieval: scriptRetrievalContext,
           videoWorkbenchAgent: {
             mode: "set_video_script",
             changeSummary: toolInput.changeSummary,
@@ -1317,7 +1371,7 @@ function buildVideoScriptProductionBrief(input: {
     forbiddenExpressions: input.merchant.forbiddenWords,
     brandTone: input.merchant.toneStyle ?? null,
     strategyAssetMarkdown: input.strategyAssetMarkdown ?? null,
-    availableMaterials: material
+    availableMaterials: material && material.retrievalTargets.includes("script_context")
       ? [
           {
             title: material.title ?? "",
@@ -1341,12 +1395,112 @@ function buildVideoScriptProductionBrief(input: {
   };
 }
 
+async function collectArticleMaterialRetrieval(input: {
+  merchantId: string;
+  selectedMaterial?: MaterialLibraryItemDto | null;
+  session: ConsultationSessionDetailDto;
+  selectedCalendarItem?: SelectedCalendarItemSnapshot | null;
+  contentGoal?: string | null;
+  extraRequirement?: string | null;
+}): Promise<ArticleMaterialRetrievalContext> {
+  const platformSettings = await getPlatformSettings();
+  const query = compactStrings([
+    input.selectedCalendarItem?.title ?? "",
+    input.selectedCalendarItem?.summary ?? "",
+    input.contentGoal ?? "",
+    input.extraRequirement ?? "",
+    input.session.strategySnapshot.currentSuggestion,
+    ...input.session.strategySnapshot.coreSellingPoints,
+    ...input.session.strategySnapshot.targetAudiences,
+    ...input.session.strategySnapshot.strategyTags,
+  ]).join(" ");
+  const [knowledgeMatches, copyContextMaterials, imageMaterials] = await Promise.all([
+    searchKnowledgeChunks({
+      merchantId: input.merchantId,
+      query,
+      limit: Math.min(platformSettings.knowledgeRuntime.retrievalTopK, 6),
+    }),
+    listMaterialLibraryItems({
+      merchantId: input.merchantId,
+      retrievalTarget: "copy_context",
+      limit: 6,
+    }).catch(() => []),
+    listMaterialLibraryItems({
+      merchantId: input.merchantId,
+      retrievalTarget: "article_image_asset",
+      limit: 6,
+    }).catch(() => []),
+  ]);
+  const materialRefs = copyContextMaterials.map(materialToRetrievalReference);
+  const selectedMaterialRef =
+    input.selectedMaterial &&
+    materialMatchesRetrievalTarget(input.selectedMaterial, "copy_context")
+      ? materialToRetrievalReference(input.selectedMaterial)
+      : null;
+  const copyContextRefs = dedupeRetrievalReferences([
+    ...(selectedMaterialRef ? [selectedMaterialRef] : []),
+    ...materialRefs,
+    ...knowledgeMatches.map((match): RetrievalReference => ({
+      id: match.chunkId,
+      title: match.documentTitle,
+      summary: match.content.slice(0, 280),
+      source: "knowledge_base",
+      usageType: "text_knowledge",
+      score: match.score,
+    })),
+  ]).slice(0, 8);
+  const imageAssetRefs = imageMaterials.map((material) => ({
+    ...buildMaterialRoutingTrace(material),
+    platform: material.platform,
+    fileName: firstString(
+      toRecord(toRecord(material.analysisPayload.tracePayload).materialAnalysis).fileName,
+      material.title,
+    ),
+    description: material.description ?? null,
+  }));
+  const degradationNotices = compactStrings([
+    copyContextRefs.length
+      ? ""
+      : "没有命中文本知识库或爆款内容，本次将基于日历任务和基础项目资料降级生成。",
+    imageAssetRefs.length
+      ? ""
+      : "没有命中项目图片素材，本次只输出配图 brief/prompt，可后续上传项目图片提升匹配准确度。",
+  ]);
+
+  return {
+    target: "copy_context",
+    copyContextRefs,
+    imageAssetRefs,
+    imageBrief: imageAssetRefs.length
+      ? null
+      : buildArticleImageBrief({
+          selectedCalendarItem: input.selectedCalendarItem,
+          contentGoal: input.contentGoal,
+          strategySnapshot: input.session.strategySnapshot,
+        }),
+    degradationNotices,
+  };
+}
+
 async function collectScriptProductionEvidence(input: {
   merchantId: string;
   brief: ScriptProductionBrief;
   retrievalTopK: number;
 }): Promise<NonNullable<ScriptProductionBrief["evidenceReferences"]>> {
   const references: NonNullable<ScriptProductionBrief["evidenceReferences"]> = [];
+  const query = compactStrings([
+    input.brief.topicDirection,
+    ...input.brief.targetAudiences,
+    ...input.brief.productOrServiceInfo,
+    ...input.brief.customerAdvantages,
+    ...input.brief.ctaOptions,
+    ...input.brief.availableScenes,
+  ]).join(" ");
+  const scriptReferenceMaterials = await listMaterialLibraryItems({
+    merchantId: input.merchantId,
+    retrievalTarget: "script_context",
+    limit: Math.max(3, input.retrievalTopK),
+  }).catch(() => []);
 
   for (const material of input.brief.availableMaterials) {
     if (!material.title && !material.description) {
@@ -1356,6 +1510,15 @@ async function collectScriptProductionEvidence(input: {
     references.push({
       title: material.title || "参考素材",
       content: material.description ?? material.title,
+      source: "material",
+      score: null,
+    });
+  }
+
+  for (const material of scriptReferenceMaterials) {
+    references.push({
+      title: material.title,
+      content: summarizeMaterialReference(material),
       source: "material",
       score: null,
     });
@@ -1371,14 +1534,6 @@ async function collectScriptProductionEvidence(input: {
   }
 
   if (input.retrievalTopK > 0) {
-    const query = compactStrings([
-      input.brief.topicDirection,
-      ...input.brief.targetAudiences,
-      ...input.brief.productOrServiceInfo,
-      ...input.brief.customerAdvantages,
-      ...input.brief.ctaOptions,
-      ...input.brief.availableScenes,
-    ]).join(" ");
     const matches = await searchKnowledgeChunks({
       merchantId: input.merchantId,
       query,
@@ -1396,6 +1551,68 @@ async function collectScriptProductionEvidence(input: {
   }
 
   return references.slice(0, Math.max(3, input.retrievalTopK + 3));
+}
+
+function materialToRetrievalReference(material: MaterialLibraryItemDto): RetrievalReference {
+  return {
+    id: material.id,
+    title: material.title,
+    summary: summarizeMaterialReference(material),
+    source: "material_library",
+    usageType: material.usageType,
+    score: null,
+  };
+}
+
+function summarizeMaterialReference(material: MaterialLibraryItemDto) {
+  return compactStrings([
+    material.description ?? "",
+    material.engagementLabel ? `互动/状态：${material.engagementLabel}` : "",
+    `用途：${material.usageType}`,
+  ]).join("\n");
+}
+
+function dedupeRetrievalReferences(references: RetrievalReference[]) {
+  const seen = new Set<string>();
+  const result: RetrievalReference[] = [];
+
+  for (const reference of references) {
+    const key = `${reference.source}:${reference.id}`;
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    result.push(reference);
+  }
+
+  return result;
+}
+
+function buildArticleImageBrief(input: {
+  selectedCalendarItem?: SelectedCalendarItemSnapshot | null;
+  contentGoal?: string | null;
+  strategySnapshot: StrategySnapshotDto;
+}) {
+  const topic =
+    firstString(
+      input.selectedCalendarItem?.title,
+      input.contentGoal,
+      input.strategySnapshot.articleBrief?.workingTitle,
+      input.strategySnapshot.currentSuggestion,
+    ) ?? "项目图文内容";
+  const scene =
+    firstString(
+      input.selectedCalendarItem?.summary,
+      input.strategySnapshot.articleBrief?.angle,
+      input.strategySnapshot.keyScenes[0],
+    ) ?? "围绕真实项目场景表达";
+
+  return {
+    prompt: `生成一组小红书图文配图 brief：主题「${topic}」，画面围绕「${scene}」，优先包含封面、项目实景、空间/配套细节和结尾 CTA 页。`,
+    reason: "当前没有可用图片素材，按 V2.4 降级为生图 brief/prompt。",
+  };
 }
 
 export async function listContentRecordsForUser(input: {
@@ -1512,6 +1729,7 @@ function buildArticlePromptContext(input: {
   articlePlaybook: ArticlePlaybook;
   merchantProfile: unknown;
   materialContext: unknown;
+  retrievalContext: unknown;
   contentGoal: string | null;
   extraRequirement: string | null;
   toneStyle: string | null;
@@ -1523,6 +1741,7 @@ function buildArticlePromptContext(input: {
     articlePlaybook: input.articlePlaybook,
     merchantProfile: input.merchantProfile,
     materialContext: input.materialContext,
+    retrievalContext: input.retrievalContext,
     contentGoal: input.contentGoal,
     extraRequirement: input.extraRequirement,
     toneStyle: input.toneStyle,
@@ -1784,6 +2003,9 @@ function buildMaterialSnapshot(
     platform: material?.platform ?? null,
     materialType: material?.materialType ?? null,
     sourceKind: material?.sourceKind ?? null,
+    usageType: material?.usageType ?? null,
+    retrievalTargets: material?.retrievalTargets ?? [],
+    status: material?.status ?? null,
     engagementLabel: material?.engagementLabel ?? null,
     description: material?.description ?? null,
   };

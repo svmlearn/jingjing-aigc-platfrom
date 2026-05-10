@@ -21,6 +21,7 @@ export type ArticlePromptContext = {
   articlePlaybook: ArticlePlaybook;
   merchantProfile: unknown;
   materialContext: unknown;
+  retrievalContext: unknown;
   contentGoal: string | null;
   extraRequirement: string | null;
   toneStyle: string | null;
@@ -57,6 +58,8 @@ const ARTICLE_SYSTEM_PROMPT = [
   "禁止编造价格、疗效、收益、资质、真实案例、库存、活动承诺、地址细节或其他未经确认事实。",
   "不要生成夸大承诺、医疗疗效、金融收益、绝对化用语。",
   "参考素材只能借鉴结构、开头钩子、内容节奏、情绪推进和 CTA 方式，不能照搬原句，也不能把参考素材中的业务事实写成当前用户自己的事实。",
+  "retrievalContext.copyContextRefs 是文案可用的文本依据；retrievalContext.imageAssetRefs 只用于配图建议；不得把视频素材当作图文配图。",
+  "如果 imageAssetRefs 为空，只输出图片 brief/prompt 和可补充素材建议，不要虚构已有图片。",
   "标题要像小红书笔记，不要像新闻标题或企业公告。",
   "正文要有清晰开头、场景展开、差异点解释和行动引导。",
   "只输出 JSON，不输出思考过程，不包裹 Markdown 代码块。",

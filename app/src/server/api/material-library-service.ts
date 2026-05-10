@@ -3,6 +3,7 @@ import "server-only";
 import type {
   MaterialLibraryItemDto,
   MaterialPlatform,
+  MaterialRetrievalTarget,
   MaterialType,
   MaterialWorkbenchTarget,
 } from "@/contracts/material";
@@ -27,11 +28,13 @@ const platformLabels: Record<MaterialPlatform, string> = {
 export async function listMaterialLibraryForUser(input: {
   userId: string;
   limit?: number;
+  retrievalTarget?: MaterialRetrievalTarget;
 }): Promise<MaterialLibraryItemDto[]> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   return listMaterialLibraryItems({
     merchantId: merchant.id,
     limit: input.limit,
+    retrievalTarget: input.retrievalTarget,
   });
 }
 
@@ -51,6 +54,7 @@ export async function createUploadedMaterialForUser(input: {
     platform: input.platform,
     materialType,
     sourceKind: "uploaded",
+    usageType: "viral_reference",
     title: `${platformLabel} 上传素材 · ${compactedUrl}`,
     description: [
       `已保存素材链接：${input.url}`,
@@ -63,6 +67,8 @@ export async function createUploadedMaterialForUser(input: {
       parser: "pending_provider_integration",
       originalUrl: input.url,
       inferredMaterialType: materialType,
+      materialUsageType: "viral_reference",
+      retrievalTargets: ["copy_context", "script_context"],
       merchantName: merchant.name,
     },
   });
@@ -81,6 +87,9 @@ export async function createProjectMediaMaterialForUser(input: {
   const materialType: MaterialType = input.assetType === "video" ? "video" : "article";
   const platform: MaterialPlatform = input.assetType === "video" ? "douyin" : "xiaohongshu";
   const assetLabel = input.assetType === "video" ? "项目视频素材" : "项目图片素材";
+  const usageType = input.assetType === "video" ? "video_asset" : "image_asset";
+  const retrievalTargets =
+    input.assetType === "video" ? ["video_edit_asset"] : ["article_image_asset"];
   const note = input.note?.trim();
 
   return createMaterialLibraryItem({
@@ -89,6 +98,8 @@ export async function createProjectMediaMaterialForUser(input: {
     platform,
     materialType,
     sourceKind: "uploaded",
+    usageType,
+    status: input.assetType === "video" ? "parsing" : "ready",
     title: input.title,
     description: compactStrings([
       assetLabel,
@@ -100,7 +111,10 @@ export async function createProjectMediaMaterialForUser(input: {
     engagementLabel: assetLabel,
     analysisPayload: {
       materialCategory: "project_media_asset",
+      materialUsageType: usageType,
+      retrievalTargets,
       assetType: input.assetType,
+      mediaProcessingStatus: input.assetType === "video" ? "pending_multimodal_index" : "indexed",
       fileName: input.fileName,
       mimeType: input.mimeType,
       sizeBytes: input.sizeBytes,
@@ -222,6 +236,7 @@ export async function createBenchmarkMaterialsForMerchant(input: {
         platform: input.platform,
         materialType,
         sourceKind: "benchmark",
+        usageType: "viral_reference",
         title,
         description:
           input.findMethod === "keyword"
@@ -234,6 +249,8 @@ export async function createBenchmarkMaterialsForMerchant(input: {
         analysisPayload: {
           provider: "tikhub",
           providerStatus: "not_configured",
+          materialUsageType: "viral_reference",
+          retrievalTargets: ["copy_context", "script_context"],
           findMethod: input.findMethod,
           searchTarget,
           rank,

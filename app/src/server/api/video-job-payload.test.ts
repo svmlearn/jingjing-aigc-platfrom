@@ -59,6 +59,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
   });
   assert.deepEqual(payload.materialContext, {
+    retrievalTarget: "video_edit_asset",
     assetPlanId: null,
     assetMatchReportId: null,
     scriptBindingId: "variant-1",
@@ -66,6 +67,8 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     materialReferenceIds: ["reference-1"],
     selectionMode: "user_confirmed",
     fallbackMode: null,
+    excludedAssetIds: [],
+    missingVideoAssetHints: [],
   });
   assert.deepEqual(payload.input_assets, [
     {
@@ -281,7 +284,7 @@ test("buildVideoEditJobInputPayload rejects confirmed material references withou
   );
 });
 
-test("buildVideoEditJobInputPayload normalizes COS fields and orders input assets", () => {
+test("buildVideoEditJobInputPayload only sends video assets to worker and orders input assets", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",
     variant: approvedVariant,
@@ -332,12 +335,7 @@ test("buildVideoEditJobInputPayload normalizes COS fields and orders input asset
         storage_key: "draft-inputs/demo.mp4",
         sort_order: 1,
       },
-      {
-        asset_id: "asset-2",
-        bucket_name: "jj-content-staging-1341668543",
-        storage_key: "draft-inputs/cover.jpg",
-        sort_order: 2,
-      },
     ],
   );
+  assert.deepEqual(payload.materialContext.excludedAssetIds, ["asset-2"]);
 });
