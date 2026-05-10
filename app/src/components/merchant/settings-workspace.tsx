@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpenText, Save, Settings, Tag, Target, UserRound, Users, Zap } from "lucide-react";
+import { BookOpenText, Save, Tag, UserRound, Users, Zap } from "lucide-react";
 
 import type { MerchantProfileDto } from "@/contracts/merchant";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,6 @@ const tabs = [
   { id: "brand", label: "职业与定位", icon: Tag },
   { id: "products", label: "可提供的价值", icon: Zap },
   { id: "audience", label: "目标对象与场景", icon: Users },
-  { id: "marketing", label: "行动目标", icon: Target },
   { id: "knowledge", label: "用户知识库", icon: BookOpenText },
 ] as const;
 
@@ -237,30 +236,6 @@ export function SettingsWorkspace() {
                       className="w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none"
                     />
                   </Field>
-                </>
-              ) : null}
-
-              {activeTab === "marketing" ? (
-                <>
-                  <Field label="希望引导对方做的下一步（每行一项）">
-                    <textarea
-                      value={profile.defaultCta.join("\n")}
-                      onChange={(event) =>
-                        setProfile({
-                          ...profile,
-                          defaultCta: splitLines(event.target.value),
-                        })
-                      }
-                      rows={6}
-                      className="w-full rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none"
-                    />
-                  </Field>
-                  <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-                    <div className="flex items-center gap-3">
-                      <Settings className="h-4 w-4 text-amber-500" />
-                      <p className="text-sm text-white/80">这里保存的信息会影响咨询、图文和视频三条链路的输出结果。</p>
-                    </div>
-                  </div>
                 </>
               ) : null}
 

@@ -5,18 +5,26 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Brain,
   FileText,
+  ImageIcon,
   Pencil,
   RefreshCw,
   Save,
   Trash2,
   Upload,
+  Video,
   X,
 } from "lucide-react";
 
+import type { MaterialLibraryItemDto } from "@/contracts/material";
 import type {
   KnowledgeDocumentStatus,
   KnowledgeDocumentWithStatsDto,
 } from "@/contracts/knowledge";
+import {
+  formatAssetSize,
+  uploadMediaFileForOwner,
+  type DraftMediaUploadStage,
+} from "@/lib/ui/video-workflow";
 import { cn } from "@/lib/utils";
 
 const statusMeta: Record<
@@ -51,6 +59,12 @@ type ApiDocumentResponse = {
   error?: { message?: string };
 };
 
+type ApiMaterialResponse = {
+  material?: MaterialLibraryItemDto;
+  materials?: MaterialLibraryItemDto[];
+  error?: { message?: string };
+};
+
 type EditDraft = {
   documentId: string;
   title: string;
@@ -59,13 +73,21 @@ type EditDraft = {
 
 export function MerchantKnowledgeLibrary() {
   const [documents, setDocuments] = useState<KnowledgeDocumentWithStatsDto[]>([]);
+  const [projectMaterials, setProjectMaterials] = useState<MaterialLibraryItemDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [materialsLoading, setMaterialsLoading] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [documentTitle, setDocumentTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
+  const [materialTitle, setMaterialTitle] = useState("");
+  const [materialNote, setMaterialNote] = useState("");
+  const [selectedMediaFile, setSelectedMediaFile] = useState<File | null>(null);
+  const [mediaInputKey, setMediaInputKey] = useState(0);
+  const [mediaUploadStage, setMediaUploadStage] = useState<DraftMediaUploadStage | null>(null);
+  const [mediaUploadProgress, setMediaUploadProgress] = useState<number | null>(null);
   const [memoryTitle, setMemoryTitle] = useState("");
   const [memoryText, setMemoryText] = useState("");
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
@@ -92,9 +114,32 @@ export function MerchantKnowledgeLibrary() {
     }
   }
 
+  async function loadProjectMaterials() {
+    setMaterialsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/materials?limit=100", {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as ApiMaterialResponse;
+
+      if (!response.ok || !data.materials) {
+        throw new Error(data.error?.message ?? "项目素材加载失败");
+      }
+
+      setProjectMaterials(data.materials.filter(isProjectMediaMaterial));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "项目素材加载失败");
+    } finally {
+      setMaterialsLoading(false);
+    }
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadDocuments();
+    void loadProjectMaterials();
   }, []);
 
   const memoryCharCount = useMemo(() => visibleCharCount(memoryText.trim()), [memoryText]);
@@ -176,6 +221,79 @@ export function MerchantKnowledgeLibrary() {
       setError(requestError instanceof Error ? requestError.message : "用户记忆保存失败");
     } finally {
       setSubmitting(null);
+    }
+  }
+
+  async function createProjectMediaMaterial() {
+    setError(null);
+    setNotice(null);
+
+    if (!materialTitle.trim()) {
+      setError("素材名称必填。");
+      return;
+    }
+
+    if (!selectedMediaFile) {
+      setError("请选择图片或视频文件。");
+      return;
+    }
+
+    const assetType = inferMediaAssetType(selectedMediaFile);
+    if (!assetType) {
+      setError("仅支持图片或视频素材。");
+      return;
+    }
+
+    setSubmitting("project-media");
+    setMediaUploadStage("preparing");
+    setMediaUploadProgress(0);
+
+    try {
+      const response = await fetch("/api/materials/project-media", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: materialTitle,
+          note: materialNote,
+          assetType,
+          fileName: selectedMediaFile.name,
+          mimeType: selectedMediaFile.type || "application/octet-stream",
+          sizeBytes: selectedMediaFile.size,
+        }),
+      });
+      const data = (await response.json()) as ApiMaterialResponse;
+
+      if (!response.ok || !data.material) {
+        throw new Error(data.error?.message ?? "项目素材创建失败");
+      }
+
+      await uploadMediaFileForOwner({
+        ownerType: "source_item",
+        ownerId: data.material.id,
+        file: selectedMediaFile,
+        onStageChange: setMediaUploadStage,
+        onProgress(progress) {
+          setMediaUploadProgress(normalizePercent(progress.percent));
+        },
+      });
+
+      setProjectMaterials((current) => [
+        data.material!,
+        ...current.filter((item) => item.id !== data.material!.id),
+      ]);
+      setMaterialTitle("");
+      setMaterialNote("");
+      setSelectedMediaFile(null);
+      setMediaInputKey((current) => current + 1);
+      setNotice("图片/视频素材已上传到项目素材库。");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "图片/视频素材上传失败");
+    } finally {
+      setSubmitting(null);
+      setMediaUploadStage(null);
+      setMediaUploadProgress(null);
     }
   }
 
@@ -275,7 +393,7 @@ export function MerchantKnowledgeLibrary() {
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 xl:grid-cols-2">
+      <section className="grid gap-4 xl:grid-cols-3">
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
           <div className="mb-4 flex items-center gap-3">
             <Upload className="h-4 w-4 text-amber-400" />
@@ -355,6 +473,59 @@ export function MerchantKnowledgeLibrary() {
                 {submitting === "memory" ? "保存中" : "保存记忆"}
               </button>
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <ImageIcon className="h-4 w-4 text-emerald-300" />
+            <div>
+              <h2 className="text-sm font-medium text-white">项目图片/视频素材</h2>
+              <p className="mt-1 text-xs text-white/45">用于图文配图、视频 B-roll 和项目画面匹配。</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <input
+              value={materialTitle}
+              onChange={(event) => setMaterialTitle(event.target.value)}
+              placeholder="素材名称"
+              className="w-full rounded-xl border border-white/10 bg-[#050505] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25"
+            />
+            <input
+              key={mediaInputKey}
+              type="file"
+              accept="image/*,video/*"
+              onChange={(event) => setSelectedMediaFile(event.target.files?.[0] ?? null)}
+              className="block w-full rounded-xl border border-white/10 bg-[#050505] px-3 py-2 text-xs text-white/65 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-xs file:text-white"
+            />
+            <textarea
+              value={materialNote}
+              onChange={(event) => setMaterialNote(event.target.value)}
+              rows={3}
+              placeholder="例如：样板间客厅、项目外立面、周边商圈转场。"
+              className="w-full resize-none rounded-xl border border-white/10 bg-[#050505] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25"
+            />
+            {submitting === "project-media" ? (
+              <p className="text-xs text-white/45">
+                {getUploadStageLabel(mediaUploadStage)}
+                {mediaUploadProgress !== null ? ` · ${mediaUploadProgress}%` : ""}
+              </p>
+            ) : selectedMediaFile ? (
+              <p className="text-xs text-white/35">
+                {selectedMediaFile.name} · {formatAssetSize(selectedMediaFile.size)}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                void createProjectMediaMaterial();
+              }}
+              disabled={submitting !== null}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-300 px-4 py-2 text-sm font-medium text-black disabled:opacity-60"
+            >
+              <Upload className="h-4 w-4" />
+              {submitting === "project-media" ? "上传中" : "上传素材"}
+            </button>
           </div>
         </div>
       </section>
@@ -517,6 +688,69 @@ export function MerchantKnowledgeLibrary() {
           </div>
         )}
       </section>
+
+      <section className="rounded-2xl border border-white/10 bg-white/[0.03]">
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <div>
+            <h2 className="text-sm font-medium text-white">项目媒体素材</h2>
+            <p className="mt-1 text-xs text-white/40">图片和视频会进入素材库，用于后续图文与视频生成匹配。</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              void loadProjectMaterials();
+            }}
+            disabled={materialsLoading || submitting !== null}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-white/70 disabled:opacity-60"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", materialsLoading ? "animate-spin" : "")} />
+            刷新
+          </button>
+        </div>
+
+        {materialsLoading ? (
+          <div className="px-5 py-10 text-center text-sm text-white/45">正在读取项目媒体素材...</div>
+        ) : projectMaterials.length === 0 ? (
+          <div className="px-5 py-10 text-center text-sm text-white/45">
+            还没有图片或视频素材。
+          </div>
+        ) : (
+          <div className="divide-y divide-white/10">
+            {projectMaterials.map((material) => {
+              const assetType = getProjectMediaAssetType(material);
+              const isVideo = assetType === "video";
+
+              return (
+                <div key={material.id} className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isVideo ? (
+                        <Video className="h-4 w-4 text-emerald-300" />
+                      ) : (
+                        <ImageIcon className="h-4 w-4 text-emerald-300" />
+                      )}
+                      <h3 className="truncate text-sm font-medium text-white">{material.title}</h3>
+                      <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-[11px] text-emerald-100">
+                        {isVideo ? "视频素材" : "图片素材"}
+                      </span>
+                      <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] text-white/55">
+                        {material.engagementLabel ?? "项目素材"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-white/35">
+                      更新于 {formatDate(material.updatedAt)}
+                      {getProjectMediaFileName(material) ? ` · ${getProjectMediaFileName(material)}` : ""}
+                    </p>
+                    {material.description ? (
+                      <p className="line-clamp-2 text-xs leading-5 text-white/45">{material.description}</p>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -549,6 +783,65 @@ function getMemoryText(document: KnowledgeDocumentWithStatsDto) {
   return typeof document.metadata.sourceText === "string"
     ? document.metadata.sourceText
     : document.summaryText ?? "";
+}
+
+function inferMediaAssetType(file: File) {
+  const mimeType = file.type.toLowerCase();
+  const fileName = file.name.toLowerCase();
+
+  if (mimeType.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(fileName)) {
+    return "image" as const;
+  }
+
+  if (mimeType.startsWith("video/") || /\.(mp4|mov|m4v|webm)$/i.test(fileName)) {
+    return "video" as const;
+  }
+
+  return null;
+}
+
+function normalizePercent(value: number) {
+  const percent = value <= 1 ? value * 100 : value;
+  return Math.max(0, Math.min(100, Math.round(percent)));
+}
+
+function getUploadStageLabel(stage: DraftMediaUploadStage | null) {
+  if (stage === "uploading") {
+    return "上传中";
+  }
+
+  if (stage === "finalizing") {
+    return "写入素材库";
+  }
+
+  return "准备上传";
+}
+
+function isProjectMediaMaterial(material: MaterialLibraryItemDto) {
+  return getProjectMediaAnalysis(material).materialCategory === "project_media_asset";
+}
+
+function getProjectMediaAssetType(material: MaterialLibraryItemDto) {
+  const assetType = getProjectMediaAnalysis(material).assetType;
+  return assetType === "video" ? "video" : "image";
+}
+
+function getProjectMediaFileName(material: MaterialLibraryItemDto) {
+  const fileName = getProjectMediaAnalysis(material).fileName;
+  return typeof fileName === "string" ? fileName : null;
+}
+
+function getProjectMediaAnalysis(material: MaterialLibraryItemDto) {
+  const tracePayload = toRecord(material.analysisPayload.tracePayload);
+  return toRecord(tracePayload.materialAnalysis);
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
 }
 
 function visibleCharCount(value: string) {

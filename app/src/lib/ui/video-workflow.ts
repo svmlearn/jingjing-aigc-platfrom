@@ -2,6 +2,7 @@
 
 export type MediaOwnerType = "source_item" | "content_draft" | "content_variant";
 export type MediaAssetType = "image" | "video" | "cover" | "subtitle";
+export type UploadableMediaAssetType = Extract<MediaAssetType, "image" | "video">;
 export type VideoEditJobStatus =
   | "pending"
   | "queued"
@@ -48,7 +49,7 @@ export type VideoEditJob = {
 export type UploadIntentRequest = {
   ownerType: MediaOwnerType;
   ownerId: string;
-  assetType: MediaAssetType;
+  assetType: UploadableMediaAssetType;
   fileName: string;
   mimeType: string;
   sizeBytes: number;
@@ -529,7 +530,7 @@ async function uploadToCos(params: {
   });
 }
 
-function assetTypeFromMimeType(mimeType: string, fileName?: string): MediaAssetType {
+function assetTypeFromMimeType(mimeType: string, fileName?: string): UploadableMediaAssetType {
   if (mimeType.startsWith("video/") || /\.(m4v|mov|mp4|webm)$/i.test(fileName ?? "")) {
     return "video";
   }
@@ -605,21 +606,24 @@ export async function completeMediaUpload(payload: {
   );
 }
 
-export async function uploadDraftMediaFile(params: {
-  draftId: string;
+export async function uploadMediaFileForOwner(params: {
+  ownerType: Extract<MediaOwnerType, "source_item" | "content_draft">;
+  ownerId: string;
   file: File;
   sortOrder?: number;
   onProgress?: (progress: UploadProgress) => void;
   onStageChange?: (stage: DraftMediaUploadStage) => void;
 }) {
   const assetType = assetTypeFromMimeType(params.file.type, params.file.name);
+  const mimeType = params.file.type || "application/octet-stream";
+
   params.onStageChange?.("preparing");
   const intent = await createUploadIntent({
-    ownerType: "content_draft",
-    ownerId: params.draftId,
+    ownerType: params.ownerType,
+    ownerId: params.ownerId,
     assetType,
     fileName: params.file.name,
-    mimeType: params.file.type || "application/octet-stream",
+    mimeType,
     sizeBytes: params.file.size,
   });
 
@@ -631,13 +635,13 @@ export async function uploadDraftMediaFile(params: {
   });
 
   const completePayload = {
-    ownerType: "content_draft" as const,
-    ownerId: params.draftId,
+    ownerType: params.ownerType,
+    ownerId: params.ownerId,
     assetType,
     storageProvider: "tencent_cos",
     bucketName: intent.bucket,
     storageKey: intent.cosKey,
-    mimeType: params.file.type || "application/octet-stream",
+    mimeType,
     sizeBytes: params.file.size,
     etag: uploadResult.etag,
     ...(params.sortOrder !== undefined ? { sortOrder: params.sortOrder } : {}),
@@ -648,13 +652,13 @@ export async function uploadDraftMediaFile(params: {
     (await completeMediaUpload(completePayload)) ??
     ({
       id: intent.cosKey,
-      ownerType: "content_draft",
-      ownerId: params.draftId,
+      ownerType: params.ownerType,
+      ownerId: params.ownerId,
       assetType,
       storageProvider: "tencent_cos",
       bucketName: intent.bucket,
       storageKey: intent.cosKey,
-      mimeType: params.file.type || "application/octet-stream",
+      mimeType,
       fileSizeBytes: params.file.size,
       etag: uploadResult.etag,
       sortOrder: params.sortOrder ?? null,
@@ -663,6 +667,23 @@ export async function uploadDraftMediaFile(params: {
     } satisfies DraftMediaAsset);
 
   return completedAsset;
+}
+
+export async function uploadDraftMediaFile(params: {
+  draftId: string;
+  file: File;
+  sortOrder?: number;
+  onProgress?: (progress: UploadProgress) => void;
+  onStageChange?: (stage: DraftMediaUploadStage) => void;
+}) {
+  return uploadMediaFileForOwner({
+    ownerType: "content_draft",
+    ownerId: params.draftId,
+    file: params.file,
+    sortOrder: params.sortOrder,
+    onProgress: params.onProgress,
+    onStageChange: params.onStageChange,
+  });
 }
 
 export function loadDraftMediaAssetsFallback(draftId: string) {

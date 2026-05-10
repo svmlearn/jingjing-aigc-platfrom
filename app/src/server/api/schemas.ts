@@ -507,6 +507,15 @@ export const createMaterialLibraryItemSchema = z.object({
   url: z.url().max(2000),
 });
 
+export const createProjectMediaMaterialSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  note: z.string().trim().max(1000).nullish(),
+  assetType: z.enum(["image", "video"]),
+  fileName: z.string().trim().min(1).max(255),
+  mimeType: z.string().trim().min(1).max(200),
+  sizeBytes: z.number().int().positive().max(1024 * 1024 * 1024),
+});
+
 export const benchmarkMaterialSearchSchema = z
   .object({
     platform: materialPlatformSchema,

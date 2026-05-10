@@ -68,6 +68,48 @@ export async function createUploadedMaterialForUser(input: {
   });
 }
 
+export async function createProjectMediaMaterialForUser(input: {
+  userId: string;
+  title: string;
+  note?: string | null;
+  assetType: "image" | "video";
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+}): Promise<MaterialLibraryItemDto> {
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  const materialType: MaterialType = input.assetType === "video" ? "video" : "article";
+  const platform: MaterialPlatform = input.assetType === "video" ? "douyin" : "xiaohongshu";
+  const assetLabel = input.assetType === "video" ? "项目视频素材" : "项目图片素材";
+  const note = input.note?.trim();
+
+  return createMaterialLibraryItem({
+    merchantId: merchant.id,
+    createdByUserId: input.userId,
+    platform,
+    materialType,
+    sourceKind: "uploaded",
+    title: input.title,
+    description: compactStrings([
+      assetLabel,
+      `原始文件：${input.fileName}`,
+      `文件类型：${input.mimeType}`,
+      `文件大小：${formatFileSize(input.sizeBytes)}`,
+      note ? `素材说明：${note}` : null,
+    ]).join("\n"),
+    engagementLabel: assetLabel,
+    analysisPayload: {
+      materialCategory: "project_media_asset",
+      assetType: input.assetType,
+      fileName: input.fileName,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      userNote: note ?? null,
+      merchantName: merchant.name,
+    },
+  });
+}
+
 export async function createBenchmarkMaterialsForUser(input: {
   userId: string;
   platform: MaterialPlatform;
@@ -231,6 +273,26 @@ function inferMaterialType(platform: MaterialPlatform, url: string): MaterialTyp
 
 function compactUrl(url: string) {
   return url.replace(/^https?:\/\//, "").replace(/^www\./, "").slice(0, 44);
+}
+
+function compactStrings(values: Array<string | null | undefined>) {
+  return values.filter((value): value is string => Boolean(value?.trim()));
+}
+
+function formatFileSize(sizeBytes: number) {
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`;
+  }
+
+  if (sizeBytes < 1024 * 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  }
+
+  if (sizeBytes < 1024 * 1024 * 1024) {
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  return `${(sizeBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 function getTikHubMaterialCacheTtlMs() {
