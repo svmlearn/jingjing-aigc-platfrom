@@ -1,0 +1,103 @@
+{
+  "generatedAt": "2026-05-10T08:08:18.044Z",
+  "environment": {
+    "appUrl": "http://127.0.0.1:3010",
+    "supabase": "disabled for local demo"
+  },
+  "taskDate": "2026-05-22",
+  "created": [
+    {
+      "memberId": "demo-member-isolation-a-1778400408038",
+      "role": "member",
+      "dailyTaskId": "cf396ca7-cb28-48da-9ffc-c9fd42d488de",
+      "draftId": "297e7c28-5f92-468f-ae2a-e4275a553b70",
+      "variantId": "1d8850b3-05b3-478c-b895-2776b309cc98",
+      "draftCreatedByUserId": "demo-member-isolation-a-1778400408038",
+      "approveStatus": 200,
+      "reviewStatus": "approved",
+      "jobStatus": 201,
+      "jobId": "585d65f0-6d3c-45cc-9a6b-bcf5fe81ec07",
+      "jobCreatedByUserId": "demo-member-isolation-a-1778400408038"
+    },
+    {
+      "memberId": "demo-member-isolation-b-1778400408038",
+      "role": "member",
+      "dailyTaskId": "924ef328-e053-457d-a509-9e45ddb265d5",
+      "draftId": "573b9183-bc84-4553-8a52-248852b03c27",
+      "variantId": "cafb40d8-6304-42c5-91df-a72f5e675c28",
+      "draftCreatedByUserId": "demo-member-isolation-b-1778400408038",
+      "approveStatus": 200,
+      "reviewStatus": "approved",
+      "jobStatus": 201,
+      "jobId": "0e019bec-7ef2-4308-bcbd-8ec390e19272",
+      "jobCreatedByUserId": "demo-member-isolation-b-1778400408038"
+    }
+  ],
+  "histories": [
+    {
+      "memberId": "demo-member-isolation-a-1778400408038",
+      "endpoint": "GET /api/history/records?limit=20",
+      "status": 200,
+      "draftBundleCount": 1,
+      "videoJobCount": 1,
+      "draftIds": [
+        "297e7c28-5f92-468f-ae2a-e4275a553b70"
+      ],
+      "draftCreators": [
+        "demo-member-isolation-a-1778400408038"
+      ],
+      "jobIds": [
+        "585d65f0-6d3c-45cc-9a6b-bcf5fe81ec07"
+      ],
+      "jobCreators": [
+        "demo-member-isolation-a-1778400408038"
+      ],
+      "seesOwnDraft": true,
+      "seesOwnJob": true,
+      "seesOtherDraft": false,
+      "seesOtherJob": false
+    },
+    {
+      "memberId": "demo-member-isolation-b-1778400408038",
+      "endpoint": "GET /api/history/records?limit=20",
+      "status": 200,
+      "draftBundleCount": 1,
+      "videoJobCount": 1,
+      "draftIds": [
+        "573b9183-bc84-4553-8a52-248852b03c27"
+      ],
+      "draftCreators": [
+        "demo-member-isolation-b-1778400408038"
+      ],
+      "jobIds": [
+        "0e019bec-7ef2-4308-bcbd-8ec390e19272"
+      ],
+      "jobCreators": [
+        "demo-member-isolation-b-1778400408038"
+      ],
+      "seesOwnDraft": true,
+      "seesOwnJob": true,
+      "seesOtherDraft": false,
+      "seesOtherJob": false
+    }
+  ],
+  "crossAccess": [
+    {
+      "endpoint": "GET /api/video-edit-jobs/:jobId",
+      "actor": "demo-member-isolation-a-1778400408038",
+      "targetJobOwner": "demo-member-isolation-b-1778400408038",
+      "targetJobId": "0e019bec-7ef2-4308-bcbd-8ec390e19272",
+      "status": 404,
+      "errorCode": "VIDEO_EDIT_JOB_NOT_FOUND"
+    },
+    {
+      "endpoint": "GET /api/content/records/:draftId",
+      "actor": "demo-member-isolation-a-1778400408038",
+      "targetDraftOwner": "demo-member-isolation-b-1778400408038",
+      "targetDraftId": "573b9183-bc84-4553-8a52-248852b03c27",
+      "status": 404,
+      "errorCode": "CONTENT_DRAFT_NOT_FOUND"
+    }
+  ],
+  "isolationPassed": true
+}

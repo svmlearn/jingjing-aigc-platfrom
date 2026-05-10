@@ -1,0 +1,60 @@
+{
+  "generatedAt": "2026-05-10T07:13:51.218Z",
+  "environment": {
+    "appUrl": "http://127.0.0.1:3010",
+    "supabase": "disabled for local demo",
+    "cos": "local fake config for media-complete smoke"
+  },
+  "requestHeaders": {
+    "member": {
+      "x-jingjing-demo-user-id": "demo-member-local"
+    }
+  },
+  "ownerRole": "owner",
+  "memberRole": "member",
+  "sameMerchantForOwnerAndMember": true,
+  "stableMemberTodayTask": true,
+  "dailyTaskId": "6016ff35-4b58-4a52-a4f8-a67b941c47a0",
+  "memberArticleTitle": "今日图文：项目卖点种草 · 成熟配套",
+  "memberVideoTitle": "今日视频：真人口播讲项目机会 · 低总价上车",
+  "videoScript": {
+    "endpoint": "POST /api/content/video-workbench-agent",
+    "status": 201,
+    "toolApplied": true,
+    "toolMode": "create",
+    "draftId": "c014da4c-746f-45b2-bf22-754d86150179",
+    "variantId": "837de5c5-3560-4654-8ffe-ac55c7b189dc",
+    "source": "daily_task",
+    "dailyTaskId": "6016ff35-4b58-4a52-a4f8-a67b941c47a0"
+  },
+  "approval": {
+    "endpoint": "POST /api/content/variants/837de5c5-3560-4654-8ffe-ac55c7b189dc/approve",
+    "status": 200,
+    "reviewStatus": "approved"
+  },
+  "upload": {
+    "endpoint": "POST /api/media/complete",
+    "completeStatus": 201,
+    "assetId": "e85a21ac-c350-44b4-b116-185f01db9c50",
+    "ownerType": "content_draft",
+    "ownerId": "c014da4c-746f-45b2-bf22-754d86150179",
+    "assetType": "video",
+    "storageKey": "draft-inputs/demo-merchant-local/c014da4c-746f-45b2-bf22-754d86150179/member-daily-task-smoke.mp4"
+  },
+  "videoJob": {
+    "createEndpoint": "POST /api/video-edit-jobs",
+    "statusEndpoint": "GET /api/video-edit-jobs/4aec3b38-6098-4ea5-97ec-7bd1e69509cf",
+    "listEndpoint": "GET /api/video-edit-jobs?limit=5",
+    "createStatus": 201,
+    "jobId": "4aec3b38-6098-4ea5-97ec-7bd1e69509cf",
+    "initialStatus": "pending",
+    "initialRenderMode": "asset_driven",
+    "inputAssetCount": 1,
+    "finalStatus": "succeeded",
+    "finalStage": "local_demo_completed",
+    "finalProgressPct": 100,
+    "hasResultPayload": true,
+    "resultAssetCount": 0,
+    "visibleInList": true
+  }
+}

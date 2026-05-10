@@ -7,6 +7,7 @@ test("normalizeDashboardVideoSearchParams preserves video workbench route parame
   const params = normalizeDashboardVideoSearchParams({
     source: "consultation_calendar",
     sessionId: "session_1",
+    dailyTaskId: "daily_task_1",
     calendarItemId: "calendar_1",
     draftId: "draft_1",
     variantId: "variant_1",
@@ -20,6 +21,7 @@ test("normalizeDashboardVideoSearchParams preserves video workbench route parame
   assert.deepEqual(params, {
     source: "consultation_calendar",
     sessionId: "session_1",
+    dailyTaskId: "daily_task_1",
     calendarItemId: "calendar_1",
     draftId: "draft_1",
     variantId: "variant_1",

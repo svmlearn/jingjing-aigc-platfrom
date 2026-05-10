@@ -13,6 +13,7 @@ export async function POST(request: Request) {
     const draftBundle = await generateVideoScriptForUser({
       userId: user.id,
       sessionId: payload.sessionId,
+      dailyTaskId: payload.dailyTaskId,
       source: payload.source,
       calendarItemId: payload.calendarItemId,
       goal: payload.goal,

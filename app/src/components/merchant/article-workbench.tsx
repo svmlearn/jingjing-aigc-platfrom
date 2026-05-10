@@ -59,6 +59,7 @@ const articlePlaybooks: Array<{
 
 export function ArticleWorkbench({
   sessionId,
+  dailyTaskId,
   source,
   calendarItemId,
   materialId,
@@ -67,6 +68,7 @@ export function ArticleWorkbench({
   strategyTag,
 }: {
   sessionId?: string | null;
+  dailyTaskId?: string | null;
   source?: string | null;
   calendarItemId?: string | null;
   materialId?: string | null;
@@ -91,6 +93,7 @@ export function ArticleWorkbench({
   const [revising, setRevising] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const isDailyTaskSource = source === "daily_task" && Boolean(dailyTaskId);
 
   const loadSession = useCallback(async function loadSession(nextSessionId: string) {
     setLoadingSession(true);
@@ -147,8 +150,8 @@ export function ArticleWorkbench({
   }, []);
 
   async function generateDraft() {
-    if (!sessionId) {
-      setError("请先从咨询页进入图文工作台。");
+    if (!sessionId && !isDailyTaskSource) {
+      setError("请先从今日任务或咨询页进入图文工作台。");
       return;
     }
 
@@ -168,7 +171,8 @@ export function ArticleWorkbench({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sessionId,
+          sessionId: sessionId ?? null,
+          dailyTaskId: dailyTaskId ?? null,
           source,
           calendarItemId,
           goal,
@@ -295,6 +299,7 @@ export function ArticleWorkbench({
   const imageStructureSuggestions = readStringArray(snapshot, "imageStructureSuggestions");
   const riskNotes = readStringArray(snapshot, "riskNotes");
   const writingNotes = readStringArray(snapshot, "writingNotes");
+  const matchedProjectMaterials = readRecordArray(snapshot, "matchedProjectMaterials");
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -367,7 +372,12 @@ export function ArticleWorkbench({
             <section>
               <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">已带入策略</p>
               <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-white/75">
-                <p>{session?.strategySnapshot.positioning ?? "请先完成咨询后再进入图文工作台。"}</p>
+                <p>
+                  {session?.strategySnapshot.positioning ??
+                    (isDailyTaskSource
+                      ? "今日任务会自动带入团队内容日历、共享项目资料和素材库。"
+                      : "请先完成咨询后再进入图文工作台。")}
+                </p>
               </div>
             </section>
 
@@ -617,6 +627,18 @@ export function ArticleWorkbench({
                 </section>
                 <section className="rounded-3xl border border-white/10 bg-[#111111] p-6">
                   <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">配图建议</p>
+                  {matchedProjectMaterials.length ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {matchedProjectMaterials.slice(0, 4).map((item, index) => (
+                        <span
+                          key={`${readRecordLabel(item)}-${index}`}
+                          className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs text-amber-100/80"
+                        >
+                          {readRecordLabel(item)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   <ul className="mt-4 list-disc space-y-3 pl-5 text-sm leading-7 text-white/75">
                     {(imageStructureSuggestions.length
                       ? imageStructureSuggestions
@@ -658,8 +680,8 @@ export function ArticleWorkbench({
                 </div>
                 <p className="text-2xl text-white [font-family:var(--font-cormorant)]">图文草稿还没生成</p>
                 <p className="mt-3 text-sm leading-7 text-white/45">
-                  这里会把咨询页沉淀下来的策略快照转换成真实的 `content_drafts / content_variants`
-                  记录，并直接展示两个可切换的标题与正文版本。
+                  这里会把今日任务或咨询页沉淀下来的策略快照转换成真实的 `content_drafts / content_variants`
+                  记录，并直接展示可切换的标题与正文版本。
                 </p>
               </div>
             </div>
@@ -713,6 +735,29 @@ function readStringArray(snapshot: Record<string, unknown> | null | undefined, k
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     : [];
+}
+
+function readRecordArray(snapshot: Record<string, unknown> | null | undefined, key: string) {
+  const value = snapshot?.[key];
+
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === "object" && !Array.isArray(item),
+      )
+    : [];
+}
+
+function readRecordLabel(record: Record<string, unknown>) {
+  const title = record.title;
+  const materialType = record.materialType;
+
+  return [
+    typeof title === "string" && title.trim() ? title.trim() : "项目素材",
+    typeof materialType === "string" && materialType.trim() ? materialType.trim() : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function readTraceMode(snapshot?: Record<string, unknown> | null) {

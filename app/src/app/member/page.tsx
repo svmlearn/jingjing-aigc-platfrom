@@ -1,5 +1,5 @@
 import { DailyTasksWorkspace } from "@/components/merchant/daily-tasks-workspace";
 
-export default function DashboardHomePage() {
+export default function MemberLightClientPage() {
   return <DailyTasksWorkspace />;
 }

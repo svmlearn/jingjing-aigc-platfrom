@@ -5,6 +5,7 @@ export type VideoWorkbenchChatMessage = {
 
 export type VideoWorkbenchRouteContext = {
   sessionId: string | null;
+  dailyTaskId: string | null;
   source: string | null;
   calendarItemId: string | null;
   draftId: string | null;
@@ -90,6 +91,7 @@ export function mergeRouteContext(
 
   return {
     sessionId: next.sessionId ?? current.sessionId,
+    dailyTaskId: next.dailyTaskId ?? current.dailyTaskId,
     source: next.source ?? current.source,
     calendarItemId: next.calendarItemId ?? current.calendarItemId,
     draftId: next.draftId ?? current.draftId,
@@ -107,11 +109,16 @@ export function readRouteContextFromDraftInputSnapshot(inputSnapshot: unknown): 
 } {
   const snapshot = asRecord(inputSnapshot);
   const materialContext = asRecord(snapshot.materialContext);
+  const source = readString(snapshot, "source");
 
   return {
     routeContext: {
-      sessionId: readString(snapshot, "consultationSessionId", "sessionId"),
-      source: readString(snapshot, "source"),
+      sessionId:
+        source === "daily_task"
+          ? null
+          : readString(snapshot, "consultationSessionId", "sessionId"),
+      dailyTaskId: readString(snapshot, "dailyTaskId"),
+      source,
       calendarItemId: readString(snapshot, "calendarItemId"),
       materialId: readString(materialContext, "materialId"),
       materialReferenceId: readString(materialContext, "referenceId"),
@@ -124,6 +131,7 @@ export function readRouteContextFromDraftInputSnapshot(inputSnapshot: unknown): 
 function normalizeRouteContext(input: Partial<VideoWorkbenchRouteContext>): VideoWorkbenchRouteContext {
   return {
     sessionId: typeof input.sessionId === "string" ? input.sessionId : null,
+    dailyTaskId: typeof input.dailyTaskId === "string" ? input.dailyTaskId : null,
     source: typeof input.source === "string" ? input.source : null,
     calendarItemId: typeof input.calendarItemId === "string" ? input.calendarItemId : null,
     draftId: typeof input.draftId === "string" ? input.draftId : null,

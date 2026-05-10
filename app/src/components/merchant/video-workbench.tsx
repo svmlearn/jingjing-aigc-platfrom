@@ -76,6 +76,7 @@ type SegmentUploadState = {
 
 export function VideoWorkbench({
   sessionId,
+  dailyTaskId,
   source,
   calendarItemId,
   draftId,
@@ -87,6 +88,7 @@ export function VideoWorkbench({
   testMode,
 }: {
   sessionId?: string | null;
+  dailyTaskId?: string | null;
   source?: string | null;
   calendarItemId?: string | null;
   draftId?: string | null;
@@ -99,6 +101,7 @@ export function VideoWorkbench({
 }) {
   const [routeContext, setRouteContext] = useState<VideoWorkbenchRouteContext>({
     sessionId: sessionId ?? null,
+    dailyTaskId: dailyTaskId ?? null,
     source: source ?? null,
     calendarItemId: calendarItemId ?? null,
     draftId: draftId ?? null,
@@ -293,6 +296,7 @@ export function VideoWorkbench({
         },
         body: JSON.stringify({
           sessionId: routeContext.sessionId,
+          dailyTaskId: routeContext.dailyTaskId,
           source: routeContext.source,
           calendarItemId: routeContext.calendarItemId,
           goal: nextGoal,
@@ -757,6 +761,7 @@ export function VideoWorkbench({
 
     const hasExplicitRouteContext = Boolean(
       sessionId ||
+        dailyTaskId ||
         source ||
         calendarItemId ||
         draftId ||
@@ -786,6 +791,7 @@ export function VideoWorkbench({
     );
   }, [
     calendarItemId,
+    dailyTaskId,
     draftId,
     jobId,
     materialId,
@@ -877,7 +883,11 @@ export function VideoWorkbench({
 
   useEffect(() => {
     const hasRecoverableState =
-      routeContext.sessionId || routeContext.draftId || routeContext.jobId || messages.length > 1;
+      routeContext.sessionId ||
+      routeContext.dailyTaskId ||
+      routeContext.draftId ||
+      routeContext.jobId ||
+      messages.length > 1;
 
     if (!hasRecoverableState) {
       clearVideoWorkbenchSnapshot();

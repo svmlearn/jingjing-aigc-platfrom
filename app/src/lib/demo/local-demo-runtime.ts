@@ -7,7 +7,7 @@ import type { MerchantProfileDto, MerchantProfileInput } from "@/contracts/merch
 export const localDemoUserId = "demo-user-local";
 export const localDemoMerchantId = "demo-merchant-local";
 
-let localDemoMerchant: MerchantProfileDto | null = null;
+const localDemoMerchants = new Map<string, MerchantProfileDto>();
 
 export function isLocalDemoRuntime() {
   return !(
@@ -17,28 +17,54 @@ export function isLocalDemoRuntime() {
   );
 }
 
-export function createLocalDemoUser(): User {
+export function createLocalDemoUser(userId = localDemoUserId): User {
   return {
-    id: localDemoUserId,
+    id: userId,
     aud: "authenticated",
     role: "authenticated",
     email: "demo@jingjing.local",
     app_metadata: {},
     user_metadata: {
-      display_name: "静境本地 Demo 用户",
+      display_name: userId === localDemoUserId ? "静境本地 Demo 用户" : "静境本地 Demo 成员",
     },
     created_at: "2026-04-24T00:00:00.000Z",
   } as User;
 }
 
-export function getLocalDemoMerchantProfile(ownerUserId = localDemoUserId): MerchantProfileDto {
-  if (!localDemoMerchant || localDemoMerchant.ownerUserId !== ownerUserId) {
+export function resolveLocalDemoWorkspaceIdentity(userId: string) {
+  const match = /^demo-team-([a-z0-9]+)-/.exec(userId);
+
+  if (!match) {
+    return {
+      merchantId: localDemoMerchantId,
+      ownerUserId: localDemoUserId,
+      role: userId === localDemoUserId ? ("owner" as const) : ("member" as const),
+    };
+  }
+
+  const teamKey = match[1];
+  const ownerUserId = `demo-team-${teamKey}-owner`;
+
+  return {
+    merchantId: `demo-merchant-${teamKey}-local`,
+    ownerUserId,
+    role: userId === ownerUserId ? ("owner" as const) : ("member" as const),
+  };
+}
+
+export function getLocalDemoMerchantProfile(
+  ownerUserId = localDemoUserId,
+  merchantId = resolveLocalDemoWorkspaceIdentity(ownerUserId).merchantId,
+): MerchantProfileDto {
+  const current = localDemoMerchants.get(merchantId);
+
+  if (!current || current.ownerUserId !== ownerUserId) {
     const now = new Date().toISOString();
 
-    localDemoMerchant = {
-      id: localDemoMerchantId,
+    localDemoMerchants.set(merchantId, {
+      id: merchantId,
       ownerUserId,
-      name: "静境 Demo 用户",
+      name: merchantId === localDemoMerchantId ? "静境 Demo 用户" : `静境 ${merchantId} 团队`,
       industry: null,
       contactName: null,
       contactPhone: null,
@@ -53,7 +79,13 @@ export function getLocalDemoMerchantProfile(ownerUserId = localDemoUserId): Merc
       plan: "plus",
       createdAt: now,
       updatedAt: now,
-    };
+    });
+  }
+
+  const localDemoMerchant = localDemoMerchants.get(merchantId);
+
+  if (!localDemoMerchant) {
+    throw new Error("Local demo merchant profile was not initialized.");
   }
 
   return {
@@ -68,10 +100,11 @@ export function updateLocalDemoMerchantProfile(
   ownerUserId: string,
   input: Partial<MerchantProfileInput>,
 ): MerchantProfileDto {
-  const current = getLocalDemoMerchantProfile(ownerUserId);
+  const { merchantId } = resolveLocalDemoWorkspaceIdentity(ownerUserId);
+  const current = getLocalDemoMerchantProfile(ownerUserId, merchantId);
   const updatedAt = new Date().toISOString();
 
-  localDemoMerchant = {
+  localDemoMerchants.set(merchantId, {
     ...current,
     name: input.name ?? current.name,
     industry: input.industry ?? current.industry,
@@ -85,7 +118,7 @@ export function updateLocalDemoMerchantProfile(
     defaultCta: input.defaultCta ?? current.defaultCta,
     forbiddenWords: input.forbiddenWords ?? current.forbiddenWords,
     updatedAt,
-  };
+  });
 
-  return getLocalDemoMerchantProfile(ownerUserId);
+  return getLocalDemoMerchantProfile(ownerUserId, merchantId);
 }

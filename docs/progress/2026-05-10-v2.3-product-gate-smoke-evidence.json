@@ -1,0 +1,76 @@
+{
+  "generatedAt": "2026-05-10T08:31:02.326Z",
+  "environment": {
+    "appUrl": "http://127.0.0.1:3010",
+    "supabase": "disabled for local demo"
+  },
+  "lightClient": {
+    "endpoint": "GET /member",
+    "userId": "demo-team-adjust-member",
+    "status": 200,
+    "htmlBytes": 12339
+  },
+  "adminAdjustNoOverwrite": {
+    "owner": "demo-team-adjust-owner",
+    "member": "demo-team-adjust-member",
+    "sessionId": "16beb170-b3fe-423a-b674-1c4a805eca46",
+    "messageStatus": 200,
+    "processingStatus": "completed",
+    "before": {
+      "dailyTaskId": "f60f9b1e-f570-4ca9-865b-90effc2b8973",
+      "theme": "今日项目内容",
+      "articleTitle": "今日图文：项目卖点种草 · 真实顾虑拆解",
+      "calendarItemIds": []
+    },
+    "afterExistingMember": {
+      "dailyTaskId": "f60f9b1e-f570-4ca9-865b-90effc2b8973",
+      "theme": "今日项目内容",
+      "articleTitle": "今日图文：项目卖点种草 · 真实顾虑拆解",
+      "calendarItemIds": []
+    },
+    "newMemberAfterAdminAdjust": {
+      "member": "demo-team-adjust-member-new",
+      "dailyTaskId": "6fa39ba8-9b8e-4645-bbbb-35047742de8c",
+      "theme": "成熟配套",
+      "articleTitle": "成熟配套：图文种草角度 · 低总价上车",
+      "calendarItemIds": [
+        "team-calendar-article-1",
+        "team-calendar-video-1"
+      ]
+    },
+    "existingTaskPreserved": true,
+    "newMemberReceivesAdjustedCalendar": true
+  },
+  "crossTeamIsolation": {
+    "adjustedTeamMerchantId": "demo-merchant-adjust-local",
+    "betaTeamMerchantId": "demo-merchant-beta-local",
+    "betaMember": "demo-team-beta-member",
+    "betaTheme": "今日项目内容",
+    "betaCalendarItemIds": [],
+    "sameMerchant": false,
+    "betaUnaffectedByAdjustedTeamCalendar": true
+  },
+  "videoPreviewPlaceholder": {
+    "member": "demo-team-adjust-preview-member",
+    "scriptStatus": 201,
+    "approveStatus": 200,
+    "jobCreateStatus": 201,
+    "jobDetailStatus": 200,
+    "jobId": "36644d40-284d-4234-9d49-f20fef5d9144",
+    "finalStatus": "succeeded",
+    "progressPct": 100,
+    "resultAssetCount": 1,
+    "firstPreviewUrl": "data:video/mp4;base64,",
+    "previewNotice": "Local demo mode returns a placeholder preview asset. Configure Supabase, COS, and video-worker for real rendered media."
+  },
+  "complianceAndDegradation": {
+    "command": "cd app && node --test src/server/api/article-risk-notes.test.ts",
+    "status": "passed",
+    "assertions": [
+      "flags merchant forbidden words",
+      "flags high-risk expressions",
+      "flags missing real project image material"
+    ]
+  },
+  "allPassed": true
+}

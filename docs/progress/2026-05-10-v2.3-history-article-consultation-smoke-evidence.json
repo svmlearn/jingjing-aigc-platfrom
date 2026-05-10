@@ -1,0 +1,91 @@
+{
+  "generatedAt": "2026-05-10T07:49:42.000Z",
+  "environment": {
+    "appUrl": "http://127.0.0.1:3010",
+    "supabase": "disabled for local demo",
+    "cos": "local fake config for media-complete smoke"
+  },
+  "teamCalendarConsultationRun": {
+    "endpoint": "POST /api/consultation/sessions/:sessionId/messages",
+    "status": 200,
+    "processing": {
+      "status": "completed",
+      "userMessageId": "aee54436-a41b-45dc-9de0-0c42d5103ca6"
+    },
+    "sessionId": "ac36724a-b9bb-4f10-9cd5-a48bd1530073",
+    "calendarCount": 2,
+    "strategyTags": [
+      "小户型回归"
+    ],
+    "currentSuggestion": "本周团队围绕「小户型回归」展开内容分发，成员任务保持同主题不同表达。",
+    "memberDailyTaskAfterConsultation": {
+      "memberId": "demo-member-consultation-local",
+      "role": "member",
+      "requestedDate": "2026-05-19",
+      "teamCalendarSource": {
+        "calendarItemIds": [
+          "team-calendar-article-1",
+          "team-calendar-video-1"
+        ]
+      },
+      "theme": "小户型回归",
+      "articleTitle": "小户型回归：图文种草角度 · 成熟配套"
+    }
+  },
+  "dailyTaskArticleVideoHistoryRun": {
+    "generatedAt": "2026-05-10T07:28:27.368Z",
+    "memberDailyTaskFromTeamCalendar": {
+      "memberId": "demo-member-history-local",
+      "role": "member",
+      "requestedDate": "2026-05-18",
+      "dailyTaskId": "28a24a5a-f257-426c-82b9-d676044ebd99",
+      "teamCalendarSource": {
+        "source": "merchant_strategy_asset",
+        "updatedAt": "2026-05-10T07:26:55.598Z",
+        "strategyTags": [],
+        "calendarItemIds": []
+      },
+      "articleTitle": "今日图文：项目卖点种草 · 成熟配套",
+      "videoTitle": "今日视频：真人口播讲项目机会 · 低总价上车"
+    },
+    "articleResult": {
+      "endpoint": "POST /api/content/article-drafts",
+      "status": 201,
+      "draftId": "d9e79770-6879-4a02-9ae1-6cfadb9ebe24",
+      "source": "daily_task",
+      "dailyTaskId": "28a24a5a-f257-426c-82b9-d676044ebd99",
+      "hasTitle": true,
+      "title": "本地人私藏的宝藏楼盘？周边配套全解析",
+      "hasBody": true,
+      "bodyLength": 214,
+      "hashtagsCount": 3,
+      "ctaText": "私信咨询",
+      "coverCopySuggestionsCount": 3,
+      "imageStructureSuggestionsCount": 4,
+      "matchedProjectMaterialsCount": 0,
+      "imageBehavior": "no_project_images_in_local_demo_fallback_to_image_structure_suggestions"
+    },
+    "videoWorkflow": {
+      "scriptStatus": 201,
+      "variantId": "a07d0223-a648-42af-8681-c7261c1eaa93",
+      "draftId": "47ecbc5d-126e-44b5-8f72-c7d919d9944a",
+      "approvalStatus": 200,
+      "reviewStatus": "approved",
+      "uploadAssetId": "8bf6e725-65bb-4446-a470-b1061a399acb",
+      "jobCreateStatus": 201,
+      "jobId": "fd9acd56-5bed-4631-bb7e-b00fed9472f5",
+      "initialRenderMode": "asset_driven",
+      "inputAssetCount": 1,
+      "finalStatus": "succeeded",
+      "finalProgressPct": 100
+    },
+    "myContent": {
+      "endpoint": "GET /api/history/records?limit=20",
+      "draftBundleCount": 2,
+      "videoJobCount": 1,
+      "articleRecordVisible": true,
+      "videoScriptVisible": true,
+      "videoJobVisible": true
+    }
+  }
+}

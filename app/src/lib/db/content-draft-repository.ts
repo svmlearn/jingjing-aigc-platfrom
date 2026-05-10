@@ -16,6 +16,7 @@ type ContentDraftRow = {
   id: string;
   source_item_id: string;
   merchant_id: string;
+  created_by_user_id: string | null;
   working_title: string | null;
   rewrite_goal: string | null;
   input_snapshot: Record<string, unknown> | null;
@@ -46,11 +47,13 @@ type ContentVariantAccessRow = ContentVariantRow & {
     | {
         id: string;
         merchant_id: string;
+        created_by_user_id: string | null;
         input_snapshot: Record<string, unknown> | null;
       }
     | Array<{
         id: string;
         merchant_id: string;
+        created_by_user_id: string | null;
         input_snapshot: Record<string, unknown> | null;
       }>
     | null;
@@ -131,6 +134,7 @@ export async function createManualSourceItem(input: {
 
 export async function createDraftWithVariants(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   sourceItemId: string;
   workingTitle: string;
   rewriteGoal?: string | null;
@@ -173,6 +177,7 @@ export async function createDraftWithVariants(input: {
       id: draftId,
       sourceItemId: input.sourceItemId,
       merchantId: input.merchantId,
+      createdByUserId: input.createdByUserId ?? null,
       workingTitle: input.workingTitle,
       rewriteGoal: input.rewriteGoal ?? null,
       inputSnapshot: input.inputSnapshot ?? null,
@@ -204,6 +209,7 @@ export async function createDraftWithVariants(input: {
     .insert({
       source_item_id: input.sourceItemId,
       merchant_id: input.merchantId,
+      created_by_user_id: input.createdByUserId ?? null,
       working_title: input.workingTitle,
       rewrite_goal: input.rewriteGoal ?? null,
       input_snapshot: input.inputSnapshot ?? {},
@@ -273,22 +279,33 @@ export async function createDraftWithVariants(input: {
 
 export async function listDraftBundlesByMerchant(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   limit?: number;
 }): Promise<ContentDraftBundleDto[]> {
   if (!isSupabaseAdminConfigured()) {
     return Array.from(demoDraftBundles.values())
       .filter((bundle) => bundle.draft.merchantId === input.merchantId)
+      .filter(
+        (bundle) =>
+          !input.createdByUserId || bundle.draft.createdByUserId === input.createdByUserId,
+      )
       .sort((a, b) => b.draft.createdAt.localeCompare(a.draft.createdAt))
       .slice(0, input.limit ?? 50);
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data: draftData, error: draftError } = await supabase
+  let draftQuery = supabase
     .from("content_drafts")
     .select(contentDraftSelect)
     .eq("merchant_id", input.merchantId)
     .order("created_at", { ascending: false })
     .limit(input.limit ?? 50);
+
+  if (input.createdByUserId) {
+    draftQuery = draftQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { data: draftData, error: draftError } = await draftQuery;
 
   if (draftError) {
     throw new ApiError(500, "CONTENT_DRAFT_LIST_FAILED", draftError.message);
@@ -338,11 +355,16 @@ export async function listDraftBundlesByMerchant(input: {
 export async function getDraftBundleByMerchant(input: {
   merchantId: string;
   draftId: string;
+  createdByUserId?: string | null;
 }): Promise<ContentDraftBundleDto> {
   if (!isSupabaseAdminConfigured()) {
     const bundle = demoDraftBundles.get(input.draftId);
 
-    if (!bundle || bundle.draft.merchantId !== input.merchantId) {
+    if (
+      !bundle ||
+      bundle.draft.merchantId !== input.merchantId ||
+      (input.createdByUserId && bundle.draft.createdByUserId !== input.createdByUserId)
+    ) {
       throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
     }
 
@@ -350,12 +372,17 @@ export async function getDraftBundleByMerchant(input: {
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data: draftData, error: draftError } = await supabase
+  let draftQuery = supabase
     .from("content_drafts")
     .select(contentDraftSelect)
     .eq("id", input.draftId)
-    .eq("merchant_id", input.merchantId)
-    .single();
+    .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    draftQuery = draftQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { data: draftData, error: draftError } = await draftQuery.single();
 
   if (draftError || !draftData) {
     throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
@@ -384,13 +411,18 @@ export async function getDraftBundleByMerchant(input: {
 
 export async function approveContentVariant(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   contentVariantId: string;
 }): Promise<ContentVariantDto> {
   if (!isSupabaseAdminConfigured()) {
     for (const [draftId, bundle] of demoDraftBundles.entries()) {
       const variant = bundle.variants.find((item) => item.id === input.contentVariantId);
 
-      if (!variant || bundle.draft.merchantId !== input.merchantId) {
+      if (
+        !variant ||
+        bundle.draft.merchantId !== input.merchantId ||
+        (input.createdByUserId && bundle.draft.createdByUserId !== input.createdByUserId)
+      ) {
         continue;
       }
 
@@ -431,12 +463,17 @@ export async function approveContentVariant(input: {
   }
 
   const currentVariant = mapContentVariant(variantData as unknown as ContentVariantRow);
-  const { data: draftData, error: draftError } = await supabase
+  let draftQuery = supabase
     .from("content_drafts")
-    .select("id, merchant_id")
+    .select("id, merchant_id, created_by_user_id")
     .eq("id", currentVariant.draftId)
-    .eq("merchant_id", input.merchantId)
-    .single();
+    .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    draftQuery = draftQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { data: draftData, error: draftError } = await draftQuery.single();
 
   if (draftError || !draftData) {
     throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
@@ -459,13 +496,19 @@ export async function approveContentVariant(input: {
     );
   }
 
-  const { error: selectVariantError } = await supabase
+  let selectVariantQuery = supabase
     .from("content_drafts")
     .update({
       selected_variant_id: input.contentVariantId,
     })
     .eq("id", currentVariant.draftId)
     .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    selectVariantQuery = selectVariantQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { error: selectVariantError } = await selectVariantQuery;
 
   if (selectVariantError) {
     throw new ApiError(
@@ -480,6 +523,7 @@ export async function approveContentVariant(input: {
 
 export async function appendContentVariantToDraft(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   draftId: string;
   platform: Platform;
   variantType: ContentVariantDto["variantType"];
@@ -494,7 +538,11 @@ export async function appendContentVariantToDraft(input: {
   if (!isSupabaseAdminConfigured()) {
     const bundle = demoDraftBundles.get(input.draftId);
 
-    if (!bundle || bundle.draft.merchantId !== input.merchantId) {
+    if (
+      !bundle ||
+      bundle.draft.merchantId !== input.merchantId ||
+      (input.createdByUserId && bundle.draft.createdByUserId !== input.createdByUserId)
+    ) {
       throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
     }
 
@@ -538,12 +586,17 @@ export async function appendContentVariantToDraft(input: {
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data: draftData, error: draftError } = await supabase
+  let draftQuery = supabase
     .from("content_drafts")
-    .select("id, merchant_id")
+    .select("id, merchant_id, created_by_user_id")
     .eq("id", input.draftId)
-    .eq("merchant_id", input.merchantId)
-    .single();
+    .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    draftQuery = draftQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { data: draftData, error: draftError } = await draftQuery.single();
 
   if (draftError || !draftData) {
     throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
@@ -588,13 +641,19 @@ export async function appendContentVariantToDraft(input: {
   }
 
   const variant = mapContentVariant(variantData as unknown as ContentVariantRow);
-  const { error: selectError } = await supabase
+  let selectQuery = supabase
     .from("content_drafts")
     .update({
       selected_variant_id: variant.id,
     })
     .eq("id", input.draftId)
     .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    selectQuery = selectQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { error: selectError } = await selectQuery;
 
   if (selectError) {
     throw new ApiError(500, "CONTENT_DRAFT_SELECT_VARIANT_FAILED", selectError.message);
@@ -605,6 +664,7 @@ export async function appendContentVariantToDraft(input: {
 
 export async function updateContentVariantScript(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   contentVariantId: string;
   title?: string | null;
   scriptText: string;
@@ -668,6 +728,7 @@ export async function updateContentVariantScript(input: {
 
   const currentVariant = await assertContentVariantAccess({
     merchantId: input.merchantId,
+    createdByUserId: input.createdByUserId,
     contentVariantId: input.contentVariantId,
     variantType: "video_script",
   });
@@ -693,13 +754,19 @@ export async function updateContentVariantScript(input: {
     );
   }
 
-  const { error: selectError } = await supabase
+  let selectQuery = supabase
     .from("content_drafts")
     .update({
       selected_variant_id: input.contentVariantId,
     })
     .eq("id", currentVariant.draftId)
     .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    selectQuery = selectQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { error: selectError } = await selectQuery;
 
   if (selectError) {
     throw new ApiError(500, "CONTENT_DRAFT_SELECT_VARIANT_FAILED", selectError.message);
@@ -710,10 +777,12 @@ export async function updateContentVariantScript(input: {
 
 export async function assertContentVariantAccess(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   contentVariantId: string;
   variantType?: ContentVariantDto["variantType"];
 }): Promise<{
   merchantId: string;
+  createdByUserId?: string | null;
   draftId: string;
   contentVariantId: string;
   variantType: ContentVariantDto["variantType"];
@@ -728,7 +797,11 @@ export async function assertContentVariantAccess(input: {
   if (!isSupabaseAdminConfigured()) {
     const variant = getLocalDemoContentVariantContext(input.contentVariantId);
 
-    if (!variant || variant.merchantId !== input.merchantId) {
+    if (
+      !variant ||
+      variant.merchantId !== input.merchantId ||
+      (input.createdByUserId && variant.createdByUserId !== input.createdByUserId)
+    ) {
       throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
     }
 
@@ -742,6 +815,7 @@ export async function assertContentVariantAccess(input: {
 
     return {
       merchantId: variant.merchantId,
+      createdByUserId: variant.createdByUserId ?? null,
       draftId: variant.draftId,
       contentVariantId: variant.contentVariantId,
       variantType: variant.variantType,
@@ -758,7 +832,9 @@ export async function assertContentVariantAccess(input: {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("content_variants")
-    .select(`${contentVariantSelect}, content_drafts!inner(id, merchant_id, input_snapshot)`)
+    .select(
+      `${contentVariantSelect}, content_drafts!inner(id, merchant_id, created_by_user_id, input_snapshot)`,
+    )
     .eq("id", input.contentVariantId)
     .single();
 
@@ -771,7 +847,11 @@ export async function assertContentVariantAccess(input: {
     ? row.content_drafts[0]
     : row.content_drafts;
 
-  if (!draft || draft.merchant_id !== input.merchantId) {
+  if (
+    !draft ||
+    draft.merchant_id !== input.merchantId ||
+    (input.createdByUserId && draft.created_by_user_id !== input.createdByUserId)
+  ) {
     throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
   }
 
@@ -787,6 +867,7 @@ export async function assertContentVariantAccess(input: {
 
   return {
     merchantId: draft.merchant_id,
+    createdByUserId: draft.created_by_user_id ?? null,
     draftId: draft.id,
     contentVariantId: variant.id,
     variantType: variant.variantType,
@@ -802,13 +883,18 @@ export async function assertContentVariantAccess(input: {
 
 export async function appendContentDraftRevisionTrace(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   draftId: string;
   trace: Record<string, unknown>;
 }) {
   if (!isSupabaseAdminConfigured()) {
     const bundle = demoDraftBundles.get(input.draftId);
 
-    if (!bundle || bundle.draft.merchantId !== input.merchantId) {
+    if (
+      !bundle ||
+      bundle.draft.merchantId !== input.merchantId ||
+      (input.createdByUserId && bundle.draft.createdByUserId !== input.createdByUserId)
+    ) {
       throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
     }
 
@@ -829,12 +915,17 @@ export async function appendContentDraftRevisionTrace(input: {
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
+  let draftQuery = supabase
     .from("content_drafts")
     .select("id, input_snapshot")
     .eq("id", input.draftId)
-    .eq("merchant_id", input.merchantId)
-    .single();
+    .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    draftQuery = draftQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { data, error } = await draftQuery.single();
 
   if (error || !data) {
     throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
@@ -843,7 +934,7 @@ export async function appendContentDraftRevisionTrace(input: {
   const row = data as { input_snapshot?: Record<string, unknown> | null };
   const snapshot = row.input_snapshot ?? {};
   const traces = Array.isArray(snapshot.revisionTraces) ? snapshot.revisionTraces : [];
-  const { error: updateError } = await supabase
+  let updateQuery = supabase
     .from("content_drafts")
     .update({
       input_snapshot: {
@@ -853,6 +944,12 @@ export async function appendContentDraftRevisionTrace(input: {
     })
     .eq("id", input.draftId)
     .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    updateQuery = updateQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { error: updateError } = await updateQuery;
 
   if (updateError) {
     throw new ApiError(500, "CONTENT_DRAFT_TRACE_UPDATE_FAILED", updateError.message);
@@ -873,6 +970,7 @@ export function getLocalDemoContentVariantContext(contentVariantId: string) {
 
     return {
       merchantId: bundle.draft.merchantId,
+      createdByUserId: bundle.draft.createdByUserId ?? null,
       draftId: bundle.draft.id,
       contentVariantId: variant.id,
       variantType: variant.variantType,
@@ -924,6 +1022,7 @@ export function getLocalDemoMediaOwnerContext(input: {
       ownerType: input.ownerType,
       ownerId: bundle.draft.id,
       merchantId: bundle.draft.merchantId,
+      createdByUserId: bundle.draft.createdByUserId ?? null,
       draftId: bundle.draft.id,
     };
   }
@@ -939,6 +1038,7 @@ export function getLocalDemoMediaOwnerContext(input: {
       ownerType: input.ownerType,
       ownerId: variant.id,
       merchantId: bundle.draft.merchantId,
+      createdByUserId: bundle.draft.createdByUserId ?? null,
       draftId: bundle.draft.id,
       variantType: variant.variantType,
     };
@@ -965,6 +1065,7 @@ function mapContentDraft(row: ContentDraftRow): ContentDraftDto {
     id: row.id,
     sourceItemId: row.source_item_id,
     merchantId: row.merchant_id,
+    createdByUserId: row.created_by_user_id ?? null,
     workingTitle: row.working_title,
     rewriteGoal: row.rewrite_goal,
     inputSnapshot: row.input_snapshot ?? null,
@@ -1005,6 +1106,7 @@ const contentDraftSelect = [
   "id",
   "source_item_id",
   "merchant_id",
+  "created_by_user_id",
   "working_title",
   "rewrite_goal",
   "input_snapshot",

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { User } from "@supabase/supabase-js";
+import { headers } from "next/headers";
 
 import { createLocalDemoUser } from "@/lib/demo/local-demo-runtime";
 import { createSupabaseServerClient, isSupabasePublicConfigured } from "@/lib/supabase/server";
@@ -8,7 +9,7 @@ import { ApiError } from "@/server/api/errors";
 
 export async function getAuthenticatedUser(): Promise<User> {
   if (!isSupabasePublicConfigured()) {
-    return createLocalDemoUser();
+    return createLocalDemoUser(await readLocalDemoUserId());
   }
 
   const supabase = await createSupabaseServerClient();
@@ -19,4 +20,15 @@ export async function getAuthenticatedUser(): Promise<User> {
   }
 
   return data.user;
+}
+
+async function readLocalDemoUserId() {
+  try {
+    const requestHeaders = await headers();
+    const userId = requestHeaders.get("x-jingjing-demo-user-id")?.trim();
+
+    return userId?.startsWith("demo-") ? userId : undefined;
+  } catch {
+    return undefined;
+  }
 }

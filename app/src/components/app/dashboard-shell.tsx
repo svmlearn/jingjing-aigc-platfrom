@@ -9,15 +9,17 @@ import {
   LogOut,
   MessageSquare,
   Settings,
+  Sparkles,
   Video,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard", label: "咨询诊断", icon: MessageSquare },
-  { href: "/dashboard/article", label: "图文工作台", icon: FileText },
-  { href: "/dashboard/video", label: "视频工作台", icon: Video },
+  { href: "/dashboard", label: "今日任务", icon: Sparkles },
+  { href: "/dashboard/consultation", label: "团队选题", icon: MessageSquare },
+  { href: "/dashboard/article", label: "生成图文", icon: FileText },
+  { href: "/dashboard/video", label: "生成视频", icon: Video },
   { href: "/dashboard/content", label: "素材中心", icon: Library },
   { href: "/dashboard/history", label: "我的内容", icon: FolderGit2 },
   { href: "/dashboard/settings", label: "用户信息", icon: Settings },
@@ -36,7 +38,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <p className="text-lg italic tracking-tight [font-family:var(--font-cormorant)]">
-                AI 咨询工作台
+                内容日历工作台
               </p>
               <p className="text-[10px] uppercase tracking-[0.3em] text-white/35">
                 User Workspace
@@ -108,7 +110,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <header className="border-b border-white/10 bg-[#0a0a0a] px-4 py-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-lg italic tracking-tight [font-family:var(--font-cormorant)]">
-              AI 咨询工作台
+              内容日历工作台
             </p>
             <form action="/logout" method="post">
               <button

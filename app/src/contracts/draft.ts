@@ -12,6 +12,7 @@ export type ContentDraftDto = {
   id: string;
   sourceItemId: string;
   merchantId: string;
+  createdByUserId?: string | null;
   workingTitle?: string | null;
   rewriteGoal?: string | null;
   inputSnapshot?: Record<string, unknown> | null;

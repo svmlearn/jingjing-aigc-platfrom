@@ -15,6 +15,7 @@ export type VideoEditJobStatus =
 export type VideoEditJobDto = {
   id: string;
   merchantId: string;
+  createdByUserId?: string | null;
   draftId: string;
   contentVariantId: string;
   status: VideoEditJobStatus;

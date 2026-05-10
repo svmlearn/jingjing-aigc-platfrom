@@ -24,6 +24,7 @@ import { ApiError } from "@/server/api/errors";
 type VideoEditJobRow = {
   id: string;
   merchant_id: string;
+  created_by_user_id: string | null;
   draft_id: string;
   content_variant_id: string;
   status: VideoEditJobStatus;
@@ -57,10 +58,12 @@ type ContentVariantContextRow = {
 type ContentDraftContextRow = {
   id: string;
   merchant_id: string;
+  created_by_user_id: string | null;
 };
 
 export type VideoEditJobListFilters = {
   status?: VideoEditJobStatus;
+  createdByUserId?: string | null;
   limit?: number;
 };
 
@@ -105,9 +108,11 @@ const LOCAL_DEMO_JOB_TIMELINE = [
 
 export async function assertVideoScriptVariantAccess(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   contentVariantId: string;
 }): Promise<{
   merchantId: string;
+  createdByUserId?: string | null;
   draftId: string;
   contentVariantId: string;
   variantType: ContentVariantDto["variantType"];
@@ -120,7 +125,11 @@ export async function assertVideoScriptVariantAccess(input: {
   if (!isSupabaseAdminConfigured()) {
     const variant = getLocalDemoContentVariantContext(input.contentVariantId);
 
-    if (!variant || variant.merchantId !== input.merchantId) {
+    if (
+      !variant ||
+      variant.merchantId !== input.merchantId ||
+      (input.createdByUserId && variant.createdByUserId !== input.createdByUserId)
+    ) {
       throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
     }
 
@@ -134,6 +143,7 @@ export async function assertVideoScriptVariantAccess(input: {
 
     return {
       merchantId: variant.merchantId,
+      createdByUserId: variant.createdByUserId ?? null,
       draftId: variant.draftId,
       contentVariantId: variant.contentVariantId,
       variantType: variant.variantType,
@@ -157,12 +167,17 @@ export async function assertVideoScriptVariantAccess(input: {
   }
 
   const variant = variantData as unknown as ContentVariantContextRow;
-  const { data: draftData, error: draftError } = await supabase
+  let draftQuery = supabase
     .from("content_drafts")
-    .select("id, merchant_id")
+    .select("id, merchant_id, created_by_user_id")
     .eq("id", variant.draft_id)
-    .eq("merchant_id", input.merchantId)
-    .single();
+    .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    draftQuery = draftQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { data: draftData, error: draftError } = await draftQuery.single();
 
   if (draftError || !draftData) {
     throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
@@ -179,6 +194,7 @@ export async function assertVideoScriptVariantAccess(input: {
   const draft = draftData as unknown as ContentDraftContextRow;
   return {
     merchantId: draft.merchant_id,
+    createdByUserId: draft.created_by_user_id ?? null,
     draftId: draft.id,
     contentVariantId: variant.id,
     variantType: variant.variant_type,
@@ -192,6 +208,7 @@ export async function assertVideoScriptVariantAccess(input: {
 
 export async function createVideoEditJob(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   draftId: string;
   contentVariantId: string;
   triggerSource?: VideoEditJobTriggerSource;
@@ -214,6 +231,7 @@ export async function createVideoEditJob(input: {
     const job: VideoEditJobDto = {
       id: randomUUID(),
       merchantId: input.merchantId,
+      createdByUserId: input.createdByUserId ?? null,
       draftId: input.draftId,
       contentVariantId: input.contentVariantId,
       status: "pending",
@@ -245,6 +263,7 @@ export async function createVideoEditJob(input: {
     .from("video_edit_jobs")
     .insert({
       merchant_id: input.merchantId,
+      created_by_user_id: input.createdByUserId ?? null,
       draft_id: input.draftId,
       content_variant_id: input.contentVariantId,
       trigger_source: input.triggerSource ?? "manual",
@@ -283,6 +302,7 @@ export async function listVideoEditJobs(
     return Array.from(demoVideoEditJobs.values())
       .map(advanceLocalDemoVideoJob)
       .filter((job) => job.merchantId === merchantId)
+      .filter((job) => !filters.createdByUserId || job.createdByUserId === filters.createdByUserId)
       .filter((job) => !filters.status || job.status === filters.status)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, filters.limit ?? 50);
@@ -299,6 +319,9 @@ export async function listVideoEditJobs(
   if (filters.status) {
     query = query.eq("status", filters.status);
   }
+  if (filters.createdByUserId) {
+    query = query.eq("created_by_user_id", filters.createdByUserId);
+  }
 
   const { data, error } = await query;
 
@@ -311,6 +334,7 @@ export async function listVideoEditJobs(
 
 export async function getVideoEditJobById(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   jobId: string;
 }): Promise<VideoEditJobDto> {
   if (!isSupabaseAdminConfigured()) {
@@ -320,7 +344,11 @@ export async function getVideoEditJobById(input: {
 
     const job = demoVideoEditJobs.get(input.jobId);
 
-    if (!job || job.merchantId !== input.merchantId) {
+    if (
+      !job ||
+      job.merchantId !== input.merchantId ||
+      (input.createdByUserId && job.createdByUserId !== input.createdByUserId)
+    ) {
       throw new ApiError(404, "VIDEO_EDIT_JOB_NOT_FOUND", "Video edit job not found.");
     }
 
@@ -328,12 +356,17 @@ export async function getVideoEditJobById(input: {
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
+  let jobQuery = supabase
     .from("video_edit_jobs")
     .select(videoEditJobSelect)
     .eq("id", input.jobId)
-    .eq("merchant_id", input.merchantId)
-    .single();
+    .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    jobQuery = jobQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { data, error } = await jobQuery.single();
 
   if (error || !data) {
     throw new ApiError(404, "VIDEO_EDIT_JOB_NOT_FOUND", "Video edit job not found.");
@@ -344,6 +377,7 @@ export async function getVideoEditJobById(input: {
 
 export async function retryVideoEditJob(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   jobId: string;
 }): Promise<VideoEditJobDto> {
   const current = await getVideoEditJobById(input);
@@ -383,7 +417,7 @@ export async function retryVideoEditJob(input: {
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
+  let retryQuery = supabase
     .from("video_edit_jobs")
     .update({
       status: "pending",
@@ -398,9 +432,13 @@ export async function retryVideoEditJob(input: {
       retry_count: current.retryCount + 1,
     })
     .eq("id", input.jobId)
-    .eq("merchant_id", input.merchantId)
-    .select(videoEditJobSelect)
-    .single();
+    .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    retryQuery = retryQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { data, error } = await retryQuery.select(videoEditJobSelect).single();
 
   if (error || !data) {
     throw new ApiError(500, "VIDEO_EDIT_JOB_RETRY_FAILED", error?.message ?? "Retry failed.");
@@ -411,6 +449,7 @@ export async function retryVideoEditJob(input: {
 
 export async function cancelVideoEditJob(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   jobId: string;
 }): Promise<VideoEditJobDto> {
   const current = await getVideoEditJobById(input);
@@ -443,7 +482,7 @@ export async function cancelVideoEditJob(input: {
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
+  let cancelQuery = supabase
     .from("video_edit_jobs")
     .update({
       status: "cancelled",
@@ -451,9 +490,13 @@ export async function cancelVideoEditJob(input: {
       finished_at: new Date().toISOString(),
     })
     .eq("id", input.jobId)
-    .eq("merchant_id", input.merchantId)
-    .select(videoEditJobSelect)
-    .single();
+    .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    cancelQuery = cancelQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { data, error } = await cancelQuery.select(videoEditJobSelect).single();
 
   if (error || !data) {
     throw new ApiError(500, "VIDEO_EDIT_JOB_CANCEL_FAILED", error?.message ?? "Cancel failed.");
@@ -466,6 +509,7 @@ export function mapVideoEditJob(row: VideoEditJobRow): VideoEditJobDto {
   return {
     id: row.id,
     merchantId: row.merchant_id,
+    createdByUserId: row.created_by_user_id ?? null,
     draftId: row.draft_id,
     contentVariantId: row.content_variant_id,
     status: row.status,
@@ -553,10 +597,35 @@ function buildLocalDemoResultPayload(job: VideoEditJobDto): Record<string, unkno
     execution_mode: "local_demo_memory",
     script_locked: readRecord(job.inputPayload.script).locked === true,
     desired_outputs: desiredOutputs,
-    outputs: {},
+    outputs: {
+      final_video: {
+        kind: "local_demo_preview_placeholder",
+        asset_id: `local-demo-preview-${job.id}`,
+        storage_key: `local-demo-preview/${job.id}.mp4`,
+      },
+    },
+    resultAssets: [
+      {
+        id: `local-demo-preview-${job.id}`,
+        ownerType: "content_variant",
+        ownerId: job.contentVariantId,
+        assetType: "video",
+        storageProvider: "supabase_storage",
+        bucketName: null,
+        storageKey: `local-demo-preview/${job.id}.mp4`,
+        originUrl: "data:video/mp4;base64,",
+        mimeType: "video/mp4",
+        fileSizeBytes: 0,
+        etag: null,
+        sortOrder: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+        signedPreviewUrl: "data:video/mp4;base64,",
+      },
+    ],
     uploaded_assets: [],
     preview_notice:
-      "Local demo mode does not render media. Configure Supabase, COS, and video-worker for real output assets.",
+      "Local demo mode returns a placeholder preview asset. Configure Supabase, COS, and video-worker for real rendered media.",
   };
 }
 
@@ -577,6 +646,7 @@ function toStringArray(value: unknown) {
 const videoEditJobSelect = [
   "id",
   "merchant_id",
+  "created_by_user_id",
   "draft_id",
   "content_variant_id",
   "status",

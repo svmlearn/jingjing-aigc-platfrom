@@ -526,6 +526,14 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
     knowledgeRuntime,
     llmRuntime,
   });
+  const finalizedStrategySnapshot = ensureTeamCalendarDraftForRequest({
+    snapshot: loopResult.strategySnapshot,
+    userContent: effectiveUserContent || sourceMessage.content,
+  });
+  const finalizedStrategyMarkdown =
+    finalizedStrategySnapshot === loopResult.strategySnapshot
+      ? loopResult.strategyMarkdown
+      : buildStrategyAssetMarkdown(finalizedStrategySnapshot);
 
   await recordConsultationUsageSafely({
     merchantId: merchant.id,
@@ -547,9 +555,9 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
     stageLabel: loopResult.nextStage,
     payload: {
       round: loopResult.nextRound,
-      strategyTags: loopResult.strategySnapshot.strategyTags,
-      calendarCount: loopResult.strategySnapshot.contentCalendarDraft.length,
-      strategyMarkdownChars: loopResult.strategyMarkdown.length,
+      strategyTags: finalizedStrategySnapshot.strategyTags,
+      calendarCount: finalizedStrategySnapshot.contentCalendarDraft.length,
+      strategyMarkdownChars: finalizedStrategyMarkdown.length,
       loopIterations: loopResult.toolResults.length,
       mentionRouting: loopResult.mentionRouting,
       agentContainer: loopResult.agentContainer,
@@ -557,16 +565,16 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
   });
   const persistedStrategyAsset = await upsertMerchantStrategyAssetDocument({
     merchantId: merchant.id,
-    strategySnapshot: loopResult.strategySnapshot,
-    strategyMarkdown: loopResult.strategyMarkdown,
-    canonicalSnapshot: loopResult.strategySnapshot,
+    strategySnapshot: finalizedStrategySnapshot,
+    strategyMarkdown: finalizedStrategyMarkdown,
+    canonicalSnapshot: finalizedStrategySnapshot,
   });
   await updateConsultationSession({
     merchantId: merchant.id,
     sessionId: effectiveSession.id,
     currentStage: loopResult.nextStage,
-    strategySnapshot: loopResult.strategySnapshot,
-    summaryText: loopResult.strategySnapshot.currentSuggestion,
+    strategySnapshot: finalizedStrategySnapshot,
+    summaryText: finalizedStrategySnapshot.currentSuggestion,
   });
   await createConsultationMessage({
     sessionId: effectiveSession.id,
@@ -581,8 +589,8 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
       toolResults: loopResult.toolResults,
     }),
     visibleSummary: {
-      positioning: loopResult.strategySnapshot.positioning,
-      strategyTags: loopResult.strategySnapshot.strategyTags,
+      positioning: finalizedStrategySnapshot.positioning,
+      strategyTags: finalizedStrategySnapshot.strategyTags,
       knowledgeContext: buildKnowledgeContextBlock(loopResult.knowledgeMatches),
       agentLoop: {
         mode:
@@ -624,7 +632,7 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
   }).then((updatedSession) =>
     attachRoundtableState({
       ...updatedSession,
-      strategySnapshot: loopResult.strategySnapshot,
+      strategySnapshot: finalizedStrategySnapshot,
       strategyAsset: persistedStrategyAsset,
     }),
   );
@@ -632,6 +640,88 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
 
 function hasPendingAssistantReply(session: ConsultationSessionDetailDto) {
   return session.messages.at(-1)?.role === "user";
+}
+
+function ensureTeamCalendarDraftForRequest(input: {
+  snapshot: StrategySnapshotDto;
+  userContent: string;
+}): StrategySnapshotDto {
+  if (
+    input.snapshot.contentCalendarDraft.length > 0 ||
+    !looksLikeTeamCalendarRequest(input.userContent)
+  ) {
+    return input.snapshot;
+  }
+
+  const theme = inferTeamCalendarTheme(input.userContent);
+  const strategyTags = uniqueStrings([theme, ...input.snapshot.strategyTags]).slice(0, 6);
+  const currentSuggestion =
+    input.snapshot.currentSuggestion ||
+    `本周团队围绕「${theme}」展开内容分发，成员任务保持同主题不同表达。`;
+
+  return {
+    ...input.snapshot,
+    positioning: input.snapshot.positioning || "房地产项目内容营销",
+    coreSellingPoints: input.snapshot.coreSellingPoints.length
+      ? input.snapshot.coreSellingPoints
+      : ["低总价上车", "成熟配套", "客户顾虑拆解"],
+    targetAudiences: input.snapshot.targetAudiences.length
+      ? input.snapshot.targetAudiences
+      : ["有购房、换房或投资需求的本地客户"],
+    keyScenes: input.snapshot.keyScenes.length
+      ? input.snapshot.keyScenes
+      : ["项目现场口播", "周边配套实拍", "客户异议拆解"],
+    currentSuggestion,
+    strategyTags,
+    contentCalendarDraft: [
+      {
+        id: "team-calendar-article-1",
+        dayLabel: "本周",
+        contentType: "article",
+        strategyTag: theme,
+        title: `${theme}：图文种草角度`,
+        summary: "围绕项目卖点、成熟配套和真实客户顾虑生成小红书图文任务。",
+      },
+      {
+        id: "team-calendar-video-1",
+        dayLabel: "本周",
+        contentType: "video",
+        strategyTag: theme,
+        title: `${theme}：视频口播角度`,
+        summary: "围绕通勤、配套、首付压力和私信咨询生成中介可拍的视频脚本任务。",
+      },
+    ],
+    articleBrief: input.snapshot.articleBrief ?? {
+      workingTitle: `${theme}：本地客户关心的上车机会`,
+      angle: "用真实中介视角解释项目卖点、配套和客户常见顾虑。",
+      callToAction: "私信咨询，获取项目资料。",
+    },
+    videoBrief: input.snapshot.videoBrief ?? {
+      workingTitle: `${theme}：短视频口播脚本`,
+      hook: "从客户最关心的通勤、配套和首付压力切入。",
+      outcome: "引导客户私信咨询项目详情。",
+    },
+  };
+}
+
+function looksLikeTeamCalendarRequest(content: string) {
+  return /内容日历|团队|选题|主推|本周|这周|日历|图文|视频/.test(content);
+}
+
+function inferTeamCalendarTheme(content: string) {
+  if (content.includes("小户型")) {
+    return "小户型回归";
+  }
+
+  if (content.includes("配套")) {
+    return "成熟配套";
+  }
+
+  if (content.includes("低总价")) {
+    return "低总价上车";
+  }
+
+  return "团队本周选题";
 }
 
 async function markQueuedConsultationMessageFailed(input: {

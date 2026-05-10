@@ -34,6 +34,14 @@ export type MerchantProfileDto = {
   updatedAt: string;
 };
 
+export type MerchantTeamRole = "owner" | "member";
+
+export type MerchantWorkspaceDto = {
+  merchantProfile: MerchantProfileDto;
+  role: MerchantTeamRole;
+  membershipId?: string | null;
+};
+
 export type InvitationCodeDto = {
   id: string;
   code: string;

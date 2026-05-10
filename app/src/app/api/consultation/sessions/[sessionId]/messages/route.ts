@@ -1,6 +1,7 @@
 import { after } from "next/server";
 
 import { getAuthenticatedUser } from "@/lib/auth/current-user";
+import { isSupabasePublicConfigured } from "@/lib/supabase/server";
 import { handleApiError } from "@/server/api/errors";
 import { sendConsultationMessageSchema } from "@/server/api/schemas";
 import {
@@ -23,6 +24,23 @@ export async function POST(
       sessionId,
       content: payload.content,
     });
+
+    if (queued.processing && !isSupabasePublicConfigured()) {
+      const session = await processQueuedConsultationMessageForUser({
+        userId: user.id,
+        sessionId,
+        userMessageId: queued.processing.userMessageId,
+        entitlement: queued.processing.entitlement,
+      });
+
+      return Response.json({
+        session,
+        processing: {
+          status: "completed",
+          userMessageId: queued.processing.userMessageId,
+        },
+      });
+    }
 
     if (queued.processing) {
       const { userMessageId, entitlement } = queued.processing;

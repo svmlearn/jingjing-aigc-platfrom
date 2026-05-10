@@ -1,6 +1,7 @@
 export type DashboardVideoSearchParams = {
   source?: string;
   sessionId?: string;
+  dailyTaskId?: string;
   calendarItemId?: string;
   draftId?: string;
   variantId?: string;
@@ -16,6 +17,7 @@ export function normalizeDashboardVideoSearchParams(params: DashboardVideoSearch
   return {
     source: params.source ?? null,
     sessionId: params.sessionId ?? null,
+    dailyTaskId: params.dailyTaskId ?? null,
     calendarItemId: params.calendarItemId ?? null,
     draftId: params.draftId ?? null,
     variantId: params.variantId ?? null,

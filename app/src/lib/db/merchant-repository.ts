@@ -7,9 +7,12 @@ import type {
   MerchantPlan,
   MerchantProfileDto,
   MerchantProfileInput,
+  MerchantTeamRole,
+  MerchantWorkspaceDto,
 } from "@/contracts/merchant";
 import {
   getLocalDemoMerchantProfile,
+  resolveLocalDemoWorkspaceIdentity,
   updateLocalDemoMerchantProfile,
 } from "@/lib/demo/local-demo-runtime";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
@@ -46,6 +49,50 @@ type InvitationCodeRow = {
   note: string | null;
   created_at: string;
 };
+
+type MerchantTeamMemberRow = {
+  id: string;
+  merchant_id: string;
+  user_id: string;
+  role: MerchantTeamRole;
+  status: "active" | "disabled";
+  display_name: string | null;
+  invited_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+const merchantProfileSelect = [
+  "id",
+  "owner_user_id",
+  "name",
+  "industry",
+  "contact_name",
+  "contact_phone",
+  "address",
+  "service_items",
+  "brand_summary",
+  "region_summary",
+  "tone_style",
+  "default_cta",
+  "forbidden_words",
+  "status",
+  "plan",
+  "created_at",
+  "updated_at",
+].join(", ");
+
+const merchantTeamMemberSelect = [
+  "id",
+  "merchant_id",
+  "user_id",
+  "role",
+  "status",
+  "display_name",
+  "invited_by_user_id",
+  "created_at",
+  "updated_at",
+].join(", ");
 
 export async function createInvitationCode(input: {
   code?: string;
@@ -191,10 +238,141 @@ export async function getMerchantProfileByOwnerUserId(
     .single();
 
   if (error || !data) {
+    const membershipProfile = await getMerchantProfileByTeamMemberUserId(ownerUserId);
+
+    if (membershipProfile) {
+      return membershipProfile;
+    }
+
     throw new ApiError(404, "MERCHANT_PROFILE_NOT_FOUND", "Merchant profile not found.");
   }
 
   return mapMerchantProfile(data as unknown as MerchantProfileRow);
+}
+
+async function getMerchantProfileByOwnerUserIdStrict(
+  ownerUserId: string,
+): Promise<MerchantProfileDto> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_profiles")
+    .select(merchantProfileSelect)
+    .eq("owner_user_id", ownerUserId)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(404, "MERCHANT_PROFILE_NOT_FOUND", "Merchant profile not found.");
+  }
+
+  return mapMerchantProfile(data as unknown as MerchantProfileRow);
+}
+
+async function getMerchantProfileByTeamMemberUserId(
+  userId: string,
+): Promise<MerchantProfileDto | null> {
+  const membership = await getActiveMerchantTeamMemberByUserId(userId);
+  return membership ? getMerchantProfileById(membership.merchant_id) : null;
+}
+
+async function getActiveMerchantTeamMemberByUserId(
+  userId: string,
+): Promise<MerchantTeamMemberRow | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_team_members")
+    .select(merchantTeamMemberSelect)
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingRelationError(error.message)) {
+      return null;
+    }
+
+    throw new ApiError(500, "MERCHANT_TEAM_MEMBER_LOOKUP_FAILED", error.message);
+  }
+
+  return (data as unknown as MerchantTeamMemberRow | null) ?? null;
+}
+
+async function ensureMerchantOwnerMembership(input: {
+  merchantId: string;
+  userId: string;
+  displayName?: string | null;
+}): Promise<MerchantTeamMemberRow | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_team_members")
+    .upsert(
+      {
+        merchant_id: input.merchantId,
+        user_id: input.userId,
+        role: "owner",
+        status: "active",
+        display_name: input.displayName ?? null,
+      },
+      { onConflict: "user_id" },
+    )
+    .select(merchantTeamMemberSelect)
+    .single();
+
+  if (error) {
+    if (isMissingRelationError(error.message)) {
+      return null;
+    }
+
+    throw new ApiError(500, "MERCHANT_TEAM_OWNER_MEMBERSHIP_FAILED", error.message);
+  }
+
+  return data as unknown as MerchantTeamMemberRow;
+}
+
+export async function getMerchantWorkspaceByUserId(userId: string): Promise<MerchantWorkspaceDto> {
+  if (!isSupabaseAdminConfigured()) {
+    const identity = resolveLocalDemoWorkspaceIdentity(userId);
+    const merchantProfile = getLocalDemoMerchantProfile(
+      identity.ownerUserId,
+      identity.merchantId,
+    );
+
+    return {
+      merchantProfile,
+      role: identity.role,
+      membershipId:
+        identity.role === "owner"
+          ? "demo-membership-local-owner"
+          : `demo-membership-local-${userId}`,
+    };
+  }
+
+  const ownerProfile = await getMerchantProfileByOwnerUserIdStrict(userId).catch(() => null);
+
+  if (ownerProfile) {
+    const membership = await ensureMerchantOwnerMembership({
+      merchantId: ownerProfile.id,
+      userId,
+      displayName: ownerProfile.name,
+    });
+
+    return {
+      merchantProfile: ownerProfile,
+      role: "owner",
+      membershipId: membership?.id ?? null,
+    };
+  }
+
+  const membership = await getActiveMerchantTeamMemberByUserId(userId);
+
+  if (!membership) {
+    throw new ApiError(404, "MERCHANT_PROFILE_NOT_FOUND", "Merchant profile not found.");
+  }
+
+  return {
+    merchantProfile: await getMerchantProfileById(membership.merchant_id),
+    role: membership.role,
+    membershipId: membership.id,
+  };
 }
 
 export async function updateMerchantProfile(
@@ -297,9 +475,17 @@ function mapInvitationCode(row: InvitationCodeRow): InvitationCodeDto {
 export async function getOperationalMerchantProfileByOwnerUserId(
   ownerUserId: string,
 ): Promise<MerchantProfileDto> {
-  const profile = await getMerchantProfileByOwnerUserId(ownerUserId);
+  const profile = (await getMerchantWorkspaceByUserId(ownerUserId)).merchantProfile;
   assertMerchantOperational(profile);
   return profile;
+}
+
+export async function getOperationalMerchantWorkspaceByUserId(
+  userId: string,
+): Promise<MerchantWorkspaceDto> {
+  const workspace = await getMerchantWorkspaceByUserId(userId);
+  assertMerchantOperational(workspace.merchantProfile);
+  return workspace;
 }
 
 export function assertMerchantOperational(profile: Pick<MerchantProfileDto, "status">) {
@@ -345,6 +531,10 @@ function mapInviteRedemptionError(message: string): ApiError {
   }
 
   return new ApiError(500, "INVITATION_CODE_REDEEM_FAILED", message);
+}
+
+function isMissingRelationError(message: string) {
+  return message.includes("merchant_team_members") && message.includes("does not exist");
 }
 
 function generateInvitationCode() {

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { ContentVariantDto } from "@/contracts/draft";
+import type { MediaAssetDto } from "@/contracts/media";
 import type { CreateVideoEditJobRequest, VideoEditJobDto, VideoEditJobStatus } from "@/contracts/video";
 import { approveContentVariant } from "@/lib/db/content-draft-repository";
 import {
@@ -34,11 +35,13 @@ export async function createVideoEditJobForUser(input: {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const variant = await assertVideoScriptVariantAccess({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     contentVariantId: input.request.contentVariantId,
   });
   if (input.request.sourceJobId) {
     await getVideoEditJobById({
       merchantId: variant.merchantId,
+      createdByUserId: input.userId,
       jobId: input.request.sourceJobId,
     });
   }
@@ -56,6 +59,7 @@ export async function createVideoEditJobForUser(input: {
 
   return createVideoEditJob({
     merchantId: variant.merchantId,
+    createdByUserId: input.userId,
     draftId: variant.draftId,
     contentVariantId: variant.contentVariantId,
     triggerSource: input.request.sourceJobId ? "regenerate" : "manual",
@@ -80,6 +84,7 @@ export async function approveVideoScriptVariantForUser(input: {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const executableVariant = await assertVideoScriptVariantAccess({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     contentVariantId: input.contentVariantId,
   });
 
@@ -93,6 +98,7 @@ export async function approveVideoScriptVariantForUser(input: {
 
   return approveContentVariant({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     contentVariantId: input.contentVariantId,
   });
 }
@@ -105,6 +111,7 @@ export async function listVideoEditJobsForUser(input: {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
 
   return listVideoEditJobs(merchant.id, {
+    createdByUserId: input.userId,
     status: input.status,
     limit: input.limit,
   });
@@ -117,6 +124,7 @@ export async function getVideoEditJobForUser(input: {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const job = await getVideoEditJobById({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     jobId: input.jobId,
   });
 
@@ -131,6 +139,7 @@ export async function retryVideoEditJobForUser(input: {
 
   return retryVideoEditJob({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     jobId: input.jobId,
   });
 }
@@ -143,17 +152,19 @@ export async function cancelVideoEditJobForUser(input: {
 
   return cancelVideoEditJob({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     jobId: input.jobId,
   });
 }
 
 async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEditJobDto> {
   const references = extractUploadedAssetReferences(job.resultPayload);
+  const payloadResultAssets = extractPayloadResultAssets(job.resultPayload);
 
   if (references.assetIds.size === 0 && references.storageKeys.size === 0) {
     return {
       ...job,
-      resultAssets: [],
+      resultAssets: payloadResultAssets,
     };
   }
 
@@ -173,17 +184,64 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
 
   return {
     ...job,
-    resultAssets: matchedAssets.map((asset) => ({
-      ...asset,
-      signedPreviewUrl:
-        asset.storageProvider === "tencent_cos"
-          ? createCosSignedPreviewUrl({
-              bucketName: asset.bucketName,
-              storageKey: asset.storageKey,
-            })
-          : null,
-    })),
+    resultAssets: [
+      ...matchedAssets.map((asset) => ({
+        ...asset,
+        signedPreviewUrl:
+          asset.storageProvider === "tencent_cos"
+            ? createCosSignedPreviewUrl({
+                bucketName: asset.bucketName,
+                storageKey: asset.storageKey,
+              })
+            : null,
+      })),
+      ...payloadResultAssets,
+    ],
   };
+}
+
+function extractPayloadResultAssets(
+  resultPayload: Record<string, unknown>,
+): NonNullable<VideoEditJobDto["resultAssets"]> {
+  const rawAssets = resultPayload.resultAssets;
+
+  if (!Array.isArray(rawAssets)) {
+    return [];
+  }
+
+  return rawAssets
+    .filter((asset): asset is Record<string, unknown> => Boolean(asset) && typeof asset === "object")
+    .map((asset): MediaAssetDto => ({
+      id: String(asset.id ?? asset.assetId ?? ""),
+      ownerType: "content_variant",
+      ownerId: String(asset.ownerId ?? ""),
+      assetType: asset.assetType === "image" ? "image" : "video",
+      storageProvider:
+        asset.storageProvider === "tencent_cos" ? "tencent_cos" : "supabase_storage",
+      bucketName: typeof asset.bucketName === "string" ? asset.bucketName : null,
+      storageKey: String(asset.storageKey ?? ""),
+      originUrl: typeof asset.originUrl === "string" ? asset.originUrl : null,
+      mimeType: typeof asset.mimeType === "string" ? asset.mimeType : null,
+      fileSizeBytes:
+        typeof asset.fileSizeBytes === "number" && Number.isFinite(asset.fileSizeBytes)
+          ? asset.fileSizeBytes
+          : null,
+      etag: typeof asset.etag === "string" ? asset.etag : null,
+      sortOrder:
+        typeof asset.sortOrder === "number" && Number.isFinite(asset.sortOrder)
+          ? asset.sortOrder
+          : 0,
+      createdAt:
+        typeof asset.createdAt === "string" ? asset.createdAt : new Date().toISOString(),
+      updatedAt: typeof asset.updatedAt === "string" ? asset.updatedAt : null,
+      signedPreviewUrl:
+        typeof asset.signedPreviewUrl === "string"
+          ? asset.signedPreviewUrl
+          : typeof asset.originUrl === "string"
+            ? asset.originUrl
+            : null,
+    }))
+    .filter((asset) => asset.id && asset.ownerId && asset.storageKey);
 }
 
 async function buildServerManagedInputPayload(input: {

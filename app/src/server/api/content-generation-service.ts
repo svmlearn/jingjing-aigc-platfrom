@@ -3,8 +3,10 @@ import "server-only";
 import type {
   ContentCalendarItemDto,
   ConsultationSessionDetailDto,
+  MerchantStrategyAssetDto,
   StrategySnapshotDto,
 } from "@/contracts/consultation";
+import type { DailyContentTaskDto } from "@/contracts/daily-task";
 import type { ContentDraftBundleDto, ContentVariantDto } from "@/contracts/draft";
 import type {
   MaterialLibraryItemDto,
@@ -12,7 +14,7 @@ import type {
   MaterialWorkbenchTarget,
 } from "@/contracts/material";
 import { getConsultationSessionDetail } from "@/lib/db/consultation-repository";
-import { toStrategySnapshot } from "@/lib/strategy-snapshot";
+import { emptyStrategySnapshot, toStrategySnapshot } from "@/lib/strategy-snapshot";
 import {
   buildStrategyAssetMarkdown,
   getMerchantStrategyAssetDocument,
@@ -33,6 +35,7 @@ import {
   getMaterialWorkbenchReference,
 } from "@/lib/db/material-library-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
+import { getDailyContentTaskForUser } from "@/server/api/daily-content-task-service";
 import { searchKnowledgeChunks } from "@/lib/db/knowledge-repository";
 import { getPlatformSettings } from "@/lib/db/platform-admin-repository";
 import { buildRoundtableSnapshotForInput } from "@/server/api/roundtable-consultation-service";
@@ -66,9 +69,10 @@ import {
   type ArticlePromptMode,
   type ArticlePromptTraceMode,
 } from "@/server/api/article-prompt-templates";
+import { buildDeterministicArticleRiskNotes } from "@/server/api/article-risk-notes";
 
 type GenerationMode = "create" | "rewrite";
-type GenerationSource = "consultation_calendar" | "material_center" | "manual";
+type GenerationSource = "consultation_calendar" | "material_center" | "manual" | "daily_task";
 type WorkbenchKind = "article" | "video";
 type ContentVariantAccessContext = Awaited<ReturnType<typeof assertContentVariantAccess>>;
 type SelectedCalendarItemSnapshot = ContentCalendarItemDto & {
@@ -94,9 +98,121 @@ async function getConsultationSessionWithMerchantStrategy(input: {
     : session;
 }
 
+async function buildDailyTaskSession(input: {
+  merchantId: string;
+  dailyTask?: DailyContentTaskDto | null;
+}): Promise<ConsultationSessionDetailDto> {
+  const merchantStrategyAsset = await getMerchantStrategyAssetDocument(input.merchantId);
+  const baseSnapshot = merchantStrategyAsset?.strategySnapshot ?? emptyStrategySnapshot;
+  const task = input.dailyTask ?? null;
+  const articleCalendarItem = task
+    ? buildDailyTaskCalendarItem(task, "article")
+    : null;
+  const videoCalendarItem = task ? buildDailyTaskCalendarItem(task, "video") : null;
+  const strategyTags = compactStrings([
+    task?.theme ?? "",
+    task?.articleTask.strategyTag ?? "",
+    task?.videoTask.strategyTag ?? "",
+    ...baseSnapshot.strategyTags,
+  ]);
+  const strategySnapshot: StrategySnapshotDto = {
+    ...baseSnapshot,
+    positioning: firstString(baseSnapshot.positioning, "房地产项目内容营销") ?? "",
+    coreSellingPoints: baseSnapshot.coreSellingPoints.length
+      ? baseSnapshot.coreSellingPoints
+      : compactStrings([
+          task?.theme ?? "",
+          "项目区位、配套成熟度、上车门槛和客户决策顾虑",
+        ]),
+    targetAudiences: baseSnapshot.targetAudiences.length
+      ? baseSnapshot.targetAudiences
+      : ["有购房、换房或投资需求的本地客户"],
+    keyScenes: baseSnapshot.keyScenes.length
+      ? baseSnapshot.keyScenes
+      : ["项目现场或周边配套口播", "客户常见问题拆解", "项目卖点实拍补充"],
+    currentSuggestion:
+      firstString(
+        task?.theme,
+        task?.articleTask.summary,
+        task?.videoTask.summary,
+        baseSnapshot.currentSuggestion,
+      ) ?? "围绕团队内容日历生成今日内容。",
+    strategyTags,
+    contentCalendarDraft: compactCalendarItems([
+      articleCalendarItem,
+      videoCalendarItem,
+      ...baseSnapshot.contentCalendarDraft,
+    ]),
+    articleBrief: {
+      workingTitle:
+        firstString(task?.articleTask.title, baseSnapshot.articleBrief?.workingTitle) ??
+        "今日图文任务",
+      angle:
+        firstString(task?.articleTask.summary, baseSnapshot.articleBrief?.angle) ??
+        "围绕团队内容日历生成小红书图文。",
+      callToAction:
+        firstString(baseSnapshot.articleBrief?.callToAction, "私信咨询，获取项目资料。") ??
+        "私信咨询，获取项目资料。",
+    },
+    videoBrief: {
+      workingTitle:
+        firstString(task?.videoTask.title, baseSnapshot.videoBrief?.workingTitle) ??
+        "今日视频任务",
+      hook:
+        firstString(task?.videoTask.summary, baseSnapshot.videoBrief?.hook) ??
+        "用真人口播讲清今日项目机会。",
+      outcome:
+        firstString(baseSnapshot.videoBrief?.outcome, "让客户愿意私信咨询项目情况。") ??
+        "让客户愿意私信咨询项目情况。",
+    },
+  };
+  const strategyAsset: MerchantStrategyAssetDto = merchantStrategyAsset
+    ? {
+        ...merchantStrategyAsset,
+        strategySnapshot,
+        strategyMarkdown: appendDailyTaskMarkdown(
+          merchantStrategyAsset.strategyMarkdown,
+          task,
+        ),
+      }
+    : {
+        merchantId: input.merchantId,
+        strategySnapshot,
+        strategyMarkdown: buildStrategyAssetMarkdown(strategySnapshot),
+        canonicalSnapshot: strategySnapshot,
+        compiledContext: null,
+        updatedAt: task?.updatedAt ?? new Date().toISOString(),
+      };
+  const timestamp = task?.updatedAt ?? strategyAsset.updatedAt ?? new Date().toISOString();
+
+  return {
+    id: task ? `daily-task:${task.id}` : "daily-task:workspace-context",
+    merchantId: input.merchantId,
+    title: task ? `今日任务：${task.theme}` : "共享内容上下文",
+    status: "active",
+    currentStage: null,
+    strategySnapshot,
+    strategyAsset,
+    summaryText: task
+      ? [
+          `团队主题：${task.theme}`,
+          `图文任务：${task.articleTask.title}`,
+          `视频任务：${task.videoTask.title}`,
+        ].join("\n")
+      : "使用团队共享知识库和素材库生成内容。",
+    latestMessagePreview: null,
+    lastMessageAt: timestamp,
+    createdAt: task?.createdAt ?? timestamp,
+    updatedAt: timestamp,
+    messages: [],
+    events: [],
+  };
+}
+
 export async function generateArticleDraftForUser(input: {
   userId: string;
-  sessionId: string;
+  sessionId?: string | null;
+  dailyTaskId?: string | null;
   goal?: string | null;
   extraRequirement?: string | null;
   toneStyle?: string | null;
@@ -109,10 +225,21 @@ export async function generateArticleDraftForUser(input: {
   articlePlaybook?: ArticlePlaybook | null;
 }): Promise<ContentDraftBundleDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const session = await getConsultationSessionWithMerchantStrategy({
-    merchantId: merchant.id,
-    sessionId: input.sessionId,
-  });
+  const dailyTask = input.dailyTaskId
+    ? await getDailyContentTaskForUser({
+        userId: input.userId,
+        dailyTaskId: input.dailyTaskId,
+      })
+    : null;
+  const session = input.sessionId
+    ? await getConsultationSessionWithMerchantStrategy({
+        merchantId: merchant.id,
+        sessionId: input.sessionId,
+      })
+    : await buildDailyTaskSession({
+        merchantId: merchant.id,
+        dailyTask,
+      });
   const materialContext = await resolveMaterialContext({
     merchantId: merchant.id,
     materialId: input.materialId,
@@ -156,7 +283,9 @@ export async function generateArticleDraftForUser(input: {
         fallback: session.summaryText ?? workingTitle,
       }),
     tracePayload: {
-      consultation_session_id: session.id,
+      consultation_session_id: input.sessionId ? session.id : null,
+      synthetic_session_id: input.sessionId ? null : session.id,
+      daily_task_id: dailyTask?.id ?? null,
       generated_kind: "article",
       generation_mode: mode,
       generation_source: generationContext.source,
@@ -189,21 +318,36 @@ export async function generateArticleDraftForUser(input: {
     context: articleContext,
     expectedVariantCount: "multiple",
   });
+  const articleRiskNotes = compactStrings([
+    ...articleGeneration.riskNotes,
+    ...buildDeterministicArticleRiskNotes({
+      variants: articleGeneration.variants,
+      forbiddenWords: merchant.forbiddenWords,
+      materialRefs: dailyTask?.materialRefs ?? [],
+    }),
+  ]).slice(0, 10);
 
   const draftBundle = await createDraftWithVariants({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     sourceItemId: sourceItem.id,
     workingTitle,
     rewriteGoal: angle,
     inputSnapshot: {
       source: generationContext.source,
-      consultationSessionId: session.id,
+      dailyTaskId: dailyTask?.id ?? null,
+      teamTheme: dailyTask?.theme ?? null,
+      teamCalendarSource: dailyTask?.teamCalendarSource ?? null,
+      consultationSessionId: input.sessionId ? session.id : null,
+      syntheticSessionId: input.sessionId ? null : session.id,
       calendarItemId: generationContext.calendarItemId,
       selectedCalendarItem: generationContext.selectedCalendarItem,
       strategySnapshot: session.strategySnapshot,
       strategyAssetMarkdown: articleContext.strategyAssetMarkdown,
       roundtableContext,
       merchantProfile: buildMerchantSnapshot(merchant),
+      matchedProjectMaterials: dailyTask?.materialRefs ?? [],
+      knowledgeRefs: dailyTask?.knowledgeRefs ?? [],
       generationMode: mode,
       strategyTag: generationContext.strategyTag,
       articlePlaybook: articleContext.articlePlaybook,
@@ -220,7 +364,7 @@ export async function generateArticleDraftForUser(input: {
       promptMode: mode,
       promptVersion: ARTICLE_PROMPT_VERSION,
       llmTrace: articleGeneration.trace,
-      riskNotes: articleGeneration.riskNotes,
+      riskNotes: articleRiskNotes,
     },
     commentInsights: {
       audiences: session.strategySnapshot.targetAudiences,
@@ -230,7 +374,7 @@ export async function generateArticleDraftForUser(input: {
       articlePlaybook: articleContext.articlePlaybook,
       promptMode: articleGeneration.trace.mode,
       promptVersion: ARTICLE_PROMPT_VERSION,
-      riskNotes: articleGeneration.riskNotes,
+      riskNotes: articleRiskNotes,
     },
     variants: articleGeneration.variants.map((variant) => ({
       platform: "xiaohongshu",
@@ -271,6 +415,7 @@ export async function reviseArticleDraftForUser(input: {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const currentVariant = await assertContentVariantAccess({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     contentVariantId: input.contentVariantId,
     variantType: "note",
   });
@@ -316,6 +461,7 @@ export async function reviseArticleDraftForUser(input: {
 
   const variant = await appendContentVariantToDraft({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     draftId: currentVariant.draftId,
     platform: "xiaohongshu",
     variantType: "note",
@@ -338,6 +484,7 @@ export async function reviseArticleDraftForUser(input: {
 
   await appendContentDraftRevisionTrace({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     draftId: currentVariant.draftId,
     trace,
   });
@@ -352,6 +499,7 @@ export async function reviseArticleDraftForUser(input: {
 export async function runVideoWorkbenchScriptAgentForUser(input: {
   userId: string;
   sessionId?: string | null;
+  dailyTaskId?: string | null;
   goal?: string | null;
   userMessage: string;
   messages?: Array<{ role: "user" | "assistant" | "agent"; content: string }>;
@@ -375,6 +523,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const resolvedCurrentScript = await resolveVideoWorkbenchCurrentScript({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     contentVariantId: input.contentVariantId,
     draftId: input.draftId,
     requireVariant: input.intent === "revise",
@@ -385,6 +534,14 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
     input.sessionId ??
     firstString(currentSnapshot.consultationSessionId, currentSnapshot.sessionId) ??
     null;
+  const resolvedDailyTaskId =
+    input.dailyTaskId ?? firstString(currentSnapshot.dailyTaskId) ?? null;
+  const dailyTask = resolvedDailyTaskId
+    ? await getDailyContentTaskForUser({
+        userId: input.userId,
+        dailyTaskId: resolvedDailyTaskId,
+      })
+    : null;
   const materialContext = await resolveMaterialContext({
     merchantId: merchant.id,
     materialId: input.materialId,
@@ -396,7 +553,12 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
         merchantId: merchant.id,
         sessionId: resolvedSessionId,
       })
-    : null;
+    : dailyTask
+      ? await buildDailyTaskSession({
+          merchantId: merchant.id,
+          dailyTask,
+        })
+      : null;
 
   if (!session) {
     return {
@@ -519,8 +681,12 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
     contextPack: {
       entryContext: {
         source: generationContext.source,
-        sessionId: session.id,
+        sessionId: resolvedSessionId ? session.id : null,
+        syntheticSessionId: resolvedSessionId ? null : session.id,
+        dailyTaskId: dailyTask?.id ?? null,
         calendarItemId: generationContext.calendarItemId,
+        syntheticSession: !resolvedSessionId,
+        teamTheme: dailyTask?.theme ?? null,
         selectedCalendarItem: generationContext.selectedCalendarItem,
         strategyTag: generationContext.strategyTag,
       },
@@ -565,6 +731,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
 
         const revisionResult = await updateVideoScriptVariantWithDraftFallback({
           merchantId: merchant.id,
+          createdByUserId: input.userId,
           draftId: currentVariant.draftId,
           currentVariant,
           title: toolInput.title,
@@ -577,6 +744,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
 
         await appendContentDraftRevisionTrace({
           merchantId: merchant.id,
+          createdByUserId: input.userId,
           draftId: currentVariant.draftId,
           trace: {
             promptMode: "video_workbench_agent",
@@ -591,6 +759,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
 
         const bundle = await getDraftBundleByMerchant({
           merchantId: merchant.id,
+          createdByUserId: input.userId,
           draftId: currentVariant.draftId,
         });
 
@@ -615,7 +784,9 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
           fallback: session.summaryText ?? workingTitle,
         }),
         tracePayload: {
-          consultation_session_id: session.id,
+          consultation_session_id: resolvedSessionId ? session.id : null,
+          synthetic_session_id: resolvedSessionId ? null : session.id,
+          daily_task_id: dailyTask?.id ?? null,
           generated_kind: "video_script",
           generation_source: generationContext.source,
           calendar_item_id: generationContext.calendarItemId,
@@ -628,18 +799,25 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
       });
       const draftBundle = await createDraftWithVariants({
         merchantId: merchant.id,
+        createdByUserId: input.userId,
         sourceItemId: sourceItem.id,
         workingTitle,
         rewriteGoal: input.goal ?? session.strategySnapshot.videoBrief?.hook ?? null,
         inputSnapshot: {
           source: generationContext.source,
-          consultationSessionId: session.id,
+          dailyTaskId: dailyTask?.id ?? null,
+          teamTheme: dailyTask?.theme ?? null,
+          teamCalendarSource: dailyTask?.teamCalendarSource ?? null,
+          consultationSessionId: resolvedSessionId ? session.id : null,
+          syntheticSessionId: resolvedSessionId ? null : session.id,
           calendarItemId: generationContext.calendarItemId,
           selectedCalendarItem: generationContext.selectedCalendarItem,
           strategySnapshot: session.strategySnapshot,
           strategyAssetMarkdown: resolveStrategyAssetMarkdown(session),
           roundtableContext,
           merchantProfile: buildMerchantSnapshot(merchant),
+          matchedProjectMaterials: dailyTask?.materialRefs ?? [],
+          knowledgeRefs: dailyTask?.knowledgeRefs ?? [],
           strategyTag: generationContext.strategyTag,
           extraRequirement: input.userMessage ?? null,
           materialContext: materialSnapshot,
@@ -704,6 +882,7 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
 
 async function resolveVideoWorkbenchCurrentScript(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   contentVariantId?: string | null;
   draftId?: string | null;
   requireVariant?: boolean;
@@ -725,6 +904,7 @@ async function resolveVideoWorkbenchCurrentScript(input: {
     try {
       draftBundle = await getDraftBundleByMerchant({
         merchantId: input.merchantId,
+        createdByUserId: input.createdByUserId,
         draftId: input.draftId,
       });
     } catch (error) {
@@ -742,6 +922,7 @@ async function resolveVideoWorkbenchCurrentScript(input: {
     try {
       const currentVariant = await assertContentVariantAccess({
         merchantId: input.merchantId,
+        createdByUserId: input.createdByUserId,
         contentVariantId: input.contentVariantId,
         variantType: "video_script",
       });
@@ -805,6 +986,7 @@ async function resolveVideoWorkbenchCurrentScript(input: {
 
 async function updateVideoScriptVariantWithDraftFallback(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   draftId: string;
   currentVariant: ContentVariantAccessContext;
   title?: string | null;
@@ -820,6 +1002,7 @@ async function updateVideoScriptVariantWithDraftFallback(input: {
   const update = (variant: ContentVariantAccessContext) =>
     updateContentVariantScript({
       merchantId: input.merchantId,
+      createdByUserId: input.createdByUserId,
       contentVariantId: variant.contentVariantId,
       title: input.title,
       scriptText: input.scriptText,
@@ -843,6 +1026,7 @@ async function updateVideoScriptVariantWithDraftFallback(input: {
 
   const latestBundle = await getDraftBundleByMerchant({
     merchantId: input.merchantId,
+    createdByUserId: input.createdByUserId,
     draftId: input.draftId,
   });
   const latestVariant = getSelectedVideoScriptVariantContext(latestBundle);
@@ -858,6 +1042,7 @@ async function updateVideoScriptVariantWithDraftFallback(input: {
 
   const createdVariant = await appendContentVariantToDraft({
     merchantId: input.merchantId,
+    createdByUserId: input.createdByUserId,
     draftId: input.draftId,
     platform: "douyin",
     variantType: "video_script",
@@ -872,6 +1057,7 @@ async function updateVideoScriptVariantWithDraftFallback(input: {
     variant: createdVariant,
     currentVariant: toContentVariantAccessContext({
       merchantId: input.merchantId,
+      createdByUserId: input.createdByUserId ?? latestBundle.draft.createdByUserId ?? null,
       inputSnapshot: latestBundle.draft.inputSnapshot ?? null,
       variant: createdVariant,
     }),
@@ -901,6 +1087,7 @@ function getSelectedVideoScriptVariantContext(
 
   return toContentVariantAccessContext({
     merchantId: draftBundle.draft.merchantId,
+    createdByUserId: draftBundle.draft.createdByUserId ?? null,
     inputSnapshot: draftBundle.draft.inputSnapshot ?? null,
     variant: selectedVariant,
   });
@@ -908,11 +1095,13 @@ function getSelectedVideoScriptVariantContext(
 
 function toContentVariantAccessContext(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   inputSnapshot: Record<string, unknown> | null;
   variant: ContentVariantDto;
 }): ContentVariantAccessContext {
   return {
     merchantId: input.merchantId,
+    createdByUserId: input.createdByUserId ?? null,
     draftId: input.variant.draftId,
     contentVariantId: input.variant.id,
     variantType: input.variant.variantType,
@@ -932,7 +1121,8 @@ function isNotFoundApiError(error: unknown) {
 
 export async function generateVideoScriptForUser(input: {
   userId: string;
-  sessionId: string;
+  sessionId?: string | null;
+  dailyTaskId?: string | null;
   goal?: string | null;
   extraRequirement?: string | null;
   materialId?: string | null;
@@ -944,6 +1134,7 @@ export async function generateVideoScriptForUser(input: {
   const result = await runVideoWorkbenchScriptAgentForUser({
     userId: input.userId,
     sessionId: input.sessionId,
+    dailyTaskId: input.dailyTaskId,
     goal: input.goal,
     userMessage: input.extraRequirement
       ? `请根据这些补充要求生成一版视频脚本：${input.extraRequirement}`
@@ -990,6 +1181,7 @@ export async function reviseVideoScriptForUser(input: {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const currentVariant = await assertVideoScriptVariantAccess({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     contentVariantId: input.contentVariantId,
   });
   const revisionIntent = classifyVideoScriptRevisionIntent(input.revisionInstruction);
@@ -1213,6 +1405,7 @@ export async function listContentRecordsForUser(input: {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   return listDraftBundlesByMerchant({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     limit: input.limit,
   });
 }
@@ -1224,6 +1417,7 @@ export async function getContentRecordForUser(input: {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   return getDraftBundleByMerchant({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     draftId: input.draftId,
   });
 }
@@ -1406,6 +1600,22 @@ function resolveGenerationContext(input: {
         ? "material_center"
         : "manual");
 
+  if (source === "daily_task") {
+    const selectedCalendarItem =
+      input.session.strategySnapshot.contentCalendarDraft.find(
+        (item) => item.contentType === input.targetWorkbench,
+      ) ?? null;
+
+    return {
+      source,
+      calendarItemId: selectedCalendarItem?.id ?? null,
+      selectedCalendarItem: selectedCalendarItem
+        ? buildSelectedCalendarItemSnapshot(selectedCalendarItem)
+        : null,
+      strategyTag: input.strategyTag ?? selectedCalendarItem?.strategyTag ?? null,
+    };
+  }
+
   if (source !== "consultation_calendar") {
     return {
       source,
@@ -1471,6 +1681,59 @@ function buildSelectedCalendarItemSnapshot(
     targetPlatform: item.contentType === "video" ? "douyin" : "xiaohongshu",
     contentGoal: null,
   };
+}
+
+function buildDailyTaskCalendarItem(
+  task: DailyContentTaskDto,
+  contentType: "article" | "video",
+): ContentCalendarItemDto {
+  const taskItem = contentType === "article" ? task.articleTask : task.videoTask;
+
+  return {
+    id: `daily-task-${task.id}-${contentType}`,
+    dayLabel: task.taskDate,
+    contentType,
+    strategyTag: taskItem.strategyTag ?? task.theme,
+    title: taskItem.title,
+    summary: taskItem.summary,
+  };
+}
+
+function compactCalendarItems(
+  items: Array<ContentCalendarItemDto | null | undefined>,
+): ContentCalendarItemDto[] {
+  const seen = new Set<string>();
+  const compacted: ContentCalendarItemDto[] = [];
+
+  for (const item of items) {
+    if (!item?.title.trim() || seen.has(item.id)) {
+      continue;
+    }
+
+    seen.add(item.id);
+    compacted.push(item);
+  }
+
+  return compacted;
+}
+
+function appendDailyTaskMarkdown(markdown: string | null | undefined, task: DailyContentTaskDto | null) {
+  const base = markdown?.trim() || "";
+
+  if (!task) {
+    return base;
+  }
+
+  return [
+    base,
+    "## 今日团队内容任务",
+    `- 日期：${task.taskDate}`,
+    `- 主题：${task.theme}`,
+    `- 图文：${task.articleTask.title}｜${task.articleTask.summary}`,
+    `- 视频：${task.videoTask.title}｜${task.videoTask.summary}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function buildMerchantSnapshot(

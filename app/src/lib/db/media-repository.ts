@@ -38,6 +38,7 @@ type SourceItemOwnerRow = {
 type ContentDraftOwnerRow = {
   id: string;
   merchant_id: string;
+  created_by_user_id: string | null;
 };
 
 type ContentVariantOwnerRow = {
@@ -50,6 +51,7 @@ export type MediaOwnerContext = {
   ownerType: MediaOwnerType;
   ownerId: string;
   merchantId: string;
+  createdByUserId?: string | null;
   draftId?: string;
   variantType?: ContentVariantDto["variantType"];
 };
@@ -71,6 +73,7 @@ const demoAssetObjects = demoMediaStore.assetObjects;
 
 export async function assertMediaOwnerAccess(input: {
   merchantId: string;
+  createdByUserId?: string | null;
   ownerType: MediaOwnerType;
   ownerId: string;
 }): Promise<MediaOwnerContext> {
@@ -78,21 +81,21 @@ export async function assertMediaOwnerAccess(input: {
     const owner = getLocalDemoMediaOwnerContext(input);
 
     if (owner) {
+      if (input.createdByUserId && owner.createdByUserId !== input.createdByUserId) {
+        throw new ApiError(404, "MEDIA_OWNER_NOT_FOUND", "Media owner not found.");
+      }
       return owner;
     }
 
-    if (input.ownerType === "source_item" || input.ownerType === "content_draft") {
+    if (input.ownerType === "source_item") {
       return {
         ownerType: input.ownerType,
         ownerId: input.ownerId,
         merchantId: input.merchantId,
-        ...(input.ownerType === "content_draft" ? { draftId: input.ownerId } : {}),
       };
     }
 
-    if (!owner) {
-      throw new ApiError(404, "MEDIA_OWNER_NOT_FOUND", "Media owner not found.");
-    }
+    throw new ApiError(404, "MEDIA_OWNER_NOT_FOUND", "Media owner not found.");
   }
 
   const supabase = createSupabaseAdminClient();
@@ -118,12 +121,17 @@ export async function assertMediaOwnerAccess(input: {
   }
 
   if (input.ownerType === "content_draft") {
-    const { data, error } = await supabase
+    let draftQuery = supabase
       .from("content_drafts")
-      .select("id, merchant_id")
+      .select("id, merchant_id, created_by_user_id")
       .eq("id", input.ownerId)
-      .eq("merchant_id", input.merchantId)
-      .single();
+      .eq("merchant_id", input.merchantId);
+
+    if (input.createdByUserId) {
+      draftQuery = draftQuery.eq("created_by_user_id", input.createdByUserId);
+    }
+
+    const { data, error } = await draftQuery.single();
 
     if (error || !data) {
       throw new ApiError(404, "MEDIA_OWNER_NOT_FOUND", "Content draft not found.");
@@ -134,6 +142,7 @@ export async function assertMediaOwnerAccess(input: {
       ownerType: input.ownerType,
       ownerId: draft.id,
       merchantId: draft.merchant_id,
+      createdByUserId: draft.created_by_user_id ?? null,
       draftId: draft.id,
     };
   }
@@ -149,12 +158,17 @@ export async function assertMediaOwnerAccess(input: {
   }
 
   const variant = variantData as unknown as ContentVariantOwnerRow;
-  const { data: draftData, error: draftError } = await supabase
+  let draftQuery = supabase
     .from("content_drafts")
-    .select("id, merchant_id")
+    .select("id, merchant_id, created_by_user_id")
     .eq("id", variant.draft_id)
-    .eq("merchant_id", input.merchantId)
-    .single();
+    .eq("merchant_id", input.merchantId);
+
+  if (input.createdByUserId) {
+    draftQuery = draftQuery.eq("created_by_user_id", input.createdByUserId);
+  }
+
+  const { data: draftData, error: draftError } = await draftQuery.single();
 
   if (draftError || !draftData) {
     throw new ApiError(404, "MEDIA_OWNER_NOT_FOUND", "Content variant is not accessible.");
@@ -165,6 +179,7 @@ export async function assertMediaOwnerAccess(input: {
     ownerType: input.ownerType,
     ownerId: variant.id,
     merchantId: draft.merchant_id,
+    createdByUserId: draft.created_by_user_id ?? null,
     draftId: draft.id,
     variantType: variant.variant_type,
   };

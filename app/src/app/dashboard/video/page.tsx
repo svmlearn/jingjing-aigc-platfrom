@@ -15,6 +15,7 @@ export default async function DashboardVideoPage({
   return (
     <VideoWorkbench
       sessionId={params.sessionId}
+      dailyTaskId={params.dailyTaskId}
       source={params.source}
       calendarItemId={params.calendarItemId}
       draftId={params.draftId}

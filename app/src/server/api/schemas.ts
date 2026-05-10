@@ -221,6 +221,14 @@ export const platformAdminMerchantPatchSchema = z
     message: "At least one field must be provided.",
   });
 
+export const dailyContentTasksQuerySchema = z.object({
+  date: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish(),
+});
+
 export const platformAdminBootstrapSchema = z.object({
   setupSecret: z.string().trim().min(1).max(200),
   email: z.email().max(254),
@@ -432,8 +440,9 @@ export const roundtableActionSchema = z.object({
 });
 
 export const generateConsultationContentSchema = z.object({
-  sessionId: z.uuid(),
-  source: z.enum(["consultation_calendar", "material_center", "manual"]).nullish(),
+  sessionId: z.uuid().nullish(),
+  dailyTaskId: z.uuid().nullish(),
+  source: z.enum(["consultation_calendar", "material_center", "manual", "daily_task"]).nullish(),
   calendarItemId: z.string().trim().max(120).nullish(),
   goal: z.string().trim().max(300).nullish(),
   extraRequirement: z.string().trim().max(4000).nullish(),
@@ -469,7 +478,8 @@ export const videoWorkbenchAgentMessageSchema = z.object({
 
 export const runVideoWorkbenchAgentSchema = z.object({
   sessionId: z.uuid().nullish(),
-  source: z.enum(["consultation_calendar", "material_center", "manual"]).nullish(),
+  dailyTaskId: z.uuid().nullish(),
+  source: z.enum(["consultation_calendar", "material_center", "manual", "daily_task"]).nullish(),
   calendarItemId: z.string().trim().max(120).nullish(),
   goal: z.string().trim().max(300).nullish(),
   userMessage: z.string().trim().min(1).max(4000),

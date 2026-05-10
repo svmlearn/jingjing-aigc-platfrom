@@ -6,6 +6,7 @@ export default async function DashboardArticlePage({
   searchParams: Promise<{
     source?: string;
     sessionId?: string;
+    dailyTaskId?: string;
     calendarItemId?: string;
     materialId?: string;
     materialReferenceId?: string;
@@ -18,6 +19,7 @@ export default async function DashboardArticlePage({
   return (
     <ArticleWorkbench
       sessionId={params.sessionId ?? null}
+      dailyTaskId={params.dailyTaskId ?? null}
       source={params.source ?? null}
       calendarItemId={params.calendarItemId ?? null}
       materialId={params.materialId ?? null}

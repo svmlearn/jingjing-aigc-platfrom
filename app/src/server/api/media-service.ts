@@ -64,6 +64,7 @@ export async function createMediaUploadIntentForUser(input: {
 
   await assertMediaOwnerAccess({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     ownerType: input.request.ownerType,
     ownerId: input.request.ownerId,
   });
@@ -153,6 +154,7 @@ export async function completeMediaUploadForUser(input: {
 
   await assertMediaOwnerAccess({
     merchantId: merchant.id,
+    createdByUserId: input.userId,
     ownerType: input.request.ownerType,
     ownerId: input.request.ownerId,
   });
