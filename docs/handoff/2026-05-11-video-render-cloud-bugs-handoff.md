@@ -98,16 +98,21 @@
 
 明天修复方向：失败时保留 workspace/output 一段时间，或增加 `WORKER_RETAIN_FAILED_ARTIFACTS` 配置；成功后再清理。否则后续排查很难复现。
 
-### P2：首次真实运行会下载约 1.05G 模型，页面和文档没有提示
+### P2：首次真实运行会下载大模型，页面和文档没有提示
 
-现象：终端看到 `Downloading [model.pt]: ... 290M/1.05G ... 160KB/s`。这不是用户上传素材，用户上传测试素材只有约 `2.0 MB`。这个大文件是 FireRed/OpenStoryline 的镜头切分模型权重，代码里对应 `split_shots` / `TransNetV2`：
+现象：终端看到 `Downloading [model.pt]: ... 290M/1.05G ... 160KB/s`。这不是用户上传素材，用户上传测试素材只有约 `2.0 MB`。
 
-- `workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/split_shots.py`
-- 配置项：`.storyline/models/transnetv2-pytorch-weights.pth`
+2026-05-11 复查服务器后确认：
 
-影响：轻量新加坡服务器首次真实出片冷启动会非常慢，并可能让用户误以为上传了超大素材。
+- 1.05G 的 `model.pt` 不是素材，也不是 TransNetV2 镜头切分模型，而是 ModelScope 标点模型：`/root/.cache/modelscope/hub/models/iic/punc_ct-transformer_cn-en-common-vocab471067-large/model.pt`
+- ModelScope ASR 模型也已缓存：`speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch`，目录约 `953M`
+- ModelScope VAD 模型也已缓存：`speech_fsmn_vad_zh-cn-16k-common-pytorch`，目录约 `3.9M`
+- FireRed 视频切镜模型已存在：`/app/.storyline/models/transnetv2-pytorch-weights.pth`，约 `30M`
+- 当前未发现仍在运行的 `wget/curl/modelscope` 下载进程
 
-明天修复方向：部署时预热/预下载模型，并在运维文档中标注模型体积、缓存路径和预期时长。页面侧可在后台冷启动时展示“正在准备视频模型”，但不要把它误写成用户素材上传进度。
+影响：轻量新加坡服务器首次真实出片冷启动会很慢，并可能让用户误以为上传了超大素材。当前这批模型已经在容器里缓存完成，但 ModelScope 缓存在容器 `/root/.cache/modelscope`，不是显式挂载的宿主机目录；如果后续重建容器，仍可能重新下载。
+
+明天修复方向：部署时预热/预下载模型，并把 `/root/.cache/modelscope` 挂到宿主机持久目录，例如 `${VIDEO_WORKER_HOST_ROOT}/firered/modelscope-cache:/root/.cache/modelscope`。页面侧可在后台冷启动时展示“正在准备视频模型”，但不要把它误写成用户素材上传进度。
 
 ## 明天建议顺序
 
@@ -115,7 +120,7 @@
 2. 增强 OpenStoryline / FireRed 失败错误透传，至少能在 job `failureReason` 中看到 `timeline result has no video track`。
 3. 修改失败现场保留策略，保留 failed job 的 input/output/metadata。
 4. 针对 FireRed `timeline result has no video track` 修 adapter prompt 或做保底剪辑链路。
-5. 预热 `TransNetV2` 模型，避免下一次真实链路被 1.05G 下载拖住。
+5. 预热并持久化 FireRed / ModelScope 模型缓存，避免下一次真实链路被大模型下载拖住。
 6. 最后再重试带素材 job，验收标准是生成 `final.mp4` 并回写 `resultAssets`。
 
 ## 本轮没有继续做的事
