@@ -2,7 +2,7 @@
 
 ## 当前目标
 
-记录今天在 staging 视频脚本室验证“上传素材后云端生成成片”时观察到的问题。今天先停止继续修，明天从这里接着处理。
+记录今天在 staging 视频脚本室验证“上传素材后云端生成成片”时观察到的问题和二次校验结果。2026-05-11 13:05 CST 复测后，带素材 job 已成功生成成片；本文保留仍需修复的稳定性、状态机和诊断问题。
 
 ## 验证对象
 
@@ -28,7 +28,7 @@
    - `status` 曾进入 `running`
    - `currentStage = openstoryline_rendering`
    - `runtimePayload.input_assets[0].local_path = /srv/jingjing-video-worker/tmp/jobs/6fd28e7b-507c-400a-bee4-c81dd7c37556/inputs/b7a3405f-432a-4ef2-9d19-51e57f61959a-project-broll-test.mp4`
-4. 云端没有成片。新 job 当前后端状态：
+4. 首次云端没有成片。新 job 当时后端状态：
    - `status = failed_retryable`
    - `currentStage = openstoryline_rendering_failed`
    - `progressPct = 50`
@@ -38,12 +38,22 @@
    - `firered-openstoryline`：Up，healthy
    - `openstoryline-engine`：Up，healthy
    - `video-worker`：Up
+6. 2026-05-11 12:52 CST 对带素材 job `6fd28e7b-507c-400a-bee4-c81dd7c37556` 执行 retry 后，云端成片成功：
+   - `status = succeeded`
+   - `currentStage = completed`
+   - `progressPct = 100`
+   - `retryCount = 1`
+   - `resultAssets.length = 3`
+   - COS 结果包含 `final.mp4`、`cover.jpg`、`subtitles.srt`
+   - 浏览器页面显示“成片已生成”，并挂载 COS 签名视频地址
+   - 通过 GET range 校验 COS `final.mp4` 返回 `206 / video/mp4`
+   - 下载后 `ffprobe` 校验：`h264` 视频轨、`aac` 音频轨、`608x1080`、时长约 `5.66s`、大小约 `1.0MB`
 
 ## 观察到的 bug / 问题
 
-### P0：FireRed/OpenStoryline 真实出片失败
+### P1：FireRed/OpenStoryline 首次真实出片失败，但 retry 后通过
 
-现象：新带素材 job `6fd28e7b-507c-400a-bee4-c81dd7c37556` 在 `openstoryline_rendering` 阶段失败，未生成 `final.mp4`、封面、字幕或 COS 结果资产。
+现象：新带素材 job `6fd28e7b-507c-400a-bee4-c81dd7c37556` 首次在 `openstoryline_rendering` 阶段失败，未生成 `final.mp4`、封面、字幕或 COS 结果资产。模型缓存确认完成后，对同一 job 执行 retry，最终成功生成 3 个 COS 结果资产。
 
 服务器日志关键证据：
 
@@ -52,7 +62,32 @@
 - `firered-openstoryline`：`ValueError: timeline result has no video track`
 - `firered-openstoryline`：`[Agent tool error] ... artifact_id render_video_...`
 
-初步判断：不是上传/COS/worker 领取问题，而是 FireRed 的自动节点编排或 adapter prompt 没有稳定产出可渲染的视频轨道。明天优先看 `workers/video-worker/openstoryline/app/engine_adapters.py` 的 FireRed payload/prompt，以及 FireRed 的 `render_video` 前置节点输出。
+初步判断：不是上传/COS/worker 领取问题，而是 FireRed 的自动节点编排存在不稳定性。首次失败为 `timeline result has no video track`；二次 retry 中虽然有 `generate_voiceover` 内部 404 报错，但 FireRed 后续仍完成 `plan_timeline_pro` 和 `render_video`。
+
+后续修复方向：仍需增强 FireRed adapter prompt / 保底剪辑链路，让 `render_video` 稳定拥有视频轨；同时把 FireRed 内部错误摘要透传到 job 诊断字段，避免只能进容器看日志。
+
+### P1：TTS provider 内部报错被 FireRed 容错，最终成片无 voiceover
+
+现象：二次 retry 过程中，`firered-openstoryline` 出现 `generate_voiceover` 错误：
+
+- `requests.exceptions.HTTPError: 404 Client Error: Not Found for url: https://openspeech.bytedance.com/v1/t2a_v2`
+- 日志堆栈落在 `generate_voiceover.py` 的 `_tts_minimax_sync`
+
+但 job 最终仍成功，`resultPayload.openstoryline.voiceover = {}`。也就是说这次成片可播放，但配音没有真正生成，最终视频更接近“素材 + 字幕/BGM/剪辑”的降级结果。
+
+初步判断：FireRed agent 可能让 LLM 选择了 `minimax` TTS 参数，但运行时 `service_config.tts.provider` 期望是 `bytedance_bigtts`，出现 provider / base_url 混配。相关位置：
+
+- `workers/video-worker/openstoryline/app/engine_adapters.py` 的 `_build_fire_red_service_config()`
+- `workers/video-worker/openstoryline/firered/src/open_storyline/mcp/hooks/node_interceptors.py` 的 `inject_tts_config()`
+- `workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/generate_voiceover.py`
+
+后续修复方向：TTS runtime config 应强制覆盖 LLM 生成的 provider/base_url，而不是 `setdefault`；或者在当前阶段默认关闭 voiceover，把“无配音成片”作为明确降级模式展示给用户。
+
+### P1：成片时长跟随短素材，未达到脚本目标 60 秒
+
+现象：二次 retry 成功生成的 `final.mp4` 约 `5.66s`，而脚本目标是 `60s`。本次输入测试素材本身是短视频，所以这说明真实链路能成片，但还不能证明“按脚本扩展到目标时长”的能力稳定。
+
+后续修复方向：对短素材需要定义产品规则：循环/慢放/补素材/降级提示。否则用户看到“成片已生成”，但实际只有几秒，会误以为完成质量达标。
 
 ### P0：取消中的旧 job 会被 worker 后续失败状态覆盖
 
@@ -87,16 +122,18 @@
 - `openstoryline-engine` 调 FireRed 失败时，返回结构化错误 detail，避免只给上游一个泛化 500。
 - 注意不要把 provider key、COS key 等密钥写进日志。
 
-### P1：失败后现场目录被清理，排查证据不足
+### P1：输出现场目录被清理，排查证据和 resultPayload local path 会失效
 
 现象：`logPayload` 写了 `retained_output_dir`，但服务器实际检查：
 
 - `outputs/jobs/6fd28e7b-507c-400a-bee4-c81dd7c37556` 为空
 - `tmp/jobs/6fd28e7b-507c-400a-bee4-c81dd7c37556` 已不存在
 
+二次 retry 成功后也观察到类似问题：`resultPayload.local_outputs` 仍指向 `/srv/jingjing-video-worker/outputs/jobs/.../final.mp4` 等本地路径，但这些文件已被清理。真正可访问结果应以 `resultAssets` 中的 COS 对象为准。
+
 代码原因：`workers/video-worker/worker/app/processor.py` 的 `finally` 会无条件 `shutil.rmtree(workspace_dir)` 和 `shutil.rmtree(output_dir)`。
 
-明天修复方向：失败时保留 workspace/output 一段时间，或增加 `WORKER_RETAIN_FAILED_ARTIFACTS` 配置；成功后再清理。否则后续排查很难复现。
+明天修复方向：失败时保留 workspace/output 一段时间，或增加 `WORKER_RETAIN_FAILED_ARTIFACTS` 配置；成功后如果继续清理本地文件，`resultPayload.local_outputs` 需要标记为 worker 内部临时路径，避免被误当作可长期访问路径。
 
 ### P2：首次真实运行会下载大模型，页面和文档没有提示
 
@@ -117,21 +154,22 @@
 ## 明天建议顺序
 
 1. 先修 worker 状态写回 guard，防止 `cancelled` 被后续失败覆盖。
-2. 增强 OpenStoryline / FireRed 失败错误透传，至少能在 job `failureReason` 中看到 `timeline result has no video track`。
-3. 修改失败现场保留策略，保留 failed job 的 input/output/metadata。
-4. 针对 FireRed `timeline result has no video track` 修 adapter prompt 或做保底剪辑链路。
-5. 预热并持久化 FireRed / ModelScope 模型缓存，避免下一次真实链路被大模型下载拖住。
-6. 最后再重试带素材 job，验收标准是生成 `final.mp4` 并回写 `resultAssets`。
+2. 强制 TTS runtime config 覆盖 LLM 生成的 provider/base_url，或在当前阶段把 voiceover 明确降级为关闭。
+3. 增强 OpenStoryline / FireRed 内部错误透传，让 job 诊断字段能看到 `timeline result has no video track`、TTS 404 等关键原因。
+4. 修改失败现场保留策略，保留 failed job 的 input/output/metadata；成功 job 的 `local_outputs` 也要避免误导。
+5. 针对 FireRed `timeline result has no video track` 修 adapter prompt 或做保底剪辑链路。
+6. 定义短素材生成短视频时的产品策略：接受短片、循环扩展、补素材还是前置提示。
+7. 预热并持久化 FireRed / ModelScope 模型缓存，避免下一次真实链路被大模型下载拖住。
 
 ## 本轮没有继续做的事
 
 - 没有重启远端容器。
-- 没有继续触发新的 AI 剪辑任务。
+- 已对带素材 job 执行一次 retry，并成功生成 COS 结果资产。
 - 没有修改 worker 代码或前端代码。
 - 没有读取或输出服务器 `.env` 密钥。
 
 ## Branch / 状态
 
 - Branch：`codex/rag-material-retrieval-prd`
-- 当前状态：问题已记录，待明天修复
+- 当前状态：二次校验已确认成片链路跑通；稳定性与体验问题待修
 - Merge：未 merge
