@@ -6,6 +6,7 @@ import type {
   DailyContentTaskItemDto,
   DailyContentWorkspaceDto,
 } from "@/contracts/daily-task";
+import type { MaterialLibraryItemDto } from "@/contracts/material";
 import { listMaterialLibraryItems } from "@/lib/db/material-library-repository";
 import { buildMaterialRoutingTrace } from "@/lib/material-routing";
 import { getOperationalMerchantWorkspaceByUserId } from "@/lib/db/merchant-repository";
@@ -15,12 +16,20 @@ import {
   getDailyContentTaskById,
   upsertDailyContentTask,
 } from "@/lib/db/daily-content-task-repository";
+import {
+  buildGeneratedArticlePackage,
+  buildGeneratedVideoScriptPackage,
+  buildProjectIntro,
+} from "@/server/api/member-content-builders";
 
 export async function getDailyContentWorkspaceForUser(input: {
   userId: string;
   date?: string | null;
 }): Promise<DailyContentWorkspaceDto> {
   const workspace = await getOperationalMerchantWorkspaceByUserId(input.userId);
+  const strategyAsset = await getMerchantStrategyAssetDocument(workspace.merchantProfile.id).catch(
+    () => null,
+  );
   const taskDate = normalizeDate(input.date);
   const today = await getOrCreateDailyContentTaskForUser({
     userId: input.userId,
@@ -40,6 +49,11 @@ export async function getDailyContentWorkspaceForUser(input: {
   }
 
   return {
+    project: buildProjectIntro({
+      merchant: workspace.merchantProfile,
+      snapshot: strategyAsset?.strategySnapshot ?? null,
+      today,
+    }),
     today,
     upcoming,
     role: workspace.role,
@@ -122,6 +136,7 @@ async function getOrCreateDailyContentTaskForUser(input: {
       item: articleItem,
       snapshot,
       materialHints,
+      imageMaterials: articleImageMaterials,
       seed,
     }),
     videoTask: buildTaskItem({
@@ -129,6 +144,7 @@ async function getOrCreateDailyContentTaskForUser(input: {
       item: videoItem,
       snapshot,
       materialHints,
+      imageMaterials: articleImageMaterials,
       seed: seed + 9,
     }),
     knowledgeRefs: [
@@ -173,6 +189,7 @@ function buildTaskItem(input: {
   item: ContentCalendarItemDto | null;
   snapshot: StrategySnapshotDto | null;
   materialHints: string[];
+  imageMaterials: MaterialLibraryItemDto[];
   seed: number;
 }): DailyContentTaskItemDto {
   const angle = pickAngle(input.seed);
@@ -198,6 +215,27 @@ function buildTaskItem(input: {
     contentGoal: input.kind === "article" ? "图文种草" : "短视频获客",
     suggestedPlatform: input.kind === "article" ? "xiaohongshu" : "douyin",
     materialHints: input.materialHints,
+    generatedArticle:
+      input.kind === "article"
+        ? buildGeneratedArticlePackage({
+            title: withAngle(input.item?.title || defaultTitle, angle),
+            summary: input.item?.summary || defaultSummary,
+            snapshot: input.snapshot,
+            materialHints: input.materialHints,
+            imageMaterials: input.imageMaterials,
+            seed: input.seed,
+          })
+        : null,
+    generatedVideoScript:
+      input.kind === "video"
+        ? buildGeneratedVideoScriptPackage({
+            title: withAngle(input.item?.title || defaultTitle, angle),
+            summary: input.item?.summary || defaultSummary,
+            snapshot: input.snapshot,
+            materialHints: input.materialHints,
+            seed: input.seed,
+          })
+        : null,
   };
 }
 

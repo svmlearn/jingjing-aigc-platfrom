@@ -16,12 +16,12 @@ import {
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard", label: "今日任务", icon: Sparkles },
   { href: "/dashboard/consultation", label: "团队选题", icon: MessageSquare },
   { href: "/dashboard/article", label: "生成图文", icon: FileText },
   { href: "/dashboard/video", label: "生成视频", icon: Video },
   { href: "/dashboard/content", label: "素材中心", icon: Library },
   { href: "/dashboard/history", label: "我的内容", icon: FolderGit2 },
+  { href: "/member", label: "成员端预览", icon: Sparkles },
   { href: "/dashboard/settings", label: "用户信息", icon: Settings },
 ];
 

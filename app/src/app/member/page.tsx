@@ -1,5 +1,5 @@
-import { DailyTasksWorkspace } from "@/components/merchant/daily-tasks-workspace";
+import { MemberProjectIntroPage } from "@/components/member/member-workspace";
 
-export default function MemberLightClientPage() {
-  return <DailyTasksWorkspace />;
+export default function MemberPage() {
+  return <MemberProjectIntroPage />;
 }

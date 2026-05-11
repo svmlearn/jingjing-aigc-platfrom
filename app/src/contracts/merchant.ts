@@ -42,6 +42,10 @@ export type MerchantWorkspaceDto = {
   membershipId?: string | null;
 };
 
+export type MemberInvitationAcceptResultDto = MerchantWorkspaceDto & {
+  invitationCode: string;
+};
+
 export type InvitationCodeDto = {
   id: string;
   code: string;

@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 
 import type {
   InvitationCodeDto,
+  MemberInvitationAcceptResultDto,
   MerchantPlan,
   MerchantProfileDto,
   MerchantProfileInput,
@@ -62,6 +63,20 @@ type MerchantTeamMemberRow = {
   updated_at: string;
 };
 
+type MerchantTeamInvitationCodeRow = {
+  id: string;
+  merchant_id: string;
+  code: string;
+  status: "active" | "disabled" | "expired";
+  max_redemptions: number;
+  redemption_count: number;
+  expires_at: string | null;
+  note: string | null;
+  created_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 const merchantProfileSelect = [
   "id",
   "owner_user_id",
@@ -90,6 +105,20 @@ const merchantTeamMemberSelect = [
   "status",
   "display_name",
   "invited_by_user_id",
+  "created_at",
+  "updated_at",
+].join(", ");
+
+const merchantTeamInvitationCodeSelect = [
+  "id",
+  "merchant_id",
+  "code",
+  "status",
+  "max_redemptions",
+  "redemption_count",
+  "expires_at",
+  "note",
+  "created_by_user_id",
   "created_at",
   "updated_at",
 ].join(", ");
@@ -375,6 +404,92 @@ export async function getMerchantWorkspaceByUserId(userId: string): Promise<Merc
   };
 }
 
+export async function acceptMemberInvitationCode(input: {
+  code: string;
+  userId: string;
+  displayName?: string | null;
+}): Promise<MemberInvitationAcceptResultDto> {
+  const normalizedCode = normalizeMemberInvitationCode(input.code);
+
+  if (!normalizedCode) {
+    throw new ApiError(400, "MEMBER_INVITATION_CODE_REQUIRED", "Member invitation code is required.");
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    const workspace = await getMerchantWorkspaceByUserId(input.userId);
+
+    return {
+      ...workspace,
+      invitationCode: normalizedCode,
+    };
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_team_invitation_codes")
+    .select(merchantTeamInvitationCodeSelect)
+    .eq("code", normalizedCode)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingMemberInvitationCodesRelationError(error.message)) {
+      throw new ApiError(
+        500,
+        "MEMBER_INVITATION_CODES_NOT_READY",
+        "Member invitation table is not migrated yet.",
+      );
+    }
+
+    throw new ApiError(500, "MEMBER_INVITATION_LOOKUP_FAILED", error.message);
+  }
+
+  const invitation = (data as unknown as MerchantTeamInvitationCodeRow | null) ?? null;
+
+  assertMemberInvitationUsable(invitation);
+
+  const { data: membership, error: upsertError } = await supabase
+    .from("merchant_team_members")
+    .upsert(
+      {
+        merchant_id: invitation.merchant_id,
+        user_id: input.userId,
+        role: "member",
+        status: "active",
+        display_name: input.displayName ?? null,
+        invited_by_user_id: invitation.created_by_user_id,
+      },
+      { onConflict: "user_id" },
+    )
+    .select(merchantTeamMemberSelect)
+    .single();
+
+  if (upsertError || !membership) {
+    throw new ApiError(
+      500,
+      "MEMBER_INVITATION_MEMBERSHIP_FAILED",
+      upsertError?.message ?? "Failed to bind member to team.",
+    );
+  }
+
+  const { error: updateError } = await supabase
+    .from("merchant_team_invitation_codes")
+    .update({
+      redemption_count: invitation.redemption_count + 1,
+    })
+    .eq("id", invitation.id);
+
+  if (updateError) {
+    throw new ApiError(500, "MEMBER_INVITATION_UPDATE_FAILED", updateError.message);
+  }
+
+  const workspace = await getMerchantWorkspaceByUserId(input.userId);
+
+  return {
+    ...workspace,
+    invitationCode: normalizedCode,
+  };
+}
+
 export async function updateMerchantProfile(
   ownerUserId: string,
   input: Partial<MerchantProfileInput>,
@@ -535,6 +650,34 @@ function mapInviteRedemptionError(message: string): ApiError {
 
 function isMissingRelationError(message: string) {
   return message.includes("merchant_team_members") && message.includes("does not exist");
+}
+
+function isMissingMemberInvitationCodesRelationError(message: string) {
+  return message.includes("merchant_team_invitation_codes") && message.includes("does not exist");
+}
+
+function normalizeMemberInvitationCode(code: string) {
+  return code.trim().toUpperCase();
+}
+
+function assertMemberInvitationUsable(
+  invitation: MerchantTeamInvitationCodeRow | null,
+): asserts invitation is MerchantTeamInvitationCodeRow {
+  if (!invitation) {
+    throw new ApiError(404, "MEMBER_INVITATION_CODE_NOT_FOUND", "Member invitation code was not found.");
+  }
+
+  if (invitation.status !== "active") {
+    throw new ApiError(409, "MEMBER_INVITATION_CODE_UNAVAILABLE", "Member invitation code is unavailable.");
+  }
+
+  if (invitation.expires_at && new Date(invitation.expires_at).getTime() < Date.now()) {
+    throw new ApiError(410, "MEMBER_INVITATION_CODE_EXPIRED", "Member invitation code has expired.");
+  }
+
+  if (invitation.redemption_count >= invitation.max_redemptions) {
+    throw new ApiError(409, "MEMBER_INVITATION_CODE_UNAVAILABLE", "Member invitation code has been fully redeemed.");
+  }
 }
 
 function generateInvitationCode() {

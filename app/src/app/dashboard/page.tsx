@@ -1,5 +1,5 @@
-import { DailyTasksWorkspace } from "@/components/merchant/daily-tasks-workspace";
+import { redirect } from "next/navigation";
 
-export default function DashboardHomePage() {
-  return <DailyTasksWorkspace />;
+export default function DashboardIndexPage() {
+  redirect("/dashboard/consultation");
 }

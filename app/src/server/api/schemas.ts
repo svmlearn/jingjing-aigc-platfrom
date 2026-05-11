@@ -177,6 +177,11 @@ export const registerWithInviteSchema = z.object({
   merchantProfile: merchantProfileInputSchema,
 });
 
+export const memberInvitationAcceptSchema = z.object({
+  code: z.string().trim().min(1).max(80),
+  displayName: z.string().trim().max(80).nullish(),
+});
+
 export const createInvitationCodeSchema = z.object({
   code: z.string().trim().min(4).max(80).optional(),
   maxRedemptions: z.number().int().min(1).max(50).optional(),

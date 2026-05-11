@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, KeyRound, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowRight, KeyRound, ShieldCheck, UserPlus, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +10,13 @@ const entryCards = [
     href: "/login",
     icon: KeyRound,
     primary: true,
+  },
+  {
+    title: "成员端",
+    description: "中介成员通过邀请码进入项目介绍、内容日历和每日图文 / 视频任务。",
+    href: "/member/invite",
+    icon: UserPlus,
+    primary: false,
   },
   {
     title: "平台管理",
@@ -39,7 +46,7 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="grid max-w-4xl gap-4 md:grid-cols-2">
+        <section className="grid max-w-5xl gap-4 md:grid-cols-3">
           {entryCards.map((item) => (
             <Link
               key={item.href}
@@ -73,6 +80,13 @@ export default function Home() {
             asChild
           >
             <Link href="/login">用户登录</Link>
+          </Button>
+          <Button
+            variant="outline"
+            className="h-11 rounded-2xl border-white/10 bg-white/5 px-5 text-white/70 hover:bg-white/10 hover:text-white"
+            asChild
+          >
+            <Link href="/member/invite">成员端</Link>
           </Button>
           <Button
             variant="outline"

@@ -3,9 +3,12 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import type {
+  DailyArticleContentPackageDto,
   DailyContentTaskDto,
   DailyContentTaskItemDto,
   DailyTaskStatus,
+  DailyVideoScriptPackageDto,
+  DailyVideoScriptSceneDto,
 } from "@/contracts/daily-task";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
@@ -199,6 +202,81 @@ function toTaskItem(value: unknown, fallbackKind: "article" | "video"): DailyCon
     materialHints: Array.isArray(record.materialHints)
       ? record.materialHints.filter((item): item is string => typeof item === "string")
       : [],
+    generatedArticle: toArticlePackage(record.generatedArticle),
+    generatedVideoScript: toVideoScriptPackage(record.generatedVideoScript),
+  };
+}
+
+function toArticlePackage(value: unknown): DailyArticleContentPackageDto | null {
+  const record = toRecord(value);
+  const title = readNullableString(record.title);
+  const body = readNullableString(record.body);
+
+  if (!title || !body) {
+    return null;
+  }
+
+  return {
+    title,
+    body,
+    hashtags: toStringArray(record.hashtags),
+    cta: readString(record.cta, "欢迎私信咨询项目细节。"),
+    coverText: readString(record.coverText, title),
+    imageAssets: toRecordArray(record.imageAssets).map((item, index) => ({
+      id: readString(item.id, `image-${index + 1}`),
+      title: readString(item.title, `配图 ${index + 1}`),
+      description: readNullableString(item.description),
+      url: readNullableString(item.url),
+      source: readNullableString(item.source),
+    })),
+    imageBriefs: toStringArray(record.imageBriefs),
+    generatedAt: readString(record.generatedAt, new Date(0).toISOString()),
+  };
+}
+
+function toVideoScriptPackage(value: unknown): DailyVideoScriptPackageDto | null {
+  const record = toRecord(value);
+  const title = readNullableString(record.title);
+  const storyOutline = readNullableString(record.storyOutline);
+  const scenes = toRecordArray(record.scenes)
+    .map(toVideoScriptScene)
+    .filter((scene): scene is DailyVideoScriptSceneDto => Boolean(scene));
+
+  if (!title || !storyOutline || scenes.length === 0) {
+    return null;
+  }
+
+  return {
+    title,
+    hook: readString(record.hook, title),
+    storyOutline,
+    targetDurationSeconds: readNumber(record.targetDurationSeconds, 45),
+    scenes,
+    cta: readString(record.cta, "想了解项目，评论区或私信我。"),
+    materialChecklist: toStringArray(record.materialChecklist),
+    generatedAt: readString(record.generatedAt, new Date(0).toISOString()),
+  };
+}
+
+function toVideoScriptScene(value: Record<string, unknown>, index: number): DailyVideoScriptSceneDto | null {
+  const title = readNullableString(value.title);
+  const spokenText = readNullableString(value.spokenText);
+
+  if (!title || !spokenText) {
+    return null;
+  }
+
+  return {
+    id: readString(value.id, `scene-${index + 1}`),
+    order: readNumber(value.order, index + 1),
+    title,
+    durationSeconds: readNumber(value.durationSeconds, 8),
+    camera: readString(value.camera, "手机竖屏，人物半身或项目实拍。"),
+    spokenText,
+    subtitle: readString(value.subtitle, spokenText),
+    shootingGuide: readString(value.shootingGuide, "按口播内容拍摄 1 段清晰素材。"),
+    materialSlot: readString(value.materialSlot, `镜头 ${index + 1} 素材`),
+    required: value.required === false ? false : true,
   };
 }
 
@@ -225,7 +303,16 @@ function readNullableString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function readNumber(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function toStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+    : [];
+}
+
 function buildDemoKey(input: { merchantId: string; userId: string; taskDate: string }) {
   return `${input.merchantId}:${input.userId}:${input.taskDate}`;
 }
-

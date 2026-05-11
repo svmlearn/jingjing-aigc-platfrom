@@ -7,6 +7,60 @@ export type DailyTaskStatus =
 
 export type DailyTaskKind = "article" | "video";
 
+export type DailyProjectIntroDto = {
+  projectName: string;
+  summary: string;
+  coreSellingPoints: string[];
+  promotedLayouts: string[];
+  publicInfo: string[];
+  weeklyFocus: string;
+  usageGuide: string[];
+  defaultCta: string[];
+};
+
+export type DailyTaskImageAssetDto = {
+  id: string;
+  title: string;
+  description?: string | null;
+  url?: string | null;
+  source?: string | null;
+};
+
+export type DailyArticleContentPackageDto = {
+  title: string;
+  body: string;
+  hashtags: string[];
+  cta: string;
+  coverText: string;
+  imageAssets: DailyTaskImageAssetDto[];
+  imageBriefs: string[];
+  generatedAt: string;
+};
+
+export type DailyVideoScriptSceneDto = {
+  id: string;
+  order: number;
+  title: string;
+  durationSeconds: number;
+  camera: string;
+  spokenText: string;
+  subtitle: string;
+  shootingGuide: string;
+  materialSlot: string;
+  required: boolean;
+};
+
+export type DailyVideoScriptPackageDto = {
+  title: string;
+  hook: string;
+  storyOutline: string;
+  targetDurationSeconds: number;
+  scenes: DailyVideoScriptSceneDto[];
+  cta: string;
+  materialChecklist: string[];
+  generatedAt: string;
+};
+
 export type DailyContentTaskItemDto = {
   kind: DailyTaskKind;
   title: string;
@@ -15,6 +69,8 @@ export type DailyContentTaskItemDto = {
   contentGoal?: string | null;
   suggestedPlatform: "xiaohongshu" | "douyin";
   materialHints: string[];
+  generatedArticle?: DailyArticleContentPackageDto | null;
+  generatedVideoScript?: DailyVideoScriptPackageDto | null;
 };
 
 export type DailyContentTaskDto = {
@@ -34,8 +90,8 @@ export type DailyContentTaskDto = {
 };
 
 export type DailyContentWorkspaceDto = {
+  project: DailyProjectIntroDto;
   today: DailyContentTaskDto;
   upcoming: DailyContentTaskDto[];
   role: "owner" | "member";
 };
-
