@@ -264,7 +264,7 @@ Only requested `desiredOutputs` are uploaded and written back; for example,
 ## Local setup
 
 1. Copy `.env.example` to `.env`.
-2. Set `SUPABASE_DB_URL`, `COS_SECRET_ID`, `COS_SECRET_KEY`, `COS_BUCKET`, `OPENAI_API_KEY`, and any extra provider keys you need. The worker also accepts `WORKER_COS_SECRET_ID`, `WORKER_COS_SECRET_KEY`, `WORKER_COS_BUCKET`, `WORKER_COS_REGION`, and `WORKER_COS_RESULT_PREFIX`.
+2. Set `WORKER_DATABASE_URL`, `WORKER_COS_SECRET_ID`, `WORKER_COS_SECRET_KEY`, `WORKER_COS_BUCKET`, `WORKER_COS_REGION`, `OPENAI_API_KEY`, and any extra provider keys you need. `SUPABASE_DB_URL` and shared `COS_*` keys remain compatibility fallbacks.
 3. Make sure the host directories exist on the worker machine:
 
 ```bash

@@ -9,12 +9,12 @@ from pathlib import Path
 from typing import Mapping
 
 
-REQUIRED_REAL_IO_ENV = (
-    "COS_SECRET_ID",
-    "COS_SECRET_KEY",
-    "COS_BUCKET",
-    "COS_REGION",
-)
+COS_ENV_FALLBACKS = {
+    "cos_secret_id": ("WORKER_COS_SECRET_ID", "COS_SECRET_ID"),
+    "cos_secret_key": ("WORKER_COS_SECRET_KEY", "COS_SECRET_KEY"),
+    "cos_bucket": ("WORKER_COS_BUCKET", "COS_BUCKET"),
+    "cos_region": ("WORKER_COS_REGION", "COS_REGION"),
+}
 
 
 class MissingRealSmokeEnvError(RuntimeError):
@@ -38,27 +38,47 @@ class RealSmokeConfig:
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "RealSmokeConfig":
         source = env or os.environ
+        database_url = str(
+            source.get("WORKER_DATABASE_URL") or source.get("SUPABASE_DB_URL") or ""
+        ).strip()
+        cos_values = {
+            field: _first_env(source, *env_names)
+            for field, env_names in COS_ENV_FALLBACKS.items()
+        }
         missing = [
-            name for name in REQUIRED_REAL_IO_ENV if not str(source.get(name) or "").strip()
+            "/".join(env_names)
+            for field, env_names in COS_ENV_FALLBACKS.items()
+            if not cos_values[field]
         ]
-        database_url = str(source.get("WORKER_DATABASE_URL") or source.get("SUPABASE_DB_URL") or "").strip()
         if not database_url:
             missing.append("WORKER_DATABASE_URL")
         if missing:
             raise MissingRealSmokeEnvError(missing)
         return cls(
             database_url=database_url,
-            cos_secret_id=str(source["COS_SECRET_ID"]).strip(),
-            cos_secret_key=str(source["COS_SECRET_KEY"]).strip(),
-            cos_bucket=str(source["COS_BUCKET"]).strip(),
-            cos_region=str(source["COS_REGION"]).strip(),
-            cos_prefix=str(source.get("REAL_IO_SMOKE_COS_PREFIX") or "worker-real-smoke"),
+            cos_secret_id=cos_values["cos_secret_id"],
+            cos_secret_key=cos_values["cos_secret_key"],
+            cos_bucket=cos_values["cos_bucket"],
+            cos_region=cos_values["cos_region"],
+            cos_prefix=str(
+                source.get("REAL_IO_SMOKE_COS_PREFIX")
+                or source.get("WORKER_COS_RESULT_PREFIX")
+                or "worker-real-smoke"
+            ),
         )
 
 
 def build_cos_smoke_key(prefix: str, *, run_id: str | None = None) -> str:
     normalized_prefix = prefix.strip().strip("/") or "worker-real-smoke"
     return f"{normalized_prefix}/{run_id or uuid.uuid4().hex}.txt"
+
+
+def _first_env(source: Mapping[str, str], *names: str) -> str:
+    for name in names:
+        value = str(source.get(name) or "").strip()
+        if value:
+            return value
+    return ""
 
 
 def run_database_smoke(config: RealSmokeConfig) -> dict[str, object]:

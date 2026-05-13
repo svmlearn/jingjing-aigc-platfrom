@@ -117,6 +117,7 @@
   - 各阶段耗时
 - `retry` 语义已调整为失败后人工确认重跑：`failed_retryable` 和 `failed_manual` 均可重新置为 `pending`；PG 分支会写入 `manual_rerun_requested_at` / `manual_rerun_requested_by_user_id`。
 - `real_io_smoke.py` 已改为优先检查 `WORKER_DATABASE_URL`。
+- `real_io_smoke.py` 已补齐 worker COS env 优先级：`WORKER_COS_SECRET_ID` / `WORKER_COS_SECRET_KEY` / `WORKER_COS_BUCKET` / `WORKER_COS_REGION` 优先，shared `COS_*` 保留 fallback。
 - `workers/video-worker/.env.example` 已改为国内 PostgreSQL / 国内 COS 示例。
 
 ### A7 上机验证辅助
@@ -167,7 +168,7 @@ curl -sS -i -b /private/tmp/jj-domestic-cookie.txt 'http://127.0.0.1:3107/api/vi
 - TypeScript：通过
 - ESLint：通过
 - Next build：通过
-- worker Python tests：`47 tests OK`
+- worker Python tests：`48 tests OK`
 - worker compileall：通过
 - diff whitespace：通过
 - password hash script：可输出 hash
