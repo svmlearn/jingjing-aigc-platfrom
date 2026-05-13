@@ -71,6 +71,23 @@ class FakeResponse:
         }
 
 
+class FakeStreamResponse:
+    def __init__(self, lines):
+        self._lines = lines
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _exc_type, _exc, _tb):
+        return False
+
+    def raise_for_status(self):
+        return None
+
+    def iter_lines(self):
+        return iter(self._lines)
+
+
 class OpenStorylineContractPayloadTests(unittest.TestCase):
     def test_run_job_sends_normalized_production_directive(self):
         captured_payload = {}
@@ -103,6 +120,99 @@ class OpenStorylineContractPayloadTests(unittest.TestCase):
         self.assertEqual("light upbeat", captured_payload["production_config"]["bgm"]["user_request"])
         self.assertEqual(0.35, captured_payload["production_config"]["bgm"]["volume"])
         self.assertTrue(captured_payload["production_config"]["render"]["include_original_audio"])
+
+    def test_run_job_stream_forwards_progress_events(self):
+        captured_payload = {}
+        progress_events = []
+
+        def fake_stream(method, url, json, timeout):
+            captured_payload.update({"method": method, "url": url, "json": json, "timeout": timeout})
+            return FakeStreamResponse(
+                [
+                    '{"type":"progress","event":{"type":"tool_start","name":"render_video"}}',
+                    '{"type":"result","data":{"final_video_path":"C:/tmp/final.mp4","cover_image_path":null,"subtitle_path":null,"metadata_path":"C:/tmp/run-metadata.json","raw_response":{"engine":"fire_red-openstoryline"}}}',
+                ]
+            )
+
+        job = make_job()
+        directive = build_production_directive(job)
+        client = OpenStorylineClient(Settings())
+
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "worker.app.openstoryline_client.httpx.stream",
+            side_effect=fake_stream,
+        ):
+            result = client.run_job(
+                job=job,
+                directive=directive,
+                input_assets=[],
+                workspace_dir=Path(tmp) / "workspace",
+                output_dir=Path(tmp) / "outputs",
+                progress_callback=progress_events.append,
+            )
+
+        self.assertEqual("POST", captured_payload["method"])
+        self.assertEqual("http://engine/v1/runs/stream", captured_payload["url"])
+        self.assertEqual("job_1", captured_payload["json"]["job_id"])
+        self.assertEqual("render_video", progress_events[0]["name"])
+        self.assertEqual(Path("C:/tmp/final.mp4"), result.final_video_path)
+
+    def test_run_job_stream_raises_on_error_event(self):
+        def fake_stream(method, url, json, timeout):
+            return FakeStreamResponse(
+                ['{"type":"error","error":{"message":"engine exploded"}}']
+            )
+
+        job = make_job()
+        directive = build_production_directive(job)
+        client = OpenStorylineClient(Settings())
+
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "worker.app.openstoryline_client.httpx.stream",
+            side_effect=fake_stream,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "engine exploded"):
+                client.run_job(
+                    job=job,
+                    directive=directive,
+                    input_assets=[],
+                    workspace_dir=Path(tmp) / "workspace",
+                    output_dir=Path(tmp) / "outputs",
+                    progress_callback=lambda _event: None,
+                )
+
+    def test_run_job_stream_preserves_structured_render_error_detail(self):
+        def fake_stream(method, url, json, timeout):
+            return FakeStreamResponse(
+                [
+                    '{"type":"error","error":{'
+                    '"message":"worker run failed: ExceptionGroup: unhandled errors",'
+                    '"root_cause":"ConnectError: All connection attempts failed",'
+                    '"last_event":{"type":"tool_end","name":"render_video"},'
+                    '"last_tool":{"name":"render_video","summary":"Tool call failed"}}}'
+                ]
+            )
+
+        job = make_job()
+        directive = build_production_directive(job)
+        client = OpenStorylineClient(Settings())
+
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "worker.app.openstoryline_client.httpx.stream",
+            side_effect=fake_stream,
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "ConnectError.*render_video.*last_tool=render_video",
+            ):
+                client.run_job(
+                    job=job,
+                    directive=directive,
+                    input_assets=[],
+                    workspace_dir=Path(tmp) / "workspace",
+                    output_dir=Path(tmp) / "outputs",
+                    progress_callback=lambda _event: None,
+                )
 
 
 if __name__ == "__main__":

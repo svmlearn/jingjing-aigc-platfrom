@@ -4,7 +4,7 @@ import base64
 import json
 import subprocess
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Iterator, Protocol
 
 import httpx
 
@@ -28,6 +28,9 @@ class UnsupportedEngineAdapterError(RuntimeError):
 
 class EngineAdapter(Protocol):
     def run(self, request: RunRequest) -> RunResponse:
+        ...
+
+    def stream(self, request: RunRequest) -> Iterator[dict[str, Any]]:
         ...
 
 
@@ -99,6 +102,10 @@ class SkeletonEngineAdapter:
             },
         )
 
+    def stream(self, request: RunRequest) -> Iterator[dict[str, Any]]:
+        response = self.run(request)
+        yield {"type": "result", "data": response.model_dump()}
+
 
 class FireRedEngineAdapter:
     def __init__(self, settings: Settings) -> None:
@@ -134,6 +141,81 @@ class FireRedEngineAdapter:
         response.raise_for_status()
         fire_red_response = response.json()
 
+        return self._response_from_fire_red_response(
+            request=request,
+            payload=payload,
+            fire_red_response=fire_red_response,
+        )
+
+    def stream(self, request: RunRequest) -> Iterator[dict[str, Any]]:
+        if not self._settings.fire_red_base_url:
+            raise UnsupportedEngineAdapterError(
+                "FireRed adapter requires FIRERED_OPENSTORYLINE_BASE_URL before "
+                "it can serve /v1/runs/stream."
+            )
+        if not self._settings.fire_red_provider_key_configured:
+            raise UnsupportedEngineAdapterError(
+                "FireRed adapter requires FIRERED_PROVIDER_KEY before it can "
+                "serve /v1/runs/stream."
+            )
+
+        output_dir = Path(request.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        payload = _build_fire_red_run_payload(self._settings, request)
+        headers = (
+            {"X-FIRERED-PROVIDER-KEY": self._settings.fire_red_provider_key}
+            if self._settings.fire_red_provider_key
+            else {}
+        )
+        with httpx.stream(
+            "POST",
+            f"{self._settings.fire_red_base_url}/api/worker/runs/stream",
+            json=payload,
+            headers=headers,
+            timeout=self._settings.fire_red_run_timeout_seconds,
+        ) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                event = _decode_stream_event(line)
+                if event is None:
+                    continue
+                event_type = event.get("type")
+                if event_type == "progress":
+                    yield event
+                    continue
+                if event_type == "result":
+                    data = event.get("data")
+                    if not isinstance(data, dict):
+                        yield {
+                            "type": "error",
+                            "error": {"message": "FireRed stream result payload is invalid"},
+                        }
+                        return
+                    mapped_response = self._response_from_fire_red_response(
+                        request=request,
+                        payload=payload,
+                        fire_red_response=data,
+                    )
+                    yield {"type": "result", "data": mapped_response.model_dump()}
+                    return
+                if event_type == "error":
+                    yield event
+                    return
+
+        yield {
+            "type": "error",
+            "error": {"message": "FireRed stream ended without a result event"},
+        }
+
+    def _response_from_fire_red_response(
+        self,
+        *,
+        request: RunRequest,
+        payload: dict[str, object],
+        fire_red_response: dict[str, object],
+    ) -> RunResponse:
+        output_dir = Path(request.output_dir)
         final_video_path = Path(
             fire_red_response.get("final_video_path") or output_dir / "final.mp4"
         )
@@ -377,6 +459,22 @@ def _resolve_optional_path(value: object) -> Path | None:
     if not value:
         return None
     return Path(str(value))
+
+
+def _decode_stream_event(line: str | bytes) -> dict[str, Any] | None:
+    if isinstance(line, bytes):
+        line = line.decode("utf-8")
+    line = line.strip()
+    if not line:
+        return None
+    try:
+        data = json.loads(line)
+    except json.JSONDecodeError as exc:
+        return {
+            "type": "error",
+            "error": {"message": f"invalid stream event JSON: {exc}"},
+        }
+    return data if isinstance(data, dict) else None
 
 
 def _write_video_cover_thumbnail(video_path: Path, cover_path: Path) -> None:

@@ -34,8 +34,9 @@ logger = logging.getLogger(__name__)
 
 import anyio
 from fastapi import FastAPI, APIRouter, UploadFile, File, Form, HTTPException, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
 # Windows may inherit a registry mapping of `.js -> text/plain`, which makes
 # module scripts fail strict MIME checks in browsers.
@@ -60,6 +61,7 @@ from open_storyline.utils.ai_transition_cancel import (
 )
 from open_storyline.config import load_settings, default_config_path
 from open_storyline.config import Settings
+from open_storyline.mcp_connections import build_mcp_connections
 from open_storyline.preview_paths import build_preview_allowed_roots, parse_extra_preview_roots
 from open_storyline.storage.agent_memory import ArtifactStore
 from open_storyline.mcp.hooks.node_interceptors import ToolInterceptor
@@ -294,6 +296,14 @@ def _format_exc(e: BaseException) -> str:
             parts.extend(traceback.format_exception(type(sub), sub, sub.__traceback__))
         return "".join(parts)
     return "".join(traceback.format_exception(type(e), e, e.__traceback__))
+
+
+def _exception_root_cause(e: BaseException) -> str:
+    excs = getattr(e, "exceptions", None)
+    if excs:
+        return _exception_root_cause(excs[-1])
+    return _mask_secret_string(f"{type(e).__name__}: {e}")
+
 
 def resolve_media_dir(cfg_media_dir: str, session_id: str) -> str:
     root = _abs(cfg_media_dir).rstrip("/\\")
@@ -2314,7 +2324,41 @@ def _runtime_asset_status() -> Dict[str, bool]:
         "transnet_weights": (root / ".storyline" / "models" / "transnetv2-pytorch-weights.pth").is_file(),
         "bgms": (root / "resource" / "bgms").is_dir(),
         "fonts": (root / "resource" / "fonts").is_dir(),
+        "font_info": (root / "resource" / "fonts" / "font_info.json").is_file(),
+        "tts_providers": (root / "resource" / "tts" / "tts_providers.json").is_file(),
         "outputs": (root / "outputs").is_dir(),
+    }
+
+
+async def _probe_render_mcp_ready(cfg: Settings) -> Dict[str, Any]:
+    session_id = f"ready-{uuid.uuid4().hex[:12]}"
+    connections = build_mcp_connections(
+        cfg.local_mcp_server,
+        session_id,
+        sampling_callback=object(),
+    )
+    client = MultiServerMCPClient(
+        connections=connections,
+        tool_name_prefix=True,
+    )
+    server_name = cfg.local_mcp_server.server_name
+    tools = await client.get_tools(server_name=server_name)
+    tool_names = sorted(str(getattr(tool, "name", "") or "") for tool in tools)
+    render_tool_names = {
+        "render_video",
+        f"{server_name}_render_video",
+    }
+    if not any(name in render_tool_names for name in tool_names):
+        raise RuntimeError(
+            f"render_video tool not available from MCP server '{server_name}'. "
+            f"tools={tool_names}"
+        )
+
+    return {
+        "server_name": server_name,
+        "url": cfg.local_mcp_server.url,
+        "tool_count": len(tool_names),
+        "render_video_available": True,
     }
 
 
@@ -2331,6 +2375,60 @@ def health():
 @api.get("/health")
 def api_health():
     return health()
+
+
+@app.get("/ready")
+async def ready():
+    cfg: Settings = app.state.cfg
+    runtime_assets = _runtime_asset_status()
+    missing_assets = [
+        name
+        for name in (
+            "transnet_weights",
+            "bgms",
+            "fonts",
+            "font_info",
+            "outputs",
+        )
+        if not runtime_assets.get(name)
+    ]
+    if missing_assets:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "service": "firered-openstoryline",
+                "missing_runtime_assets": missing_assets,
+                "runtime_assets": runtime_assets,
+            },
+        )
+
+    try:
+        mcp_probe = await _probe_render_mcp_ready(cfg)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "service": "firered-openstoryline",
+                "mcp_url": cfg.local_mcp_server.url,
+                "reason": f"{type(exc).__name__}: {exc}",
+                "runtime_assets": runtime_assets,
+            },
+        ) from exc
+
+    return {
+        "status": "ready",
+        "service": "firered-openstoryline",
+        "provider_key_configured": bool(_s(os.getenv("FIRERED_PROVIDER_KEY"))),
+        "runtime_assets": runtime_assets,
+        "mcp": mcp_probe,
+    }
+
+
+@api.get("/ready")
+async def api_ready():
+    return await ready()
 
 def _rate_limit_reject_json(retry_after: float) -> JSONResponse:
     ra = int(math.ceil(float(retry_after or 0.0)))
@@ -2718,6 +2816,7 @@ async def _run_worker_session_prompt(
     *,
     prompt: str,
     service_config: Any = None,
+    event_sink: Any = None,
 ) -> str:
     async with sess.chat_lock:
         if service_config is not None:
@@ -2759,7 +2858,7 @@ async def _run_worker_session_prompt(
         new_messages: List[BaseMessage] = []
         text_parts: List[str] = []
 
-        async with mcp_sink_context(lambda _event: None):
+        async with mcp_sink_context(event_sink or (lambda _event: None)):
             stream = sess.agent.astream(
                 {"messages": merged_messages},
                 context=sess.client_context,
@@ -2879,6 +2978,46 @@ def _fallback_worker_prompt(payload: Dict[str, Any]) -> str:
     )
 
 
+def _worker_run_response_payload(
+    *,
+    payload: Dict[str, Any],
+    session_id: str,
+    final_video_path: Path,
+    metadata_path: Path,
+    render_payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    return {
+        "job_id": payload.get("job_id"),
+        "session_id": session_id,
+        "final_video_path": str(final_video_path),
+        "metadata_path": str(metadata_path),
+        "raw_response": {
+            "engine": "fire_red-openstoryline",
+            "render_video": render_payload,
+        },
+    }
+
+
+def _last_tool_failure_context(sess: ChatSession) -> Optional[Dict[str, Any]]:
+    for rec in reversed(sess.history or []):
+        if not isinstance(rec, dict):
+            continue
+        if str(rec.get("role") or "") != "tool":
+            continue
+        if str(rec.get("state") or "") != "error":
+            continue
+        return _mask_tool_history_record(
+            {
+                "server": rec.get("server"),
+                "name": rec.get("name"),
+                "state": rec.get("state"),
+                "message": rec.get("message"),
+                "summary": rec.get("summary"),
+            }
+        )
+    return None
+
+
 @api.post("/worker/runs")
 async def run_worker_video_job(request: Request):
     _authorize_worker_run(request)
@@ -2917,22 +3056,159 @@ async def run_worker_video_job(request: Request):
             final_video_path=final_video_path,
         )
         return JSONResponse(
-            {
-                "job_id": payload.get("job_id"),
-                "session_id": sess.session_id,
-                "final_video_path": str(final_video_path),
-                "metadata_path": str(metadata_path),
-                "raw_response": {
-                    "engine": "fire_red-openstoryline",
-                    "render_video": render_payload,
-                },
-            }
+            _worker_run_response_payload(
+                payload=payload,
+                session_id=sess.session_id,
+                final_video_path=final_video_path,
+                metadata_path=metadata_path,
+                render_payload=render_payload,
+            )
         )
     except HTTPException:
         raise
     except Exception as exc:
         logger.error(_format_exc(exc))
-        raise HTTPException(status_code=500, detail=f"worker run failed: {type(exc).__name__}: {exc}") from exc
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": f"worker run failed: {type(exc).__name__}: {exc}",
+                "error_type": type(exc).__name__,
+                "root_cause": _exception_root_cause(exc),
+                "session_id": sess.session_id,
+                "last_tool": _last_tool_failure_context(sess),
+            },
+        ) from exc
+
+
+@api.post("/worker/runs/stream")
+async def stream_worker_video_job(request: Request):
+    _authorize_worker_run(request)
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"invalid JSON payload: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="payload must be an object")
+
+    output_dir_raw = _s(payload.get("output_dir"))
+    if not output_dir_raw:
+        raise HTTPException(status_code=400, detail="output_dir is required")
+    output_dir = Path(output_dir_raw)
+
+    async def generate():
+        queue: asyncio.Queue = asyncio.Queue()
+        sess_holder: Dict[str, ChatSession] = {}
+        last_progress_event: Optional[Dict[str, Any]] = None
+
+        def enqueue_event(event: Any):
+            nonlocal last_progress_event
+            try:
+                normalized = event if isinstance(event, dict) else {"message": str(event)}
+                if isinstance(normalized, dict):
+                    last_progress_event = normalized
+                queue.put_nowait({"type": "progress", "event": normalized})
+            except Exception:
+                logger.exception("failed to enqueue worker progress event")
+
+        def encode(event: Dict[str, Any]) -> str:
+            return json.dumps(event, ensure_ascii=False, default=str) + "\n"
+
+        async def run_job():
+            store: SessionStore = app.state.sessions
+            sess = await store.create()
+            sess_holder["session"] = sess
+            await _register_worker_input_assets(sess, payload.get("input_assets") or [])
+            prompt = _s(payload.get("prompt")) or _fallback_worker_prompt(payload)
+            final_text = await _run_worker_session_prompt(
+                store,
+                sess,
+                prompt=prompt,
+                service_config=payload.get("service_config"),
+                event_sink=enqueue_event,
+            )
+            _artifact_store, render_path, render_payload = _latest_render_video_result(sess.session_id)
+            final_video_path = _copy_worker_final_video(render_path, output_dir)
+            metadata_path = output_dir / "firered-run-metadata.json"
+            _write_worker_run_metadata(
+                metadata_path,
+                payload=payload,
+                session_id=sess.session_id,
+                final_text=final_text,
+                render_payload=render_payload,
+                final_video_path=final_video_path,
+            )
+            await queue.put(
+                {
+                    "type": "result",
+                    "data": _worker_run_response_payload(
+                        payload=payload,
+                        session_id=sess.session_id,
+                        final_video_path=final_video_path,
+                        metadata_path=metadata_path,
+                        render_payload=render_payload,
+                    ),
+                }
+            )
+
+        task = asyncio.create_task(run_job())
+        try:
+            while True:
+                if not queue.empty():
+                    event = await queue.get()
+                    yield encode(event)
+                    if event.get("type") in ("result", "error"):
+                        break
+                    continue
+
+                get_task = asyncio.create_task(queue.get())
+                done, _pending = await asyncio.wait(
+                    {task, get_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+
+                if get_task in done:
+                    event = get_task.result()
+                    yield encode(event)
+                    if event.get("type") in ("result", "error"):
+                        break
+                    continue
+
+                get_task.cancel()
+                try:
+                    await get_task
+                except asyncio.CancelledError:
+                    pass
+
+                if task in done:
+                    if not queue.empty():
+                        continue
+                    exc = task.exception()
+                    if exc is not None:
+                        logger.error(_format_exc(exc))
+                        sess = sess_holder.get("session")
+                        yield encode(
+                            {
+                                "type": "error",
+                                "error": {
+                                    "message": f"worker run failed: {type(exc).__name__}: {exc}",
+                                    "error_type": type(exc).__name__,
+                                    "root_cause": _exception_root_cause(exc),
+                                    "session_id": sess.session_id if sess else None,
+                                    "last_event": last_progress_event,
+                                    "last_tool": _last_tool_failure_context(sess) if sess else None,
+                                },
+                            }
+                        )
+                    break
+        finally:
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 # -------------------------
 # media (REST, session-scoped)
