@@ -39,6 +39,7 @@
 - progress 已写入：`docs/progress/2026-05-13-domestic-migration-phase-a0-a6-progress.md`
 - completion audit 已写入：`docs/progress/2026-05-13-domestic-migration-completion-audit.md`
 - phase1 e2e pending 模板已写入：`docs/progress/2026-05-13-domestic-migration-phase1-e2e-verification.md`
+- 真实资源 runbook 已写入：`docs/handoff/2026-05-13-domestic-phase1-real-resource-runbook.md`
 
 ## 验证结果
 

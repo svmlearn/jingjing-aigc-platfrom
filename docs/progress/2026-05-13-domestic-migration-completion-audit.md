@@ -81,6 +81,7 @@ Primary verification docs:
 
 - `docs/progress/2026-05-13-domestic-migration-phase-a0-a6-progress.md`
 - `docs/handoff/2026-05-13-domestic-infra-migration-phase-a0-a6-handoff.md`
+- `docs/handoff/2026-05-13-domestic-phase1-real-resource-runbook.md`
 
 ## 4. Completion decision
 

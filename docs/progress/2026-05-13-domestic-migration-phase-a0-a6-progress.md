@@ -143,6 +143,7 @@
   - 在最小 owner 账号下创建 `source_items`、`content_drafts` 和已确认 `content_variants.video_script`。
   - 输出 `draft_storage_key_prefix`，便于后续调用 `/api/media/complete`。
 - `app/db/README.md` 已补充 migration + seed 命令。
+- 新增真实资源验证 runbook：`docs/handoff/2026-05-13-domestic-phase1-real-resource-runbook.md`。
 
 ## 3. 验证结果
 
