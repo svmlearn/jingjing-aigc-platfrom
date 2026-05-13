@@ -71,6 +71,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 已用临时 PostgreSQL + `next start` 跑通 `check-domestic-video-chain-api-smoke.mjs` 成功路径，返回 `status=ok`、`jobStatus=pending`、`renderMode=asset_driven`、`inputAssetCount=1`。
 - `check-domestic-video-chain-api-smoke.mjs` 新增 `--with-upload-intent` 后，默认跳过上传意图的成功路径再次通过；真实上传意图模式等待国内 COS 凭证后验证。
 - worker tests 当前为 `50 tests OK`，包含 `WORKER_COS_*` 优先级、`WORKER_MAX_CONCURRENCY=1` 和 `real_io_smoke --env-file` 覆盖。
+- 已命令级验证 `real_io_smoke --env-file <tmp>` 缺 COS 失败路径，退出码 `2`，只输出缺失 COS key 名，不泄露数据库密码。
 - `docker compose -f workers/video-worker/docker-compose.yml config --quiet`：通过。
 - `docker compose -f workers/video-worker/docker-compose.yml -f workers/video-worker/docker-compose.firered.yml --profile firered config --quiet`：通过。
 - 已执行 `app/db/seeds/domestic_minimal_seed.example.sql`，首次和重复执行均通过。

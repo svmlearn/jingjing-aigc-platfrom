@@ -209,6 +209,7 @@ curl -sS -b /private/tmp/jj-testdraft-cookie.txt -X POST 'http://127.0.0.1:3112/
 - Next build：通过
 - worker Python tests：`50 tests OK`
 - worker compileall：通过
+- worker `real_io_smoke --env-file <tmp>` 缺 COS 失败路径：通过，退出码 `2`，只输出缺失 COS key 名，不泄露数据库密码
 - worker compose config：通过。校验时临时复制 `workers/video-worker/.env.example` 为 `.env`，校验后已删除。
 - diff whitespace：通过
 - password hash script：可输出 hash
