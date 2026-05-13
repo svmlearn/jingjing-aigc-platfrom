@@ -111,7 +111,11 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 
 在这些资源到位前，本分支只能验证到本地临时 PostgreSQL + 假 COS 配置下的 API smoke，不能声称 `final.mp4` 已生成、上传和重新签名下载。
 
+用户已在 2026-05-13 明确暂停继续追 Completion Gate：国内服务器、国内 PostgreSQL、国内腾讯 COS 和手机端 IP 访问环境尚未购买，因此这是正常外部资源阻塞，不是代码权限或本地执行权限问题。long-task 状态保持 `blocked`，不要标记 `complete`。
+
 ## 下一步建议
+
+恢复工作时，优先按 `docs/handoff/2026-05-13-domestic-phase1-real-resource-runbook.md` 继续。
 
 1. 准备可用 PostgreSQL，执行：
 

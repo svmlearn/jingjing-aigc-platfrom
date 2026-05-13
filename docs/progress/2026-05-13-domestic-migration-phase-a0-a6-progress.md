@@ -271,3 +271,24 @@ curl -sS -b /private/tmp/jj-testdraft-cookie.txt -X POST 'http://127.0.0.1:3112/
 4. 本地或国内服务器启动 app，验证登录、素材上传 intent、asset 写入、video job 创建。
 5. 配置 `WORKER_DATABASE_URL` 和国内 COS，启动 worker，验证单并发 claim。
 6. 有国内资源后再跑手机端完整链路。
+
+## 6. 暂停收尾记录
+
+时间：2026-05-13
+
+状态：暂停，保持 blocked，不标记 complete。
+
+本地代码改造已经完成到 Phase A0-A6 的可验证基线：
+
+- 普通 PostgreSQL baseline、repository 分支、domestic session、health check、seed、app preflight、COS roundtrip preflight、视频链路 API smoke、worker `WORKER_DATABASE_URL` / `WORKER_COS_*` 配置和单并发约束已经落地。
+- 本地临时 PostgreSQL + 假 COS 配置下，已覆盖 login、test draft、media metadata、asset-driven video job、source item read API、mixed Supabase/Postgres env 优先级。
+- worker 单测、compileall、compose config、real_io_smoke 缺环境/单并发/env-file 分支已经通过。
+
+完整 phase1 e2e 暂时不能完成，原因是用户确认尚未采购：
+
+- 国内服务器 / IP 访问环境
+- 国内 PostgreSQL
+- 国内腾讯 COS bucket / region / secret
+- 手机端 IP 访问环境
+
+下一次恢复时，从 `docs/handoff/2026-05-13-domestic-phase1-real-resource-runbook.md` 继续，不要直接追 Completion Gate。先按 runbook 配真实资源，再补 `docs/progress/2026-05-13-domestic-migration-phase1-e2e-verification.md` 的真实 evidence；只有实际跑通 `final.mp4 -> 国内 COS -> 页面重新签名下载` 后，才允许写入完成标记。
