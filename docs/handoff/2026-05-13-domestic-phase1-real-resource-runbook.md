@@ -113,6 +113,27 @@ Then test from the app page, not just server CLI:
 - `/api/media/complete` writes `asset_objects.bucket_name + storage_key`
 - if using the video workbench test button, `POST /api/content/video-scripts/test-draft` returns a draft with one approved video script variant and three `productionScenes`
 
+Optional API-only smoke after the app is running:
+
+```bash
+DOMESTIC_SMOKE_EMAIL='owner@example.com' \
+DOMESTIC_SMOKE_PASSWORD='<temporary-password>' \
+node app/scripts/check-domestic-video-chain-api-smoke.mjs \
+  --env-file app/.env.production \
+  --base-url "http://<domestic-ip>:<port>"
+```
+
+Expected:
+
+- login returns `303`
+- test draft returns `201`
+- media metadata complete returns `201`
+- video job create returns `201`
+- job is `pending`
+- `inputPayload.render_mode=asset_driven`
+
+This script does not upload bytes to COS, run worker, verify `final.mp4`, or replace the mobile browser e2e.
+
 ## 6. Worker env and smoke
 
 Create `workers/video-worker/.env` on the worker host:

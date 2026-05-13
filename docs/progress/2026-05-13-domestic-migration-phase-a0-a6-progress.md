@@ -135,6 +135,11 @@
   - 可读取当前环境或 `--env-file <path>`。
   - 真实 COS 资源到位后执行 put object -> signed GET -> delete object。
   - 输出 bucket / region / key / bytes / match 结果，不输出密钥或签名 URL。
+- 新增 app 侧视频主链路 API smoke 脚本：`app/scripts/check-domestic-video-chain-api-smoke.mjs`。
+  - 可读取当前环境或 `--env-file <path>`。
+  - 使用测试账号登录后调用 test draft、media complete、video job create。
+  - 只输出状态、ID、`renderMode` 和 `inputAssetCount`，不输出密码或 cookie。
+  - 明确不替代真实 COS 字节上传、worker 生成、`final.mp4` 和手机浏览器 e2e。
 - 新增健康检查接口：`app/src/app/api/health/route.ts`。
   - app 进程状态：固定返回 `nodejs`。
   - PostgreSQL：要求配置 `APP_DATABASE_URL` / `DATABASE_URL`，并执行 `select 1`。
@@ -177,6 +182,8 @@ git diff --check
 node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 node app/scripts/check-domestic-app-env.mjs
 node app/scripts/check-domestic-cos-roundtrip.mjs
+node --check app/scripts/check-domestic-video-chain-api-smoke.mjs
+node app/scripts/check-domestic-video-chain-api-smoke.mjs
 /opt/homebrew/opt/postgresql@17/bin/psql -h 127.0.0.1 -p 55432 -d postgres -v ON_ERROR_STOP=1 -f app/db/migrations/202605130001_domestic_core_baseline.sql
 APP_DATABASE_URL=postgres://wy@127.0.0.1:55432/postgres DATABASE_PROVIDER=postgres COS_SECRET_ID=dummy COS_SECRET_KEY=dummy COS_BUCKET=jj-healthcheck-1250000000 COS_REGION=ap-guangzhou node app/scripts/check-domestic-app-env.mjs
 HASH="$(node app/scripts/create-domestic-password-hash.mjs test-password)"; /opt/homebrew/opt/postgresql@17/bin/psql -h 127.0.0.1 -p 55432 -d postgres -v ON_ERROR_STOP=1 -v user_email='owner@example.com' -v password_hash="$HASH" -v display_name='Domestic Test Owner' -v merchant_name='Domestic Test Merchant' -f app/db/seeds/domestic_minimal_seed.example.sql
@@ -205,6 +212,9 @@ curl -sS -b /private/tmp/jj-testdraft-cookie.txt -X POST 'http://127.0.0.1:3112/
 - app env check 缺环境失败路径：通过，退出码 `1`，只输出缺失 key 名
 - app env check 临时 PostgreSQL + 假 COS 配置成功路径：通过，退出码 `0`
 - app COS roundtrip 缺环境失败路径：通过，退出码 `2`，只输出缺失 key 名
+- video chain API smoke 脚本语法检查：通过
+- video chain API smoke 缺参数失败路径：通过，退出码 `2`，只输出缺失参数名
+- video chain API smoke 临时 PostgreSQL + `next start` 成功路径：通过，退出码 `0`，返回 `status=ok`、`jobStatus=pending`、`renderMode=asset_driven`、`inputAssetCount=1`
 - PostgreSQL 17 临时空库执行 baseline：通过
 - 最小 seed 示例首次执行和重复执行：通过
 - 视频链路 fixture seed：通过
