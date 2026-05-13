@@ -121,6 +121,10 @@
 
 ### A7 上机验证辅助
 
+- 新增 app 侧环境自检脚本：`app/scripts/check-domestic-app-env.mjs`。
+  - 可读取当前环境或 `--env-file <path>`。
+  - 只输出 key 是否存在、DB 是否可连、核心表是否齐，不打印密钥值。
+  - 检查核心表：`app_users`、`user_sessions`、`merchant_profiles`、`merchant_team_members`、`source_items`、`content_drafts`、`content_variants`、`asset_objects`、`video_edit_jobs`。
 - 新增健康检查接口：`app/src/app/api/health/route.ts`。
   - app 进程状态：固定返回 `nodejs`。
   - PostgreSQL：要求配置 `APP_DATABASE_URL` / `DATABASE_URL`，并执行 `select 1`。
@@ -146,7 +150,9 @@ PYTHONPATH=workers/video-worker:workers/video-worker/openstoryline /private/tmp/
 python3 -m compileall workers/video-worker/openstoryline/app workers/video-worker/worker/app
 git diff --check
 node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
+node app/scripts/check-domestic-app-env.mjs
 /opt/homebrew/opt/postgresql@17/bin/psql -h 127.0.0.1 -p 55432 -d postgres -v ON_ERROR_STOP=1 -f app/db/migrations/202605130001_domestic_core_baseline.sql
+APP_DATABASE_URL=postgres://wy@127.0.0.1:55432/postgres DATABASE_PROVIDER=postgres COS_SECRET_ID=dummy COS_SECRET_KEY=dummy COS_BUCKET=jj-healthcheck-1250000000 COS_REGION=ap-guangzhou node app/scripts/check-domestic-app-env.mjs
 HASH="$(node app/scripts/create-domestic-password-hash.mjs test-password)"; /opt/homebrew/opt/postgresql@17/bin/psql -h 127.0.0.1 -p 55432 -d postgres -v ON_ERROR_STOP=1 -v user_email='owner@example.com' -v password_hash="$HASH" -v display_name='Domestic Test Owner' -v merchant_name='Domestic Test Merchant' -f app/db/seeds/domestic_minimal_seed.example.sql
 /opt/homebrew/opt/postgresql@17/bin/psql -q -At -F '|' -h 127.0.0.1 -p 55432 -d postgres -v ON_ERROR_STOP=1 -v user_email='owner@example.com' -f app/db/seeds/domestic_video_chain_fixture.example.sql
 curl -sS -i http://127.0.0.1:3107/api/health
@@ -165,6 +171,8 @@ curl -sS -i -b /private/tmp/jj-domestic-cookie.txt 'http://127.0.0.1:3107/api/vi
 - worker compileall：通过
 - diff whitespace：通过
 - password hash script：可输出 hash
+- app env check 缺环境失败路径：通过，退出码 `1`，只输出缺失 key 名
+- app env check 临时 PostgreSQL + 假 COS 配置成功路径：通过，退出码 `0`
 - PostgreSQL 17 临时空库执行 baseline：通过
 - 最小 seed 示例首次执行和重复执行：通过
 - 视频链路 fixture seed：通过

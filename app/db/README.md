@@ -19,6 +19,12 @@ Apply on an empty domestic PostgreSQL database:
 psql "$DATABASE_URL" -f app/db/migrations/202605130001_domestic_core_baseline.sql
 ```
 
+Check app-side domestic environment without printing secrets:
+
+```bash
+node app/scripts/check-domestic-app-env.mjs --env-file app/.env.production
+```
+
 Generate a first test password hash before inserting a manual `app_users` row:
 
 ```bash
