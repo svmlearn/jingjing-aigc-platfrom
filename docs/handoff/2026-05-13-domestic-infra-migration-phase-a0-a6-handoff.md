@@ -33,6 +33,7 @@
 - 新增最小 seed 示例：`app/db/seeds/domestic_minimal_seed.example.sql`。
 - 新增视频链路 fixture seed：`app/db/seeds/domestic_video_chain_fixture.example.sql`。
 - progress 已写入：`docs/progress/2026-05-13-domestic-migration-phase-a0-a6-progress.md`
+- completion audit 已写入：`docs/progress/2026-05-13-domestic-migration-completion-audit.md`
 
 ## 验证结果
 
