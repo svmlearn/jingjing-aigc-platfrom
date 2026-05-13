@@ -111,6 +111,12 @@ class GenerateVoiceoverNode(BaseNode):
         # 5) Generate parameter dict from provider parameter schema + user_request via LLM
         provider_param_schema = self._load_provider_param_schema(provider_name)
         user_request = inputs.get("user_request", "")
+        await self._report_progress(
+            node_state,
+            0,
+            max(len(group_scripts) + 1, 1),
+            f"inferring TTS parameters for provider={provider_name}",
+        )
         tts_params = await self._infer_tts_params_with_llm(
             node_state=node_state,
             provider_name=provider_name,
@@ -128,6 +134,12 @@ class GenerateVoiceoverNode(BaseNode):
         voiceover: list[dict[str, Any]] = []
 
         for i, group in enumerate(group_scripts, start=1):
+            await self._report_progress(
+                node_state,
+                i,
+                len(group_scripts) + 1,
+                f"generating voiceover {i}/{len(group_scripts)}",
+            )
             group_id = (group or {}).get("group_id", "")
             raw_text = (group or {}).get("raw_text", "")
 
@@ -164,6 +176,12 @@ class GenerateVoiceoverNode(BaseNode):
             )
 
 
+        await self._report_progress(
+            node_state,
+            len(group_scripts) + 1,
+            len(group_scripts) + 1,
+            f"generated {len(voiceover)} voiceover segment(s)",
+        )
         node_state.node_summary.info_for_user(f"Generated {len(voiceover)} voiceover segments in total")
         return {"voiceover": voiceover}
 
@@ -327,7 +345,8 @@ class GenerateVoiceoverNode(BaseNode):
             temperature=0.1,
             top_p=0.9,
             max_tokens=4096,
-            model_preferences=None
+            model_preferences=None,
+            metadata=self._model_sampling_metadata("llm", minimum_seconds=180.0),
         )
         if not raw:
             return {}

@@ -80,6 +80,12 @@ class GroupClipsNode(BaseNode):
                 attempt_user_prompt = _append_compact_output_hint(user_prompt, node_state.lang)
 
             try:
+                await self._report_progress(
+                    node_state,
+                    attempt,
+                    max_attempts,
+                    f"grouping clips with model attempt {attempt + 1}/{max_attempts}",
+                )
                 raw = await llm.complete(
                     system_prompt=system_prompt,
                     user_prompt=attempt_user_prompt,
@@ -88,6 +94,7 @@ class GroupClipsNode(BaseNode):
                     top_p=0.9,
                     max_tokens=max_tokens,
                     model_preferences=None,
+                    metadata=self._model_sampling_metadata("llm", minimum_seconds=180.0, max_attempts=1),
                 )
             except Exception as e:
                 last_error = e
@@ -102,6 +109,12 @@ class GroupClipsNode(BaseNode):
                 )
                 node_state.node_summary.info_for_user(
                     f"Grouping successful: {len(groups)} groups in total"
+                )
+                await self._report_progress(
+                    node_state,
+                    max_attempts,
+                    max_attempts,
+                    f"grouped clips into {len(groups)} group(s)",
                 )
                 return {"groups": groups}
             except Exception as e:
