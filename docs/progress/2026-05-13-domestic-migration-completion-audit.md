@@ -19,7 +19,9 @@ Long task status has therefore been marked `blocked`, not `complete`.
 
 The local long-task contract was tightened after this audit so that completion now requires `docs/progress/2026-05-13-domestic-migration-phase1-e2e-verification.md` to exist and contain explicit pass markers for mobile browser, `video_edit_jobs`, worker, `final.mp4`, domestic COS, and re-signed download. A pending template now exists at that path, but the completion pass marker is intentionally absent until the real run succeeds.
 
-Latest `check.py --skip-verifier` result: failed only on `phase1_e2e_verification_doc_contains_pass_markers`, as expected.
+Latest `check.py --skip-verifier` result at `2026-05-13T21:53:57+08:00`: failed only on `phase1_e2e_verification_doc_contains_pass_markers`, as expected. Typecheck, lint, build, and worker compile hard gates passed.
+
+Follow-up commits after the first audit added the missing video workbench test draft route, a reusable API smoke script, and a PostgreSQL-first guard for mixed Supabase/Postgres envs. These improve local and server-side verification coverage, but they still do not satisfy the full mobile + real COS + worker `final.mp4` Completion Gate.
 
 ## 2. Prompt-to-artifact checklist
 
@@ -37,6 +39,7 @@ Latest `check.py --skip-verifier` result: failed only on `phase1_e2e_verificatio
 | Migrate content-draft repository | `app/src/lib/db/content-draft-repository.ts` delegates key draft/variant operations to PostgreSQL path; fixture creates approved video script variant | Pass for first-chain video script surface |
 | Migrate video-edit-job repository | `app/src/lib/db/video-edit-job-repository.ts` delegates create/list/get/retry/cancel to PostgreSQL path; `/api/video-edit-jobs` API smoke returned `201` and list returned `200` | Pass for pending-job surface |
 | Source item read API in PG mode | `app/src/lib/db/import-repository.ts` now uses PostgreSQL for `listSourceItems`, `getSourceItemById`, and `listImportedComments`; `/api/source-items` API smoke returned `200` | Pass for first-chain read surface |
+| Video workbench test draft API | `app/src/app/api/content/video-scripts/test-draft/route.ts`; `createVideoChainTestDraftForUser` writes source item / draft / approved variant through the same repository layer; local PostgreSQL smoke returned `201` and three `productionScenes` | Pass for test-entrypoint surface |
 | Minimal Auth / session | `app/src/lib/auth/domestic-session.ts`; login route and dashboard auth support domestic session; API smoke returned `303` and wrote `jingjing_session` | Pass |
 | Domestic COS config direction | `app/.env.example` and `workers/video-worker/.env.example` use domestic COS region examples; data model stores `bucket_name + storage_key`; `/api/health` checks COS env | Partial: real COS CORS/STS/upload/download not verified |
 | Worker moves from `SUPABASE_DB_URL` to `WORKER_DATABASE_URL` | `workers/video-worker/worker/app/config.py`, `db.py`, `main.py`, `real_io_smoke.py`, tests updated | Pass for config and DB code path |
@@ -46,6 +49,7 @@ Latest `check.py --skip-verifier` result: failed only on `phase1_e2e_verificatio
 | Health check for domestic server | `app/src/app/api/health/route.ts`; local `next start` + temp PostgreSQL + fake COS config returned `200 OK` | Pass for local runtime |
 | App environment preflight | `app/scripts/check-domestic-app-env.mjs`; missing-env failure path and temp PostgreSQL success path verified | Pass for app preflight |
 | App COS roundtrip preflight | `app/scripts/check-domestic-cos-roundtrip.mjs`; missing-env failure path verified; real put / signed GET / delete awaits real COS credentials | Partial |
+| Video chain API smoke preflight | `app/scripts/check-domestic-video-chain-api-smoke.mjs`; missing-input path returns only missing key names; temporary PostgreSQL + `next start` success path returned `status=ok`, `jobStatus=pending`, `renderMode=asset_driven`, `inputAssetCount=1` | Pass for API-only smoke; not a substitute for real upload/worker/mobile e2e |
 | Seed first owner / merchant | `app/db/seeds/domestic_minimal_seed.example.sql`; first and repeat execution passed | Pass |
 | Seed video-chain fixture | `app/db/seeds/domestic_video_chain_fixture.example.sql`; creates source item / draft / approved video script and returns draft COS key prefix | Pass |
 | App local type/lint/build | `pnpm exec tsc --noEmit --pretty false`, `pnpm lint`, `pnpm build` passed after route changes | Pass |
@@ -54,18 +58,27 @@ Latest `check.py --skip-verifier` result: failed only on `phase1_e2e_verificatio
 | Browser direct upload to domestic COS | Only `/api/media/complete` metadata write was smoke-tested with fake COS config; no real COS STS/CORS/upload | Missing |
 | Worker final.mp4 generation and domestic COS upload | No real worker run against actual COS assets; dummy local metadata only | Missing |
 | Page re-signed final.mp4 download | No final asset exists in real COS; no signed download verification | Missing |
+| Mixed Supabase/Postgres env behavior | `app/src/server/api/video-edit-jobs-service.ts` now checks `isPostgresVideoChainEnabled()` before Supabase admin configuration; production smoke with leftover Supabase env still created `asset_driven` PostgreSQL job | Pass for first-chain job payload assembly |
 | Push / merge policy | No push and no merge to main | Pass |
 | Handoff | `docs/handoff/2026-05-13-domestic-infra-migration-phase-a0-a6-handoff.md` records branch/worktree/commits/verification/blocker | Pass |
 
 ## 3. Current branch evidence
 
-Commits ahead of `main`:
+Recent commits ahead of `main` include:
 
-- `22c5a60 feat: add domestic postgres video chain baseline`
-- `eced84e fix: allow manual video job rerun in postgres mode`
-- `dc85a16 chore: add domestic verification health checks`
-- `f831e45 test: add domestic video chain fixture`
-- `e8a92c1 docs: record domestic resource blocker`
+- `61f185d chore: add domestic video chain api smoke`
+- `94ac4eb fix: prefer postgres video payload assembly`
+- `2d29682 docs: record domestic test draft chain smoke`
+- `be10172 feat: add domestic video chain test draft route`
+- `c8a74f1 feat: read source items from postgres in domestic mode`
+- `fb3c2c2 docs: add domestic phase1 real resource runbook`
+- `a849d7f chore: pass domestic worker env through compose`
+- `37fbabd chore: add domestic cos roundtrip preflight`
+- `36d46d3 fix: prefer worker cos env in real io smoke`
+- `0543ca4 chore: add domestic app env preflight`
+- `c1d23de docs: add phase1 e2e verification template`
+- `9037bb1 docs: add domestic migration completion audit`
+- earlier baseline / worker / fixture commits remain in the branch history
 
 Primary implementation files:
 
@@ -74,6 +87,8 @@ Primary implementation files:
 - `app/src/lib/auth/domestic-session.ts`
 - `app/src/lib/db/postgres-video-chain-repository.ts`
 - `app/src/app/api/health/route.ts`
+- `app/src/app/api/content/video-scripts/test-draft/route.ts`
+- `app/scripts/check-domestic-video-chain-api-smoke.mjs`
 - `workers/video-worker/worker/app/config.py`
 - `workers/video-worker/worker/app/db.py`
 - `workers/video-worker/worker/app/processor.py`
