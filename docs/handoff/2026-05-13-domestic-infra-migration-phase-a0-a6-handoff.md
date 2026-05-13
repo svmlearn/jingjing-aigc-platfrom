@@ -9,6 +9,7 @@
 - Branch：`codex/domestic-infra-migration`
 - Worktree：`/Users/wy/Desktop/静境/静境4.0/jingjing-domestic-infra-migration`
 - Base：`main` at `21f74ec`
+- Latest code/evidence commit before this handoff refresh：`734a98e docs: record domestic e2e resource readiness check`
 - Main：未 merge，未直接改代码
 
 ## 已完成内容
@@ -90,6 +91,8 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 已串联验证 test draft -> `/api/media/complete` -> `/api/video-edit-jobs`，三段状态分别为 `201 / 201 / 201`，新建 job 为 `pending`，`inputPayload.render_mode=asset_driven`，`input_assets.length=1`。
 - 已验证 PostgreSQL 优先级：即使生产构建启动时残留 Supabase env，只要配置 `DATABASE_PROVIDER=postgres` 和 `APP_DATABASE_URL`，video job input payload 仍从 PostgreSQL 资产分支组装。
 - 已检查 `app/.env*`、`workers/video-worker/.env*` 和当前进程环境，未发现真实国内 PostgreSQL / COS / worker key。
+- 用户确认本机权限已开后，已再次检查 worktree 环境：仍只有 example env 文件，当前进程环境也没有真实 PostgreSQL / COS / worker / test-entrypoint 变量。
+- 已在正确 worktree 执行 `python3 .codex/skills/long-task-gate/scripts/check.py --skip-verifier`，最新时间 `2026-05-13T23:26:10+08:00`，仍只失败在 `phase1_e2e_verification_doc_contains_pass_markers`，符合“真实 e2e 证据未完成”的预期。
 
 未验证：
 
@@ -147,7 +150,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
    - `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED=1`（仅第一阶段 IP 验证需要）
 
 5. 验证 app：
-   - `node app/scripts/check-domestic-app-env.mjs --env-file app/.env.production`
+   - `node app/scripts/check-domestic-app-env.mjs --env-file app/.env.production --require-video-chain-test-entrypoint`
    - `node app/scripts/check-domestic-cos-roundtrip.mjs --env-file app/.env.production`
    - `/api/health`
    - 登录
