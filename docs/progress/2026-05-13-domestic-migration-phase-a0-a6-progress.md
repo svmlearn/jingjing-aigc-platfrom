@@ -129,6 +129,9 @@
   - 可插入或复用 1 个 `app_users`。
   - 可插入或复用 1 个 `merchant_profiles`。
   - 可插入或复用 1 条 owner `merchant_team_members`。
+- 新增视频链路 fixture seed：`app/db/seeds/domestic_video_chain_fixture.example.sql`。
+  - 在最小 owner 账号下创建 `source_items`、`content_drafts` 和已确认 `content_variants.video_script`。
+  - 输出 `draft_storage_key_prefix`，便于后续调用 `/api/media/complete`。
 - `app/db/README.md` 已补充 migration + seed 命令。
 
 ## 3. 验证结果
@@ -145,8 +148,12 @@ git diff --check
 node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 /opt/homebrew/opt/postgresql@17/bin/psql -h 127.0.0.1 -p 55432 -d postgres -v ON_ERROR_STOP=1 -f app/db/migrations/202605130001_domestic_core_baseline.sql
 HASH="$(node app/scripts/create-domestic-password-hash.mjs test-password)"; /opt/homebrew/opt/postgresql@17/bin/psql -h 127.0.0.1 -p 55432 -d postgres -v ON_ERROR_STOP=1 -v user_email='owner@example.com' -v password_hash="$HASH" -v display_name='Domestic Test Owner' -v merchant_name='Domestic Test Merchant' -f app/db/seeds/domestic_minimal_seed.example.sql
+/opt/homebrew/opt/postgresql@17/bin/psql -q -At -F '|' -h 127.0.0.1 -p 55432 -d postgres -v ON_ERROR_STOP=1 -v user_email='owner@example.com' -f app/db/seeds/domestic_video_chain_fixture.example.sql
 curl -sS -i http://127.0.0.1:3107/api/health
 curl -sS -i -X POST http://127.0.0.1:3107/api/auth/merchant-login -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'email=owner@example.com' --data-urlencode 'password=test-password' --data-urlencode 'next=/dashboard'
+curl -sS -i -b /private/tmp/jj-domestic-cookie.txt http://127.0.0.1:3107/api/media/complete -H 'Content-Type: application/json' --data '<fixture content_draft COS payload>'
+curl -sS -i -b /private/tmp/jj-domestic-cookie.txt http://127.0.0.1:3107/api/video-edit-jobs -H 'Content-Type: application/json' --data '<fixture content_variant payload>'
+curl -sS -i -b /private/tmp/jj-domestic-cookie.txt 'http://127.0.0.1:3107/api/video-edit-jobs?status=pending&limit=5'
 ```
 
 结果：
@@ -160,8 +167,13 @@ curl -sS -i -X POST http://127.0.0.1:3107/api/auth/merchant-login -H 'Content-Ty
 - password hash script：可输出 hash
 - PostgreSQL 17 临时空库执行 baseline：通过
 - 最小 seed 示例首次执行和重复执行：通过
+- 视频链路 fixture seed：通过
 - `/api/health` 在 `next start` + 临时 PostgreSQL + 假 COS 配置下返回 `200 OK`
 - `/api/auth/merchant-login` 使用 seed 账号返回 `303`，写入 `jingjing_session`，并在 `user_sessions` 中新增 session
+- `/api/media/complete` 使用 fixture `content_draft` 返回 `201`，写入 `asset_objects`
+- `/api/video-edit-jobs` 使用 fixture `content_variant` 返回 `201`，写入 `video_edit_jobs.pending`
+- 新建 job 的 `inputPayload.render_mode=asset_driven`，且 `input_assets[0]` 指向刚写入的 Tencent COS asset metadata
+- `GET /api/video-edit-jobs?status=pending&limit=5` 可查回该 pending job
 
 备注：
 

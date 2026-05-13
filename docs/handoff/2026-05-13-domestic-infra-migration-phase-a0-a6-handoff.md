@@ -31,6 +31,7 @@
 - `.env.example` 已补国内 PostgreSQL、session、国内 COS 示例。
 - 新增 `/api/health`，用于国内服务器 IP 阶段检查 app / PostgreSQL / COS 配置。
 - 新增最小 seed 示例：`app/db/seeds/domestic_minimal_seed.example.sql`。
+- 新增视频链路 fixture seed：`app/db/seeds/domestic_video_chain_fixture.example.sql`。
 - progress 已写入：`docs/progress/2026-05-13-domestic-migration-phase-a0-a6-progress.md`
 
 ## 验证结果
@@ -52,13 +53,18 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 已安装 Homebrew `postgresql@17 17.9`，没有启动常驻服务。
 - 已在 `/private/tmp` 临时 PostgreSQL 17 空库执行 `app/db/migrations/202605130001_domestic_core_baseline.sql`，通过。
 - 已执行 `app/db/seeds/domestic_minimal_seed.example.sql`，首次和重复执行均通过。
+- 已执行 `app/db/seeds/domestic_video_chain_fixture.example.sql`，创建 source item / draft / approved video script variant，并输出 draft COS key prefix。
 - 已用 `next start` + 临时 PostgreSQL + 假 COS 配置请求 `/api/health`，返回 `200 OK`。
 - 已用 seed 账号请求 `/api/auth/merchant-login`，返回 `303`，写入 `jingjing_session`，并在 `user_sessions` 中新增 session。
+- 已用 fixture draft 调用 `/api/media/complete`，返回 `201`，写入 Tencent COS asset metadata。
+- 已用 fixture video script 调用 `/api/video-edit-jobs`，返回 `201`，创建 `pending` job。
+- 新建 job 的 `inputPayload.render_mode=asset_driven`，且 `input_assets[0]` 指向刚写入的 asset metadata。
+- 已用 `GET /api/video-edit-jobs?status=pending&limit=5` 查回 pending job。
 
 未验证：
 
 - 国内服务器 IP、国内 PostgreSQL、国内 COS、手机浏览器完整链路都未跑。
-- 浏览器直传国内 COS、worker 真实生成 final.mp4、重新签名下载还未跑。
+- 浏览器直传真实国内 COS、worker 真实生成 final.mp4、重新签名下载还未跑。
 - Docker daemon 仍未启动，本轮没有用 Docker 验证。
 
 ## 下一步建议
@@ -81,7 +87,15 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
      -f app/db/seeds/domestic_minimal_seed.example.sql
    ```
 
-3. 配置 app env：
+3. 可选：创建 API smoke fixture：
+
+   ```bash
+   psql "$DATABASE_URL" \
+     -v user_email='owner@example.com' \
+     -f app/db/seeds/domestic_video_chain_fixture.example.sql
+   ```
+
+4. 配置 app env：
    - `DATABASE_PROVIDER=postgres`
    - `APP_DATABASE_URL` 或 `DATABASE_URL`
    - `APP_SESSION_COOKIE`
@@ -90,7 +104,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
    - `COS_BUCKET`
    - `COS_REGION`
 
-4. 验证 app：
+5. 验证 app：
    - `/api/health`
    - 登录
    - 创建 source item / content draft / video script
@@ -98,12 +112,12 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
    - `/api/media/complete` 写入 `asset_objects`
    - `/api/video-edit-jobs` 写入 `pending`
 
-5. 配置 worker：
+6. 配置 worker：
    - `WORKER_DATABASE_URL`
    - 国内 COS env
    - `WORKER_MAX_CONCURRENCY=1`
 
-6. 启动 worker，验证：
+7. 启动 worker，验证：
    - claim pending job
    - heartbeat 更新
    - timeout 可扫 stale job

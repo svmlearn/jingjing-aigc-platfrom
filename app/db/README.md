@@ -37,5 +37,13 @@ psql "$DATABASE_URL" \
   -f app/db/seeds/domestic_minimal_seed.example.sql
 ```
 
+Create a reusable video-chain fixture for API smoke checks:
+
+```bash
+psql "$DATABASE_URL" \
+  -v user_email='owner@example.com' \
+  -f app/db/seeds/domestic_video_chain_fixture.example.sql
+```
+
 Do not use this as a production cutover script yet. Full historical migration,
 password reset, and platform admin migration are separate later phases.
