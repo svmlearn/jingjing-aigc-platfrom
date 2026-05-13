@@ -84,7 +84,8 @@ python3 docs/探索/2026-05-11-用dify来测试链路/verify_dify_v31_final_json
 
 ## 最终 Commit
 
-待本轮提交后回填。
+- 当前冻结实现提交：`90491a9`
+- 最终分支 HEAD 以本轮最后一次提交为准。
 
 ## Push / Merge
 

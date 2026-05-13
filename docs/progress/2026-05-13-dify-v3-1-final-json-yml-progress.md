@@ -107,7 +107,8 @@ Dify V3.1 YAML final JSON contract verification passed.
 - branch：
   - `codex/dify-v31-final-json-yml`
 - commit：
-  - 待本轮提交后回填
+  - 当前冻结实现提交：`90491a9`
+  - 最终分支 HEAD 以本轮最后一次提交为准
 - push：
   - 未 push
 - merge：
