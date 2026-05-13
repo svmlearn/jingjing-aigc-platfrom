@@ -1,4 +1,4 @@
-import type { VideoEditJobDto, VideoEditJobStatus } from "@/contracts/video";
+import type { PublicVideoEditJobDto, VideoEditJobStatus } from "@/contracts/video";
 
 const videoJobStatusLabels: Record<VideoEditJobStatus, string> = {
   pending: "等待开始",
@@ -15,6 +15,11 @@ const videoJobStageLabels: Record<string, string> = {
   claimed: "剪辑服务已接单",
   downloading_inputs: "正在下载素材",
   openstoryline_rendering: "正在生成视频",
+  openstoryline_material_preparation: "正在准备素材",
+  openstoryline_material_match: "正在匹配素材",
+  openstoryline_voiceover: "正在生成配音",
+  openstoryline_subtitles: "正在生成字幕和时间线",
+  openstoryline_render: "正在合成渲染",
   uploading_outputs: "正在上传成片",
   completed: "成片已经回写完成",
   input_asset_validation_failed: "素材校验未通过",
@@ -71,7 +76,7 @@ export function getVideoJobStageLabel(stage?: string | null, status?: VideoEditJ
   }
 }
 
-export function getVideoJobAudienceSummary(job: VideoEditJobDto) {
+export function getVideoJobAudienceSummary(job: PublicVideoEditJobDto) {
   const statusLabel = getVideoJobStatusLabel(job.status);
   const stageLabel = getVideoJobStageLabel(job.currentStage, job.status);
 

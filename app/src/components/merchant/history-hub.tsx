@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { ArrowUpRight, CalendarClock, FileText, Search, Video } from "lucide-react";
 
 import type { ContentDraftBundleDto } from "@/contracts/draft";
-import type { VideoEditJobDto } from "@/contracts/video";
+import type { PublicVideoEditJobDto } from "@/contracts/video";
 import { getVideoJobAudienceSummary, getVideoJobStageLabel, getVideoJobStatusLabel } from "@/lib/ui/video-job-display";
 import { cn } from "@/lib/utils";
 
@@ -30,8 +30,8 @@ type ArticleHistoryRecord = BaseHistoryRecord & {
 type VideoHistoryRecord = BaseHistoryRecord & {
   type: "video";
   draftBundle: ContentDraftBundleDto | null;
-  jobs: VideoEditJobDto[];
-  latestJob: VideoEditJobDto | null;
+  jobs: PublicVideoEditJobDto[];
+  latestJob: PublicVideoEditJobDto | null;
 };
 
 type HistoryRecord = ArticleHistoryRecord | VideoHistoryRecord;
@@ -55,7 +55,7 @@ export function HistoryHub() {
       });
       const data = (await response.json()) as {
         draftBundles?: ContentDraftBundleDto[];
-        videoJobs?: VideoEditJobDto[];
+        videoJobs?: PublicVideoEditJobDto[];
         error?: { message?: string };
       };
 
@@ -319,7 +319,7 @@ function VideoHistoryDetail({ record }: { record: VideoHistoryRecord }) {
 
 function buildHistoryRecords(
   draftBundles: ContentDraftBundleDto[],
-  videoJobs: VideoEditJobDto[],
+  videoJobs: PublicVideoEditJobDto[],
 ): HistoryRecord[] {
   const articleRecords: ArticleHistoryRecord[] = draftBundles
     .filter((bundle) => bundle.selectedVariant?.variantType !== "video_script")
@@ -347,7 +347,7 @@ function buildHistoryRecords(
     string,
     {
       draftBundle: ContentDraftBundleDto | null;
-      jobs: VideoEditJobDto[];
+      jobs: PublicVideoEditJobDto[];
     }
   >();
 

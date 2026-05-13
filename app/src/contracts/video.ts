@@ -12,6 +12,38 @@ export type VideoEditJobStatus =
   | "failed_manual"
   | "cancelled";
 
+export const VIDEO_EDIT_JOB_IN_FLIGHT_STATUSES = [
+  "pending",
+  "queued",
+  "preparing",
+  "running",
+] as const satisfies readonly VideoEditJobStatus[];
+
+export function isVideoEditJobInFlightStatus(
+  status: VideoEditJobStatus | string | null | undefined,
+): status is (typeof VIDEO_EDIT_JOB_IN_FLIGHT_STATUSES)[number] {
+  return VIDEO_EDIT_JOB_IN_FLIGHT_STATUSES.includes(
+    status as (typeof VIDEO_EDIT_JOB_IN_FLIGHT_STATUSES)[number],
+  );
+}
+
+export type VideoEditProgressModuleStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "skipped";
+
+export type VideoEditProgressModuleDto = {
+  key: string;
+  label: string;
+  status: VideoEditProgressModuleStatus;
+  progressPct: number;
+  detail?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+};
+
 export type VideoEditJobDto = {
   id: string;
   merchantId: string;
@@ -29,6 +61,7 @@ export type VideoEditJobDto = {
   failureReason?: string | null;
   resultPayload: Record<string, unknown>;
   logPayload: Record<string, unknown>;
+  progressModules: VideoEditProgressModuleDto[];
   startedAt?: string | null;
   finishedAt?: string | null;
   createdAt: string;
@@ -36,7 +69,31 @@ export type VideoEditJobDto = {
   resultAssets?: MediaAssetDto[];
 };
 
+export type PublicVideoEditJobDto = Pick<
+  VideoEditJobDto,
+  | "id"
+  | "draftId"
+  | "contentVariantId"
+  | "status"
+  | "currentStage"
+  | "triggerSource"
+  | "instructionText"
+  | "progressPct"
+  | "retryCount"
+  | "failureReason"
+  | "progressModules"
+  | "startedAt"
+  | "finishedAt"
+  | "createdAt"
+  | "updatedAt"
+> & {
+  resultAssets: MediaAssetDto[];
+};
+
 export type VoiceoverProvider = "bytedance_bigtts" | "minimax" | "302";
+
+export type BgmFilterKey = "mood" | "scene" | "genre" | "lang" | "id";
+export type BgmFilter = Partial<Record<BgmFilterKey, Array<string | number>>>;
 
 export type ProductionConfig = {
   voiceover?: {
@@ -49,8 +106,8 @@ export type ProductionConfig = {
   bgm?: {
     enabled?: boolean;
     userRequest?: string | null;
-    include?: Record<string, Array<string | number>>;
-    exclude?: Record<string, Array<string | number>>;
+    include?: BgmFilter;
+    exclude?: BgmFilter;
     volume?: number | null;
   };
   subtitles?: {
@@ -67,7 +124,6 @@ export type ProductionConfig = {
 export type CreateVideoEditJobRequest = {
   contentVariantId: string;
   instructionText?: string | null;
-  inputPayload?: Record<string, unknown>;
   productionConfig?: ProductionConfig | null;
   sourceJobId?: string | null;
 };
