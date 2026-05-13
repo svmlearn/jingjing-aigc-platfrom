@@ -100,7 +100,7 @@
 
 ### A5 国内 COS 配置准备
 
-- `app/.env.example` 增加国内 PostgreSQL / session 环境变量。
+- `app/.env.example` 增加国内 PostgreSQL / session、test draft 开关和 API smoke 环境变量。
 - `COS_REGION` 示例从 `ap-singapore` 调整为 `ap-guangzhou`。
 - 继续保持长期只保存 `bucket_name + storage_key`，下载时由后端重新签名。
 

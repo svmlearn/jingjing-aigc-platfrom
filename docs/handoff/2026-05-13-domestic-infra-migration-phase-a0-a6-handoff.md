@@ -31,7 +31,7 @@
 - worker compose 已显式传入 `WORKER_DATABASE_URL`、`WORKER_COS_*`、`WORKER_COS_RESULT_PREFIX`，同时保留 fallback env。
 - worker 增加 `worker_id`、heartbeat、timeout、failure_code 和阶段耗时日志。
 - `retry` 已支持 `failed_retryable` / `failed_manual` 失败后人工确认重跑；PG 分支记录 `manual_rerun_requested_at`。
-- `.env.example` 已补国内 PostgreSQL、session、国内 COS 示例。
+- `.env.example` 已补国内 PostgreSQL、session、国内 COS、test draft 开关和 API smoke 示例。
 - 新增 app 侧环境自检脚本：`app/scripts/check-domestic-app-env.mjs`。
 - 新增 app 侧 COS roundtrip 脚本：`app/scripts/check-domestic-cos-roundtrip.mjs`。
 - 新增 app 侧视频主链路 API smoke 脚本：`app/scripts/check-domestic-video-chain-api-smoke.mjs`，用于登录后创建 test draft、media metadata 和 pending video job；它不替代真实 COS / worker / 手机 e2e。
