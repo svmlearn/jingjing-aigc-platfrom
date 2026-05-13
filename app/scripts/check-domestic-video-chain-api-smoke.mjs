@@ -14,6 +14,9 @@ const email = getArgValue("--email") || process.env.DOMESTIC_SMOKE_EMAIL || "";
 const password = getArgValue("--password") || process.env.DOMESTIC_SMOKE_PASSWORD || "";
 const bucketName = getArgValue("--bucket") || process.env.COS_BUCKET || "";
 const fileName = getArgValue("--file-name") || "codex-domestic-api-smoke.mp4";
+const withUploadIntent =
+  hasFlag("--with-upload-intent") ||
+  normalizeBooleanFlag(process.env.DOMESTIC_SMOKE_WITH_UPLOAD_INTENT) === true;
 
 const missing = [
   ["baseUrl", baseUrl],
@@ -64,12 +67,33 @@ try {
     );
   }
 
-  const storageKey = [
-    "draft-inputs",
-    draft.merchantId,
-    draft.id,
-    `${Date.now()}-${sanitizeFileName(fileName)}`,
-  ].join("/");
+  const uploadIntent = withUploadIntent
+    ? await postJson({
+        baseUrl,
+        path: "/api/media/upload-intents",
+        cookie: login.cookie,
+        body: {
+          ownerType: "content_draft",
+          ownerId: draft.id,
+          assetType: "video",
+          fileName,
+          mimeType: "video/mp4",
+          sizeBytes: 1024,
+        },
+      })
+    : null;
+  const uploadIntentPayload = uploadIntent?.body?.uploadIntent ?? null;
+  const storageKey =
+    typeof uploadIntentPayload?.cosKey === "string"
+      ? uploadIntentPayload.cosKey
+      : [
+          "draft-inputs",
+          draft.merchantId,
+          draft.id,
+          `${Date.now()}-${sanitizeFileName(fileName)}`,
+        ].join("/");
+  const resolvedBucket =
+    typeof uploadIntentPayload?.bucket === "string" ? uploadIntentPayload.bucket : bucketName;
   const mediaComplete = await postJson({
     baseUrl,
     path: "/api/media/complete",
@@ -79,7 +103,7 @@ try {
       ownerId: draft.id,
       assetType: "video",
       storageProvider: "tencent_cos",
-      bucketName,
+      bucketName: resolvedBucket,
       storageKey,
       mimeType: "video/mp4",
       sizeBytes: 1024,
@@ -103,6 +127,7 @@ try {
   const passed =
     login.status === 303 &&
     testDraft.status === 201 &&
+    (!withUploadIntent || uploadIntent?.status === 201) &&
     mediaComplete.status === 201 &&
     jobCreate.status === 201 &&
     job?.status === "pending" &&
@@ -115,6 +140,7 @@ try {
       baseUrl,
       loginStatus: login.status,
       testDraftStatus: testDraft.status,
+      uploadIntentStatus: uploadIntent?.status ?? "skipped",
       mediaCompleteStatus: mediaComplete.status,
       jobCreateStatus: jobCreate.status,
       draftId: draft.id,
@@ -124,12 +150,17 @@ try {
       jobStatus: job?.status ?? null,
       renderMode: job?.inputPayload?.render_mode ?? null,
       inputAssetCount: inputAssets.length,
+      uploadIntentKey:
+        typeof uploadIntentPayload?.cosKey === "string" ? uploadIntentPayload.cosKey : null,
       errorCodes: compact([
         testDraft.body?.error?.code,
+        uploadIntent?.body?.error?.code,
         mediaComplete.body?.error?.code,
         jobCreate.body?.error?.code,
       ]),
-      note: "API smoke only. It does not upload bytes to COS, run worker, verify final.mp4, or replace mobile browser e2e.",
+      note: withUploadIntent
+        ? "API smoke with upload-intent check. It does not upload bytes to COS, run worker, verify final.mp4, or replace mobile browser e2e."
+        : "API smoke only. It does not upload bytes to COS, run worker, verify final.mp4, or replace mobile browser e2e.",
     },
     passed ? 0 : 1,
   );
@@ -213,6 +244,27 @@ function getArgValue(name) {
   }
 
   return process.argv[index + 1] ?? "";
+}
+
+function hasFlag(name) {
+  return process.argv.includes(name);
+}
+
+function normalizeBooleanFlag(value) {
+  if (value === undefined) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return null;
 }
 
 function sanitizeFileName(value) {

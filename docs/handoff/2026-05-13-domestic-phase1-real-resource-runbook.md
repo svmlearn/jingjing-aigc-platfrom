@@ -123,16 +123,19 @@ node app/scripts/check-domestic-video-chain-api-smoke.mjs \
   --base-url "http://<domestic-ip>:<port>"
 ```
 
+Add `--with-upload-intent` when real Tencent COS credentials are ready and you want the smoke to call `/api/media/upload-intents` before `/api/media/complete`.
+
 Expected:
 
 - login returns `303`
 - test draft returns `201`
+- optional upload intent returns `201` when `--with-upload-intent` is set
 - media metadata complete returns `201`
 - video job create returns `201`
 - job is `pending`
 - `inputPayload.render_mode=asset_driven`
 
-This script does not upload bytes to COS, run worker, verify `final.mp4`, or replace the mobile browser e2e.
+Even with `--with-upload-intent`, this script does not upload bytes to COS, run worker, verify `final.mp4`, or replace the mobile browser e2e.
 
 ## 6. Worker env and smoke
 
