@@ -278,13 +278,13 @@ export function MemberArticleTaskPage({ taskId }: { taskId: string }) {
   const publishText = buildPublishText(article);
 
   async function copyText(label: string, text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
+    if (await writeClipboardText(text)) {
       setCopiedLabel(label);
       window.setTimeout(() => setCopiedLabel(null), 1600);
-    } catch {
-      setCopiedLabel("复制失败");
+      return;
     }
+
+    setCopiedLabel("复制失败，请手动长按选择文案");
   }
 
   return (
@@ -836,6 +836,35 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   }
 
   return data;
+}
+
+async function writeClipboardText(text: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Some mobile/webview contexts expose Clipboard API but block it by permission.
+    }
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "fixed";
+  textArea.style.left = "-9999px";
+  textArea.style.top = "0";
+  document.body.append(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    textArea.remove();
+  }
 }
 
 async function createVideoDraftFromTask(
