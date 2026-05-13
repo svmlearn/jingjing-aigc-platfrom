@@ -1,0 +1,324 @@
+{
+  "success": true,
+  "case_name": "case01_full_with_compliance_risk",
+  "case_path": "docs/探索/2026-05-11-用dify来测试链路/testcases/case01_full_with_compliance_risk.json",
+  "elapsed_time": 62.726627826690674,
+  "workflow_run_id": "841fbdfb-8d57-4ed6-963d-eccb7defbf3b",
+  "task_id": "5c1c1964-7201-44a3-9922-2eb69ff7ec90",
+  "workflow_status": "succeeded",
+  "stream_error": null,
+  "raw_response": {
+    "id": "841fbdfb-8d57-4ed6-963d-eccb7defbf3b",
+    "workflow_id": "272d9edc-9b40-48ac-a33a-a0d5b7f29c19",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"status\": \"needs_review\", \"article\": {\"title\": \"小户型真的回来了？成熟社区配套成亮点\", \"coverCopy\": \"4米层高小户型，灵活空间新选择\", \"images\": [{\"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"展示社区环境\"}, {\"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"样板间展示\"}], \"copyText\": \"小户型真的回来了？成熟社区配套成亮点\\n\\n项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\\n\\n4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\\n\\n社区配套设施包括：\\n- 超市、餐饮等商业配套\\n- 健身房、游泳池等休闲设施\\n- 幼儿园、诊所等生活服务\\n\\n与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\\n\\n#小户型 #成熟社区 #灵活空间 #社区配套 #居住体验 #样板间\"}, \"video\": {\"storyOutline\": \"从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。\", \"estimatedDuration\": \"90秒\", \"bgm\": \"轻快舒适的背景音乐，适合日常生活场景\", \"toneOfVoice\": \"轻松、贴近生活，专业中带有亲切感\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"引入小户型回归趋势\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意，介绍项目亮点\", \"taskDescription\": \"通过口播引入小户型的独特设计特点\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\", \"voiceover\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"subtitle\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"售楼处沙盘区域\", \"posture\": \"站着面对镜头\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示社区环境\", \"requiresUserUpload\": false, \"purpose\": \"呈现社区成熟配套的整体氛围\", \"taskDescription\": \"通过素材展示社区的外立面和环境\", \"visualDescription\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\", \"voiceover\": \"\", \"subtitle\": \"项目位于一个80万方的大社区，环境成熟宜居\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 外立面 航拍 绿化\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"样板间空间展示\", \"requiresUserUpload\": false, \"purpose\": \"突出小户型的空间设计特点\", \"taskDescription\": \"通过素材展示样板间的设计与空间感\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\", \"voiceover\": \"\", \"subtitle\": \"4米层高设计，空间灵活多样\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区配套设施展示\", \"requiresUserUpload\": false, \"purpose\": \"展现社区内的成熟配套设施\", \"taskDescription\": \"通过素材展示社区内的生活便利性\", \"visualDescription\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\", \"voiceover\": \"\", \"subtitle\": \"社区内配套设施齐全，生活便利\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 商铺 人群\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"总结与引导\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众进一步了解\", \"taskDescription\": \"通过口播总结项目特点并轻松引导观众\", \"visualDescription\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\", \"voiceover\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"subtitle\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅区域\", \"posture\": \"站在门框边\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": []}}"
+    },
+    "error": null,
+    "elapsed_time": 61.399136,
+    "total_tokens": 14285,
+    "total_steps": 16,
+    "created_by": {
+      "id": "e5c0facf-a340-4eee-839b-2a625a53536e",
+      "user": "v31_poll_case01_full_with_compliance_risk_1778667949"
+    },
+    "created_at": 1778667951,
+    "finished_at": 1778668012,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "status": "needs_review",
+    "article": {
+      "title": "小户型真的回来了？成熟社区配套成亮点",
+      "coverCopy": "4米层高小户型，灵活空间新选择",
+      "images": [
+        {
+          "cosPath": "https://example.com/facade.jpg",
+          "role": "展示社区环境"
+        },
+        {
+          "cosPath": "https://example.com/living-room.jpg",
+          "role": "样板间展示"
+        }
+      ],
+      "copyText": "小户型真的回来了？成熟社区配套成亮点\n\n项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\n\n4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\n\n社区配套设施包括：\n- 超市、餐饮等商业配套\n- 健身房、游泳池等休闲设施\n- 幼儿园、诊所等生活服务\n\n与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\n\n#小户型 #成熟社区 #灵活空间 #社区配套 #居住体验 #样板间"
+    },
+    "video": {
+      "storyOutline": "从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。",
+      "estimatedDuration": "90秒",
+      "bgm": "轻快舒适的背景音乐，适合日常生活场景",
+      "toneOfVoice": "轻松、贴近生活，专业中带有亲切感",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-3s",
+          "durationSec": 3,
+          "sceneType": "口播",
+          "title": "引入小户型回归趋势",
+          "requiresUserUpload": true,
+          "purpose": "吸引观众注意，介绍项目亮点",
+          "taskDescription": "通过口播引入小户型的独特设计特点",
+          "visualDescription": "中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘",
+          "voiceover": "\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\"",
+          "subtitle": "\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\"",
+          "shotLanguage": {
+            "framing": "中景",
+            "cameraMovement": "固定镜头",
+            "orientation": "横屏",
+            "composition": "中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘"
+          },
+          "filmingGuide": {
+            "method": "手机自拍",
+            "location": "售楼处沙盘区域",
+            "posture": "站着面对镜头",
+            "tips": [
+              "找光线好的位置，脸上不要有阴影",
+              "语速放慢，像跟朋友聊天",
+              "开头和结尾各多录 2 秒，方便剪辑"
+            ]
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "正常",
+            "minUsableSeconds": 5
+          },
+          "assetQuery": ""
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "0-3s",
+          "durationSec": 3,
+          "sceneType": "素材",
+          "title": "展示社区环境",
+          "requiresUserUpload": false,
+          "purpose": "呈现社区成熟配套的整体氛围",
+          "taskDescription": "通过素材展示社区的外立面和环境",
+          "visualDescription": "社区外立面航拍，镜头缓缓移动，展示入口和周围绿化",
+          "voiceover": "",
+          "subtitle": "项目位于一个80万方的大社区，环境成熟宜居",
+          "shotLanguage": {
+            "framing": "全景",
+            "cameraMovement": "稳定推进或平移",
+            "orientation": "横屏",
+            "composition": "社区外立面航拍，镜头缓缓移动，展示入口和周围绿化"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": "社区 外立面 航拍 绿化"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "0-3s",
+          "durationSec": 3,
+          "sceneType": "素材",
+          "title": "样板间空间展示",
+          "requiresUserUpload": false,
+          "purpose": "突出小户型的空间设计特点",
+          "taskDescription": "通过素材展示样板间的设计与空间感",
+          "visualDescription": "样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域",
+          "voiceover": "",
+          "subtitle": "4米层高设计，空间灵活多样",
+          "shotLanguage": {
+            "framing": "全景",
+            "cameraMovement": "稳定推进或平移",
+            "orientation": "横屏",
+            "composition": "样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": "样板间 客厅 落地窗 阳光 通透"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "0-3s",
+          "durationSec": 3,
+          "sceneType": "素材",
+          "title": "社区配套设施展示",
+          "requiresUserUpload": false,
+          "purpose": "展现社区内的成熟配套设施",
+          "taskDescription": "通过素材展示社区内的生活便利性",
+          "visualDescription": "社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹",
+          "voiceover": "",
+          "subtitle": "社区内配套设施齐全，生活便利",
+          "shotLanguage": {
+            "framing": "全景",
+            "cameraMovement": "稳定推进或平移",
+            "orientation": "横屏",
+            "composition": "社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": "社区 商业街 商铺 人群"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "0-3s",
+          "durationSec": 3,
+          "sceneType": "口播",
+          "title": "总结与引导",
+          "requiresUserUpload": true,
+          "purpose": "总结项目特点并引导观众进一步了解",
+          "taskDescription": "通过口播总结项目特点并轻松引导观众",
+          "visualDescription": "中介站在样板间客厅，面对镜头自然说话，背景是客厅布置",
+          "voiceover": "\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\"",
+          "subtitle": "\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\"",
+          "shotLanguage": {
+            "framing": "中景",
+            "cameraMovement": "固定镜头",
+            "orientation": "横屏",
+            "composition": "中介站在样板间客厅，面对镜头自然说话，背景是客厅布置"
+          },
+          "filmingGuide": {
+            "method": "手机自拍",
+            "location": "样板间客厅区域",
+            "posture": "站在门框边",
+            "tips": [
+              "不要站在房间正中央，站在角落或门框边，画面更有纵深感",
+              "拍两遍，选自然的那条",
+              "开头和结尾各多录 2 秒，方便剪辑"
+            ]
+          },
+          "editGuide": {
+            "transition": "渐变过渡",
+            "pacing": "正常",
+            "minUsableSeconds": 5
+          },
+          "assetQuery": ""
+        }
+      ]
+    },
+    "quality": {
+      "riskTerms": []
+    }
+  },
+  "final_text": "{\"status\": \"needs_review\", \"article\": {\"title\": \"小户型真的回来了？成熟社区配套成亮点\", \"coverCopy\": \"4米层高小户型，灵活空间新选择\", \"images\": [{\"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"展示社区环境\"}, {\"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"样板间展示\"}], \"copyText\": \"小户型真的回来了？成熟社区配套成亮点\\n\\n项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\\n\\n4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\\n\\n社区配套设施包括：\\n- 超市、餐饮等商业配套\\n- 健身房、游泳池等休闲设施\\n- 幼儿园、诊所等生活服务\\n\\n与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\\n\\n#小户型 #成熟社区 #灵活空间 #社区配套 #居住体验 #样板间\"}, \"video\": {\"storyOutline\": \"从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。\", \"estimatedDuration\": \"90秒\", \"bgm\": \"轻快舒适的背景音乐，适合日常生活场景\", \"toneOfVoice\": \"轻松、贴近生活，专业中带有亲切感\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"引入小户型回归趋势\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意，介绍项目亮点\", \"taskDescription\": \"通过口播引入小户型的独特设计特点\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\", \"voiceover\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"subtitle\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"售楼处沙盘区域\", \"posture\": \"站着面对镜头\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示社区环境\", \"requiresUserUpload\": false, \"purpose\": \"呈现社区成熟配套的整体氛围\", \"taskDescription\": \"通过素材展示社区的外立面和环境\", \"visualDescription\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\", \"voiceover\": \"\", \"subtitle\": \"项目位于一个80万方的大社区，环境成熟宜居\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 外立面 航拍 绿化\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"样板间空间展示\", \"requiresUserUpload\": false, \"purpose\": \"突出小户型的空间设计特点\", \"taskDescription\": \"通过素材展示样板间的设计与空间感\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\", \"voiceover\": \"\", \"subtitle\": \"4米层高设计，空间灵活多样\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区配套设施展示\", \"requiresUserUpload\": false, \"purpose\": \"展现社区内的成熟配套设施\", \"taskDescription\": \"通过素材展示社区内的生活便利性\", \"visualDescription\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\", \"voiceover\": \"\", \"subtitle\": \"社区内配套设施齐全，生活便利\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 商铺 人群\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"总结与引导\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众进一步了解\", \"taskDescription\": \"通过口播总结项目特点并轻松引导观众\", \"visualDescription\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\", \"voiceover\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"subtitle\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅区域\", \"posture\": \"站在门框边\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": []}}",
+  "parse_error": null,
+  "evaluation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "top_level_only_status_article_video_quality",
+        "passed": true,
+        "detail": "['article', 'quality', 'status', 'video']"
+      },
+      {
+        "name": "removed_fields_absent",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_title_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_cover_copy_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_copy_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_copy_text_has_hashtag",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_images_is_list",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_images_shape",
+        "passed": true,
+        "detail": "bad_count=0"
+      },
+      {
+        "name": "video_storyOutline_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_estimatedDuration_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_bgm_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_toneOfVoice_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scenes_nonempty_list",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scene_required_fields_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scene_types_ok",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "requires_user_upload_has_true",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_only_risk_terms",
+        "passed": true,
+        "detail": "['riskTerms']"
+      },
+      {
+        "name": "quality_risk_terms_array",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms_in_final_json",
+        "passed": true,
+        "detail": ""
+      }
+    ]
+  }
+}

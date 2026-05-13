@@ -1,0 +1,41 @@
+{
+  "success": false,
+  "case_name": "case01_full_with_compliance_risk",
+  "case_path": "docs/探索/2026-05-11-用dify来测试链路/testcases/case01_full_with_compliance_risk.json",
+  "elapsed_time": 602.0809850692749,
+  "workflow_run_id": "aca00ad7-2a46-4a04-a7b4-ec47e5337f56",
+  "task_id": "6a5a17e9-500e-4c27-a779-08cc29b0b684",
+  "workflow_status": "failed",
+  "stream_error": null,
+  "raw_response": {
+    "id": "aca00ad7-2a46-4a04-a7b4-ec47e5337f56",
+    "workflow_id": "660f2123-49b7-40cc-a688-e1d4790d8a8a",
+    "status": "failed",
+    "outputs": {},
+    "error": "[SiliconFlow] Error: req_id: 22f9f5ab19 PluginDaemonInternalServerError: killed by timeout",
+    "elapsed_time": 600.61544,
+    "total_tokens": 0,
+    "total_steps": 2,
+    "created_by": {
+      "id": "b29970c9-7966-4c53-a0cd-b82c8e0393d6",
+      "user": "v31_poll_case01_full_with_compliance_risk_1778666939"
+    },
+    "created_at": 1778666941,
+    "finished_at": 1778667541,
+    "exceptions_count": 1,
+    "files": []
+  },
+  "final_json": null,
+  "final_text": "",
+  "parse_error": "JSONDecodeError('Expecting value: line 1 column 1 (char 0)')",
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": false,
+        "detail": "JSONDecodeError('Expecting value: line 1 column 1 (char 0)')"
+      }
+    ]
+  }
+}
