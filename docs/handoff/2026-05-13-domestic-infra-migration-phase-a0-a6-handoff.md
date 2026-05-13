@@ -79,6 +79,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 已用 PostgreSQL fixture 验证 `/api/source-items`、`/api/source-items/[id]`、`/api/source-items/[id]/comments`，均返回 `200`。
 - 已用临时 PostgreSQL + domestic session 验证 `POST /api/content/video-scripts/test-draft`，返回 `201`，响应包含已确认 video script variant 和 3 段 `productionScenes`。
 - 已串联验证 test draft -> `/api/media/complete` -> `/api/video-edit-jobs`，三段状态分别为 `201 / 201 / 201`，新建 job 为 `pending`，`inputPayload.render_mode=asset_driven`，`input_assets.length=1`。
+- 已验证 PostgreSQL 优先级：即使生产构建启动时残留 Supabase env，只要配置 `DATABASE_PROVIDER=postgres` 和 `APP_DATABASE_URL`，video job input payload 仍从 PostgreSQL 资产分支组装。
 - 已检查 `app/.env*`、`workers/video-worker/.env*` 和当前进程环境，未发现真实国内 PostgreSQL / COS / worker key。
 
 未验证：

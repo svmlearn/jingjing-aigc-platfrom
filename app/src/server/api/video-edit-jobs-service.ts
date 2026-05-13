@@ -9,6 +9,7 @@ import {
   listLocalRealChainAssetObjectsByOwner,
 } from "@/lib/db/local-real-chain-repository";
 import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
+import { isPostgresVideoChainEnabled } from "@/lib/db/postgres-video-chain-repository";
 import {
   getMaterialLibraryItemById,
   listMaterialWorkbenchReferencesByDraft,
@@ -254,7 +255,7 @@ async function buildServerManagedInputPayload(input: {
   variant: VideoJobPayloadVariant;
   productionConfig: CreateVideoEditJobRequest["productionConfig"];
 }) {
-  if (!isSupabaseAdminConfigured()) {
+  if (isPostgresVideoChainEnabled() || !isSupabaseAdminConfigured()) {
     const assets = isLocalRealChainEnabled()
       ? await listLocalRealChainAssetObjectsByOwner({
           ownerType: "content_draft",

@@ -227,6 +227,7 @@ curl -sS -b /private/tmp/jj-testdraft-cookie.txt -X POST 'http://127.0.0.1:3112/
   - job 状态：`pending`
   - `inputPayload.render_mode=asset_driven`
   - `inputPayload.input_assets.length=1`
+- 已验证混合 env 容错：在 `DATABASE_PROVIDER=postgres` + `APP_DATABASE_URL` 存在，同时残留 `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` 的 `next start` 环境下，test draft -> media complete -> video job 仍返回 `201 / 201 / 201`，且 job 仍为 `asset_driven`。
 
 备注：
 
