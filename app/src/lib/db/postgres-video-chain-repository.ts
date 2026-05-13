@@ -1233,16 +1233,20 @@ export async function pgRetryVideoEditJob(input: {
   jobId: string;
 }): Promise<VideoEditJobDto> {
   const current = await pgGetVideoEditJobById(input);
-  if (current.status !== "failed_retryable") {
+  if (!["failed_retryable", "failed_manual"].includes(current.status)) {
     throw new ApiError(
       409,
       "VIDEO_EDIT_JOB_RETRY_NOT_ALLOWED",
-      "Only failed_retryable jobs can be retried.",
+      "Only failed jobs can be retried after manual review.",
     );
   }
-  const params: unknown[] = [input.jobId, input.merchantId, current.retryCount + 1];
+  const params: unknown[] = [
+    input.jobId,
+    input.merchantId,
+    current.retryCount + 1,
+    input.createdByUserId ?? null,
+  ];
   const creatorSql = input.createdByUserId ? "and created_by_user_id = $4" : "";
-  if (input.createdByUserId) params.push(input.createdByUserId);
   const result = await queryAppDb<VideoEditJobRow>(
     `
     update public.video_edit_jobs
@@ -1259,6 +1263,8 @@ export async function pgRetryVideoEditJob(input: {
         heartbeat_at = null,
         worker_id = null,
         timeout_at = null,
+        manual_rerun_requested_at = timezone('utc', now()),
+        manual_rerun_requested_by_user_id = coalesce($4::uuid, manual_rerun_requested_by_user_id),
         retry_count = $3,
         updated_at = timezone('utc', now())
     where id = $1 and merchant_id = $2

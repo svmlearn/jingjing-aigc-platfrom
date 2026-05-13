@@ -411,11 +411,11 @@ export async function retryVideoEditJob(input: {
 
   const current = await getVideoEditJobById(input);
 
-  if (current.status !== "failed_retryable") {
+  if (!["failed_retryable", "failed_manual"].includes(current.status)) {
     throw new ApiError(
       409,
       "VIDEO_EDIT_JOB_RETRY_NOT_ALLOWED",
-      "Only failed_retryable jobs can be retried.",
+      "Only failed jobs can be retried after manual review.",
     );
   }
 

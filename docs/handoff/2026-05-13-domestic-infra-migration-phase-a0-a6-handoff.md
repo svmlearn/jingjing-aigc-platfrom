@@ -27,6 +27,7 @@
 - 登录 / 登出 / 当前用户 / dashboard 入口支持 domestic session。
 - worker 优先使用 `WORKER_DATABASE_URL`，保留 `SUPABASE_DB_URL` fallback。
 - worker 增加 `worker_id`、heartbeat、timeout、failure_code 和阶段耗时日志。
+- `retry` 已支持 `failed_retryable` / `failed_manual` 失败后人工确认重跑；PG 分支记录 `manual_rerun_requested_at`。
 - `.env.example` 已补国内 PostgreSQL、session、国内 COS 示例。
 - progress 已写入：`docs/progress/2026-05-13-domestic-migration-phase-a0-a6-progress.md`
 

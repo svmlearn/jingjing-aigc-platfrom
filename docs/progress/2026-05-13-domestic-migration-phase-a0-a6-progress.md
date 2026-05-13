@@ -115,6 +115,7 @@
   - `worker.id`
   - `timings_ms`
   - 各阶段耗时
+- `retry` 语义已调整为失败后人工确认重跑：`failed_retryable` 和 `failed_manual` 均可重新置为 `pending`；PG 分支会写入 `manual_rerun_requested_at` / `manual_rerun_requested_by_user_id`。
 - `real_io_smoke.py` 已改为优先检查 `WORKER_DATABASE_URL`。
 - `workers/video-worker/.env.example` 已改为国内 PostgreSQL / 国内 COS 示例。
 
