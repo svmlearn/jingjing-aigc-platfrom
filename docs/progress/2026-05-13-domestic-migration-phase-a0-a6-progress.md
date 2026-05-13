@@ -180,6 +180,7 @@ curl -sS -i -b /private/tmp/jj-domestic-cookie.txt 'http://127.0.0.1:3107/api/vi
 - 为补齐空库验证，本机安装了 Homebrew `postgresql@17 17.9`，没有注册 `brew services` 常驻服务。
 - Docker CLI 仍存在但 Docker daemon 未启动，本轮没有用 Docker 验证。
 - Homebrew 安装时 PostgreSQL 已成功落盘，最后 cleanup 阶段出现 Homebrew 自身 API 异常，未影响 `psql` / `postgres` 使用。
+- 已检查 `app/.env*`、`workers/video-worker/.env*` 和当前进程环境：未发现真实国内 PostgreSQL / COS / worker key。
 
 ## 4. 剩余风险
 

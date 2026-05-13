@@ -60,12 +60,24 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 已用 fixture video script 调用 `/api/video-edit-jobs`，返回 `201`，创建 `pending` job。
 - 新建 job 的 `inputPayload.render_mode=asset_driven`，且 `input_assets[0]` 指向刚写入的 asset metadata。
 - 已用 `GET /api/video-edit-jobs?status=pending&limit=5` 查回 pending job。
+- 已检查 `app/.env*`、`workers/video-worker/.env*` 和当前进程环境，未发现真实国内 PostgreSQL / COS / worker key。
 
 未验证：
 
 - 国内服务器 IP、国内 PostgreSQL、国内 COS、手机浏览器完整链路都未跑。
 - 浏览器直传真实国内 COS、worker 真实生成 final.mp4、重新签名下载还未跑。
 - Docker daemon 仍未启动，本轮没有用 Docker 验证。
+
+## 当前阻塞
+
+完整 Completion Gate 还缺真实国内资源：
+
+- 国内 PostgreSQL 连接串
+- 国内 COS bucket / region / secret
+- 可运行 app 和 worker 的国内服务器或等价环境
+- 用于手机端 IP 访问的目标地址
+
+在这些资源到位前，本分支只能验证到本地临时 PostgreSQL + 假 COS 配置下的 API smoke，不能声称 `final.mp4` 已生成、上传和重新签名下载。
 
 ## 下一步建议
 
