@@ -154,13 +154,27 @@ class FakeCosClient:
 
 
 class FakeOpenStorylineClient:
-    def __init__(self, missing_outputs=None, fail_run=False) -> None:
+    def __init__(
+        self,
+        missing_outputs=None,
+        fail_run=False,
+        progress_events=None,
+        failure_message="engine unavailable",
+    ) -> None:
         self.missing_outputs = set(missing_outputs or [])
         self.fail_run = fail_run
+        self.progress_events = list(progress_events or [])
+        self.failure_message = failure_message
+        self.progress_callback_seen = False
 
-    def run_job(self, job, directive, input_assets, workspace_dir, output_dir):
+    def run_job(self, job, directive, input_assets, workspace_dir, output_dir, progress_callback=None):
+        if progress_callback is not None:
+            self.progress_callback_seen = True
+            for event in self.progress_events:
+                progress_callback(event)
+
         if self.fail_run:
-            raise RuntimeError("engine unavailable")
+            raise RuntimeError(self.failure_message)
 
         output_dir.mkdir(parents=True, exist_ok=True)
         final_video_path = output_dir / "final.mp4"
@@ -305,6 +319,46 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertIn("engine_run_failed", repository.failed["failure_reason"])
         self.assertIsNone(repository.succeeded)
         self.assertEqual([], cos_client.uploads)
+
+    def test_engine_run_failure_after_render_event_marks_render_module_failed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            engine_client = FakeOpenStorylineClient(
+                fail_run=True,
+                progress_events=[
+                    {
+                        "type": "tool_end",
+                        "server": "storyline",
+                        "name": "render_video",
+                        "is_error": True,
+                        "summary": "Tool call failed: ConnectError",
+                    }
+                ],
+                failure_message=(
+                    "worker run failed: ExceptionGroup: unhandled errors; "
+                    "root_cause=ConnectError: All connection attempts failed; "
+                    "last_tool=render_video"
+                ),
+            )
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                engine_client,
+            )
+
+            with self.assertRaises(RuntimeError):
+                processor.process(make_job())
+
+        self.assertTrue(engine_client.progress_callback_seen)
+        failed_modules = repository.failed["log_payload"]["progress_modules"]
+        render_module = next(item for item in failed_modules if item["key"] == "render")
+        self.assertEqual("failed", render_module["status"])
+        self.assertIn("last_tool=render_video", repository.failed["failure_reason"])
+        failure_step = repository.failed["log_payload"]["steps"][-1]
+        self.assertEqual("render", failure_step["active_module"])
+        self.assertIn("ConnectError", failure_step["openstoryline_progress"]["last_event"]["summary"])
 
     def test_unsafe_input_asset_file_name_marks_failed_manual_without_download(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -456,6 +510,81 @@ class ProcessorContractTests(unittest.TestCase):
             {"provider": "bytedance_bigtts"},
             result_payload["openstoryline"]["voiceover"],
         )
+        self.assertEqual(
+            "succeeded",
+            result_payload["progress_modules"][0]["status"],
+        )
+        self.assertEqual(
+            "素材准备",
+            result_payload["progress_modules"][0]["label"],
+        )
+        self.assertTrue(
+            any(
+                item["key"] == "render" and item["label"] == "合成渲染"
+                for item in result_payload["progress_modules"]
+            )
+        )
+
+    def test_stage_updates_include_progress_modules(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(),
+            )
+
+            processor.process(make_job())
+
+        self.assertEqual("downloading_inputs", repository.stage_updates[0]["current_stage"])
+        first_modules = repository.stage_updates[0]["runtime_payload"]["progress_modules"]
+        self.assertEqual("material_preparation", first_modules[0]["key"])
+        self.assertEqual("running", first_modules[0]["status"])
+        self.assertEqual("素材准备", first_modules[0]["label"])
+
+    def test_openstoryline_progress_events_update_active_module(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            engine_client = FakeOpenStorylineClient(
+                progress_events=[
+                    {
+                        "type": "tool_start",
+                        "server": "openstoryline",
+                        "name": "generate_voiceover",
+                        "tool_call_id": "tool_1",
+                    },
+                    {
+                        "type": "tool_start",
+                        "server": "openstoryline",
+                        "name": "render_video",
+                        "tool_call_id": "tool_2",
+                    },
+                ],
+            )
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                engine_client,
+            )
+
+            processor.process(make_job())
+
+        self.assertTrue(engine_client.progress_callback_seen)
+        self.assertTrue(
+            any(update["current_stage"] == "openstoryline_voiceover" for update in repository.stage_updates)
+        )
+        render_update = next(
+            update
+            for update in repository.stage_updates
+            if update["current_stage"] == "openstoryline_render"
+        )
+        modules = render_update["runtime_payload"]["progress_modules"]
+        render_module = next(item for item in modules if item["key"] == "render")
+        self.assertEqual("running", render_module["status"])
+        self.assertEqual("合成渲染", render_module["label"])
+        self.assertIn("render_video", render_module["detail"])
 
     def test_success_cleans_local_workspace_and_output_directory(self):
         with tempfile.TemporaryDirectory() as tmp:

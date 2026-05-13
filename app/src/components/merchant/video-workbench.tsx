@@ -24,7 +24,8 @@ import {
 import type { ConsultationSessionDetailDto } from "@/contracts/consultation";
 import type { ContentDraftBundleDto, VideoScriptSceneDto } from "@/contracts/draft";
 import type { MaterialLibraryItemDto } from "@/contracts/material";
-import type { VideoEditJobDto } from "@/contracts/video";
+import type { PublicVideoEditJobDto, VideoEditProgressModuleDto } from "@/contracts/video";
+import { isVideoEditJobInFlightStatus } from "@/contracts/video";
 import {
   buildVideoJobStatusCopy,
   type VideoJobStatusCopyTone,
@@ -85,7 +86,6 @@ export function VideoWorkbench({
   materialId,
   materialReferenceId,
   strategyTag,
-  testMode,
 }: {
   sessionId?: string | null;
   dailyTaskId?: string | null;
@@ -97,7 +97,6 @@ export function VideoWorkbench({
   materialId?: string | null;
   materialReferenceId?: string | null;
   strategyTag?: string | null;
-  testMode?: string | null;
 }) {
   const [routeContext, setRouteContext] = useState<VideoWorkbenchRouteContext>({
     sessionId: sessionId ?? null,
@@ -117,12 +116,11 @@ export function VideoWorkbench({
   const [extraRequirement, setExtraRequirement] = useState("");
   const [draftBundle, setDraftBundle] = useState<ContentDraftBundleDto | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(variantId ?? null);
-  const [job, setJob] = useState<VideoEditJobDto | null>(null);
+  const [job, setJob] = useState<PublicVideoEditJobDto | null>(null);
   const [loadingSession, setLoadingSession] = useState(Boolean(sessionId));
   const [generating, setGenerating] = useState(false);
   const [approvingScript, setApprovingScript] = useState(false);
   const [creatingJob, setCreatingJob] = useState(false);
-  const [creatingTestDraft, setCreatingTestDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [showCanvas, setShowCanvas] = useState(true);
@@ -131,7 +129,6 @@ export function VideoWorkbench({
   const [messages, setMessages] = useState<VideoWorkbenchChatMessage[]>(
     buildInitialMessages(strategyTag ?? null),
   );
-  const videoChainTestMode = testMode === "video_chain";
 
   async function loadSession(nextSessionId: string) {
     setLoadingSession(true);
@@ -360,11 +357,6 @@ export function VideoWorkbench({
     goal?: string;
     extraRequirement?: string;
   }) {
-    if (videoChainTestMode && !routeContext.sessionId) {
-      setError("请先创建链路测试脚本，再上传素材并启动 AI 剪辑。");
-      return;
-    }
-
     const nextGoal = overrides?.goal ?? goal;
     const nextExtraRequirement = overrides?.extraRequirement ?? extraRequirement;
     const userMessage = selectedVariant
@@ -446,6 +438,10 @@ export function VideoWorkbench({
   }
 
   async function createVideoJob(sourceJobId?: string, instructionOverride?: string) {
+    if (!sourceJobId && job && isVideoEditJobInFlightStatus(job.status)) {
+      setError("当前 AI 剪辑任务正在进行中，请等待完成后再创建新的任务。");
+      return;
+    }
     if (!selectedVariant) {
       setError("请先生成视频脚本。");
       return;
@@ -471,7 +467,7 @@ export function VideoWorkbench({
         }),
       });
       const data = (await response.json()) as {
-        job?: VideoEditJobDto;
+        job?: PublicVideoEditJobDto;
         error?: { message?: string };
       };
 
@@ -500,57 +496,6 @@ export function VideoWorkbench({
       setError(requestError instanceof Error ? requestError.message : "视频任务创建失败");
     } finally {
       setCreatingJob(false);
-    }
-  }
-
-  async function createVideoChainTestDraft() {
-    setCreatingTestDraft(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/content/video-scripts/test-draft", {
-        method: "POST",
-      });
-      const data = (await response.json()) as {
-        draftBundle?: ContentDraftBundleDto;
-        error?: { message?: string };
-      };
-
-      if (!response.ok || !data.draftBundle) {
-        throw new Error(data.error?.message ?? "测试脚本创建失败");
-      }
-
-      const testDraftBundle = data.draftBundle;
-
-      setDraftBundle(testDraftBundle);
-      setSelectedVariantId(
-        testDraftBundle.selectedVariant?.id ?? testDraftBundle.variants[0]?.id ?? null,
-      );
-      setGoal("视频链路测试：上传素材、生成视频、预览结果、发起制作修订");
-      setExtraRequirement("");
-      setSegmentUploads({});
-      setJob(null);
-      setShowCanvas(true);
-      setRouteContext((current) => ({
-        ...current,
-        draftId: testDraftBundle.draft.id,
-        variantId:
-          testDraftBundle.selectedVariant?.id ??
-          testDraftBundle.draft.selectedVariantId ??
-          testDraftBundle.variants[0]?.id ??
-          null,
-        jobId: null,
-      }));
-      setMessages((current) =>
-        appendAgentMessage(
-          current,
-          "已创建并确认链路测试占位脚本。现在可以上传任意图片或视频素材，然后点击 AI 一键剪辑验证后续链路。",
-        ),
-      );
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "测试脚本创建失败");
-    } finally {
-      setCreatingTestDraft(false);
     }
   }
 
@@ -650,7 +595,7 @@ export function VideoWorkbench({
         method: "POST",
       });
       const data = (await response.json()) as {
-        job?: VideoEditJobDto;
+        job?: PublicVideoEditJobDto;
         error?: { message?: string };
       };
 
@@ -678,7 +623,7 @@ export function VideoWorkbench({
         cache: "no-store",
       });
       const data = (await response.json()) as {
-        job?: VideoEditJobDto;
+        job?: PublicVideoEditJobDto;
       };
 
       if (response.ok && data.job) {
@@ -710,42 +655,11 @@ export function VideoWorkbench({
     setExtraRequirement(nextExtraRequirement);
     setInput("");
 
-    if (selectedVariant && draftBundle && videoChainTestMode) {
-      void reviseProductionFromTestMode(nextInput, nextExtraRequirement);
-      return;
-    }
-
-    if (videoChainTestMode) {
-      const message = "请先点击顶部「创建测试脚本」，再上传素材并启动 AI 剪辑。";
-      setError(message);
-      setMessages((current) => appendAgentMessage(current, message));
-      return;
-    }
-
     void sendWorkbenchAgentMessage(nextInput, {
       intent: "chat",
       extraRequirement: nextExtraRequirement,
       conversationMessages: previousMessages,
     });
-  }
-
-  async function reviseProductionFromTestMode(
-    revisionInstruction: string,
-    nextExtraRequirement: string,
-  ) {
-    setExtraRequirement(nextExtraRequirement);
-
-    if (!job?.id || job.status !== "succeeded") {
-      const message = "链路测试模式只跳过脚本生成。制作修订需要先有一版已完成的视频任务。";
-      setError(message);
-      setMessages((current) => appendAgentMessage(current, message));
-      return;
-    }
-
-    setMessages((current) =>
-      appendAgentMessage(current, "收到，这条测试指令会作为制作修订创建新任务，用来验证修改版本回写。"),
-    );
-    await createVideoJob(job.id, revisionInstruction);
   }
 
   function handleSend(event: FormEvent<HTMLFormElement>) {
@@ -931,13 +845,14 @@ export function VideoWorkbench({
 
     return parsedScenes;
   }, [selectedVariant]);
-  const jobIsRunning = job && ["pending", "queued", "preparing", "running"].includes(job.status);
+  const jobIsRunning = job && isVideoEditJobInFlightStatus(job.status);
   const scriptApproved = selectedVariant?.reviewStatus === "approved";
   const jobCanRetry = job?.status === "failed_retryable";
   const jobSucceeded = job?.status === "succeeded";
   const resultVideoAsset =
     job?.resultAssets?.find((asset) => asset.assetType === "video") ?? job?.resultAssets?.[0] ?? null;
   const resultVideoPreviewUrl = resultVideoAsset?.signedPreviewUrl ?? resultVideoAsset?.originUrl ?? null;
+  const progressModules = job?.progressModules ?? [];
   const jobStatusCopy = job
     ? buildVideoJobStatusCopy({
         status: job.status,
@@ -969,45 +884,21 @@ export function VideoWorkbench({
         </div>
 
         <div className="flex items-center gap-2">
-          <span
-            className={
-              videoChainTestMode
-                ? "hidden items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-sky-300 md:inline-flex"
-                : "hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-400 md:inline-flex"
-            }
-          >
+          <span className="hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-emerald-400 md:inline-flex">
             <CheckCircle2 className="h-3.5 w-3.5" />
-            {videoChainTestMode ? "链路测试模式" : "上下文已就绪"}
+            上下文已就绪
           </span>
-          {videoChainTestMode && !routeContext.sessionId ? (
-            <button
-              type="button"
-              onClick={() => {
-                void createVideoChainTestDraft();
-              }}
-              disabled={creatingTestDraft}
-              className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-sky-300 disabled:opacity-60"
-            >
-              {creatingTestDraft ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Video className="h-3.5 w-3.5" />
-              )}
-              {draftBundle ? "重建测试脚本" : "创建测试脚本"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                void generateScript();
-              }}
-              disabled={generating || loadingSession}
-              className="inline-flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-amber-500 disabled:opacity-60"
-            >
-              {generating ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />}
-              {draftBundle ? "重新生成脚本" : "生成视频脚本"}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              void generateScript();
+            }}
+            disabled={generating || loadingSession}
+            className="inline-flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-amber-500 disabled:opacity-60"
+          >
+            {generating ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />}
+            {draftBundle ? "重新生成脚本" : "生成视频脚本"}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -1024,7 +915,7 @@ export function VideoWorkbench({
             onClick={() => {
               void createVideoJob();
             }}
-            disabled={creatingJob || !selectedVariant || !scriptApproved}
+            disabled={creatingJob || Boolean(jobIsRunning) || !selectedVariant || !scriptApproved}
             className="relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-white/70 transition-colors hover:bg-white/10 disabled:opacity-50"
           >
             {creatingJob || jobIsRunning ? (
@@ -1224,6 +1115,9 @@ export function VideoWorkbench({
                           {jobStatusCopy.badge}
                         </div>
                       ) : null}
+                      {progressModules.length > 0 ? (
+                        <VideoProgressModules modules={progressModules} />
+                      ) : null}
                       {jobCanRetry ? (
                         <button
                           type="button"
@@ -1272,6 +1166,40 @@ export function VideoWorkbench({
           </section>
         )}
       </div>
+    </div>
+  );
+}
+
+function VideoProgressModules({ modules }: { modules: VideoEditProgressModuleDto[] }) {
+  return (
+    <div className="mt-5 grid gap-2">
+      {modules.map((module) => (
+        <div key={module.key} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
+          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${getProgressModuleIconClass(module.status)}`}>
+            {module.status === "running" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : module.status === "succeeded" ? (
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            ) : (
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <p className="truncate text-xs text-white/70">{module.label}</p>
+              <span className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-white/35">
+                {getProgressModuleStatusLabel(module.status)}
+              </span>
+            </div>
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+              <div
+                className={`h-full rounded-full ${getProgressModuleBarClass(module.status)}`}
+                style={{ width: `${module.progressPct}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1612,6 +1540,49 @@ function isSupportedSegmentMediaFile(file: File) {
   }
 
   return /\.(avif|bmp|gif|jpe?g|m4v|mov|mp4|png|webm|webp)$/i.test(file.name);
+}
+
+function getProgressModuleStatusLabel(status: VideoEditProgressModuleDto["status"]) {
+  const labels: Record<VideoEditProgressModuleDto["status"], string> = {
+    pending: "等待",
+    running: "处理中",
+    succeeded: "完成",
+    failed: "失败",
+    skipped: "跳过",
+  };
+
+  return labels[status];
+}
+
+function getProgressModuleIconClass(status: VideoEditProgressModuleDto["status"]) {
+  if (status === "running") {
+    return "border-amber-500/35 bg-amber-500/10 text-amber-400";
+  }
+  if (status === "succeeded") {
+    return "border-emerald-500/35 bg-emerald-500/10 text-emerald-400";
+  }
+  if (status === "failed") {
+    return "border-rose-500/35 bg-rose-500/10 text-rose-300";
+  }
+  if (status === "skipped") {
+    return "border-white/10 bg-white/5 text-white/30";
+  }
+
+  return "border-white/10 bg-white/5 text-white/25";
+}
+
+function getProgressModuleBarClass(status: VideoEditProgressModuleDto["status"]) {
+  if (status === "running") {
+    return "bg-amber-500";
+  }
+  if (status === "succeeded") {
+    return "bg-emerald-500";
+  }
+  if (status === "failed") {
+    return "bg-rose-500";
+  }
+
+  return "bg-white/20";
 }
 
 function getVideoJobToneClassNames(tone: VideoJobStatusCopyTone) {

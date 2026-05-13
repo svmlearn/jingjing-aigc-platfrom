@@ -16,6 +16,7 @@ import type {
   VideoEditJobStatus,
   VideoEditJobTriggerSource,
 } from "@/contracts/video";
+import { normalizeVideoProgressModules } from "@/lib/ui/video-progress-modules";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -53,6 +54,7 @@ type AssetRow = {
 type VideoEditJobRow = {
   id: string;
   merchant_id: string;
+  created_by_user_id: string | null;
   draft_id: string;
   content_variant_id: string;
   status: VideoEditJobStatus;
@@ -340,6 +342,7 @@ export async function listLocalRealChainAssetObjectsByOwner(input: {
 export async function createLocalRealChainVideoEditJob(input: {
   draftId: string;
   contentVariantId: string;
+  createdByUserId?: string | null;
   triggerSource?: VideoEditJobTriggerSource;
   instructionText?: string | null;
   inputPayload?: Record<string, unknown>;
@@ -348,6 +351,7 @@ export async function createLocalRealChainVideoEditJob(input: {
     `
     insert into public.video_edit_jobs (
       merchant_id,
+      created_by_user_id,
       draft_id,
       content_variant_id,
       trigger_source,
@@ -363,11 +367,12 @@ export async function createLocalRealChainVideoEditJob(input: {
       failure_reason,
       started_at,
       finished_at
-    ) values ($1, $2, $3, $4, $5, $6::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, 0, 0, 'pending', null, null, null, null)
+    ) values ($1, $2, $3, $4, $5, $6, $7::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, 0, 0, 'pending', null, null, null, null)
     returning ${videoEditJobSelect}
     `,
     [
       getLocalRealChainMerchantId(),
+      input.createdByUserId ?? null,
       input.draftId,
       input.contentVariantId,
       input.triggerSource ?? "manual",
@@ -381,21 +386,30 @@ export async function createLocalRealChainVideoEditJob(input: {
 
 export async function listLocalRealChainVideoEditJobs(filters: {
   status?: VideoEditJobStatus;
+  createdByUserId?: string | null;
   limit?: number;
 } = {}) {
   const params: unknown[] = [getLocalRealChainMerchantId(), filters.limit ?? 50];
-  const statusSql = filters.status ? "and status = $3" : "";
+  const clauses = ["merchant_id = $1"];
 
   if (filters.status) {
     params.push(filters.status);
+    clauses.push(`status = $${params.length}`);
+  }
+  if (filters.createdByUserId !== undefined) {
+    if (filters.createdByUserId) {
+      params.push(filters.createdByUserId);
+      clauses.push(`created_by_user_id = $${params.length}`);
+    } else {
+      clauses.push("created_by_user_id is null");
+    }
   }
 
   const result = await query<VideoEditJobRow>(
     `
     select ${videoEditJobSelect}
     from public.video_edit_jobs
-    where merchant_id = $1
-    ${statusSql}
+    where ${clauses.join(" and ")}
     order by created_at desc
     limit $2
     `,
@@ -570,6 +584,7 @@ function mapVideoEditJob(row: VideoEditJobRow): VideoEditJobDto {
   return {
     id: row.id,
     merchantId: row.merchant_id,
+    createdByUserId: row.created_by_user_id ?? null,
     draftId: row.draft_id,
     contentVariantId: row.content_variant_id,
     status: row.status,
@@ -583,6 +598,14 @@ function mapVideoEditJob(row: VideoEditJobRow): VideoEditJobDto {
     failureReason: row.failure_reason,
     resultPayload: row.result_payload ?? {},
     logPayload: row.log_payload ?? {},
+    progressModules: normalizeVideoProgressModules({
+      status: row.status,
+      currentStage: row.current_stage,
+      progressPct: row.progress_pct,
+      runtimePayload: row.runtime_payload ?? {},
+      resultPayload: row.result_payload ?? {},
+      logPayload: row.log_payload ?? {},
+    }),
     startedAt: row.started_at ? toIsoString(row.started_at) : null,
     finishedAt: row.finished_at ? toIsoString(row.finished_at) : null,
     createdAt: toIsoString(row.created_at),
@@ -614,6 +637,7 @@ const assetObjectSelect = [
 const videoEditJobSelect = [
   "id",
   "merchant_id",
+  "created_by_user_id",
   "draft_id",
   "content_variant_id",
   "status",

@@ -10,7 +10,6 @@ export type DashboardVideoSearchParams = {
   materialReferenceId?: string;
   strategyTag?: string;
   strategy?: string;
-  testMode?: string;
 };
 
 export function normalizeDashboardVideoSearchParams(params: DashboardVideoSearchParams) {
@@ -25,6 +24,5 @@ export function normalizeDashboardVideoSearchParams(params: DashboardVideoSearch
     materialId: params.materialId ?? null,
     materialReferenceId: params.materialReferenceId ?? null,
     strategyTag: params.strategyTag ?? params.strategy ?? null,
-    testMode: params.testMode ?? null,
   };
 }

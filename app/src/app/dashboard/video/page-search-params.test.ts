@@ -15,7 +15,6 @@ test("normalizeDashboardVideoSearchParams preserves video workbench route parame
     materialId: "material_1",
     materialReferenceId: "reference_1",
     strategy: "trust",
-    testMode: "video_chain",
   });
 
   assert.deepEqual(params, {
@@ -29,6 +28,5 @@ test("normalizeDashboardVideoSearchParams preserves video workbench route parame
     materialId: "material_1",
     materialReferenceId: "reference_1",
     strategyTag: "trust",
-    testMode: "video_chain",
   });
 });

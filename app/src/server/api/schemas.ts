@@ -416,10 +416,10 @@ const productionConfigSchema = z
 export const createVideoEditJobSchema = z.object({
   contentVariantId: z.uuid(),
   instructionText: z.string().trim().max(4000).nullish(),
-  inputPayload: z.record(z.string(), z.unknown()).optional(),
+  inputPayload: z.never().optional(),
   productionConfig: productionConfigSchema.nullish(),
   sourceJobId: z.uuid().nullish(),
-});
+}).strict();
 
 export const listVideoEditJobsQuerySchema = z.object({
   status: videoEditJobStatusSchema.optional(),

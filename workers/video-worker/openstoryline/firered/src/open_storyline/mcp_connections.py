@@ -112,7 +112,7 @@ def build_mcp_connections(
         )
     }
 
-    for extra_server in local_mcp_server.extra_mcp_servers:
+    for extra_server in getattr(local_mcp_server, "extra_mcp_servers", []):
         if extra_server.server_name in connections:
             logger.warning(
                 "Skipping duplicate MCP server name '%s' from extra_mcp_servers; primary connection kept.",
