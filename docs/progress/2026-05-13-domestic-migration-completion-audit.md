@@ -53,7 +53,7 @@ Follow-up commits after the first audit added the missing video workbench test d
 | Seed first owner / merchant | `app/db/seeds/domestic_minimal_seed.example.sql`; first and repeat execution passed | Pass |
 | Seed video-chain fixture | `app/db/seeds/domestic_video_chain_fixture.example.sql`; creates source item / draft / approved video script and returns draft COS key prefix | Pass |
 | App local type/lint/build | `pnpm exec tsc --noEmit --pretty false`, `pnpm lint`, `pnpm build` passed after route changes | Pass |
-| Worker tests | `PYTHONPATH=workers/video-worker:workers/video-worker/openstoryline /private/tmp/jj-domestic-worker-venv/bin/python -m unittest discover -s workers/video-worker/tests` returned `49 tests OK`; compileall passed | Pass |
+| Worker tests | `PYTHONPATH=workers/video-worker:workers/video-worker/openstoryline /private/tmp/jj-domestic-worker-venv/bin/python -m unittest discover -s workers/video-worker/tests` returned `50 tests OK`; compileall passed | Pass |
 | Full mobile IP e2e | No domestic server target, no real DB/COS env, no mobile endpoint | Missing |
 | Browser direct upload to domestic COS | Only `/api/media/complete` metadata write was smoke-tested with fake COS config; no real COS STS/CORS/upload | Missing |
 | Worker final.mp4 generation and domestic COS upload | No real worker run against actual COS assets; dummy local metadata only | Missing |

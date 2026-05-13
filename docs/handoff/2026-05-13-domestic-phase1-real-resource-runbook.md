@@ -172,7 +172,7 @@ Run real I/O smoke after env is ready:
 
 ```bash
 PYTHONPATH=workers/video-worker:workers/video-worker/openstoryline \
-python -m worker.app.real_io_smoke
+python -m worker.app.real_io_smoke --env-file workers/video-worker/.env
 ```
 
 Expected:

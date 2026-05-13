@@ -124,6 +124,7 @@
 - `real_io_smoke.py` 已改为优先检查 `WORKER_DATABASE_URL`。
 - `real_io_smoke.py` 已补齐 worker COS env 优先级：`WORKER_COS_SECRET_ID` / `WORKER_COS_SECRET_KEY` / `WORKER_COS_BUCKET` / `WORKER_COS_REGION` 优先，shared `COS_*` 保留 fallback。
 - `real_io_smoke.py` 已补 `WORKER_MAX_CONCURRENCY=1` 校验，真实 worker smoke 会提前发现误设 2-3 并发。
+- `real_io_smoke.py` 已支持 `--env-file workers/video-worker/.env`，方便真实服务器上直接读取 worker env 文件。
 - `workers/video-worker/.env.example` 已改为国内 PostgreSQL / 国内 COS 示例。
 
 ### A7 上机验证辅助
@@ -206,7 +207,7 @@ curl -sS -b /private/tmp/jj-testdraft-cookie.txt -X POST 'http://127.0.0.1:3112/
 - TypeScript：通过
 - ESLint：通过
 - Next build：通过
-- worker Python tests：`49 tests OK`
+- worker Python tests：`50 tests OK`
 - worker compileall：通过
 - worker compose config：通过。校验时临时复制 `workers/video-worker/.env.example` 为 `.env`，校验后已删除。
 - diff whitespace：通过

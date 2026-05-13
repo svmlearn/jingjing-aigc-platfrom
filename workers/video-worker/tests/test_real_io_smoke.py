@@ -1,10 +1,13 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from worker.app.real_io_smoke import (
     InvalidRealSmokeEnvError,
     MissingRealSmokeEnvError,
     RealSmokeConfig,
     build_cos_smoke_key,
+    load_env_file_from_argv,
 )
 
 
@@ -91,6 +94,33 @@ class RealIoSmokeTests(unittest.TestCase):
 
         self.assertEqual("WORKER_MAX_CONCURRENCY", raised.exception.name)
         self.assertIn("fixed at 1", raised.exception.message)
+
+    def test_load_env_file_from_argv_does_not_override_existing_values(self):
+        with TemporaryDirectory() as directory:
+            env_path = Path(directory) / "worker.env"
+            env_path.write_text(
+                "\n".join(
+                    [
+                        "WORKER_DATABASE_URL=postgresql://from-file/db",
+                        "WORKER_COS_BUCKET='bucket-from-file'",
+                        "WORKER_COS_REGION=ap-guangzhou",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            env = {
+                "WORKER_COS_BUCKET": "bucket-from-env",
+            }
+
+            loaded = load_env_file_from_argv(
+                ["real_io_smoke.py", "--env-file", str(env_path)],
+                env,
+            )
+
+        self.assertEqual(env_path, loaded)
+        self.assertEqual("postgresql://from-file/db", env["WORKER_DATABASE_URL"])
+        self.assertEqual("bucket-from-env", env["WORKER_COS_BUCKET"])
+        self.assertEqual("ap-guangzhou", env["WORKER_COS_REGION"])
 
     def test_cos_smoke_key_is_scoped_under_configured_prefix(self):
         key = build_cos_smoke_key(" /worker-real-smoke/ ", run_id="abc123")

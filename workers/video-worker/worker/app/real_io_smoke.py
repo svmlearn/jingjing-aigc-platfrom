@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import uuid
 from dataclasses import dataclass, field
@@ -109,6 +110,55 @@ def _read_worker_max_concurrency(source: Mapping[str, str]) -> int:
     return value
 
 
+def load_env_file_from_argv(
+    argv: list[str] | None = None,
+    env: dict[str, str] | None = None,
+) -> Path | None:
+    args = argv if argv is not None else sys.argv
+    target_env = env if env is not None else os.environ
+    try:
+        index = args.index("--env-file")
+    except ValueError:
+        return None
+
+    if index + 1 >= len(args):
+        raise InvalidRealSmokeEnvError("--env-file", "requires a path")
+
+    env_path = Path(args[index + 1])
+    try:
+        load_env_file(env_path, target_env)
+    except OSError as exc:
+        raise InvalidRealSmokeEnvError("--env-file", str(exc)) from exc
+    return env_path
+
+
+def load_env_file(path: Path, env: dict[str, str]) -> None:
+    text = path.read_text(encoding="utf-8")
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        name, separator, raw_value = line.partition("=")
+        if not separator:
+            continue
+
+        key = name.strip()
+        if not key or key in env:
+            continue
+
+        env[key] = _unquote_env_value(raw_value.strip())
+
+
+def _unquote_env_value(value: str) -> str:
+    if (
+        (value.startswith('"') and value.endswith('"'))
+        or (value.startswith("'") and value.endswith("'"))
+    ):
+        return value[1:-1]
+    return value
+
+
 def run_database_smoke(config: RealSmokeConfig) -> dict[str, object]:
     import psycopg
 
@@ -187,6 +237,7 @@ def run_real_io_smoke(config: RealSmokeConfig) -> dict[str, object]:
 
 def main() -> int:
     try:
+        load_env_file_from_argv()
         config = RealSmokeConfig.from_env()
     except MissingRealSmokeEnvError as exc:
         print(
