@@ -46,6 +46,16 @@ class MockHttpStreamResponse:
         return iter(self._lines)
 
 
+class ReadTimeoutHttpStreamResponse:
+    def __enter__(self):
+        import httpx
+
+        raise httpx.ReadTimeout("no stream events")
+
+    def __exit__(self, _exc_type, _exc, _tb):
+        return False
+
+
 class OpenStorylineEngineAdapterTests(unittest.TestCase):
     def test_health_endpoint_reports_adapter_context(self):
         original_settings = app.state.settings
@@ -561,6 +571,49 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertEqual("result", events[1]["type"])
             self.assertEqual("fire-red-job", events[1]["data"]["job_id"])
             self.assertEqual(str(output_dir / "final.mp4"), events[1]["data"]["final_video_path"])
+
+    def test_fire_red_stream_read_timeout_returns_error_event(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_stream_idle_timeout_seconds=7,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.stream",
+            return_value=ReadTimeoutHttpStreamResponse(),
+        ) as stream:
+            events = list(
+                adapter.stream(
+                    RunRequest(
+                        job_id="fire-red-job",
+                        merchant_id="merchant-1",
+                        draft_id="draft-1",
+                        content_variant_id="variant-1",
+                        workspace_dir=str(Path(tmp) / "workspace"),
+                        output_dir=str(Path(tmp) / "outputs"),
+                        script_text="locked script",
+                        production_directive={
+                            "script_locked": True,
+                            "desired_outputs": ["final_video"],
+                        },
+                    )
+                )
+            )
+
+        self.assertEqual("error", events[0]["type"])
+        self.assertIn("idle timeout after 7s", events[0]["error"]["message"])
+        timeout = stream.call_args.kwargs["timeout"]
+        self.assertEqual(7.0, timeout.read)
 
     def test_fire_red_adapter_run_endpoint_uses_worker_mapping(self):
         original_settings = app.state.settings

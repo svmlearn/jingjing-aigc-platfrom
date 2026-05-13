@@ -71,6 +71,13 @@ class SpeechRoughCutNode(BaseNode):
             asr_sentence_info = asr_info.get("asr_sentence_info", [])
 
             for i, sentence in enumerate(asr_sentence_info):
+                raw = ""
+                await self._report_progress(
+                    node_state,
+                    i,
+                    len(asr_sentence_info),
+                    f"rough cutting speech sentence {i + 1}/{len(asr_sentence_info)}",
+                )
                 # Generate user prompt with ASR sentence info
                 user_prompt = get_prompt(
                     "speech_rough_cut.user",
@@ -93,6 +100,7 @@ class SpeechRoughCutNode(BaseNode):
                         top_p=0.9,
                         max_tokens=8092,
                         model_preferences=None,
+                        metadata=self._model_sampling_metadata("llm", minimum_seconds=180.0),
                     )
                     parsed_json = parse_json_dict(raw)
                     print(parsed_json)
@@ -101,6 +109,12 @@ class SpeechRoughCutNode(BaseNode):
                     # fallback to original ASR if LLM fails
                     node_state.node_summary.add_warning(f"LLM rough cut failed: {e}, raw response: {raw}")
 
+            await self._report_progress(
+                node_state,
+                len(asr_sentence_info),
+                len(asr_sentence_info),
+                "speech rough cut model pass finished",
+            )
 
             # Group sentences based on gap threshold
             segments_groups = self.group_sentences(rough_cut_json, gap_threshold=gap_threshold)

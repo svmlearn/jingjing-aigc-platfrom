@@ -64,34 +64,53 @@ class FilterClipsNode(BaseNode):
                 "selected": input_clip_ids,
             }
 
-        else:
-            clip_block = _build_clips_block(clip_captions)
-            system_prompt = get_prompt("filter_clips.system", lang=node_state.lang)
-            user_prompt = get_prompt("filter_clips.user", lang=node_state.lang, user_request=user_request, clip_captions=clip_block)
+        clip_block = _build_clips_block(clip_captions)
+        system_prompt = get_prompt("filter_clips.system", lang=node_state.lang)
+        user_prompt = get_prompt("filter_clips.user", lang=node_state.lang, user_request=user_request, clip_captions=clip_block)
 
-            raw = await llm.complete(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                media=None,
-                temperature=0.1,
-                top_p=0.9,
-                max_tokens=2048,
-                model_preferences=None,
+        metadata = self._model_sampling_metadata("llm", minimum_seconds=180.0)
+        max_attempts = int(metadata.get("sampling_max_attempts", 1))
+        last_error: Exception | None = None
+        for attempt in range(1, max_attempts + 1):
+            await self._report_progress(
+                node_state,
+                attempt - 1,
+                max_attempts,
+                f"filtering clips with model attempt {attempt}/{max_attempts}",
             )
+            try:
+                raw = await llm.complete(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    media=None,
+                    temperature=0.1,
+                    top_p=0.9,
+                    max_tokens=2048,
+                    model_preferences=None,
+                    metadata=metadata,
+                )
+                obj = parse_json_dict(raw)
+                select_ids = _extract_selected_ids(obj, input_clip_ids)
+                node_state.node_summary.info_for_user(f"Successfully filtered {len(select_ids)} clips")
+                await self._report_progress(
+                    node_state,
+                    max_attempts,
+                    max_attempts,
+                    f"filtered {len(select_ids)}/{len(input_clip_ids)} clips",
+                )
+                return {
+                    "clip_captions": clip_captions,
+                    "selected": select_ids,
+                }
+            except Exception as e:
+                last_error = e
+                node_state.node_summary.add_error(
+                    f"filter_clips attempt {attempt}/{max_attempts} failed: {type(e).__name__}: {e}"
+                )
 
-        try:
-            obj = parse_json_dict(raw)
-            select_ids = _extract_selected_ids(obj, input_clip_ids)
-            node_state.node_summary.info_for_user(f"Successfully filtered {len(select_ids)} clips")
-
-        except:
-            select_ids = input_clip_ids
-            node_state.node_summary.info_for_user("Failed to parse model output, using all clips")
-
-        return {
-            "clip_captions": clip_captions,
-            "selected": select_ids,
-        }
+        raise RuntimeError(
+            f"filter_clips failed after {max_attempts} attempt(s): {type(last_error).__name__}: {last_error}"
+        )
 
 
 

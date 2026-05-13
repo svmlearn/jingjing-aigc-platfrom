@@ -26,6 +26,7 @@ def health() -> dict[str, object]:
         "engine_adapter": settings.engine_adapter,
         "fire_red_base_url_configured": bool(settings.fire_red_base_url),
         "fire_red_run_timeout_seconds": settings.fire_red_run_timeout_seconds,
+        "fire_red_stream_idle_timeout_seconds": settings.fire_red_stream_idle_timeout_seconds,
         "fire_red_provider_key_configured": settings.fire_red_provider_key_configured,
         "http_port": settings.port,
         "mcp_port": settings.mcp_port,

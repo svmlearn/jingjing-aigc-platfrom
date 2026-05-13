@@ -72,6 +72,44 @@ class BaseNode(ABC):
             "artifact_id": node_state.artifact_id
         }
 
+    async def _report_progress(
+        self,
+        node_state: NodeState,
+        progress: float,
+        total: float | None,
+        message: str,
+    ) -> None:
+        try:
+            await node_state.mcp_ctx.report_progress(progress, total, message)
+        except Exception:
+            pass
+
+    def _model_sampling_metadata(
+        self,
+        kind: str = "llm",
+        *,
+        extra_seconds: float = 30.0,
+        minimum_seconds: float = 120.0,
+        max_attempts: int | None = None,
+    ) -> Dict[str, Any]:
+        cfg_block = getattr(self.server_cfg, kind, None)
+        try:
+            configured_timeout = float(getattr(cfg_block, "timeout", 0.0) or 0.0)
+        except Exception:
+            configured_timeout = 0.0
+
+        if max_attempts is None:
+            try:
+                configured_retries = int(getattr(cfg_block, "max_retries", 0) or 0)
+            except Exception:
+                configured_retries = 0
+            max_attempts = 2 if configured_retries > 0 else 1
+
+        return {
+            "timeout_seconds": max(configured_timeout + extra_seconds, minimum_seconds),
+            "sampling_max_attempts": max(1, min(int(max_attempts), 3)),
+        }
+
     def _load_item(self, node_state: NodeState, user_info: Dict[str,str], item: Dict[str,Any]):
         new_item: Dict[str, Any] = {}
         item_base64 = item.pop("base64", None)

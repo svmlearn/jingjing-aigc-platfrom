@@ -289,6 +289,11 @@ class GenerateAITransitionNode(BaseNode):
         meta_system_prompt = get_prompt("generate_ai_transition.system", lang=node_state.lang)
         meta_user_prompt = get_prompt("generate_ai_transition.user", lang=node_state.lang, user_request=user_request)
 
+        await node_state.mcp_ctx.report_progress(
+            max(transition_index - 1, 0),
+            total_transitions or transition_index,
+            f"generating AI transition prompt {transition_index}/{total_transitions or transition_index}",
+        )
         prompt = await llm.complete(
             system_prompt=meta_system_prompt,
             user_prompt=meta_user_prompt,
@@ -299,7 +304,8 @@ class GenerateAITransitionNode(BaseNode):
             temperature=0.3,
             top_p=0.9,
             max_tokens=1024,
-            model_preferences=None
+            model_preferences=None,
+            metadata=self._model_sampling_metadata("vlm", minimum_seconds=180.0),
         )
         self._raise_if_cancelled(node_state)
 

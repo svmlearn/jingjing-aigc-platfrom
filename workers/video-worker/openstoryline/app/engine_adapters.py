@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import time
 import subprocess
 from pathlib import Path
 from typing import Any, Iterator, Protocol
@@ -168,40 +169,72 @@ class FireRedEngineAdapter:
             if self._settings.fire_red_provider_key
             else {}
         )
-        with httpx.stream(
-            "POST",
-            f"{self._settings.fire_red_base_url}/api/worker/runs/stream",
-            json=payload,
-            headers=headers,
-            timeout=self._settings.fire_red_run_timeout_seconds,
-        ) as response:
-            response.raise_for_status()
-            for line in response.iter_lines():
-                event = _decode_stream_event(line)
-                if event is None:
-                    continue
-                event_type = event.get("type")
-                if event_type == "progress":
-                    yield event
-                    continue
-                if event_type == "result":
-                    data = event.get("data")
-                    if not isinstance(data, dict):
-                        yield {
-                            "type": "error",
-                            "error": {"message": "FireRed stream result payload is invalid"},
-                        }
+        try:
+            with httpx.stream(
+                "POST",
+                f"{self._settings.fire_red_base_url}/api/worker/runs/stream",
+                json=payload,
+                headers=headers,
+                timeout=httpx.Timeout(
+                    timeout=float(self._settings.fire_red_run_timeout_seconds),
+                    read=float(self._settings.fire_red_stream_idle_timeout_seconds),
+                ),
+            ) as response:
+                response.raise_for_status()
+                last_event_at = time.monotonic()
+                for line in response.iter_lines():
+                    event = _decode_stream_event(line)
+                    if event is None:
+                        if (
+                            time.monotonic() - last_event_at
+                            > self._settings.fire_red_stream_idle_timeout_seconds
+                        ):
+                            yield {
+                                "type": "error",
+                                "error": {
+                                    "message": (
+                                        "FireRed stream idle timeout after "
+                                        f"{self._settings.fire_red_stream_idle_timeout_seconds}s"
+                                    ),
+                                },
+                            }
+                            return
+                        continue
+                    last_event_at = time.monotonic()
+                    event_type = event.get("type")
+                    if event_type == "progress":
+                        yield event
+                        continue
+                    if event_type == "result":
+                        data = event.get("data")
+                        if not isinstance(data, dict):
+                            yield {
+                                "type": "error",
+                                "error": {"message": "FireRed stream result payload is invalid"},
+                            }
+                            return
+                        mapped_response = self._response_from_fire_red_response(
+                            request=request,
+                            payload=payload,
+                            fire_red_response=data,
+                        )
+                        yield {"type": "result", "data": mapped_response.model_dump()}
                         return
-                    mapped_response = self._response_from_fire_red_response(
-                        request=request,
-                        payload=payload,
-                        fire_red_response=data,
-                    )
-                    yield {"type": "result", "data": mapped_response.model_dump()}
-                    return
-                if event_type == "error":
-                    yield event
-                    return
+                    if event_type == "error":
+                        yield event
+                        return
+
+        except httpx.ReadTimeout:
+            yield {
+                "type": "error",
+                "error": {
+                    "message": (
+                        "FireRed stream idle timeout after "
+                        f"{self._settings.fire_red_stream_idle_timeout_seconds}s"
+                    ),
+                },
+            }
+            return
 
         yield {
             "type": "error",

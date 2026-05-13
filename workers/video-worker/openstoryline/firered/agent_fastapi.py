@@ -3099,6 +3099,10 @@ async def stream_worker_video_job(request: Request):
         queue: asyncio.Queue = asyncio.Queue()
         sess_holder: Dict[str, ChatSession] = {}
         last_progress_event: Optional[Dict[str, Any]] = None
+        keepalive_seconds = max(
+            5.0,
+            float(os.environ.get("FIRERED_WORKER_STREAM_KEEPALIVE_SECONDS", "20")),
+        )
 
         def enqueue_event(event: Any):
             nonlocal last_progress_event
@@ -3112,6 +3116,23 @@ async def stream_worker_video_job(request: Request):
 
         def encode(event: Dict[str, Any]) -> str:
             return json.dumps(event, ensure_ascii=False, default=str) + "\n"
+
+        def keepalive_event() -> Dict[str, Any]:
+            event = last_progress_event if isinstance(last_progress_event, dict) else {}
+            name = _s(event.get("name")) or "worker_run"
+            message = _s(event.get("message")) or _s(event.get("type")) or "worker run"
+            return {
+                "type": "progress",
+                "event": {
+                    "type": "tool_progress",
+                    "server": event.get("server") or "storyline",
+                    "name": name,
+                    "progress": event.get("progress", 0),
+                    "total": event.get("total", 1),
+                    "message": f"still working: {message}",
+                    "keepalive": True,
+                },
+            }
 
         async def run_job():
             store: SessionStore = app.state.sessions
@@ -3164,7 +3185,17 @@ async def stream_worker_video_job(request: Request):
                 done, _pending = await asyncio.wait(
                     {task, get_task},
                     return_when=asyncio.FIRST_COMPLETED,
+                    timeout=keepalive_seconds,
                 )
+
+                if not done:
+                    get_task.cancel()
+                    try:
+                        await get_task
+                    except asyncio.CancelledError:
+                        pass
+                    yield encode(keepalive_event())
+                    continue
 
                 if get_task in done:
                     event = get_task.result()
