@@ -61,6 +61,10 @@
 - `media-repository.ts`
 - `content-draft-repository.ts`
 - `video-edit-job-repository.ts`
+- `import-repository.ts` 的 source item 读取侧：
+  - `listSourceItems`
+  - `getSourceItemById`
+  - `listImportedComments`
 
 新增统一实现：
 
@@ -170,6 +174,9 @@ curl -sS -i -X POST http://127.0.0.1:3107/api/auth/merchant-login -H 'Content-Ty
 curl -sS -i -b /private/tmp/jj-domestic-cookie.txt http://127.0.0.1:3107/api/media/complete -H 'Content-Type: application/json' --data '<fixture content_draft COS payload>'
 curl -sS -i -b /private/tmp/jj-domestic-cookie.txt http://127.0.0.1:3107/api/video-edit-jobs -H 'Content-Type: application/json' --data '<fixture content_variant payload>'
 curl -sS -i -b /private/tmp/jj-domestic-cookie.txt 'http://127.0.0.1:3107/api/video-edit-jobs?status=pending&limit=5'
+curl -sS -i -b /private/tmp/jj-domestic-source-cookie.txt 'http://127.0.0.1:3107/api/source-items?platform=douyin&limit=5'
+curl -sS -i -b /private/tmp/jj-domestic-source-cookie.txt 'http://127.0.0.1:3107/api/source-items/<sourceItemId>'
+curl -sS -i -b /private/tmp/jj-domestic-source-cookie.txt 'http://127.0.0.1:3107/api/source-items/<sourceItemId>/comments?limit=5'
 ```
 
 结果：
@@ -194,6 +201,9 @@ curl -sS -i -b /private/tmp/jj-domestic-cookie.txt 'http://127.0.0.1:3107/api/vi
 - `/api/video-edit-jobs` 使用 fixture `content_variant` 返回 `201`，写入 `video_edit_jobs.pending`
 - 新建 job 的 `inputPayload.render_mode=asset_driven`，且 `input_assets[0]` 指向刚写入的 Tencent COS asset metadata
 - `GET /api/video-edit-jobs?status=pending&limit=5` 可查回该 pending job
+- `GET /api/source-items?platform=douyin&limit=5` 在 PostgreSQL 模式下返回 `200`
+- `GET /api/source-items/<sourceItemId>` 在 PostgreSQL 模式下返回 `200`
+- `GET /api/source-items/<sourceItemId>/comments?limit=5` 在 PostgreSQL 模式下返回 `200`
 
 备注：
 

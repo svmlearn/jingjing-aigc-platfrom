@@ -2,6 +2,8 @@ import "server-only";
 
 import type { ImportedCommentDto, SourceItemDto } from "@/contracts/content";
 import type { ImportJobDto, ImportJobStatus, ImportRequest } from "@/contracts/import";
+import { isPostgresVideoChainEnabled } from "@/lib/db/postgres-video-chain-repository";
+import { queryAppDb } from "@/lib/server-db/postgres";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 import type {
@@ -38,7 +40,7 @@ type SourceItemRow = {
   engagement_snapshot: Record<string, unknown>;
   structure_summary: Record<string, unknown>;
   is_selected_for_rewrite: boolean;
-  created_at: string;
+  created_at: string | Date;
 };
 
 type ImportedCommentRow = {
@@ -51,7 +53,7 @@ type ImportedCommentRow = {
   like_count: number;
   reply_count: number;
   published_at: string | null;
-  created_at: string;
+  created_at: string | Date;
 };
 
 export async function createImportJob(input: {
@@ -324,6 +326,10 @@ export async function listSourceItems(input: {
   platform?: ImportRequest["platform"];
   limit?: number;
 }): Promise<SourceItemDto[]> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgListSourceItems(input);
+  }
+
   const supabase = createSupabaseAdminClient();
   let query = supabase
     .from("source_items")
@@ -349,6 +355,10 @@ export async function getSourceItemById(input: {
   merchantId: string;
   sourceItemId: string;
 }): Promise<SourceItemDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgGetSourceItemById(input);
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("source_items")
@@ -369,6 +379,10 @@ export async function listImportedComments(input: {
   sourceItemId: string;
   limit?: number;
 }): Promise<ImportedCommentDto[]> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgListImportedComments(input);
+  }
+
   await getSourceItemById({
     merchantId: input.merchantId,
     sourceItemId: input.sourceItemId,
@@ -387,6 +401,75 @@ export async function listImportedComments(input: {
   }
 
   return ((data ?? []) as unknown as ImportedCommentRow[]).map(mapImportedComment);
+}
+
+async function pgListSourceItems(input: {
+  merchantId: string;
+  platform?: ImportRequest["platform"];
+  limit?: number;
+}): Promise<SourceItemDto[]> {
+  const params: unknown[] = [input.merchantId, input.limit ?? 50];
+  const platformSql = input.platform ? `and platform = $${params.length + 1}` : "";
+  if (input.platform) {
+    params.push(input.platform);
+  }
+  const result = await queryAppDb<SourceItemRow>(
+    `
+    select ${sourceItemSelect}
+    from public.source_items
+    where merchant_id = $1
+    ${platformSql}
+    order by created_at desc
+    limit $2
+    `,
+    params,
+  );
+
+  return result.rows.map(mapSourceItem);
+}
+
+async function pgGetSourceItemById(input: {
+  merchantId: string;
+  sourceItemId: string;
+}): Promise<SourceItemDto> {
+  const result = await queryAppDb<SourceItemRow>(
+    `
+    select ${sourceItemSelect}
+    from public.source_items
+    where id = $1 and merchant_id = $2
+    limit 1
+    `,
+    [input.sourceItemId, input.merchantId],
+  );
+  const row = result.rows[0];
+  if (!row) {
+    throw new ApiError(404, "SOURCE_ITEM_NOT_FOUND", "Source item not found.");
+  }
+
+  return mapSourceItem(row);
+}
+
+async function pgListImportedComments(input: {
+  merchantId: string;
+  sourceItemId: string;
+  limit?: number;
+}): Promise<ImportedCommentDto[]> {
+  await pgGetSourceItemById({
+    merchantId: input.merchantId,
+    sourceItemId: input.sourceItemId,
+  });
+  const result = await queryAppDb<ImportedCommentRow>(
+    `
+    select ${commentSelect}
+    from public.imported_comments
+    where source_item_id = $1
+    order by sort_score desc nulls last, created_at asc
+    limit $2
+    `,
+    [input.sourceItemId, input.limit ?? 100],
+  );
+
+  return result.rows.map(mapImportedComment);
 }
 
 export function mapImportJob(row: ImportJobRow): ImportJobDto {
@@ -427,7 +510,7 @@ function mapSourceItem(row: SourceItemRow): SourceItemDto {
     engagementSnapshot: row.engagement_snapshot ?? {},
     structureSummary: row.structure_summary ?? {},
     isSelectedForRewrite: row.is_selected_for_rewrite,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
 }
 
@@ -442,8 +525,12 @@ function mapImportedComment(row: ImportedCommentRow): ImportedCommentDto {
     likeCount: row.like_count,
     replyCount: row.reply_count,
     publishedAt: row.published_at,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
+}
+
+function toIsoString(value: string | Date) {
+  return value instanceof Date ? value.toISOString() : value;
 }
 
 function calculateCommentSortScore(comment: NormalizedComment) {

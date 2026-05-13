@@ -24,6 +24,7 @@
   - `media-repository.ts`
   - `content-draft-repository.ts`
   - `video-edit-job-repository.ts`
+  - `import-repository.ts` 的 source item 读取侧
 - 登录 / 登出 / 当前用户 / dashboard 入口支持 domestic session。
 - worker 优先使用 `WORKER_DATABASE_URL`，保留 `SUPABASE_DB_URL` fallback。
 - worker real I/O smoke 优先使用 `WORKER_COS_*`，shared `COS_*` 仅作为 fallback。
@@ -73,6 +74,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 已用 fixture video script 调用 `/api/video-edit-jobs`，返回 `201`，创建 `pending` job。
 - 新建 job 的 `inputPayload.render_mode=asset_driven`，且 `input_assets[0]` 指向刚写入的 asset metadata。
 - 已用 `GET /api/video-edit-jobs?status=pending&limit=5` 查回 pending job。
+- 已用 PostgreSQL fixture 验证 `/api/source-items`、`/api/source-items/[id]`、`/api/source-items/[id]/comments`，均返回 `200`。
 - 已检查 `app/.env*`、`workers/video-worker/.env*` 和当前进程环境，未发现真实国内 PostgreSQL / COS / worker key。
 
 未验证：
