@@ -1,0 +1,302 @@
+{
+  "case_name": "case02_no_images",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "run_index": 1,
+  "timestamp": "20260511_225203_359199",
+  "elapsed_time": 63.49486804008484,
+  "success": true,
+  "workflow_run_id": "d250bf73-da14-442c-ba25-5825f1b0a8cf",
+  "error": null,
+  "raw_response": {
+    "id": "d250bf73-da14-442c-ba25-5825f1b0a8cf",
+    "workflow_id": "bff0a7fb-1f6c-4bd4-b133-6b052492572e",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"成熟配套如何提升生活便利性\",\n      \"探索生活半径，发现更好的居住选择\",\n      \"生活便利性与社区配套的关系\"\n    ],\n    \"selectedTitle\": \"成熟配套如何提升生活便利性\",\n    \"coverCopy\": \"探索生活半径，发现更好的居住选择\",\n    \"body\": \"在选择居住地时，很多人只关注户型图，实际上，成熟的社区配套对生活的便利性影响很大。这里的社区体量较大，楼下就有多种消费和服务设施，日常生活非常方便。\\n\\n周边已有商业配套，真实经营场景可供观察，居民在这里购物、用餐都很方便。交通方面，公交站和地铁口也在附近，出行选择多样。\\n\\n空间用途灵活，可以根据实际需求进行调整，具体使用情况可以结合官方口径了解。当前的总价门槛相对友好，适合结合预算进一步判断。\\n\\n想要了解更多生活便利的配套信息可以问我。\",\n    \"hashtags\": [\"#生活便利性\", \"#成熟配套\", \"#社区服务\"],\n    \"cta\": \"想要了解更多生活便利的配套信息可以问我。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"\",\n        \"title\": \"\",\n        \"usage\": \"\",\n        \"reason\": \"\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"缺少相关图片素材，请提供社区内的商业设施实景图、居民日常生活场景的照片或周边交通便利性的示意图。\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"成熟配套如何提升生活便利性\\n探索生活半径，发现更好的居住选择\\n在选择居住地时，很多人只关注户型图，实际上，成熟的社区配套对生活的便利性影响很大。这里的社区体量较大，楼下就有多种消费和服务设施，日常生活非常方便。\\n\\n周边已有商业配套，真实经营场景可供观察，居民在这里购物、用餐都很方便。交通方面，公交站和地铁口也在附近，出行选择多样。\\n\\n空间用途灵活，可以根据实际需求进行调整，具体使用情况可以结合官方口径了解。当前的总价门槛相对友好，适合结合预算进一步判断。\\n\\n想要了解更多生活便利的配套信息可以问我。#生活便利性 #成熟配套 #社区服务\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"通过短视频展示社区的生活场景，强调成熟配套带来的便利\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-10秒\",\n        \"visualGoal\": \"展示社区外观和商业设施，突出环境氛围\",\n        \"voiceover\": \"这里是我们社区的外观，周围有丰富的商业设施。\",\n        \"subtitle\": \"社区外观与商业设施\",\n        \"shotRequirement\": \"项目外立面 远景 小区入口\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"10-20秒\",\n        \"visualGoal\": \"展示居民在社区内购物、用餐的场景，体现生活便利性\",\n        \"voiceover\": \"在这里，居民可以轻松购物和用餐，生活非常便捷。\",\n        \"subtitle\": \"居民日常生活场景\",\n        \"shotRequirement\": \"居民在社区内购物、用餐\",\n        \"assetQuery\": \"居民在社区内购物、用餐\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"20-30秒\",\n        \"visualGoal\": \"展示交通便利的场景，如公交站、地铁口\",\n        \"voiceover\": \"交通方面，公交站和地铁口都在附近，出行选择多样。\",\n        \"subtitle\": \"交通便利性\",\n        \"shotRequirement\": \"公交站、地铁口\",\n        \"assetQuery\": \"公交站、地铁口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"总结性画面，强调生活便利性\",\n        \"voiceover\": \"成熟的配套设施为居民的生活提供了极大的便利。\",\n        \"subtitle\": \"生活便利性总结\",\n        \"shotRequirement\": \"总结性画面\",\n        \"assetQuery\": \"总结性画面\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要成员自拍或补拍总结性画面\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"总结性画面\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"居民在社区内购物、用餐\",\n      \"公交站、地铁口\"\n    ],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 5,\n      \"projectFit\": 8,\n      \"viralStructure\": 7,\n      \"platformTone\": 6,\n      \"materialFit\": 5,\n      \"compliance\": 6\n    },\n    \"pass\": false,\n    \"problems\": [\n      \"收益承诺类表述\"\n    ],\n    \"revisionSuggestions\": [],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"成熟配套怎么讲\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\"xiaohongshu\", \"douyin\"],\n      \"contentGoal\": \"信任建立\",\n      \"targetAudience\": \"首次看房客户\",\n      \"audiencePain\": \"\",\n      \"sellingPointsNeeded\": [\"生活便利度\", \"项目实景\", \"空间使用\", \"预算友好\", \"成熟配套\"],\n      \"riskConstraints\": [],\n      \"copySearchQuery\": \"成熟配套 生活便利度 首次看房客户\",\n      \"scriptSearchQuery\": \"成熟配套 生活便利度 首次看房客户\",\n      \"imageSearchQuery\": \"成熟配套 生活便利度 首次看房客户\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"强调成熟配套对生活便利性的影响\",\n      \"narrativeArc\": [],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [\n        \"社区体量大，楼下消费和服务设施较成熟\",\n        \"已有商业配套和真实经营场景可观察\",\n        \"空间用途较灵活，具体使用以实际需求和官方口径为准\",\n        \"当前总价门槛相对友好，需结合预算判断\"\n      ],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"生活场景导向\",\n        \"reason\": \"通过生活场景展示成熟配套的便利性，增强信任感\",\n        \"titleTactics\": [\"强调生活便利性\"],\n        \"hookTactics\": [\"很多人第一次看房只盯户型图\"],\n        \"ctaTactics\": [\"想要了解更多生活便利的配套信息可以问我\"]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"成熟配套如何提升生活便利性\",\n        \"coverCopyDirection\": \"探索生活半径，发现更好的居住选择\",\n        \"bodyStructure\": [\n          \"引入生活场景\",\n          \"介绍社区成熟配套\",\n          \"列出生活便利的具体例子\",\n          \"总结配套对生活的影响\",\n          \"轻CTA\"\n        ],\n        \"imagePlan\": [\n          \"社区内的商业设施实景图\",\n          \"居民日常生活场景的照片\",\n          \"周边交通便利性的示意图\"\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"通过短视频展示社区的生活场景，强调成熟配套带来的便利\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"镜头1：社区外观和商业设施\",\n          \"镜头2：居民在社区内购物、用餐的场景\",\n          \"镜头3：交通便利的展示，如公交站、地铁口\",\n          \"镜头4：总结性画面，强调生活便利性\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": [],\n      \"trace\": {\n        \"usedKnowledgeSummary\": [\n          \"社区体量大，楼下消费和服务设施较成熟\",\n          \"已有商业配套和真实经营场景可观察\"\n        ],\n        \"usedViralSummary\": [\n          \"强调生活便利性\"\n        ],\n        \"usedImageSummary\": []\n      },\n      \"qualityGateHints\": {\n        \"factWeakness\": \"\",\n        \"complianceRisks\": [],\n        \"mustReviewBeforePublish\": []\n      }\n    },\n    \"usedKnowledgeRefs\": [],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}"
+    },
+    "error": null,
+    "elapsed_time": 57.362502,
+    "total_tokens": 15523,
+    "total_steps": 9,
+    "created_by": {
+      "id": "572eda95-c663-45f0-891c-eed24c6b56c5",
+      "user": "content_calendar_test_case02_no_images_1778511123"
+    },
+    "created_at": 1778511127,
+    "finished_at": 1778511185,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [
+        "成熟配套如何提升生活便利性",
+        "探索生活半径，发现更好的居住选择",
+        "生活便利性与社区配套的关系"
+      ],
+      "selectedTitle": "成熟配套如何提升生活便利性",
+      "coverCopy": "探索生活半径，发现更好的居住选择",
+      "body": "在选择居住地时，很多人只关注户型图，实际上，成熟的社区配套对生活的便利性影响很大。这里的社区体量较大，楼下就有多种消费和服务设施，日常生活非常方便。\n\n周边已有商业配套，真实经营场景可供观察，居民在这里购物、用餐都很方便。交通方面，公交站和地铁口也在附近，出行选择多样。\n\n空间用途灵活，可以根据实际需求进行调整，具体使用情况可以结合官方口径了解。当前的总价门槛相对友好，适合结合预算进一步判断。\n\n想要了解更多生活便利的配套信息可以问我。",
+      "hashtags": [
+        "#生活便利性",
+        "#成熟配套",
+        "#社区服务"
+      ],
+      "cta": "想要了解更多生活便利的配套信息可以问我。",
+      "imageMatches": [
+        {
+          "assetId": "",
+          "title": "",
+          "usage": "",
+          "reason": ""
+        }
+      ],
+      "imageBriefIfMissing": "缺少相关图片素材，请提供社区内的商业设施实景图、居民日常生活场景的照片或周边交通便利性的示意图。",
+      "riskNotes": [],
+      "copyReadyText": "成熟配套如何提升生活便利性\n探索生活半径，发现更好的居住选择\n在选择居住地时，很多人只关注户型图，实际上，成熟的社区配套对生活的便利性影响很大。这里的社区体量较大，楼下就有多种消费和服务设施，日常生活非常方便。\n\n周边已有商业配套，真实经营场景可供观察，居民在这里购物、用餐都很方便。交通方面，公交站和地铁口也在附近，出行选择多样。\n\n空间用途灵活，可以根据实际需求进行调整，具体使用情况可以结合官方口径了解。当前的总价门槛相对友好，适合结合预算进一步判断。\n\n想要了解更多生活便利的配套信息可以问我。#生活便利性 #成熟配套 #社区服务"
+    },
+    "videoScript": {
+      "storyOutline": "通过短视频展示社区的生活场景，强调成熟配套带来的便利",
+      "estimatedDuration": "35-45秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-10秒",
+          "visualGoal": "展示社区外观和商业设施，突出环境氛围",
+          "voiceover": "这里是我们社区的外观，周围有丰富的商业设施。",
+          "subtitle": "社区外观与商业设施",
+          "shotRequirement": "项目外立面 远景 小区入口",
+          "assetQuery": "项目外立面 远景 小区入口",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "10-20秒",
+          "visualGoal": "展示居民在社区内购物、用餐的场景，体现生活便利性",
+          "voiceover": "在这里，居民可以轻松购物和用餐，生活非常便捷。",
+          "subtitle": "居民日常生活场景",
+          "shotRequirement": "居民在社区内购物、用餐",
+          "assetQuery": "居民在社区内购物、用餐",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "20-30秒",
+          "visualGoal": "展示交通便利的场景，如公交站、地铁口",
+          "voiceover": "交通方面，公交站和地铁口都在附近，出行选择多样。",
+          "subtitle": "交通便利性",
+          "shotRequirement": "公交站、地铁口",
+          "assetQuery": "公交站、地铁口",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "30-45秒",
+          "visualGoal": "总结性画面，强调生活便利性",
+          "voiceover": "成熟的配套设施为居民的生活提供了极大的便利。",
+          "subtitle": "生活便利性总结",
+          "shotRequirement": "总结性画面",
+          "assetQuery": "总结性画面",
+          "uploadRequired": true,
+          "uploadReason": "需要成员自拍或补拍总结性画面",
+          "assetSourceHint": "member_upload",
+          "fallbackVisual": ""
+        }
+      ],
+      "requiredUploads": [
+        "总结性画面"
+      ],
+      "optionalTeamVideoAssets": [
+        "项目外立面 远景 小区入口",
+        "居民在社区内购物、用餐",
+        "公交站、地铁口"
+      ],
+      "shootingTips": [],
+      "riskNotes": []
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 5,
+        "projectFit": 8,
+        "viralStructure": 7,
+        "platformTone": 6,
+        "materialFit": 5,
+        "compliance": 6
+      },
+      "pass": false,
+      "problems": [
+        "收益承诺类表述"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": []
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "成熟配套怎么讲",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "信任建立",
+        "targetAudience": "首次看房客户",
+        "audiencePain": "",
+        "sellingPointsNeeded": [
+          "生活便利度",
+          "项目实景",
+          "空间使用",
+          "预算友好",
+          "成熟配套"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "成熟配套 生活便利度 首次看房客户",
+        "scriptSearchQuery": "成熟配套 生活便利度 首次看房客户",
+        "imageSearchQuery": "成熟配套 生活便利度 首次看房客户",
+        "videoAssetQueryHints": [],
+        "extraRequirement": ""
+      },
+      "creativeStrategy": {
+        "chosenAngle": "强调成熟配套对生活便利性的影响",
+        "narrativeArc": [],
+        "tone": "本地中介、真实、克制、不夸张",
+        "mustUseFacts": [
+          "社区体量大，楼下消费和服务设施较成熟",
+          "已有商业配套和真实经营场景可观察",
+          "空间用途较灵活，具体使用以实际需求和官方口径为准",
+          "当前总价门槛相对友好，需结合预算判断"
+        ],
+        "mustAvoidClaims": [],
+        "viralPatternUsed": {
+          "patternName": "生活场景导向",
+          "reason": "通过生活场景展示成熟配套的便利性，增强信任感",
+          "titleTactics": [
+            "强调生活便利性"
+          ],
+          "hookTactics": [
+            "很多人第一次看房只盯户型图"
+          ],
+          "ctaTactics": [
+            "想要了解更多生活便利的配套信息可以问我"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "成熟配套如何提升生活便利性",
+          "coverCopyDirection": "探索生活半径，发现更好的居住选择",
+          "bodyStructure": [
+            "引入生活场景",
+            "介绍社区成熟配套",
+            "列出生活便利的具体例子",
+            "总结配套对生活的影响",
+            "轻CTA"
+          ],
+          "imagePlan": [
+            "社区内的商业设施实景图",
+            "居民日常生活场景的照片",
+            "周边交通便利性的示意图"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "通过短视频展示社区的生活场景，强调成熟配套带来的便利",
+          "estimatedDuration": "35-45秒",
+          "scenePlan": [
+            "镜头1：社区外观和商业设施",
+            "镜头2：居民在社区内购物、用餐的场景",
+            "镜头3：交通便利的展示，如公交站、地铁口",
+            "镜头4：总结性画面，强调生活便利性"
+          ],
+          "requiredUploads": [],
+          "assetQueryHints": []
+        },
+        "degradationNotices": [],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "社区体量大，楼下消费和服务设施较成熟",
+            "已有商业配套和真实经营场景可观察"
+          ],
+          "usedViralSummary": [
+            "强调生活便利性"
+          ],
+          "usedImageSummary": []
+        },
+        "qualityGateHints": {
+          "factWeakness": "",
+          "complianceRisks": [],
+          "mustReviewBeforePublish": []
+        }
+      },
+      "usedKnowledgeRefs": [],
+      "usedViralRefs": [],
+      "usedImageAssets": [],
+      "degradationNotices": []
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"成熟配套如何提升生活便利性\",\n      \"探索生活半径，发现更好的居住选择\",\n      \"生活便利性与社区配套的关系\"\n    ],\n    \"selectedTitle\": \"成熟配套如何提升生活便利性\",\n    \"coverCopy\": \"探索生活半径，发现更好的居住选择\",\n    \"body\": \"在选择居住地时，很多人只关注户型图，实际上，成熟的社区配套对生活的便利性影响很大。这里的社区体量较大，楼下就有多种消费和服务设施，日常生活非常方便。\\n\\n周边已有商业配套，真实经营场景可供观察，居民在这里购物、用餐都很方便。交通方面，公交站和地铁口也在附近，出行选择多样。\\n\\n空间用途灵活，可以根据实际需求进行调整，具体使用情况可以结合官方口径了解。当前的总价门槛相对友好，适合结合预算进一步判断。\\n\\n想要了解更多生活便利的配套信息可以问我。\",\n    \"hashtags\": [\"#生活便利性\", \"#成熟配套\", \"#社区服务\"],\n    \"cta\": \"想要了解更多生活便利的配套信息可以问我。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"\",\n        \"title\": \"\",\n        \"usage\": \"\",\n        \"reason\": \"\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"缺少相关图片素材，请提供社区内的商业设施实景图、居民日常生活场景的照片或周边交通便利性的示意图。\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"成熟配套如何提升生活便利性\\n探索生活半径，发现更好的居住选择\\n在选择居住地时，很多人只关注户型图，实际上，成熟的社区配套对生活的便利性影响很大。这里的社区体量较大，楼下就有多种消费和服务设施，日常生活非常方便。\\n\\n周边已有商业配套，真实经营场景可供观察，居民在这里购物、用餐都很方便。交通方面，公交站和地铁口也在附近，出行选择多样。\\n\\n空间用途灵活，可以根据实际需求进行调整，具体使用情况可以结合官方口径了解。当前的总价门槛相对友好，适合结合预算进一步判断。\\n\\n想要了解更多生活便利的配套信息可以问我。#生活便利性 #成熟配套 #社区服务\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"通过短视频展示社区的生活场景，强调成熟配套带来的便利\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-10秒\",\n        \"visualGoal\": \"展示社区外观和商业设施，突出环境氛围\",\n        \"voiceover\": \"这里是我们社区的外观，周围有丰富的商业设施。\",\n        \"subtitle\": \"社区外观与商业设施\",\n        \"shotRequirement\": \"项目外立面 远景 小区入口\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"10-20秒\",\n        \"visualGoal\": \"展示居民在社区内购物、用餐的场景，体现生活便利性\",\n        \"voiceover\": \"在这里，居民可以轻松购物和用餐，生活非常便捷。\",\n        \"subtitle\": \"居民日常生活场景\",\n        \"shotRequirement\": \"居民在社区内购物、用餐\",\n        \"assetQuery\": \"居民在社区内购物、用餐\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"20-30秒\",\n        \"visualGoal\": \"展示交通便利的场景，如公交站、地铁口\",\n        \"voiceover\": \"交通方面，公交站和地铁口都在附近，出行选择多样。\",\n        \"subtitle\": \"交通便利性\",\n        \"shotRequirement\": \"公交站、地铁口\",\n        \"assetQuery\": \"公交站、地铁口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"总结性画面，强调生活便利性\",\n        \"voiceover\": \"成熟的配套设施为居民的生活提供了极大的便利。\",\n        \"subtitle\": \"生活便利性总结\",\n        \"shotRequirement\": \"总结性画面\",\n        \"assetQuery\": \"总结性画面\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要成员自拍或补拍总结性画面\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"总结性画面\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"居民在社区内购物、用餐\",\n      \"公交站、地铁口\"\n    ],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 5,\n      \"projectFit\": 8,\n      \"viralStructure\": 7,\n      \"platformTone\": 6,\n      \"materialFit\": 5,\n      \"compliance\": 6\n    },\n    \"pass\": false,\n    \"problems\": [\n      \"收益承诺类表述\"\n    ],\n    \"revisionSuggestions\": [],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"成熟配套怎么讲\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\"xiaohongshu\", \"douyin\"],\n      \"contentGoal\": \"信任建立\",\n      \"targetAudience\": \"首次看房客户\",\n      \"audiencePain\": \"\",\n      \"sellingPointsNeeded\": [\"生活便利度\", \"项目实景\", \"空间使用\", \"预算友好\", \"成熟配套\"],\n      \"riskConstraints\": [],\n      \"copySearchQuery\": \"成熟配套 生活便利度 首次看房客户\",\n      \"scriptSearchQuery\": \"成熟配套 生活便利度 首次看房客户\",\n      \"imageSearchQuery\": \"成熟配套 生活便利度 首次看房客户\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"强调成熟配套对生活便利性的影响\",\n      \"narrativeArc\": [],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [\n        \"社区体量大，楼下消费和服务设施较成熟\",\n        \"已有商业配套和真实经营场景可观察\",\n        \"空间用途较灵活，具体使用以实际需求和官方口径为准\",\n        \"当前总价门槛相对友好，需结合预算判断\"\n      ],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"生活场景导向\",\n        \"reason\": \"通过生活场景展示成熟配套的便利性，增强信任感\",\n        \"titleTactics\": [\"强调生活便利性\"],\n        \"hookTactics\": [\"很多人第一次看房只盯户型图\"],\n        \"ctaTactics\": [\"想要了解更多生活便利的配套信息可以问我\"]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"成熟配套如何提升生活便利性\",\n        \"coverCopyDirection\": \"探索生活半径，发现更好的居住选择\",\n        \"bodyStructure\": [\n          \"引入生活场景\",\n          \"介绍社区成熟配套\",\n          \"列出生活便利的具体例子\",\n          \"总结配套对生活的影响\",\n          \"轻CTA\"\n        ],\n        \"imagePlan\": [\n          \"社区内的商业设施实景图\",\n          \"居民日常生活场景的照片\",\n          \"周边交通便利性的示意图\"\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"通过短视频展示社区的生活场景，强调成熟配套带来的便利\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"镜头1：社区外观和商业设施\",\n          \"镜头2：居民在社区内购物、用餐的场景\",\n          \"镜头3：交通便利的展示，如公交站、地铁口\",\n          \"镜头4：总结性画面，强调生活便利性\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": [],\n      \"trace\": {\n        \"usedKnowledgeSummary\": [\n          \"社区体量大，楼下消费和服务设施较成熟\",\n          \"已有商业配套和真实经营场景可观察\"\n        ],\n        \"usedViralSummary\": [\n          \"强调生活便利性\"\n        ],\n        \"usedImageSummary\": []\n      },\n      \"qualityGateHints\": {\n        \"factWeakness\": \"\",\n        \"complianceRisks\": [],\n        \"mustReviewBeforePublish\": []\n      }\n    },\n    \"usedKnowledgeRefs\": [],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": false,
+        "detail": "compliance:6<7"
+      }
+    ],
+    "risk_terms": []
+  }
+}

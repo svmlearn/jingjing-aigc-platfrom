@@ -1,0 +1,656 @@
+{
+  "case_name": "case01_full_with_compliance_risk",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case01_full_with_compliance_risk.json",
+  "run_index": 1,
+  "timestamp": "20260512_233616_143449",
+  "elapsed_time": 239.99044585227966,
+  "success": true,
+  "workflow_run_id": "f01e7ddf-2187-49f0-8314-4027e01c46d5",
+  "error": null,
+  "raw_response": {
+    "id": "f01e7ddf-2187-49f0-8314-4027e01c46d5",
+    "workflow_id": "ebdc6c0d-248b-478f-8ced-b41d72bb06c6",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v3_article_video_split\", \"articlePackage\": {\"titles\": [], \"selectedTitle\": \"\", \"coverCopy\": \"\", \"body\": \"最近好多客户私信问我，小户型是不是没人要了？其实啊，不光有人看，看的人还不少。光明星河天地的小户型，最近咨询量又上来了。\\n\\n社区有多大？80万方！住了快3万人。你想，人一多，配套自然就齐了。学校、超市、底商，基本生活下楼就能搞定。\\n\\n再来看看户型。层高4米，比常见小户型高不少。走进去，一点不压抑。还有商务大堂，朋友来了也体面。\\n\\n总结几个亮点：80万方大盘，配套成熟；层高4米，空间灵活；商务大堂，有面子；历史小户型抢手，现在热度回来。\\n\\n感兴趣的话私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？\", \"contentBlocks\": [{\"blockNo\": 1, \"blockType\": \"evidence\", \"text\": \"最近好多客户私信问我，小户型是不是没人要了？其实啊，不光有人看，看的人还不少。光明星河天地的小户型，最近咨询量又上来了。\", \"imageMatch\": {\"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"封面配图，建立信任\"}}, {\"blockNo\": 2, \"blockType\": \"data\", \"text\": \"社区有多大？80万方！住了快3万人。你想，人一多，配套自然就齐了。学校、超市、底商，基本生活下楼就能搞定。\", \"imageBrief\": \"社区内部配套实景图，如商业街或学校\"}, {\"blockNo\": 3, \"blockType\": \"experience\", \"text\": \"再来看看户型。层高4米，比常见小户型高不少。走进去，一点不压抑。还有商务大堂，朋友来了也体面。\", \"imageMatch\": {\"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间感\"}}, {\"blockNo\": 4, \"blockType\": \"list\", \"text\": \"总结几个亮点：80万方大盘，配套成熟；层高4米，空间灵活；商务大堂，有面子；历史小户型抢手，现在热度回来。\", \"imageBrief\": \"户型图或层高示意图\"}, {\"blockNo\": 5, \"blockType\": \"cta\", \"text\": \"感兴趣的话私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？\"}], \"hashtags\": [\"小户型\", \"深圳买房\", \"刚需上车\", \"低总价\", \"成熟配套\", \"首次置业\", \"光明星河天地\"], \"cta\": \"感兴趣私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？\", \"imageMatches\": [{\"blockNo\": 1, \"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"封面配图，建立信任\"}, {\"blockNo\": 3, \"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间感\"}], \"imageBriefIfMissing\": \"社区内部配套实景图，如商业街或学校; 户型图或层高示意图\", \"riskNotes\": [], \"copyReadyText\": \"\\n\\n最近好多客户私信问我，小户型是不是没人要了？其实啊，不光有人看，看的人还不少。光明星河天地的小户型，最近咨询量又上来了。\\n\\n社区有多大？80万方！住了快3万人。你想，人一多，配套自然就齐了。学校、超市、底商，基本生活下楼就能搞定。\\n\\n再来看看户型。层高4米，比常见小户型高不少。走进去，一点不压抑。还有商务大堂，朋友来了也体面。\\n\\n总结几个亮点：80万方大盘，配套成熟；层高4米，空间灵活；商务大堂，有面子；历史小户型抢手，现在热度回来。\\n\\n感兴趣的话私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？\\n\\n小户型 深圳买房 刚需上车 低总价 成熟配套 首次置业 光明星河天地\"}, \"titleStrategy\": {\"titles\": [], \"selectedTitleReason\": \"\", \"coverCopyOptions\": [], \"hookAngle\": \"\"}, \"videoScript\": {\"narrative\": {\"chosenAngle\": \"最近有不少预算有限的客户重新问起小户型，发现其实还有低总价的选择，而且周边配套已经很成熟，适合先自住过渡，不一定非要一步到位。\", \"narrativeArc\": [\"打破偏见：小户型并非没人看\", \"重新发现：低总价也能拥有成熟配套\", \"实景代入：展示社区和户型生活场景\", \"自然收尾：感兴趣可进一步了解\"], \"tone\": \"本地中介口吻，直白但克制，平实带点人情味\", \"mustUseFacts\": [\"光明星河天地有小户型产品再次引起关注\", \"社区整体规模约80万方，居住人口约3万，内部消费与生活需求成熟\", \"户型层高约4米，配备商务大堂，空间使用较灵活\", \"历史小面积单位曾受关注，近期中介反馈咨询量有所回升\", \"周边配套经过发展已形成基本生活场景\"], \"mustAvoidClaims\": [], \"viralPatternUsed\": {\"patternName\": \"反常识刚需重新发现\", \"reason\": \"符合小户型回归主题，破除偏见，带出真实需求，适合小红书平台\", \"titleTactics\": [\"反常识对比\", \"刚需重新发现\"], \"hookTactics\": [\"直接打破认知\", \"用真实市场现象切入\"], \"ctaTactics\": [\"轻提示可私信了解\", \"不施加压力\"]}, \"articlePlan\": {\"titleDirection\": \"打破偏见+低总价成熟配套\", \"coverCopyDirection\": \"封面用项目外立面，配一句话强调社区成熟\", \"bodyStructure\": [\"开头：很多人以为小户型没市场了，但最近线下刚需客户重新问起\", \"中间：介绍社区整体规模、户型特点，带出周边成熟配套\", \"结尾：总价友好，适合先看看图文，不急着决定\"], \"imagePlan\": [\"封面用项目外立面突出社区规模\", \"内图用样板间客厅展示实际空间感\", \"可补充周边配套实景图\"]}, \"videoPlan\": {\"storyOutline\": \"简短开头破偏见，实景展示社区和空间，口播配合画面，结尾自然引导\", \"estimatedDuration\": \"15-25秒\", \"scenePlan\": [\"中介出镜口播破题\", \"转场至社区外立面\", \"样板间空间展示\", \"周边配套快速穿插\"], \"assetQueryHints\": [\"小户型样板间实拍\", \"社区大门和外立面\", \"周边商超和学校实景\", \"中介自然口播片段\"]}, \"degradationNotices\": [\"项目具体户型面积未提供，需结合现场了解\", \"周边具体商业和学校名称未明确，建议实地考察\"], \"trace\": {\"usedKnowledgeSummary\": [\"光明星河天地小户型重新引起市场关注\", \"80万方社区规模，约3万人口\", \"户型层高4米，商务大堂\", \"历史低总价单位曾受刚需欢迎\"], \"usedViralSummary\": [\"借鉴爆款结构：反常识开头+重新发现+轻CTA，参考其hook和节奏\"], \"usedImageSummary\": [\"使用素材：项目外立面图作为封面，样板间客厅图展示空间\"]}, \"qualityGateHints\": {\"factWeakness\": \"小户型具体面积段和最新总价未公开，依赖中介内部信息，可能存在变动\", \"complianceRisks\": [\"收益承诺类\", \"出租确定性类\", \"价格趋势类\"], \"mustReviewBeforePublish\": []}}, \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-5秒\", \"sceneType\": \"口播\", \"emotionalBeat\": \"引起好奇\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘和项目模型\", \"voiceover\": \"很多人以为小户型没人看了，但最近刚需客户又回来问了，其实还有总价友好的选择。\", \"filmingGuide\": {\"location\": \"售楼处沙盘旁\", \"posture\": \"站着，自然面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"语速放慢，像跟朋友聊天\", \"开头多录2秒方便剪辑\"]}, \"transition\": \"直接切\", \"pacing\": \"正常\"}, {\"sceneNo\": 2, \"timeRange\": \"5-9秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示规模\", \"visualDescription\": \"小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和楼栋分布\", \"subtitle\": \"80万方大社区，配套够成熟\", \"assetQuery\": \"小区 航拍 外立面 俯瞰 社区规模\", \"fallbackVisual\": \"图片：项目外立面，展示社区入口和建筑群\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 3, \"timeRange\": \"9-13秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示空间\", \"visualDescription\": \"样板间客厅，阳光从落地窗洒进来，能看到沙发、茶几和开放式餐厅\", \"subtitle\": \"层高4米，空间很灵活\", \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透 层高\", \"fallbackVisual\": \"图片：样板间客厅全景，光线明亮，空间感强\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 4, \"timeRange\": \"13-16秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示配套\", \"visualDescription\": \"社区底商街景，傍晚亮灯，行人路过，街边有便利店和水果店\", \"subtitle\": \"日常买菜吃饭，走几步就到\", \"assetQuery\": \"社区 商业街 底商 傍晚 亮灯 生活气息\", \"fallbackVisual\": \"图片：商业街实景，店铺灯火通明，路人悠闲\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 5, \"timeRange\": \"16-20秒\", \"sceneType\": \"口播\", \"emotionalBeat\": \"轻松引导\", \"visualDescription\": \"中介站在样板间门口，背后是房间内部，自然收尾\", \"voiceover\": \"总价友好，适合先看看图文，不急着决定，感兴趣可以私信。\", \"filmingGuide\": {\"location\": \"样板间门口\", \"posture\": \"站在门框边，侧身能看见房间\", \"props\": [\"手机\", \"户型图\"], \"tips\": [\"利用门框当画框，画面更有纵深感\", \"保持和开头口播的着装一致\", \"结尾多录2秒方便剪\"]}, \"transition\": \"渐变过渡\", \"pacing\": \"正常\"}], \"riskNotes\": []}, \"memberDelivery\": {\"tasks\": [{\"taskNo\": 1, \"sceneNo\": 1, \"script\": \"很多人以为小户型没人看了，但最近刚需客户又回来问了，其实还有总价友好的选择。\", \"location\": \"售楼处沙盘旁\", \"posture\": \"站着，自然面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"语速放慢，像跟朋友聊天\", \"开头多录2秒方便剪辑\"]}, {\"taskNo\": 2, \"sceneNo\": 5, \"script\": \"总价友好，适合先看看图文，不急着决定，感兴趣可以私信。\", \"location\": \"样板间门口\", \"posture\": \"站在门框边，侧身能看见房间\", \"props\": [\"手机\", \"户型图\"], \"tips\": [\"利用门框当画框，画面更有纵深感\", \"保持和开头口播的着装一致\", \"结尾多录2秒方便剪\"]}]}, \"workerDelivery\": {\"storyOutline\": \"\", \"bgm\": \"\", \"toneOfVoice\": \"\", \"estimatedDuration\": \"\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-5秒\", \"sceneType\": \"口播\", \"emotionalBeat\": \"引起好奇\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘和项目模型\", \"voiceover\": \"很多人以为小户型没人看了，但最近刚需客户又回来问了，其实还有总价友好的选择。\", \"filmingGuide\": {\"location\": \"售楼处沙盘旁\", \"posture\": \"站着，自然面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"语速放慢，像跟朋友聊天\", \"开头多录2秒方便剪辑\"]}, \"transition\": \"直接切\", \"pacing\": \"正常\"}, {\"sceneNo\": 2, \"timeRange\": \"5-9秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示规模\", \"visualDescription\": \"小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和楼栋分布\", \"subtitle\": \"80万方大社区，配套够成熟\", \"assetQuery\": \"小区 航拍 外立面 俯瞰 社区规模\", \"fallbackVisual\": \"图片：项目外立面，展示社区入口和建筑群\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 3, \"timeRange\": \"9-13秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示空间\", \"visualDescription\": \"样板间客厅，阳光从落地窗洒进来，能看到沙发、茶几和开放式餐厅\", \"subtitle\": \"层高4米，空间很灵活\", \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透 层高\", \"fallbackVisual\": \"图片：样板间客厅全景，光线明亮，空间感强\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 4, \"timeRange\": \"13-16秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示配套\", \"visualDescription\": \"社区底商街景，傍晚亮灯，行人路过，街边有便利店和水果店\", \"subtitle\": \"日常买菜吃饭，走几步就到\", \"assetQuery\": \"社区 商业街 底商 傍晚 亮灯 生活气息\", \"fallbackVisual\": \"图片：商业街实景，店铺灯火通明，路人悠闲\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 5, \"timeRange\": \"16-20秒\", \"sceneType\": \"口播\", \"emotionalBeat\": \"轻松引导\", \"visualDescription\": \"中介站在样板间门口，背后是房间内部，自然收尾\", \"voiceover\": \"总价友好，适合先看看图文，不急着决定，感兴趣可以私信。\", \"filmingGuide\": {\"location\": \"样板间门口\", \"posture\": \"站在门框边，侧身能看见房间\", \"props\": [\"手机\", \"户型图\"], \"tips\": [\"利用门框当画框，画面更有纵深感\", \"保持和开头口播的着装一致\", \"结尾多录2秒方便剪\"]}, \"transition\": \"渐变过渡\", \"pacing\": \"正常\"}], \"teamAssetQueries\": [\"小区 航拍 外立面 俯瞰 社区规模\", \"样板间 客厅 落地窗 阳光 通透 层高\", \"社区 商业街 底商 傍晚 亮灯 生活气息\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 6, \"platformTone\": 6, \"materialFit\": 6, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"titles 为空\", \"缺少标题选择理由\", \"缺少 CTA 块\", \"Block 5 缺少配图策略\", \"视频叙事缺少前 3 秒钩子 openingLine\", \"视频叙事缺少 bgmDirection\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": []}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"小户型回归\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"种草\", \"targetAudience\": \"刚需客户\", \"audiencePain\": \"预算有限，想上车但担心供房压力，需要成熟配套降低生活成本\", \"sellingPointsNeeded\": [\"低总价上车\", \"成熟配套\"], \"riskConstraints\": [\"收益承诺类\"], \"copySearchQuery\": \"小户型 刚需 低总价 成熟配套 首次置业 自住 预算友好\", \"scriptSearchQuery\": \"小户型 回归 刚需 低总价 成熟配套 看房 实景\", \"imageSearchQuery\": \"小户型 样板间 实景 低总价 成熟配套\", \"videoAssetQueryHints\": [\"小户型样板间实拍\", \"项目周边配套\", \"户型图展示\", \"中介讲解\"], \"extraRequirement\": \"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"}, \"creativeStrategy\": {\"chosenAngle\": \"最近有不少预算有限的客户重新问起小户型，发现其实还有低总价的选择，而且周边配套已经很成熟，适合先自住过渡，不一定非要一步到位。\", \"narrativeArc\": [\"打破偏见：小户型并非没人看\", \"重新发现：低总价也能拥有成熟配套\", \"实景代入：展示社区和户型生活场景\", \"自然收尾：感兴趣可进一步了解\"], \"tone\": \"本地中介口吻，直白但克制，平实带点人情味\", \"mustUseFacts\": [\"光明星河天地有小户型产品再次引起关注\", \"社区整体规模约80万方，居住人口约3万，内部消费与生活需求成熟\", \"户型层高约4米，配备商务大堂，空间使用较灵活\", \"历史小面积单位曾受关注，近期中介反馈咨询量有所回升\", \"周边配套经过发展已形成基本生活场景\"], \"mustAvoidClaims\": [], \"viralPatternUsed\": {\"patternName\": \"反常识刚需重新发现\", \"reason\": \"符合小户型回归主题，破除偏见，带出真实需求，适合小红书平台\", \"titleTactics\": [\"反常识对比\", \"刚需重新发现\"], \"hookTactics\": [\"直接打破认知\", \"用真实市场现象切入\"], \"ctaTactics\": [\"轻提示可私信了解\", \"不施加压力\"]}, \"articlePlan\": {\"titleDirection\": \"打破偏见+低总价成熟配套\", \"coverCopyDirection\": \"封面用项目外立面，配一句话强调社区成熟\", \"bodyStructure\": [\"开头：很多人以为小户型没市场了，但最近线下刚需客户重新问起\", \"中间：介绍社区整体规模、户型特点，带出周边成熟配套\", \"结尾：总价友好，适合先看看图文，不急着决定\"], \"imagePlan\": [\"封面用项目外立面突出社区规模\", \"内图用样板间客厅展示实际空间感\", \"可补充周边配套实景图\"]}, \"videoPlan\": {\"storyOutline\": \"简短开头破偏见，实景展示社区和空间，口播配合画面，结尾自然引导\", \"estimatedDuration\": \"15-25秒\", \"scenePlan\": [\"中介出镜口播破题\", \"转场至社区外立面\", \"样板间空间展示\", \"周边配套快速穿插\"], \"assetQueryHints\": [\"小户型样板间实拍\", \"社区大门和外立面\", \"周边商超和学校实景\", \"中介自然口播片段\"]}, \"degradationNotices\": [\"项目具体户型面积未提供，需结合现场了解\", \"周边具体商业和学校名称未明确，建议实地考察\"], \"trace\": {\"usedKnowledgeSummary\": [\"光明星河天地小户型重新引起市场关注\", \"80万方社区规模，约3万人口\", \"户型层高4米，商务大堂\", \"历史低总价单位曾受刚需欢迎\"], \"usedViralSummary\": [\"借鉴爆款结构：反常识开头+重新发现+轻CTA，参考其hook和节奏\"], \"usedImageSummary\": [\"使用素材：项目外立面图作为封面，样板间客厅图展示空间\"]}, \"qualityGateHints\": {\"factWeakness\": \"小户型具体面积段和最新总价未公开，依赖中介内部信息，可能存在变动\", \"complianceRisks\": [\"收益承诺类\", \"出租确定性类\", \"价格趋势类\"], \"mustReviewBeforePublish\": []}}, \"usedKnowledgeRefs\": [\"光明星河天地有小户型产品再次引起关注\", \"社区整体规模约80万方，居住人口约3万，内部消费与生活需求成熟\", \"户型层高约4米，配备商务大堂，空间使用较灵活\", \"历史小面积单位曾受关注，近期中介反馈咨询量有所回升\", \"周边配套经过发展已形成基本生活场景\"], \"usedViralRefs\": [{\"patternName\": \"反常识刚需重新发现\", \"reason\": \"符合小户型回归主题，破除偏见，带出真实需求，适合小红书平台\", \"titleTactics\": [\"反常识对比\", \"刚需重新发现\"], \"hookTactics\": [\"直接打破认知\", \"用真实市场现象切入\"], \"ctaTactics\": [\"轻提示可私信了解\", \"不施加压力\"]}], \"usedImageAssets\": [{\"assetId\": \"img_001\", \"title\": \"项目外立面\"}, {\"assetId\": \"img_002\", \"title\": \"样板间客厅\"}], \"degradationNotices\": [\"项目具体户型面积未提供，需结合现场了解\", \"周边具体商业和学校名称未明确，建议实地考察\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 232.00631,
+    "total_tokens": 44506,
+    "total_steps": 16,
+    "created_by": {
+      "id": "1db917d1-786e-4ce4-acfc-7eebea2d48ab",
+      "user": "content_calendar_v3_new_api_flash_case01_full_with_compliance_risk_1778600176"
+    },
+    "created_at": 1778600178,
+    "finished_at": 1778600410,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v3_article_video_split",
+    "articlePackage": {
+      "titles": [],
+      "selectedTitle": "",
+      "coverCopy": "",
+      "body": "最近好多客户私信问我，小户型是不是没人要了？其实啊，不光有人看，看的人还不少。光明星河天地的小户型，最近咨询量又上来了。\n\n社区有多大？80万方！住了快3万人。你想，人一多，配套自然就齐了。学校、超市、底商，基本生活下楼就能搞定。\n\n再来看看户型。层高4米，比常见小户型高不少。走进去，一点不压抑。还有商务大堂，朋友来了也体面。\n\n总结几个亮点：80万方大盘，配套成熟；层高4米，空间灵活；商务大堂，有面子；历史小户型抢手，现在热度回来。\n\n感兴趣的话私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？",
+      "contentBlocks": [
+        {
+          "blockNo": 1,
+          "blockType": "evidence",
+          "text": "最近好多客户私信问我，小户型是不是没人要了？其实啊，不光有人看，看的人还不少。光明星河天地的小户型，最近咨询量又上来了。",
+          "imageMatch": {
+            "assetId": "img_001",
+            "title": "项目外立面",
+            "usage": "封面配图，建立信任"
+          }
+        },
+        {
+          "blockNo": 2,
+          "blockType": "data",
+          "text": "社区有多大？80万方！住了快3万人。你想，人一多，配套自然就齐了。学校、超市、底商，基本生活下楼就能搞定。",
+          "imageBrief": "社区内部配套实景图，如商业街或学校"
+        },
+        {
+          "blockNo": 3,
+          "blockType": "experience",
+          "text": "再来看看户型。层高4米，比常见小户型高不少。走进去，一点不压抑。还有商务大堂，朋友来了也体面。",
+          "imageMatch": {
+            "assetId": "img_002",
+            "title": "样板间客厅",
+            "usage": "展示空间感"
+          }
+        },
+        {
+          "blockNo": 4,
+          "blockType": "list",
+          "text": "总结几个亮点：80万方大盘，配套成熟；层高4米，空间灵活；商务大堂，有面子；历史小户型抢手，现在热度回来。",
+          "imageBrief": "户型图或层高示意图"
+        },
+        {
+          "blockNo": 5,
+          "blockType": "cta",
+          "text": "感兴趣的话私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？"
+        }
+      ],
+      "hashtags": [
+        "小户型",
+        "深圳买房",
+        "刚需上车",
+        "低总价",
+        "成熟配套",
+        "首次置业",
+        "光明星河天地"
+      ],
+      "cta": "感兴趣私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？",
+      "imageMatches": [
+        {
+          "blockNo": 1,
+          "assetId": "img_001",
+          "title": "项目外立面",
+          "usage": "封面配图，建立信任"
+        },
+        {
+          "blockNo": 3,
+          "assetId": "img_002",
+          "title": "样板间客厅",
+          "usage": "展示空间感"
+        }
+      ],
+      "imageBriefIfMissing": "社区内部配套实景图，如商业街或学校; 户型图或层高示意图",
+      "riskNotes": [],
+      "copyReadyText": "\n\n最近好多客户私信问我，小户型是不是没人要了？其实啊，不光有人看，看的人还不少。光明星河天地的小户型，最近咨询量又上来了。\n\n社区有多大？80万方！住了快3万人。你想，人一多，配套自然就齐了。学校、超市、底商，基本生活下楼就能搞定。\n\n再来看看户型。层高4米，比常见小户型高不少。走进去，一点不压抑。还有商务大堂，朋友来了也体面。\n\n总结几个亮点：80万方大盘，配套成熟；层高4米，空间灵活；商务大堂，有面子；历史小户型抢手，现在热度回来。\n\n感兴趣的话私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？\n\n小户型 深圳买房 刚需上车 低总价 成熟配套 首次置业 光明星河天地"
+    },
+    "titleStrategy": {
+      "titles": [],
+      "selectedTitleReason": "",
+      "coverCopyOptions": [],
+      "hookAngle": ""
+    },
+    "videoScript": {
+      "narrative": {
+        "chosenAngle": "最近有不少预算有限的客户重新问起小户型，发现其实还有低总价的选择，而且周边配套已经很成熟，适合先自住过渡，不一定非要一步到位。",
+        "narrativeArc": [
+          "打破偏见：小户型并非没人看",
+          "重新发现：低总价也能拥有成熟配套",
+          "实景代入：展示社区和户型生活场景",
+          "自然收尾：感兴趣可进一步了解"
+        ],
+        "tone": "本地中介口吻，直白但克制，平实带点人情味",
+        "mustUseFacts": [
+          "光明星河天地有小户型产品再次引起关注",
+          "社区整体规模约80万方，居住人口约3万，内部消费与生活需求成熟",
+          "户型层高约4米，配备商务大堂，空间使用较灵活",
+          "历史小面积单位曾受关注，近期中介反馈咨询量有所回升",
+          "周边配套经过发展已形成基本生活场景"
+        ],
+        "mustAvoidClaims": [],
+        "viralPatternUsed": {
+          "patternName": "反常识刚需重新发现",
+          "reason": "符合小户型回归主题，破除偏见，带出真实需求，适合小红书平台",
+          "titleTactics": [
+            "反常识对比",
+            "刚需重新发现"
+          ],
+          "hookTactics": [
+            "直接打破认知",
+            "用真实市场现象切入"
+          ],
+          "ctaTactics": [
+            "轻提示可私信了解",
+            "不施加压力"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "打破偏见+低总价成熟配套",
+          "coverCopyDirection": "封面用项目外立面，配一句话强调社区成熟",
+          "bodyStructure": [
+            "开头：很多人以为小户型没市场了，但最近线下刚需客户重新问起",
+            "中间：介绍社区整体规模、户型特点，带出周边成熟配套",
+            "结尾：总价友好，适合先看看图文，不急着决定"
+          ],
+          "imagePlan": [
+            "封面用项目外立面突出社区规模",
+            "内图用样板间客厅展示实际空间感",
+            "可补充周边配套实景图"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "简短开头破偏见，实景展示社区和空间，口播配合画面，结尾自然引导",
+          "estimatedDuration": "15-25秒",
+          "scenePlan": [
+            "中介出镜口播破题",
+            "转场至社区外立面",
+            "样板间空间展示",
+            "周边配套快速穿插"
+          ],
+          "assetQueryHints": [
+            "小户型样板间实拍",
+            "社区大门和外立面",
+            "周边商超和学校实景",
+            "中介自然口播片段"
+          ]
+        },
+        "degradationNotices": [
+          "项目具体户型面积未提供，需结合现场了解",
+          "周边具体商业和学校名称未明确，建议实地考察"
+        ],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "光明星河天地小户型重新引起市场关注",
+            "80万方社区规模，约3万人口",
+            "户型层高4米，商务大堂",
+            "历史低总价单位曾受刚需欢迎"
+          ],
+          "usedViralSummary": [
+            "借鉴爆款结构：反常识开头+重新发现+轻CTA，参考其hook和节奏"
+          ],
+          "usedImageSummary": [
+            "使用素材：项目外立面图作为封面，样板间客厅图展示空间"
+          ]
+        },
+        "qualityGateHints": {
+          "factWeakness": "小户型具体面积段和最新总价未公开，依赖中介内部信息，可能存在变动",
+          "complianceRisks": [
+            "收益承诺类",
+            "出租确定性类",
+            "价格趋势类"
+          ],
+          "mustReviewBeforePublish": []
+        }
+      },
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-5秒",
+          "sceneType": "口播",
+          "emotionalBeat": "引起好奇",
+          "visualDescription": "中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘和项目模型",
+          "voiceover": "很多人以为小户型没人看了，但最近刚需客户又回来问了，其实还有总价友好的选择。",
+          "filmingGuide": {
+            "location": "售楼处沙盘旁",
+            "posture": "站着，自然面对镜头",
+            "props": [
+              "工牌"
+            ],
+            "tips": [
+              "语速放慢，像跟朋友聊天",
+              "开头多录2秒方便剪辑"
+            ]
+          },
+          "transition": "直接切",
+          "pacing": "正常"
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "5-9秒",
+          "sceneType": "素材",
+          "emotionalBeat": "展示规模",
+          "visualDescription": "小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和楼栋分布",
+          "subtitle": "80万方大社区，配套够成熟",
+          "assetQuery": "小区 航拍 外立面 俯瞰 社区规模",
+          "fallbackVisual": "图片：项目外立面，展示社区入口和建筑群",
+          "transition": "直接切",
+          "pacing": "快"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "9-13秒",
+          "sceneType": "素材",
+          "emotionalBeat": "展示空间",
+          "visualDescription": "样板间客厅，阳光从落地窗洒进来，能看到沙发、茶几和开放式餐厅",
+          "subtitle": "层高4米，空间很灵活",
+          "assetQuery": "样板间 客厅 落地窗 阳光 通透 层高",
+          "fallbackVisual": "图片：样板间客厅全景，光线明亮，空间感强",
+          "transition": "直接切",
+          "pacing": "快"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "13-16秒",
+          "sceneType": "素材",
+          "emotionalBeat": "展示配套",
+          "visualDescription": "社区底商街景，傍晚亮灯，行人路过，街边有便利店和水果店",
+          "subtitle": "日常买菜吃饭，走几步就到",
+          "assetQuery": "社区 商业街 底商 傍晚 亮灯 生活气息",
+          "fallbackVisual": "图片：商业街实景，店铺灯火通明，路人悠闲",
+          "transition": "直接切",
+          "pacing": "快"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "16-20秒",
+          "sceneType": "口播",
+          "emotionalBeat": "轻松引导",
+          "visualDescription": "中介站在样板间门口，背后是房间内部，自然收尾",
+          "voiceover": "总价友好，适合先看看图文，不急着决定，感兴趣可以私信。",
+          "filmingGuide": {
+            "location": "样板间门口",
+            "posture": "站在门框边，侧身能看见房间",
+            "props": [
+              "手机",
+              "户型图"
+            ],
+            "tips": [
+              "利用门框当画框，画面更有纵深感",
+              "保持和开头口播的着装一致",
+              "结尾多录2秒方便剪"
+            ]
+          },
+          "transition": "渐变过渡",
+          "pacing": "正常"
+        }
+      ],
+      "riskNotes": []
+    },
+    "memberDelivery": {
+      "tasks": [
+        {
+          "taskNo": 1,
+          "sceneNo": 1,
+          "script": "很多人以为小户型没人看了，但最近刚需客户又回来问了，其实还有总价友好的选择。",
+          "location": "售楼处沙盘旁",
+          "posture": "站着，自然面对镜头",
+          "props": [
+            "工牌"
+          ],
+          "tips": [
+            "语速放慢，像跟朋友聊天",
+            "开头多录2秒方便剪辑"
+          ]
+        },
+        {
+          "taskNo": 2,
+          "sceneNo": 5,
+          "script": "总价友好，适合先看看图文，不急着决定，感兴趣可以私信。",
+          "location": "样板间门口",
+          "posture": "站在门框边，侧身能看见房间",
+          "props": [
+            "手机",
+            "户型图"
+          ],
+          "tips": [
+            "利用门框当画框，画面更有纵深感",
+            "保持和开头口播的着装一致",
+            "结尾多录2秒方便剪"
+          ]
+        }
+      ]
+    },
+    "workerDelivery": {
+      "storyOutline": "",
+      "bgm": "",
+      "toneOfVoice": "",
+      "estimatedDuration": "",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-5秒",
+          "sceneType": "口播",
+          "emotionalBeat": "引起好奇",
+          "visualDescription": "中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘和项目模型",
+          "voiceover": "很多人以为小户型没人看了，但最近刚需客户又回来问了，其实还有总价友好的选择。",
+          "filmingGuide": {
+            "location": "售楼处沙盘旁",
+            "posture": "站着，自然面对镜头",
+            "props": [
+              "工牌"
+            ],
+            "tips": [
+              "语速放慢，像跟朋友聊天",
+              "开头多录2秒方便剪辑"
+            ]
+          },
+          "transition": "直接切",
+          "pacing": "正常"
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "5-9秒",
+          "sceneType": "素材",
+          "emotionalBeat": "展示规模",
+          "visualDescription": "小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和楼栋分布",
+          "subtitle": "80万方大社区，配套够成熟",
+          "assetQuery": "小区 航拍 外立面 俯瞰 社区规模",
+          "fallbackVisual": "图片：项目外立面，展示社区入口和建筑群",
+          "transition": "直接切",
+          "pacing": "快"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "9-13秒",
+          "sceneType": "素材",
+          "emotionalBeat": "展示空间",
+          "visualDescription": "样板间客厅，阳光从落地窗洒进来，能看到沙发、茶几和开放式餐厅",
+          "subtitle": "层高4米，空间很灵活",
+          "assetQuery": "样板间 客厅 落地窗 阳光 通透 层高",
+          "fallbackVisual": "图片：样板间客厅全景，光线明亮，空间感强",
+          "transition": "直接切",
+          "pacing": "快"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "13-16秒",
+          "sceneType": "素材",
+          "emotionalBeat": "展示配套",
+          "visualDescription": "社区底商街景，傍晚亮灯，行人路过，街边有便利店和水果店",
+          "subtitle": "日常买菜吃饭，走几步就到",
+          "assetQuery": "社区 商业街 底商 傍晚 亮灯 生活气息",
+          "fallbackVisual": "图片：商业街实景，店铺灯火通明，路人悠闲",
+          "transition": "直接切",
+          "pacing": "快"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "16-20秒",
+          "sceneType": "口播",
+          "emotionalBeat": "轻松引导",
+          "visualDescription": "中介站在样板间门口，背后是房间内部，自然收尾",
+          "voiceover": "总价友好，适合先看看图文，不急着决定，感兴趣可以私信。",
+          "filmingGuide": {
+            "location": "样板间门口",
+            "posture": "站在门框边，侧身能看见房间",
+            "props": [
+              "手机",
+              "户型图"
+            ],
+            "tips": [
+              "利用门框当画框，画面更有纵深感",
+              "保持和开头口播的着装一致",
+              "结尾多录2秒方便剪"
+            ]
+          },
+          "transition": "渐变过渡",
+          "pacing": "正常"
+        }
+      ],
+      "teamAssetQueries": [
+        "小区 航拍 外立面 俯瞰 社区规模",
+        "样板间 客厅 落地窗 阳光 通透 层高",
+        "社区 商业街 底商 傍晚 亮灯 生活气息"
+      ]
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 8,
+        "projectFit": 8,
+        "viralStructure": 6,
+        "platformTone": 6,
+        "materialFit": 6,
+        "compliance": 9
+      },
+      "pass": false,
+      "needsRewrite": false,
+      "riskTerms": [],
+      "problems": [
+        "titles 为空",
+        "缺少标题选择理由",
+        "缺少 CTA 块",
+        "Block 5 缺少配图策略",
+        "视频叙事缺少前 3 秒钩子 openingLine",
+        "视频叙事缺少 bgmDirection"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": []
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "小户型回归",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "刚需客户",
+        "audiencePain": "预算有限，想上车但担心供房压力，需要成熟配套降低生活成本",
+        "sellingPointsNeeded": [
+          "低总价上车",
+          "成熟配套"
+        ],
+        "riskConstraints": [
+          "收益承诺类"
+        ],
+        "copySearchQuery": "小户型 刚需 低总价 成熟配套 首次置业 自住 预算友好",
+        "scriptSearchQuery": "小户型 回归 刚需 低总价 成熟配套 看房 实景",
+        "imageSearchQuery": "小户型 样板间 实景 低总价 成熟配套",
+        "videoAssetQueryHints": [
+          "小户型样板间实拍",
+          "项目周边配套",
+          "户型图展示",
+          "中介讲解"
+        ],
+        "extraRequirement": "口吻更像本地中介，CTA轻一点，不要制造焦虑。"
+      },
+      "creativeStrategy": {
+        "chosenAngle": "最近有不少预算有限的客户重新问起小户型，发现其实还有低总价的选择，而且周边配套已经很成熟，适合先自住过渡，不一定非要一步到位。",
+        "narrativeArc": [
+          "打破偏见：小户型并非没人看",
+          "重新发现：低总价也能拥有成熟配套",
+          "实景代入：展示社区和户型生活场景",
+          "自然收尾：感兴趣可进一步了解"
+        ],
+        "tone": "本地中介口吻，直白但克制，平实带点人情味",
+        "mustUseFacts": [
+          "光明星河天地有小户型产品再次引起关注",
+          "社区整体规模约80万方，居住人口约3万，内部消费与生活需求成熟",
+          "户型层高约4米，配备商务大堂，空间使用较灵活",
+          "历史小面积单位曾受关注，近期中介反馈咨询量有所回升",
+          "周边配套经过发展已形成基本生活场景"
+        ],
+        "mustAvoidClaims": [],
+        "viralPatternUsed": {
+          "patternName": "反常识刚需重新发现",
+          "reason": "符合小户型回归主题，破除偏见，带出真实需求，适合小红书平台",
+          "titleTactics": [
+            "反常识对比",
+            "刚需重新发现"
+          ],
+          "hookTactics": [
+            "直接打破认知",
+            "用真实市场现象切入"
+          ],
+          "ctaTactics": [
+            "轻提示可私信了解",
+            "不施加压力"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "打破偏见+低总价成熟配套",
+          "coverCopyDirection": "封面用项目外立面，配一句话强调社区成熟",
+          "bodyStructure": [
+            "开头：很多人以为小户型没市场了，但最近线下刚需客户重新问起",
+            "中间：介绍社区整体规模、户型特点，带出周边成熟配套",
+            "结尾：总价友好，适合先看看图文，不急着决定"
+          ],
+          "imagePlan": [
+            "封面用项目外立面突出社区规模",
+            "内图用样板间客厅展示实际空间感",
+            "可补充周边配套实景图"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "简短开头破偏见，实景展示社区和空间，口播配合画面，结尾自然引导",
+          "estimatedDuration": "15-25秒",
+          "scenePlan": [
+            "中介出镜口播破题",
+            "转场至社区外立面",
+            "样板间空间展示",
+            "周边配套快速穿插"
+          ],
+          "assetQueryHints": [
+            "小户型样板间实拍",
+            "社区大门和外立面",
+            "周边商超和学校实景",
+            "中介自然口播片段"
+          ]
+        },
+        "degradationNotices": [
+          "项目具体户型面积未提供，需结合现场了解",
+          "周边具体商业和学校名称未明确，建议实地考察"
+        ],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "光明星河天地小户型重新引起市场关注",
+            "80万方社区规模，约3万人口",
+            "户型层高4米，商务大堂",
+            "历史低总价单位曾受刚需欢迎"
+          ],
+          "usedViralSummary": [
+            "借鉴爆款结构：反常识开头+重新发现+轻CTA，参考其hook和节奏"
+          ],
+          "usedImageSummary": [
+            "使用素材：项目外立面图作为封面，样板间客厅图展示空间"
+          ]
+        },
+        "qualityGateHints": {
+          "factWeakness": "小户型具体面积段和最新总价未公开，依赖中介内部信息，可能存在变动",
+          "complianceRisks": [
+            "收益承诺类",
+            "出租确定性类",
+            "价格趋势类"
+          ],
+          "mustReviewBeforePublish": []
+        }
+      },
+      "usedKnowledgeRefs": [
+        "光明星河天地有小户型产品再次引起关注",
+        "社区整体规模约80万方，居住人口约3万，内部消费与生活需求成熟",
+        "户型层高约4米，配备商务大堂，空间使用较灵活",
+        "历史小面积单位曾受关注，近期中介反馈咨询量有所回升",
+        "周边配套经过发展已形成基本生活场景"
+      ],
+      "usedViralRefs": [
+        {
+          "patternName": "反常识刚需重新发现",
+          "reason": "符合小户型回归主题，破除偏见，带出真实需求，适合小红书平台",
+          "titleTactics": [
+            "反常识对比",
+            "刚需重新发现"
+          ],
+          "hookTactics": [
+            "直接打破认知",
+            "用真实市场现象切入"
+          ],
+          "ctaTactics": [
+            "轻提示可私信了解",
+            "不施加压力"
+          ]
+        }
+      ],
+      "usedImageAssets": [
+        {
+          "assetId": "img_001",
+          "title": "项目外立面"
+        },
+        {
+          "assetId": "img_002",
+          "title": "样板间客厅"
+        }
+      ],
+      "degradationNotices": [
+        "项目具体户型面积未提供，需结合现场了解",
+        "周边具体商业和学校名称未明确，建议实地考察"
+      ]
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\"workflowVersion\": \"content_calendar_generation_poc_v3_article_video_split\", \"articlePackage\": {\"titles\": [], \"selectedTitle\": \"\", \"coverCopy\": \"\", \"body\": \"最近好多客户私信问我，小户型是不是没人要了？其实啊，不光有人看，看的人还不少。光明星河天地的小户型，最近咨询量又上来了。\\n\\n社区有多大？80万方！住了快3万人。你想，人一多，配套自然就齐了。学校、超市、底商，基本生活下楼就能搞定。\\n\\n再来看看户型。层高4米，比常见小户型高不少。走进去，一点不压抑。还有商务大堂，朋友来了也体面。\\n\\n总结几个亮点：80万方大盘，配套成熟；层高4米，空间灵活；商务大堂，有面子；历史小户型抢手，现在热度回来。\\n\\n感兴趣的话私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？\", \"contentBlocks\": [{\"blockNo\": 1, \"blockType\": \"evidence\", \"text\": \"最近好多客户私信问我，小户型是不是没人要了？其实啊，不光有人看，看的人还不少。光明星河天地的小户型，最近咨询量又上来了。\", \"imageMatch\": {\"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"封面配图，建立信任\"}}, {\"blockNo\": 2, \"blockType\": \"data\", \"text\": \"社区有多大？80万方！住了快3万人。你想，人一多，配套自然就齐了。学校、超市、底商，基本生活下楼就能搞定。\", \"imageBrief\": \"社区内部配套实景图，如商业街或学校\"}, {\"blockNo\": 3, \"blockType\": \"experience\", \"text\": \"再来看看户型。层高4米，比常见小户型高不少。走进去，一点不压抑。还有商务大堂，朋友来了也体面。\", \"imageMatch\": {\"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间感\"}}, {\"blockNo\": 4, \"blockType\": \"list\", \"text\": \"总结几个亮点：80万方大盘，配套成熟；层高4米，空间灵活；商务大堂，有面子；历史小户型抢手，现在热度回来。\", \"imageBrief\": \"户型图或层高示意图\"}, {\"blockNo\": 5, \"blockType\": \"cta\", \"text\": \"感兴趣的话私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？\"}], \"hashtags\": [\"小户型\", \"深圳买房\", \"刚需上车\", \"低总价\", \"成熟配套\", \"首次置业\", \"光明星河天地\"], \"cta\": \"感兴趣私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？\", \"imageMatches\": [{\"blockNo\": 1, \"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"封面配图，建立信任\"}, {\"blockNo\": 3, \"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间感\"}], \"imageBriefIfMissing\": \"社区内部配套实景图，如商业街或学校; 户型图或层高示意图\", \"riskNotes\": [], \"copyReadyText\": \"\\n\\n最近好多客户私信问我，小户型是不是没人要了？其实啊，不光有人看，看的人还不少。光明星河天地的小户型，最近咨询量又上来了。\\n\\n社区有多大？80万方！住了快3万人。你想，人一多，配套自然就齐了。学校、超市、底商，基本生活下楼就能搞定。\\n\\n再来看看户型。层高4米，比常见小户型高不少。走进去，一点不压抑。还有商务大堂，朋友来了也体面。\\n\\n总结几个亮点：80万方大盘，配套成熟；层高4米，空间灵活；商务大堂，有面子；历史小户型抢手，现在热度回来。\\n\\n感兴趣的话私信我，发你户型图看看。或者你猜，89平和110平，哪个更受欢迎？\\n\\n小户型 深圳买房 刚需上车 低总价 成熟配套 首次置业 光明星河天地\"}, \"titleStrategy\": {\"titles\": [], \"selectedTitleReason\": \"\", \"coverCopyOptions\": [], \"hookAngle\": \"\"}, \"videoScript\": {\"narrative\": {\"chosenAngle\": \"最近有不少预算有限的客户重新问起小户型，发现其实还有低总价的选择，而且周边配套已经很成熟，适合先自住过渡，不一定非要一步到位。\", \"narrativeArc\": [\"打破偏见：小户型并非没人看\", \"重新发现：低总价也能拥有成熟配套\", \"实景代入：展示社区和户型生活场景\", \"自然收尾：感兴趣可进一步了解\"], \"tone\": \"本地中介口吻，直白但克制，平实带点人情味\", \"mustUseFacts\": [\"光明星河天地有小户型产品再次引起关注\", \"社区整体规模约80万方，居住人口约3万，内部消费与生活需求成熟\", \"户型层高约4米，配备商务大堂，空间使用较灵活\", \"历史小面积单位曾受关注，近期中介反馈咨询量有所回升\", \"周边配套经过发展已形成基本生活场景\"], \"mustAvoidClaims\": [], \"viralPatternUsed\": {\"patternName\": \"反常识刚需重新发现\", \"reason\": \"符合小户型回归主题，破除偏见，带出真实需求，适合小红书平台\", \"titleTactics\": [\"反常识对比\", \"刚需重新发现\"], \"hookTactics\": [\"直接打破认知\", \"用真实市场现象切入\"], \"ctaTactics\": [\"轻提示可私信了解\", \"不施加压力\"]}, \"articlePlan\": {\"titleDirection\": \"打破偏见+低总价成熟配套\", \"coverCopyDirection\": \"封面用项目外立面，配一句话强调社区成熟\", \"bodyStructure\": [\"开头：很多人以为小户型没市场了，但最近线下刚需客户重新问起\", \"中间：介绍社区整体规模、户型特点，带出周边成熟配套\", \"结尾：总价友好，适合先看看图文，不急着决定\"], \"imagePlan\": [\"封面用项目外立面突出社区规模\", \"内图用样板间客厅展示实际空间感\", \"可补充周边配套实景图\"]}, \"videoPlan\": {\"storyOutline\": \"简短开头破偏见，实景展示社区和空间，口播配合画面，结尾自然引导\", \"estimatedDuration\": \"15-25秒\", \"scenePlan\": [\"中介出镜口播破题\", \"转场至社区外立面\", \"样板间空间展示\", \"周边配套快速穿插\"], \"assetQueryHints\": [\"小户型样板间实拍\", \"社区大门和外立面\", \"周边商超和学校实景\", \"中介自然口播片段\"]}, \"degradationNotices\": [\"项目具体户型面积未提供，需结合现场了解\", \"周边具体商业和学校名称未明确，建议实地考察\"], \"trace\": {\"usedKnowledgeSummary\": [\"光明星河天地小户型重新引起市场关注\", \"80万方社区规模，约3万人口\", \"户型层高4米，商务大堂\", \"历史低总价单位曾受刚需欢迎\"], \"usedViralSummary\": [\"借鉴爆款结构：反常识开头+重新发现+轻CTA，参考其hook和节奏\"], \"usedImageSummary\": [\"使用素材：项目外立面图作为封面，样板间客厅图展示空间\"]}, \"qualityGateHints\": {\"factWeakness\": \"小户型具体面积段和最新总价未公开，依赖中介内部信息，可能存在变动\", \"complianceRisks\": [\"收益承诺类\", \"出租确定性类\", \"价格趋势类\"], \"mustReviewBeforePublish\": []}}, \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-5秒\", \"sceneType\": \"口播\", \"emotionalBeat\": \"引起好奇\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘和项目模型\", \"voiceover\": \"很多人以为小户型没人看了，但最近刚需客户又回来问了，其实还有总价友好的选择。\", \"filmingGuide\": {\"location\": \"售楼处沙盘旁\", \"posture\": \"站着，自然面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"语速放慢，像跟朋友聊天\", \"开头多录2秒方便剪辑\"]}, \"transition\": \"直接切\", \"pacing\": \"正常\"}, {\"sceneNo\": 2, \"timeRange\": \"5-9秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示规模\", \"visualDescription\": \"小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和楼栋分布\", \"subtitle\": \"80万方大社区，配套够成熟\", \"assetQuery\": \"小区 航拍 外立面 俯瞰 社区规模\", \"fallbackVisual\": \"图片：项目外立面，展示社区入口和建筑群\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 3, \"timeRange\": \"9-13秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示空间\", \"visualDescription\": \"样板间客厅，阳光从落地窗洒进来，能看到沙发、茶几和开放式餐厅\", \"subtitle\": \"层高4米，空间很灵活\", \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透 层高\", \"fallbackVisual\": \"图片：样板间客厅全景，光线明亮，空间感强\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 4, \"timeRange\": \"13-16秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示配套\", \"visualDescription\": \"社区底商街景，傍晚亮灯，行人路过，街边有便利店和水果店\", \"subtitle\": \"日常买菜吃饭，走几步就到\", \"assetQuery\": \"社区 商业街 底商 傍晚 亮灯 生活气息\", \"fallbackVisual\": \"图片：商业街实景，店铺灯火通明，路人悠闲\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 5, \"timeRange\": \"16-20秒\", \"sceneType\": \"口播\", \"emotionalBeat\": \"轻松引导\", \"visualDescription\": \"中介站在样板间门口，背后是房间内部，自然收尾\", \"voiceover\": \"总价友好，适合先看看图文，不急着决定，感兴趣可以私信。\", \"filmingGuide\": {\"location\": \"样板间门口\", \"posture\": \"站在门框边，侧身能看见房间\", \"props\": [\"手机\", \"户型图\"], \"tips\": [\"利用门框当画框，画面更有纵深感\", \"保持和开头口播的着装一致\", \"结尾多录2秒方便剪\"]}, \"transition\": \"渐变过渡\", \"pacing\": \"正常\"}], \"riskNotes\": []}, \"memberDelivery\": {\"tasks\": [{\"taskNo\": 1, \"sceneNo\": 1, \"script\": \"很多人以为小户型没人看了，但最近刚需客户又回来问了，其实还有总价友好的选择。\", \"location\": \"售楼处沙盘旁\", \"posture\": \"站着，自然面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"语速放慢，像跟朋友聊天\", \"开头多录2秒方便剪辑\"]}, {\"taskNo\": 2, \"sceneNo\": 5, \"script\": \"总价友好，适合先看看图文，不急着决定，感兴趣可以私信。\", \"location\": \"样板间门口\", \"posture\": \"站在门框边，侧身能看见房间\", \"props\": [\"手机\", \"户型图\"], \"tips\": [\"利用门框当画框，画面更有纵深感\", \"保持和开头口播的着装一致\", \"结尾多录2秒方便剪\"]}]}, \"workerDelivery\": {\"storyOutline\": \"\", \"bgm\": \"\", \"toneOfVoice\": \"\", \"estimatedDuration\": \"\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-5秒\", \"sceneType\": \"口播\", \"emotionalBeat\": \"引起好奇\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘和项目模型\", \"voiceover\": \"很多人以为小户型没人看了，但最近刚需客户又回来问了，其实还有总价友好的选择。\", \"filmingGuide\": {\"location\": \"售楼处沙盘旁\", \"posture\": \"站着，自然面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"语速放慢，像跟朋友聊天\", \"开头多录2秒方便剪辑\"]}, \"transition\": \"直接切\", \"pacing\": \"正常\"}, {\"sceneNo\": 2, \"timeRange\": \"5-9秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示规模\", \"visualDescription\": \"小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和楼栋分布\", \"subtitle\": \"80万方大社区，配套够成熟\", \"assetQuery\": \"小区 航拍 外立面 俯瞰 社区规模\", \"fallbackVisual\": \"图片：项目外立面，展示社区入口和建筑群\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 3, \"timeRange\": \"9-13秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示空间\", \"visualDescription\": \"样板间客厅，阳光从落地窗洒进来，能看到沙发、茶几和开放式餐厅\", \"subtitle\": \"层高4米，空间很灵活\", \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透 层高\", \"fallbackVisual\": \"图片：样板间客厅全景，光线明亮，空间感强\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 4, \"timeRange\": \"13-16秒\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示配套\", \"visualDescription\": \"社区底商街景，傍晚亮灯，行人路过，街边有便利店和水果店\", \"subtitle\": \"日常买菜吃饭，走几步就到\", \"assetQuery\": \"社区 商业街 底商 傍晚 亮灯 生活气息\", \"fallbackVisual\": \"图片：商业街实景，店铺灯火通明，路人悠闲\", \"transition\": \"直接切\", \"pacing\": \"快\"}, {\"sceneNo\": 5, \"timeRange\": \"16-20秒\", \"sceneType\": \"口播\", \"emotionalBeat\": \"轻松引导\", \"visualDescription\": \"中介站在样板间门口，背后是房间内部，自然收尾\", \"voiceover\": \"总价友好，适合先看看图文，不急着决定，感兴趣可以私信。\", \"filmingGuide\": {\"location\": \"样板间门口\", \"posture\": \"站在门框边，侧身能看见房间\", \"props\": [\"手机\", \"户型图\"], \"tips\": [\"利用门框当画框，画面更有纵深感\", \"保持和开头口播的着装一致\", \"结尾多录2秒方便剪\"]}, \"transition\": \"渐变过渡\", \"pacing\": \"正常\"}], \"teamAssetQueries\": [\"小区 航拍 外立面 俯瞰 社区规模\", \"样板间 客厅 落地窗 阳光 通透 层高\", \"社区 商业街 底商 傍晚 亮灯 生活气息\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 6, \"platformTone\": 6, \"materialFit\": 6, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"titles 为空\", \"缺少标题选择理由\", \"缺少 CTA 块\", \"Block 5 缺少配图策略\", \"视频叙事缺少前 3 秒钩子 openingLine\", \"视频叙事缺少 bgmDirection\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": []}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"小户型回归\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"种草\", \"targetAudience\": \"刚需客户\", \"audiencePain\": \"预算有限，想上车但担心供房压力，需要成熟配套降低生活成本\", \"sellingPointsNeeded\": [\"低总价上车\", \"成熟配套\"], \"riskConstraints\": [\"收益承诺类\"], \"copySearchQuery\": \"小户型 刚需 低总价 成熟配套 首次置业 自住 预算友好\", \"scriptSearchQuery\": \"小户型 回归 刚需 低总价 成熟配套 看房 实景\", \"imageSearchQuery\": \"小户型 样板间 实景 低总价 成熟配套\", \"videoAssetQueryHints\": [\"小户型样板间实拍\", \"项目周边配套\", \"户型图展示\", \"中介讲解\"], \"extraRequirement\": \"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"}, \"creativeStrategy\": {\"chosenAngle\": \"最近有不少预算有限的客户重新问起小户型，发现其实还有低总价的选择，而且周边配套已经很成熟，适合先自住过渡，不一定非要一步到位。\", \"narrativeArc\": [\"打破偏见：小户型并非没人看\", \"重新发现：低总价也能拥有成熟配套\", \"实景代入：展示社区和户型生活场景\", \"自然收尾：感兴趣可进一步了解\"], \"tone\": \"本地中介口吻，直白但克制，平实带点人情味\", \"mustUseFacts\": [\"光明星河天地有小户型产品再次引起关注\", \"社区整体规模约80万方，居住人口约3万，内部消费与生活需求成熟\", \"户型层高约4米，配备商务大堂，空间使用较灵活\", \"历史小面积单位曾受关注，近期中介反馈咨询量有所回升\", \"周边配套经过发展已形成基本生活场景\"], \"mustAvoidClaims\": [], \"viralPatternUsed\": {\"patternName\": \"反常识刚需重新发现\", \"reason\": \"符合小户型回归主题，破除偏见，带出真实需求，适合小红书平台\", \"titleTactics\": [\"反常识对比\", \"刚需重新发现\"], \"hookTactics\": [\"直接打破认知\", \"用真实市场现象切入\"], \"ctaTactics\": [\"轻提示可私信了解\", \"不施加压力\"]}, \"articlePlan\": {\"titleDirection\": \"打破偏见+低总价成熟配套\", \"coverCopyDirection\": \"封面用项目外立面，配一句话强调社区成熟\", \"bodyStructure\": [\"开头：很多人以为小户型没市场了，但最近线下刚需客户重新问起\", \"中间：介绍社区整体规模、户型特点，带出周边成熟配套\", \"结尾：总价友好，适合先看看图文，不急着决定\"], \"imagePlan\": [\"封面用项目外立面突出社区规模\", \"内图用样板间客厅展示实际空间感\", \"可补充周边配套实景图\"]}, \"videoPlan\": {\"storyOutline\": \"简短开头破偏见，实景展示社区和空间，口播配合画面，结尾自然引导\", \"estimatedDuration\": \"15-25秒\", \"scenePlan\": [\"中介出镜口播破题\", \"转场至社区外立面\", \"样板间空间展示\", \"周边配套快速穿插\"], \"assetQueryHints\": [\"小户型样板间实拍\", \"社区大门和外立面\", \"周边商超和学校实景\", \"中介自然口播片段\"]}, \"degradationNotices\": [\"项目具体户型面积未提供，需结合现场了解\", \"周边具体商业和学校名称未明确，建议实地考察\"], \"trace\": {\"usedKnowledgeSummary\": [\"光明星河天地小户型重新引起市场关注\", \"80万方社区规模，约3万人口\", \"户型层高4米，商务大堂\", \"历史低总价单位曾受刚需欢迎\"], \"usedViralSummary\": [\"借鉴爆款结构：反常识开头+重新发现+轻CTA，参考其hook和节奏\"], \"usedImageSummary\": [\"使用素材：项目外立面图作为封面，样板间客厅图展示空间\"]}, \"qualityGateHints\": {\"factWeakness\": \"小户型具体面积段和最新总价未公开，依赖中介内部信息，可能存在变动\", \"complianceRisks\": [\"收益承诺类\", \"出租确定性类\", \"价格趋势类\"], \"mustReviewBeforePublish\": []}}, \"usedKnowledgeRefs\": [\"光明星河天地有小户型产品再次引起关注\", \"社区整体规模约80万方，居住人口约3万，内部消费与生活需求成熟\", \"户型层高约4米，配备商务大堂，空间使用较灵活\", \"历史小面积单位曾受关注，近期中介反馈咨询量有所回升\", \"周边配套经过发展已形成基本生活场景\"], \"usedViralRefs\": [{\"patternName\": \"反常识刚需重新发现\", \"reason\": \"符合小户型回归主题，破除偏见，带出真实需求，适合小红书平台\", \"titleTactics\": [\"反常识对比\", \"刚需重新发现\"], \"hookTactics\": [\"直接打破认知\", \"用真实市场现象切入\"], \"ctaTactics\": [\"轻提示可私信了解\", \"不施加压力\"]}], \"usedImageAssets\": [{\"assetId\": \"img_001\", \"title\": \"项目外立面\"}, {\"assetId\": \"img_002\", \"title\": \"样板间客厅\"}], \"degradationNotices\": [\"项目具体户型面积未提供，需结合现场了解\", \"周边具体商业和学校名称未明确，建议实地考察\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": false,
+        "detail": "empty scenes: 1, 5"
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": false,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": false,
+        "detail": "materialFit:6<7 / platformTone:6<7"
+      }
+    ],
+    "risk_terms": []
+  }
+}

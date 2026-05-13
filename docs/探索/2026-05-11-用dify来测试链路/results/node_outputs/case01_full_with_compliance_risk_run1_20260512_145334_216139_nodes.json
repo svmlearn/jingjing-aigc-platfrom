@@ -1,0 +1,854 @@
+{
+  "start": {
+    "node_type": "start",
+    "title": "开始",
+    "started_at": 1778568825,
+    "status": "succeeded",
+    "inputs": {
+      "calendar_task_json": "{\"taskId\":\"task_20260511_001\",\"theme\":\"小户型回归\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"刚需客户\",\"summary\":\"低总价上车、成熟配套、租金回报\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-11\"}",
+      "viral_references_json": "[{\"id\":\"viral_001\",\"platform\":\"xiaohongshu\",\"title\":\"很多人以为小户型没人看了，其实刚需又开始回头看\",\"structure\":[\"反常识开头\",\"解释变化\",\"落到真实选择\",\"轻CTA\"],\"hook\":\"很多人以为小户型过时了\",\"ctaStyle\":\"想看户型和总价，可以私信\"}]",
+      "image_assets_json": "[{\"assetId\":\"img_001\",\"title\":\"项目外立面\",\"url\":\"https://example.com/facade.jpg\",\"tags\":[\"项目外立面\",\"小区入口\",\"封面\"],\"description\":\"适合承接项目可信度和封面展示\"},{\"assetId\":\"img_002\",\"title\":\"样板间客厅\",\"url\":\"https://example.com/living-room.jpg\",\"tags\":[\"样板间\",\"客厅\",\"空间感\"],\"description\":\"适合讲居住体验\"}]",
+      "fallback_knowledge_text": "项目资料：80万方大社区，约1万户、3万人口，社区内有成熟消费与服务需求。产品有4米层高、商务大堂，70平、200平、250平可对应不同用途。风险资料：历史资料里提到满租、租金区间、低位价格，但这些只能作为内部判断，不能用于对外承诺或营销表达。",
+      "extra_requirement": "口吻更像本地中介，CTA轻一点，不要制造焦虑。",
+      "sys.files": [],
+      "sys.user_id": "content_calendar_test_case01_full_with_compliance_risk_1778568814",
+      "sys.app_id": "e304c14e-e7f5-4cf9-92c7-a8a23ada9397",
+      "sys.workflow_id": "a8efdbbd-6ecd-4dd9-b1ad-834ad8236e7a",
+      "sys.workflow_run_id": "a58e9793-1711-4f27-bea4-1c63f85e5505",
+      "sys.timestamp": 1778568824
+    },
+    "outputs": {
+      "calendar_task_json": "{\"taskId\":\"task_20260511_001\",\"theme\":\"小户型回归\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"刚需客户\",\"summary\":\"低总价上车、成熟配套、租金回报\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-11\"}",
+      "viral_references_json": "[{\"id\":\"viral_001\",\"platform\":\"xiaohongshu\",\"title\":\"很多人以为小户型没人看了，其实刚需又开始回头看\",\"structure\":[\"反常识开头\",\"解释变化\",\"落到真实选择\",\"轻CTA\"],\"hook\":\"很多人以为小户型过时了\",\"ctaStyle\":\"想看户型和总价，可以私信\"}]",
+      "image_assets_json": "[{\"assetId\":\"img_001\",\"title\":\"项目外立面\",\"url\":\"https://example.com/facade.jpg\",\"tags\":[\"项目外立面\",\"小区入口\",\"封面\"],\"description\":\"适合承接项目可信度和封面展示\"},{\"assetId\":\"img_002\",\"title\":\"样板间客厅\",\"url\":\"https://example.com/living-room.jpg\",\"tags\":[\"样板间\",\"客厅\",\"空间感\"],\"description\":\"适合讲居住体验\"}]",
+      "fallback_knowledge_text": "项目资料：80万方大社区，约1万户、3万人口，社区内有成熟消费与服务需求。产品有4米层高、商务大堂，70平、200平、250平可对应不同用途。风险资料：历史资料里提到满租、租金区间、低位价格，但这些只能作为内部判断，不能用于对外承诺或营销表达。",
+      "extra_requirement": "口吻更像本地中介，CTA轻一点，不要制造焦虑。",
+      "sys.files": [],
+      "sys.user_id": "content_calendar_test_case01_full_with_compliance_risk_1778568814",
+      "sys.app_id": "e304c14e-e7f5-4cf9-92c7-a8a23ada9397",
+      "sys.workflow_id": "a8efdbbd-6ecd-4dd9-b1ad-834ad8236e7a",
+      "sys.workflow_run_id": "a58e9793-1711-4f27-bea4-1c63f85e5505",
+      "sys.timestamp": 1778568824
+    },
+    "finished_at": 1778568825,
+    "error": null,
+    "execution_metadata": null
+  },
+  "task_understanding": {
+    "node_type": "llm",
+    "title": "任务理解",
+    "started_at": 1778568825,
+    "status": "succeeded",
+    "inputs": {},
+    "outputs": {
+      "text": "<think>\n我们被要求从输入中解析出结构化任务。输入给出了一个任务对象，但我们需要根据JSON schema填充所有字段。注意：schema要求字段：coreTopic, contentType, platforms, contentGoal, targetAudience, audiencePain, sellingPointsNeeded, riskConstraints, copySearchQuery, scriptSearchQuery, imageSearchQuery, videoAssetQueryHints, extraRequirement。\n\n输入中提供了：taskId, theme, contentType, platforms, contentGoal, targetAudience, summary, teamCalendarSource, date。还有额外要求：口吻更像本地中介，CTA轻一点，不要制造焦虑。\n\n我们需要映射：\n\n- coreTopic: 应该是theme的值：\"小户型回归\"\n- contentType: 输入是\"article_and_video\"，但schema中types应该是string? schema中contentType是string，我们可以用\"article_and_video\"或拆？保留原值。\n- platforms: 数组[\"xiaohongshu\",\"douyin\"]\n- contentGoal: \"种草\"\n- targetAudience: \"刚需客户\"\n- audiencePain: 从summary推断，但需要明确\"audiencePain\"。输入中没有直接给出，但我们可以从主题和总结推测，如：刚需客户可能面临高房价压力，小户型是低总价上车。但注意不能编造，但我们可以从\"低总价上车\"推断pain是\"购房门槛高\"或\"总价压力大\"。但最好基于输入：summary包含\"低总价上车、成熟配套、租金回报\"。其中\"租金回报\"是风险词，应放入riskConstraints。所以audiencePain可以写\"购房门槛高\"或类似。但更准确，从\"低总价上车\"看，pain是\"预算有限\"。我们写\"预算有限，购房门槛高\"？但schema期望string。我们写\"预算有限，购房门槛高\"。\n- sellingPointsNeeded: 数组，应该是卖点。输入summary有\"低总价上车、成熟配套\"，但\"租金回报\"是风险，所以卖点是\"低总价上车，成熟配套\"。但我们也看到theme是小户型回归，可能卖点还包括面积小但功能全。但只基于输入：我们只取\"低总价上车\"和\"成熟配套\" as sellingPoints。但注意：sellpoints需要作为数组。所以[\"低总价上车\", \"成熟配套\"]。\n- riskConstraints: 根据规则，出现\"租金回报\"应归类为\"收益承诺类\"。所以[\"收益承诺类\"]。\n- copySearchQuery: 不能为空，需要组合主题、客群、卖点、场景词成中文检索句。不能用风险词。所以主题是\"小户型\"，客群\"刚需客户\"，卖点\"低总价上车\"和\"成熟配套\"，场景词如\"买房\"\"首套房\"。所以可以写：\"小户型 刚需 低总价 成熟配套 首套房\"。但要避免风险。copySearchQuery应该是用于搜索类似文案的查询。\n- scriptSearchQuery: 类似，但针对视频脚本。可以写：\"小户型推荐 刚需买房 低总价 配套完善 实景\"。\n- imageSearchQuery: 图片搜索，可以写：\"小户型室内设计 低总价装修 成熟社区 实景图片\"。\n- videoAssetQueryHints: 数组，视频素材提示。可以基于主题：比如[\"小户型样板间实拍\", \"社区配套实景\", \"刚需客户看房过程\"]等。但不要编造，可以从输入推断。输入没有具体，但可以写一些通用的。注意不要包含风险词。\n- extraRequirement: 额外要求：\"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"\n\n注意：所有字段必须有值，未知则空字符串或空数组。但这里我们基本都能填。\n\n输出必须严格JSON。\n</think>{\n  \"coreTopic\": \"小户型回归\",\n  \"contentType\": \"article_and_video\",\n  \"platforms\": [\"xiaohongshu\", \"douyin\"],\n  \"contentGoal\": \"种草\",\n  \"targetAudience\": \"刚需客户\",\n  \"audiencePain\": \"预算有限，购房门槛高\",\n  \"sellingPointsNeeded\": [\"低总价上车\", \"成熟配套\"],\n  \"riskConstraints\": [\"收益承诺类\"],\n  \"copySearchQuery\": \"小户型 刚需 低总价 成熟配套 首套房\",\n  \"scriptSearchQuery\": \"小户型推荐 刚需买房 低总价 配套完善 实景\",\n  \"imageSearchQuery\": \"小户型室内设计 低总价装修 成熟社区 实景图片\",\n  \"videoAssetQueryHints\": [\"小户型样板间实拍\", \"社区配套实景\", \"刚需客户看房过程\"],\n  \"extraRequirement\": \"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"\n}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 801,
+        "prompt_unit_price": "1",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.000801",
+        "completion_tokens": 1029,
+        "completion_unit_price": "2",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.002058",
+        "total_tokens": 1830,
+        "total_price": "0.002859",
+        "currency": "RMB",
+        "latency": 17.567,
+        "time_to_first_token": 0.792,
+        "time_to_generate": 16.775
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "coreTopic": "小户型回归",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "刚需客户",
+        "audiencePain": "预算有限，购房门槛高",
+        "sellingPointsNeeded": [
+          "低总价上车",
+          "成熟配套"
+        ],
+        "riskConstraints": [
+          "收益承诺类"
+        ],
+        "copySearchQuery": "小户型 刚需 低总价 成熟配套 首套房",
+        "scriptSearchQuery": "小户型推荐 刚需买房 低总价 配套完善 实景",
+        "imageSearchQuery": "小户型室内设计 低总价装修 成熟社区 实景图片",
+        "videoAssetQueryHints": [
+          "小户型样板间实拍",
+          "社区配套实景",
+          "刚需客户看房过程"
+        ],
+        "extraRequirement": "口吻更像本地中介，CTA轻一点，不要制造焦虑。"
+      }
+    },
+    "finished_at": 1778568825,
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 1830,
+      "total_price": "0.002859",
+      "currency": "RMB"
+    }
+  },
+  "kb_project_knowledge": {
+    "node_type": "knowledge-retrieval",
+    "title": "txt 知识库检索",
+    "started_at": 1778568843,
+    "status": "succeeded",
+    "inputs": {
+      "query": "<think>\n我们被要求从输入中解析出结构化任务。输入给出了一个任务对象，但我们需要根据JSON schema填充所有字段。注意：schema要求字段：coreTopic, contentType, platforms, contentGoal, targetAudience, audiencePain, sellingPointsNeeded, riskConstraints, copySearchQuery, scriptSearchQuery, imageSearchQuery, videoAssetQueryHints, extraRequirement。\n\n输入中提供了：taskId, theme, contentType, platforms, contentGoal, targetAudience, summary, teamCalendarSource, date。还有额外要求：口吻更像本地中介，CTA轻一点，不要制造焦虑。\n\n我们需要映射：\n\n- coreTopic: 应该是theme的值：\"小户型回归\"\n- contentType: 输入是\"article_and_video\"，但schema中types应该是string? schema中contentType是string，我们可以用\"article_and_video\"或拆？保留原值。\n- platforms: 数组[\"xiaohongshu\",\"douyin\"]\n- contentGoal: \"种草\"\n- targetAudience: \"刚需客户\"\n- audiencePain: 从summary推断，但需要明确\"audiencePain\"。输入中没有直接给出，但我们可以从主题和总结推测，如：刚需客户可能面临高房价压力，小户型是低总价上车。但注意不能编造，但我们可以从\"低总价上车\"推断pain是\"购房门槛高\"或\"总价压力大\"。但最好基于输入：summary包含\"低总价上车、成熟配套、租金回报\"。其中\"租金回报\"是风险词，应放入riskConstraints。所以audiencePain可以写\"购房门槛高\"或类似。但更准确，从\"低总价上车\"看，pain是\"预算有限\"。我们写\"预算有限，购房门槛高\"？但schema期望string。我们写\"预算有限，购房门槛高\"。\n- sellingPointsNeeded: 数组，应该是卖点。输入summary有\"低总价上车、成熟配套\"，但\"租金回报\"是风险，所以卖点是\"低总价上车，成熟配套\"。但我们也看到theme是小户型回归，可能卖点还包括面积小但功能全。但只基于输入：我们只取\"低总价上车\"和\"成熟配套\" as sellingPoints。但注意：sellpoints需要作为数组。所以[\"低总价上车\", \"成熟配套\"]。\n- riskConstraints: 根据规则，出现\"租金回报\"应归类为\"收益承诺类\"。所以[\"收益承诺类\"]。\n- copySearchQuery: 不能为空，需要组合主题、客群、卖点、场景词成中文检索句。不能用风险词。所以主题是\"小户型\"，客群\"刚需客户\"，卖点\"低总价上车\"和\"成熟配套\"，场景词如\"买房\"\"首套房\"。所以可以写：\"小户型 刚需 低总价 成熟配套 首套房\"。但要避免风险。copySearchQuery应该是用于搜索类似文案的查询。\n- scriptSearchQuery: 类似，但针对视频脚本。可以写：\"小户型推荐 刚需买房 低总价 配套完善 实景\"。\n- imageSearchQuery: 图片搜索，可以写：\"小户型室内设计 低总价装修 成熟社区 实景图片\"。\n- videoAssetQueryHints: 数组，视频素材提示。可以基于主题：比如[\"小户型样板间实拍\", \"社区配套实景\", \"刚需客户看房过程\"]等。但不要编造，可以从输入推断。输入没有具体，但可以写一些通用的。注意不要包含风险词。\n- extraRequirement: 额外要求：\"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"\n\n注意：所有字段必须有值，未知则空字符串或空数组。但这里我们基本都能填。\n\n输出必须严格JSON。\n</think>{\n  \"coreTopic\": \"小户型回归\",\n  \"contentType\": \"article_and_video\",\n  \"platforms\": [\"xiaohongshu\", \"douyin\"],\n  \"contentGoal\": \"种草\",\n  \"targetAudience\": \"刚需客户\",\n  \"audiencePain\": \"预算有限，购房门槛高\",\n  \"sellingPointsNeeded\": [\"低总价上车\", \"成熟配套\"],\n  \"riskConstraints\": [\"收益承诺类\"],\n  \"copySearchQuery\": \"小户型 刚需 低总价 成熟配套 首套房\",\n  \"scriptSearchQuery\": \"小户型推荐 刚需买房 低总价 配套完善 实景\",\n  \"imageSearchQuery\": \"小户型室内设计 低总价装修 成熟社区 实景图片\",\n  \"videoAssetQueryHints\": [\"小户型样板间实拍\", \"社区配套实景\", \"刚需客户看房过程\"],\n  \"extraRequirement\": \"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"\n}"
+    },
+    "outputs": {
+      "result": [
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "d3d01826-841d-4b55-b719-db6c798f234e",
+            "document_name": "20260509_2.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "f63785ca-36e5-498c-bdef-ae6df63033ad",
+            "retriever_from": "workflow",
+            "score": 0.50278187,
+            "child_chunks": [],
+            "segment_hit_count": 21,
+            "segment_word_count": 997,
+            "segment_position": 2,
+            "segment_index_node_hash": "b5c96a2bcd048ea3f5cf911b1dae3eb7d6b2b83584a237b8dd13f672f4552b03",
+            "doc_metadata": null,
+            "position": 1
+          },
+          "title": "20260509_2.txt",
+          "files": null,
+          "content": "内容是这样子的，我在想你知道第一阶段应该怎么刺破市场吗？0\n ~1的这个阶段应该是说光明星河天地市场关注度已久的小面积的，什么高回报率的户型，不是已经卖完了吗？早\n 都卖完，去年就卖完了吗？那个小户型的现在来了，就是中介都在等，你要知道现在他们郭峰你要多跟郭峰沟通，\n 郭峰他们现在对外已经这么多的中介都在蠢蠢欲动的原因是因为久违了的小户型终于要来了，就这个是非常好的一\n 个契机，我们的第一波就起这个东西。因为以前小户型在卖的过程中卖的非常好，因为它投资回报率高嘛，五六十\n 万一套嘛，上车很容易嘛，在光明没有可选嘛，然后又是可以做成内住嘛，租金又好，然后因为大户型呢你总价太\n 高了嘛，300万400万小户型，五六十万六七十万，很多银行人都买了，那么就这些是非常好刺破市场的。大\n 家要来了，这个时候起几波话题给他，不停的这段时间就炒这个就炒小户型，怎么好卖怎么炒就先卖好卖的嘛，对\n 不对？我觉得这个话题是我们给，所以呢每天的话题应该宋学辉来梳理，\n李熔 > 是我觉得不冲突，就一开始要有个起点，然后呢给业务员很容易去发，他不用私房这边对然后做起来了，然后再慢\n 慢的你们的\n徐宁 > 团队就应该做成傻瓜式的东西给到我。对业务员就宋旭辉刚刚讲的就是不要让业务员自己去搞，包括刘备说的也是\n李熔 > 拍一些素材给你，我们还奖励业务员呢。对真的是还素材头一条，然后就像积分嘛，就像抖音一样嘛，你发一条我\n 给你一毛钱，\n冼子恩 > 两毛，因为不一定需要很专业的说的，真的我们\n徐宁 > 其实这是你的传统文化。\n辉哥 > 我们就是策划，因为像我们做项目的时候，你开发商发了一些做好的视频，做得好呢你不用去让业务员他就是中介\n ，他只是主动愿意发，对你做的不好的你给他说给你发一条。100块钱他不发的，他就会影响自己的账号的，对\n 。所以内容是很重要，如果哪怕说我觉得刚才说的，如果只是说搜集到一个文字的一个文案，那个没有任何意义，\n 那个没有人就是进行朋友圈嘛。就这个朋友圈发个图片配个文字就完事了。但是如果是能做成一种视频，但是有些\n 业务员他不愿意出镜，如果我们能做成一种就是背景图，就是比如说光明整体配套，但是ai形成一个文字的口播\n ，上面有些字打出来，就是短短的十几秒一个加上一个配乐，有些人愿意看\n徐宁 > 唉那会不会有一个问题我们就所有的中介出来的内容是一样的。\n李熔 > 没错。",
+          "summary": null
+        },
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "d3d01826-841d-4b55-b719-db6c798f234e",
+            "document_name": "20260509_2.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "c36019d3-640a-41e8-8020-4cbe18201d2f",
+            "retriever_from": "workflow",
+            "score": 0.48920608,
+            "child_chunks": [],
+            "segment_hit_count": 7,
+            "segment_word_count": 916,
+            "segment_position": 4,
+            "segment_index_node_hash": "d1010f8687b3d9829d564fc4c4bdd01c3e1b15b582f3e7bca74df28ebe09f2af",
+            "doc_metadata": null,
+            "position": 2
+          },
+          "title": "20260509_2.txt",
+          "files": null,
+          "content": "对的，但是现在那个问题就是说\n李熔 > 你相当于找几个人的录入就行了，\n冼子恩 > 对。\n徐宁 > 不是我是说我们能做到什么程度呢？我们现在就说我现在是业务员，我现在有一个自己的账号，但是流量一般般，\n 反正也有好的项目我也会发，那现在他过来跟我讲，他现在有个项目想让我们推，然后很好卖，你肯定要说这个项\n 目为什么好好卖对吧？因为小户型嘛没有嘛，那市场没有，我们是唯一的，并且我们是独家的，绝对不会这个撞客\n 或怎么样的，那你现在能不能就是怎么，反正你按照你的这个中介门店合作的，谈法去谈完以后，那接下来我们跟\n 别的盘员最不同的就是我们给你每天的这个内容，每天的内容给到你，\n辉哥 > 那现在讲只能讲一个，只能说给他们在每天内容上去做一些赋能，\n徐宁 > 就是你有没有那种一键就发的那种，\n冼子恩 > 我们先不要这先不要，想的太简单，就是在座的有没有做自媒体做过自己开过账号，有没有做过？好，你有没有做\n 过？你有没有做过？为什么现在没有继续做？那先解决这个问题。\n徐宁 > 我不想自己出镜，\n冼子恩 > 好，那只是你嘛，因为你的位高权重嘛，但是他们中介有没有可能\n徐宁 > 搞一个数字人，\n辉哥 > 就是那种现在没有流量的，没流量的系统一看那个他就不推。对，\n冼子恩 > 我是有做自媒体的，我自己有百万播放的这个视频号以及有这个1万加的这个公众号，那么我每天最烦恼就是选题\n ，\n徐宁 > 选题我们来\n冼子恩 > 对没错，这恰恰就是做自媒体的人选题困难，以及我们有大量的话题和跟洞察，没办法。缝合，\n徐宁 > 没有中介是愿意出镜，现在中介假设我们现在是这样，我是中介，我现在出镜，但是他们一般来拍的时候，他既然\n 出镜了，他都是现拍，\n冼子恩 > 他没内容我知道。他每天不知道讲哪个牌，\n徐宁 > 但是但是现拍的场景怎么搞，他总不能在他门店里面录。\n辉哥 > 其实还有一点就是他们现在已经有账号的业务员呢，他自己有自己的想法，对，你只要把项目基础信息给到他，对\n 他真的就快的话就3分钟5分钟他就可以自己处理脚本了，\n冼子恩 > 没错很熟\n辉哥 > 没错。你反而对那些就是他是刚想起你给他内容他自己去说话都说不清楚的。也没有。",
+          "summary": null
+        },
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "d3d01826-841d-4b55-b719-db6c798f234e",
+            "document_name": "20260509_2.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "94e63e74-2450-4814-a1e5-d81cdc3c0f64",
+            "retriever_from": "workflow",
+            "score": 0.45380354,
+            "child_chunks": [],
+            "segment_hit_count": 3,
+            "segment_word_count": 821,
+            "segment_position": 1,
+            "segment_index_node_hash": "8e36279e58583088322455fb2d5f0186c11c1adfc5e87f41821c73356f23a3ef",
+            "doc_metadata": null,
+            "position": 3
+          },
+          "title": "20260509_2.txt",
+          "files": null,
+          "content": "﻿徐宁 > 拍的素材给到他们，话题给他们，包括我们找一些现在的什么商办的话题，投资的话题，什么回报率的话题总价能\n 够投哪里的话题，这不就是那天我们两个一直在聊的嘛，到底华帝是什么？就是他那个里边只是项目的基本的卖点\n ，但是还有就是现在消费者关注什么，他们不做房地产的根本是不可能梳理出来是我们梳的痛点，对，就像我为什\n 么这个时候要买黄金，我为什么这个时候要去炒A股，为什么买指数？就就是这个意思，所以这个时候是我们要去\n 生成的，就是我们几个人在这个群里面，每天我们自己的群里面每天要搞这些事，然后结合的图片给到他跟他下单\n ，唉这两天你给我出这个一下子新的政策出来了，马上起就是什么商办的政策，什么商业的政策来了，什么什么限\n 购的政策来了，怎么能扯到我们身上呢？我们就都扯给他就行了。\n辉哥 > 就是徐总他最开始因为现在还没有出单嘛，那些业务员其实我们认为好卖，他不一定这么相信的，就像如果说我们\n 前面让业务员去帮我们去推广的，肯定是要最简单的就是把它就是搞成一个很很懒的，他会一键转发，然后又可以\n 给他带来一些流量，不影响他自己之前发放的一些内容。\n徐宁 > 这样子的就是关于他怎么能做一个现成的出来，实际上呢取决于素材，就是你给他什么他就能生成，那这个素材是\n 我们提供。我们有两个方案，第一个我们呢让我们自己的摄影团队小邵他们因为都在一起办公嘛，让小邵他们集中\n 的之前他们有拍过一些再把华底再拍一些回来，这么多的素材打包，全部都丢给他们，这个我们不用自己配，他们\n 根据内容配，他们ai可以自己配的。给到他们把所有的素材先把拍摄的素材先给他，这第一。第二个可以再找一\n 些光明其他的素材一起，就是项目加上外围加上商业，你现在最大的卖点不就是配套吗？不就是成熟吗？然后把整\n 个光明这个成熟的地铁的13号线政策的，马上13号线要开了，从深圳湾倒过去的，然后这些政策的都给他，素\n 材都给你，然后你们怎么匹配内容是我们给的。",
+          "summary": null
+        }
+      ]
+    },
+    "finished_at": 1778568843,
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 0,
+      "total_price": "0.0",
+      "currency": "USD"
+    }
+  },
+  "creative_strategy": {
+    "node_type": "llm",
+    "title": "创作策略规划",
+    "started_at": 1778568845,
+    "status": "succeeded",
+    "inputs": {},
+    "outputs": {
+      "text": "{\n  \"chosenAngle\": \"小户型回归，刚需客户低总价选择\",\n  \"narrativeArc\": [\n    \"反常识开头：很多人以为小户型过时了，其实刚需客户又开始回头看\",\n    \"解释变化：市场供应结构变化，小户型重新出现，总价门槛相对友好\",\n    \"落到真实选择：结合项目配套和空间特点，展示实际使用场景\",\n    \"轻CTA：想看户型和总价，可以私信\"\n  ],\n  \"tone\": \"本地中介口吻，亲切自然，不制造焦虑\",\n  \"mustUseFacts\": [\n    \"项目为80万方大社区，约1万户、3万人口\",\n    \"社区内有成熟消费与服务需求\",\n    \"产品有4米层高、商务大堂\",\n    \"户型包括70平、200平、250平等不同面积段\",\n    \"13号线即将开通\"\n  ],\n  \"mustAvoidClaims\": [\n    \"投资回报率高\",\n    \"收益稳定\",\n    \"租金回报高\",\n    \"稳赚\",\n    \"保值增值\",\n    \"满租\",\n    \"租金区间\",\n    \"租金回报\",\n    \"投资属性\",\n    \"资产回报\",\n    \"低位价格\",\n    \"价格错位\",\n    \"收租\",\n    \"贴月供\",\n    \"租出去\",\n    \"保租\",\n    \"保回报\",\n    \"确定兑现\",\n    \"运营成熟验证\"\n  ],\n  \"viralPatternUsed\": {\n    \"patternName\": \"反常识回归\",\n    \"reason\": \"利用市场对小户型的刻板印象，制造认知反差，吸引刚需客户关注\",\n    \"titleTactics\": [\"反常识开头\", \"制造认知反差\"],\n    \"hookTactics\": [\"很多人以为小户型过时了\"],\n    \"ctaTactics\": [\"轻CTA：想看户型和总价，可以私信\"]\n  },\n  \"articlePlan\": {\n    \"titleDirection\": \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n    \"coverCopyDirection\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\",\n    \"bodyStructure\": [\n      \"反常识开头：打破小户型过时的印象\",\n      \"市场变化：小户型供应稀缺，近期重新出现\",\n      \"项目事实：80万方大社区，成熟配套，13号线即将开通\",\n      \"产品特点：4米层高，商务大堂，多种面积段\",\n      \"生活场景：社区内消费服务完善，居住便利\",\n      \"轻CTA：想看具体户型和总价，可以私信了解\"\n    ],\n    \"imagePlan\": [\n      \"项目外立面：用于封面和开头，建立信任感\",\n      \"样板间客厅：展示空间感和居住体验\",\n      \"社区配套实景：如商业、园林，体现成熟度\",\n      \"户型图或空间示意：帮助客户理解产品\"\n    ]\n  },\n  \"videoPlan\": {\n    \"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenePlan\": [\n      \"开场：中介在项目外或样板间，用反常识话题引入\",\n      \"项目外景：展示社区入口、外立面，建立可信度\",\n      \"样板间：展示客厅、层高、采光，强调空间感\",\n      \"社区配套：商业街、园林等实景，体现成熟生活\",\n      \"结尾：回到中介，轻CTA引导私信\"\n    ],\n    \"requiredUploads\": [\n      \"项目外立面实拍\",\n      \"样板间客厅实拍\",\n      \"社区商业配套实拍\",\n      \"社区园林实拍\"\n    ],\n    \"assetQueryHints\": [\n      \"光明小户型样板间\",\n      \"光明社区商业配套\",\n      \"光明13号线地铁站\"\n    ]\n  },\n  \"degradationNotices\": [\n    \"项目事实不足：知识库未提供具体项目名、区域、户型名称等，已使用泛化表述\"\n  ],\n  \"trace\": {\n    \"usedKnowledgeSummary\": [\n      \"知识库片段1：提及小户型回归、市场关注度、中介蠢蠢欲动\",\n      \"知识库片段2：讨论内容赋能、业务员素材需求\",\n      \"知识库片段3：强调配套成熟、13号线政策、素材打包\"\n    ],\n    \"usedViralSummary\": [\n      \"爆款结构：反常识开头、解释变化、落到真实选择、轻CTA\"\n    ],\n    \"usedImageSummary\": [\n      \"图片素材：项目外立面、样板间客厅\"\n    ]\n  },\n  \"qualityGateHints\": {\n    \"factWeakness\": \"项目具体名称、户型名称、配套商业名称缺失，依赖手工知识兜底\",\n    \"complianceRisks\": [\n      \"收益承诺类\",\n      \"出租确定性类\",\n      \"价格趋势类\"\n    ],\n    \"mustReviewBeforePublish\": [\n      \"检查是否出现风险词：投资回报率高、租金回报、满租等\",\n      \"确认所有事实表述已改写为安全表述\",\n      \"确认CTA未包含收益承诺或出租确定性\"\n    ]\n  }\n}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 5234,
+        "prompt_unit_price": "12",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.062808",
+        "completion_tokens": 1127,
+        "completion_unit_price": "24",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.027048",
+        "total_tokens": 6361,
+        "total_price": "0.089856",
+        "currency": "RMB",
+        "latency": 46.387,
+        "time_to_first_token": 1.647,
+        "time_to_generate": 44.741
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "chosenAngle": "小户型回归，刚需客户低总价选择",
+        "narrativeArc": [
+          "反常识开头：很多人以为小户型过时了，其实刚需客户又开始回头看",
+          "解释变化：市场供应结构变化，小户型重新出现，总价门槛相对友好",
+          "落到真实选择：结合项目配套和空间特点，展示实际使用场景",
+          "轻CTA：想看户型和总价，可以私信"
+        ],
+        "tone": "本地中介口吻，亲切自然，不制造焦虑",
+        "mustUseFacts": [
+          "项目为80万方大社区，约1万户、3万人口",
+          "社区内有成熟消费与服务需求",
+          "产品有4米层高、商务大堂",
+          "户型包括70平、200平、250平等不同面积段",
+          "13号线即将开通"
+        ],
+        "mustAvoidClaims": [
+          "投资回报率高",
+          "收益稳定",
+          "租金回报高",
+          "稳赚",
+          "保值增值",
+          "满租",
+          "租金区间",
+          "租金回报",
+          "投资属性",
+          "资产回报",
+          "低位价格",
+          "价格错位",
+          "收租",
+          "贴月供",
+          "租出去",
+          "保租",
+          "保回报",
+          "确定兑现",
+          "运营成熟验证"
+        ],
+        "viralPatternUsed": {
+          "patternName": "反常识回归",
+          "reason": "利用市场对小户型的刻板印象，制造认知反差，吸引刚需客户关注",
+          "titleTactics": [
+            "反常识开头",
+            "制造认知反差"
+          ],
+          "hookTactics": [
+            "很多人以为小户型过时了"
+          ],
+          "ctaTactics": [
+            "轻CTA：想看户型和总价，可以私信"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "很多人以为小户型没人看了，其实刚需又开始回头看",
+          "coverCopyDirection": "光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看",
+          "bodyStructure": [
+            "反常识开头：打破小户型过时的印象",
+            "市场变化：小户型供应稀缺，近期重新出现",
+            "项目事实：80万方大社区，成熟配套，13号线即将开通",
+            "产品特点：4米层高，商务大堂，多种面积段",
+            "生活场景：社区内消费服务完善，居住便利",
+            "轻CTA：想看具体户型和总价，可以私信了解"
+          ],
+          "imagePlan": [
+            "项目外立面：用于封面和开头，建立信任感",
+            "样板间客厅：展示空间感和居住体验",
+            "社区配套实景：如商业、园林，体现成熟度",
+            "户型图或空间示意：帮助客户理解产品"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信",
+          "estimatedDuration": "30-45秒",
+          "scenePlan": [
+            "开场：中介在项目外或样板间，用反常识话题引入",
+            "项目外景：展示社区入口、外立面，建立可信度",
+            "样板间：展示客厅、层高、采光，强调空间感",
+            "社区配套：商业街、园林等实景，体现成熟生活",
+            "结尾：回到中介，轻CTA引导私信"
+          ],
+          "requiredUploads": [
+            "项目外立面实拍",
+            "样板间客厅实拍",
+            "社区商业配套实拍",
+            "社区园林实拍"
+          ],
+          "assetQueryHints": [
+            "光明小户型样板间",
+            "光明社区商业配套",
+            "光明13号线地铁站"
+          ]
+        },
+        "degradationNotices": [
+          "项目事实不足：知识库未提供具体项目名、区域、户型名称等，已使用泛化表述"
+        ],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "知识库片段1：提及小户型回归、市场关注度、中介蠢蠢欲动",
+            "知识库片段2：讨论内容赋能、业务员素材需求",
+            "知识库片段3：强调配套成熟、13号线政策、素材打包"
+          ],
+          "usedViralSummary": [
+            "爆款结构：反常识开头、解释变化、落到真实选择、轻CTA"
+          ],
+          "usedImageSummary": [
+            "图片素材：项目外立面、样板间客厅"
+          ]
+        },
+        "qualityGateHints": {
+          "factWeakness": "项目具体名称、户型名称、配套商业名称缺失，依赖手工知识兜底",
+          "complianceRisks": [
+            "收益承诺类",
+            "出租确定性类",
+            "价格趋势类"
+          ],
+          "mustReviewBeforePublish": [
+            "检查是否出现风险词：投资回报率高、租金回报、满租等",
+            "确认所有事实表述已改写为安全表述",
+            "确认CTA未包含收益承诺或出租确定性"
+          ]
+        }
+      }
+    },
+    "finished_at": 1778568845,
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 6361,
+      "total_price": "0.089856",
+      "currency": "RMB"
+    }
+  },
+  "article_generator": {
+    "node_type": "llm",
+    "title": "图文内容包生成",
+    "started_at": 1778568891,
+    "status": "succeeded",
+    "inputs": {},
+    "outputs": {
+      "text": "{\n  \"titles\": [\n    \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n    \"光明80万方社区，小户型重新出现，总价门槛友好\",\n    \"刚需客户注意：小户型回归，配套成熟，适合先了解\"\n  ],\n  \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n  \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\",\n  \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\",\n  \"hashtags\": [\n    \"#小面积产品\",\n    \"#预算友好\",\n    \"#光明社区\",\n    \"#刚需选择\",\n    \"#13号线\"\n  ],\n  \"cta\": \"想看具体户型和总价，可以私信我。\",\n  \"imageMatches\": [\n    {\n      \"assetId\": \"img_001\",\n      \"title\": \"项目外立面\",\n      \"usage\": \"封面和开头，建立项目可信度\",\n      \"reason\": \"展示项目外立面，符合封面和开头需求\"\n    },\n    {\n      \"assetId\": \"img_002\",\n      \"title\": \"样板间客厅\",\n      \"usage\": \"展示空间感和居住体验\",\n      \"reason\": \"样板间客厅实拍，体现层高和空间感\"\n    }\n  ],\n  \"imageBriefIfMissing\": \"\",\n  \"riskNotes\": [\n    \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n    \"已避免出租确定性类表述，如满租、保租等\",\n    \"已避免价格趋势类表述，如保值增值、低位价格等\",\n    \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n  ],\n  \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"\n}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 2256,
+        "prompt_unit_price": "12",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.027072",
+        "completion_tokens": 784,
+        "completion_unit_price": "24",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.018816",
+        "total_tokens": 3040,
+        "total_price": "0.045888",
+        "currency": "RMB",
+        "latency": 26.733,
+        "time_to_first_token": 1.279,
+        "time_to_generate": 25.455
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "titles": [
+          "很多人以为小户型没人看了，其实刚需又开始回头看",
+          "光明80万方社区，小户型重新出现，总价门槛友好",
+          "刚需客户注意：小户型回归，配套成熟，适合先了解"
+        ],
+        "selectedTitle": "很多人以为小户型没人看了，其实刚需又开始回头看",
+        "coverCopy": "光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看",
+        "body": "最近跟几个客户聊天，发现一个有意思的现象。\n\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\n\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\n\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\n\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\n\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\n\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。",
+        "hashtags": [
+          "#小面积产品",
+          "#预算友好",
+          "#光明社区",
+          "#刚需选择",
+          "#13号线"
+        ],
+        "cta": "想看具体户型和总价，可以私信我。",
+        "imageMatches": [
+          {
+            "assetId": "img_001",
+            "title": "项目外立面",
+            "usage": "封面和开头，建立项目可信度",
+            "reason": "展示项目外立面，符合封面和开头需求"
+          },
+          {
+            "assetId": "img_002",
+            "title": "样板间客厅",
+            "usage": "展示空间感和居住体验",
+            "reason": "样板间客厅实拍，体现层高和空间感"
+          }
+        ],
+        "imageBriefIfMissing": "",
+        "riskNotes": [
+          "已避免收益承诺类表述，如投资回报率高、租金回报等",
+          "已避免出租确定性类表述，如满租、保租等",
+          "已避免价格趋势类表述，如保值增值、低位价格等",
+          "所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活"
+        ],
+        "copyReadyText": "很多人以为小户型没人看了，其实刚需又开始回头看\n\n最近跟几个客户聊天，发现一个有意思的现象。\n\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\n\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\n\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\n\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\n\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\n\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\n\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\n\n想看具体户型和总价，可以私信我。"
+      }
+    },
+    "finished_at": 1778568891,
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 3040,
+      "total_price": "0.045888",
+      "currency": "RMB"
+    }
+  },
+  "video_script_generator": {
+    "node_type": "llm",
+    "title": "视频镜头脚本生成",
+    "started_at": 1778568918,
+    "status": "succeeded",
+    "inputs": {},
+    "outputs": {
+      "text": "{\n  \"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\",\n  \"estimatedDuration\": \"30-45秒\",\n  \"scenes\": [\n    {\n      \"sceneNo\": 1,\n      \"timeRange\": \"0-5秒\",\n      \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\",\n      \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\",\n      \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\",\n      \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\",\n      \"assetQuery\": \"中介出镜 项目外立面 背景\",\n      \"uploadRequired\": true,\n      \"uploadReason\": \"需要真人出镜口播，建立信任感\",\n      \"assetSourceHint\": \"self_upload\",\n      \"fallbackVisual\": \"项目外立面空镜+字幕\"\n    },\n    {\n      \"sceneNo\": 2,\n      \"timeRange\": \"5-10秒\",\n      \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\",\n      \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\",\n      \"subtitle\": \"光明80万方大社区，约1万户、3万人口\",\n      \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\",\n      \"assetQuery\": \"项目外立面 远景 小区入口\",\n      \"uploadRequired\": false,\n      \"uploadReason\": \"\",\n      \"assetSourceHint\": \"team_video_asset\",\n      \"fallbackVisual\": \"项目效果图外立面\"\n    },\n    {\n      \"sceneNo\": 3,\n      \"timeRange\": \"10-15秒\",\n      \"visualGoal\": \"展示样板间客厅，体现空间感和层高\",\n      \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\",\n      \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\",\n      \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\",\n      \"assetQuery\": \"样板间客厅 层高 采光\",\n      \"uploadRequired\": false,\n      \"uploadReason\": \"\",\n      \"assetSourceHint\": \"team_video_asset\",\n      \"fallbackVisual\": \"样板间效果图\"\n    },\n    {\n      \"sceneNo\": 4,\n      \"timeRange\": \"15-20秒\",\n      \"visualGoal\": \"展示社区商业配套，体现成熟生活\",\n      \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\",\n      \"subtitle\": \"社区商业、园林配套成熟，生活便利\",\n      \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\",\n      \"assetQuery\": \"社区商业配套 园林 实景\",\n      \"uploadRequired\": false,\n      \"uploadReason\": \"\",\n      \"assetSourceHint\": \"team_video_asset\",\n      \"fallbackVisual\": \"商业街效果图\"\n    },\n    {\n      \"sceneNo\": 5,\n      \"timeRange\": \"20-25秒\",\n      \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\",\n      \"voiceover\": \"13号线也快开通了，以后出行更方便。\",\n      \"subtitle\": \"13号线即将开通，出行更便利\",\n      \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\",\n      \"assetQuery\": \"13号线地铁站 施工 周边道路\",\n      \"uploadRequired\": false,\n      \"uploadReason\": \"\",\n      \"assetSourceHint\": \"team_video_asset\",\n      \"fallbackVisual\": \"地铁线路示意图\"\n    },\n    {\n      \"sceneNo\": 6,\n      \"timeRange\": \"25-30秒\",\n      \"visualGoal\": \"中介再次出镜，轻CTA引导私信\",\n      \"voiceover\": \"想看具体户型和总价，可以私信我。\",\n      \"subtitle\": \"想看户型和总价？私信我\",\n      \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\",\n      \"assetQuery\": \"中介出镜 CTA 引导\",\n      \"uploadRequired\": true,\n      \"uploadReason\": \"需要真人出镜引导私信，完成CTA\",\n      \"assetSourceHint\": \"self_upload\",\n      \"fallbackVisual\": \"联系方式字幕+项目Logo\"\n    }\n  ],\n  \"requiredUploads\": [\n    \"中介出镜 项目外立面 背景\",\n    \"中介出镜 CTA 引导\"\n  ],\n  \"optionalTeamVideoAssets\": [\n    \"项目外立面 远景 小区入口\",\n    \"样板间客厅 层高 采光\",\n    \"社区商业配套 园林 实景\",\n    \"13号线地铁站 施工 周边道路\"\n  ],\n  \"shootingTips\": [\n    \"开场和结尾的中介出镜需保持一致的着装和光线\",\n    \"项目外景选择天气好的时段拍摄，避免逆光\",\n    \"样板间拍摄时注意展示层高优势，可仰拍\",\n    \"社区配套拍摄时捕捉自然人流，体现生活气息\",\n    \"地铁站拍摄注意安全，避免进入施工区域\"\n  ],\n  \"riskNotes\": [\n    \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n    \"已避免出租确定性类表述，如满租、保租等\",\n    \"已避免价格趋势类表述，如保值增值、低位价格等\",\n    \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n  ]\n}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 2971,
+        "prompt_unit_price": "12",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.035652",
+        "completion_tokens": 1278,
+        "completion_unit_price": "24",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.030672",
+        "total_tokens": 4249,
+        "total_price": "0.066324",
+        "currency": "RMB",
+        "latency": 42.434,
+        "time_to_first_token": 1.379,
+        "time_to_generate": 41.055
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "storyOutline": "以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信",
+        "estimatedDuration": "30-45秒",
+        "scenes": [
+          {
+            "sceneNo": 1,
+            "timeRange": "0-5秒",
+            "visualGoal": "中介在项目外或样板间，用反常识话题引入，建立亲切感",
+            "voiceover": "很多人以为小户型没人看了，其实刚需客户又开始回头看。",
+            "subtitle": "很多人以为小户型没人看了，其实刚需客户又开始回头看",
+            "shotRequirement": "中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切",
+            "assetQuery": "中介出镜 项目外立面 背景",
+            "uploadRequired": true,
+            "uploadReason": "需要真人出镜口播，建立信任感",
+            "assetSourceHint": "self_upload",
+            "fallbackVisual": "项目外立面空镜+字幕"
+          },
+          {
+            "sceneNo": 2,
+            "timeRange": "5-10秒",
+            "visualGoal": "展示项目外立面或社区入口，建立可信度",
+            "voiceover": "我们这边是光明一个80万方的大社区，差不多1万户、3万人口。",
+            "subtitle": "光明80万方大社区，约1万户、3万人口",
+            "shotRequirement": "项目外立面全景或社区入口，稳定运镜，光线充足",
+            "assetQuery": "项目外立面 远景 小区入口",
+            "uploadRequired": false,
+            "uploadReason": "",
+            "assetSourceHint": "team_video_asset",
+            "fallbackVisual": "项目效果图外立面"
+          },
+          {
+            "sceneNo": 3,
+            "timeRange": "10-15秒",
+            "visualGoal": "展示样板间客厅，体现空间感和层高",
+            "voiceover": "产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。",
+            "subtitle": "4米层高，商务大堂，小面积空间灵活",
+            "shotRequirement": "样板间客厅全景，展示层高和采光，可带人物走动",
+            "assetQuery": "样板间客厅 层高 采光",
+            "uploadRequired": false,
+            "uploadReason": "",
+            "assetSourceHint": "team_video_asset",
+            "fallbackVisual": "样板间效果图"
+          },
+          {
+            "sceneNo": 4,
+            "timeRange": "15-20秒",
+            "visualGoal": "展示社区商业配套，体现成熟生活",
+            "voiceover": "社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。",
+            "subtitle": "社区商业、园林配套成熟，生活便利",
+            "shotRequirement": "社区商业街或园林实景，有人流或生活场景",
+            "assetQuery": "社区商业配套 园林 实景",
+            "uploadRequired": false,
+            "uploadReason": "",
+            "assetSourceHint": "team_video_asset",
+            "fallbackVisual": "商业街效果图"
+          },
+          {
+            "sceneNo": 5,
+            "timeRange": "20-25秒",
+            "visualGoal": "展示13号线地铁站或交通配套，强化出行便利",
+            "voiceover": "13号线也快开通了，以后出行更方便。",
+            "subtitle": "13号线即将开通，出行更便利",
+            "shotRequirement": "地铁站施工或周边道路实景，可带指示牌",
+            "assetQuery": "13号线地铁站 施工 周边道路",
+            "uploadRequired": false,
+            "uploadReason": "",
+            "assetSourceHint": "team_video_asset",
+            "fallbackVisual": "地铁线路示意图"
+          },
+          {
+            "sceneNo": 6,
+            "timeRange": "25-30秒",
+            "visualGoal": "中介再次出镜，轻CTA引导私信",
+            "voiceover": "想看具体户型和总价，可以私信我。",
+            "subtitle": "想看户型和总价？私信我",
+            "shotRequirement": "中介半身出镜，表情亲切，手势引导",
+            "assetQuery": "中介出镜 CTA 引导",
+            "uploadRequired": true,
+            "uploadReason": "需要真人出镜引导私信，完成CTA",
+            "assetSourceHint": "self_upload",
+            "fallbackVisual": "联系方式字幕+项目Logo"
+          }
+        ],
+        "requiredUploads": [
+          "中介出镜 项目外立面 背景",
+          "中介出镜 CTA 引导"
+        ],
+        "optionalTeamVideoAssets": [
+          "项目外立面 远景 小区入口",
+          "样板间客厅 层高 采光",
+          "社区商业配套 园林 实景",
+          "13号线地铁站 施工 周边道路"
+        ],
+        "shootingTips": [
+          "开场和结尾的中介出镜需保持一致的着装和光线",
+          "项目外景选择天气好的时段拍摄，避免逆光",
+          "样板间拍摄时注意展示层高优势，可仰拍",
+          "社区配套拍摄时捕捉自然人流，体现生活气息",
+          "地铁站拍摄注意安全，避免进入施工区域"
+        ],
+        "riskNotes": [
+          "已避免收益承诺类表述，如投资回报率高、租金回报等",
+          "已避免出租确定性类表述，如满租、保租等",
+          "已避免价格趋势类表述，如保值增值、低位价格等",
+          "所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活"
+        ]
+      }
+    },
+    "finished_at": 1778568918,
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 4249,
+      "total_price": "0.066324",
+      "currency": "RMB"
+    }
+  },
+  "quality_reviewer": {
+    "node_type": "code",
+    "title": "质量评审",
+    "started_at": 1778568960,
+    "status": "succeeded",
+    "inputs": {
+      "article_json": "{\n  \"titles\": [\n    \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n    \"光明80万方社区，小户型重新出现，总价门槛友好\",\n    \"刚需客户注意：小户型回归，配套成熟，适合先了解\"\n  ],\n  \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n  \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\",\n  \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\",\n  \"hashtags\": [\n    \"#小面积产品\",\n    \"#预算友好\",\n    \"#光明社区\",\n    \"#刚需选择\",\n    \"#13号线\"\n  ],\n  \"cta\": \"想看具体户型和总价，可以私信我。\",\n  \"imageMatches\": [\n    {\n      \"assetId\": \"img_001\",\n      \"title\": \"项目外立面\",\n      \"usage\": \"封面和开头，建立项目可信度\",\n      \"reason\": \"展示项目外立面，符合封面和开头需求\"\n    },\n    {\n      \"assetId\": \"img_002\",\n      \"title\": \"样板间客厅\",\n      \"usage\": \"展示空间感和居住体验\",\n      \"reason\": \"样板间客厅实拍，体现层高和空间感\"\n    }\n  ],\n  \"imageBriefIfMissing\": \"\",\n  \"riskNotes\": [\n    \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n    \"已避免出租确定性类表述，如满租、保租等\",\n    \"已避免价格趋势类表述，如保值增值、低位价格等\",\n    \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n  ],\n  \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"\n}",
+      "video_json": "{\n  \"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\",\n  \"estimatedDuration\": \"30-45秒\",\n  \"scenes\": [\n    {\n      \"sceneNo\": 1,\n      \"timeRange\": \"0-5秒\",\n      \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\",\n      \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\",\n      \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\",\n      \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\",\n      \"assetQuery\": \"中介出镜 项目外立面 背景\",\n      \"uploadRequired\": true,\n      \"uploadReason\": \"需要真人出镜口播，建立信任感\",\n      \"assetSourceHint\": \"self_upload\",\n      \"fallbackVisual\": \"项目外立面空镜+字幕\"\n    },\n    {\n      \"sceneNo\": 2,\n      \"timeRange\": \"5-10秒\",\n      \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\",\n      \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\",\n      \"subtitle\": \"光明80万方大社区，约1万户、3万人口\",\n      \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\",\n      \"assetQuery\": \"项目外立面 远景 小区入口\",\n      \"uploadRequired\": false,\n      \"uploadReason\": \"\",\n      \"assetSourceHint\": \"team_video_asset\",\n      \"fallbackVisual\": \"项目效果图外立面\"\n    },\n    {\n      \"sceneNo\": 3,\n      \"timeRange\": \"10-15秒\",\n      \"visualGoal\": \"展示样板间客厅，体现空间感和层高\",\n      \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\",\n      \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\",\n      \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\",\n      \"assetQuery\": \"样板间客厅 层高 采光\",\n      \"uploadRequired\": false,\n      \"uploadReason\": \"\",\n      \"assetSourceHint\": \"team_video_asset\",\n      \"fallbackVisual\": \"样板间效果图\"\n    },\n    {\n      \"sceneNo\": 4,\n      \"timeRange\": \"15-20秒\",\n      \"visualGoal\": \"展示社区商业配套，体现成熟生活\",\n      \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\",\n      \"subtitle\": \"社区商业、园林配套成熟，生活便利\",\n      \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\",\n      \"assetQuery\": \"社区商业配套 园林 实景\",\n      \"uploadRequired\": false,\n      \"uploadReason\": \"\",\n      \"assetSourceHint\": \"team_video_asset\",\n      \"fallbackVisual\": \"商业街效果图\"\n    },\n    {\n      \"sceneNo\": 5,\n      \"timeRange\": \"20-25秒\",\n      \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\",\n      \"voiceover\": \"13号线也快开通了，以后出行更方便。\",\n      \"subtitle\": \"13号线即将开通，出行更便利\",\n      \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\",\n      \"assetQuery\": \"13号线地铁站 施工 周边道路\",\n      \"uploadRequired\": false,\n      \"uploadReason\": \"\",\n      \"assetSourceHint\": \"team_video_asset\",\n      \"fallbackVisual\": \"地铁线路示意图\"\n    },\n    {\n      \"sceneNo\": 6,\n      \"timeRange\": \"25-30秒\",\n      \"visualGoal\": \"中介再次出镜，轻CTA引导私信\",\n      \"voiceover\": \"想看具体户型和总价，可以私信我。\",\n      \"subtitle\": \"想看户型和总价？私信我\",\n      \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\",\n      \"assetQuery\": \"中介出镜 CTA 引导\",\n      \"uploadRequired\": true,\n      \"uploadReason\": \"需要真人出镜引导私信，完成CTA\",\n      \"assetSourceHint\": \"self_upload\",\n      \"fallbackVisual\": \"联系方式字幕+项目Logo\"\n    }\n  ],\n  \"requiredUploads\": [\n    \"中介出镜 项目外立面 背景\",\n    \"中介出镜 CTA 引导\"\n  ],\n  \"optionalTeamVideoAssets\": [\n    \"项目外立面 远景 小区入口\",\n    \"样板间客厅 层高 采光\",\n    \"社区商业配套 园林 实景\",\n    \"13号线地铁站 施工 周边道路\"\n  ],\n  \"shootingTips\": [\n    \"开场和结尾的中介出镜需保持一致的着装和光线\",\n    \"项目外景选择天气好的时段拍摄，避免逆光\",\n    \"样板间拍摄时注意展示层高优势，可仰拍\",\n    \"社区配套拍摄时捕捉自然人流，体现生活气息\",\n    \"地铁站拍摄注意安全，避免进入施工区域\"\n  ],\n  \"riskNotes\": [\n    \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n    \"已避免出租确定性类表述，如满租、保租等\",\n    \"已避免价格趋势类表述，如保值增值、低位价格等\",\n    \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n  ]\n}",
+      "image_assets_json": "[{\"assetId\":\"img_001\",\"title\":\"项目外立面\",\"url\":\"https://example.com/facade.jpg\",\"tags\":[\"项目外立面\",\"小区入口\",\"封面\"],\"description\":\"适合承接项目可信度和封面展示\"},{\"assetId\":\"img_002\",\"title\":\"样板间客厅\",\"url\":\"https://example.com/living-room.jpg\",\"tags\":[\"样板间\",\"客厅\",\"空间感\"],\"description\":\"适合讲居住体验\"}]",
+      "fallback_knowledge_text": "项目资料：80万方大社区，约1万户、3万人口，社区内有成熟消费与服务需求。产品有4米层高、商务大堂，70平、200平、250平可对应不同用途。风险资料：历史资料里提到满租、租金区间、低位价格，但这些只能作为内部判断，不能用于对外承诺或营销表达。"
+    },
+    "outputs": {
+      "needs_rewrite": "true",
+      "risk_terms": "投资回报率高、保值增值、满租、租金回报、低位价格、保租",
+      "text": "{\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 4}, \"pass\": false, \"needsRewrite\": true, \"riskTerms\": [\"投资回报率高\", \"保值增值\", \"满租\", \"租金回报\", \"低位价格\", \"保租\"], \"problems\": [\"公开成稿存在风险承诺类或价格趋势类表述\"], \"revisionSuggestions\": [], \"redFlags\": [\"命中风险词：投资回报率高、保值增值、满租、租金回报、低位价格、保租\"], \"missingInputs\": []}"
+    },
+    "finished_at": 1778568960,
+    "error": null,
+    "execution_metadata": null
+  },
+  "if_else_needs_rewrite": {
+    "node_type": "if-else",
+    "title": "是否需要违规改写",
+    "started_at": 1778568961,
+    "status": "succeeded",
+    "inputs": {
+      "conditions": [
+        {
+          "actual_value": "true",
+          "expected_value": "true",
+          "comparison_operator": "is"
+        }
+      ]
+    },
+    "outputs": {
+      "result": true,
+      "selected_case_id": "needs_rewrite"
+    },
+    "finished_at": 1778568961,
+    "error": null,
+    "execution_metadata": null
+  },
+  "content_risk_rewriter": {
+    "node_type": "llm",
+    "title": "违规内容改写 LLM",
+    "started_at": 1778568961,
+    "status": "succeeded",
+    "inputs": {},
+    "outputs": {
+      "text": "{\n  \"articlePackage\": {\n    \"titles\": [\n      \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n      \"光明80万方社区，小户型重新出现，总价门槛友好\",\n      \"刚需客户注意：小户型回归，配套成熟，适合先了解\"\n    ],\n    \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n    \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\",\n    \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\",\n    \"hashtags\": [\n      \"#小面积产品\",\n      \"#预算友好\",\n      \"#光明社区\",\n      \"#刚需选择\",\n      \"#13号线\"\n    ],\n    \"cta\": \"想看具体户型和总价，可以私信我。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"封面和开头，建立项目可信度\",\n        \"reason\": \"展示项目外立面，符合封面和开头需求\"\n      },\n      {\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间感和居住体验\",\n        \"reason\": \"样板间客厅实拍，体现层高和空间感\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ],\n    \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-5秒\",\n        \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\",\n        \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\",\n        \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\",\n        \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\",\n        \"assetQuery\": \"中介出镜 项目外立面 背景\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜口播，建立信任感\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"项目外立面空镜+字幕\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"5-10秒\",\n        \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\",\n        \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\",\n        \"subtitle\": \"光明80万方大社区，约1万户、3万人口\",\n        \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"项目效果图外立面\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"10-15秒\",\n        \"visualGoal\": \"展示样板间客厅，体现空间感和层高\",\n        \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\",\n        \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\",\n        \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\",\n        \"assetQuery\": \"样板间客厅 层高 采光\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"样板间效果图\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"15-20秒\",\n        \"visualGoal\": \"展示社区商业配套，体现成熟生活\",\n        \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\",\n        \"subtitle\": \"社区商业、园林配套成熟，生活便利\",\n        \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\",\n        \"assetQuery\": \"社区商业配套 园林 实景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"商业街效果图\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"20-25秒\",\n        \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\",\n        \"voiceover\": \"13号线也快开通了，以后出行更方便。\",\n        \"subtitle\": \"13号线即将开通，出行更便利\",\n        \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\",\n        \"assetQuery\": \"13号线地铁站 施工 周边道路\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"地铁线路示意图\"\n      },\n      {\n        \"sceneNo\": 6,\n        \"timeRange\": \"25-30秒\",\n        \"visualGoal\": \"中介再次出镜，轻CTA引导私信\",\n        \"voiceover\": \"想看具体户型和总价，可以私信我。\",\n        \"subtitle\": \"想看户型和总价？私信我\",\n        \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\",\n        \"assetQuery\": \"中介出镜 CTA 引导\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜引导私信，完成CTA\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"联系方式字幕+项目Logo\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"中介出镜 项目外立面 背景\",\n      \"中介出镜 CTA 引导\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"样板间客厅 层高 采光\",\n      \"社区商业配套 园林 实景\",\n      \"13号线地铁站 施工 周边道路\"\n    ],\n    \"shootingTips\": [\n      \"开场和结尾的中介出镜需保持一致的着装和光线\",\n      \"项目外景选择天气好的时段拍摄，避免逆光\",\n      \"样板间拍摄时注意展示层高优势，可仰拍\",\n      \"社区配套拍摄时捕捉自然人流，体现生活气息\",\n      \"地铁站拍摄注意安全，避免进入施工区域\"\n    ],\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ]\n  }\n}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 2811,
+        "prompt_unit_price": "12",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.033732",
+        "completion_tokens": 2076,
+        "completion_unit_price": "24",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.049824",
+        "total_tokens": 4887,
+        "total_price": "0.083556",
+        "currency": "RMB",
+        "latency": 68.359,
+        "time_to_first_token": 3.146,
+        "time_to_generate": 65.213
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "articlePackage": {
+          "titles": [
+            "很多人以为小户型没人看了，其实刚需又开始回头看",
+            "光明80万方社区，小户型重新出现，总价门槛友好",
+            "刚需客户注意：小户型回归，配套成熟，适合先了解"
+          ],
+          "selectedTitle": "很多人以为小户型没人看了，其实刚需又开始回头看",
+          "coverCopy": "光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看",
+          "body": "最近跟几个客户聊天，发现一个有意思的现象。\n\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\n\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\n\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\n\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\n\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\n\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。",
+          "hashtags": [
+            "#小面积产品",
+            "#预算友好",
+            "#光明社区",
+            "#刚需选择",
+            "#13号线"
+          ],
+          "cta": "想看具体户型和总价，可以私信我。",
+          "imageMatches": [
+            {
+              "assetId": "img_001",
+              "title": "项目外立面",
+              "usage": "封面和开头，建立项目可信度",
+              "reason": "展示项目外立面，符合封面和开头需求"
+            },
+            {
+              "assetId": "img_002",
+              "title": "样板间客厅",
+              "usage": "展示空间感和居住体验",
+              "reason": "样板间客厅实拍，体现层高和空间感"
+            }
+          ],
+          "imageBriefIfMissing": "",
+          "riskNotes": [
+            "已避免收益承诺类表述，如投资回报率高、租金回报等",
+            "已避免出租确定性类表述，如满租、保租等",
+            "已避免价格趋势类表述，如保值增值、低位价格等",
+            "所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活"
+          ],
+          "copyReadyText": "很多人以为小户型没人看了，其实刚需又开始回头看\n\n最近跟几个客户聊天，发现一个有意思的现象。\n\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\n\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\n\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\n\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\n\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\n\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\n\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\n\n想看具体户型和总价，可以私信我。"
+        },
+        "videoScript": {
+          "storyOutline": "以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信",
+          "estimatedDuration": "30-45秒",
+          "scenes": [
+            {
+              "sceneNo": 1,
+              "timeRange": "0-5秒",
+              "visualGoal": "中介在项目外或样板间，用反常识话题引入，建立亲切感",
+              "voiceover": "很多人以为小户型没人看了，其实刚需客户又开始回头看。",
+              "subtitle": "很多人以为小户型没人看了，其实刚需客户又开始回头看",
+              "shotRequirement": "中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切",
+              "assetQuery": "中介出镜 项目外立面 背景",
+              "uploadRequired": true,
+              "uploadReason": "需要真人出镜口播，建立信任感",
+              "assetSourceHint": "self_upload",
+              "fallbackVisual": "项目外立面空镜+字幕"
+            },
+            {
+              "sceneNo": 2,
+              "timeRange": "5-10秒",
+              "visualGoal": "展示项目外立面或社区入口，建立可信度",
+              "voiceover": "我们这边是光明一个80万方的大社区，差不多1万户、3万人口。",
+              "subtitle": "光明80万方大社区，约1万户、3万人口",
+              "shotRequirement": "项目外立面全景或社区入口，稳定运镜，光线充足",
+              "assetQuery": "项目外立面 远景 小区入口",
+              "uploadRequired": false,
+              "uploadReason": "",
+              "assetSourceHint": "team_video_asset",
+              "fallbackVisual": "项目效果图外立面"
+            },
+            {
+              "sceneNo": 3,
+              "timeRange": "10-15秒",
+              "visualGoal": "展示样板间客厅，体现空间感和层高",
+              "voiceover": "产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。",
+              "subtitle": "4米层高，商务大堂，小面积空间灵活",
+              "shotRequirement": "样板间客厅全景，展示层高和采光，可带人物走动",
+              "assetQuery": "样板间客厅 层高 采光",
+              "uploadRequired": false,
+              "uploadReason": "",
+              "assetSourceHint": "team_video_asset",
+              "fallbackVisual": "样板间效果图"
+            },
+            {
+              "sceneNo": 4,
+              "timeRange": "15-20秒",
+              "visualGoal": "展示社区商业配套，体现成熟生活",
+              "voiceover": "社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。",
+              "subtitle": "社区商业、园林配套成熟，生活便利",
+              "shotRequirement": "社区商业街或园林实景，有人流或生活场景",
+              "assetQuery": "社区商业配套 园林 实景",
+              "uploadRequired": false,
+              "uploadReason": "",
+              "assetSourceHint": "team_video_asset",
+              "fallbackVisual": "商业街效果图"
+            },
+            {
+              "sceneNo": 5,
+              "timeRange": "20-25秒",
+              "visualGoal": "展示13号线地铁站或交通配套，强化出行便利",
+              "voiceover": "13号线也快开通了，以后出行更方便。",
+              "subtitle": "13号线即将开通，出行更便利",
+              "shotRequirement": "地铁站施工或周边道路实景，可带指示牌",
+              "assetQuery": "13号线地铁站 施工 周边道路",
+              "uploadRequired": false,
+              "uploadReason": "",
+              "assetSourceHint": "team_video_asset",
+              "fallbackVisual": "地铁线路示意图"
+            },
+            {
+              "sceneNo": 6,
+              "timeRange": "25-30秒",
+              "visualGoal": "中介再次出镜，轻CTA引导私信",
+              "voiceover": "想看具体户型和总价，可以私信我。",
+              "subtitle": "想看户型和总价？私信我",
+              "shotRequirement": "中介半身出镜，表情亲切，手势引导",
+              "assetQuery": "中介出镜 CTA 引导",
+              "uploadRequired": true,
+              "uploadReason": "需要真人出镜引导私信，完成CTA",
+              "assetSourceHint": "self_upload",
+              "fallbackVisual": "联系方式字幕+项目Logo"
+            }
+          ],
+          "requiredUploads": [
+            "中介出镜 项目外立面 背景",
+            "中介出镜 CTA 引导"
+          ],
+          "optionalTeamVideoAssets": [
+            "项目外立面 远景 小区入口",
+            "样板间客厅 层高 采光",
+            "社区商业配套 园林 实景",
+            "13号线地铁站 施工 周边道路"
+          ],
+          "shootingTips": [
+            "开场和结尾的中介出镜需保持一致的着装和光线",
+            "项目外景选择天气好的时段拍摄，避免逆光",
+            "样板间拍摄时注意展示层高优势，可仰拍",
+            "社区配套拍摄时捕捉自然人流，体现生活气息",
+            "地铁站拍摄注意安全，避免进入施工区域"
+          ],
+          "riskNotes": [
+            "已避免收益承诺类表述，如投资回报率高、租金回报等",
+            "已避免出租确定性类表述，如满租、保租等",
+            "已避免价格趋势类表述，如保值增值、低位价格等",
+            "所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活"
+          ]
+        }
+      }
+    },
+    "finished_at": 1778568961,
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 4887,
+      "total_price": "0.083556",
+      "currency": "RMB"
+    }
+  },
+  "article_package_aggregator": {
+    "node_type": "variable-aggregator",
+    "title": "图文内容包候选聚合器",
+    "started_at": 1778569029,
+    "status": "succeeded",
+    "inputs": {
+      "text": "{\n  \"articlePackage\": {\n    \"titles\": [\n      \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n      \"光明80万方社区，小户型重新出现，总价门槛友好\",\n      \"刚需客户注意：小户型回归，配套成熟，适合先了解\"\n    ],\n    \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n    \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\",\n    \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\",\n    \"hashtags\": [\n      \"#小面积产品\",\n      \"#预算友好\",\n      \"#光明社区\",\n      \"#刚需选择\",\n      \"#13号线\"\n    ],\n    \"cta\": \"想看具体户型和总价，可以私信我。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"封面和开头，建立项目可信度\",\n        \"reason\": \"展示项目外立面，符合封面和开头需求\"\n      },\n      {\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间感和居住体验\",\n        \"reason\": \"样板间客厅实拍，体现层高和空间感\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ],\n    \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-5秒\",\n        \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\",\n        \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\",\n        \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\",\n        \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\",\n        \"assetQuery\": \"中介出镜 项目外立面 背景\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜口播，建立信任感\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"项目外立面空镜+字幕\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"5-10秒\",\n        \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\",\n        \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\",\n        \"subtitle\": \"光明80万方大社区，约1万户、3万人口\",\n        \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"项目效果图外立面\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"10-15秒\",\n        \"visualGoal\": \"展示样板间客厅，体现空间感和层高\",\n        \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\",\n        \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\",\n        \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\",\n        \"assetQuery\": \"样板间客厅 层高 采光\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"样板间效果图\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"15-20秒\",\n        \"visualGoal\": \"展示社区商业配套，体现成熟生活\",\n        \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\",\n        \"subtitle\": \"社区商业、园林配套成熟，生活便利\",\n        \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\",\n        \"assetQuery\": \"社区商业配套 园林 实景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"商业街效果图\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"20-25秒\",\n        \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\",\n        \"voiceover\": \"13号线也快开通了，以后出行更方便。\",\n        \"subtitle\": \"13号线即将开通，出行更便利\",\n        \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\",\n        \"assetQuery\": \"13号线地铁站 施工 周边道路\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"地铁线路示意图\"\n      },\n      {\n        \"sceneNo\": 6,\n        \"timeRange\": \"25-30秒\",\n        \"visualGoal\": \"中介再次出镜，轻CTA引导私信\",\n        \"voiceover\": \"想看具体户型和总价，可以私信我。\",\n        \"subtitle\": \"想看户型和总价？私信我\",\n        \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\",\n        \"assetQuery\": \"中介出镜 CTA 引导\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜引导私信，完成CTA\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"联系方式字幕+项目Logo\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"中介出镜 项目外立面 背景\",\n      \"中介出镜 CTA 引导\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"样板间客厅 层高 采光\",\n      \"社区商业配套 园林 实景\",\n      \"13号线地铁站 施工 周边道路\"\n    ],\n    \"shootingTips\": [\n      \"开场和结尾的中介出镜需保持一致的着装和光线\",\n      \"项目外景选择天气好的时段拍摄，避免逆光\",\n      \"样板间拍摄时注意展示层高优势，可仰拍\",\n      \"社区配套拍摄时捕捉自然人流，体现生活气息\",\n      \"地铁站拍摄注意安全，避免进入施工区域\"\n    ],\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ]\n  }\n}"
+    },
+    "outputs": {
+      "output": "{\n  \"articlePackage\": {\n    \"titles\": [\n      \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n      \"光明80万方社区，小户型重新出现，总价门槛友好\",\n      \"刚需客户注意：小户型回归，配套成熟，适合先了解\"\n    ],\n    \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n    \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\",\n    \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\",\n    \"hashtags\": [\n      \"#小面积产品\",\n      \"#预算友好\",\n      \"#光明社区\",\n      \"#刚需选择\",\n      \"#13号线\"\n    ],\n    \"cta\": \"想看具体户型和总价，可以私信我。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"封面和开头，建立项目可信度\",\n        \"reason\": \"展示项目外立面，符合封面和开头需求\"\n      },\n      {\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间感和居住体验\",\n        \"reason\": \"样板间客厅实拍，体现层高和空间感\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ],\n    \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-5秒\",\n        \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\",\n        \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\",\n        \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\",\n        \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\",\n        \"assetQuery\": \"中介出镜 项目外立面 背景\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜口播，建立信任感\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"项目外立面空镜+字幕\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"5-10秒\",\n        \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\",\n        \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\",\n        \"subtitle\": \"光明80万方大社区，约1万户、3万人口\",\n        \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"项目效果图外立面\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"10-15秒\",\n        \"visualGoal\": \"展示样板间客厅，体现空间感和层高\",\n        \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\",\n        \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\",\n        \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\",\n        \"assetQuery\": \"样板间客厅 层高 采光\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"样板间效果图\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"15-20秒\",\n        \"visualGoal\": \"展示社区商业配套，体现成熟生活\",\n        \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\",\n        \"subtitle\": \"社区商业、园林配套成熟，生活便利\",\n        \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\",\n        \"assetQuery\": \"社区商业配套 园林 实景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"商业街效果图\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"20-25秒\",\n        \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\",\n        \"voiceover\": \"13号线也快开通了，以后出行更方便。\",\n        \"subtitle\": \"13号线即将开通，出行更便利\",\n        \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\",\n        \"assetQuery\": \"13号线地铁站 施工 周边道路\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"地铁线路示意图\"\n      },\n      {\n        \"sceneNo\": 6,\n        \"timeRange\": \"25-30秒\",\n        \"visualGoal\": \"中介再次出镜，轻CTA引导私信\",\n        \"voiceover\": \"想看具体户型和总价，可以私信我。\",\n        \"subtitle\": \"想看户型和总价？私信我\",\n        \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\",\n        \"assetQuery\": \"中介出镜 CTA 引导\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜引导私信，完成CTA\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"联系方式字幕+项目Logo\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"中介出镜 项目外立面 背景\",\n      \"中介出镜 CTA 引导\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"样板间客厅 层高 采光\",\n      \"社区商业配套 园林 实景\",\n      \"13号线地铁站 施工 周边道路\"\n    ],\n    \"shootingTips\": [\n      \"开场和结尾的中介出镜需保持一致的着装和光线\",\n      \"项目外景选择天气好的时段拍摄，避免逆光\",\n      \"样板间拍摄时注意展示层高优势，可仰拍\",\n      \"社区配套拍摄时捕捉自然人流，体现生活气息\",\n      \"地铁站拍摄注意安全，避免进入施工区域\"\n    ],\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ]\n  }\n}"
+    },
+    "finished_at": 1778569029,
+    "error": null,
+    "execution_metadata": null
+  },
+  "video_script_aggregator": {
+    "node_type": "variable-aggregator",
+    "title": "视频脚本候选聚合器",
+    "started_at": 1778569029,
+    "status": "succeeded",
+    "inputs": {
+      "text": "{\n  \"articlePackage\": {\n    \"titles\": [\n      \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n      \"光明80万方社区，小户型重新出现，总价门槛友好\",\n      \"刚需客户注意：小户型回归，配套成熟，适合先了解\"\n    ],\n    \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n    \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\",\n    \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\",\n    \"hashtags\": [\n      \"#小面积产品\",\n      \"#预算友好\",\n      \"#光明社区\",\n      \"#刚需选择\",\n      \"#13号线\"\n    ],\n    \"cta\": \"想看具体户型和总价，可以私信我。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"封面和开头，建立项目可信度\",\n        \"reason\": \"展示项目外立面，符合封面和开头需求\"\n      },\n      {\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间感和居住体验\",\n        \"reason\": \"样板间客厅实拍，体现层高和空间感\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ],\n    \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-5秒\",\n        \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\",\n        \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\",\n        \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\",\n        \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\",\n        \"assetQuery\": \"中介出镜 项目外立面 背景\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜口播，建立信任感\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"项目外立面空镜+字幕\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"5-10秒\",\n        \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\",\n        \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\",\n        \"subtitle\": \"光明80万方大社区，约1万户、3万人口\",\n        \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"项目效果图外立面\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"10-15秒\",\n        \"visualGoal\": \"展示样板间客厅，体现空间感和层高\",\n        \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\",\n        \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\",\n        \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\",\n        \"assetQuery\": \"样板间客厅 层高 采光\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"样板间效果图\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"15-20秒\",\n        \"visualGoal\": \"展示社区商业配套，体现成熟生活\",\n        \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\",\n        \"subtitle\": \"社区商业、园林配套成熟，生活便利\",\n        \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\",\n        \"assetQuery\": \"社区商业配套 园林 实景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"商业街效果图\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"20-25秒\",\n        \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\",\n        \"voiceover\": \"13号线也快开通了，以后出行更方便。\",\n        \"subtitle\": \"13号线即将开通，出行更便利\",\n        \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\",\n        \"assetQuery\": \"13号线地铁站 施工 周边道路\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"地铁线路示意图\"\n      },\n      {\n        \"sceneNo\": 6,\n        \"timeRange\": \"25-30秒\",\n        \"visualGoal\": \"中介再次出镜，轻CTA引导私信\",\n        \"voiceover\": \"想看具体户型和总价，可以私信我。\",\n        \"subtitle\": \"想看户型和总价？私信我\",\n        \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\",\n        \"assetQuery\": \"中介出镜 CTA 引导\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜引导私信，完成CTA\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"联系方式字幕+项目Logo\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"中介出镜 项目外立面 背景\",\n      \"中介出镜 CTA 引导\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"样板间客厅 层高 采光\",\n      \"社区商业配套 园林 实景\",\n      \"13号线地铁站 施工 周边道路\"\n    ],\n    \"shootingTips\": [\n      \"开场和结尾的中介出镜需保持一致的着装和光线\",\n      \"项目外景选择天气好的时段拍摄，避免逆光\",\n      \"样板间拍摄时注意展示层高优势，可仰拍\",\n      \"社区配套拍摄时捕捉自然人流，体现生活气息\",\n      \"地铁站拍摄注意安全，避免进入施工区域\"\n    ],\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ]\n  }\n}"
+    },
+    "outputs": {
+      "output": "{\n  \"articlePackage\": {\n    \"titles\": [\n      \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n      \"光明80万方社区，小户型重新出现，总价门槛友好\",\n      \"刚需客户注意：小户型回归，配套成熟，适合先了解\"\n    ],\n    \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n    \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\",\n    \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\",\n    \"hashtags\": [\n      \"#小面积产品\",\n      \"#预算友好\",\n      \"#光明社区\",\n      \"#刚需选择\",\n      \"#13号线\"\n    ],\n    \"cta\": \"想看具体户型和总价，可以私信我。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"封面和开头，建立项目可信度\",\n        \"reason\": \"展示项目外立面，符合封面和开头需求\"\n      },\n      {\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间感和居住体验\",\n        \"reason\": \"样板间客厅实拍，体现层高和空间感\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ],\n    \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-5秒\",\n        \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\",\n        \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\",\n        \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\",\n        \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\",\n        \"assetQuery\": \"中介出镜 项目外立面 背景\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜口播，建立信任感\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"项目外立面空镜+字幕\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"5-10秒\",\n        \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\",\n        \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\",\n        \"subtitle\": \"光明80万方大社区，约1万户、3万人口\",\n        \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"项目效果图外立面\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"10-15秒\",\n        \"visualGoal\": \"展示样板间客厅，体现空间感和层高\",\n        \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\",\n        \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\",\n        \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\",\n        \"assetQuery\": \"样板间客厅 层高 采光\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"样板间效果图\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"15-20秒\",\n        \"visualGoal\": \"展示社区商业配套，体现成熟生活\",\n        \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\",\n        \"subtitle\": \"社区商业、园林配套成熟，生活便利\",\n        \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\",\n        \"assetQuery\": \"社区商业配套 园林 实景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"商业街效果图\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"20-25秒\",\n        \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\",\n        \"voiceover\": \"13号线也快开通了，以后出行更方便。\",\n        \"subtitle\": \"13号线即将开通，出行更便利\",\n        \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\",\n        \"assetQuery\": \"13号线地铁站 施工 周边道路\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"地铁线路示意图\"\n      },\n      {\n        \"sceneNo\": 6,\n        \"timeRange\": \"25-30秒\",\n        \"visualGoal\": \"中介再次出镜，轻CTA引导私信\",\n        \"voiceover\": \"想看具体户型和总价，可以私信我。\",\n        \"subtitle\": \"想看户型和总价？私信我\",\n        \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\",\n        \"assetQuery\": \"中介出镜 CTA 引导\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜引导私信，完成CTA\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"联系方式字幕+项目Logo\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"中介出镜 项目外立面 背景\",\n      \"中介出镜 CTA 引导\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"样板间客厅 层高 采光\",\n      \"社区商业配套 园林 实景\",\n      \"13号线地铁站 施工 周边道路\"\n    ],\n    \"shootingTips\": [\n      \"开场和结尾的中介出镜需保持一致的着装和光线\",\n      \"项目外景选择天气好的时段拍摄，避免逆光\",\n      \"样板间拍摄时注意展示层高优势，可仰拍\",\n      \"社区配套拍摄时捕捉自然人流，体现生活气息\",\n      \"地铁站拍摄注意安全，避免进入施工区域\"\n    ],\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ]\n  }\n}"
+    },
+    "finished_at": 1778569029,
+    "error": null,
+    "execution_metadata": null
+  },
+  "final_compiler": {
+    "node_type": "code",
+    "title": "最终结果编译",
+    "started_at": 1778569029,
+    "status": "succeeded",
+    "inputs": {
+      "article_package": "{\n  \"articlePackage\": {\n    \"titles\": [\n      \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n      \"光明80万方社区，小户型重新出现，总价门槛友好\",\n      \"刚需客户注意：小户型回归，配套成熟，适合先了解\"\n    ],\n    \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n    \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\",\n    \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\",\n    \"hashtags\": [\n      \"#小面积产品\",\n      \"#预算友好\",\n      \"#光明社区\",\n      \"#刚需选择\",\n      \"#13号线\"\n    ],\n    \"cta\": \"想看具体户型和总价，可以私信我。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"封面和开头，建立项目可信度\",\n        \"reason\": \"展示项目外立面，符合封面和开头需求\"\n      },\n      {\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间感和居住体验\",\n        \"reason\": \"样板间客厅实拍，体现层高和空间感\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ],\n    \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-5秒\",\n        \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\",\n        \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\",\n        \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\",\n        \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\",\n        \"assetQuery\": \"中介出镜 项目外立面 背景\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜口播，建立信任感\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"项目外立面空镜+字幕\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"5-10秒\",\n        \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\",\n        \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\",\n        \"subtitle\": \"光明80万方大社区，约1万户、3万人口\",\n        \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"项目效果图外立面\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"10-15秒\",\n        \"visualGoal\": \"展示样板间客厅，体现空间感和层高\",\n        \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\",\n        \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\",\n        \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\",\n        \"assetQuery\": \"样板间客厅 层高 采光\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"样板间效果图\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"15-20秒\",\n        \"visualGoal\": \"展示社区商业配套，体现成熟生活\",\n        \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\",\n        \"subtitle\": \"社区商业、园林配套成熟，生活便利\",\n        \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\",\n        \"assetQuery\": \"社区商业配套 园林 实景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"商业街效果图\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"20-25秒\",\n        \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\",\n        \"voiceover\": \"13号线也快开通了，以后出行更方便。\",\n        \"subtitle\": \"13号线即将开通，出行更便利\",\n        \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\",\n        \"assetQuery\": \"13号线地铁站 施工 周边道路\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"地铁线路示意图\"\n      },\n      {\n        \"sceneNo\": 6,\n        \"timeRange\": \"25-30秒\",\n        \"visualGoal\": \"中介再次出镜，轻CTA引导私信\",\n        \"voiceover\": \"想看具体户型和总价，可以私信我。\",\n        \"subtitle\": \"想看户型和总价？私信我\",\n        \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\",\n        \"assetQuery\": \"中介出镜 CTA 引导\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜引导私信，完成CTA\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"联系方式字幕+项目Logo\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"中介出镜 项目外立面 背景\",\n      \"中介出镜 CTA 引导\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"样板间客厅 层高 采光\",\n      \"社区商业配套 园林 实景\",\n      \"13号线地铁站 施工 周边道路\"\n    ],\n    \"shootingTips\": [\n      \"开场和结尾的中介出镜需保持一致的着装和光线\",\n      \"项目外景选择天气好的时段拍摄，避免逆光\",\n      \"样板间拍摄时注意展示层高优势，可仰拍\",\n      \"社区配套拍摄时捕捉自然人流，体现生活气息\",\n      \"地铁站拍摄注意安全，避免进入施工区域\"\n    ],\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ]\n  }\n}",
+      "video_script": "{\n  \"articlePackage\": {\n    \"titles\": [\n      \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n      \"光明80万方社区，小户型重新出现，总价门槛友好\",\n      \"刚需客户注意：小户型回归，配套成熟，适合先了解\"\n    ],\n    \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n    \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\",\n    \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\",\n    \"hashtags\": [\n      \"#小面积产品\",\n      \"#预算友好\",\n      \"#光明社区\",\n      \"#刚需选择\",\n      \"#13号线\"\n    ],\n    \"cta\": \"想看具体户型和总价，可以私信我。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"封面和开头，建立项目可信度\",\n        \"reason\": \"展示项目外立面，符合封面和开头需求\"\n      },\n      {\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间感和居住体验\",\n        \"reason\": \"样板间客厅实拍，体现层高和空间感\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ],\n    \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-5秒\",\n        \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\",\n        \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\",\n        \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\",\n        \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\",\n        \"assetQuery\": \"中介出镜 项目外立面 背景\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜口播，建立信任感\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"项目外立面空镜+字幕\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"5-10秒\",\n        \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\",\n        \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\",\n        \"subtitle\": \"光明80万方大社区，约1万户、3万人口\",\n        \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"项目效果图外立面\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"10-15秒\",\n        \"visualGoal\": \"展示样板间客厅，体现空间感和层高\",\n        \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\",\n        \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\",\n        \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\",\n        \"assetQuery\": \"样板间客厅 层高 采光\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"样板间效果图\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"15-20秒\",\n        \"visualGoal\": \"展示社区商业配套，体现成熟生活\",\n        \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\",\n        \"subtitle\": \"社区商业、园林配套成熟，生活便利\",\n        \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\",\n        \"assetQuery\": \"社区商业配套 园林 实景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"商业街效果图\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"20-25秒\",\n        \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\",\n        \"voiceover\": \"13号线也快开通了，以后出行更方便。\",\n        \"subtitle\": \"13号线即将开通，出行更便利\",\n        \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\",\n        \"assetQuery\": \"13号线地铁站 施工 周边道路\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"地铁线路示意图\"\n      },\n      {\n        \"sceneNo\": 6,\n        \"timeRange\": \"25-30秒\",\n        \"visualGoal\": \"中介再次出镜，轻CTA引导私信\",\n        \"voiceover\": \"想看具体户型和总价，可以私信我。\",\n        \"subtitle\": \"想看户型和总价？私信我\",\n        \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\",\n        \"assetQuery\": \"中介出镜 CTA 引导\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人出镜引导私信，完成CTA\",\n        \"assetSourceHint\": \"self_upload\",\n        \"fallbackVisual\": \"联系方式字幕+项目Logo\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"中介出镜 项目外立面 背景\",\n      \"中介出镜 CTA 引导\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"样板间客厅 层高 采光\",\n      \"社区商业配套 园林 实景\",\n      \"13号线地铁站 施工 周边道路\"\n    ],\n    \"shootingTips\": [\n      \"开场和结尾的中介出镜需保持一致的着装和光线\",\n      \"项目外景选择天气好的时段拍摄，避免逆光\",\n      \"样板间拍摄时注意展示层高优势，可仰拍\",\n      \"社区配套拍摄时捕捉自然人流，体现生活气息\",\n      \"地铁站拍摄注意安全，避免进入施工区域\"\n    ],\n    \"riskNotes\": [\n      \"已避免收益承诺类表述，如投资回报率高、租金回报等\",\n      \"已避免出租确定性类表述，如满租、保租等\",\n      \"已避免价格趋势类表述，如保值增值、低位价格等\",\n      \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"\n    ]\n  }\n}",
+      "quality_review_text": "{\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 4}, \"pass\": false, \"needsRewrite\": true, \"riskTerms\": [\"投资回报率高\", \"保值增值\", \"满租\", \"租金回报\", \"低位价格\", \"保租\"], \"problems\": [\"公开成稿存在风险承诺类或价格趋势类表述\"], \"revisionSuggestions\": [], \"redFlags\": [\"命中风险词：投资回报率高、保值增值、满租、租金回报、低位价格、保租\"], \"missingInputs\": []}",
+      "task_understanding_text": "<think>\n我们被要求从输入中解析出结构化任务。输入给出了一个任务对象，但我们需要根据JSON schema填充所有字段。注意：schema要求字段：coreTopic, contentType, platforms, contentGoal, targetAudience, audiencePain, sellingPointsNeeded, riskConstraints, copySearchQuery, scriptSearchQuery, imageSearchQuery, videoAssetQueryHints, extraRequirement。\n\n输入中提供了：taskId, theme, contentType, platforms, contentGoal, targetAudience, summary, teamCalendarSource, date。还有额外要求：口吻更像本地中介，CTA轻一点，不要制造焦虑。\n\n我们需要映射：\n\n- coreTopic: 应该是theme的值：\"小户型回归\"\n- contentType: 输入是\"article_and_video\"，但schema中types应该是string? schema中contentType是string，我们可以用\"article_and_video\"或拆？保留原值。\n- platforms: 数组[\"xiaohongshu\",\"douyin\"]\n- contentGoal: \"种草\"\n- targetAudience: \"刚需客户\"\n- audiencePain: 从summary推断，但需要明确\"audiencePain\"。输入中没有直接给出，但我们可以从主题和总结推测，如：刚需客户可能面临高房价压力，小户型是低总价上车。但注意不能编造，但我们可以从\"低总价上车\"推断pain是\"购房门槛高\"或\"总价压力大\"。但最好基于输入：summary包含\"低总价上车、成熟配套、租金回报\"。其中\"租金回报\"是风险词，应放入riskConstraints。所以audiencePain可以写\"购房门槛高\"或类似。但更准确，从\"低总价上车\"看，pain是\"预算有限\"。我们写\"预算有限，购房门槛高\"？但schema期望string。我们写\"预算有限，购房门槛高\"。\n- sellingPointsNeeded: 数组，应该是卖点。输入summary有\"低总价上车、成熟配套\"，但\"租金回报\"是风险，所以卖点是\"低总价上车，成熟配套\"。但我们也看到theme是小户型回归，可能卖点还包括面积小但功能全。但只基于输入：我们只取\"低总价上车\"和\"成熟配套\" as sellingPoints。但注意：sellpoints需要作为数组。所以[\"低总价上车\", \"成熟配套\"]。\n- riskConstraints: 根据规则，出现\"租金回报\"应归类为\"收益承诺类\"。所以[\"收益承诺类\"]。\n- copySearchQuery: 不能为空，需要组合主题、客群、卖点、场景词成中文检索句。不能用风险词。所以主题是\"小户型\"，客群\"刚需客户\"，卖点\"低总价上车\"和\"成熟配套\"，场景词如\"买房\"\"首套房\"。所以可以写：\"小户型 刚需 低总价 成熟配套 首套房\"。但要避免风险。copySearchQuery应该是用于搜索类似文案的查询。\n- scriptSearchQuery: 类似，但针对视频脚本。可以写：\"小户型推荐 刚需买房 低总价 配套完善 实景\"。\n- imageSearchQuery: 图片搜索，可以写：\"小户型室内设计 低总价装修 成熟社区 实景图片\"。\n- videoAssetQueryHints: 数组，视频素材提示。可以基于主题：比如[\"小户型样板间实拍\", \"社区配套实景\", \"刚需客户看房过程\"]等。但不要编造，可以从输入推断。输入没有具体，但可以写一些通用的。注意不要包含风险词。\n- extraRequirement: 额外要求：\"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"\n\n注意：所有字段必须有值，未知则空字符串或空数组。但这里我们基本都能填。\n\n输出必须严格JSON。\n</think>{\n  \"coreTopic\": \"小户型回归\",\n  \"contentType\": \"article_and_video\",\n  \"platforms\": [\"xiaohongshu\", \"douyin\"],\n  \"contentGoal\": \"种草\",\n  \"targetAudience\": \"刚需客户\",\n  \"audiencePain\": \"预算有限，购房门槛高\",\n  \"sellingPointsNeeded\": [\"低总价上车\", \"成熟配套\"],\n  \"riskConstraints\": [\"收益承诺类\"],\n  \"copySearchQuery\": \"小户型 刚需 低总价 成熟配套 首套房\",\n  \"scriptSearchQuery\": \"小户型推荐 刚需买房 低总价 配套完善 实景\",\n  \"imageSearchQuery\": \"小户型室内设计 低总价装修 成熟社区 实景图片\",\n  \"videoAssetQueryHints\": [\"小户型样板间实拍\", \"社区配套实景\", \"刚需客户看房过程\"],\n  \"extraRequirement\": \"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"\n}",
+      "creative_strategy_text": "{\n  \"chosenAngle\": \"小户型回归，刚需客户低总价选择\",\n  \"narrativeArc\": [\n    \"反常识开头：很多人以为小户型过时了，其实刚需客户又开始回头看\",\n    \"解释变化：市场供应结构变化，小户型重新出现，总价门槛相对友好\",\n    \"落到真实选择：结合项目配套和空间特点，展示实际使用场景\",\n    \"轻CTA：想看户型和总价，可以私信\"\n  ],\n  \"tone\": \"本地中介口吻，亲切自然，不制造焦虑\",\n  \"mustUseFacts\": [\n    \"项目为80万方大社区，约1万户、3万人口\",\n    \"社区内有成熟消费与服务需求\",\n    \"产品有4米层高、商务大堂\",\n    \"户型包括70平、200平、250平等不同面积段\",\n    \"13号线即将开通\"\n  ],\n  \"mustAvoidClaims\": [\n    \"投资回报率高\",\n    \"收益稳定\",\n    \"租金回报高\",\n    \"稳赚\",\n    \"保值增值\",\n    \"满租\",\n    \"租金区间\",\n    \"租金回报\",\n    \"投资属性\",\n    \"资产回报\",\n    \"低位价格\",\n    \"价格错位\",\n    \"收租\",\n    \"贴月供\",\n    \"租出去\",\n    \"保租\",\n    \"保回报\",\n    \"确定兑现\",\n    \"运营成熟验证\"\n  ],\n  \"viralPatternUsed\": {\n    \"patternName\": \"反常识回归\",\n    \"reason\": \"利用市场对小户型的刻板印象，制造认知反差，吸引刚需客户关注\",\n    \"titleTactics\": [\"反常识开头\", \"制造认知反差\"],\n    \"hookTactics\": [\"很多人以为小户型过时了\"],\n    \"ctaTactics\": [\"轻CTA：想看户型和总价，可以私信\"]\n  },\n  \"articlePlan\": {\n    \"titleDirection\": \"很多人以为小户型没人看了，其实刚需又开始回头看\",\n    \"coverCopyDirection\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\",\n    \"bodyStructure\": [\n      \"反常识开头：打破小户型过时的印象\",\n      \"市场变化：小户型供应稀缺，近期重新出现\",\n      \"项目事实：80万方大社区，成熟配套，13号线即将开通\",\n      \"产品特点：4米层高，商务大堂，多种面积段\",\n      \"生活场景：社区内消费服务完善，居住便利\",\n      \"轻CTA：想看具体户型和总价，可以私信了解\"\n    ],\n    \"imagePlan\": [\n      \"项目外立面：用于封面和开头，建立信任感\",\n      \"样板间客厅：展示空间感和居住体验\",\n      \"社区配套实景：如商业、园林，体现成熟度\",\n      \"户型图或空间示意：帮助客户理解产品\"\n    ]\n  },\n  \"videoPlan\": {\n    \"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenePlan\": [\n      \"开场：中介在项目外或样板间，用反常识话题引入\",\n      \"项目外景：展示社区入口、外立面，建立可信度\",\n      \"样板间：展示客厅、层高、采光，强调空间感\",\n      \"社区配套：商业街、园林等实景，体现成熟生活\",\n      \"结尾：回到中介，轻CTA引导私信\"\n    ],\n    \"requiredUploads\": [\n      \"项目外立面实拍\",\n      \"样板间客厅实拍\",\n      \"社区商业配套实拍\",\n      \"社区园林实拍\"\n    ],\n    \"assetQueryHints\": [\n      \"光明小户型样板间\",\n      \"光明社区商业配套\",\n      \"光明13号线地铁站\"\n    ]\n  },\n  \"degradationNotices\": [\n    \"项目事实不足：知识库未提供具体项目名、区域、户型名称等，已使用泛化表述\"\n  ],\n  \"trace\": {\n    \"usedKnowledgeSummary\": [\n      \"知识库片段1：提及小户型回归、市场关注度、中介蠢蠢欲动\",\n      \"知识库片段2：讨论内容赋能、业务员素材需求\",\n      \"知识库片段3：强调配套成熟、13号线政策、素材打包\"\n    ],\n    \"usedViralSummary\": [\n      \"爆款结构：反常识开头、解释变化、落到真实选择、轻CTA\"\n    ],\n    \"usedImageSummary\": [\n      \"图片素材：项目外立面、样板间客厅\"\n    ]\n  },\n  \"qualityGateHints\": {\n    \"factWeakness\": \"项目具体名称、户型名称、配套商业名称缺失，依赖手工知识兜底\",\n    \"complianceRisks\": [\n      \"收益承诺类\",\n      \"出租确定性类\",\n      \"价格趋势类\"\n    ],\n    \"mustReviewBeforePublish\": [\n      \"检查是否出现风险词：投资回报率高、租金回报、满租等\",\n      \"确认所有事实表述已改写为安全表述\",\n      \"确认CTA未包含收益承诺或出租确定性\"\n    ]\n  }\n}"
+    },
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"很多人以为小户型没人看了，其实刚需又开始回头看\", \"光明80万方社区，小户型重新出现，总价门槛友好\", \"刚需客户注意：小户型回归，配套成熟，适合先了解\"], \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\", \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\", \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\", \"hashtags\": [\"#小面积产品\", \"#预算友好\", \"#光明社区\", \"#刚需选择\", \"#13号线\"], \"cta\": \"想看具体户型和总价，可以私信我。\", \"imageMatches\": [{\"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"封面和开头，建立项目可信度\", \"reason\": \"展示项目外立面，符合封面和开头需求\"}, {\"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间感和居住体验\", \"reason\": \"样板间客厅实拍，体现层高和空间感\"}], \"imageBriefIfMissing\": \"\", \"riskNotes\": [\"已避免收益承诺类表述，如投资回报率高、租金回报等\", \"已避免出租确定性类表述，如满租、保租等\", \"已避免价格趋势类表述，如保值增值、低位价格等\", \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"], \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"}, \"videoScript\": {\"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\", \"estimatedDuration\": \"30-45秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-5秒\", \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\", \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\", \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\", \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\", \"assetQuery\": \"中介出镜 项目外立面 背景\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜口播，建立信任感\", \"assetSourceHint\": \"self_upload\", \"fallbackVisual\": \"项目外立面空镜+字幕\"}, {\"sceneNo\": 2, \"timeRange\": \"5-10秒\", \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\", \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\", \"subtitle\": \"光明80万方大社区，约1万户、3万人口\", \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\", \"assetQuery\": \"项目外立面 远景 小区入口\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"项目效果图外立面\"}, {\"sceneNo\": 3, \"timeRange\": \"10-15秒\", \"visualGoal\": \"展示样板间客厅，体现空间感和层高\", \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\", \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\", \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\", \"assetQuery\": \"样板间客厅 层高 采光\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"样板间效果图\"}, {\"sceneNo\": 4, \"timeRange\": \"15-20秒\", \"visualGoal\": \"展示社区商业配套，体现成熟生活\", \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\", \"subtitle\": \"社区商业、园林配套成熟，生活便利\", \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\", \"assetQuery\": \"社区商业配套 园林 实景\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"商业街效果图\"}, {\"sceneNo\": 5, \"timeRange\": \"20-25秒\", \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\", \"voiceover\": \"13号线也快开通了，以后出行更方便。\", \"subtitle\": \"13号线即将开通，出行更便利\", \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\", \"assetQuery\": \"13号线地铁站 施工 周边道路\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"地铁线路示意图\"}, {\"sceneNo\": 6, \"timeRange\": \"25-30秒\", \"visualGoal\": \"中介再次出镜，轻CTA引导私信\", \"voiceover\": \"想看具体户型和总价，可以私信我。\", \"subtitle\": \"想看户型和总价？私信我\", \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\", \"assetQuery\": \"中介出镜 CTA 引导\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜引导私信，完成CTA\", \"assetSourceHint\": \"self_upload\", \"fallbackVisual\": \"联系方式字幕+项目Logo\"}], \"requiredUploads\": [\"中介出镜 项目外立面 背景\", \"中介出镜 CTA 引导\"], \"optionalTeamVideoAssets\": [\"项目外立面 远景 小区入口\", \"样板间客厅 层高 采光\", \"社区商业配套 园林 实景\", \"13号线地铁站 施工 周边道路\"], \"shootingTips\": [\"开场和结尾的中介出镜需保持一致的着装和光线\", \"项目外景选择天气好的时段拍摄，避免逆光\", \"样板间拍摄时注意展示层高优势，可仰拍\", \"社区配套拍摄时捕捉自然人流，体现生活气息\", \"地铁站拍摄注意安全，避免进入施工区域\"], \"riskNotes\": [\"已避免收益承诺类表述，如投资回报率高、租金回报等\", \"已避免出租确定性类表述，如满租、保租等\", \"已避免价格趋势类表述，如保值增值、低位价格等\", \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 8}, \"pass\": true, \"needsRewrite\": true, \"riskTerms\": [\"投资回报率高\", \"保值增值\", \"满租\", \"租金回报\", \"低位价格\", \"保租\"], \"problems\": [], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [], \"preRepairPass\": false, \"autoRewritten\": true, \"repairPolicy\": \"validator_risk_terms_minimal_rewrite\"}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"小户型回归\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"种草\", \"targetAudience\": \"刚需客户\", \"audiencePain\": \"预算有限，购房门槛高\", \"sellingPointsNeeded\": [\"低总价上车\", \"成熟配套\"], \"riskConstraints\": [\"收益承诺类\"], \"copySearchQuery\": \"小户型 刚需 低总价 成熟配套 首套房\", \"scriptSearchQuery\": \"小户型推荐 刚需买房 低总价 配套完善 实景\", \"imageSearchQuery\": \"小户型室内设计 低总价装修 成熟社区 实景图片\", \"videoAssetQueryHints\": [\"小户型样板间实拍\", \"社区配套实景\", \"刚需客户看房过程\"], \"extraRequirement\": \"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"}, \"creativeStrategy\": {\"chosenAngle\": \"小户型回归，刚需客户低总价选择\", \"narrativeArc\": [\"反常识开头：很多人以为小户型过时了，其实刚需客户又开始回头看\", \"解释变化：市场供应结构变化，小户型重新出现，总价门槛相对友好\", \"落到真实选择：结合项目配套和空间特点，展示实际使用场景\", \"轻CTA：想看户型和总价，可以私信\"], \"tone\": \"本地中介口吻，亲切自然，不制造焦虑\", \"mustUseFacts\": [\"项目为80万方大社区，约1万户、3万人口\", \"社区内有成熟消费与服务需求\", \"产品有4米层高、商务大堂\", \"户型包括70平、200平、250平等不同面积段\", \"13号线即将开通\"], \"mustAvoidClaims\": [\"投资回报率高\", \"收益稳定\", \"租金回报高\", \"稳赚\", \"保值增值\", \"满租\", \"租金区间\", \"租金回报\", \"投资属性\", \"资产回报\", \"低位价格\", \"价格错位\", \"收租\", \"贴月供\", \"租出去\", \"保租\", \"保回报\", \"确定兑现\", \"运营成熟验证\"], \"viralPatternUsed\": {\"patternName\": \"反常识回归\", \"reason\": \"利用市场对小户型的刻板印象，制造认知反差，吸引刚需客户关注\", \"titleTactics\": [\"反常识开头\", \"制造认知反差\"], \"hookTactics\": [\"很多人以为小户型过时了\"], \"ctaTactics\": [\"轻CTA：想看户型和总价，可以私信\"]}, \"articlePlan\": {\"titleDirection\": \"很多人以为小户型没人看了，其实刚需又开始回头看\", \"coverCopyDirection\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\", \"bodyStructure\": [\"反常识开头：打破小户型过时的印象\", \"市场变化：小户型供应稀缺，近期重新出现\", \"项目事实：80万方大社区，成熟配套，13号线即将开通\", \"产品特点：4米层高，商务大堂，多种面积段\", \"生活场景：社区内消费服务完善，居住便利\", \"轻CTA：想看具体户型和总价，可以私信了解\"], \"imagePlan\": [\"项目外立面：用于封面和开头，建立信任感\", \"样板间客厅：展示空间感和居住体验\", \"社区配套实景：如商业、园林，体现成熟度\", \"户型图或空间示意：帮助客户理解产品\"]}, \"videoPlan\": {\"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\", \"estimatedDuration\": \"30-45秒\", \"scenePlan\": [\"开场：中介在项目外或样板间，用反常识话题引入\", \"项目外景：展示社区入口、外立面，建立可信度\", \"样板间：展示客厅、层高、采光，强调空间感\", \"社区配套：商业街、园林等实景，体现成熟生活\", \"结尾：回到中介，轻CTA引导私信\"], \"requiredUploads\": [\"项目外立面实拍\", \"样板间客厅实拍\", \"社区商业配套实拍\", \"社区园林实拍\"], \"assetQueryHints\": [\"光明小户型样板间\", \"光明社区商业配套\", \"光明13号线地铁站\"]}, \"degradationNotices\": [\"项目事实不足：知识库未提供具体项目名、区域、户型名称等，已使用泛化表述\"], \"trace\": {\"usedKnowledgeSummary\": [\"知识库片段1：提及小户型回归、市场关注度、中介蠢蠢欲动\", \"知识库片段2：讨论内容赋能、业务员素材需求\", \"知识库片段3：强调配套成熟、13号线政策、素材打包\"], \"usedViralSummary\": [\"爆款结构：反常识开头、解释变化、落到真实选择、轻CTA\"], \"usedImageSummary\": [\"图片素材：项目外立面、样板间客厅\"]}, \"qualityGateHints\": {\"factWeakness\": \"项目具体名称、户型名称、配套商业名称缺失，依赖手工知识兜底\", \"complianceRisks\": [\"收益承诺类\", \"出租确定性类\", \"价格趋势类\"], \"mustReviewBeforePublish\": [\"检查是否出现风险词：投资回报率高、租金回报、满租等\", \"确认所有事实表述已改写为安全表述\", \"确认CTA未包含收益承诺或出租确定性\"]}}, \"usedKnowledgeRefs\": [\"项目为80万方大社区，约1万户、3万人口\", \"社区内有成熟消费与服务需求\", \"产品有4米层高、商务大堂\", \"户型包括70平、200平、250平等不同面积段\", \"13号线即将开通\"], \"usedViralRefs\": [{\"patternName\": \"反常识回归\", \"reason\": \"利用市场对小户型的刻板印象，制造认知反差，吸引刚需客户关注\", \"titleTactics\": [\"反常识开头\", \"制造认知反差\"], \"hookTactics\": [\"很多人以为小户型过时了\"], \"ctaTactics\": [\"轻CTA：想看户型和总价，可以私信\"]}], \"usedImageAssets\": [{\"assetId\": \"img_001\", \"title\": \"项目外立面\"}, {\"assetId\": \"img_002\", \"title\": \"样板间客厅\"}], \"degradationNotices\": [\"项目事实不足：知识库未提供具体项目名、区域、户型名称等，已使用泛化表述\", \"已根据质量门禁命中风险词进行自动改写\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "finished_at": 1778569029,
+    "error": null,
+    "execution_metadata": null
+  },
+  "end": {
+    "node_type": "end",
+    "title": "输出",
+    "started_at": 1778569030,
+    "status": "succeeded",
+    "inputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"很多人以为小户型没人看了，其实刚需又开始回头看\", \"光明80万方社区，小户型重新出现，总价门槛友好\", \"刚需客户注意：小户型回归，配套成熟，适合先了解\"], \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\", \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\", \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\", \"hashtags\": [\"#小面积产品\", \"#预算友好\", \"#光明社区\", \"#刚需选择\", \"#13号线\"], \"cta\": \"想看具体户型和总价，可以私信我。\", \"imageMatches\": [{\"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"封面和开头，建立项目可信度\", \"reason\": \"展示项目外立面，符合封面和开头需求\"}, {\"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间感和居住体验\", \"reason\": \"样板间客厅实拍，体现层高和空间感\"}], \"imageBriefIfMissing\": \"\", \"riskNotes\": [\"已避免收益承诺类表述，如投资回报率高、租金回报等\", \"已避免出租确定性类表述，如满租、保租等\", \"已避免价格趋势类表述，如保值增值、低位价格等\", \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"], \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"}, \"videoScript\": {\"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\", \"estimatedDuration\": \"30-45秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-5秒\", \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\", \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\", \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\", \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\", \"assetQuery\": \"中介出镜 项目外立面 背景\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜口播，建立信任感\", \"assetSourceHint\": \"self_upload\", \"fallbackVisual\": \"项目外立面空镜+字幕\"}, {\"sceneNo\": 2, \"timeRange\": \"5-10秒\", \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\", \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\", \"subtitle\": \"光明80万方大社区，约1万户、3万人口\", \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\", \"assetQuery\": \"项目外立面 远景 小区入口\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"项目效果图外立面\"}, {\"sceneNo\": 3, \"timeRange\": \"10-15秒\", \"visualGoal\": \"展示样板间客厅，体现空间感和层高\", \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\", \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\", \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\", \"assetQuery\": \"样板间客厅 层高 采光\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"样板间效果图\"}, {\"sceneNo\": 4, \"timeRange\": \"15-20秒\", \"visualGoal\": \"展示社区商业配套，体现成熟生活\", \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\", \"subtitle\": \"社区商业、园林配套成熟，生活便利\", \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\", \"assetQuery\": \"社区商业配套 园林 实景\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"商业街效果图\"}, {\"sceneNo\": 5, \"timeRange\": \"20-25秒\", \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\", \"voiceover\": \"13号线也快开通了，以后出行更方便。\", \"subtitle\": \"13号线即将开通，出行更便利\", \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\", \"assetQuery\": \"13号线地铁站 施工 周边道路\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"地铁线路示意图\"}, {\"sceneNo\": 6, \"timeRange\": \"25-30秒\", \"visualGoal\": \"中介再次出镜，轻CTA引导私信\", \"voiceover\": \"想看具体户型和总价，可以私信我。\", \"subtitle\": \"想看户型和总价？私信我\", \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\", \"assetQuery\": \"中介出镜 CTA 引导\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜引导私信，完成CTA\", \"assetSourceHint\": \"self_upload\", \"fallbackVisual\": \"联系方式字幕+项目Logo\"}], \"requiredUploads\": [\"中介出镜 项目外立面 背景\", \"中介出镜 CTA 引导\"], \"optionalTeamVideoAssets\": [\"项目外立面 远景 小区入口\", \"样板间客厅 层高 采光\", \"社区商业配套 园林 实景\", \"13号线地铁站 施工 周边道路\"], \"shootingTips\": [\"开场和结尾的中介出镜需保持一致的着装和光线\", \"项目外景选择天气好的时段拍摄，避免逆光\", \"样板间拍摄时注意展示层高优势，可仰拍\", \"社区配套拍摄时捕捉自然人流，体现生活气息\", \"地铁站拍摄注意安全，避免进入施工区域\"], \"riskNotes\": [\"已避免收益承诺类表述，如投资回报率高、租金回报等\", \"已避免出租确定性类表述，如满租、保租等\", \"已避免价格趋势类表述，如保值增值、低位价格等\", \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 8}, \"pass\": true, \"needsRewrite\": true, \"riskTerms\": [\"投资回报率高\", \"保值增值\", \"满租\", \"租金回报\", \"低位价格\", \"保租\"], \"problems\": [], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [], \"preRepairPass\": false, \"autoRewritten\": true, \"repairPolicy\": \"validator_risk_terms_minimal_rewrite\"}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"小户型回归\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"种草\", \"targetAudience\": \"刚需客户\", \"audiencePain\": \"预算有限，购房门槛高\", \"sellingPointsNeeded\": [\"低总价上车\", \"成熟配套\"], \"riskConstraints\": [\"收益承诺类\"], \"copySearchQuery\": \"小户型 刚需 低总价 成熟配套 首套房\", \"scriptSearchQuery\": \"小户型推荐 刚需买房 低总价 配套完善 实景\", \"imageSearchQuery\": \"小户型室内设计 低总价装修 成熟社区 实景图片\", \"videoAssetQueryHints\": [\"小户型样板间实拍\", \"社区配套实景\", \"刚需客户看房过程\"], \"extraRequirement\": \"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"}, \"creativeStrategy\": {\"chosenAngle\": \"小户型回归，刚需客户低总价选择\", \"narrativeArc\": [\"反常识开头：很多人以为小户型过时了，其实刚需客户又开始回头看\", \"解释变化：市场供应结构变化，小户型重新出现，总价门槛相对友好\", \"落到真实选择：结合项目配套和空间特点，展示实际使用场景\", \"轻CTA：想看户型和总价，可以私信\"], \"tone\": \"本地中介口吻，亲切自然，不制造焦虑\", \"mustUseFacts\": [\"项目为80万方大社区，约1万户、3万人口\", \"社区内有成熟消费与服务需求\", \"产品有4米层高、商务大堂\", \"户型包括70平、200平、250平等不同面积段\", \"13号线即将开通\"], \"mustAvoidClaims\": [\"投资回报率高\", \"收益稳定\", \"租金回报高\", \"稳赚\", \"保值增值\", \"满租\", \"租金区间\", \"租金回报\", \"投资属性\", \"资产回报\", \"低位价格\", \"价格错位\", \"收租\", \"贴月供\", \"租出去\", \"保租\", \"保回报\", \"确定兑现\", \"运营成熟验证\"], \"viralPatternUsed\": {\"patternName\": \"反常识回归\", \"reason\": \"利用市场对小户型的刻板印象，制造认知反差，吸引刚需客户关注\", \"titleTactics\": [\"反常识开头\", \"制造认知反差\"], \"hookTactics\": [\"很多人以为小户型过时了\"], \"ctaTactics\": [\"轻CTA：想看户型和总价，可以私信\"]}, \"articlePlan\": {\"titleDirection\": \"很多人以为小户型没人看了，其实刚需又开始回头看\", \"coverCopyDirection\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\", \"bodyStructure\": [\"反常识开头：打破小户型过时的印象\", \"市场变化：小户型供应稀缺，近期重新出现\", \"项目事实：80万方大社区，成熟配套，13号线即将开通\", \"产品特点：4米层高，商务大堂，多种面积段\", \"生活场景：社区内消费服务完善，居住便利\", \"轻CTA：想看具体户型和总价，可以私信了解\"], \"imagePlan\": [\"项目外立面：用于封面和开头，建立信任感\", \"样板间客厅：展示空间感和居住体验\", \"社区配套实景：如商业、园林，体现成熟度\", \"户型图或空间示意：帮助客户理解产品\"]}, \"videoPlan\": {\"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\", \"estimatedDuration\": \"30-45秒\", \"scenePlan\": [\"开场：中介在项目外或样板间，用反常识话题引入\", \"项目外景：展示社区入口、外立面，建立可信度\", \"样板间：展示客厅、层高、采光，强调空间感\", \"社区配套：商业街、园林等实景，体现成熟生活\", \"结尾：回到中介，轻CTA引导私信\"], \"requiredUploads\": [\"项目外立面实拍\", \"样板间客厅实拍\", \"社区商业配套实拍\", \"社区园林实拍\"], \"assetQueryHints\": [\"光明小户型样板间\", \"光明社区商业配套\", \"光明13号线地铁站\"]}, \"degradationNotices\": [\"项目事实不足：知识库未提供具体项目名、区域、户型名称等，已使用泛化表述\"], \"trace\": {\"usedKnowledgeSummary\": [\"知识库片段1：提及小户型回归、市场关注度、中介蠢蠢欲动\", \"知识库片段2：讨论内容赋能、业务员素材需求\", \"知识库片段3：强调配套成熟、13号线政策、素材打包\"], \"usedViralSummary\": [\"爆款结构：反常识开头、解释变化、落到真实选择、轻CTA\"], \"usedImageSummary\": [\"图片素材：项目外立面、样板间客厅\"]}, \"qualityGateHints\": {\"factWeakness\": \"项目具体名称、户型名称、配套商业名称缺失，依赖手工知识兜底\", \"complianceRisks\": [\"收益承诺类\", \"出租确定性类\", \"价格趋势类\"], \"mustReviewBeforePublish\": [\"检查是否出现风险词：投资回报率高、租金回报、满租等\", \"确认所有事实表述已改写为安全表述\", \"确认CTA未包含收益承诺或出租确定性\"]}}, \"usedKnowledgeRefs\": [\"项目为80万方大社区，约1万户、3万人口\", \"社区内有成熟消费与服务需求\", \"产品有4米层高、商务大堂\", \"户型包括70平、200平、250平等不同面积段\", \"13号线即将开通\"], \"usedViralRefs\": [{\"patternName\": \"反常识回归\", \"reason\": \"利用市场对小户型的刻板印象，制造认知反差，吸引刚需客户关注\", \"titleTactics\": [\"反常识开头\", \"制造认知反差\"], \"hookTactics\": [\"很多人以为小户型过时了\"], \"ctaTactics\": [\"轻CTA：想看户型和总价，可以私信\"]}], \"usedImageAssets\": [{\"assetId\": \"img_001\", \"title\": \"项目外立面\"}, {\"assetId\": \"img_002\", \"title\": \"样板间客厅\"}], \"degradationNotices\": [\"项目事实不足：知识库未提供具体项目名、区域、户型名称等，已使用泛化表述\", \"已根据质量门禁命中风险词进行自动改写\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"很多人以为小户型没人看了，其实刚需又开始回头看\", \"光明80万方社区，小户型重新出现，总价门槛友好\", \"刚需客户注意：小户型回归，配套成熟，适合先了解\"], \"selectedTitle\": \"很多人以为小户型没人看了，其实刚需又开始回头看\", \"coverCopy\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\", \"body\": \"最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\", \"hashtags\": [\"#小面积产品\", \"#预算友好\", \"#光明社区\", \"#刚需选择\", \"#13号线\"], \"cta\": \"想看具体户型和总价，可以私信我。\", \"imageMatches\": [{\"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"封面和开头，建立项目可信度\", \"reason\": \"展示项目外立面，符合封面和开头需求\"}, {\"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间感和居住体验\", \"reason\": \"样板间客厅实拍，体现层高和空间感\"}], \"imageBriefIfMissing\": \"\", \"riskNotes\": [\"已避免收益承诺类表述，如投资回报率高、租金回报等\", \"已避免出租确定性类表述，如满租、保租等\", \"已避免价格趋势类表述，如保值增值、低位价格等\", \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"], \"copyReadyText\": \"很多人以为小户型没人看了，其实刚需又开始回头看\\n\\n最近跟几个客户聊天，发现一个有意思的现象。\\n\\n前两年大家都盯着大户型，小户型问的人少。但最近，刚需客户又开始回头看了。\\n\\n其实也不难理解。市场供应结构在变，小户型重新出现，总价门槛相对友好。\\n\\n我们这边是光明一个80万方的大社区，差不多1万户、3万人口。社区里面消费和服务需求已经很成熟了。\\n\\n产品这块，有4米层高，商务大堂，户型从70平到200平、250平都有。小面积产品空间利用挺灵活。\\n\\n13号线也快开通了，以后出行更方便。社区里商业、园林这些配套都看得见，生活便利。\\n\\n如果你预算有限，想先看看总价门槛和生活半径，可以重点了解下。\\n\\n#小面积产品 #预算友好 #光明社区 #刚需选择 #13号线\\n\\n想看具体户型和总价，可以私信我。\"}, \"videoScript\": {\"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\", \"estimatedDuration\": \"30-45秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-5秒\", \"visualGoal\": \"中介在项目外或样板间，用反常识话题引入，建立亲切感\", \"voiceover\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看。\", \"subtitle\": \"很多人以为小户型没人看了，其实刚需客户又开始回头看\", \"shotRequirement\": \"中介半身出镜，背景为项目外立面或样板间，自然光线，表情亲切\", \"assetQuery\": \"中介出镜 项目外立面 背景\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜口播，建立信任感\", \"assetSourceHint\": \"self_upload\", \"fallbackVisual\": \"项目外立面空镜+字幕\"}, {\"sceneNo\": 2, \"timeRange\": \"5-10秒\", \"visualGoal\": \"展示项目外立面或社区入口，建立可信度\", \"voiceover\": \"我们这边是光明一个80万方的大社区，差不多1万户、3万人口。\", \"subtitle\": \"光明80万方大社区，约1万户、3万人口\", \"shotRequirement\": \"项目外立面全景或社区入口，稳定运镜，光线充足\", \"assetQuery\": \"项目外立面 远景 小区入口\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"项目效果图外立面\"}, {\"sceneNo\": 3, \"timeRange\": \"10-15秒\", \"visualGoal\": \"展示样板间客厅，体现空间感和层高\", \"voiceover\": \"产品这块，有4米层高，商务大堂，小面积空间利用挺灵活。\", \"subtitle\": \"4米层高，商务大堂，小面积空间灵活\", \"shotRequirement\": \"样板间客厅全景，展示层高和采光，可带人物走动\", \"assetQuery\": \"样板间客厅 层高 采光\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"样板间效果图\"}, {\"sceneNo\": 4, \"timeRange\": \"15-20秒\", \"visualGoal\": \"展示社区商业配套，体现成熟生活\", \"voiceover\": \"社区里面消费和服务需求已经很成熟了，商业、园林这些配套都看得见。\", \"subtitle\": \"社区商业、园林配套成熟，生活便利\", \"shotRequirement\": \"社区商业街或园林实景，有人流或生活场景\", \"assetQuery\": \"社区商业配套 园林 实景\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"商业街效果图\"}, {\"sceneNo\": 5, \"timeRange\": \"20-25秒\", \"visualGoal\": \"展示13号线地铁站或交通配套，强化出行便利\", \"voiceover\": \"13号线也快开通了，以后出行更方便。\", \"subtitle\": \"13号线即将开通，出行更便利\", \"shotRequirement\": \"地铁站施工或周边道路实景，可带指示牌\", \"assetQuery\": \"13号线地铁站 施工 周边道路\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"地铁线路示意图\"}, {\"sceneNo\": 6, \"timeRange\": \"25-30秒\", \"visualGoal\": \"中介再次出镜，轻CTA引导私信\", \"voiceover\": \"想看具体户型和总价，可以私信我。\", \"subtitle\": \"想看户型和总价？私信我\", \"shotRequirement\": \"中介半身出镜，表情亲切，手势引导\", \"assetQuery\": \"中介出镜 CTA 引导\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜引导私信，完成CTA\", \"assetSourceHint\": \"self_upload\", \"fallbackVisual\": \"联系方式字幕+项目Logo\"}], \"requiredUploads\": [\"中介出镜 项目外立面 背景\", \"中介出镜 CTA 引导\"], \"optionalTeamVideoAssets\": [\"项目外立面 远景 小区入口\", \"样板间客厅 层高 采光\", \"社区商业配套 园林 实景\", \"13号线地铁站 施工 周边道路\"], \"shootingTips\": [\"开场和结尾的中介出镜需保持一致的着装和光线\", \"项目外景选择天气好的时段拍摄，避免逆光\", \"样板间拍摄时注意展示层高优势，可仰拍\", \"社区配套拍摄时捕捉自然人流，体现生活气息\", \"地铁站拍摄注意安全，避免进入施工区域\"], \"riskNotes\": [\"已避免收益承诺类表述，如投资回报率高、租金回报等\", \"已避免出租确定性类表述，如满租、保租等\", \"已避免价格趋势类表述，如保值增值、低位价格等\", \"所有事实表述已改写为安全表述，如总价门槛相对友好、空间利用灵活\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 8}, \"pass\": true, \"needsRewrite\": true, \"riskTerms\": [\"投资回报率高\", \"保值增值\", \"满租\", \"租金回报\", \"低位价格\", \"保租\"], \"problems\": [], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [], \"preRepairPass\": false, \"autoRewritten\": true, \"repairPolicy\": \"validator_risk_terms_minimal_rewrite\"}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"小户型回归\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"种草\", \"targetAudience\": \"刚需客户\", \"audiencePain\": \"预算有限，购房门槛高\", \"sellingPointsNeeded\": [\"低总价上车\", \"成熟配套\"], \"riskConstraints\": [\"收益承诺类\"], \"copySearchQuery\": \"小户型 刚需 低总价 成熟配套 首套房\", \"scriptSearchQuery\": \"小户型推荐 刚需买房 低总价 配套完善 实景\", \"imageSearchQuery\": \"小户型室内设计 低总价装修 成熟社区 实景图片\", \"videoAssetQueryHints\": [\"小户型样板间实拍\", \"社区配套实景\", \"刚需客户看房过程\"], \"extraRequirement\": \"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"}, \"creativeStrategy\": {\"chosenAngle\": \"小户型回归，刚需客户低总价选择\", \"narrativeArc\": [\"反常识开头：很多人以为小户型过时了，其实刚需客户又开始回头看\", \"解释变化：市场供应结构变化，小户型重新出现，总价门槛相对友好\", \"落到真实选择：结合项目配套和空间特点，展示实际使用场景\", \"轻CTA：想看户型和总价，可以私信\"], \"tone\": \"本地中介口吻，亲切自然，不制造焦虑\", \"mustUseFacts\": [\"项目为80万方大社区，约1万户、3万人口\", \"社区内有成熟消费与服务需求\", \"产品有4米层高、商务大堂\", \"户型包括70平、200平、250平等不同面积段\", \"13号线即将开通\"], \"mustAvoidClaims\": [\"投资回报率高\", \"收益稳定\", \"租金回报高\", \"稳赚\", \"保值增值\", \"满租\", \"租金区间\", \"租金回报\", \"投资属性\", \"资产回报\", \"低位价格\", \"价格错位\", \"收租\", \"贴月供\", \"租出去\", \"保租\", \"保回报\", \"确定兑现\", \"运营成熟验证\"], \"viralPatternUsed\": {\"patternName\": \"反常识回归\", \"reason\": \"利用市场对小户型的刻板印象，制造认知反差，吸引刚需客户关注\", \"titleTactics\": [\"反常识开头\", \"制造认知反差\"], \"hookTactics\": [\"很多人以为小户型过时了\"], \"ctaTactics\": [\"轻CTA：想看户型和总价，可以私信\"]}, \"articlePlan\": {\"titleDirection\": \"很多人以为小户型没人看了，其实刚需又开始回头看\", \"coverCopyDirection\": \"光明80万方大社区，小户型终于来了，总价门槛友好，配套成熟，适合先看看\", \"bodyStructure\": [\"反常识开头：打破小户型过时的印象\", \"市场变化：小户型供应稀缺，近期重新出现\", \"项目事实：80万方大社区，成熟配套，13号线即将开通\", \"产品特点：4米层高，商务大堂，多种面积段\", \"生活场景：社区内消费服务完善，居住便利\", \"轻CTA：想看具体户型和总价，可以私信了解\"], \"imagePlan\": [\"项目外立面：用于封面和开头，建立信任感\", \"样板间客厅：展示空间感和居住体验\", \"社区配套实景：如商业、园林，体现成熟度\", \"户型图或空间示意：帮助客户理解产品\"]}, \"videoPlan\": {\"storyOutline\": \"以本地中介口吻，从市场现象切入，带看项目实景，展示小户型空间和社区配套，最后轻CTA引导私信\", \"estimatedDuration\": \"30-45秒\", \"scenePlan\": [\"开场：中介在项目外或样板间，用反常识话题引入\", \"项目外景：展示社区入口、外立面，建立可信度\", \"样板间：展示客厅、层高、采光，强调空间感\", \"社区配套：商业街、园林等实景，体现成熟生活\", \"结尾：回到中介，轻CTA引导私信\"], \"requiredUploads\": [\"项目外立面实拍\", \"样板间客厅实拍\", \"社区商业配套实拍\", \"社区园林实拍\"], \"assetQueryHints\": [\"光明小户型样板间\", \"光明社区商业配套\", \"光明13号线地铁站\"]}, \"degradationNotices\": [\"项目事实不足：知识库未提供具体项目名、区域、户型名称等，已使用泛化表述\"], \"trace\": {\"usedKnowledgeSummary\": [\"知识库片段1：提及小户型回归、市场关注度、中介蠢蠢欲动\", \"知识库片段2：讨论内容赋能、业务员素材需求\", \"知识库片段3：强调配套成熟、13号线政策、素材打包\"], \"usedViralSummary\": [\"爆款结构：反常识开头、解释变化、落到真实选择、轻CTA\"], \"usedImageSummary\": [\"图片素材：项目外立面、样板间客厅\"]}, \"qualityGateHints\": {\"factWeakness\": \"项目具体名称、户型名称、配套商业名称缺失，依赖手工知识兜底\", \"complianceRisks\": [\"收益承诺类\", \"出租确定性类\", \"价格趋势类\"], \"mustReviewBeforePublish\": [\"检查是否出现风险词：投资回报率高、租金回报、满租等\", \"确认所有事实表述已改写为安全表述\", \"确认CTA未包含收益承诺或出租确定性\"]}}, \"usedKnowledgeRefs\": [\"项目为80万方大社区，约1万户、3万人口\", \"社区内有成熟消费与服务需求\", \"产品有4米层高、商务大堂\", \"户型包括70平、200平、250平等不同面积段\", \"13号线即将开通\"], \"usedViralRefs\": [{\"patternName\": \"反常识回归\", \"reason\": \"利用市场对小户型的刻板印象，制造认知反差，吸引刚需客户关注\", \"titleTactics\": [\"反常识开头\", \"制造认知反差\"], \"hookTactics\": [\"很多人以为小户型过时了\"], \"ctaTactics\": [\"轻CTA：想看户型和总价，可以私信\"]}], \"usedImageAssets\": [{\"assetId\": \"img_001\", \"title\": \"项目外立面\"}, {\"assetId\": \"img_002\", \"title\": \"样板间客厅\"}], \"degradationNotices\": [\"项目事实不足：知识库未提供具体项目名、区域、户型名称等，已使用泛化表述\", \"已根据质量门禁命中风险词进行自动改写\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "finished_at": 1778569030,
+    "error": null,
+    "execution_metadata": null
+  }
+}

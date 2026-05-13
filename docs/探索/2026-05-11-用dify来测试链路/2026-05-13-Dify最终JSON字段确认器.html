@@ -1,0 +1,1289 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dify 最终 JSON 字段确认器</title>
+  <style>
+    :root {
+      --bg: #f7f4ed;
+      --panel: #fffdf8;
+      --panel-2: #f1eadf;
+      --text: #1f2328;
+      --muted: #70757d;
+      --line: #ded6c8;
+      --accent: #137c72;
+      --accent-2: #0f625b;
+      --warn: #9c5d16;
+      --danger: #b42318;
+      --ok: #2f7d32;
+      --shadow: 0 16px 40px rgba(44, 33, 18, 0.10);
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    header {
+      padding: 22px 28px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 253, 248, 0.86);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(14px);
+    }
+
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+      max-width: 980px;
+    }
+
+    .summary-pill {
+      min-width: 160px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 999px;
+      padding: 9px 14px;
+      color: var(--accent-2);
+      font-weight: 700;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 14px 28px;
+      border-bottom: 1px solid var(--line);
+      background: #fbf7ef;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 9px 13px;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      color: var(--accent-2);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: minmax(360px, 0.95fr) minmax(520px, 1.35fr) minmax(360px, 0.9fr);
+      gap: 16px;
+      padding: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #fffaf2;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .panel-note {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .field-search {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 10px 12px;
+      background: white;
+      margin: 12px 0 6px;
+      outline: none;
+    }
+
+    .field-search:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(19, 124, 114, 0.12);
+    }
+
+    .field-list {
+      padding: 0 14px 14px;
+      max-height: calc(100vh - 185px);
+      overflow: auto;
+    }
+
+    .group-title {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 14px 2px 8px;
+      background: var(--panel);
+      color: var(--accent-2);
+      font-size: 13px;
+      font-weight: 800;
+      border-bottom: 1px solid rgba(222, 214, 200, 0.55);
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 104px 1fr;
+      gap: 12px;
+      padding: 11px 4px;
+      border-bottom: 1px solid rgba(222, 214, 200, 0.55);
+      align-items: start;
+    }
+
+    .field-row.is-off {
+      opacity: 0.42;
+    }
+
+    .field-row.is-worker-only {
+      background: rgba(240, 232, 219, 0.34);
+    }
+
+    .field-toggles {
+      display: grid;
+      gap: 7px;
+      padding-top: 1px;
+    }
+
+    .mini-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #655744;
+      font-size: 12px;
+      line-height: 1.2;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .field-toggles .mini-check input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+    }
+
+    .field-row mark {
+      background: #fff0b8;
+      padding: 0 2px;
+    }
+
+    .field-path {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: #735c38;
+      word-break: break-all;
+    }
+
+    .field-label {
+      font-weight: 700;
+      margin: 2px 0 4px;
+    }
+
+    .field-usage {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 7px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      padding: 3px 7px;
+      font-size: 11px;
+      line-height: 1;
+      color: #6f604c;
+      background: #fbf6ea;
+    }
+
+    .badge.ui {
+      color: var(--accent-2);
+      border-color: #b9d9d4;
+      background: #e6f3ef;
+    }
+
+    .badge.internal {
+      color: #735c38;
+      background: #f0e8db;
+    }
+
+    .badge.removed {
+      color: #7a4b43;
+      background: #f8e8e3;
+      border-color: #ebc9c0;
+    }
+
+    .tooltip {
+      position: fixed;
+      z-index: 99;
+      max-width: 360px;
+      padding: 10px 12px;
+      background: #20242a;
+      color: #fffaf0;
+      border-radius: 8px;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.08s ease, transform 0.08s ease;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .tooltip.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .tooltip .tip-path {
+      font-family: var(--mono);
+      color: #f7dca2;
+      word-break: break-all;
+      margin-bottom: 4px;
+    }
+
+    .tooltip .tip-label {
+      font-weight: 800;
+      margin-bottom: 3px;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .preview-wrap {
+      display: grid;
+      gap: 16px;
+    }
+
+    .phone {
+      width: min(100%, 430px);
+      margin: 16px auto;
+      background: #f9f5ec;
+      border: 1px solid #d8d0c2;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 18px 42px rgba(44, 33, 18, 0.12);
+    }
+
+    .phone-bar {
+      height: 32px;
+      background: #ede5d8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #8a8174;
+      font-size: 12px;
+      border-bottom: 1px solid #d8d0c2;
+    }
+
+    .screen {
+      background: #fffdf8;
+      min-height: 680px;
+    }
+
+    .section-label {
+      padding: 12px 16px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      background: #faf7f0;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .article-card {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .image-stage {
+      height: 210px;
+      border-radius: 8px;
+      border: 1px solid #d4c9b8;
+      background:
+        linear-gradient(145deg, rgba(19, 124, 114, 0.18), rgba(156, 93, 22, 0.08)),
+        linear-gradient(0deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.02)),
+        #d9e2dc;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: end;
+      padding: 18px;
+    }
+
+    .image-stage::before {
+      content: "";
+      position: absolute;
+      inset: 38px 22px 0;
+      border-radius: 8px 8px 0 0;
+      background:
+        linear-gradient(90deg, transparent 0 12%, rgba(255, 255, 255, 0.35) 12% 14%, transparent 14% 30%, rgba(255, 255, 255, 0.28) 30% 32%, transparent 32%),
+        linear-gradient(180deg, #d3dbd6, #9baea5);
+      opacity: 0.75;
+    }
+
+    .cover-copy {
+      position: relative;
+      font-size: 28px;
+      font-weight: 900;
+      color: white;
+      line-height: 1.2;
+      text-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+      max-width: 260px;
+    }
+
+    .article-title {
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1.35;
+      margin: 16px 0 12px;
+    }
+
+    .copy-box {
+      white-space: pre-wrap;
+      color: #35383d;
+      line-height: 1.72;
+      font-size: 15px;
+      background: #faf7f0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 13px;
+    }
+
+    .image-path {
+      font-family: var(--mono);
+      color: #574936;
+      font-size: 12px;
+      background: #f1eadf;
+      border: 1px solid #ded6c8;
+      border-radius: 7px;
+      padding: 8px;
+      margin-top: 10px;
+      word-break: break-all;
+    }
+
+    .scene-card {
+      padding: 18px 16px;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+    }
+
+    .scene-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+      align-items: flex-start;
+    }
+
+    .scene-kicker {
+      color: #8a8174;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .scene-title {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.3;
+    }
+
+    .required-pill,
+    .source-pill {
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .required-pill {
+      color: #6a4d1d;
+      background: #efe7da;
+    }
+
+    .source-pill {
+      color: var(--accent-2);
+      background: #e2f0ed;
+    }
+
+    .scene-desc {
+      font-size: 16px;
+      line-height: 1.75;
+      color: #3e4248;
+      margin: 10px 0 12px;
+    }
+
+    .meta-list {
+      display: grid;
+      gap: 8px;
+      color: #6d7178;
+      font-size: 14px;
+      line-height: 1.55;
+      margin: 12px 0;
+    }
+
+    .meta-list b {
+      color: #4e5359;
+    }
+
+    .upload-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border: 1px dashed #c9bda9;
+      background: #f7f1e5;
+      border-radius: 8px;
+      padding: 14px 14px;
+      margin-top: 14px;
+      font-weight: 800;
+    }
+
+    .upload-box .upload-action {
+      color: var(--accent);
+      font-weight: 900;
+    }
+
+    .map-tag {
+      display: inline-flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      vertical-align: middle;
+      margin: 3px 5px 3px 0;
+      padding: 4px 7px;
+      border: 1px solid #d7cdbd;
+      background: #fff9ed;
+      color: #735c38;
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.2;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .map-tag-name {
+      font-weight: 800;
+      margin-right: 2px;
+    }
+
+    .tag-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding-left: 6px;
+      border-left: 1px solid #ded4c4;
+      color: #665b4d;
+      font-family: var(--sans);
+      font-size: 11px;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+
+    .tag-check input {
+      width: 13px;
+      height: 13px;
+    }
+
+    .mapped {
+      outline: 0 solid transparent;
+      transition: opacity 0.16s ease, outline 0.16s ease, background 0.16s ease;
+    }
+
+    .mapped.is-off {
+      opacity: 0.32;
+      filter: grayscale(0.8);
+    }
+
+    .mapped.is-hover {
+      outline: 3px solid rgba(19, 124, 114, 0.22);
+      background-color: rgba(19, 124, 114, 0.06);
+    }
+
+    .export-box {
+      padding: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 420px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #151a1f;
+      color: #f3efe7;
+      padding: 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+      resize: vertical;
+      outline: none;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      background: #faf7f0;
+    }
+
+    .legend span {
+      border-radius: 999px;
+      padding: 5px 9px;
+      border: 1px solid var(--line);
+      background: white;
+    }
+
+    .internal-note {
+      margin: 12px 16px 0;
+      padding: 11px 12px;
+      border: 1px solid #e1d7c6;
+      border-radius: 8px;
+      background: #fbf6ea;
+      color: #665b4d;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 1240px) {
+      .main {
+        grid-template-columns: 1fr;
+      }
+
+      .field-list {
+        max-height: none;
+      }
+
+      .phone {
+        width: min(100%, 520px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-row">
+        <div>
+          <h1>Dify 最终 JSON 字段确认器</h1>
+          <p class="subtitle">
+            每个字段有两个勾：保留/worker 表示进入最终 JSON 或传给剪辑 worker；成员 UI 表示展示给中介。两个都不勾，就是这个字段完全没必要。鼠标悬停任意字段名可查看含义。
+          </p>
+        </div>
+        <div class="summary-pill" id="summaryCount">已选 0 / 0</div>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <button class="btn primary" id="selectRecommended">选择推荐字段</button>
+      <button class="btn" id="selectAll">全部保留</button>
+      <button class="btn" id="clearAll">全部清空</button>
+      <button class="btn" id="selectFrontendOnly">只保留成员 UI 展示字段</button>
+      <button class="btn" id="copyOutput">复制右侧 JSON</button>
+      <button class="btn" id="resetState">重置本页选择</button>
+    </div>
+
+    <main class="main">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>字段清单</h2>
+            <div class="panel-note">左勾决定是否保留/传 worker，右勾决定是否展示到成员 UI</div>
+          </div>
+        </div>
+        <div style="padding: 0 14px;">
+          <input class="field-search" id="fieldSearch" placeholder="搜索字段，例如 scene / copyText / requiresUserUpload" />
+        </div>
+        <div class="field-list" id="fieldList"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>前端 UI 对应关系</h2>
+            <div class="panel-note">每个 UI 区块标注了由哪个 JSON 字段渲染</div>
+          </div>
+        </div>
+        <div class="legend">
+          <span>图文：Dify 直接给 COS 图片路径，不需要上传槽位</span>
+          <span>视频：上传按钮由 requiresUserUpload 决定</span>
+          <span>成员 UI：只展示拍摄执行信息</span>
+          <span>后台/worker：保留但不展示</span>
+          <span>灰掉 = 不在成员 UI 展示</span>
+        </div>
+        <div class="preview-wrap">
+          <div class="phone">
+            <div class="phone-bar">图文任务详情</div>
+            <div class="screen">
+              <div class="section-label">图文预览</div>
+              <article class="article-card">
+                <div class="image-stage mapped" data-fields="article.images[].cosPath article.coverCopy">
+                  <div class="cover-copy">70平4米层高的家</div>
+                </div>
+                <div>
+                  <label class="map-tag"><input type="checkbox" data-field="article.images[].cosPath" /> article.images[].cosPath</label>
+                  <label class="map-tag"><input type="checkbox" data-field="article.coverCopy" /> article.coverCopy</label>
+                </div>
+                <div class="image-path mapped" data-fields="article.images[].cosPath">
+                  cos://jingjing/project/2026/05/article-cover-70m-4m.jpg
+                </div>
+                <h3 class="article-title mapped" data-fields="article.title">70平4米层高，总价友好</h3>
+                <label class="map-tag"><input type="checkbox" data-field="article.title" /> article.title</label>
+                <div class="copy-box mapped" data-fields="article.copyText">
+70平4米层高，总价友好
+
+预算有限，但也想住得舒服。别急，先看看这个。
+
+80万方大社区，约1万户规模。楼下商业已运营，吃饭喝咖啡不用出小区。
+
+70平户型，4米层高。进门不压抑，空间感比普通小户型大一圈。
+
+感兴趣私信我，发你户型图。把预算和通勤要求也告诉我，帮你判断值不值得看。
+
+#买房 #小户型 #70平 #4米层高 #总价友好
+                </div>
+                <label class="map-tag"><input type="checkbox" data-field="article.copyText" /> article.copyText</label>
+              </article>
+
+              <div class="section-label">质量提示</div>
+              <div class="scene-card mapped" data-fields="quality.status quality.blockingReasons quality.missingInputs">
+                <div class="scene-top">
+                  <div>
+                    <div class="scene-kicker">状态：needs_review</div>
+                    <h3 class="scene-title">需要补充素材后再发布</h3>
+                  </div>
+                  <span class="required-pill">待确认</span>
+                </div>
+                <div class="meta-list">
+                  <div><b>原因：</b>缺少图文图片素材；项目知识不足，成稿仅适合内部预览。</div>
+                  <div><b>缺失：</b>更完整的项目事实、图文图片素材。</div>
+                </div>
+                <label class="map-tag"><input type="checkbox" data-field="quality.status" /> quality.status</label>
+                <label class="map-tag"><input type="checkbox" data-field="quality.blockingReasons" /> quality.blockingReasons</label>
+                <label class="map-tag"><input type="checkbox" data-field="quality.missingInputs" /> quality.missingInputs</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="phone">
+            <div class="phone-bar">视频任务详情</div>
+            <div class="screen">
+              <div class="section-label">故事大纲</div>
+              <div class="article-card">
+                <div class="mapped scene-desc" data-fields="video.storyOutline">
+                  以预算有限的城市青年视角，从焦虑到发现舒适小面积产品，展示社区环境、户型空间和便利通勤。
+                </div>
+                <div class="meta-list">
+                  <div class="mapped" data-fields="video.estimatedDuration"><b>预计时长：</b>60-90秒</div>
+                </div>
+                <label class="map-tag"><input type="checkbox" data-field="video.storyOutline" /> video.storyOutline</label>
+                <label class="map-tag"><input type="checkbox" data-field="video.estimatedDuration" /> video.estimatedDuration</label>
+                <div class="internal-note">
+                  BGM、剪辑节奏、字幕、情绪节拍、镜头类型、镜头语言等字段可以保留给 worker/后台，不建议展示给中介成员。
+                </div>
+              </div>
+
+              <div class="section-label">镜头脚本</div>
+              <section class="scene-card">
+                <div class="scene-top">
+                  <div>
+                    <div class="scene-kicker mapped" data-fields="video.scenes[].sceneNo video.scenes[].timeRange">
+                      镜头 1 · 0-5s
+                    </div>
+                    <h3 class="scene-title mapped" data-fields="video.scenes[].title">开场口播</h3>
+                  </div>
+                  <span class="required-pill mapped" data-fields="video.scenes[].requiresUserUpload">必传</span>
+                </div>
+                <div class="scene-desc mapped" data-fields="video.scenes[].taskDescription">
+                  围绕今日主题生成可拍摄口播脚本，开头直接说客户最关心的问题。
+                </div>
+                <div class="meta-list">
+                  <div class="mapped" data-fields="video.scenes[].voiceover"><b>口播：</b>70平的小户型，层高竟然有4米？预算有限的朋友，先别急着放弃。</div>
+                  <div class="mapped" data-fields="video.scenes[].filmingGuide.method"><b>拍法：</b>手机横屏，半身自拍口播。</div>
+                  <div class="mapped" data-fields="video.scenes[].filmingGuide.location"><b>地点：</b>小区入口。</div>
+                  <div class="mapped" data-fields="video.scenes[].filmingGuide.props"><b>道具：</b>工牌。</div>
+                  <div class="mapped" data-fields="video.scenes[].filmingGuide.tips">
+                    <b>提示：</b>找光线好的位置，脸上不要有阴影；语速放慢，像跟朋友聊天。
+                  </div>
+                  <div class="mapped" data-fields="video.scenes[].visualDescription">
+                    <b>画面参考：</b>中介站在小区入口附近，面对镜头自然说话，背景是小区大门和绿化。
+                  </div>
+                </div>
+                <div class="upload-box mapped" data-fields="video.scenes[].requiresUserUpload">
+                  <span>本人开场口播</span>
+                  <span class="upload-action">上传</span>
+                </div>
+                <div>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].sceneNo" /> sceneNo</label>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].timeRange" /> timeRange</label>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].title" /> title</label>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].requiresUserUpload" /> requiresUserUpload</label>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].taskDescription" /> taskDescription</label>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].voiceover" /> voiceover</label>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].filmingGuide.method" /> filmingGuide.method</label>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].filmingGuide.location" /> filmingGuide.location</label>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].filmingGuide.props" /> filmingGuide.props</label>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].filmingGuide.tips" /> filmingGuide.tips</label>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].visualDescription" /> visualDescription</label>
+                </div>
+              </section>
+
+              <section class="scene-card">
+                <div class="scene-top">
+                  <div>
+                    <div class="scene-kicker mapped" data-fields="video.scenes[].sceneNo video.scenes[].timeRange">
+                      镜头 2 · 5-8s
+                    </div>
+                    <h3 class="scene-title mapped" data-fields="video.scenes[].title">项目补充画面</h3>
+                  </div>
+                  <span class="source-pill mapped" data-fields="video.scenes[].requiresUserUpload">可用团队素材</span>
+                </div>
+                <div class="scene-desc mapped" data-fields="video.scenes[].taskDescription">
+                  结合项目现场素材解释项目优势；这个镜头可以由团队素材库自动匹配，中介不一定需要上传。
+                </div>
+                <div class="meta-list">
+                  <div class="mapped" data-fields="video.scenes[].visualDescription"><b>画面参考：</b>小区航拍全景或入口平拍，展示社区规模和绿化。</div>
+                  <div class="mapped" data-fields="video.scenes[].requiresUserUpload"><b>上传要求：</b>可不上传，优先使用团队素材。</div>
+                </div>
+                <div>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].visualDescription" /> visualDescription</label>
+                  <label class="map-tag"><input type="checkbox" data-field="video.scenes[].requiresUserUpload" /> requiresUserUpload</label>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>当前勾选后的 JSON 草案</h2>
+            <div class="panel-note">包含 payload 草案、UI 字段、worker-only 字段、删除字段</div>
+          </div>
+        </div>
+        <div class="export-box">
+          <textarea id="outputJson" spellcheck="false"></textarea>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="tooltip" class="tooltip" aria-hidden="true"></div>
+
+  <script>
+    const STORAGE_KEY = "dify-final-json-field-confirm-v2";
+
+    const fields = [
+      { path: "workflowVersion", group: "元信息", label: "工作流版本", usage: "调试和兼容用，前端通常不展示。", sample: "content_calendar_generation_poc_v3_1", recommended: false, frontend: false },
+      { path: "status", group: "元信息", label: "整体状态", usage: "用于任务列表或详情页顶部状态。", sample: "needs_review", recommended: true, frontend: true },
+
+      { path: "article.title", group: "图文", label: "图文标题", usage: "图文详情页标题，也可拼入 copyText。", sample: "70平4米层高，总价友好", recommended: true, frontend: true },
+      { path: "article.coverCopy", group: "图文", label: "封面文案", usage: "覆盖在首图上的短文案。", sample: "70平4米层高的家", recommended: true, frontend: true },
+      { path: "article.images[].cosPath", group: "图文", label: "COS 图片路径", usage: "Dify 直接输出图片路径，前端直接渲染，不需要上传槽位。", sample: "cos://jingjing/project/2026/05/article-cover-70m-4m.jpg", recommended: true, frontend: true },
+      { path: "article.images[].assetId", group: "图文", label: "图片素材 ID", usage: "用于回查素材库，可选。", sample: "img_003", recommended: false, frontend: false },
+      { path: "article.images[].role", group: "图文", label: "图片角色", usage: "例如 cover、body_image，帮助前端排序。", sample: "cover", recommended: true, frontend: true },
+      { path: "article.copyText", group: "图文", label: "可复制文案", usage: "标题、正文、标签都拼在这里，复制到小红书后标签自动识别。", sample: "70平4米层高，总价友好\\n\\n预算有限，但也想住得舒服...\\n\\n#买房 #小户型", recommended: true, frontend: true },
+      { path: "article.imageBriefIfMissing", group: "图文", label: "缺图提示", usage: "如果 Dify 没匹配到图片，可提示后台补图；正常有 COS 路径时可不展示。", sample: "缺少社区商业街实景图", recommended: false, frontend: false },
+      { path: "article.blocks[]", group: "图文", label: "正文分块", usage: "如果前端只展示 copyText，可以不要；若要图文分段编辑，再保留。", sample: [{ type: "体验块", text: "预算有限，但也想住得舒服。" }], recommended: false, frontend: false },
+
+      { path: "video.storyOutline", group: "视频", label: "故事大纲", usage: "视频详情页顶部说明，也给 worker 理解整体叙事。", sample: "以预算有限的城市青年视角，从焦虑到发现舒适小面积产品...", recommended: true, frontend: true },
+      { path: "video.estimatedDuration", group: "视频", label: "预计时长", usage: "详情页展示和 worker 预估时长。", sample: "60-90秒", recommended: true, frontend: true },
+      { path: "video.bgm", group: "视频", label: "BGM 方向", usage: "给剪辑 worker 或人工剪辑参考，不建议展示给中介成员。", sample: "轻盈、温暖、带一点节奏感", recommended: true, frontend: false },
+      { path: "video.toneOfVoice", group: "视频", label: "口吻", usage: "给口播和配音保持风格一致，可作为后台字段。", sample: "亲切共情、理性克制、专业引导", recommended: true, frontend: false },
+
+      { path: "video.scenes[].sceneNo", group: "视频镜头", label: "镜头编号", usage: "渲染“镜头 1 / 镜头 2”。", sample: 1, recommended: true, frontend: true },
+      { path: "video.scenes[].timeRange", group: "视频镜头", label: "时间范围", usage: "渲染 0-5s、5-8s。", sample: "0-5s", recommended: true, frontend: true },
+      { path: "video.scenes[].durationSec", group: "视频镜头", label: "镜头秒数", usage: "给 worker 做时间线更方便；前端可选展示。", sample: 5, recommended: true, frontend: true },
+      { path: "video.scenes[].sceneType", group: "视频镜头", label: "镜头类型", usage: "口播 / 素材 / 文字卡，决定 UI 和 worker 处理方式；中介端可不直接展示。", sample: "口播", recommended: true, frontend: false },
+      { path: "video.scenes[].title", group: "视频镜头", label: "镜头标题", usage: "卡片标题，例如开场口播、项目补充画面。", sample: "开场口播", recommended: true, frontend: true },
+      { path: "video.scenes[].requiresUserUpload", group: "视频镜头", label: "是否需要用户上传", usage: "true 显示上传按钮；false 走团队素材/系统匹配。", sample: true, recommended: true, frontend: true },
+      { path: "video.scenes[].purpose", group: "视频镜头", label: "情绪/叙事作用", usage: "给脚本和剪辑理解叙事节拍，中介端可不展示。", sample: "共鸣与好奇", recommended: true, frontend: false },
+      { path: "video.scenes[].taskDescription", group: "视频镜头", label: "镜头任务说明", usage: "卡片主说明，告诉成员这一镜要完成什么。", sample: "围绕今日主题生成可拍摄口播脚本，开头直接说客户最关心的问题。", recommended: true, frontend: true },
+      { path: "video.scenes[].visualDescription", group: "视频镜头", label: "画面描述", usage: "前端、成员拍摄、worker 剪辑共同理解画面的关键字段。", sample: "中介站在小区入口附近，面对镜头自然说话。", recommended: true, frontend: true },
+      { path: "video.scenes[].voiceover", group: "视频镜头", label: "口播/旁白", usage: "成员照着说，或给 TTS/配音。", sample: "70平的小户型，层高竟然有4米？", recommended: true, frontend: true },
+      { path: "video.scenes[].subtitle", group: "视频镜头", label: "字幕", usage: "剪辑字幕文本，保留给 worker/成片，不建议展示给中介成员。", sample: "70平4米层高，预算有限也能看", recommended: true, frontend: false },
+      { path: "video.scenes[].shotLanguage.framing", group: "镜头语言", label: "景别", usage: "例如半身、全景、特写；后台/worker 字段。", sample: "半身口播", recommended: true, frontend: false },
+      { path: "video.scenes[].shotLanguage.cameraMovement", group: "镜头语言", label: "运镜", usage: "例如固定、缓慢推进、平移；后台/worker 字段。", sample: "固定镜头", recommended: true, frontend: false },
+      { path: "video.scenes[].shotLanguage.orientation", group: "镜头语言", label: "横竖屏", usage: "当前剪辑链路先按横屏，也可后续改竖屏；后台/worker 字段。", sample: "横屏", recommended: true, frontend: false },
+      { path: "video.scenes[].shotLanguage.composition", group: "镜头语言", label: "构图", usage: "更专业地描述人物/环境位置；后台/worker 字段。", sample: "人物站画面左侧，右侧留出小区入口背景", recommended: true, frontend: false },
+      { path: "video.scenes[].filmingGuide.method", group: "拍摄要求", label: "拍法", usage: "给中介看的拍摄方式，例如自拍口播、边走边拍、拍项目空镜。", sample: "手机横屏，半身自拍口播", recommended: true, frontend: true },
+      { path: "video.scenes[].filmingGuide.location", group: "拍摄要求", label: "拍摄地点", usage: "成员端直接展示。", sample: "小区入口", recommended: true, frontend: true },
+      { path: "video.scenes[].filmingGuide.posture", group: "拍摄要求", label: "姿态", usage: "例如站着、坐着、边走边说。", sample: "站着", recommended: true, frontend: true },
+      { path: "video.scenes[].filmingGuide.props", group: "拍摄要求", label: "道具", usage: "例如工牌、户型图、计算器。", sample: ["工牌"], recommended: true, frontend: true },
+      { path: "video.scenes[].filmingGuide.tips", group: "拍摄要求", label: "提示", usage: "拍摄注意事项。", sample: ["手机横屏拍", "语速放慢"], recommended: true, frontend: true },
+      { path: "video.scenes[].editGuide.transition", group: "剪辑要求", label: "转场", usage: "给 worker 或人工剪辑，不展示给中介成员。", sample: "直接切", recommended: true, frontend: false },
+      { path: "video.scenes[].editGuide.pacing", group: "剪辑要求", label: "节奏", usage: "快/正常/慢，给 worker 或人工剪辑，不展示给中介成员。", sample: "正常", recommended: true, frontend: false },
+      { path: "video.scenes[].editGuide.minUsableSeconds", group: "剪辑要求", label: "最短可用秒数", usage: "用户上传素材裁切时有用。", sample: 3, recommended: true, frontend: false },
+      { path: "video.scenes[].assetQuery", group: "素材匹配", label: "团队素材检索词", usage: "素材类镜头需要；给系统找团队素材，不展示给中介成员。", sample: "小区 航拍 全景 绿化 商业", recommended: true, frontend: false },
+      { path: "video.scenes[].fallbackVisual", group: "素材匹配", label: "兜底画面", usage: "找不到素材时给 worker/人工替代方案，不展示给中介成员。", sample: "小区入口平拍，显示门头和周边店铺", recommended: true, frontend: false },
+
+      { path: "quality.status", group: "质量", label: "质量状态", usage: "passed / needs_review / blocked。", sample: "needs_review", recommended: true, frontend: true },
+      { path: "quality.pass", group: "质量", label: "是否通过", usage: "代码逻辑判断用，前端可映射成状态。", sample: false, recommended: true, frontend: false },
+      { path: "quality.blockingReasons", group: "质量", label: "阻塞原因", usage: "前端直接展示给管理员或成员。", sample: ["缺少可用图片素材"], recommended: true, frontend: true },
+      { path: "quality.missingInputs", group: "质量", label: "缺失输入", usage: "告诉用户还需要补什么。", sample: ["图文图片素材"], recommended: true, frontend: true },
+      { path: "quality.riskTerms", group: "质量", label: "风险词", usage: "命中合规词时展示或记录。", sample: [], recommended: true, frontend: false },
+      { path: "quality.scores", group: "质量", label: "质量分", usage: "调试和内部分析，不建议成员端展示。", sample: { compliance: 9 }, recommended: false, frontend: false },
+
+      { path: "debug.taskUnderstanding", group: "Debug", label: "任务理解", usage: "调试用，不进前端主输出。", sample: {}, recommended: false, frontend: false },
+      { path: "debug.creativeStrategy", group: "Debug", label: "创作策略", usage: "调试用，不进前端主输出。", sample: {}, recommended: false, frontend: false },
+      { path: "debug.usedKnowledgeRefs", group: "Debug", label: "知识引用", usage: "调试/溯源用。", sample: [], recommended: false, frontend: false }
+    ];
+
+    const byPath = Object.fromEntries(fields.map(field => [field.path, field]));
+    let selected = loadState();
+
+    function defaultDecision(field) {
+      return {
+        keep: Boolean(field.recommended),
+        ui: Boolean(field.recommended && field.frontend)
+      };
+    }
+
+    function normalizeDecision(value, field) {
+      if (value && typeof value === "object") {
+        const keep = Boolean(value.keep);
+        return { keep, ui: Boolean(keep && value.ui) };
+      }
+      const keep = Boolean(value);
+      return { keep, ui: Boolean(keep && field.frontend) };
+    }
+
+    function loadState() {
+      const defaults = Object.fromEntries(fields.map(field => [field.path, defaultDecision(field)]));
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+        if (saved && typeof saved === "object" && Object.keys(saved).length) {
+          return Object.fromEntries(fields.map(field => [
+            field.path,
+            normalizeDecision(saved[field.path], field)
+          ]));
+        }
+      } catch (_) {}
+      return defaults;
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
+    }
+
+    function getDecision(path) {
+      const field = byPath[path];
+      if (!field) return { keep: false, ui: false };
+      if (!selected[path]) selected[path] = defaultDecision(field);
+      return selected[path];
+    }
+
+    function isKept(path) {
+      return Boolean(getDecision(path).keep);
+    }
+
+    function isUiVisible(path) {
+      return Boolean(getDecision(path).ui);
+    }
+
+    function setDecision(path, role, checked) {
+      const current = getDecision(path);
+      if (role === "keep") {
+        current.keep = Boolean(checked);
+        if (!current.keep) current.ui = false;
+      } else {
+        current.ui = Boolean(checked);
+        if (current.ui) current.keep = true;
+      }
+      selected[path] = current;
+    }
+
+    function groupedFields() {
+      const groups = [];
+      const seen = new Map();
+      for (const field of fields) {
+        if (!seen.has(field.group)) {
+          seen.set(field.group, []);
+          groups.push([field.group, seen.get(field.group)]);
+        }
+        seen.get(field.group).push(field);
+      }
+      return groups;
+    }
+
+    function renderFieldList() {
+      const query = document.getElementById("fieldSearch").value.trim().toLowerCase();
+      const list = document.getElementById("fieldList");
+      list.innerHTML = "";
+      for (const [groupName, groupFields] of groupedFields()) {
+        const visible = groupFields.filter(field => {
+          const haystack = `${field.path} ${field.label} ${field.usage}`.toLowerCase();
+          return !query || haystack.includes(query);
+        });
+        if (!visible.length) continue;
+        const title = document.createElement("div");
+        title.className = "group-title";
+        title.textContent = groupName;
+        list.appendChild(title);
+        for (const field of visible) {
+          const decision = getDecision(field.path);
+          const statusBadge = !decision.keep
+            ? '<span class="badge removed">完全没必要</span>'
+            : decision.ui
+              ? '<span class="badge ui">成员 UI 展示</span>'
+              : '<span class="badge internal">只给 worker/后台</span>';
+          const row = document.createElement("div");
+          row.className = `field-row ${decision.keep ? "" : "is-off"} ${decision.keep && !decision.ui ? "is-worker-only" : ""}`;
+          row.dataset.field = field.path;
+          row.title = `${field.path}\n${field.label}：${field.usage}\n当前：${decision.keep ? (decision.ui ? "保留并展示到成员 UI" : "保留但只传 worker/后台") : "完全不保留"}`;
+          row.innerHTML = `
+            <div class="field-toggles">
+              <label class="mini-check"><input type="checkbox" data-field="${field.path}" data-role="keep" ${decision.keep ? "checked" : ""} /> 保留/worker</label>
+              <label class="mini-check"><input type="checkbox" data-field="${field.path}" data-role="ui" ${decision.ui ? "checked" : ""} /> 成员 UI</label>
+            </div>
+            <div>
+              <div class="field-path">${field.path}</div>
+              <div class="field-label">${field.label}</div>
+              <div class="field-usage">${field.usage}</div>
+              <div class="badges">
+                ${statusBadge}
+                ${field.recommended ? '<span class="badge">推荐保留</span>' : '<span class="badge">可选</span>'}
+              </div>
+            </div>
+          `;
+          list.appendChild(row);
+        }
+      }
+    }
+
+    function updateMappedElements() {
+      document.querySelectorAll("input[data-field]").forEach(input => {
+        const path = input.dataset.field;
+        const role = input.dataset.role || "ui";
+        input.checked = role === "keep" ? isKept(path) : isUiVisible(path);
+      });
+
+      document.querySelectorAll(".field-row").forEach(row => {
+        row.classList.toggle("is-off", !isKept(row.dataset.field));
+        row.classList.toggle("is-worker-only", isKept(row.dataset.field) && !isUiVisible(row.dataset.field));
+      });
+
+      document.querySelectorAll(".mapped").forEach(element => {
+        const paths = (element.dataset.fields || "").split(/\s+/).filter(Boolean);
+        const active = paths.some(path => isUiVisible(path));
+        element.classList.toggle("is-off", !active);
+      });
+
+      const kept = fields.filter(field => isKept(field.path)).length;
+      const ui = fields.filter(field => isUiVisible(field.path)).length;
+      const removed = fields.length - kept;
+      document.getElementById("summaryCount").textContent = `保留 ${kept} · UI ${ui} · 删除 ${removed}`;
+      document.getElementById("outputJson").value = JSON.stringify(buildSelectedPayload(), null, 2);
+      decorateFieldHints();
+    }
+
+    function getFieldNode(target) {
+      const direct = target.closest("[data-field]");
+      if (direct && direct.dataset.field) return direct;
+      const mapped = target.closest("[data-fields]");
+      if (mapped && mapped.dataset.fields) {
+        const path = mapped.dataset.fields.split(/\s+/).find(item => byPath[item]);
+        if (path) return { dataset: { field: path } };
+      }
+      const label = target.closest(".map-tag");
+      if (label) {
+        const input = label.querySelector("input[data-field]");
+        if (input) return input;
+      }
+      return null;
+    }
+
+    function fieldTipHtml(path) {
+      const field = byPath[path];
+      if (!field) {
+        return `<div class="tip-path">${path}</div><div>字段说明暂未登记。</div>`;
+      }
+      const decision = getDecision(path);
+      const status = !decision.keep
+        ? "完全不保留"
+        : decision.ui
+          ? "进入最终 JSON，并展示在成员 UI"
+          : "进入最终 JSON，只给 worker/后台，不展示给中介成员";
+      return `
+        <div class="tip-path">${field.path}</div>
+        <div class="tip-label">${field.label}</div>
+        <div>${field.usage}</div>
+        <div style="margin-top:6px;color:#cbbf9e;">当前：${status} · 默认：${field.recommended ? "推荐保留" : "可选"} / ${field.frontend ? "建议成员 UI 展示" : "建议后台字段"}</div>
+      `;
+    }
+
+    function showTooltip(path, event) {
+      const tooltip = document.getElementById("tooltip");
+      tooltip.innerHTML = fieldTipHtml(path);
+      tooltip.classList.add("is-visible");
+      moveTooltip(event);
+    }
+
+    function moveTooltip(event) {
+      const tooltip = document.getElementById("tooltip");
+      const offset = 14;
+      const width = tooltip.offsetWidth || 320;
+      const height = tooltip.offsetHeight || 90;
+      let left = event.clientX + offset;
+      let top = event.clientY + offset;
+      if (left + width > window.innerWidth - 10) left = event.clientX - width - offset;
+      if (top + height > window.innerHeight - 10) top = event.clientY - height - offset;
+      tooltip.style.left = `${Math.max(8, left)}px`;
+      tooltip.style.top = `${Math.max(8, top)}px`;
+    }
+
+    function hideTooltip() {
+      document.getElementById("tooltip").classList.remove("is-visible");
+    }
+
+    function hydratePreviewFieldTags() {
+      document.querySelectorAll("label.map-tag").forEach(label => {
+        const input = label.querySelector("input[data-field]");
+        if (!input) return;
+        const path = input.dataset.field;
+        const text = label.textContent.trim() || path;
+        const tag = document.createElement("span");
+        tag.className = "map-tag";
+        tag.dataset.field = path;
+        tag.innerHTML = `
+          <span class="map-tag-name">${text}</span>
+          <label class="tag-check"><input type="checkbox" data-field="${path}" data-role="keep" /> 保留/worker</label>
+          <label class="tag-check"><input type="checkbox" data-field="${path}" data-role="ui" /> 成员 UI</label>
+        `;
+        label.replaceWith(tag);
+      });
+    }
+
+    function decorateFieldHints() {
+      document.querySelectorAll(".map-tag").forEach(tag => {
+        const path = tag.dataset.field || tag.querySelector("input[data-field]")?.dataset.field;
+        if (!path) return;
+        const field = byPath[path];
+        tag.dataset.field = path;
+        tag.title = field ? `${field.path}\n${field.label}：${field.usage}` : path;
+      });
+      document.querySelectorAll("input[data-field]").forEach(input => {
+        const field = byPath[input.dataset.field];
+        const role = input.dataset.role || "ui";
+        const roleLabel = role === "keep" ? "保留/传 worker" : "成员 UI 展示";
+        input.title = field ? `${roleLabel}｜${field.label}：${field.usage}` : input.dataset.field;
+      });
+      document.querySelectorAll(".mapped").forEach(element => {
+        const paths = (element.dataset.fields || "").split(/\s+/).filter(Boolean);
+        const lines = paths.map(path => {
+          const field = byPath[path];
+          return field ? `${field.path}｜${field.label}：${field.usage}` : path;
+        });
+        element.title = lines.join("\n");
+      });
+    }
+
+    function applySelection(decisionForField) {
+      selected = Object.fromEntries(fields.map(field => {
+        const decision = decisionForField(field);
+        const keep = Boolean(decision.keep);
+        return [field.path, { keep, ui: Boolean(keep && decision.ui) }];
+      }));
+      saveState();
+      renderFieldList();
+      updateMappedElements();
+    }
+
+    function buildSelectedPayload() {
+      const payloadDraft = {};
+      for (const field of fields) {
+        if (!isKept(field.path)) continue;
+        setPath(payloadDraft, field.path, field.sample);
+      }
+      return {
+        payloadDraft,
+        fieldUsage: {
+          uiDisplayFields: fields.filter(field => isUiVisible(field.path)).map(field => field.path),
+          workerOnlyFields: fields.filter(field => isKept(field.path) && !isUiVisible(field.path)).map(field => field.path),
+          removedFields: fields.filter(field => !isKept(field.path)).map(field => field.path)
+        }
+      };
+    }
+
+    function setPath(target, path, value) {
+      const parts = path.split(".");
+      let cursor = target;
+      for (let index = 0; index < parts.length; index += 1) {
+        const raw = parts[index];
+        const isArray = raw.endsWith("[]");
+        const key = raw.replace("[]", "");
+        const last = index === parts.length - 1;
+
+        if (isArray) {
+          if (!Array.isArray(cursor[key])) cursor[key] = [{}];
+          if (last) {
+            cursor[key] = Array.isArray(value) ? value : [value];
+            return;
+          }
+          cursor = cursor[key][0];
+          continue;
+        }
+
+        if (last) {
+          cursor[key] = value;
+          return;
+        }
+
+        if (!cursor[key] || typeof cursor[key] !== "object" || Array.isArray(cursor[key])) cursor[key] = {};
+        cursor = cursor[key];
+      }
+    }
+
+    function wireEvents() {
+      document.body.addEventListener("change", event => {
+        const input = event.target.closest("input[data-field]");
+        if (!input) return;
+        setDecision(input.dataset.field, input.dataset.role || "ui", input.checked);
+        saveState();
+        renderFieldList();
+        updateMappedElements();
+      });
+
+      document.body.addEventListener("mouseover", event => {
+        const node = getFieldNode(event.target);
+        const field = node && node.dataset.field;
+        if (!field) return;
+        showTooltip(field, event);
+        document.querySelectorAll(".mapped").forEach(element => {
+          const paths = (element.dataset.fields || "").split(/\s+/).filter(Boolean);
+          element.classList.toggle("is-hover", paths.includes(field));
+        });
+      });
+
+      document.body.addEventListener("mousemove", event => {
+        if (document.getElementById("tooltip").classList.contains("is-visible")) {
+          moveTooltip(event);
+        }
+      });
+
+      document.body.addEventListener("mouseout", event => {
+        if (!getFieldNode(event.target)) return;
+        hideTooltip();
+        document.querySelectorAll(".mapped").forEach(element => element.classList.remove("is-hover"));
+      });
+
+      document.getElementById("fieldSearch").addEventListener("input", renderFieldList);
+      document.getElementById("selectRecommended").addEventListener("click", () => {
+        applySelection(field => ({ keep: field.recommended, ui: field.frontend && field.recommended }));
+      });
+      document.getElementById("selectFrontendOnly").addEventListener("click", () => {
+        applySelection(field => ({ keep: field.frontend, ui: field.frontend }));
+      });
+      document.getElementById("selectAll").addEventListener("click", () => {
+        applySelection(field => ({ keep: true, ui: field.frontend }));
+      });
+      document.getElementById("clearAll").addEventListener("click", () => {
+        applySelection(() => ({ keep: false, ui: false }));
+      });
+      document.getElementById("resetState").addEventListener("click", () => {
+        localStorage.removeItem(STORAGE_KEY);
+        selected = loadState();
+        renderFieldList();
+        updateMappedElements();
+      });
+      document.getElementById("copyOutput").addEventListener("click", async () => {
+        const text = document.getElementById("outputJson").value;
+        try {
+          await navigator.clipboard.writeText(text);
+          document.getElementById("copyOutput").textContent = "已复制";
+          setTimeout(() => document.getElementById("copyOutput").textContent = "复制右侧 JSON", 1200);
+        } catch (_) {
+          document.getElementById("outputJson").select();
+        }
+      });
+    }
+
+    hydratePreviewFieldTags();
+    renderFieldList();
+    updateMappedElements();
+    wireEvents();
+  </script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+{
+  "start": {
+    "node_type": "start",
+    "title": "开始",
+    "started_at": 1778563915,
+    "status": "succeeded",
+    "inputs": {
+      "calendar_task_json": "{\"taskId\":\"task_20260511_001\",\"theme\":\"小户型回归\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"刚需客户\",\"summary\":\"低总价上车、成熟配套、租金回报\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-11\"}",
+      "viral_references_json": "[{\"id\":\"viral_001\",\"platform\":\"xiaohongshu\",\"title\":\"很多人以为小户型没人看了，其实刚需又开始回头看\",\"structure\":[\"反常识开头\",\"解释变化\",\"落到真实选择\",\"轻CTA\"],\"hook\":\"很多人以为小户型过时了\",\"ctaStyle\":\"想看户型和总价，可以私信\"}]",
+      "image_assets_json": "[{\"assetId\":\"img_001\",\"title\":\"项目外立面\",\"url\":\"https://example.com/facade.jpg\",\"tags\":[\"项目外立面\",\"小区入口\",\"封面\"],\"description\":\"适合承接项目可信度和封面展示\"},{\"assetId\":\"img_002\",\"title\":\"样板间客厅\",\"url\":\"https://example.com/living-room.jpg\",\"tags\":[\"样板间\",\"客厅\",\"空间感\"],\"description\":\"适合讲居住体验\"}]",
+      "fallback_knowledge_text": "项目资料：80万方大社区，约1万户、3万人口，社区内有成熟消费与服务需求。产品有4米层高、商务大堂，70平、200平、250平可对应不同用途。风险资料：历史资料里提到满租、租金区间、低位价格，但这些只能作为内部判断，不能用于对外承诺或营销表达。",
+      "extra_requirement": "口吻更像本地中介，CTA轻一点，不要制造焦虑。",
+      "sys.files": [],
+      "sys.user_id": "content_calendar_test_case01_full_with_compliance_risk_1778563913",
+      "sys.app_id": "e2e99750-6284-4437-b6f6-705871e7b3dc",
+      "sys.workflow_id": "aef5b7b8-381a-40f9-838e-e39eb75624a1",
+      "sys.workflow_run_id": "32b062c3-0c75-4a5d-9b7b-92e1643af1a0",
+      "sys.timestamp": 1778563914
+    },
+    "outputs": {
+      "calendar_task_json": "{\"taskId\":\"task_20260511_001\",\"theme\":\"小户型回归\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"刚需客户\",\"summary\":\"低总价上车、成熟配套、租金回报\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-11\"}",
+      "viral_references_json": "[{\"id\":\"viral_001\",\"platform\":\"xiaohongshu\",\"title\":\"很多人以为小户型没人看了，其实刚需又开始回头看\",\"structure\":[\"反常识开头\",\"解释变化\",\"落到真实选择\",\"轻CTA\"],\"hook\":\"很多人以为小户型过时了\",\"ctaStyle\":\"想看户型和总价，可以私信\"}]",
+      "image_assets_json": "[{\"assetId\":\"img_001\",\"title\":\"项目外立面\",\"url\":\"https://example.com/facade.jpg\",\"tags\":[\"项目外立面\",\"小区入口\",\"封面\"],\"description\":\"适合承接项目可信度和封面展示\"},{\"assetId\":\"img_002\",\"title\":\"样板间客厅\",\"url\":\"https://example.com/living-room.jpg\",\"tags\":[\"样板间\",\"客厅\",\"空间感\"],\"description\":\"适合讲居住体验\"}]",
+      "fallback_knowledge_text": "项目资料：80万方大社区，约1万户、3万人口，社区内有成熟消费与服务需求。产品有4米层高、商务大堂，70平、200平、250平可对应不同用途。风险资料：历史资料里提到满租、租金区间、低位价格，但这些只能作为内部判断，不能用于对外承诺或营销表达。",
+      "extra_requirement": "口吻更像本地中介，CTA轻一点，不要制造焦虑。",
+      "sys.files": [],
+      "sys.user_id": "content_calendar_test_case01_full_with_compliance_risk_1778563913",
+      "sys.app_id": "e2e99750-6284-4437-b6f6-705871e7b3dc",
+      "sys.workflow_id": "aef5b7b8-381a-40f9-838e-e39eb75624a1",
+      "sys.workflow_run_id": "32b062c3-0c75-4a5d-9b7b-92e1643af1a0",
+      "sys.timestamp": 1778563914
+    },
+    "finished_at": 1778563915,
+    "error": null,
+    "execution_metadata": null
+  },
+  "task_understanding": {
+    "node_type": "llm",
+    "title": "任务理解",
+    "started_at": 1778563915,
+    "status": "succeeded",
+    "inputs": {},
+    "outputs": {
+      "text": "<think>\n我们解析输入内容日历任务，提取字段并填充JSON。\n\n输入：\n{\n  \"taskId\": \"task_20260511_001\",\n  \"theme\": \"小户型回归\",\n  \"contentType\": \"article_and_video\",\n  \"platforms\": [\"xiaohongshu\", \"douyin\"],\n  \"contentGoal\": \"种草\",\n  \"targetAudience\": \"刚需客户\",\n  \"summary\": \"低总价上车、成熟配套、租金回报\",\n  \"teamCalendarSource\": \"团队本周内容日历\",\n  \"date\": \"2026-05-11\"\n}\n\n额外要求：口吻更像本地中介，CTA轻一点，不要制造焦虑。\n\n根据硬约束：\n- coreTopic: 从theme和summary提取，应该是\"小户型回归\"或\"低总价小户型\"，但核心是\"小户型回归\"。\n- contentType: \"article_and_video\"（注意输入是article_and_video，但schema中contentType是string，所以直接填\"article_and_video\"）\n- platforms: [\"xiaohongshu\", \"douyin\"]\n- contentGoal: \"种草\"\n- targetAudience: \"刚需客户\"\n- audiencePain: 面向刚需客户，痛点是\"预算有限、希望低总价上车\"等，但只能基于输入解析。输入有\"低总价上车\"，所以audiencePain可以填\"预算有限，希望低总价购房\"。\n- sellingPointsNeeded: 从summary提取卖点：低总价、成熟配套。但注意\"租金回报\"是风险词，不能作为卖点。所以sellingPointsNeeded应为[\"低总价\", \"成熟配套\"]。\n- riskConstraints: 因为summary提到了\"租金回报\"，所以归类为\"收益承诺类\"。另外还需检查是否有其他风险词。只有\"租金回报\"，所以riskConstraints: [\"收益承诺类\"]。\n- copySearchQuery: 需要组合主题、客群、卖点、场景词，且避免风险词。安全检索词如\"预算友好、成熟配套、生活便利\"等。可以写：\"低总价小户型 刚需 成熟配套 预算友好 生活便利\"\n- scriptSearchQuery: 类似，但要考虑口吻。可以写：\"小户型回归 刚需上车 成熟配套 生活便利\"\n- imageSearchQuery: 场景词，如\"小户型样板间 实景 社区配套 预算友好\"\n- videoAssetQueryHints: 视频素材提示，如[\"小户型入户镜头\", \"社区环境\", \"周边商业\", \"房间实景\"]\n- extraRequirement: 从额外要求中提取：\"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"\n\n所有字段都要保留，未知则空字符串或空数组。这里都有值。\n\n注意：copySearchQuery, scriptSearchQuery, imageSearchQuery不能为空。\n\n输出JSON。\n</think>{\n  \"coreTopic\": \"小户型回归\",\n  \"contentType\": \"article_and_video\",\n  \"platforms\": [\"xiaohongshu\", \"douyin\"],\n  \"contentGoal\": \"种草\",\n  \"targetAudience\": \"刚需客户\",\n  \"audiencePain\": \"预算有限，希望低总价购房\",\n  \"sellingPointsNeeded\": [\"低总价\", \"成熟配套\"],\n  \"riskConstraints\": [\"收益承诺类\"],\n  \"copySearchQuery\": \"低总价小户型 刚需 成熟配套 预算友好 生活便利\",\n  \"scriptSearchQuery\": \"小户型回归 刚需上车 成熟配套 生活便利\",\n  \"imageSearchQuery\": \"小户型样板间 实景 社区配套 预算友好\",\n  \"videoAssetQueryHints\": [\"小户型入户镜头\", \"社区环境\", \"周边商业\", \"房间实景\"],\n  \"extraRequirement\": \"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"\n}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 801,
+        "prompt_unit_price": "1",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.000801",
+        "completion_tokens": 824,
+        "completion_unit_price": "2",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.001648",
+        "total_tokens": 1625,
+        "total_price": "0.002449",
+        "currency": "RMB",
+        "latency": 10.779,
+        "time_to_first_token": 0.923,
+        "time_to_generate": 9.857
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "taskId": "task_20260511_001",
+        "theme": "小户型回归",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "刚需客户",
+        "summary": "低总价上车、成熟配套、租金回报",
+        "teamCalendarSource": "团队本周内容日历",
+        "date": "2026-05-11"
+      }
+    },
+    "finished_at": 1778563915,
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 1625,
+      "total_price": "0.002449",
+      "currency": "RMB"
+    }
+  },
+  "kb_project_knowledge": {
+    "node_type": "knowledge-retrieval",
+    "title": "txt 知识库检索",
+    "started_at": 1778563926,
+    "status": "failed",
+    "inputs": {},
+    "outputs": {},
+    "finished_at": 1778563926,
+    "error": "Query variable is not string type.",
+    "execution_metadata": null
+  }
+}

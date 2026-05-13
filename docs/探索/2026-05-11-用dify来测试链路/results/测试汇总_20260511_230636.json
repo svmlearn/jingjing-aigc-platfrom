@@ -1,0 +1,23 @@
+{
+  "test_time": "2026-05-11 23:05:04",
+  "base_url": "https://api.dify.ai/v1",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case01_full_with_compliance_risk.json",
+  "runs": 1,
+  "save_nodes": true,
+  "cases": [
+    {
+      "case_name": "case01_full_with_compliance_risk",
+      "runs": [
+        {
+          "run_index": 1,
+          "success": true,
+          "elapsed_time": 91.94574117660522,
+          "output_file": "case01_full_with_compliance_risk_run1_20260511_230504_505877.json",
+          "node_output_file": "case01_full_with_compliance_risk_run1_20260511_230504_505877_nodes.json",
+          "evaluation_passed": true,
+          "parse_errors": []
+        }
+      ]
+    }
+  ]
+}

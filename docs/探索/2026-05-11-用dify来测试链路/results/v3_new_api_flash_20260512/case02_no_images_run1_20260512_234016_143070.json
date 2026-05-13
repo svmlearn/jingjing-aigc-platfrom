@@ -1,0 +1,698 @@
+{
+  "case_name": "case02_no_images",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "run_index": 1,
+  "timestamp": "20260512_234016_143070",
+  "elapsed_time": 268.91949796676636,
+  "success": true,
+  "workflow_run_id": "10320e1d-c7b7-48d0-b1da-e25bef12ee51",
+  "error": null,
+  "raw_response": {
+    "id": "10320e1d-c7b7-48d0-b1da-e25bef12ee51",
+    "workflow_id": "ebdc6c0d-248b-478f-8ced-b41d72bb06c6",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v3_article_video_split\", \"articlePackage\": {\"titles\": [\"看完生活半径，我放弃了看户型\", \"都说先看户型，我偏先看菜市场\", \"担心项目周边荒凉？先看这个生活圈\"], \"selectedTitle\": \"看完生活半径，我放弃了看户型\", \"coverCopy\": \"买房前 先看生活半径\", \"body\": \"很多人第一次看房，眼里只有户型图。但房子是住的，生活半径才决定幸福感。\\n\\n早上上班，楼下包子铺买个早餐，五分钟到地铁口。下班回来，顺路便利店买个菜。这样的生活，你想要的吧？\\n\\n看配套，盯几点：\\n• 小区大门到地铁站步行时间\\n• 楼下有没有超市、菜场、早餐店\\n• 周边两公里有没有医院、学校\\n这些才是生活的日常。\\n\\n我看过多盘，这里的配套是肉眼可见的成熟。不用等规划，下楼就都现成。\\n\\n周末带孩子楼下广场溜达，晚饭后散步到公园。这些不是效果图，是每天的日常。\", \"contentBlocks\": [{\"blockNo\": 1, \"blockType\": \"experience\", \"text\": \"很多人第一次看房，眼里只有户型图。但房子是住的，生活半径才决定幸福感。\", \"imageBrief\": \"项目大门或社区入口实景，体现社区规模与气度\"}, {\"blockNo\": 2, \"blockType\": \"experience\", \"text\": \"早上上班，楼下包子铺买个早餐，五分钟到地铁口。下班回来，顺路便利店买个菜。这样的生活，你想要的吧？\", \"imageBrief\": \"楼下商业街实拍，显示早餐店、便利店等\"}, {\"blockNo\": 3, \"blockType\": \"list\", \"text\": \"看配套，盯几点：\\n• 小区大门到地铁站步行时间\\n• 楼下有没有超市、菜场、早餐店\\n• 周边两公里有没有医院、学校\\n这些才是生活的日常。\", \"imageBrief\": \"社区周边配套分布示意图或导览图\"}, {\"blockNo\": 4, \"blockType\": \"evidence\", \"text\": \"我看过多盘，这里的配套是肉眼可见的成熟。不用等规划，下楼就都现成。\", \"imageBrief\": \"社区实景照片，显示完善的配套环境，如幼儿园、商业街等\"}, {\"blockNo\": 5, \"blockType\": \"experience\", \"text\": \"周末带孩子楼下广场溜达，晚饭后散步到公园。这些不是效果图，是每天的日常。\", \"imageBrief\": \"社区内居民休闲活动实景，如小孩玩耍、老人散步\"}], \"hashtags\": [\"#买房\", \"#看房\", \"#生活配套\", \"#买房注意事项\", \"#光明\", \"#地铁13号线\", \"#第一次买房\"], \"cta\": \"想知道这个生活半径具体什么样？私信我，发你实拍视频。\", \"imageMatches\": [], \"imageBriefIfMissing\": \"项目大门或社区入口实景，体现社区规模与气度; 楼下商业街实拍，显示早餐店、便利店等; 社区周边配套分布示意图或导览图; 社区实景照片，显示完善的配套环境，如幼儿园、商业街等; 社区内居民休闲活动实景，如小孩玩耍、老人散步\", \"riskNotes\": [], \"copyReadyText\": \"看完生活半径，我放弃了看户型\\n\\n很多人第一次看房，眼里只有户型图。但房子是住的，生活半径才决定幸福感。\\n\\n早上上班，楼下包子铺买个早餐，五分钟到地铁口。下班回来，顺路便利店买个菜。这样的生活，你想要的吧？\\n\\n看配套，盯几点：\\n• 小区大门到地铁站步行时间\\n• 楼下有没有超市、菜场、早餐店\\n• 周边两公里有没有医院、学校\\n这些才是生活的日常。\\n\\n我看过多盘，这里的配套是肉眼可见的成熟。不用等规划，下楼就都现成。\\n\\n周末带孩子楼下广场溜达，晚饭后散步到公园。这些不是效果图，是每天的日常。\\n\\n#买房 #看房 #生活配套 #买房注意事项 #光明 #地铁13号线 #第一次买房\"}, \"titleStrategy\": {\"titles\": [{\"text\": \"看完生活半径，我放弃了看户型\", \"formula\": \"晒结果 + 悬念\", \"whyThisFormula\": \"先展示认知转变的结果，引发好奇为什么要放弃看户型\"}, {\"text\": \"都说先看户型，我偏先看菜市场\", \"formula\": \"反差/反常识\", \"whyThisFormula\": \"打破先看户型的常规认知，突出生活配套的重要性\"}, {\"text\": \"担心项目周边荒凉？先看这个生活圈\", \"formula\": \"痛点共鸣\", \"whyThisFormula\": \"直接说出首次看房客户对配套的焦虑，并给出解决方案\"}], \"selectedTitleReason\": \"融合晒结果与悬念，通过展示真实体验后的认知改变引发好奇，符合信任建立目标，口播友好\", \"coverCopyOptions\": [{\"text\": \"买房前 先看生活半径\", \"style\": \"大字报型\"}, {\"text\": \"真实的生活圈 比户型重要\", \"style\": \"实拍+文字型\"}], \"hookAngle\": \"生活半径优先看房法\"}, \"videoScript\": {\"narrative\": {\"hook\": {\"strategy\": \"痛点+悬念\", \"openingLine\": \"很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。\"}, \"narrativeArc\": [\"痛点：只看户型忽视配套\", \"共鸣：很多人都犯过这错\", \"解法：如何判断配套成熟度\", \"行动：来项目实地感受\"], \"storyOutline\": \"从项目入口出发，步行至社区商业街，展示沿街店铺；接着走到周边菜市场/超市，再展示地铁站入口；最后回到样板间阳台，强调生活便利。\", \"estimatedDuration\": \"45秒\", \"bgmDirection\": \"轻快生活风格，略带温馨\", \"toneOfVoice\": \"真诚、口语化，像朋友聊天\", \"voiceoverDraft\": \"很多首套房客户，一开始只盯着户型图。但我跟你说，住得舒不舒服，关键看配套。比如从小区出来，走几百米就到菜市场，旁边还有地铁站。这样你每天下班，买菜回家做饭，日子才过得踏实。所以，别光看房子，先看看周围的配套是否成熟。想了解更多，可以私信我。\"}, \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:08\", \"sceneType\": \"口播\", \"emotionalBeat\": \"引入痛点\", \"visualDescription\": \"中介站在项目大门前，面对镜头自然说话，面带微笑，背景可见小区入口和绿植。阳光充足，白天拍摄。视角平视。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"voiceover\": \"很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。\", \"filmingGuide\": {\"location\": \"项目大门前\", \"posture\": \"站姿，面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"手机横屏拍，画质调到1080p以上\", \"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\"]}}, {\"sceneNo\": 2, \"timeRange\": \"0:08-0:10\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示商业街\", \"visualDescription\": \"社区商业街全景，镜头从一端推进，两侧店铺林立，有餐饮、超市等招牌。白天，阳光照在街道上。视角平视。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"下楼就是商业街，买菜吃饭超方便。\", \"assetQuery\": \"社区商业街 实拍 白天 店铺\", \"fallbackVisual\": \"商业街中景，有行人和店铺招牌\"}, {\"sceneNo\": 3, \"timeRange\": \"0:10-0:12\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示超市\", \"visualDescription\": \"超市内部，镜头扫过货架和蔬菜区，有顾客在选购。灯光明亮。视角平推。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"不远处就有大型超市，日常采购走几步就到。\", \"assetQuery\": \"超市 实拍 货架 顾客 白天\", \"fallbackVisual\": \"菜市场或超市内景，有货柜和顾客\"}, {\"sceneNo\": 4, \"timeRange\": \"0:12-0:14\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示地铁\", \"visualDescription\": \"地铁站入口，站牌清晰可见，能看到地铁标志和入口通道，行人在进出。白天，自然光。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"地铁站步行可达，通勤无忧。\", \"assetQuery\": \"地铁站 入口 实拍 白天\", \"fallbackVisual\": \"地铁站出入口，可见站牌\"}, {\"sceneNo\": 5, \"timeRange\": \"0:14-0:24\", \"sceneType\": \"口播\", \"emotionalBeat\": \"共情+过渡\", \"visualDescription\": \"中介坐在样板间客厅的沙发上，面前有茶几，背后是阳台和窗外景色。柔和自然光，脸上无阴影。视角平视。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"我特别理解大家，第一次买房想选个安心的家。配套成熟不成熟，直接决定你每天的生活质量。你看，买菜、吃饭、通勤，这些日常小事如果都方便，住起来才真正舒心。\", \"filmingGuide\": {\"location\": \"样板间客厅\", \"posture\": \"坐姿，侧对镜头或正对\", \"props\": [\"茶杯\", \"户型图\"], \"tips\": [\"不要坐在正中间，靠边坐画面更有纵深感\", \"可以拿户型图做道具，自然互动\", \"拍两遍，选自然的那条\"]}}, {\"sceneNo\": 6, \"timeRange\": \"0:24-0:27\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示社区环境\", \"visualDescription\": \"社区内儿童游乐区或公园，有孩子在玩耍，家长在旁照看，绿树成荫。午后阳光透过树叶。视角从远处平视。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"社区绿化不错，有公园有儿童区。\", \"assetQuery\": \"小区花园 儿童游乐 实拍 白天\", \"fallbackVisual\": \"社区花园或休闲区域，有绿植和设施\"}, {\"sceneNo\": 7, \"timeRange\": \"0:27-0:30\", \"sceneType\": \"素材\", \"emotionalBeat\": \"居民生活\", \"visualDescription\": \"居民在小区内散步或遛狗，画面温馨自然。傍晚时分，暖色调。视角跟拍。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"傍晚散步遛狗，生活氛围浓厚。\", \"assetQuery\": \"居民 散步 遛狗 小区实拍 傍晚\", \"fallbackVisual\": \"小区步道上行人散步\"}, {\"sceneNo\": 8, \"timeRange\": \"0:30-0:33\", \"sceneType\": \"文字卡\", \"emotionalBeat\": \"总结\", \"visualDescription\": \"黑色背景上白色文字居中显示，字体清晰，搭配小图标。\", \"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"subtitle\": \"成熟配套·即刻享有\"}, {\"sceneNo\": 9, \"timeRange\": \"0:33-0:43\", \"sceneType\": \"口播\", \"emotionalBeat\": \"行动号召\", \"visualDescription\": \"中介站在样板间阳台上，背后是小区的整体景色或远眺，自然风拂动头发。黄昏或温暖光线，表情真诚。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"所以，别光看房子，先来看看配套。如果想知道更多细节，欢迎私信我，我给你发一份生活半径清单。\", \"filmingGuide\": {\"location\": \"样板间阳台\", \"posture\": \"站姿，侧身或背靠栏杆\", \"props\": [], \"tips\": [\"利用阳台栏杆作为天然画框\", \"保持自然微笑，像对着朋友说话\", \"开头和结尾各多录2秒\"]}}], \"riskNotes\": []}, \"memberDelivery\": {\"tasks\": [{\"taskNo\": 1, \"sceneNo\": 1, \"script\": \"很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。\", \"location\": \"项目大门前\", \"posture\": \"站姿，面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"手机横屏拍，画质调到1080p以上\", \"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\"]}, {\"taskNo\": 2, \"sceneNo\": 5, \"script\": \"我特别理解大家，第一次买房想选个安心的家。配套成熟不成熟，直接决定你每天的生活质量。你看，买菜、吃饭、通勤，这些日常小事如果都方便，住起来才真正舒心。\", \"location\": \"样板间客厅\", \"posture\": \"坐姿，侧对镜头或正对\", \"props\": [\"茶杯\", \"户型图\"], \"tips\": [\"不要坐在正中间，靠边坐画面更有纵深感\", \"可以拿户型图做道具，自然互动\", \"拍两遍，选自然的那条\"]}, {\"taskNo\": 3, \"sceneNo\": 9, \"script\": \"所以，别光看房子，先来看看配套。如果想知道更多细节，欢迎私信我，我给你发一份生活半径清单。\", \"location\": \"样板间阳台\", \"posture\": \"站姿，侧身或背靠栏杆\", \"props\": [], \"tips\": [\"利用阳台栏杆作为天然画框\", \"保持自然微笑，像对着朋友说话\", \"开头和结尾各多录2秒\"]}]}, \"workerDelivery\": {\"storyOutline\": \"从项目入口出发，步行至社区商业街，展示沿街店铺；接着走到周边菜市场/超市，再展示地铁站入口；最后回到样板间阳台，强调生活便利。\", \"bgm\": \"轻快生活风格，略带温馨\", \"toneOfVoice\": \"真诚、口语化，像朋友聊天\", \"estimatedDuration\": \"45秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:08\", \"sceneType\": \"口播\", \"emotionalBeat\": \"引入痛点\", \"visualDescription\": \"中介站在项目大门前，面对镜头自然说话，面带微笑，背景可见小区入口和绿植。阳光充足，白天拍摄。视角平视。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"voiceover\": \"很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。\", \"filmingGuide\": {\"location\": \"项目大门前\", \"posture\": \"站姿，面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"手机横屏拍，画质调到1080p以上\", \"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\"]}}, {\"sceneNo\": 2, \"timeRange\": \"0:08-0:10\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示商业街\", \"visualDescription\": \"社区商业街全景，镜头从一端推进，两侧店铺林立，有餐饮、超市等招牌。白天，阳光照在街道上。视角平视。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"下楼就是商业街，买菜吃饭超方便。\", \"assetQuery\": \"社区商业街 实拍 白天 店铺\", \"fallbackVisual\": \"商业街中景，有行人和店铺招牌\"}, {\"sceneNo\": 3, \"timeRange\": \"0:10-0:12\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示超市\", \"visualDescription\": \"超市内部，镜头扫过货架和蔬菜区，有顾客在选购。灯光明亮。视角平推。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"不远处就有大型超市，日常采购走几步就到。\", \"assetQuery\": \"超市 实拍 货架 顾客 白天\", \"fallbackVisual\": \"菜市场或超市内景，有货柜和顾客\"}, {\"sceneNo\": 4, \"timeRange\": \"0:12-0:14\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示地铁\", \"visualDescription\": \"地铁站入口，站牌清晰可见，能看到地铁标志和入口通道，行人在进出。白天，自然光。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"地铁站步行可达，通勤无忧。\", \"assetQuery\": \"地铁站 入口 实拍 白天\", \"fallbackVisual\": \"地铁站出入口，可见站牌\"}, {\"sceneNo\": 5, \"timeRange\": \"0:14-0:24\", \"sceneType\": \"口播\", \"emotionalBeat\": \"共情+过渡\", \"visualDescription\": \"中介坐在样板间客厅的沙发上，面前有茶几，背后是阳台和窗外景色。柔和自然光，脸上无阴影。视角平视。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"我特别理解大家，第一次买房想选个安心的家。配套成熟不成熟，直接决定你每天的生活质量。你看，买菜、吃饭、通勤，这些日常小事如果都方便，住起来才真正舒心。\", \"filmingGuide\": {\"location\": \"样板间客厅\", \"posture\": \"坐姿，侧对镜头或正对\", \"props\": [\"茶杯\", \"户型图\"], \"tips\": [\"不要坐在正中间，靠边坐画面更有纵深感\", \"可以拿户型图做道具，自然互动\", \"拍两遍，选自然的那条\"]}}, {\"sceneNo\": 6, \"timeRange\": \"0:24-0:27\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示社区环境\", \"visualDescription\": \"社区内儿童游乐区或公园，有孩子在玩耍，家长在旁照看，绿树成荫。午后阳光透过树叶。视角从远处平视。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"社区绿化不错，有公园有儿童区。\", \"assetQuery\": \"小区花园 儿童游乐 实拍 白天\", \"fallbackVisual\": \"社区花园或休闲区域，有绿植和设施\"}, {\"sceneNo\": 7, \"timeRange\": \"0:27-0:30\", \"sceneType\": \"素材\", \"emotionalBeat\": \"居民生活\", \"visualDescription\": \"居民在小区内散步或遛狗，画面温馨自然。傍晚时分，暖色调。视角跟拍。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"傍晚散步遛狗，生活氛围浓厚。\", \"assetQuery\": \"居民 散步 遛狗 小区实拍 傍晚\", \"fallbackVisual\": \"小区步道上行人散步\"}, {\"sceneNo\": 8, \"timeRange\": \"0:30-0:33\", \"sceneType\": \"文字卡\", \"emotionalBeat\": \"总结\", \"visualDescription\": \"黑色背景上白色文字居中显示，字体清晰，搭配小图标。\", \"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"subtitle\": \"成熟配套·即刻享有\"}, {\"sceneNo\": 9, \"timeRange\": \"0:33-0:43\", \"sceneType\": \"口播\", \"emotionalBeat\": \"行动号召\", \"visualDescription\": \"中介站在样板间阳台上，背后是小区的整体景色或远眺，自然风拂动头发。黄昏或温暖光线，表情真诚。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"所以，别光看房子，先来看看配套。如果想知道更多细节，欢迎私信我，我给你发一份生活半径清单。\", \"filmingGuide\": {\"location\": \"样板间阳台\", \"posture\": \"站姿，侧身或背靠栏杆\", \"props\": [], \"tips\": [\"利用阳台栏杆作为天然画框\", \"保持自然微笑，像对着朋友说话\", \"开头和结尾各多录2秒\"]}}], \"teamAssetQueries\": [\"社区商业街 实拍 白天 店铺\", \"超市 实拍 货架 顾客 白天\", \"地铁站 入口 实拍 白天\", \"小区花园 儿童游乐 实拍 白天\", \"居民 散步 遛狗 小区实拍 傍晚\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 6, \"materialFit\": 6, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"缺少 CTA 块\", \"缺少可用图片素材\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"图文图片素材\"]}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"成熟配套\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"信任建立\", \"targetAudience\": \"首次看房客户\", \"audiencePain\": \"担心项目周边配套不成熟，生活不便\", \"sellingPointsNeeded\": [\"生活便利\", \"成熟配套\"], \"riskConstraints\": [], \"copySearchQuery\": \"成熟配套 首次看房 生活便利 项目实景 真实体验\", \"scriptSearchQuery\": \"成熟配套 首次看房 生活便利 实景拍摄 客户讲述\", \"imageSearchQuery\": \"成熟配套 社区实景 生活配套 商业街 公园\", \"videoAssetQueryHints\": [\"成熟社区外景\", \"商业街实拍\", \"学校医院周边\", \"居民生活场景\"], \"extraRequirement\": \"语气真实一点，像发给老客户看的内容\"}, \"creativeStrategy\": {\"chosenAngle\": \"带你看懂配套对日常生活有多重要\", \"narrativeArc\": [\"指出首次看房常见误区：只盯户型图\", \"用真实生活场景解释配套如何影响日常\", \"列出实地看房时观察配套的具体方法\", \"邀请客户索取“生活半径清单”或现场感受\"], \"tone\": \"真诚亲切，像与老客户聊天\", \"mustUseFacts\": [\"项目位于光明\", \"社区体量大\", \"楼下有成熟消费和服务设施，日常生活便利\", \"周边有地铁13号线（即将开通）\", \"看房时可实地观察配套经营实景\"], \"mustAvoidClaims\": [], \"viralPatternUsed\": {\"patternName\": \"生活半径优先看房法\", \"reason\": \"借鉴“先破后立”的叙事结构，用生活场景增强代入感，适合信任建立\", \"titleTactics\": [\"用对比句式突出核心观点\", \"用“更关键”引起好奇\"], \"hookTactics\": [\"从常见误区切入\", \"用第一人称拉近关系\"], \"ctaTactics\": [\"轻CTA邀请索取清单\", \"不强求直接联系\"]}, \"articlePlan\": {\"titleDirection\": \"从“先看户型”到“先看生活圈”的认知转换\", \"coverCopyDirection\": \"真实生活场景，而非效果图\", \"bodyStructure\": [\"从看房常见误区切入\", \"用日常动线说明配套价值\", \"列出实地看房可观察的配套细节\", \"引导客户感受真实生活场景\", \"结尾邀请索取生活半径清单\"], \"imagePlan\": [\"成熟社区鸟瞰图\", \"楼下商业街实拍\", \"生鲜超市或便利店实景\", \"通勤地铁站入口\", \"社区周边食店实拍\"]}, \"videoPlan\": {\"storyOutline\": \"以第一人称带看，从项目门口开始，边走边展示买菜、吃饭、交通等日常便利，强调配套已经成熟可见，最后引导观众思考为什么要先看配套。\", \"estimatedDuration\": \"约45秒\", \"scenePlan\": [\"项目大门前出镜，抛出常见误区\", \"步行至附近商街，边走边拍\", \"特写生鲜超市或早餐店\", \"展示地铁站入口\", \"结尾在家里或安静地方，邀请互动\"], \"assetQueryHints\": [\"光明项目外景\", \"社区商业街实拍\", \"超市/菜市实拍\", \"地铁13号线站口\", \"居民日常采购镜头\"]}, \"degradationNotices\": [], \"trace\": {\"usedKnowledgeSummary\": [\"从会议记录中提取了光明配套成熟、小户型受关注、地铁13号线等信息\", \"使用手工知识中“社区体量大、楼下消费服务设施成熟”\"], \"usedViralSummary\": [\"借鉴了爆款“买房别只看户型”的结构：从误区切入，用生活场景说明，轻CTA索要清单\"], \"usedImageSummary\": [\"无可用图片素材，配图依据建议生成\"]}, \"qualityGateHints\": {\"factWeakness\": \"部分配套信息来自内部讨论，需实地复核\", \"complianceRisks\": [], \"mustReviewBeforePublish\": []}}, \"usedKnowledgeRefs\": [\"项目位于光明\", \"社区体量大\", \"楼下有成熟消费和服务设施，日常生活便利\", \"周边有地铁13号线（即将开通）\", \"看房时可实地观察配套经营实景\"], \"usedViralRefs\": [{\"patternName\": \"生活半径优先看房法\", \"reason\": \"借鉴“先破后立”的叙事结构，用生活场景增强代入感，适合信任建立\", \"titleTactics\": [\"用对比句式突出核心观点\", \"用“更关键”引起好奇\"], \"hookTactics\": [\"从常见误区切入\", \"用第一人称拉近关系\"], \"ctaTactics\": [\"轻CTA邀请索取清单\", \"不强求直接联系\"]}], \"usedImageAssets\": [], \"degradationNotices\": []}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 260.065082,
+    "total_tokens": 41923,
+    "total_steps": 16,
+    "created_by": {
+      "id": "db95c18c-ad41-4ea3-94de-a75238eb96ee",
+      "user": "content_calendar_v3_new_api_flash_case02_no_images_1778600416"
+    },
+    "created_at": 1778600418,
+    "finished_at": 1778600678,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v3_article_video_split",
+    "articlePackage": {
+      "titles": [
+        "看完生活半径，我放弃了看户型",
+        "都说先看户型，我偏先看菜市场",
+        "担心项目周边荒凉？先看这个生活圈"
+      ],
+      "selectedTitle": "看完生活半径，我放弃了看户型",
+      "coverCopy": "买房前 先看生活半径",
+      "body": "很多人第一次看房，眼里只有户型图。但房子是住的，生活半径才决定幸福感。\n\n早上上班，楼下包子铺买个早餐，五分钟到地铁口。下班回来，顺路便利店买个菜。这样的生活，你想要的吧？\n\n看配套，盯几点：\n• 小区大门到地铁站步行时间\n• 楼下有没有超市、菜场、早餐店\n• 周边两公里有没有医院、学校\n这些才是生活的日常。\n\n我看过多盘，这里的配套是肉眼可见的成熟。不用等规划，下楼就都现成。\n\n周末带孩子楼下广场溜达，晚饭后散步到公园。这些不是效果图，是每天的日常。",
+      "contentBlocks": [
+        {
+          "blockNo": 1,
+          "blockType": "experience",
+          "text": "很多人第一次看房，眼里只有户型图。但房子是住的，生活半径才决定幸福感。",
+          "imageBrief": "项目大门或社区入口实景，体现社区规模与气度"
+        },
+        {
+          "blockNo": 2,
+          "blockType": "experience",
+          "text": "早上上班，楼下包子铺买个早餐，五分钟到地铁口。下班回来，顺路便利店买个菜。这样的生活，你想要的吧？",
+          "imageBrief": "楼下商业街实拍，显示早餐店、便利店等"
+        },
+        {
+          "blockNo": 3,
+          "blockType": "list",
+          "text": "看配套，盯几点：\n• 小区大门到地铁站步行时间\n• 楼下有没有超市、菜场、早餐店\n• 周边两公里有没有医院、学校\n这些才是生活的日常。",
+          "imageBrief": "社区周边配套分布示意图或导览图"
+        },
+        {
+          "blockNo": 4,
+          "blockType": "evidence",
+          "text": "我看过多盘，这里的配套是肉眼可见的成熟。不用等规划，下楼就都现成。",
+          "imageBrief": "社区实景照片，显示完善的配套环境，如幼儿园、商业街等"
+        },
+        {
+          "blockNo": 5,
+          "blockType": "experience",
+          "text": "周末带孩子楼下广场溜达，晚饭后散步到公园。这些不是效果图，是每天的日常。",
+          "imageBrief": "社区内居民休闲活动实景，如小孩玩耍、老人散步"
+        }
+      ],
+      "hashtags": [
+        "#买房",
+        "#看房",
+        "#生活配套",
+        "#买房注意事项",
+        "#光明",
+        "#地铁13号线",
+        "#第一次买房"
+      ],
+      "cta": "想知道这个生活半径具体什么样？私信我，发你实拍视频。",
+      "imageMatches": [],
+      "imageBriefIfMissing": "项目大门或社区入口实景，体现社区规模与气度; 楼下商业街实拍，显示早餐店、便利店等; 社区周边配套分布示意图或导览图; 社区实景照片，显示完善的配套环境，如幼儿园、商业街等; 社区内居民休闲活动实景，如小孩玩耍、老人散步",
+      "riskNotes": [],
+      "copyReadyText": "看完生活半径，我放弃了看户型\n\n很多人第一次看房，眼里只有户型图。但房子是住的，生活半径才决定幸福感。\n\n早上上班，楼下包子铺买个早餐，五分钟到地铁口。下班回来，顺路便利店买个菜。这样的生活，你想要的吧？\n\n看配套，盯几点：\n• 小区大门到地铁站步行时间\n• 楼下有没有超市、菜场、早餐店\n• 周边两公里有没有医院、学校\n这些才是生活的日常。\n\n我看过多盘，这里的配套是肉眼可见的成熟。不用等规划，下楼就都现成。\n\n周末带孩子楼下广场溜达，晚饭后散步到公园。这些不是效果图，是每天的日常。\n\n#买房 #看房 #生活配套 #买房注意事项 #光明 #地铁13号线 #第一次买房"
+    },
+    "titleStrategy": {
+      "titles": [
+        {
+          "text": "看完生活半径，我放弃了看户型",
+          "formula": "晒结果 + 悬念",
+          "whyThisFormula": "先展示认知转变的结果，引发好奇为什么要放弃看户型"
+        },
+        {
+          "text": "都说先看户型，我偏先看菜市场",
+          "formula": "反差/反常识",
+          "whyThisFormula": "打破先看户型的常规认知，突出生活配套的重要性"
+        },
+        {
+          "text": "担心项目周边荒凉？先看这个生活圈",
+          "formula": "痛点共鸣",
+          "whyThisFormula": "直接说出首次看房客户对配套的焦虑，并给出解决方案"
+        }
+      ],
+      "selectedTitleReason": "融合晒结果与悬念，通过展示真实体验后的认知改变引发好奇，符合信任建立目标，口播友好",
+      "coverCopyOptions": [
+        {
+          "text": "买房前 先看生活半径",
+          "style": "大字报型"
+        },
+        {
+          "text": "真实的生活圈 比户型重要",
+          "style": "实拍+文字型"
+        }
+      ],
+      "hookAngle": "生活半径优先看房法"
+    },
+    "videoScript": {
+      "narrative": {
+        "hook": {
+          "strategy": "痛点+悬念",
+          "openingLine": "很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。"
+        },
+        "narrativeArc": [
+          "痛点：只看户型忽视配套",
+          "共鸣：很多人都犯过这错",
+          "解法：如何判断配套成熟度",
+          "行动：来项目实地感受"
+        ],
+        "storyOutline": "从项目入口出发，步行至社区商业街，展示沿街店铺；接着走到周边菜市场/超市，再展示地铁站入口；最后回到样板间阳台，强调生活便利。",
+        "estimatedDuration": "45秒",
+        "bgmDirection": "轻快生活风格，略带温馨",
+        "toneOfVoice": "真诚、口语化，像朋友聊天",
+        "voiceoverDraft": "很多首套房客户，一开始只盯着户型图。但我跟你说，住得舒不舒服，关键看配套。比如从小区出来，走几百米就到菜市场，旁边还有地铁站。这样你每天下班，买菜回家做饭，日子才过得踏实。所以，别光看房子，先看看周围的配套是否成熟。想了解更多，可以私信我。"
+      },
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0:00-0:08",
+          "sceneType": "口播",
+          "emotionalBeat": "引入痛点",
+          "visualDescription": "中介站在项目大门前，面对镜头自然说话，面带微笑，背景可见小区入口和绿植。阳光充足，白天拍摄。视角平视。",
+          "transition": "直接切",
+          "pacing": "正常",
+          "voiceover": "很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。",
+          "filmingGuide": {
+            "location": "项目大门前",
+            "posture": "站姿，面对镜头",
+            "props": [
+              "工牌"
+            ],
+            "tips": [
+              "手机横屏拍，画质调到1080p以上",
+              "找光线好的位置，脸上不要有阴影",
+              "语速放慢，像跟朋友聊天"
+            ]
+          }
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "0:08-0:10",
+          "sceneType": "素材",
+          "emotionalBeat": "展示商业街",
+          "visualDescription": "社区商业街全景，镜头从一端推进，两侧店铺林立，有餐饮、超市等招牌。白天，阳光照在街道上。视角平视。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "下楼就是商业街，买菜吃饭超方便。",
+          "assetQuery": "社区商业街 实拍 白天 店铺",
+          "fallbackVisual": "商业街中景，有行人和店铺招牌"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "0:10-0:12",
+          "sceneType": "素材",
+          "emotionalBeat": "展示超市",
+          "visualDescription": "超市内部，镜头扫过货架和蔬菜区，有顾客在选购。灯光明亮。视角平推。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "不远处就有大型超市，日常采购走几步就到。",
+          "assetQuery": "超市 实拍 货架 顾客 白天",
+          "fallbackVisual": "菜市场或超市内景，有货柜和顾客"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "0:12-0:14",
+          "sceneType": "素材",
+          "emotionalBeat": "展示地铁",
+          "visualDescription": "地铁站入口，站牌清晰可见，能看到地铁标志和入口通道，行人在进出。白天，自然光。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "地铁站步行可达，通勤无忧。",
+          "assetQuery": "地铁站 入口 实拍 白天",
+          "fallbackVisual": "地铁站出入口，可见站牌"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "0:14-0:24",
+          "sceneType": "口播",
+          "emotionalBeat": "共情+过渡",
+          "visualDescription": "中介坐在样板间客厅的沙发上，面前有茶几，背后是阳台和窗外景色。柔和自然光，脸上无阴影。视角平视。",
+          "transition": "渐变过渡",
+          "pacing": "慢",
+          "voiceover": "我特别理解大家，第一次买房想选个安心的家。配套成熟不成熟，直接决定你每天的生活质量。你看，买菜、吃饭、通勤，这些日常小事如果都方便，住起来才真正舒心。",
+          "filmingGuide": {
+            "location": "样板间客厅",
+            "posture": "坐姿，侧对镜头或正对",
+            "props": [
+              "茶杯",
+              "户型图"
+            ],
+            "tips": [
+              "不要坐在正中间，靠边坐画面更有纵深感",
+              "可以拿户型图做道具，自然互动",
+              "拍两遍，选自然的那条"
+            ]
+          }
+        },
+        {
+          "sceneNo": 6,
+          "timeRange": "0:24-0:27",
+          "sceneType": "素材",
+          "emotionalBeat": "展示社区环境",
+          "visualDescription": "社区内儿童游乐区或公园，有孩子在玩耍，家长在旁照看，绿树成荫。午后阳光透过树叶。视角从远处平视。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "社区绿化不错，有公园有儿童区。",
+          "assetQuery": "小区花园 儿童游乐 实拍 白天",
+          "fallbackVisual": "社区花园或休闲区域，有绿植和设施"
+        },
+        {
+          "sceneNo": 7,
+          "timeRange": "0:27-0:30",
+          "sceneType": "素材",
+          "emotionalBeat": "居民生活",
+          "visualDescription": "居民在小区内散步或遛狗，画面温馨自然。傍晚时分，暖色调。视角跟拍。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "傍晚散步遛狗，生活氛围浓厚。",
+          "assetQuery": "居民 散步 遛狗 小区实拍 傍晚",
+          "fallbackVisual": "小区步道上行人散步"
+        },
+        {
+          "sceneNo": 8,
+          "timeRange": "0:30-0:33",
+          "sceneType": "文字卡",
+          "emotionalBeat": "总结",
+          "visualDescription": "黑色背景上白色文字居中显示，字体清晰，搭配小图标。",
+          "transition": "渐变过渡",
+          "pacing": "正常",
+          "subtitle": "成熟配套·即刻享有"
+        },
+        {
+          "sceneNo": 9,
+          "timeRange": "0:33-0:43",
+          "sceneType": "口播",
+          "emotionalBeat": "行动号召",
+          "visualDescription": "中介站在样板间阳台上，背后是小区的整体景色或远眺，自然风拂动头发。黄昏或温暖光线，表情真诚。",
+          "transition": "渐变过渡",
+          "pacing": "慢",
+          "voiceover": "所以，别光看房子，先来看看配套。如果想知道更多细节，欢迎私信我，我给你发一份生活半径清单。",
+          "filmingGuide": {
+            "location": "样板间阳台",
+            "posture": "站姿，侧身或背靠栏杆",
+            "props": [],
+            "tips": [
+              "利用阳台栏杆作为天然画框",
+              "保持自然微笑，像对着朋友说话",
+              "开头和结尾各多录2秒"
+            ]
+          }
+        }
+      ],
+      "riskNotes": []
+    },
+    "memberDelivery": {
+      "tasks": [
+        {
+          "taskNo": 1,
+          "sceneNo": 1,
+          "script": "很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。",
+          "location": "项目大门前",
+          "posture": "站姿，面对镜头",
+          "props": [
+            "工牌"
+          ],
+          "tips": [
+            "手机横屏拍，画质调到1080p以上",
+            "找光线好的位置，脸上不要有阴影",
+            "语速放慢，像跟朋友聊天"
+          ]
+        },
+        {
+          "taskNo": 2,
+          "sceneNo": 5,
+          "script": "我特别理解大家，第一次买房想选个安心的家。配套成熟不成熟，直接决定你每天的生活质量。你看，买菜、吃饭、通勤，这些日常小事如果都方便，住起来才真正舒心。",
+          "location": "样板间客厅",
+          "posture": "坐姿，侧对镜头或正对",
+          "props": [
+            "茶杯",
+            "户型图"
+          ],
+          "tips": [
+            "不要坐在正中间，靠边坐画面更有纵深感",
+            "可以拿户型图做道具，自然互动",
+            "拍两遍，选自然的那条"
+          ]
+        },
+        {
+          "taskNo": 3,
+          "sceneNo": 9,
+          "script": "所以，别光看房子，先来看看配套。如果想知道更多细节，欢迎私信我，我给你发一份生活半径清单。",
+          "location": "样板间阳台",
+          "posture": "站姿，侧身或背靠栏杆",
+          "props": [],
+          "tips": [
+            "利用阳台栏杆作为天然画框",
+            "保持自然微笑，像对着朋友说话",
+            "开头和结尾各多录2秒"
+          ]
+        }
+      ]
+    },
+    "workerDelivery": {
+      "storyOutline": "从项目入口出发，步行至社区商业街，展示沿街店铺；接着走到周边菜市场/超市，再展示地铁站入口；最后回到样板间阳台，强调生活便利。",
+      "bgm": "轻快生活风格，略带温馨",
+      "toneOfVoice": "真诚、口语化，像朋友聊天",
+      "estimatedDuration": "45秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0:00-0:08",
+          "sceneType": "口播",
+          "emotionalBeat": "引入痛点",
+          "visualDescription": "中介站在项目大门前，面对镜头自然说话，面带微笑，背景可见小区入口和绿植。阳光充足，白天拍摄。视角平视。",
+          "transition": "直接切",
+          "pacing": "正常",
+          "voiceover": "很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。",
+          "filmingGuide": {
+            "location": "项目大门前",
+            "posture": "站姿，面对镜头",
+            "props": [
+              "工牌"
+            ],
+            "tips": [
+              "手机横屏拍，画质调到1080p以上",
+              "找光线好的位置，脸上不要有阴影",
+              "语速放慢，像跟朋友聊天"
+            ]
+          }
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "0:08-0:10",
+          "sceneType": "素材",
+          "emotionalBeat": "展示商业街",
+          "visualDescription": "社区商业街全景，镜头从一端推进，两侧店铺林立，有餐饮、超市等招牌。白天，阳光照在街道上。视角平视。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "下楼就是商业街，买菜吃饭超方便。",
+          "assetQuery": "社区商业街 实拍 白天 店铺",
+          "fallbackVisual": "商业街中景，有行人和店铺招牌"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "0:10-0:12",
+          "sceneType": "素材",
+          "emotionalBeat": "展示超市",
+          "visualDescription": "超市内部，镜头扫过货架和蔬菜区，有顾客在选购。灯光明亮。视角平推。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "不远处就有大型超市，日常采购走几步就到。",
+          "assetQuery": "超市 实拍 货架 顾客 白天",
+          "fallbackVisual": "菜市场或超市内景，有货柜和顾客"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "0:12-0:14",
+          "sceneType": "素材",
+          "emotionalBeat": "展示地铁",
+          "visualDescription": "地铁站入口，站牌清晰可见，能看到地铁标志和入口通道，行人在进出。白天，自然光。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "地铁站步行可达，通勤无忧。",
+          "assetQuery": "地铁站 入口 实拍 白天",
+          "fallbackVisual": "地铁站出入口，可见站牌"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "0:14-0:24",
+          "sceneType": "口播",
+          "emotionalBeat": "共情+过渡",
+          "visualDescription": "中介坐在样板间客厅的沙发上，面前有茶几，背后是阳台和窗外景色。柔和自然光，脸上无阴影。视角平视。",
+          "transition": "渐变过渡",
+          "pacing": "慢",
+          "voiceover": "我特别理解大家，第一次买房想选个安心的家。配套成熟不成熟，直接决定你每天的生活质量。你看，买菜、吃饭、通勤，这些日常小事如果都方便，住起来才真正舒心。",
+          "filmingGuide": {
+            "location": "样板间客厅",
+            "posture": "坐姿，侧对镜头或正对",
+            "props": [
+              "茶杯",
+              "户型图"
+            ],
+            "tips": [
+              "不要坐在正中间，靠边坐画面更有纵深感",
+              "可以拿户型图做道具，自然互动",
+              "拍两遍，选自然的那条"
+            ]
+          }
+        },
+        {
+          "sceneNo": 6,
+          "timeRange": "0:24-0:27",
+          "sceneType": "素材",
+          "emotionalBeat": "展示社区环境",
+          "visualDescription": "社区内儿童游乐区或公园，有孩子在玩耍，家长在旁照看，绿树成荫。午后阳光透过树叶。视角从远处平视。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "社区绿化不错，有公园有儿童区。",
+          "assetQuery": "小区花园 儿童游乐 实拍 白天",
+          "fallbackVisual": "社区花园或休闲区域，有绿植和设施"
+        },
+        {
+          "sceneNo": 7,
+          "timeRange": "0:27-0:30",
+          "sceneType": "素材",
+          "emotionalBeat": "居民生活",
+          "visualDescription": "居民在小区内散步或遛狗，画面温馨自然。傍晚时分，暖色调。视角跟拍。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "傍晚散步遛狗，生活氛围浓厚。",
+          "assetQuery": "居民 散步 遛狗 小区实拍 傍晚",
+          "fallbackVisual": "小区步道上行人散步"
+        },
+        {
+          "sceneNo": 8,
+          "timeRange": "0:30-0:33",
+          "sceneType": "文字卡",
+          "emotionalBeat": "总结",
+          "visualDescription": "黑色背景上白色文字居中显示，字体清晰，搭配小图标。",
+          "transition": "渐变过渡",
+          "pacing": "正常",
+          "subtitle": "成熟配套·即刻享有"
+        },
+        {
+          "sceneNo": 9,
+          "timeRange": "0:33-0:43",
+          "sceneType": "口播",
+          "emotionalBeat": "行动号召",
+          "visualDescription": "中介站在样板间阳台上，背后是小区的整体景色或远眺，自然风拂动头发。黄昏或温暖光线，表情真诚。",
+          "transition": "渐变过渡",
+          "pacing": "慢",
+          "voiceover": "所以，别光看房子，先来看看配套。如果想知道更多细节，欢迎私信我，我给你发一份生活半径清单。",
+          "filmingGuide": {
+            "location": "样板间阳台",
+            "posture": "站姿，侧身或背靠栏杆",
+            "props": [],
+            "tips": [
+              "利用阳台栏杆作为天然画框",
+              "保持自然微笑，像对着朋友说话",
+              "开头和结尾各多录2秒"
+            ]
+          }
+        }
+      ],
+      "teamAssetQueries": [
+        "社区商业街 实拍 白天 店铺",
+        "超市 实拍 货架 顾客 白天",
+        "地铁站 入口 实拍 白天",
+        "小区花园 儿童游乐 实拍 白天",
+        "居民 散步 遛狗 小区实拍 傍晚"
+      ]
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 8,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 6,
+        "materialFit": 6,
+        "compliance": 9
+      },
+      "pass": false,
+      "needsRewrite": false,
+      "riskTerms": [],
+      "problems": [
+        "缺少 CTA 块",
+        "缺少可用图片素材"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": [
+        "图文图片素材"
+      ]
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "成熟配套",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "信任建立",
+        "targetAudience": "首次看房客户",
+        "audiencePain": "担心项目周边配套不成熟，生活不便",
+        "sellingPointsNeeded": [
+          "生活便利",
+          "成熟配套"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "成熟配套 首次看房 生活便利 项目实景 真实体验",
+        "scriptSearchQuery": "成熟配套 首次看房 生活便利 实景拍摄 客户讲述",
+        "imageSearchQuery": "成熟配套 社区实景 生活配套 商业街 公园",
+        "videoAssetQueryHints": [
+          "成熟社区外景",
+          "商业街实拍",
+          "学校医院周边",
+          "居民生活场景"
+        ],
+        "extraRequirement": "语气真实一点，像发给老客户看的内容"
+      },
+      "creativeStrategy": {
+        "chosenAngle": "带你看懂配套对日常生活有多重要",
+        "narrativeArc": [
+          "指出首次看房常见误区：只盯户型图",
+          "用真实生活场景解释配套如何影响日常",
+          "列出实地看房时观察配套的具体方法",
+          "邀请客户索取“生活半径清单”或现场感受"
+        ],
+        "tone": "真诚亲切，像与老客户聊天",
+        "mustUseFacts": [
+          "项目位于光明",
+          "社区体量大",
+          "楼下有成熟消费和服务设施，日常生活便利",
+          "周边有地铁13号线（即将开通）",
+          "看房时可实地观察配套经营实景"
+        ],
+        "mustAvoidClaims": [],
+        "viralPatternUsed": {
+          "patternName": "生活半径优先看房法",
+          "reason": "借鉴“先破后立”的叙事结构，用生活场景增强代入感，适合信任建立",
+          "titleTactics": [
+            "用对比句式突出核心观点",
+            "用“更关键”引起好奇"
+          ],
+          "hookTactics": [
+            "从常见误区切入",
+            "用第一人称拉近关系"
+          ],
+          "ctaTactics": [
+            "轻CTA邀请索取清单",
+            "不强求直接联系"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "从“先看户型”到“先看生活圈”的认知转换",
+          "coverCopyDirection": "真实生活场景，而非效果图",
+          "bodyStructure": [
+            "从看房常见误区切入",
+            "用日常动线说明配套价值",
+            "列出实地看房可观察的配套细节",
+            "引导客户感受真实生活场景",
+            "结尾邀请索取生活半径清单"
+          ],
+          "imagePlan": [
+            "成熟社区鸟瞰图",
+            "楼下商业街实拍",
+            "生鲜超市或便利店实景",
+            "通勤地铁站入口",
+            "社区周边食店实拍"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "以第一人称带看，从项目门口开始，边走边展示买菜、吃饭、交通等日常便利，强调配套已经成熟可见，最后引导观众思考为什么要先看配套。",
+          "estimatedDuration": "约45秒",
+          "scenePlan": [
+            "项目大门前出镜，抛出常见误区",
+            "步行至附近商街，边走边拍",
+            "特写生鲜超市或早餐店",
+            "展示地铁站入口",
+            "结尾在家里或安静地方，邀请互动"
+          ],
+          "assetQueryHints": [
+            "光明项目外景",
+            "社区商业街实拍",
+            "超市/菜市实拍",
+            "地铁13号线站口",
+            "居民日常采购镜头"
+          ]
+        },
+        "degradationNotices": [],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "从会议记录中提取了光明配套成熟、小户型受关注、地铁13号线等信息",
+            "使用手工知识中“社区体量大、楼下消费服务设施成熟”"
+          ],
+          "usedViralSummary": [
+            "借鉴了爆款“买房别只看户型”的结构：从误区切入，用生活场景说明，轻CTA索要清单"
+          ],
+          "usedImageSummary": [
+            "无可用图片素材，配图依据建议生成"
+          ]
+        },
+        "qualityGateHints": {
+          "factWeakness": "部分配套信息来自内部讨论，需实地复核",
+          "complianceRisks": [],
+          "mustReviewBeforePublish": []
+        }
+      },
+      "usedKnowledgeRefs": [
+        "项目位于光明",
+        "社区体量大",
+        "楼下有成熟消费和服务设施，日常生活便利",
+        "周边有地铁13号线（即将开通）",
+        "看房时可实地观察配套经营实景"
+      ],
+      "usedViralRefs": [
+        {
+          "patternName": "生活半径优先看房法",
+          "reason": "借鉴“先破后立”的叙事结构，用生活场景增强代入感，适合信任建立",
+          "titleTactics": [
+            "用对比句式突出核心观点",
+            "用“更关键”引起好奇"
+          ],
+          "hookTactics": [
+            "从常见误区切入",
+            "用第一人称拉近关系"
+          ],
+          "ctaTactics": [
+            "轻CTA邀请索取清单",
+            "不强求直接联系"
+          ]
+        }
+      ],
+      "usedImageAssets": [],
+      "degradationNotices": []
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\"workflowVersion\": \"content_calendar_generation_poc_v3_article_video_split\", \"articlePackage\": {\"titles\": [\"看完生活半径，我放弃了看户型\", \"都说先看户型，我偏先看菜市场\", \"担心项目周边荒凉？先看这个生活圈\"], \"selectedTitle\": \"看完生活半径，我放弃了看户型\", \"coverCopy\": \"买房前 先看生活半径\", \"body\": \"很多人第一次看房，眼里只有户型图。但房子是住的，生活半径才决定幸福感。\\n\\n早上上班，楼下包子铺买个早餐，五分钟到地铁口。下班回来，顺路便利店买个菜。这样的生活，你想要的吧？\\n\\n看配套，盯几点：\\n• 小区大门到地铁站步行时间\\n• 楼下有没有超市、菜场、早餐店\\n• 周边两公里有没有医院、学校\\n这些才是生活的日常。\\n\\n我看过多盘，这里的配套是肉眼可见的成熟。不用等规划，下楼就都现成。\\n\\n周末带孩子楼下广场溜达，晚饭后散步到公园。这些不是效果图，是每天的日常。\", \"contentBlocks\": [{\"blockNo\": 1, \"blockType\": \"experience\", \"text\": \"很多人第一次看房，眼里只有户型图。但房子是住的，生活半径才决定幸福感。\", \"imageBrief\": \"项目大门或社区入口实景，体现社区规模与气度\"}, {\"blockNo\": 2, \"blockType\": \"experience\", \"text\": \"早上上班，楼下包子铺买个早餐，五分钟到地铁口。下班回来，顺路便利店买个菜。这样的生活，你想要的吧？\", \"imageBrief\": \"楼下商业街实拍，显示早餐店、便利店等\"}, {\"blockNo\": 3, \"blockType\": \"list\", \"text\": \"看配套，盯几点：\\n• 小区大门到地铁站步行时间\\n• 楼下有没有超市、菜场、早餐店\\n• 周边两公里有没有医院、学校\\n这些才是生活的日常。\", \"imageBrief\": \"社区周边配套分布示意图或导览图\"}, {\"blockNo\": 4, \"blockType\": \"evidence\", \"text\": \"我看过多盘，这里的配套是肉眼可见的成熟。不用等规划，下楼就都现成。\", \"imageBrief\": \"社区实景照片，显示完善的配套环境，如幼儿园、商业街等\"}, {\"blockNo\": 5, \"blockType\": \"experience\", \"text\": \"周末带孩子楼下广场溜达，晚饭后散步到公园。这些不是效果图，是每天的日常。\", \"imageBrief\": \"社区内居民休闲活动实景，如小孩玩耍、老人散步\"}], \"hashtags\": [\"#买房\", \"#看房\", \"#生活配套\", \"#买房注意事项\", \"#光明\", \"#地铁13号线\", \"#第一次买房\"], \"cta\": \"想知道这个生活半径具体什么样？私信我，发你实拍视频。\", \"imageMatches\": [], \"imageBriefIfMissing\": \"项目大门或社区入口实景，体现社区规模与气度; 楼下商业街实拍，显示早餐店、便利店等; 社区周边配套分布示意图或导览图; 社区实景照片，显示完善的配套环境，如幼儿园、商业街等; 社区内居民休闲活动实景，如小孩玩耍、老人散步\", \"riskNotes\": [], \"copyReadyText\": \"看完生活半径，我放弃了看户型\\n\\n很多人第一次看房，眼里只有户型图。但房子是住的，生活半径才决定幸福感。\\n\\n早上上班，楼下包子铺买个早餐，五分钟到地铁口。下班回来，顺路便利店买个菜。这样的生活，你想要的吧？\\n\\n看配套，盯几点：\\n• 小区大门到地铁站步行时间\\n• 楼下有没有超市、菜场、早餐店\\n• 周边两公里有没有医院、学校\\n这些才是生活的日常。\\n\\n我看过多盘，这里的配套是肉眼可见的成熟。不用等规划，下楼就都现成。\\n\\n周末带孩子楼下广场溜达，晚饭后散步到公园。这些不是效果图，是每天的日常。\\n\\n#买房 #看房 #生活配套 #买房注意事项 #光明 #地铁13号线 #第一次买房\"}, \"titleStrategy\": {\"titles\": [{\"text\": \"看完生活半径，我放弃了看户型\", \"formula\": \"晒结果 + 悬念\", \"whyThisFormula\": \"先展示认知转变的结果，引发好奇为什么要放弃看户型\"}, {\"text\": \"都说先看户型，我偏先看菜市场\", \"formula\": \"反差/反常识\", \"whyThisFormula\": \"打破先看户型的常规认知，突出生活配套的重要性\"}, {\"text\": \"担心项目周边荒凉？先看这个生活圈\", \"formula\": \"痛点共鸣\", \"whyThisFormula\": \"直接说出首次看房客户对配套的焦虑，并给出解决方案\"}], \"selectedTitleReason\": \"融合晒结果与悬念，通过展示真实体验后的认知改变引发好奇，符合信任建立目标，口播友好\", \"coverCopyOptions\": [{\"text\": \"买房前 先看生活半径\", \"style\": \"大字报型\"}, {\"text\": \"真实的生活圈 比户型重要\", \"style\": \"实拍+文字型\"}], \"hookAngle\": \"生活半径优先看房法\"}, \"videoScript\": {\"narrative\": {\"hook\": {\"strategy\": \"痛点+悬念\", \"openingLine\": \"很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。\"}, \"narrativeArc\": [\"痛点：只看户型忽视配套\", \"共鸣：很多人都犯过这错\", \"解法：如何判断配套成熟度\", \"行动：来项目实地感受\"], \"storyOutline\": \"从项目入口出发，步行至社区商业街，展示沿街店铺；接着走到周边菜市场/超市，再展示地铁站入口；最后回到样板间阳台，强调生活便利。\", \"estimatedDuration\": \"45秒\", \"bgmDirection\": \"轻快生活风格，略带温馨\", \"toneOfVoice\": \"真诚、口语化，像朋友聊天\", \"voiceoverDraft\": \"很多首套房客户，一开始只盯着户型图。但我跟你说，住得舒不舒服，关键看配套。比如从小区出来，走几百米就到菜市场，旁边还有地铁站。这样你每天下班，买菜回家做饭，日子才过得踏实。所以，别光看房子，先看看周围的配套是否成熟。想了解更多，可以私信我。\"}, \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:08\", \"sceneType\": \"口播\", \"emotionalBeat\": \"引入痛点\", \"visualDescription\": \"中介站在项目大门前，面对镜头自然说话，面带微笑，背景可见小区入口和绿植。阳光充足，白天拍摄。视角平视。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"voiceover\": \"很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。\", \"filmingGuide\": {\"location\": \"项目大门前\", \"posture\": \"站姿，面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"手机横屏拍，画质调到1080p以上\", \"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\"]}}, {\"sceneNo\": 2, \"timeRange\": \"0:08-0:10\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示商业街\", \"visualDescription\": \"社区商业街全景，镜头从一端推进，两侧店铺林立，有餐饮、超市等招牌。白天，阳光照在街道上。视角平视。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"下楼就是商业街，买菜吃饭超方便。\", \"assetQuery\": \"社区商业街 实拍 白天 店铺\", \"fallbackVisual\": \"商业街中景，有行人和店铺招牌\"}, {\"sceneNo\": 3, \"timeRange\": \"0:10-0:12\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示超市\", \"visualDescription\": \"超市内部，镜头扫过货架和蔬菜区，有顾客在选购。灯光明亮。视角平推。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"不远处就有大型超市，日常采购走几步就到。\", \"assetQuery\": \"超市 实拍 货架 顾客 白天\", \"fallbackVisual\": \"菜市场或超市内景，有货柜和顾客\"}, {\"sceneNo\": 4, \"timeRange\": \"0:12-0:14\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示地铁\", \"visualDescription\": \"地铁站入口，站牌清晰可见，能看到地铁标志和入口通道，行人在进出。白天，自然光。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"地铁站步行可达，通勤无忧。\", \"assetQuery\": \"地铁站 入口 实拍 白天\", \"fallbackVisual\": \"地铁站出入口，可见站牌\"}, {\"sceneNo\": 5, \"timeRange\": \"0:14-0:24\", \"sceneType\": \"口播\", \"emotionalBeat\": \"共情+过渡\", \"visualDescription\": \"中介坐在样板间客厅的沙发上，面前有茶几，背后是阳台和窗外景色。柔和自然光，脸上无阴影。视角平视。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"我特别理解大家，第一次买房想选个安心的家。配套成熟不成熟，直接决定你每天的生活质量。你看，买菜、吃饭、通勤，这些日常小事如果都方便，住起来才真正舒心。\", \"filmingGuide\": {\"location\": \"样板间客厅\", \"posture\": \"坐姿，侧对镜头或正对\", \"props\": [\"茶杯\", \"户型图\"], \"tips\": [\"不要坐在正中间，靠边坐画面更有纵深感\", \"可以拿户型图做道具，自然互动\", \"拍两遍，选自然的那条\"]}}, {\"sceneNo\": 6, \"timeRange\": \"0:24-0:27\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示社区环境\", \"visualDescription\": \"社区内儿童游乐区或公园，有孩子在玩耍，家长在旁照看，绿树成荫。午后阳光透过树叶。视角从远处平视。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"社区绿化不错，有公园有儿童区。\", \"assetQuery\": \"小区花园 儿童游乐 实拍 白天\", \"fallbackVisual\": \"社区花园或休闲区域，有绿植和设施\"}, {\"sceneNo\": 7, \"timeRange\": \"0:27-0:30\", \"sceneType\": \"素材\", \"emotionalBeat\": \"居民生活\", \"visualDescription\": \"居民在小区内散步或遛狗，画面温馨自然。傍晚时分，暖色调。视角跟拍。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"傍晚散步遛狗，生活氛围浓厚。\", \"assetQuery\": \"居民 散步 遛狗 小区实拍 傍晚\", \"fallbackVisual\": \"小区步道上行人散步\"}, {\"sceneNo\": 8, \"timeRange\": \"0:30-0:33\", \"sceneType\": \"文字卡\", \"emotionalBeat\": \"总结\", \"visualDescription\": \"黑色背景上白色文字居中显示，字体清晰，搭配小图标。\", \"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"subtitle\": \"成熟配套·即刻享有\"}, {\"sceneNo\": 9, \"timeRange\": \"0:33-0:43\", \"sceneType\": \"口播\", \"emotionalBeat\": \"行动号召\", \"visualDescription\": \"中介站在样板间阳台上，背后是小区的整体景色或远眺，自然风拂动头发。黄昏或温暖光线，表情真诚。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"所以，别光看房子，先来看看配套。如果想知道更多细节，欢迎私信我，我给你发一份生活半径清单。\", \"filmingGuide\": {\"location\": \"样板间阳台\", \"posture\": \"站姿，侧身或背靠栏杆\", \"props\": [], \"tips\": [\"利用阳台栏杆作为天然画框\", \"保持自然微笑，像对着朋友说话\", \"开头和结尾各多录2秒\"]}}], \"riskNotes\": []}, \"memberDelivery\": {\"tasks\": [{\"taskNo\": 1, \"sceneNo\": 1, \"script\": \"很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。\", \"location\": \"项目大门前\", \"posture\": \"站姿，面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"手机横屏拍，画质调到1080p以上\", \"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\"]}, {\"taskNo\": 2, \"sceneNo\": 5, \"script\": \"我特别理解大家，第一次买房想选个安心的家。配套成熟不成熟，直接决定你每天的生活质量。你看，买菜、吃饭、通勤，这些日常小事如果都方便，住起来才真正舒心。\", \"location\": \"样板间客厅\", \"posture\": \"坐姿，侧对镜头或正对\", \"props\": [\"茶杯\", \"户型图\"], \"tips\": [\"不要坐在正中间，靠边坐画面更有纵深感\", \"可以拿户型图做道具，自然互动\", \"拍两遍，选自然的那条\"]}, {\"taskNo\": 3, \"sceneNo\": 9, \"script\": \"所以，别光看房子，先来看看配套。如果想知道更多细节，欢迎私信我，我给你发一份生活半径清单。\", \"location\": \"样板间阳台\", \"posture\": \"站姿，侧身或背靠栏杆\", \"props\": [], \"tips\": [\"利用阳台栏杆作为天然画框\", \"保持自然微笑，像对着朋友说话\", \"开头和结尾各多录2秒\"]}]}, \"workerDelivery\": {\"storyOutline\": \"从项目入口出发，步行至社区商业街，展示沿街店铺；接着走到周边菜市场/超市，再展示地铁站入口；最后回到样板间阳台，强调生活便利。\", \"bgm\": \"轻快生活风格，略带温馨\", \"toneOfVoice\": \"真诚、口语化，像朋友聊天\", \"estimatedDuration\": \"45秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:08\", \"sceneType\": \"口播\", \"emotionalBeat\": \"引入痛点\", \"visualDescription\": \"中介站在项目大门前，面对镜头自然说话，面带微笑，背景可见小区入口和绿植。阳光充足，白天拍摄。视角平视。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"voiceover\": \"很多人第一次买房，只盯着户型图看，却不知道真正影响生活的其实是配套。\", \"filmingGuide\": {\"location\": \"项目大门前\", \"posture\": \"站姿，面对镜头\", \"props\": [\"工牌\"], \"tips\": [\"手机横屏拍，画质调到1080p以上\", \"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\"]}}, {\"sceneNo\": 2, \"timeRange\": \"0:08-0:10\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示商业街\", \"visualDescription\": \"社区商业街全景，镜头从一端推进，两侧店铺林立，有餐饮、超市等招牌。白天，阳光照在街道上。视角平视。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"下楼就是商业街，买菜吃饭超方便。\", \"assetQuery\": \"社区商业街 实拍 白天 店铺\", \"fallbackVisual\": \"商业街中景，有行人和店铺招牌\"}, {\"sceneNo\": 3, \"timeRange\": \"0:10-0:12\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示超市\", \"visualDescription\": \"超市内部，镜头扫过货架和蔬菜区，有顾客在选购。灯光明亮。视角平推。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"不远处就有大型超市，日常采购走几步就到。\", \"assetQuery\": \"超市 实拍 货架 顾客 白天\", \"fallbackVisual\": \"菜市场或超市内景，有货柜和顾客\"}, {\"sceneNo\": 4, \"timeRange\": \"0:12-0:14\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示地铁\", \"visualDescription\": \"地铁站入口，站牌清晰可见，能看到地铁标志和入口通道，行人在进出。白天，自然光。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"地铁站步行可达，通勤无忧。\", \"assetQuery\": \"地铁站 入口 实拍 白天\", \"fallbackVisual\": \"地铁站出入口，可见站牌\"}, {\"sceneNo\": 5, \"timeRange\": \"0:14-0:24\", \"sceneType\": \"口播\", \"emotionalBeat\": \"共情+过渡\", \"visualDescription\": \"中介坐在样板间客厅的沙发上，面前有茶几，背后是阳台和窗外景色。柔和自然光，脸上无阴影。视角平视。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"我特别理解大家，第一次买房想选个安心的家。配套成熟不成熟，直接决定你每天的生活质量。你看，买菜、吃饭、通勤，这些日常小事如果都方便，住起来才真正舒心。\", \"filmingGuide\": {\"location\": \"样板间客厅\", \"posture\": \"坐姿，侧对镜头或正对\", \"props\": [\"茶杯\", \"户型图\"], \"tips\": [\"不要坐在正中间，靠边坐画面更有纵深感\", \"可以拿户型图做道具，自然互动\", \"拍两遍，选自然的那条\"]}}, {\"sceneNo\": 6, \"timeRange\": \"0:24-0:27\", \"sceneType\": \"素材\", \"emotionalBeat\": \"展示社区环境\", \"visualDescription\": \"社区内儿童游乐区或公园，有孩子在玩耍，家长在旁照看，绿树成荫。午后阳光透过树叶。视角从远处平视。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"社区绿化不错，有公园有儿童区。\", \"assetQuery\": \"小区花园 儿童游乐 实拍 白天\", \"fallbackVisual\": \"社区花园或休闲区域，有绿植和设施\"}, {\"sceneNo\": 7, \"timeRange\": \"0:27-0:30\", \"sceneType\": \"素材\", \"emotionalBeat\": \"居民生活\", \"visualDescription\": \"居民在小区内散步或遛狗，画面温馨自然。傍晚时分，暖色调。视角跟拍。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"傍晚散步遛狗，生活氛围浓厚。\", \"assetQuery\": \"居民 散步 遛狗 小区实拍 傍晚\", \"fallbackVisual\": \"小区步道上行人散步\"}, {\"sceneNo\": 8, \"timeRange\": \"0:30-0:33\", \"sceneType\": \"文字卡\", \"emotionalBeat\": \"总结\", \"visualDescription\": \"黑色背景上白色文字居中显示，字体清晰，搭配小图标。\", \"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"subtitle\": \"成熟配套·即刻享有\"}, {\"sceneNo\": 9, \"timeRange\": \"0:33-0:43\", \"sceneType\": \"口播\", \"emotionalBeat\": \"行动号召\", \"visualDescription\": \"中介站在样板间阳台上，背后是小区的整体景色或远眺，自然风拂动头发。黄昏或温暖光线，表情真诚。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"所以，别光看房子，先来看看配套。如果想知道更多细节，欢迎私信我，我给你发一份生活半径清单。\", \"filmingGuide\": {\"location\": \"样板间阳台\", \"posture\": \"站姿，侧身或背靠栏杆\", \"props\": [], \"tips\": [\"利用阳台栏杆作为天然画框\", \"保持自然微笑，像对着朋友说话\", \"开头和结尾各多录2秒\"]}}], \"teamAssetQueries\": [\"社区商业街 实拍 白天 店铺\", \"超市 实拍 货架 顾客 白天\", \"地铁站 入口 实拍 白天\", \"小区花园 儿童游乐 实拍 白天\", \"居民 散步 遛狗 小区实拍 傍晚\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 6, \"materialFit\": 6, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"缺少 CTA 块\", \"缺少可用图片素材\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"图文图片素材\"]}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"成熟配套\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"信任建立\", \"targetAudience\": \"首次看房客户\", \"audiencePain\": \"担心项目周边配套不成熟，生活不便\", \"sellingPointsNeeded\": [\"生活便利\", \"成熟配套\"], \"riskConstraints\": [], \"copySearchQuery\": \"成熟配套 首次看房 生活便利 项目实景 真实体验\", \"scriptSearchQuery\": \"成熟配套 首次看房 生活便利 实景拍摄 客户讲述\", \"imageSearchQuery\": \"成熟配套 社区实景 生活配套 商业街 公园\", \"videoAssetQueryHints\": [\"成熟社区外景\", \"商业街实拍\", \"学校医院周边\", \"居民生活场景\"], \"extraRequirement\": \"语气真实一点，像发给老客户看的内容\"}, \"creativeStrategy\": {\"chosenAngle\": \"带你看懂配套对日常生活有多重要\", \"narrativeArc\": [\"指出首次看房常见误区：只盯户型图\", \"用真实生活场景解释配套如何影响日常\", \"列出实地看房时观察配套的具体方法\", \"邀请客户索取“生活半径清单”或现场感受\"], \"tone\": \"真诚亲切，像与老客户聊天\", \"mustUseFacts\": [\"项目位于光明\", \"社区体量大\", \"楼下有成熟消费和服务设施，日常生活便利\", \"周边有地铁13号线（即将开通）\", \"看房时可实地观察配套经营实景\"], \"mustAvoidClaims\": [], \"viralPatternUsed\": {\"patternName\": \"生活半径优先看房法\", \"reason\": \"借鉴“先破后立”的叙事结构，用生活场景增强代入感，适合信任建立\", \"titleTactics\": [\"用对比句式突出核心观点\", \"用“更关键”引起好奇\"], \"hookTactics\": [\"从常见误区切入\", \"用第一人称拉近关系\"], \"ctaTactics\": [\"轻CTA邀请索取清单\", \"不强求直接联系\"]}, \"articlePlan\": {\"titleDirection\": \"从“先看户型”到“先看生活圈”的认知转换\", \"coverCopyDirection\": \"真实生活场景，而非效果图\", \"bodyStructure\": [\"从看房常见误区切入\", \"用日常动线说明配套价值\", \"列出实地看房可观察的配套细节\", \"引导客户感受真实生活场景\", \"结尾邀请索取生活半径清单\"], \"imagePlan\": [\"成熟社区鸟瞰图\", \"楼下商业街实拍\", \"生鲜超市或便利店实景\", \"通勤地铁站入口\", \"社区周边食店实拍\"]}, \"videoPlan\": {\"storyOutline\": \"以第一人称带看，从项目门口开始，边走边展示买菜、吃饭、交通等日常便利，强调配套已经成熟可见，最后引导观众思考为什么要先看配套。\", \"estimatedDuration\": \"约45秒\", \"scenePlan\": [\"项目大门前出镜，抛出常见误区\", \"步行至附近商街，边走边拍\", \"特写生鲜超市或早餐店\", \"展示地铁站入口\", \"结尾在家里或安静地方，邀请互动\"], \"assetQueryHints\": [\"光明项目外景\", \"社区商业街实拍\", \"超市/菜市实拍\", \"地铁13号线站口\", \"居民日常采购镜头\"]}, \"degradationNotices\": [], \"trace\": {\"usedKnowledgeSummary\": [\"从会议记录中提取了光明配套成熟、小户型受关注、地铁13号线等信息\", \"使用手工知识中“社区体量大、楼下消费服务设施成熟”\"], \"usedViralSummary\": [\"借鉴了爆款“买房别只看户型”的结构：从误区切入，用生活场景说明，轻CTA索要清单\"], \"usedImageSummary\": [\"无可用图片素材，配图依据建议生成\"]}, \"qualityGateHints\": {\"factWeakness\": \"部分配套信息来自内部讨论，需实地复核\", \"complianceRisks\": [], \"mustReviewBeforePublish\": []}}, \"usedKnowledgeRefs\": [\"项目位于光明\", \"社区体量大\", \"楼下有成熟消费和服务设施，日常生活便利\", \"周边有地铁13号线（即将开通）\", \"看房时可实地观察配套经营实景\"], \"usedViralRefs\": [{\"patternName\": \"生活半径优先看房法\", \"reason\": \"借鉴“先破后立”的叙事结构，用生活场景增强代入感，适合信任建立\", \"titleTactics\": [\"用对比句式突出核心观点\", \"用“更关键”引起好奇\"], \"hookTactics\": [\"从常见误区切入\", \"用第一人称拉近关系\"], \"ctaTactics\": [\"轻CTA邀请索取清单\", \"不强求直接联系\"]}], \"usedImageAssets\": [], \"degradationNotices\": []}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": false,
+        "detail": "empty scenes: 1, 5, 8, 9"
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

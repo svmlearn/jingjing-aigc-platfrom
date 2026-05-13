@@ -1,0 +1,177 @@
+{
+  "case_name": "case02_no_images",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "run_index": 1,
+  "timestamp": "20260512_133207_923655",
+  "elapsed_time": 297.80787992477417,
+  "success": true,
+  "workflow_run_id": "420b85f3-c593-4723-a8ce-f4ee706005ee",
+  "error": null,
+  "raw_response": {
+    "id": "420b85f3-c593-4723-a8ce-f4ee706005ee",
+    "workflow_id": "aef5b7b8-381a-40f9-838e-e39eb75624a1",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [], \"selectedTitle\": \"\", \"coverCopy\": \"\", \"body\": \"\", \"hashtags\": [], \"cta\": \"\", \"imageMatches\": [], \"imageBriefIfMissing\": \"\", \"riskNotes\": [], \"copyReadyText\": \"\"}, \"videoScript\": {\"titles\": [\"首次看房，别只盯着户型，先看楼下500米有什么\"], \"selectedTitle\": \"首次看房，别只盯着户型，先看楼下500米有什么\", \"coverCopy\": \"配套不靠想象，下楼就知道了\", \"body\": \"很多人第一次看房，习惯先看户型图，觉得格局好就行了。但其实，未来生活方便不方便，户型可解决不了。\\n\\n你想想，平时买菜能不能走几步就到，想喝杯咖啡楼下有没有，孩子上学需不需要早起赶路。这些才是日常。\\n\\n我整理了一份“1000米生活半径清单”，把看房前该了解的配套都列出来：菜场、超市、学校、地铁、餐饮……先看这些，再看房，心里更有底。\\n\\n像我们这个社区，体量够大，楼下商业已经开了很多，日常所需走几步就能满足。4米层高的空间，待着也舒服，用途也灵活。\\n\\n先看配套再看户型，这个顺序不一定对所有人适合，但至少能帮你看清未来生活的样子。\", \"hashtags\": [\"看房攻略\", \"生活半径\", \"配套怎么选\", \"首次买房\", \"真诚分享\"], \"cta\": \"需要这份“生活半径清单”可以私我。\", \"imageMatches\": [{\"imageQuery\": \"社区底商实景\", \"matchedUrl\": \"\", \"alt\": \"楼下底商实景照片，展示生鲜店、便利店等\"}, {\"imageQuery\": \"周边商业街区\", \"matchedUrl\": \"\", \"alt\": \"周边商业街实拍，有咖啡馆、餐馆\"}, {\"imageQuery\": \"小区花园环境\", \"matchedUrl\": \"\", \"alt\": \"小区内部绿化景观，树木和步道\"}, {\"imageQuery\": \"入户大堂空间\", \"matchedUrl\": \"\", \"alt\": \"大堂实景，4米层高体现空间感\"}], \"imageBriefIfMissing\": \"需补充社区底商、周边商业街、小区环境、大堂的实拍图，避免使用效果图。\", \"riskNotes\": [], \"copyReadyText\": \"首次看房，别只盯着户型，先看楼下500米有什么\\n\\n配套不靠想象，下楼就知道了\\n\\n很多人第一次看房，习惯先看户型图，觉得格局好就行了。但其实，未来生活方便不方便，户型可解决不了。\\n\\n你想想，平时买菜能不能走几步就到，想喝杯咖啡楼下有没有，孩子上学需不需要早起赶路。这些才是日常。\\n\\n我整理了一份“1000米生活半径清单”，把看房前该了解的配套都列出来：菜场、超市、学校、地铁、餐饮……先看这些，再看房，心里更有底。\\n\\n像我们这个社区，体量够大，楼下商业已经开了很多，日常所需走几步就能满足。4米层高的空间，待着也舒服，用途也灵活。\\n\\n先看配套再看户型，这个顺序不一定对所有人适合，但至少能帮你看清未来生活的样子。\\n\\n#看房攻略 #生活半径 #配套怎么选 #首次买房 #真诚分享\\n\\n需要这份“生活半径清单”可以私我。\"}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 6, \"materialFit\": 5, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"copyReadyText 为空，不能直接复制发布\", \"titles 为空\", \"hashtags 为空\", \"缺少可用图片素材\", \"视频镜头脚本为空\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"图文图片素材\"]}, \"trace\": {\"taskUnderstanding\": {}, \"creativeStrategy\": {}, \"usedKnowledgeRefs\": [], \"usedViralRefs\": [], \"usedImageAssets\": [], \"degradationNotices\": []}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 293.430047,
+    "total_tokens": 23870,
+    "total_steps": 12,
+    "created_by": {
+      "id": "0bd9a399-efff-4041-bf90-b86578414c69",
+      "user": "content_calendar_test_case02_no_images_1778563927"
+    },
+    "created_at": 1778563931,
+    "finished_at": 1778564224,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [],
+      "selectedTitle": "",
+      "coverCopy": "",
+      "body": "",
+      "hashtags": [],
+      "cta": "",
+      "imageMatches": [],
+      "imageBriefIfMissing": "",
+      "riskNotes": [],
+      "copyReadyText": ""
+    },
+    "videoScript": {
+      "titles": [
+        "首次看房，别只盯着户型，先看楼下500米有什么"
+      ],
+      "selectedTitle": "首次看房，别只盯着户型，先看楼下500米有什么",
+      "coverCopy": "配套不靠想象，下楼就知道了",
+      "body": "很多人第一次看房，习惯先看户型图，觉得格局好就行了。但其实，未来生活方便不方便，户型可解决不了。\n\n你想想，平时买菜能不能走几步就到，想喝杯咖啡楼下有没有，孩子上学需不需要早起赶路。这些才是日常。\n\n我整理了一份“1000米生活半径清单”，把看房前该了解的配套都列出来：菜场、超市、学校、地铁、餐饮……先看这些，再看房，心里更有底。\n\n像我们这个社区，体量够大，楼下商业已经开了很多，日常所需走几步就能满足。4米层高的空间，待着也舒服，用途也灵活。\n\n先看配套再看户型，这个顺序不一定对所有人适合，但至少能帮你看清未来生活的样子。",
+      "hashtags": [
+        "看房攻略",
+        "生活半径",
+        "配套怎么选",
+        "首次买房",
+        "真诚分享"
+      ],
+      "cta": "需要这份“生活半径清单”可以私我。",
+      "imageMatches": [
+        {
+          "imageQuery": "社区底商实景",
+          "matchedUrl": "",
+          "alt": "楼下底商实景照片，展示生鲜店、便利店等"
+        },
+        {
+          "imageQuery": "周边商业街区",
+          "matchedUrl": "",
+          "alt": "周边商业街实拍，有咖啡馆、餐馆"
+        },
+        {
+          "imageQuery": "小区花园环境",
+          "matchedUrl": "",
+          "alt": "小区内部绿化景观，树木和步道"
+        },
+        {
+          "imageQuery": "入户大堂空间",
+          "matchedUrl": "",
+          "alt": "大堂实景，4米层高体现空间感"
+        }
+      ],
+      "imageBriefIfMissing": "需补充社区底商、周边商业街、小区环境、大堂的实拍图，避免使用效果图。",
+      "riskNotes": [],
+      "copyReadyText": "首次看房，别只盯着户型，先看楼下500米有什么\n\n配套不靠想象，下楼就知道了\n\n很多人第一次看房，习惯先看户型图，觉得格局好就行了。但其实，未来生活方便不方便，户型可解决不了。\n\n你想想，平时买菜能不能走几步就到，想喝杯咖啡楼下有没有，孩子上学需不需要早起赶路。这些才是日常。\n\n我整理了一份“1000米生活半径清单”，把看房前该了解的配套都列出来：菜场、超市、学校、地铁、餐饮……先看这些，再看房，心里更有底。\n\n像我们这个社区，体量够大，楼下商业已经开了很多，日常所需走几步就能满足。4米层高的空间，待着也舒服，用途也灵活。\n\n先看配套再看户型，这个顺序不一定对所有人适合，但至少能帮你看清未来生活的样子。\n\n#看房攻略 #生活半径 #配套怎么选 #首次买房 #真诚分享\n\n需要这份“生活半径清单”可以私我。"
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 8,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 6,
+        "materialFit": 5,
+        "compliance": 9
+      },
+      "pass": false,
+      "needsRewrite": false,
+      "riskTerms": [],
+      "problems": [
+        "copyReadyText 为空，不能直接复制发布",
+        "titles 为空",
+        "hashtags 为空",
+        "缺少可用图片素材",
+        "视频镜头脚本为空"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": [
+        "图文图片素材"
+      ]
+    },
+    "trace": {
+      "taskUnderstanding": {},
+      "creativeStrategy": {},
+      "usedKnowledgeRefs": [],
+      "usedViralRefs": [],
+      "usedImageAssets": [],
+      "degradationNotices": []
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [], \"selectedTitle\": \"\", \"coverCopy\": \"\", \"body\": \"\", \"hashtags\": [], \"cta\": \"\", \"imageMatches\": [], \"imageBriefIfMissing\": \"\", \"riskNotes\": [], \"copyReadyText\": \"\"}, \"videoScript\": {\"titles\": [\"首次看房，别只盯着户型，先看楼下500米有什么\"], \"selectedTitle\": \"首次看房，别只盯着户型，先看楼下500米有什么\", \"coverCopy\": \"配套不靠想象，下楼就知道了\", \"body\": \"很多人第一次看房，习惯先看户型图，觉得格局好就行了。但其实，未来生活方便不方便，户型可解决不了。\\n\\n你想想，平时买菜能不能走几步就到，想喝杯咖啡楼下有没有，孩子上学需不需要早起赶路。这些才是日常。\\n\\n我整理了一份“1000米生活半径清单”，把看房前该了解的配套都列出来：菜场、超市、学校、地铁、餐饮……先看这些，再看房，心里更有底。\\n\\n像我们这个社区，体量够大，楼下商业已经开了很多，日常所需走几步就能满足。4米层高的空间，待着也舒服，用途也灵活。\\n\\n先看配套再看户型，这个顺序不一定对所有人适合，但至少能帮你看清未来生活的样子。\", \"hashtags\": [\"看房攻略\", \"生活半径\", \"配套怎么选\", \"首次买房\", \"真诚分享\"], \"cta\": \"需要这份“生活半径清单”可以私我。\", \"imageMatches\": [{\"imageQuery\": \"社区底商实景\", \"matchedUrl\": \"\", \"alt\": \"楼下底商实景照片，展示生鲜店、便利店等\"}, {\"imageQuery\": \"周边商业街区\", \"matchedUrl\": \"\", \"alt\": \"周边商业街实拍，有咖啡馆、餐馆\"}, {\"imageQuery\": \"小区花园环境\", \"matchedUrl\": \"\", \"alt\": \"小区内部绿化景观，树木和步道\"}, {\"imageQuery\": \"入户大堂空间\", \"matchedUrl\": \"\", \"alt\": \"大堂实景，4米层高体现空间感\"}], \"imageBriefIfMissing\": \"需补充社区底商、周边商业街、小区环境、大堂的实拍图，避免使用效果图。\", \"riskNotes\": [], \"copyReadyText\": \"首次看房，别只盯着户型，先看楼下500米有什么\\n\\n配套不靠想象，下楼就知道了\\n\\n很多人第一次看房，习惯先看户型图，觉得格局好就行了。但其实，未来生活方便不方便，户型可解决不了。\\n\\n你想想，平时买菜能不能走几步就到，想喝杯咖啡楼下有没有，孩子上学需不需要早起赶路。这些才是日常。\\n\\n我整理了一份“1000米生活半径清单”，把看房前该了解的配套都列出来：菜场、超市、学校、地铁、餐饮……先看这些，再看房，心里更有底。\\n\\n像我们这个社区，体量够大，楼下商业已经开了很多，日常所需走几步就能满足。4米层高的空间，待着也舒服，用途也灵活。\\n\\n先看配套再看户型，这个顺序不一定对所有人适合，但至少能帮你看清未来生活的样子。\\n\\n#看房攻略 #生活半径 #配套怎么选 #首次买房 #真诚分享\\n\\n需要这份“生活半径清单”可以私我。\"}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 6, \"materialFit\": 5, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"copyReadyText 为空，不能直接复制发布\", \"titles 为空\", \"hashtags 为空\", \"缺少可用图片素材\", \"视频镜头脚本为空\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"图文图片素材\"]}, \"trace\": {\"taskUnderstanding\": {}, \"creativeStrategy\": {}, \"usedKnowledgeRefs\": [], \"usedViralRefs\": [], \"usedImageAssets\": [], \"degradationNotices\": []}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": false,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

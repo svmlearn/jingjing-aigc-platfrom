@@ -1,0 +1,331 @@
+{
+  "case_name": "case03_weak_knowledge",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case03_weak_knowledge.json",
+  "run_index": 1,
+  "timestamp": "20260512_160313_648073",
+  "elapsed_time": 556.2879862785339,
+  "success": true,
+  "workflow_run_id": "89cc1aa3-0f8b-47c5-b91c-8d51cdc53348",
+  "error": null,
+  "raw_response": {
+    "id": "89cc1aa3-0f8b-47c5-b91c-8d51cdc53348",
+    "workflow_id": "4cd35676-cdd2-45e7-9503-d58022fee7b5",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"预算不高也能看的品质空间｜4米层高，住起来挺舒服\", \"成熟社区里的灵活空间｜了解后才发现用途比想得多\", \"小预算能看什么？这个项目让我重新认识了舒适度\"], \"selectedTitle\": \"预算不高也能看的品质空间｜4米层高，住起来挺舒服\", \"coverCopy\": \"4米层高·生活便利·门槛友好\", \"body\": \"最近陪朋友看房，预算卡得紧，本来没抱啥希望。没想到看了个地方，空间感意外的好，4米的层高，一走进去就觉得开阔。\\n\\n这个社区规模不小，住了上万户人家，楼下底商开得七七八八，咖啡馆、便利店都有，生活气息浓。买东西、吃个饭都很方便。\\n\\n看了几个不同面积的空间，有的紧凑实用，有的宽敞得可以分成两个功能区。听销售说有人拿来做个人工作室，也有当茶室的。想想确实灵活。\\n\\n周边地铁站距离不远，日常通勤靠走路就能解决。关键是现在的门槛比周边很多住宅要友好得多，对于预算有限又想住得舒服点的人，是个可以重点了解的选择。\\n\\n如果有兴趣，可以自己来感受一下。不需要急着决定，多看看多比较总是好的。\", \"hashtags\": [\"#小面积产品\", \"#预算友好\", \"#舒适空间\", \"#4米层高\", \"#灵活用途\", \"#成熟社区\"], \"cta\": \"有兴趣可以实地转转，多了解一个选项总没坏处。\", \"imageMatches\": [{\"assetId\": \"img_003\", \"title\": \"项目入口\", \"usage\": \"作为文章封面，吸引点击并增强项目识别\", \"reason\": \"图片清晰展示项目入口，符合内容主题，可用于封面图建立第一印象\"}], \"imageBriefIfMissing\": \"\", \"riskNotes\": [], \"copyReadyText\": \"预算不高也能看的品质空间｜4米层高，住起来挺舒服\\n\\n最近陪朋友看房，预算卡得紧，本来没抱啥希望。没想到看了个地方，空间感意外的好，4米的层高，一走进去就觉得开阔。\\n\\n这个社区规模不小，住了上万户人家，楼下底商开得七七八八，咖啡馆、便利店都有，生活气息浓。买东西、吃个饭都很方便。\\n\\n看了几个不同面积的空间，有的紧凑实用，有的宽敞得可以分成两个功能区。听销售说有人拿来做个人工作室，也有当茶室的。想想确实灵活。\\n\\n周边地铁站距离不远，日常通勤靠走路就能解决。关键是现在的门槛比周边很多住宅要友好得多，对于预算有限又想住得舒服点的人，是个可以重点了解的选择。\\n\\n如果有兴趣，可以自己来感受一下。不需要急着决定，多看看多比较总是好的。\\n\\n#小面积产品 #预算友好 #舒适空间 #4米层高 #灵活用途 #成熟社区\\n\\n有兴趣可以实地转转，多了解一个选项总没坏处。\"}, \"videoScript\": {\"storyOutline\": \"以预算有限的年轻观众视角，从“够得着的品质空间”切入。先展示项目外部环境和社区规模，体现生活便利性与成熟度；然后进入内部，突出4米层高带来的舒适感；接着利用不同空间大小，展现多功能使用可能性（例如可以作为工作室、休憩空间）；最后提到在当前成熟阶段，这样的产品有着友好的入手门槛，引导观众进一步咨询。整个视频避免任何收益或投资承诺，仅聚焦空间品质与生活场景。\", \"estimatedDuration\": \"90秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"00:00-00:10\", \"visualGoal\": \"通过疑问引发观众好奇，吸引继续观看\", \"voiceover\": \"预算有限，还能看什么？今天带你看一个地方，空间感特别好。\", \"subtitle\": \"预算有限，还能看什么？\", \"shotRequirement\": \"真人半身出镜，表情自然，背景简约或与项目相关，光线明亮\", \"assetQuery\": \"真人 口播 开场 吸引\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜录制口播开场，增强真实感和互动\", \"assetSourceHint\": \"self_recorded\", \"fallbackVisual\": \"项目入口镜头加字幕\"}, {\"sceneNo\": 2, \"timeRange\": \"00:10-00:20\", \"visualGoal\": \"展示项目外部整体形象和社区规模感\", \"voiceover\": \"先看下整体，这个小区规模不小，住了上万户人，烟火气很足。\", \"subtitle\": \"万人成熟社区，生活气息浓\", \"shotRequirement\": \"航拍或广角镜头拍摄项目大门及周边楼栋，展现社区体量，镜头稳定\", \"assetQuery\": \"项目外立面 远景 小区入口 航拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"定镜拍摄项目大门，加字幕说明社区规模\"}, {\"sceneNo\": 3, \"timeRange\": \"00:20-00:35\", \"visualGoal\": \"通过内部空间展示4米层高带来的开阔感和舒适度\", \"voiceover\": \"走进去你就懂了，4米的层高，一进门就觉得宽敞，比一般的压抑感好太多。\", \"subtitle\": \"4米层高，告别压抑感\", \"shotRequirement\": \"室内空间广角拍摄，从门口走进，抬头展示天花板高度，自然光线充足\", \"assetQuery\": \"层高4米 室内 开阔 采光好\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"用样板间视频或图片模拟抬头视角\"}, {\"sceneNo\": 4, \"timeRange\": \"00:35-00:50\", \"visualGoal\": \"展示不同面积空间的灵活用途，突出紧凑实用和宽敞多功能\", \"voiceover\": \"面积有大有小，有的很紧凑，适合一个人舒服住；有的宽敞，放得下工作室或茶室，随你怎么用。\", \"subtitle\": \"灵活空间，用途由你\", \"shotRequirement\": \"房间内多角度拍摄，展示不同户型的功能区划分，如客厅、工作区、休闲角\", \"assetQuery\": \"多功能空间 样板间 工作室 茶室\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"照片快剪，配合文字说明\"}, {\"sceneNo\": 5, \"timeRange\": \"00:50-01:05\", \"visualGoal\": \"展现楼下成熟生活配套，体现生活便利性\", \"voiceover\": \"楼下便利店、咖啡店都有，平时买个东西喝杯咖啡，下楼就能搞定，很方便。\", \"subtitle\": \"下楼即享便利生活\", \"shotRequirement\": \"跟拍或定点拍摄底商门头、有人在消费的镜头，体现生活氛围\", \"assetQuery\": \"社区底商 便利店 咖啡馆 生活氛围\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"底商招牌和行人路过镜头\"}, {\"sceneNo\": 6, \"timeRange\": \"01:05-01:20\", \"visualGoal\": \"通过地图或实拍强调通勤便利，地铁站近\", \"voiceover\": \"而且离地铁站不远，每天通勤走几步就到，省下不少时间。\", \"subtitle\": \"地铁步行可达，通勤高效\", \"shotRequirement\": \"手机地图放大效果或实拍从项目步行至地铁口的路径，标注时间距离\", \"assetQuery\": \"地铁站 步行 通勤 距离近\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"地图动画搭配路名牌\"}, {\"sceneNo\": 7, \"timeRange\": \"01:20-01:30\", \"visualGoal\": \"通过真人出镜给出轻量行动号召，引导进一步了解\", \"voiceover\": \"如果你也想找这种门槛友好、住起来舒服的地方，不妨自己来看看。多一个了解，总没坏处。\", \"subtitle\": \"实地感受，门槛友好\", \"shotRequirement\": \"真人半身出镜，微笑自然，画面干净，可手指标牌或项目信息\", \"assetQuery\": \"真人 口播 结尾 CTA\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜录制结尾呼吁，拉近观众距离，增加信任感\", \"assetSourceHint\": \"self_recorded\", \"fallbackVisual\": \"联系方式加背景图\"}], \"requiredUploads\": [\"真人半身出镜，表情自然，背景简约或与项目相关，光线明亮\", \"真人半身出镜，微笑自然，画面干净，可手指标牌或项目信息\"], \"optionalTeamVideoAssets\": [\"项目外立面 远景 小区入口 航拍\", \"层高4米 室内 开阔 采光好\", \"多功能空间 样板间 工作室 茶室\", \"社区底商 便利店 咖啡馆 生活氛围\", \"地铁站 步行 通勤 距离近\"], \"shootingTips\": [\"多用自然光，避免阴暗室内效果\", \"手持稳定器保持画面平稳\", \"口播时眼神直视镜头，语速适中\", \"避免在镜头前出现具体价格或收益承诺\", \"广角镜头突出空间开阔感\"], \"riskNotes\": []}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 5, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 8}, \"pass\": false, \"needsRewrite\": true, \"riskTerms\": [], \"problems\": [\"项目知识不足，成稿仅适合内部预览\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"更完整的项目事实\"], \"preRepairPass\": false, \"autoRewritten\": true, \"repairPolicy\": \"validator_risk_terms_minimal_rewrite\"}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"低总价上车\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"种草\", \"targetAudience\": \"预算敏感客户\", \"audiencePain\": \"预算有限，担心买不起房\", \"sellingPointsNeeded\": [\"低总价\", \"小面积\", \"上车门槛低\"], \"riskConstraints\": [], \"copySearchQuery\": \"低总价小面积产品 预算敏感 首次置业 上车首选\", \"scriptSearchQuery\": \"低总价小面积 为什么值得了解 预算有限\", \"imageSearchQuery\": \"低总价小面积户型 样板间 实景\", \"videoAssetQueryHints\": [\"小面积样板间\", \"低总价楼盘实景\"], \"extraRequirement\": \"宁可保守，不要写不确定事实\"}, \"creativeStrategy\": {\"storyOutline\": \"以预算有限的年轻观众视角，从“够得着的品质空间”切入。先展示项目外部环境和社区规模，体现生活便利性与成熟度；然后进入内部，突出4米层高带来的舒适感；接着利用不同空间大小，展现多功能使用可能性（例如可以作为工作室、休憩空间）；最后提到在当前成熟阶段，这样的产品有着友好的入手门槛，引导观众进一步咨询。整个视频避免任何收益或投资承诺，仅聚焦空间品质与生活场景。\", \"estimatedDuration\": \"90秒\", \"scenes\": [\"画面：字幕出现‘预算有限，还能看什么？’引发共鸣。\", \"画面：航拍或广角展示项目入口，社区规模感。\", \"画面：跟随人物进入大堂，拍摄4米层高带来的开阔感。\", \"画面：切到不同空间内，展示紧凑户型舒适布局，及大面积空间的创意利用（如工作室、茶室）。\", \"画面：拍摄楼下底商、咖啡店等生活配套，有人在消费。\", \"画面：地图标注周边地铁站，显示通勤便利。\", \"画面：结尾出现项目信息及咨询方式（不明说价格，仅显示“了解更多”）。\"], \"requiredUploads\": [\"项目入口实景视频\", \"社区外景及人流动线视频\", \"4米层高内部空间展示视频\", \"多功能空间样板间视频\", \"生活配套实拍（如商铺、咖啡区等）\"], \"optionalTeamVideoAssets\": [\"城市交通空镜头\", \"轻快配乐\", \"字幕模板\"], \"shootingTips\": [\"利用自然光突出空间明亮感\", \"广角镜头展示层高和开阔感\", \"手持稳定器跟拍模拟第一视角参观\", \"避免使用语音渲染收益词汇\"], \"riskNotes\": []}, \"usedKnowledgeRefs\": [], \"usedViralRefs\": [], \"usedImageAssets\": [{\"assetId\": \"img_003\", \"title\": \"项目入口\"}], \"degradationNotices\": [\"已根据质量门禁命中风险词进行自动改写\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 537.067681,
+    "total_tokens": 39831,
+    "total_steps": 13,
+    "created_by": {
+      "id": "1de99b33-26fe-4b8e-8dab-edefd47a03cb",
+      "user": "content_calendar_test_case03_weak_knowledge_1778572993"
+    },
+    "created_at": 1778573011,
+    "finished_at": 1778573548,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [
+        "预算不高也能看的品质空间｜4米层高，住起来挺舒服",
+        "成熟社区里的灵活空间｜了解后才发现用途比想得多",
+        "小预算能看什么？这个项目让我重新认识了舒适度"
+      ],
+      "selectedTitle": "预算不高也能看的品质空间｜4米层高，住起来挺舒服",
+      "coverCopy": "4米层高·生活便利·门槛友好",
+      "body": "最近陪朋友看房，预算卡得紧，本来没抱啥希望。没想到看了个地方，空间感意外的好，4米的层高，一走进去就觉得开阔。\n\n这个社区规模不小，住了上万户人家，楼下底商开得七七八八，咖啡馆、便利店都有，生活气息浓。买东西、吃个饭都很方便。\n\n看了几个不同面积的空间，有的紧凑实用，有的宽敞得可以分成两个功能区。听销售说有人拿来做个人工作室，也有当茶室的。想想确实灵活。\n\n周边地铁站距离不远，日常通勤靠走路就能解决。关键是现在的门槛比周边很多住宅要友好得多，对于预算有限又想住得舒服点的人，是个可以重点了解的选择。\n\n如果有兴趣，可以自己来感受一下。不需要急着决定，多看看多比较总是好的。",
+      "hashtags": [
+        "#小面积产品",
+        "#预算友好",
+        "#舒适空间",
+        "#4米层高",
+        "#灵活用途",
+        "#成熟社区"
+      ],
+      "cta": "有兴趣可以实地转转，多了解一个选项总没坏处。",
+      "imageMatches": [
+        {
+          "assetId": "img_003",
+          "title": "项目入口",
+          "usage": "作为文章封面，吸引点击并增强项目识别",
+          "reason": "图片清晰展示项目入口，符合内容主题，可用于封面图建立第一印象"
+        }
+      ],
+      "imageBriefIfMissing": "",
+      "riskNotes": [],
+      "copyReadyText": "预算不高也能看的品质空间｜4米层高，住起来挺舒服\n\n最近陪朋友看房，预算卡得紧，本来没抱啥希望。没想到看了个地方，空间感意外的好，4米的层高，一走进去就觉得开阔。\n\n这个社区规模不小，住了上万户人家，楼下底商开得七七八八，咖啡馆、便利店都有，生活气息浓。买东西、吃个饭都很方便。\n\n看了几个不同面积的空间，有的紧凑实用，有的宽敞得可以分成两个功能区。听销售说有人拿来做个人工作室，也有当茶室的。想想确实灵活。\n\n周边地铁站距离不远，日常通勤靠走路就能解决。关键是现在的门槛比周边很多住宅要友好得多，对于预算有限又想住得舒服点的人，是个可以重点了解的选择。\n\n如果有兴趣，可以自己来感受一下。不需要急着决定，多看看多比较总是好的。\n\n#小面积产品 #预算友好 #舒适空间 #4米层高 #灵活用途 #成熟社区\n\n有兴趣可以实地转转，多了解一个选项总没坏处。"
+    },
+    "videoScript": {
+      "storyOutline": "以预算有限的年轻观众视角，从“够得着的品质空间”切入。先展示项目外部环境和社区规模，体现生活便利性与成熟度；然后进入内部，突出4米层高带来的舒适感；接着利用不同空间大小，展现多功能使用可能性（例如可以作为工作室、休憩空间）；最后提到在当前成熟阶段，这样的产品有着友好的入手门槛，引导观众进一步咨询。整个视频避免任何收益或投资承诺，仅聚焦空间品质与生活场景。",
+      "estimatedDuration": "90秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "00:00-00:10",
+          "visualGoal": "通过疑问引发观众好奇，吸引继续观看",
+          "voiceover": "预算有限，还能看什么？今天带你看一个地方，空间感特别好。",
+          "subtitle": "预算有限，还能看什么？",
+          "shotRequirement": "真人半身出镜，表情自然，背景简约或与项目相关，光线明亮",
+          "assetQuery": "真人 口播 开场 吸引",
+          "uploadRequired": true,
+          "uploadReason": "需要真人出镜录制口播开场，增强真实感和互动",
+          "assetSourceHint": "self_recorded",
+          "fallbackVisual": "项目入口镜头加字幕"
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "00:10-00:20",
+          "visualGoal": "展示项目外部整体形象和社区规模感",
+          "voiceover": "先看下整体，这个小区规模不小，住了上万户人，烟火气很足。",
+          "subtitle": "万人成熟社区，生活气息浓",
+          "shotRequirement": "航拍或广角镜头拍摄项目大门及周边楼栋，展现社区体量，镜头稳定",
+          "assetQuery": "项目外立面 远景 小区入口 航拍",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "定镜拍摄项目大门，加字幕说明社区规模"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "00:20-00:35",
+          "visualGoal": "通过内部空间展示4米层高带来的开阔感和舒适度",
+          "voiceover": "走进去你就懂了，4米的层高，一进门就觉得宽敞，比一般的压抑感好太多。",
+          "subtitle": "4米层高，告别压抑感",
+          "shotRequirement": "室内空间广角拍摄，从门口走进，抬头展示天花板高度，自然光线充足",
+          "assetQuery": "层高4米 室内 开阔 采光好",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "用样板间视频或图片模拟抬头视角"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "00:35-00:50",
+          "visualGoal": "展示不同面积空间的灵活用途，突出紧凑实用和宽敞多功能",
+          "voiceover": "面积有大有小，有的很紧凑，适合一个人舒服住；有的宽敞，放得下工作室或茶室，随你怎么用。",
+          "subtitle": "灵活空间，用途由你",
+          "shotRequirement": "房间内多角度拍摄，展示不同户型的功能区划分，如客厅、工作区、休闲角",
+          "assetQuery": "多功能空间 样板间 工作室 茶室",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "照片快剪，配合文字说明"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "00:50-01:05",
+          "visualGoal": "展现楼下成熟生活配套，体现生活便利性",
+          "voiceover": "楼下便利店、咖啡店都有，平时买个东西喝杯咖啡，下楼就能搞定，很方便。",
+          "subtitle": "下楼即享便利生活",
+          "shotRequirement": "跟拍或定点拍摄底商门头、有人在消费的镜头，体现生活氛围",
+          "assetQuery": "社区底商 便利店 咖啡馆 生活氛围",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "底商招牌和行人路过镜头"
+        },
+        {
+          "sceneNo": 6,
+          "timeRange": "01:05-01:20",
+          "visualGoal": "通过地图或实拍强调通勤便利，地铁站近",
+          "voiceover": "而且离地铁站不远，每天通勤走几步就到，省下不少时间。",
+          "subtitle": "地铁步行可达，通勤高效",
+          "shotRequirement": "手机地图放大效果或实拍从项目步行至地铁口的路径，标注时间距离",
+          "assetQuery": "地铁站 步行 通勤 距离近",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "地图动画搭配路名牌"
+        },
+        {
+          "sceneNo": 7,
+          "timeRange": "01:20-01:30",
+          "visualGoal": "通过真人出镜给出轻量行动号召，引导进一步了解",
+          "voiceover": "如果你也想找这种门槛友好、住起来舒服的地方，不妨自己来看看。多一个了解，总没坏处。",
+          "subtitle": "实地感受，门槛友好",
+          "shotRequirement": "真人半身出镜，微笑自然，画面干净，可手指标牌或项目信息",
+          "assetQuery": "真人 口播 结尾 CTA",
+          "uploadRequired": true,
+          "uploadReason": "需要真人出镜录制结尾呼吁，拉近观众距离，增加信任感",
+          "assetSourceHint": "self_recorded",
+          "fallbackVisual": "联系方式加背景图"
+        }
+      ],
+      "requiredUploads": [
+        "真人半身出镜，表情自然，背景简约或与项目相关，光线明亮",
+        "真人半身出镜，微笑自然，画面干净，可手指标牌或项目信息"
+      ],
+      "optionalTeamVideoAssets": [
+        "项目外立面 远景 小区入口 航拍",
+        "层高4米 室内 开阔 采光好",
+        "多功能空间 样板间 工作室 茶室",
+        "社区底商 便利店 咖啡馆 生活氛围",
+        "地铁站 步行 通勤 距离近"
+      ],
+      "shootingTips": [
+        "多用自然光，避免阴暗室内效果",
+        "手持稳定器保持画面平稳",
+        "口播时眼神直视镜头，语速适中",
+        "避免在镜头前出现具体价格或收益承诺",
+        "广角镜头突出空间开阔感"
+      ],
+      "riskNotes": []
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 5,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 8,
+        "materialFit": 8,
+        "compliance": 8
+      },
+      "pass": false,
+      "needsRewrite": true,
+      "riskTerms": [],
+      "problems": [
+        "项目知识不足，成稿仅适合内部预览"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": [
+        "更完整的项目事实"
+      ],
+      "preRepairPass": false,
+      "autoRewritten": true,
+      "repairPolicy": "validator_risk_terms_minimal_rewrite"
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "低总价上车",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "预算敏感客户",
+        "audiencePain": "预算有限，担心买不起房",
+        "sellingPointsNeeded": [
+          "低总价",
+          "小面积",
+          "上车门槛低"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "低总价小面积产品 预算敏感 首次置业 上车首选",
+        "scriptSearchQuery": "低总价小面积 为什么值得了解 预算有限",
+        "imageSearchQuery": "低总价小面积户型 样板间 实景",
+        "videoAssetQueryHints": [
+          "小面积样板间",
+          "低总价楼盘实景"
+        ],
+        "extraRequirement": "宁可保守，不要写不确定事实"
+      },
+      "creativeStrategy": {
+        "storyOutline": "以预算有限的年轻观众视角，从“够得着的品质空间”切入。先展示项目外部环境和社区规模，体现生活便利性与成熟度；然后进入内部，突出4米层高带来的舒适感；接着利用不同空间大小，展现多功能使用可能性（例如可以作为工作室、休憩空间）；最后提到在当前成熟阶段，这样的产品有着友好的入手门槛，引导观众进一步咨询。整个视频避免任何收益或投资承诺，仅聚焦空间品质与生活场景。",
+        "estimatedDuration": "90秒",
+        "scenes": [
+          "画面：字幕出现‘预算有限，还能看什么？’引发共鸣。",
+          "画面：航拍或广角展示项目入口，社区规模感。",
+          "画面：跟随人物进入大堂，拍摄4米层高带来的开阔感。",
+          "画面：切到不同空间内，展示紧凑户型舒适布局，及大面积空间的创意利用（如工作室、茶室）。",
+          "画面：拍摄楼下底商、咖啡店等生活配套，有人在消费。",
+          "画面：地图标注周边地铁站，显示通勤便利。",
+          "画面：结尾出现项目信息及咨询方式（不明说价格，仅显示“了解更多”）。"
+        ],
+        "requiredUploads": [
+          "项目入口实景视频",
+          "社区外景及人流动线视频",
+          "4米层高内部空间展示视频",
+          "多功能空间样板间视频",
+          "生活配套实拍（如商铺、咖啡区等）"
+        ],
+        "optionalTeamVideoAssets": [
+          "城市交通空镜头",
+          "轻快配乐",
+          "字幕模板"
+        ],
+        "shootingTips": [
+          "利用自然光突出空间明亮感",
+          "广角镜头展示层高和开阔感",
+          "手持稳定器跟拍模拟第一视角参观",
+          "避免使用语音渲染收益词汇"
+        ],
+        "riskNotes": []
+      },
+      "usedKnowledgeRefs": [],
+      "usedViralRefs": [],
+      "usedImageAssets": [
+        {
+          "assetId": "img_003",
+          "title": "项目入口"
+        }
+      ],
+      "degradationNotices": [
+        "已根据质量门禁命中风险词进行自动改写"
+      ]
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"预算不高也能看的品质空间｜4米层高，住起来挺舒服\", \"成熟社区里的灵活空间｜了解后才发现用途比想得多\", \"小预算能看什么？这个项目让我重新认识了舒适度\"], \"selectedTitle\": \"预算不高也能看的品质空间｜4米层高，住起来挺舒服\", \"coverCopy\": \"4米层高·生活便利·门槛友好\", \"body\": \"最近陪朋友看房，预算卡得紧，本来没抱啥希望。没想到看了个地方，空间感意外的好，4米的层高，一走进去就觉得开阔。\\n\\n这个社区规模不小，住了上万户人家，楼下底商开得七七八八，咖啡馆、便利店都有，生活气息浓。买东西、吃个饭都很方便。\\n\\n看了几个不同面积的空间，有的紧凑实用，有的宽敞得可以分成两个功能区。听销售说有人拿来做个人工作室，也有当茶室的。想想确实灵活。\\n\\n周边地铁站距离不远，日常通勤靠走路就能解决。关键是现在的门槛比周边很多住宅要友好得多，对于预算有限又想住得舒服点的人，是个可以重点了解的选择。\\n\\n如果有兴趣，可以自己来感受一下。不需要急着决定，多看看多比较总是好的。\", \"hashtags\": [\"#小面积产品\", \"#预算友好\", \"#舒适空间\", \"#4米层高\", \"#灵活用途\", \"#成熟社区\"], \"cta\": \"有兴趣可以实地转转，多了解一个选项总没坏处。\", \"imageMatches\": [{\"assetId\": \"img_003\", \"title\": \"项目入口\", \"usage\": \"作为文章封面，吸引点击并增强项目识别\", \"reason\": \"图片清晰展示项目入口，符合内容主题，可用于封面图建立第一印象\"}], \"imageBriefIfMissing\": \"\", \"riskNotes\": [], \"copyReadyText\": \"预算不高也能看的品质空间｜4米层高，住起来挺舒服\\n\\n最近陪朋友看房，预算卡得紧，本来没抱啥希望。没想到看了个地方，空间感意外的好，4米的层高，一走进去就觉得开阔。\\n\\n这个社区规模不小，住了上万户人家，楼下底商开得七七八八，咖啡馆、便利店都有，生活气息浓。买东西、吃个饭都很方便。\\n\\n看了几个不同面积的空间，有的紧凑实用，有的宽敞得可以分成两个功能区。听销售说有人拿来做个人工作室，也有当茶室的。想想确实灵活。\\n\\n周边地铁站距离不远，日常通勤靠走路就能解决。关键是现在的门槛比周边很多住宅要友好得多，对于预算有限又想住得舒服点的人，是个可以重点了解的选择。\\n\\n如果有兴趣，可以自己来感受一下。不需要急着决定，多看看多比较总是好的。\\n\\n#小面积产品 #预算友好 #舒适空间 #4米层高 #灵活用途 #成熟社区\\n\\n有兴趣可以实地转转，多了解一个选项总没坏处。\"}, \"videoScript\": {\"storyOutline\": \"以预算有限的年轻观众视角，从“够得着的品质空间”切入。先展示项目外部环境和社区规模，体现生活便利性与成熟度；然后进入内部，突出4米层高带来的舒适感；接着利用不同空间大小，展现多功能使用可能性（例如可以作为工作室、休憩空间）；最后提到在当前成熟阶段，这样的产品有着友好的入手门槛，引导观众进一步咨询。整个视频避免任何收益或投资承诺，仅聚焦空间品质与生活场景。\", \"estimatedDuration\": \"90秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"00:00-00:10\", \"visualGoal\": \"通过疑问引发观众好奇，吸引继续观看\", \"voiceover\": \"预算有限，还能看什么？今天带你看一个地方，空间感特别好。\", \"subtitle\": \"预算有限，还能看什么？\", \"shotRequirement\": \"真人半身出镜，表情自然，背景简约或与项目相关，光线明亮\", \"assetQuery\": \"真人 口播 开场 吸引\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜录制口播开场，增强真实感和互动\", \"assetSourceHint\": \"self_recorded\", \"fallbackVisual\": \"项目入口镜头加字幕\"}, {\"sceneNo\": 2, \"timeRange\": \"00:10-00:20\", \"visualGoal\": \"展示项目外部整体形象和社区规模感\", \"voiceover\": \"先看下整体，这个小区规模不小，住了上万户人，烟火气很足。\", \"subtitle\": \"万人成熟社区，生活气息浓\", \"shotRequirement\": \"航拍或广角镜头拍摄项目大门及周边楼栋，展现社区体量，镜头稳定\", \"assetQuery\": \"项目外立面 远景 小区入口 航拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"定镜拍摄项目大门，加字幕说明社区规模\"}, {\"sceneNo\": 3, \"timeRange\": \"00:20-00:35\", \"visualGoal\": \"通过内部空间展示4米层高带来的开阔感和舒适度\", \"voiceover\": \"走进去你就懂了，4米的层高，一进门就觉得宽敞，比一般的压抑感好太多。\", \"subtitle\": \"4米层高，告别压抑感\", \"shotRequirement\": \"室内空间广角拍摄，从门口走进，抬头展示天花板高度，自然光线充足\", \"assetQuery\": \"层高4米 室内 开阔 采光好\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"用样板间视频或图片模拟抬头视角\"}, {\"sceneNo\": 4, \"timeRange\": \"00:35-00:50\", \"visualGoal\": \"展示不同面积空间的灵活用途，突出紧凑实用和宽敞多功能\", \"voiceover\": \"面积有大有小，有的很紧凑，适合一个人舒服住；有的宽敞，放得下工作室或茶室，随你怎么用。\", \"subtitle\": \"灵活空间，用途由你\", \"shotRequirement\": \"房间内多角度拍摄，展示不同户型的功能区划分，如客厅、工作区、休闲角\", \"assetQuery\": \"多功能空间 样板间 工作室 茶室\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"照片快剪，配合文字说明\"}, {\"sceneNo\": 5, \"timeRange\": \"00:50-01:05\", \"visualGoal\": \"展现楼下成熟生活配套，体现生活便利性\", \"voiceover\": \"楼下便利店、咖啡店都有，平时买个东西喝杯咖啡，下楼就能搞定，很方便。\", \"subtitle\": \"下楼即享便利生活\", \"shotRequirement\": \"跟拍或定点拍摄底商门头、有人在消费的镜头，体现生活氛围\", \"assetQuery\": \"社区底商 便利店 咖啡馆 生活氛围\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"底商招牌和行人路过镜头\"}, {\"sceneNo\": 6, \"timeRange\": \"01:05-01:20\", \"visualGoal\": \"通过地图或实拍强调通勤便利，地铁站近\", \"voiceover\": \"而且离地铁站不远，每天通勤走几步就到，省下不少时间。\", \"subtitle\": \"地铁步行可达，通勤高效\", \"shotRequirement\": \"手机地图放大效果或实拍从项目步行至地铁口的路径，标注时间距离\", \"assetQuery\": \"地铁站 步行 通勤 距离近\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"地图动画搭配路名牌\"}, {\"sceneNo\": 7, \"timeRange\": \"01:20-01:30\", \"visualGoal\": \"通过真人出镜给出轻量行动号召，引导进一步了解\", \"voiceover\": \"如果你也想找这种门槛友好、住起来舒服的地方，不妨自己来看看。多一个了解，总没坏处。\", \"subtitle\": \"实地感受，门槛友好\", \"shotRequirement\": \"真人半身出镜，微笑自然，画面干净，可手指标牌或项目信息\", \"assetQuery\": \"真人 口播 结尾 CTA\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜录制结尾呼吁，拉近观众距离，增加信任感\", \"assetSourceHint\": \"self_recorded\", \"fallbackVisual\": \"联系方式加背景图\"}], \"requiredUploads\": [\"真人半身出镜，表情自然，背景简约或与项目相关，光线明亮\", \"真人半身出镜，微笑自然，画面干净，可手指标牌或项目信息\"], \"optionalTeamVideoAssets\": [\"项目外立面 远景 小区入口 航拍\", \"层高4米 室内 开阔 采光好\", \"多功能空间 样板间 工作室 茶室\", \"社区底商 便利店 咖啡馆 生活氛围\", \"地铁站 步行 通勤 距离近\"], \"shootingTips\": [\"多用自然光，避免阴暗室内效果\", \"手持稳定器保持画面平稳\", \"口播时眼神直视镜头，语速适中\", \"避免在镜头前出现具体价格或收益承诺\", \"广角镜头突出空间开阔感\"], \"riskNotes\": []}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 5, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 8}, \"pass\": false, \"needsRewrite\": true, \"riskTerms\": [], \"problems\": [\"项目知识不足，成稿仅适合内部预览\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"更完整的项目事实\"], \"preRepairPass\": false, \"autoRewritten\": true, \"repairPolicy\": \"validator_risk_terms_minimal_rewrite\"}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"低总价上车\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"种草\", \"targetAudience\": \"预算敏感客户\", \"audiencePain\": \"预算有限，担心买不起房\", \"sellingPointsNeeded\": [\"低总价\", \"小面积\", \"上车门槛低\"], \"riskConstraints\": [], \"copySearchQuery\": \"低总价小面积产品 预算敏感 首次置业 上车首选\", \"scriptSearchQuery\": \"低总价小面积 为什么值得了解 预算有限\", \"imageSearchQuery\": \"低总价小面积户型 样板间 实景\", \"videoAssetQueryHints\": [\"小面积样板间\", \"低总价楼盘实景\"], \"extraRequirement\": \"宁可保守，不要写不确定事实\"}, \"creativeStrategy\": {\"storyOutline\": \"以预算有限的年轻观众视角，从“够得着的品质空间”切入。先展示项目外部环境和社区规模，体现生活便利性与成熟度；然后进入内部，突出4米层高带来的舒适感；接着利用不同空间大小，展现多功能使用可能性（例如可以作为工作室、休憩空间）；最后提到在当前成熟阶段，这样的产品有着友好的入手门槛，引导观众进一步咨询。整个视频避免任何收益或投资承诺，仅聚焦空间品质与生活场景。\", \"estimatedDuration\": \"90秒\", \"scenes\": [\"画面：字幕出现‘预算有限，还能看什么？’引发共鸣。\", \"画面：航拍或广角展示项目入口，社区规模感。\", \"画面：跟随人物进入大堂，拍摄4米层高带来的开阔感。\", \"画面：切到不同空间内，展示紧凑户型舒适布局，及大面积空间的创意利用（如工作室、茶室）。\", \"画面：拍摄楼下底商、咖啡店等生活配套，有人在消费。\", \"画面：地图标注周边地铁站，显示通勤便利。\", \"画面：结尾出现项目信息及咨询方式（不明说价格，仅显示“了解更多”）。\"], \"requiredUploads\": [\"项目入口实景视频\", \"社区外景及人流动线视频\", \"4米层高内部空间展示视频\", \"多功能空间样板间视频\", \"生活配套实拍（如商铺、咖啡区等）\"], \"optionalTeamVideoAssets\": [\"城市交通空镜头\", \"轻快配乐\", \"字幕模板\"], \"shootingTips\": [\"利用自然光突出空间明亮感\", \"广角镜头展示层高和开阔感\", \"手持稳定器跟拍模拟第一视角参观\", \"避免使用语音渲染收益词汇\"], \"riskNotes\": []}, \"usedKnowledgeRefs\": [], \"usedViralRefs\": [], \"usedImageAssets\": [{\"assetId\": \"img_003\", \"title\": \"项目入口\"}], \"degradationNotices\": [\"已根据质量门禁命中风险词进行自动改写\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

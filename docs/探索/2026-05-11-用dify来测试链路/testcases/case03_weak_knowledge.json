@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "name": "知识库信息很弱",
+    "purpose": "验证信息不足时不编造项目事实，并给出降级提示"
+  },
+  "inputs": {
+    "calendar_task_json": "{\"taskId\":\"task_20260511_003\",\"theme\":\"低总价上车\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"预算敏感客户\",\"summary\":\"讲清楚为什么可以先了解小面积产品\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-13\"}",
+    "viral_references_json": "[]",
+    "image_assets_json": "[{\"assetId\":\"img_003\",\"title\":\"项目入口\",\"url\":\"https://example.com/entrance.jpg\",\"tags\":[\"项目入口\",\"封面\"],\"description\":\"可作为项目识别图\"}]",
+    "fallback_knowledge_text": "只有很少资料：这是一个可看小面积产品的项目。不要编造具体位置、价格、户型、配套、租金、收益。",
+    "extra_requirement": "宁可保守，不要写不确定事实。"
+  },
+  "expected": {
+    "quality_pass": false,
+    "min_scores": {
+      "compliance": 7
+    }
+  }
+}

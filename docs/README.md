@@ -14,7 +14,8 @@
 4. `产品文档/V2.1-咨询驱动主链路体验补强-PRD.md`
 5. `产品文档/V2.1-内容日历到图文视频工作台协作PRD.md`
 6. `架构规范/2026-04-28-current-architecture.md`
-7. `progress/2026-04-25-supabase-migration-current-state.md`
+7. `架构规范/2026-05-12-内容日历批量生成与Dify过渡架构决策.md`
+8. `progress/2026-04-25-supabase-migration-current-state.md`
 
 如果是在接续当前未完成事项，再读 `current-task.md`。如果是在规划 V2.2 合并后的下一阶段，再读 `需求池.md` 和 `探索/2026-04-28-热点抓取与咨询Agent优化待验证事项.md`。
 
@@ -30,6 +31,7 @@
 ### 架构
 
 - `架构规范/2026-04-28-current-architecture.md`
+- `架构规范/2026-05-12-内容日历批量生成与Dify过渡架构决策.md`
 
 这份是当前架构总说明，覆盖：
 
@@ -41,6 +43,8 @@
 - video-worker
 - Docker FireRed/OpenStoryline
 - 预览审核和修订分流
+
+`2026-05-12-内容日历批量生成与Dify过渡架构决策.md` 补充定义内容日历批量生成的运行方式：Dify / 后续 LangGraph.js 只负责单条生成，系统负责批量展开、队列、限流、重试、进度和落库。
 
 旧的增长 Agent 文档、旧 skeleton 默认路径、旧分阶段 worker / FireRed work-plan 不再作为当前依据。
 

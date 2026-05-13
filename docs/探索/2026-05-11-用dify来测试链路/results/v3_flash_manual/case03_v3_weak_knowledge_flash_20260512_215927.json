@@ -1,0 +1,189 @@
+{
+  "case": {
+    "name": "case03_v3_weak_knowledge_flash",
+    "inputs": {
+      "calendar_task_json": "{\"taskId\":\"task_v3_003\",\"theme\":\"低总价上车\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"预算敏感客户\",\"summary\":\"讲清楚为什么可以先了解小面积产品\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-13\"}",
+      "viral_references_json": "[]",
+      "image_assets_json": "[{\"assetId\":\"img_weak_001\",\"title\":\"项目入口\",\"url\":\"https://example.com/entrance.jpg\",\"tags\":[\"项目入口\",\"封面\"],\"description\":\"可作为项目识别图\"}]",
+      "fallback_knowledge_text": "只有很少资料：这是一个可看小面积产品的项目。不要编造具体位置、价格、户型、配套、租金、收益。",
+      "extra_requirement": "宁可保守，不要写不确定事实。标题不要编造数字。"
+    }
+  },
+  "attempts": [
+    {
+      "success": true,
+      "stage": "workflow",
+      "workflow_run_id": "51ffc610-7044-417c-a0cc-ecd15522ed48",
+      "elapsed": 167.52739691734314,
+      "workflow_finished": {
+        "id": "51ffc610-7044-417c-a0cc-ecd15522ed48",
+        "workflow_id": "744da7d7-2600-459e-854f-032d02159003",
+        "status": "failed",
+        "outputs": {},
+        "error": "Variable #creative_strategy.structured_output.videoPlan# not found",
+        "elapsed_time": 160.78415,
+        "total_tokens": 9441,
+        "total_steps": 5,
+        "created_by": {
+          "id": "8d2cc774-4160-40ad-acd8-c5b4d2bb2ad7",
+          "user": "codex_v3_flash_case03_v3_weak_knowledge_flash_1_1778594164"
+        },
+        "created_at": 1778594169,
+        "finished_at": 1778594330,
+        "exceptions_count": 1,
+        "files": []
+      },
+      "final_text": "",
+      "final_json": null,
+      "parse_error": null,
+      "node_summary": [
+        {
+          "node_id": "start",
+          "title": "开始",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "task_understanding",
+          "title": "任务理解",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 1808
+        },
+        {
+          "node_id": "kb_project_knowledge",
+          "title": "txt 知识库检索",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 0
+        },
+        {
+          "node_id": "creative_strategy",
+          "title": "创作策略规划",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 7633
+        },
+        {
+          "node_id": "video_narrative",
+          "title": "视频叙事结构",
+          "status": "failed",
+          "error": "Variable #creative_strategy.structured_output.videoPlan# not found",
+          "elapsed_time": null,
+          "total_tokens": null
+        }
+      ]
+    },
+    {
+      "success": true,
+      "stage": "workflow",
+      "workflow_run_id": "0a816aa2-fb90-4e5a-8842-22ef9823dd8b",
+      "elapsed": 20.251077890396118,
+      "workflow_finished": {
+        "id": "0a816aa2-fb90-4e5a-8842-22ef9823dd8b",
+        "workflow_id": "744da7d7-2600-459e-854f-032d02159003",
+        "status": "failed",
+        "outputs": {},
+        "error": "Query variable is not string type.",
+        "elapsed_time": 16.592162,
+        "total_tokens": 1907,
+        "total_steps": 3,
+        "created_by": {
+          "id": "28d6e28d-55e9-4fa4-b674-3779d57cfd73",
+          "user": "codex_v3_flash_case03_v3_weak_knowledge_flash_2_1778594336"
+        },
+        "created_at": 1778594339,
+        "finished_at": 1778594356,
+        "exceptions_count": 1,
+        "files": []
+      },
+      "final_text": "",
+      "final_json": null,
+      "parse_error": null,
+      "node_summary": [
+        {
+          "node_id": "start",
+          "title": "开始",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "task_understanding",
+          "title": "任务理解",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 1907
+        },
+        {
+          "node_id": "kb_project_knowledge",
+          "title": "txt 知识库检索",
+          "status": "failed",
+          "error": "Query variable is not string type.",
+          "elapsed_time": null,
+          "total_tokens": null
+        }
+      ]
+    }
+  ],
+  "result": {
+    "success": true,
+    "stage": "workflow",
+    "workflow_run_id": "0a816aa2-fb90-4e5a-8842-22ef9823dd8b",
+    "elapsed": 20.251077890396118,
+    "workflow_finished": {
+      "id": "0a816aa2-fb90-4e5a-8842-22ef9823dd8b",
+      "workflow_id": "744da7d7-2600-459e-854f-032d02159003",
+      "status": "failed",
+      "outputs": {},
+      "error": "Query variable is not string type.",
+      "elapsed_time": 16.592162,
+      "total_tokens": 1907,
+      "total_steps": 3,
+      "created_by": {
+        "id": "28d6e28d-55e9-4fa4-b674-3779d57cfd73",
+        "user": "codex_v3_flash_case03_v3_weak_knowledge_flash_2_1778594336"
+      },
+      "created_at": 1778594339,
+      "finished_at": 1778594356,
+      "exceptions_count": 1,
+      "files": []
+    },
+    "final_text": "",
+    "final_json": null,
+    "parse_error": null,
+    "node_summary": [
+      {
+        "node_id": "start",
+        "title": "开始",
+        "status": "succeeded",
+        "error": null,
+        "elapsed_time": null,
+        "total_tokens": null
+      },
+      {
+        "node_id": "task_understanding",
+        "title": "任务理解",
+        "status": "succeeded",
+        "error": null,
+        "elapsed_time": null,
+        "total_tokens": 1907
+      },
+      {
+        "node_id": "kb_project_knowledge",
+        "title": "txt 知识库检索",
+        "status": "failed",
+        "error": "Query variable is not string type.",
+        "elapsed_time": null,
+        "total_tokens": null
+      }
+    ]
+  }
+}

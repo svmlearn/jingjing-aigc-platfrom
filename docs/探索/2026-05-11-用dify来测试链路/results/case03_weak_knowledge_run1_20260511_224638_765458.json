@@ -1,0 +1,300 @@
+{
+  "case_name": "case03_weak_knowledge",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case03_weak_knowledge.json",
+  "run_index": 1,
+  "timestamp": "20260511_224638_765458",
+  "elapsed_time": 64.64172887802124,
+  "success": true,
+  "workflow_run_id": "9118987a-ac2d-48dd-88ca-95c9205ba79b",
+  "error": null,
+  "raw_response": {
+    "id": "9118987a-ac2d-48dd-88ca-95c9205ba79b",
+    "workflow_id": "ff432f99-8f4f-4782-8fcd-26727a124423",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"预算友好的小面积产品，轻松实现居住梦想\"\n    ],\n    \"selectedTitle\": \"预算友好的小面积产品，轻松实现居住梦想\",\n    \"coverCopy\": \"小面积产品，生活便利，预算友好\",\n    \"body\": \"小面积产品在市场上越来越受欢迎，适合那些希望降低购房压力的朋友们。这样的选择不仅能让你更轻松上车，还能享受生活的便利。\\n\\n预算友好的优势在于，购房总价相对较低，适合各类购房者，尤其是首次置业的年轻人。这样的产品让你在预算内找到合适的居所。\\n\\n周边配套设施完善，商业区和交通便利，能满足日常生活需求。生活在这里，你会发现出行和购物都很方便。\\n\\n空间用途灵活，具体使用可以根据实际需求来调整，适合不同家庭的生活方式。无论是单身公寓还是小家庭，都能找到合适的空间。\\n\\n如果你对这样的产品感兴趣，欢迎随时咨询了解更多信息。\",\n    \"hashtags\": [\n      \"#小面积产品\",\n      \"#预算友好\",\n      \"#生活便利\"\n    ],\n    \"cta\": \"点击了解更多，找到你的理想家\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_003\",\n        \"title\": \"项目入口\",\n        \"usage\": \"可作为项目识别图\",\n        \"reason\": \"展示项目的入口，帮助客户识别\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"预算友好的小面积产品，轻松实现居住梦想\\n\\n小面积产品，生活便利，预算友好\\n\\n小面积产品在市场上越来越受欢迎，适合那些希望降低购房压力的朋友们。这样的选择不仅能让你更轻松上车，还能享受生活的便利。\\n\\n预算友好的优势在于，购房总价相对较低，适合各类购房者，尤其是首次置业的年轻人。这样的产品让你在预算内找到合适的居所。\\n\\n周边配套设施完善，商业区和交通便利，能满足日常生活需求。生活在这里，你会发现出行和购物都很方便。\\n\\n空间用途灵活，具体使用可以根据实际需求来调整，适合不同家庭的生活方式。无论是单身公寓还是小家庭，都能找到合适的空间。\\n\\n如果你对这样的产品感兴趣，欢迎随时咨询了解更多信息。\\n\\n#小面积产品 #预算友好 #生活便利\\n\\n点击了解更多，找到你的理想家\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"展示小面积产品的生活场景与周边配套，强调预算友好性\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-10秒\",\n        \"visualGoal\": \"展示项目入口及周边环境，营造亲切感\",\n        \"voiceover\": \"这里是我们今天要介绍的项目，周边环境宁静而便利。\",\n        \"subtitle\": \"项目入口与周边环境\",\n        \"shotRequirement\": \"拍摄项目入口的全景，包含周边绿化及交通情况\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"10-20秒\",\n        \"visualGoal\": \"展示室内空间，突出舒适感与实用性\",\n        \"voiceover\": \"室内空间设计灵活，适合多种生活方式。\",\n        \"subtitle\": \"舒适的室内空间\",\n        \"shotRequirement\": \"拍摄室内空间的不同角度，展示家具布置与采光\",\n        \"assetQuery\": \"室内空间展示 家具布置 采光\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"20-30秒\",\n        \"visualGoal\": \"展示周边商业配套与交通便利\",\n        \"voiceover\": \"周边商业设施齐全，出行也非常方便。\",\n        \"subtitle\": \"便利的周边配套\",\n        \"shotRequirement\": \"拍摄附近的商业街、超市及公共交通站点\",\n        \"assetQuery\": \"周边商业配套 交通便利 商业街\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"总结信息，呼吁观众关注与咨询\",\n        \"voiceover\": \"如果你对这个项目感兴趣，欢迎随时咨询。\",\n        \"subtitle\": \"关注我们，找到你的理想家\",\n        \"shotRequirement\": \"拍摄团队在项目现场的互动或解说\",\n        \"assetQuery\": \"项目现场 团队互动\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要团队成员在现场进行口播或互动\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"项目现场 团队互动\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"室内空间展示 家具布置 采光\",\n      \"周边商业配套 交通便利 商业街\"\n    ],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 5,\n      \"projectFit\": 8,\n      \"viralStructure\": 7,\n      \"platformTone\": 6,\n      \"materialFit\": 5,\n      \"compliance\": 4\n    },\n    \"pass\": false,\n    \"problems\": [\n      \"收益承诺类表述\",\n      \"出租确定性类表述\"\n    ],\n    \"revisionSuggestions\": [],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"低总价上车\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\"xiaohongshu\", \"douyin\"],\n      \"contentGoal\": \"种草\",\n      \"targetAudience\": \"预算敏感客户\",\n      \"audiencePain\": \"\",\n      \"sellingPointsNeeded\": [],\n      \"riskConstraints\": [],\n      \"copySearchQuery\": \"预算友好 小面积产品 生活便利\",\n      \"scriptSearchQuery\": \"预算友好 小面积产品 生活便利\",\n      \"imageSearchQuery\": \"预算友好 小面积产品 生活便利\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"聚焦小面积产品的预算友好性与生活便利性\",\n      \"narrativeArc\": [],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [\n        \"已有商业配套和真实经营场景可观察\",\n        \"空间用途较灵活，具体使用以实际需求和官方口径为准\"\n      ],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"引发共鸣\",\n        \"reason\": \"通过强调预算友好和生活便利性吸引目标受众\",\n        \"titleTactics\": [\"预算友好小户型，轻松上车\"],\n        \"hookTactics\": [\"你还在为高总价烦恼吗？\"],\n        \"ctaTactics\": [\"点击了解更多，找到你的理想家\"]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"预算友好的小面积产品，轻松实现居住梦想\",\n        \"coverCopyDirection\": \"小面积产品，生活便利，预算友好\",\n        \"bodyStructure\": [\n          \"引言：介绍小面积产品的市场趋势\",\n          \"第一部分：预算友好的优势\",\n          \"第二部分：生活便利性与周边配套\",\n          \"第三部分：灵活的空间用途\",\n          \"结尾：鼓励读者关注与咨询\"\n        ],\n        \"imagePlan\": [\n          {\n            \"assetId\": \"img_003\",\n            \"title\": \"项目入口\",\n            \"description\": \"可作为项目识别图\"\n          }\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"展示小面积产品的生活场景与周边配套，强调预算友好性\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"镜头1：项目入口及周边环境\",\n          \"镜头2：室内空间展示，强调舒适度\",\n          \"镜头3：周边商业配套与交通便利\",\n          \"镜头4：总结性信息，呼吁关注\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": [],\n      \"trace\": {\n        \"usedKnowledgeSummary\": [\n          \"已有商业配套和真实经营场景可观察\",\n          \"空间用途较灵活，具体使用以实际需求和官方口径为准\"\n        ],\n        \"usedViralSummary\": [],\n        \"usedImageSummary\": [\n          \"项目入口图\"\n        ]\n      },\n      \"qualityGateHints\": {\n        \"factWeakness\": \"项目事实不足\",\n        \"complianceRisks\": [],\n        \"mustReviewBeforePublish\": []\n      }\n    },\n    \"usedKnowledgeRefs\": [\n      \"已有商业配套和真实经营场景可观察\",\n      \"空间用途较灵活，具体使用以实际需求和官方口径为准\"\n    ],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [\n      \"项目入口图\"\n    ],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}"
+    },
+    "error": null,
+    "elapsed_time": 60.830277,
+    "total_tokens": 15276,
+    "total_steps": 9,
+    "created_by": {
+      "id": "a7e14411-2871-4463-ad49-718b47a7f620",
+      "user": "content_calendar_test_case03_weak_knowledge_1778510798"
+    },
+    "created_at": 1778510801,
+    "finished_at": 1778510862,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [
+        "预算友好的小面积产品，轻松实现居住梦想"
+      ],
+      "selectedTitle": "预算友好的小面积产品，轻松实现居住梦想",
+      "coverCopy": "小面积产品，生活便利，预算友好",
+      "body": "小面积产品在市场上越来越受欢迎，适合那些希望降低购房压力的朋友们。这样的选择不仅能让你更轻松上车，还能享受生活的便利。\n\n预算友好的优势在于，购房总价相对较低，适合各类购房者，尤其是首次置业的年轻人。这样的产品让你在预算内找到合适的居所。\n\n周边配套设施完善，商业区和交通便利，能满足日常生活需求。生活在这里，你会发现出行和购物都很方便。\n\n空间用途灵活，具体使用可以根据实际需求来调整，适合不同家庭的生活方式。无论是单身公寓还是小家庭，都能找到合适的空间。\n\n如果你对这样的产品感兴趣，欢迎随时咨询了解更多信息。",
+      "hashtags": [
+        "#小面积产品",
+        "#预算友好",
+        "#生活便利"
+      ],
+      "cta": "点击了解更多，找到你的理想家",
+      "imageMatches": [
+        {
+          "assetId": "img_003",
+          "title": "项目入口",
+          "usage": "可作为项目识别图",
+          "reason": "展示项目的入口，帮助客户识别"
+        }
+      ],
+      "imageBriefIfMissing": "",
+      "riskNotes": [],
+      "copyReadyText": "预算友好的小面积产品，轻松实现居住梦想\n\n小面积产品，生活便利，预算友好\n\n小面积产品在市场上越来越受欢迎，适合那些希望降低购房压力的朋友们。这样的选择不仅能让你更轻松上车，还能享受生活的便利。\n\n预算友好的优势在于，购房总价相对较低，适合各类购房者，尤其是首次置业的年轻人。这样的产品让你在预算内找到合适的居所。\n\n周边配套设施完善，商业区和交通便利，能满足日常生活需求。生活在这里，你会发现出行和购物都很方便。\n\n空间用途灵活，具体使用可以根据实际需求来调整，适合不同家庭的生活方式。无论是单身公寓还是小家庭，都能找到合适的空间。\n\n如果你对这样的产品感兴趣，欢迎随时咨询了解更多信息。\n\n#小面积产品 #预算友好 #生活便利\n\n点击了解更多，找到你的理想家"
+    },
+    "videoScript": {
+      "storyOutline": "展示小面积产品的生活场景与周边配套，强调预算友好性",
+      "estimatedDuration": "35-45秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-10秒",
+          "visualGoal": "展示项目入口及周边环境，营造亲切感",
+          "voiceover": "这里是我们今天要介绍的项目，周边环境宁静而便利。",
+          "subtitle": "项目入口与周边环境",
+          "shotRequirement": "拍摄项目入口的全景，包含周边绿化及交通情况",
+          "assetQuery": "项目外立面 远景 小区入口",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "10-20秒",
+          "visualGoal": "展示室内空间，突出舒适感与实用性",
+          "voiceover": "室内空间设计灵活，适合多种生活方式。",
+          "subtitle": "舒适的室内空间",
+          "shotRequirement": "拍摄室内空间的不同角度，展示家具布置与采光",
+          "assetQuery": "室内空间展示 家具布置 采光",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "20-30秒",
+          "visualGoal": "展示周边商业配套与交通便利",
+          "voiceover": "周边商业设施齐全，出行也非常方便。",
+          "subtitle": "便利的周边配套",
+          "shotRequirement": "拍摄附近的商业街、超市及公共交通站点",
+          "assetQuery": "周边商业配套 交通便利 商业街",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "30-45秒",
+          "visualGoal": "总结信息，呼吁观众关注与咨询",
+          "voiceover": "如果你对这个项目感兴趣，欢迎随时咨询。",
+          "subtitle": "关注我们，找到你的理想家",
+          "shotRequirement": "拍摄团队在项目现场的互动或解说",
+          "assetQuery": "项目现场 团队互动",
+          "uploadRequired": true,
+          "uploadReason": "需要团队成员在现场进行口播或互动",
+          "assetSourceHint": "member_upload",
+          "fallbackVisual": ""
+        }
+      ],
+      "requiredUploads": [
+        "项目现场 团队互动"
+      ],
+      "optionalTeamVideoAssets": [
+        "项目外立面 远景 小区入口",
+        "室内空间展示 家具布置 采光",
+        "周边商业配套 交通便利 商业街"
+      ],
+      "shootingTips": [],
+      "riskNotes": []
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 5,
+        "projectFit": 8,
+        "viralStructure": 7,
+        "platformTone": 6,
+        "materialFit": 5,
+        "compliance": 4
+      },
+      "pass": false,
+      "problems": [
+        "收益承诺类表述",
+        "出租确定性类表述"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": []
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "低总价上车",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "预算敏感客户",
+        "audiencePain": "",
+        "sellingPointsNeeded": [],
+        "riskConstraints": [],
+        "copySearchQuery": "预算友好 小面积产品 生活便利",
+        "scriptSearchQuery": "预算友好 小面积产品 生活便利",
+        "imageSearchQuery": "预算友好 小面积产品 生活便利",
+        "videoAssetQueryHints": [],
+        "extraRequirement": ""
+      },
+      "creativeStrategy": {
+        "chosenAngle": "聚焦小面积产品的预算友好性与生活便利性",
+        "narrativeArc": [],
+        "tone": "本地中介、真实、克制、不夸张",
+        "mustUseFacts": [
+          "已有商业配套和真实经营场景可观察",
+          "空间用途较灵活，具体使用以实际需求和官方口径为准"
+        ],
+        "mustAvoidClaims": [],
+        "viralPatternUsed": {
+          "patternName": "引发共鸣",
+          "reason": "通过强调预算友好和生活便利性吸引目标受众",
+          "titleTactics": [
+            "预算友好小户型，轻松上车"
+          ],
+          "hookTactics": [
+            "你还在为高总价烦恼吗？"
+          ],
+          "ctaTactics": [
+            "点击了解更多，找到你的理想家"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "预算友好的小面积产品，轻松实现居住梦想",
+          "coverCopyDirection": "小面积产品，生活便利，预算友好",
+          "bodyStructure": [
+            "引言：介绍小面积产品的市场趋势",
+            "第一部分：预算友好的优势",
+            "第二部分：生活便利性与周边配套",
+            "第三部分：灵活的空间用途",
+            "结尾：鼓励读者关注与咨询"
+          ],
+          "imagePlan": [
+            {
+              "assetId": "img_003",
+              "title": "项目入口",
+              "description": "可作为项目识别图"
+            }
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "展示小面积产品的生活场景与周边配套，强调预算友好性",
+          "estimatedDuration": "35-45秒",
+          "scenePlan": [
+            "镜头1：项目入口及周边环境",
+            "镜头2：室内空间展示，强调舒适度",
+            "镜头3：周边商业配套与交通便利",
+            "镜头4：总结性信息，呼吁关注"
+          ],
+          "requiredUploads": [],
+          "assetQueryHints": []
+        },
+        "degradationNotices": [],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "已有商业配套和真实经营场景可观察",
+            "空间用途较灵活，具体使用以实际需求和官方口径为准"
+          ],
+          "usedViralSummary": [],
+          "usedImageSummary": [
+            "项目入口图"
+          ]
+        },
+        "qualityGateHints": {
+          "factWeakness": "项目事实不足",
+          "complianceRisks": [],
+          "mustReviewBeforePublish": []
+        }
+      },
+      "usedKnowledgeRefs": [
+        "已有商业配套和真实经营场景可观察",
+        "空间用途较灵活，具体使用以实际需求和官方口径为准"
+      ],
+      "usedViralRefs": [],
+      "usedImageAssets": [
+        "项目入口图"
+      ],
+      "degradationNotices": []
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"预算友好的小面积产品，轻松实现居住梦想\"\n    ],\n    \"selectedTitle\": \"预算友好的小面积产品，轻松实现居住梦想\",\n    \"coverCopy\": \"小面积产品，生活便利，预算友好\",\n    \"body\": \"小面积产品在市场上越来越受欢迎，适合那些希望降低购房压力的朋友们。这样的选择不仅能让你更轻松上车，还能享受生活的便利。\\n\\n预算友好的优势在于，购房总价相对较低，适合各类购房者，尤其是首次置业的年轻人。这样的产品让你在预算内找到合适的居所。\\n\\n周边配套设施完善，商业区和交通便利，能满足日常生活需求。生活在这里，你会发现出行和购物都很方便。\\n\\n空间用途灵活，具体使用可以根据实际需求来调整，适合不同家庭的生活方式。无论是单身公寓还是小家庭，都能找到合适的空间。\\n\\n如果你对这样的产品感兴趣，欢迎随时咨询了解更多信息。\",\n    \"hashtags\": [\n      \"#小面积产品\",\n      \"#预算友好\",\n      \"#生活便利\"\n    ],\n    \"cta\": \"点击了解更多，找到你的理想家\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_003\",\n        \"title\": \"项目入口\",\n        \"usage\": \"可作为项目识别图\",\n        \"reason\": \"展示项目的入口，帮助客户识别\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"预算友好的小面积产品，轻松实现居住梦想\\n\\n小面积产品，生活便利，预算友好\\n\\n小面积产品在市场上越来越受欢迎，适合那些希望降低购房压力的朋友们。这样的选择不仅能让你更轻松上车，还能享受生活的便利。\\n\\n预算友好的优势在于，购房总价相对较低，适合各类购房者，尤其是首次置业的年轻人。这样的产品让你在预算内找到合适的居所。\\n\\n周边配套设施完善，商业区和交通便利，能满足日常生活需求。生活在这里，你会发现出行和购物都很方便。\\n\\n空间用途灵活，具体使用可以根据实际需求来调整，适合不同家庭的生活方式。无论是单身公寓还是小家庭，都能找到合适的空间。\\n\\n如果你对这样的产品感兴趣，欢迎随时咨询了解更多信息。\\n\\n#小面积产品 #预算友好 #生活便利\\n\\n点击了解更多，找到你的理想家\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"展示小面积产品的生活场景与周边配套，强调预算友好性\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-10秒\",\n        \"visualGoal\": \"展示项目入口及周边环境，营造亲切感\",\n        \"voiceover\": \"这里是我们今天要介绍的项目，周边环境宁静而便利。\",\n        \"subtitle\": \"项目入口与周边环境\",\n        \"shotRequirement\": \"拍摄项目入口的全景，包含周边绿化及交通情况\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"10-20秒\",\n        \"visualGoal\": \"展示室内空间，突出舒适感与实用性\",\n        \"voiceover\": \"室内空间设计灵活，适合多种生活方式。\",\n        \"subtitle\": \"舒适的室内空间\",\n        \"shotRequirement\": \"拍摄室内空间的不同角度，展示家具布置与采光\",\n        \"assetQuery\": \"室内空间展示 家具布置 采光\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"20-30秒\",\n        \"visualGoal\": \"展示周边商业配套与交通便利\",\n        \"voiceover\": \"周边商业设施齐全，出行也非常方便。\",\n        \"subtitle\": \"便利的周边配套\",\n        \"shotRequirement\": \"拍摄附近的商业街、超市及公共交通站点\",\n        \"assetQuery\": \"周边商业配套 交通便利 商业街\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"总结信息，呼吁观众关注与咨询\",\n        \"voiceover\": \"如果你对这个项目感兴趣，欢迎随时咨询。\",\n        \"subtitle\": \"关注我们，找到你的理想家\",\n        \"shotRequirement\": \"拍摄团队在项目现场的互动或解说\",\n        \"assetQuery\": \"项目现场 团队互动\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要团队成员在现场进行口播或互动\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"项目现场 团队互动\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"室内空间展示 家具布置 采光\",\n      \"周边商业配套 交通便利 商业街\"\n    ],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 5,\n      \"projectFit\": 8,\n      \"viralStructure\": 7,\n      \"platformTone\": 6,\n      \"materialFit\": 5,\n      \"compliance\": 4\n    },\n    \"pass\": false,\n    \"problems\": [\n      \"收益承诺类表述\",\n      \"出租确定性类表述\"\n    ],\n    \"revisionSuggestions\": [],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"低总价上车\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\"xiaohongshu\", \"douyin\"],\n      \"contentGoal\": \"种草\",\n      \"targetAudience\": \"预算敏感客户\",\n      \"audiencePain\": \"\",\n      \"sellingPointsNeeded\": [],\n      \"riskConstraints\": [],\n      \"copySearchQuery\": \"预算友好 小面积产品 生活便利\",\n      \"scriptSearchQuery\": \"预算友好 小面积产品 生活便利\",\n      \"imageSearchQuery\": \"预算友好 小面积产品 生活便利\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"聚焦小面积产品的预算友好性与生活便利性\",\n      \"narrativeArc\": [],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [\n        \"已有商业配套和真实经营场景可观察\",\n        \"空间用途较灵活，具体使用以实际需求和官方口径为准\"\n      ],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"引发共鸣\",\n        \"reason\": \"通过强调预算友好和生活便利性吸引目标受众\",\n        \"titleTactics\": [\"预算友好小户型，轻松上车\"],\n        \"hookTactics\": [\"你还在为高总价烦恼吗？\"],\n        \"ctaTactics\": [\"点击了解更多，找到你的理想家\"]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"预算友好的小面积产品，轻松实现居住梦想\",\n        \"coverCopyDirection\": \"小面积产品，生活便利，预算友好\",\n        \"bodyStructure\": [\n          \"引言：介绍小面积产品的市场趋势\",\n          \"第一部分：预算友好的优势\",\n          \"第二部分：生活便利性与周边配套\",\n          \"第三部分：灵活的空间用途\",\n          \"结尾：鼓励读者关注与咨询\"\n        ],\n        \"imagePlan\": [\n          {\n            \"assetId\": \"img_003\",\n            \"title\": \"项目入口\",\n            \"description\": \"可作为项目识别图\"\n          }\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"展示小面积产品的生活场景与周边配套，强调预算友好性\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"镜头1：项目入口及周边环境\",\n          \"镜头2：室内空间展示，强调舒适度\",\n          \"镜头3：周边商业配套与交通便利\",\n          \"镜头4：总结性信息，呼吁关注\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": [],\n      \"trace\": {\n        \"usedKnowledgeSummary\": [\n          \"已有商业配套和真实经营场景可观察\",\n          \"空间用途较灵活，具体使用以实际需求和官方口径为准\"\n        ],\n        \"usedViralSummary\": [],\n        \"usedImageSummary\": [\n          \"项目入口图\"\n        ]\n      },\n      \"qualityGateHints\": {\n        \"factWeakness\": \"项目事实不足\",\n        \"complianceRisks\": [],\n        \"mustReviewBeforePublish\": []\n      }\n    },\n    \"usedKnowledgeRefs\": [\n      \"已有商业配套和真实经营场景可观察\",\n      \"空间用途较灵活，具体使用以实际需求和官方口径为准\"\n    ],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [\n      \"项目入口图\"\n    ],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": false,
+        "detail": "compliance:4<7"
+      }
+    ],
+    "risk_terms": []
+  }
+}

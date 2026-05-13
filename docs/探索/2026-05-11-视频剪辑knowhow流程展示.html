@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>视频剪辑 Knowhow 流程展示</title>
+  <style>
+    :root {
+      --ink: #1b1d22;
+      --muted: #626b78;
+      --line: #d8dee8;
+      --paper: #f7f8fb;
+      --panel: #ffffff;
+      --teal: #0f8b8d;
+      --coral: #e85d4f;
+      --gold: #c88719;
+      --indigo: #4d5bd1;
+      --green: #2b8a3e;
+      --shadow: 0 16px 40px rgba(20, 28, 40, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      line-height: 1.6;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .layout {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 244px 1fr;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 20px;
+      border-right: 1px solid var(--line);
+      background: #ffffff;
+      overflow: auto;
+    }
+
+    .brand {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--teal);
+      text-transform: uppercase;
+      letter-spacing: 0;
+      margin-bottom: 8px;
+    }
+
+    .nav-title {
+      font-size: 20px;
+      line-height: 1.25;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+
+    .nav-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .nav-list a {
+      border: 1px solid transparent;
+      border-radius: 7px;
+      padding: 8px 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav-list a:hover {
+      color: var(--ink);
+      border-color: var(--line);
+      background: #f3f6fa;
+    }
+
+    main {
+      padding: 34px;
+    }
+
+    .hero {
+      max-width: 1180px;
+      margin: 0 auto 28px;
+      padding: 34px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      color: var(--coral);
+      font-weight: 800;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 900px;
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    section {
+      max-width: 1180px;
+      margin: 0 auto 24px;
+      padding: 28px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 25px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 8px 0;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .tile {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #ffffff;
+    }
+
+    .tile.teal {
+      border-top: 4px solid var(--teal);
+    }
+
+    .tile.coral {
+      border-top: 4px solid var(--coral);
+    }
+
+    .tile.gold {
+      border-top: 4px solid var(--gold);
+    }
+
+    .tile.indigo {
+      border-top: 4px solid var(--indigo);
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #eef5f5;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0 6px 6px 0;
+    }
+
+    .tag.coral {
+      background: #fff0ee;
+      color: var(--coral);
+    }
+
+    .tag.gold {
+      background: #fff7e8;
+      color: var(--gold);
+    }
+
+    .tag.indigo {
+      background: #f0f2ff;
+      color: var(--indigo);
+    }
+
+    .pipeline {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .step-num {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      color: #ffffff;
+      font-weight: 800;
+      background: var(--teal);
+      min-height: 68px;
+    }
+
+    .step:nth-child(4n + 2) .step-num {
+      background: var(--coral);
+    }
+
+    .step:nth-child(4n + 3) .step-num {
+      background: var(--gold);
+    }
+
+    .step:nth-child(4n + 4) .step-num {
+      background: var(--indigo);
+    }
+
+    .step-body {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: #ffffff;
+    }
+
+    .step-body strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 16px;
+    }
+
+    .swimlane {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .lane {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .lane h3 {
+      margin: 0;
+      padding: 12px 14px;
+      color: #fff;
+      background: var(--ink);
+      font-size: 15px;
+    }
+
+    .lane ul {
+      margin: 0;
+      padding: 14px 18px 16px 30px;
+    }
+
+    .lane li {
+      margin-bottom: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 14px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #f0f3f7;
+      font-weight: 800;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .project-title {
+      font-size: 19px;
+      font-weight: 850;
+      margin-bottom: 8px;
+    }
+
+    .mini-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .mini-flow span {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      border-radius: 7px;
+      padding: 8px 10px;
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    .route {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .route-row {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .route-label {
+      font-weight: 800;
+      color: #fff;
+      background: var(--indigo);
+      padding: 10px 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .route-content {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #fff;
+    }
+
+    .callout {
+      border-left: 5px solid var(--green);
+      background: #eef8f0;
+      padding: 14px 16px;
+      border-radius: 0 8px 8px 0;
+      margin-top: 14px;
+    }
+
+    .file-list {
+      columns: 2;
+      column-gap: 24px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .file-list div {
+      break-inside: avoid;
+      margin: 0 0 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    @media (max-width: 960px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      nav {
+        position: relative;
+        height: auto;
+      }
+
+      main {
+        padding: 18px;
+      }
+
+      .grid-2,
+      .grid-3,
+      .grid-4,
+      .compare,
+      .swimlane {
+        grid-template-columns: 1fr;
+      }
+
+      .step,
+      .route-row {
+        grid-template-columns: 1fr;
+      }
+
+      .file-list {
+        columns: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav>
+      <div class="brand">Video Knowhow</div>
+      <div class="nav-title">两项目视频剪辑流程展示</div>
+      <div class="muted">给产品经理看的流程图，而不是源码注释。</div>
+      <div class="nav-list">
+        <a href="#read">产品经理读法</a>
+        <a href="#overview">总览判断</a>
+        <a href="#pixelle">Pixelle-Video</a>
+        <a href="#storyline">小红书AI剪辑视频</a>
+        <a href="#assets">素材链路</a>
+        <a href="#semantic">语义理解</a>
+        <a href="#timeline">剪辑时间线</a>
+        <a href="#compare">能力对比</a>
+        <a href="#fusion">融合改造路线</a>
+        <a href="#evidence">证据来源</a>
+      </div>
+    </nav>
+
+    <main>
+      <header class="hero">
+        <div class="eyebrow">面向小红书/抖音矩阵获客平台的视频能力改造</div>
+        <h1>Pixelle-Video × 小红书AI剪辑视频：从素材理解到自动剪辑的 knowhow</h1>
+        <p class="lead">
+          这个页面把两个开源项目拆成产品流程：它们怎么运行、怎么找素材、怎么理解素材、怎么生成脚本、怎么排剪辑时间线、怎么做转场和渲染，以及我们应该如何吸收进自己的视频工作台和 worker。
+        </p>
+      </header>
+
+      <section id="read">
+        <h2>产品经理读法</h2>
+        <div class="grid-3">
+          <div class="tile teal">
+            <h3>先看“它解决什么问题”</h3>
+            <p>Pixelle-Video 更像从主题生成一条新视频；小红书AI剪辑视频更像拿已有素材剪成片。</p>
+          </div>
+          <div class="tile coral">
+            <h3>再看“它怎么做判断”</h3>
+            <p>重点看素材从哪里来、系统理解了什么、这些理解结果怎样影响脚本、分组和剪辑。</p>
+          </div>
+          <div class="tile gold">
+            <h3>最后看“我们怎么改造”</h3>
+            <p>不要直接合并代码，而是把 knowhow 装进本项目的脚本确认、素材中心、video job 和 worker 合同里。</p>
+          </div>
+        </div>
+        <div class="callout">
+          一句话结论：Pixelle-Video 适合做“无素材快速生成”，小红书AI剪辑视频适合做“有素材自动剪辑”，本项目要做的是把两者变成可控、可解释、可验收的视频生产链路。
+        </div>
+      </section>
+
+      <section id="overview">
+        <h2>总览判断</h2>
+        <div class="compare">
+          <div class="tile teal">
+            <div class="project-title">Pixelle-Video</div>
+            <p class="muted">输入主题或固定文案，系统自动生成脚本、图片/视频、配音、模板画面和最终视频。</p>
+            <div>
+              <span class="tag">主题生成</span>
+              <span class="tag">ComfyUI/RunningHub</span>
+              <span class="tag">HTML 模板</span>
+              <span class="tag">FFmpeg 拼接</span>
+            </div>
+            <div class="mini-flow">
+              <span>主题</span>
+              <span>文案</span>
+              <span>分镜</span>
+              <span>AI 画面</span>
+              <span>TTS</span>
+              <span>模板</span>
+              <span>成片</span>
+            </div>
+          </div>
+
+          <div class="tile coral">
+            <div class="project-title">小红书AI剪辑视频</div>
+            <p class="muted">上传或搜索素材，Agent 调用节点完成素材加载、镜头切分、视觉理解、筛选分组、脚本、时间线和渲染。</p>
+            <div>
+              <span class="tag coral">素材剪辑</span>
+              <span class="tag coral">VLM 理解</span>
+              <span class="tag coral">多轨时间线</span>
+              <span class="tag coral">MoviePy 渲染</span>
+            </div>
+            <div class="mini-flow">
+              <span>素材</span>
+              <span>切镜头</span>
+              <span>理解</span>
+              <span>筛选</span>
+              <span>分组</span>
+              <span>时间线</span>
+              <span>成片</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="pixelle">
+        <h2>Pixelle-Video：生成型视频工厂</h2>
+        <p class="muted">适合从主题、脚本或少量商家素材快速做出一条模板化视频。核心不是剪已有长素材，而是把文案、画面、配音和模板串成一条线性流水线。</p>
+        <div class="pipeline">
+          <div class="step">
+            <div class="step-num">01 输入</div>
+            <div class="step-body">
+              <strong>用户输入主题、固定文案或上传素材</strong>
+              快速创作 tab 输入主题或脚本；自定义素材 tab 上传图片/视频，并填写标题、意图、目标时长。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">02 内容</div>
+            <div class="step-body">
+              <strong>LLM 生成标题、旁白、画面提示词</strong>
+              主题模式下生成 narrations；固定文案模式下切分脚本；需要画面时再为每段生成 image prompt。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">03 素材</div>
+            <div class="step-body">
+              <strong>ComfyUI/RunningHub 生成图片或视频</strong>
+              `image_*.json` 生成图片，`video_*.json` 生成视频；上传素材模式会先用视觉工作流生成素材描述。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">04 定时</div>
+            <div class="step-body">
+              <strong>TTS 先生成音频，音频时长决定镜头长度</strong>
+              这是 Pixelle 的关键 knowhow：旁白不是贴上去的装饰，而是整个镜头时长的时钟。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">05 包装</div>
+            <div class="step-body">
+              <strong>HTML 模板渲染每个镜头画面</strong>
+              模板决定横竖屏、标题、字幕、背景图/视频、品牌样式。它把“画面设计”从剪辑代码里抽出来。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">06 合成</div>
+            <div class="step-body">
+              <strong>FFmpeg 生成片段、拼接、加 BGM</strong>
+              每个 frame 变成一个 segment，最后线性拼接。BGM 支持 loop/once 和音量调节。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="storyline">
+        <h2>小红书AI剪辑视频：素材理解型剪辑 Agent</h2>
+        <p class="muted">这个项目是 FireRed-OpenStoryline 整理版。它的强项是把剪辑拆成一组工具节点，由 Agent 根据用户目标调度。</p>
+        <div class="pipeline">
+          <div class="step">
+            <div class="step-num">01 搜/传素材</div>
+            <div class="step-body">
+              <strong>用户上传素材，或通过 Pexels 搜索补充素材</strong>
+              Web 侧支持会话级素材上传；`search_media` 可按关键词、横竖屏、数量、时长搜索下载 Pexels 素材。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">02 建索引</div>
+            <div class="step-body">
+              <strong>load_media 为素材分配 ID 并读取元数据</strong>
+              图片读取宽高；视频读取时长、宽高、fps、音频信息。每个素材得到 `media_0001` 这种 ID。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">03 切镜头</div>
+            <div class="step-body">
+              <strong>split_shots 用 TransNetV2 + FFmpeg 切出 clip</strong>
+              视频按场景边界切分，并限制最短/最长时长；图片作为单个 clip 进入后续流程。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">04 看懂素材</div>
+            <div class="step-body">
+              <strong>understand_clips 用 VLM 生成 caption 和美学分</strong>
+              识别主体、动作、表情、场景、视角、氛围、画质、光影、构图和稳定性，并生成 overall 总结。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">05 筛选分组</div>
+            <div class="step-body">
+              <strong>filter_clips 和 group_clips 决定保留哪些镜头、如何叙事排序</strong>
+              先按质量和用户要求筛选，再把镜头组织成段落 group，为脚本和时间线做准备。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">06 生成制作元素</div>
+            <div class="step-body">
+              <strong>脚本、配音、BGM、转场、字幕样式分别由节点生成</strong>
+              `generate_script` 写旁白和字幕；`generate_voiceover` 生成 TTS；`select_bgm` 选音乐并算鼓点；`generate_ai_transition` 可生成镜头间 AI 转场。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">07 时间线</div>
+            <div class="step-body">
+              <strong>plan_timeline 生成 video/subtitle/voiceover/bgm 多轨时间线</strong>
+              配音时长、素材时长、BGM 鼓点共同决定每个镜头出现多久、从原素材截哪一段。
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">08 渲染</div>
+            <div class="step-body">
+              <strong>render_video 用 MoviePy 拼画面、叠字幕、混音、导出 mp4</strong>
+              最终输出包含画面轨、字幕轨、配音轨和 BGM 轨，不只是简单拼接。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="assets">
+        <h2>素材链路</h2>
+        <div class="grid-2">
+          <div class="tile teal">
+            <h3>Pixelle-Video 的素材链路</h3>
+            <ul>
+              <li>AI 生成图片/视频是主力素材。</li>
+              <li>用户上传素材主要在 `custom_media` 流程里使用。</li>
+              <li>BGM 来自本地 `bgm/` 文件夹。</li>
+              <li>素材更偏“当前任务使用”，不是长期素材中心。</li>
+            </ul>
+          </div>
+          <div class="tile coral">
+            <h3>小红书AI剪辑视频的素材链路</h3>
+            <ul>
+              <li>用户上传图片/视频到 session media 目录。</li>
+              <li>Pexels 可按关键词、横竖屏、数量和时长搜索补充素材。</li>
+              <li>BGM、字体、脚本模板来自 `resource/`。</li>
+              <li>素材经过 load、切分、理解、筛选、分组后进入时间线。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout">
+          对本项目来说，素材链路应该回到 COS 和 `asset_objects`。两个开源项目的本地文件目录只能作为执行缓存，不能成为长期真相源。
+        </div>
+      </section>
+
+      <section id="semantic">
+        <h2>语义理解</h2>
+        <div class="swimlane">
+          <div class="lane">
+            <h3>基础信息</h3>
+            <ul>
+              <li>图片：宽高、格式。</li>
+              <li>视频：时长、fps、宽高、是否有音频。</li>
+              <li>这一步回答“素材是什么文件”。</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <h3>画面理解</h3>
+            <ul>
+              <li>Pixelle：图片/视频理解工作流生成描述。</li>
+              <li>OpenStoryline：VLM 输出 caption 和 aes_score。</li>
+              <li>这一步回答“画面里有什么、好不好看”。</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <h3>剪辑理解</h3>
+            <ul>
+              <li>筛选相似或低质量片段。</li>
+              <li>把镜头按叙事目标分组。</li>
+              <li>根据 group 生成脚本和时间线。</li>
+            </ul>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>问题</th>
+              <th>Pixelle-Video</th>
+              <th>小红书AI剪辑视频</th>
+              <th>我们应如何产品化</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>系统理解了素材什么？</td>
+              <td>上传素材时生成图片/视频描述。</td>
+              <td>镜头级 caption、美学分、overall、ASR 文本。</td>
+              <td>沉淀为素材中心的 AI 标签、镜头、质量分和可用场景。</td>
+            </tr>
+            <tr>
+              <td>理解结果影响什么？</td>
+              <td>影响 LLM 为 scene 分配哪个 asset。</td>
+              <td>影响筛选、分组、脚本、BGM 和时间线。</td>
+              <td>让用户看到“为什么用这段素材”，并允许人工改。</td>
+            </tr>
+            <tr>
+              <td>缺什么？</td>
+              <td>缺镜头切分、长期素材画像和复杂筛选。</td>
+              <td>缺业务合同、长期资产库和稳定产品边界。</td>
+              <td>由 app 建合同，由 worker 执行，由素材中心积累认知。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="timeline">
+        <h2>剪辑时间线</h2>
+        <div class="grid-2">
+          <div class="tile gold">
+            <h3>Pixelle 的 storyboard</h3>
+            <p>一个视频由多个 frame 顺序组成。每个 frame 包含旁白、画面提示词、图片/视频、模板渲染图和单段视频。</p>
+            <div class="mini-flow">
+              <span>frame 1</span>
+              <span>frame 2</span>
+              <span>frame 3</span>
+              <span>concat</span>
+              <span>BGM</span>
+            </div>
+          </div>
+          <div class="tile indigo">
+            <h3>OpenStoryline 的多轨 timeline</h3>
+            <p>一个视频由 video、subtitles、voiceover、bgm 多条轨道组成。每条轨道都有 source_window 和 timeline_window。</p>
+            <div class="mini-flow">
+              <span>video track</span>
+              <span>subtitle track</span>
+              <span>voiceover track</span>
+              <span>bgm track</span>
+              <span>render</span>
+            </div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>剪辑对象</th>
+              <th>产品解释</th>
+              <th>对用户有什么价值</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>source_window</td>
+              <td>从原始素材里截哪一段</td>
+              <td>可以解释为什么这段素材只用了 2 秒</td>
+            </tr>
+            <tr>
+              <td>timeline_window</td>
+              <td>在最终成片第几秒出现</td>
+              <td>支持后续调整顺序、节奏和字幕时间</td>
+            </tr>
+            <tr>
+              <td>voiceover duration</td>
+              <td>配音真实时长</td>
+              <td>让画面跟着旁白走，减少错位</td>
+            </tr>
+            <tr>
+              <td>beats</td>
+              <td>BGM 鼓点</td>
+              <td>让镜头切换更有节奏感</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="compare">
+        <h2>能力对比</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>能力</th>
+              <th>Pixelle-Video</th>
+              <th>小红书AI剪辑视频</th>
+              <th>融合判断</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>主题生成视频</td>
+              <td>强</td>
+              <td>弱</td>
+              <td>用 Pixelle 做无素材快创。</td>
+            </tr>
+            <tr>
+              <td>素材理解</td>
+              <td>中</td>
+              <td>强</td>
+              <td>用 OpenStoryline 的切分、caption、美学分。</td>
+            </tr>
+            <tr>
+              <td>素材搜索</td>
+              <td>基本没有</td>
+              <td>Pexels 搜索</td>
+              <td>可做补充素材，但要处理版权和品牌一致性。</td>
+            </tr>
+            <tr>
+              <td>字幕</td>
+              <td>HTML 模板镜头级字幕</td>
+              <td>时间线字幕轨</td>
+              <td>快创用模板字幕，可编辑视频用字幕轨。</td>
+            </tr>
+            <tr>
+              <td>BGM</td>
+              <td>手动选择 + loop/once</td>
+              <td>语义推荐 + beat 分析</td>
+              <td>OpenStoryline 的 BGM knowhow 更适合产品化。</td>
+            </tr>
+            <tr>
+              <td>转场</td>
+              <td>以拼接为主</td>
+              <td>fade + AI 转场视频</td>
+              <td>AI 转场放增强版，不放 MVP 门槛。</td>
+            </tr>
+            <tr>
+              <td>渲染</td>
+              <td>FFmpeg 简洁稳定</td>
+              <td>MoviePy 多轨灵活</td>
+              <td>worker 可按任务类型选择 renderer。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="fusion">
+        <h2>融合改造路线</h2>
+        <div class="route">
+          <div class="route-row">
+            <div class="route-label">MVP</div>
+            <div class="route-content">
+              <strong>先把“有脚本 + 有素材 -> 生成可预览视频”跑顺。</strong>
+              使用现有 video_edit_jobs、COS、worker。脚本必须用户确认；素材必须来自素材中心或上传到 COS；worker 不重写业务语义，只做制作执行。
+            </div>
+          </div>
+          <div class="route-row">
+            <div class="route-label">增强版</div>
+            <div class="route-content">
+              <strong>加入素材理解和可解释剪辑计划。</strong>
+              引入镜头切分、caption、美学分、overall；工作台展示 AI 如何理解素材；生成 video/subtitle/voiceover/bgm 多轨计划，支持制作修订。
+            </div>
+          </div>
+          <div class="route-row">
+            <div class="route-label">长期版</div>
+            <div class="route-content">
+              <strong>做混合生成和高级效果。</strong>
+              真实素材不足时用 Pixelle 式 AI 生成补充镜头；支持 ASR 粗剪、AI 转场、多平台比例适配、品牌模板和素材资产复利。
+            </div>
+          </div>
+        </div>
+        <div class="callout">
+          推荐架构：Pixelle-Video 做 AI 生成补充能力，OpenStoryline 做素材理解和剪辑计划，本项目 app/worker 负责业务合同、权限、数据回写和验收。
+        </div>
+      </section>
+
+      <section id="evidence">
+        <h2>证据来源</h2>
+        <div class="file-list">
+          <div>Pixelle-Video/README.md</div>
+          <div>Pixelle-Video/config.example.yaml</div>
+          <div>Pixelle-Video/pixelle_video/service.py</div>
+          <div>Pixelle-Video/pixelle_video/pipelines/standard.py</div>
+          <div>Pixelle-Video/pixelle_video/pipelines/asset_based.py</div>
+          <div>Pixelle-Video/pixelle_video/services/frame_processor.py</div>
+          <div>Pixelle-Video/pixelle_video/services/image_analysis.py</div>
+          <div>Pixelle-Video/pixelle_video/services/video_analysis.py</div>
+          <div>Pixelle-Video/pixelle_video/services/video.py</div>
+          <div>小红书AI剪辑视频/README.md</div>
+          <div>小红书AI剪辑视频/OPENSTORYLINE_AGENT_GUIDE.md</div>
+          <div>小红书AI剪辑视频/config.toml</div>
+          <div>小红书AI剪辑视频/agent_fastapi.py</div>
+          <div>小红书AI剪辑视频/src/open_storyline/agent.py</div>
+          <div>小红书AI剪辑视频/src/open_storyline/nodes/core_nodes/*.py</div>
+          <div>docs/架构规范/2026-04-28-current-architecture.md</div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
