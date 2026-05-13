@@ -17,7 +17,9 @@ The remaining blocker is external resource availability, not local write access:
 
 Long task status has therefore been marked `blocked`, not `complete`.
 
-The local long-task contract was tightened after this audit so that completion now requires `docs/progress/2026-05-13-domestic-migration-phase1-e2e-verification.md` to exist and contain explicit pass markers for mobile browser, `video_edit_jobs`, worker, `final.mp4`, domestic COS, and re-signed download. A `check.py --skip-verifier` dry run failed on those missing e2e gates, as expected.
+The local long-task contract was tightened after this audit so that completion now requires `docs/progress/2026-05-13-domestic-migration-phase1-e2e-verification.md` to exist and contain explicit pass markers for mobile browser, `video_edit_jobs`, worker, `final.mp4`, domestic COS, and re-signed download. A pending template now exists at that path, but the completion pass marker is intentionally absent until the real run succeeds.
+
+Latest `check.py --skip-verifier` result: failed only on `phase1_e2e_verification_doc_contains_pass_markers`, as expected.
 
 ## 2. Prompt-to-artifact checklist
 

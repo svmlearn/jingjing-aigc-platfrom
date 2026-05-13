@@ -34,6 +34,7 @@
 - 新增视频链路 fixture seed：`app/db/seeds/domestic_video_chain_fixture.example.sql`。
 - progress 已写入：`docs/progress/2026-05-13-domestic-migration-phase-a0-a6-progress.md`
 - completion audit 已写入：`docs/progress/2026-05-13-domestic-migration-completion-audit.md`
+- phase1 e2e pending 模板已写入：`docs/progress/2026-05-13-domestic-migration-phase1-e2e-verification.md`
 
 ## 验证结果
 
