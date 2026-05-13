@@ -76,6 +76,7 @@ COS_SECRET_ID=
 COS_SECRET_KEY=
 COS_BUCKET=
 COS_REGION=ap-guangzhou
+VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED=1
 ```
 
 Run local preflight on the app server:
@@ -110,6 +111,7 @@ Then test from the app page, not just server CLI:
 - `/api/media/upload-intents` returns domestic bucket / region / key prefix
 - browser upload writes an object under `draft-inputs/<merchantId>/<draftId>/...`
 - `/api/media/complete` writes `asset_objects.bucket_name + storage_key`
+- if using the video workbench test button, `POST /api/content/video-scripts/test-draft` returns a draft with one approved video script variant and three `productionScenes`
 
 ## 6. Worker env and smoke
 

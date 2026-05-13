@@ -149,6 +149,18 @@
 - `app/db/README.md` 已补充 migration + seed 命令。
 - 新增真实资源验证 runbook：`docs/handoff/2026-05-13-domestic-phase1-real-resource-runbook.md`。
 
+### A8 视频工作台测试草稿入口
+
+- 补齐前端已调用但后端缺失的 `POST /api/content/video-scripts/test-draft`。
+- 新增 `createVideoChainTestDraftForUser`，复用现有 `createManualSourceItem` / `createDraftWithVariants`，因此在 PostgreSQL 模式下会真实写入：
+  - `source_items`
+  - `content_drafts`
+  - `content_variants`
+- route 继续受 `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED` 控制：
+  - 非 production 默认可用
+  - production / 国内 IP 验证环境需要显式设置 `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED=1`
+- API 响应会把测试 fixture 的三段 `productionScenes` 挂回 selected variant，手机页面可直接显示三段素材上传槽位；数据库 schema 仍保持当前 baseline，不新增结构化 scenes 字段。
+
 ## 3. 验证结果
 
 已通过：
@@ -177,6 +189,7 @@ curl -sS -i -b /private/tmp/jj-domestic-cookie.txt 'http://127.0.0.1:3107/api/vi
 curl -sS -i -b /private/tmp/jj-domestic-source-cookie.txt 'http://127.0.0.1:3107/api/source-items?platform=douyin&limit=5'
 curl -sS -i -b /private/tmp/jj-domestic-source-cookie.txt 'http://127.0.0.1:3107/api/source-items/<sourceItemId>'
 curl -sS -i -b /private/tmp/jj-domestic-source-cookie.txt 'http://127.0.0.1:3107/api/source-items/<sourceItemId>/comments?limit=5'
+curl -sS -b /private/tmp/jj-testdraft-cookie.txt -X POST 'http://127.0.0.1:3112/api/content/video-scripts/test-draft'
 ```
 
 结果：
@@ -204,6 +217,8 @@ curl -sS -i -b /private/tmp/jj-domestic-source-cookie.txt 'http://127.0.0.1:3107
 - `GET /api/source-items?platform=douyin&limit=5` 在 PostgreSQL 模式下返回 `200`
 - `GET /api/source-items/<sourceItemId>` 在 PostgreSQL 模式下返回 `200`
 - `GET /api/source-items/<sourceItemId>/comments?limit=5` 在 PostgreSQL 模式下返回 `200`
+- `POST /api/content/video-scripts/test-draft` 在 PostgreSQL 模式 + domestic session 下返回 `201`
+- test draft 响应包含 `draft.id`、已确认 `selectedVariant.id`、`reviewStatus=approved`、`productionScenes.length=3`
 
 备注：
 

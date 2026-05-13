@@ -41,6 +41,8 @@
 - completion audit 已写入：`docs/progress/2026-05-13-domestic-migration-completion-audit.md`
 - phase1 e2e pending 模板已写入：`docs/progress/2026-05-13-domestic-migration-phase1-e2e-verification.md`
 - 真实资源 runbook 已写入：`docs/handoff/2026-05-13-domestic-phase1-real-resource-runbook.md`
+- 补齐 `POST /api/content/video-scripts/test-draft`，让视频工作台的“视频链路测试”按钮可在 PostgreSQL 模式下真实创建 `source_items` / `content_drafts` / `content_variants`。
+- test draft route 在 production 下需要显式配置 `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED=1`；默认不对正式生产打开。
 
 ## 验证结果
 
@@ -75,6 +77,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 新建 job 的 `inputPayload.render_mode=asset_driven`，且 `input_assets[0]` 指向刚写入的 asset metadata。
 - 已用 `GET /api/video-edit-jobs?status=pending&limit=5` 查回 pending job。
 - 已用 PostgreSQL fixture 验证 `/api/source-items`、`/api/source-items/[id]`、`/api/source-items/[id]/comments`，均返回 `200`。
+- 已用临时 PostgreSQL + domestic session 验证 `POST /api/content/video-scripts/test-draft`，返回 `201`，响应包含已确认 video script variant 和 3 段 `productionScenes`。
 - 已检查 `app/.env*`、`workers/video-worker/.env*` 和当前进程环境，未发现真实国内 PostgreSQL / COS / worker key。
 
 未验证：
@@ -130,6 +133,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
    - `COS_SECRET_KEY`
    - `COS_BUCKET`
    - `COS_REGION`
+   - `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED=1`（仅第一阶段 IP 验证需要）
 
 5. 验证 app：
    - `node app/scripts/check-domestic-app-env.mjs --env-file app/.env.production`
