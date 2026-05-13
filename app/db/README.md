@@ -1,0 +1,29 @@
+# Domestic PostgreSQL Baseline
+
+This directory contains plain PostgreSQL migrations for the first domestic
+verification chain. These files are derived from `app/supabase/migrations/`,
+but remove Supabase-only pieces such as `auth.users`, RLS policies, PostgREST
+grants, and Supabase Auth assumptions.
+
+First-phase scope:
+
+- Minimal `app_users` and `user_sessions` for IP-stage login.
+- Merchant, member, draft, variant, media asset, and video job tables.
+- Tencent COS metadata stored as `bucket_name + storage_key`.
+- Worker reliability columns for claim, heartbeat, timeout, failure reason,
+  retry, and manual rerun tracking.
+
+Apply on an empty domestic PostgreSQL database:
+
+```bash
+psql "$DATABASE_URL" -f app/db/migrations/202605130001_domestic_core_baseline.sql
+```
+
+Generate a first test password hash before inserting a manual `app_users` row:
+
+```bash
+node app/scripts/create-domestic-password-hash.mjs '<temporary-password>'
+```
+
+Do not use this as a production cutover script yet. Full historical migration,
+password reset, and platform admin migration are separate later phases.

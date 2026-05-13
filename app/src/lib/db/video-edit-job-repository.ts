@@ -18,6 +18,15 @@ import {
   listLocalRealChainVideoEditJobs,
   retryLocalRealChainVideoEditJob,
 } from "@/lib/db/local-real-chain-repository";
+import {
+  isPostgresVideoChainEnabled,
+  pgAssertVideoScriptVariantAccess,
+  pgCancelVideoEditJob,
+  pgCreateVideoEditJob,
+  pgGetVideoEditJobById,
+  pgListVideoEditJobs,
+  pgRetryVideoEditJob,
+} from "@/lib/db/postgres-video-chain-repository";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -122,6 +131,10 @@ export async function assertVideoScriptVariantAccess(input: {
   ctaText?: string | null;
   reviewStatus: ContentVariantDto["reviewStatus"];
 }> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgAssertVideoScriptVariantAccess(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     const variant = getLocalDemoContentVariantContext(input.contentVariantId);
 
@@ -216,6 +229,10 @@ export async function createVideoEditJob(input: {
   inputPayload?: CreateVideoEditJobRequest["inputPayload"];
   runtimePayload?: Record<string, unknown>;
 }): Promise<VideoEditJobDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgCreateVideoEditJob(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     if (isLocalRealChainEnabled()) {
       return createLocalRealChainVideoEditJob({
@@ -294,6 +311,10 @@ export async function listVideoEditJobs(
   merchantId: string,
   filters: VideoEditJobListFilters = {},
 ): Promise<VideoEditJobDto[]> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgListVideoEditJobs(merchantId, filters);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     if (isLocalRealChainEnabled()) {
       return listLocalRealChainVideoEditJobs(filters);
@@ -337,6 +358,10 @@ export async function getVideoEditJobById(input: {
   createdByUserId?: string | null;
   jobId: string;
 }): Promise<VideoEditJobDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgGetVideoEditJobById(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     if (isLocalRealChainEnabled()) {
       return getLocalRealChainVideoEditJobById(input.jobId);
@@ -380,6 +405,10 @@ export async function retryVideoEditJob(input: {
   createdByUserId?: string | null;
   jobId: string;
 }): Promise<VideoEditJobDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgRetryVideoEditJob(input);
+  }
+
   const current = await getVideoEditJobById(input);
 
   if (current.status !== "failed_retryable") {
@@ -452,6 +481,10 @@ export async function cancelVideoEditJob(input: {
   createdByUserId?: string | null;
   jobId: string;
 }): Promise<VideoEditJobDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgCancelVideoEditJob(input);
+  }
+
   const current = await getVideoEditJobById(input);
 
   if (!["pending", "queued", "preparing", "running"].includes(current.status)) {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,12 +12,13 @@ def _read_int(name: str, default: int) -> int:
 
 @dataclass(frozen=True)
 class Settings:
-    supabase_db_url: str
+    database_url: str
     cos_secret_id: str
     cos_secret_key: str
     cos_bucket: str
     cos_region: str
     cos_result_prefix: str
+    worker_id: str
     worker_poll_interval_seconds: int
     worker_max_concurrency: int
     video_job_stale_minutes: int
@@ -40,8 +42,13 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
+        database_url = os.getenv("WORKER_DATABASE_URL") or os.getenv("SUPABASE_DB_URL")
+        if not database_url:
+            raise RuntimeError(
+                "WORKER_DATABASE_URL is required; SUPABASE_DB_URL is accepted only as a compatibility fallback"
+            )
         settings = cls(
-            supabase_db_url=os.environ["SUPABASE_DB_URL"],
+            database_url=database_url,
             cos_secret_id=os.getenv("WORKER_COS_SECRET_ID")
             or os.getenv("COS_SECRET_ID", ""),
             cos_secret_key=os.getenv("WORKER_COS_SECRET_KEY")
@@ -54,6 +61,8 @@ class Settings:
                 os.getenv("WORKER_COS_RESULT_PREFIX", "video-results").strip("/")
                 or "video-results"
             ),
+            worker_id=os.getenv("WORKER_ID", socket.gethostname()).strip()
+            or "video-worker",
             worker_poll_interval_seconds=_read_int(
                 "WORKER_POLL_INTERVAL_SECONDS", 10
             ),
@@ -77,5 +86,7 @@ class Settings:
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
         )
         if settings.worker_max_concurrency != 1:
-            raise ValueError("WORKER_MAX_CONCURRENCY must stay fixed at 1 for staging")
+            raise ValueError(
+                "WORKER_MAX_CONCURRENCY must stay fixed at 1 for domestic phase-1 validation"
+            )
         return settings

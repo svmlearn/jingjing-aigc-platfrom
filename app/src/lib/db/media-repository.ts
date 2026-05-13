@@ -10,6 +10,12 @@ import type {
 } from "@/contracts/media";
 import type { ContentVariantDto } from "@/contracts/draft";
 import { getLocalDemoMediaOwnerContext } from "@/lib/db/content-draft-repository";
+import {
+  isPostgresVideoChainEnabled,
+  pgAssertMediaOwnerAccess,
+  pgCreateAssetObject,
+  pgListAssetObjectsByOwner,
+} from "@/lib/db/postgres-video-chain-repository";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -77,6 +83,10 @@ export async function assertMediaOwnerAccess(input: {
   ownerType: MediaOwnerType;
   ownerId: string;
 }): Promise<MediaOwnerContext> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgAssertMediaOwnerAccess(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     const owner = getLocalDemoMediaOwnerContext(input);
 
@@ -198,6 +208,10 @@ export async function createAssetObject(input: {
   etag?: string | null;
   sortOrder?: number;
 }): Promise<MediaAssetDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgCreateAssetObject(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     const now = new Date().toISOString();
     const sortOrder =
@@ -257,6 +271,10 @@ export async function listAssetObjectsByOwner(input: {
   ownerType: MediaOwnerType;
   ownerId: string;
 }): Promise<MediaAssetDto[]> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgListAssetObjectsByOwner(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     return Array.from(demoAssetObjects.values())
       .filter((asset) => asset.ownerType === input.ownerType && asset.ownerId === input.ownerId)

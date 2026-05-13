@@ -10,7 +10,6 @@ from typing import Mapping
 
 
 REQUIRED_REAL_IO_ENV = (
-    "SUPABASE_DB_URL",
     "COS_SECRET_ID",
     "COS_SECRET_KEY",
     "COS_BUCKET",
@@ -29,7 +28,7 @@ class MissingRealSmokeEnvError(RuntimeError):
 
 @dataclass(frozen=True)
 class RealSmokeConfig:
-    supabase_db_url: str = field(repr=False)
+    database_url: str = field(repr=False)
     cos_secret_id: str = field(repr=False)
     cos_secret_key: str = field(repr=False)
     cos_bucket: str
@@ -42,10 +41,13 @@ class RealSmokeConfig:
         missing = [
             name for name in REQUIRED_REAL_IO_ENV if not str(source.get(name) or "").strip()
         ]
+        database_url = str(source.get("WORKER_DATABASE_URL") or source.get("SUPABASE_DB_URL") or "").strip()
+        if not database_url:
+            missing.append("WORKER_DATABASE_URL")
         if missing:
             raise MissingRealSmokeEnvError(missing)
         return cls(
-            supabase_db_url=str(source["SUPABASE_DB_URL"]).strip(),
+            database_url=database_url,
             cos_secret_id=str(source["COS_SECRET_ID"]).strip(),
             cos_secret_key=str(source["COS_SECRET_KEY"]).strip(),
             cos_bucket=str(source["COS_BUCKET"]).strip(),
@@ -62,7 +64,7 @@ def build_cos_smoke_key(prefix: str, *, run_id: str | None = None) -> str:
 def run_database_smoke(config: RealSmokeConfig) -> dict[str, object]:
     import psycopg
 
-    with psycopg.connect(config.supabase_db_url) as connection:
+    with psycopg.connect(config.database_url) as connection:
         with connection.cursor() as cursor:
             cursor.execute("select 1")
             one = cursor.fetchone()[0]

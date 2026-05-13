@@ -16,6 +16,16 @@ import {
   resolveLocalDemoWorkspaceIdentity,
   updateLocalDemoMerchantProfile,
 } from "@/lib/demo/local-demo-runtime";
+import {
+  isPostgresVideoChainEnabled,
+  pgAcceptMemberInvitationCode,
+  pgCreateInvitationCode,
+  pgGetMerchantProfileById,
+  pgGetMerchantProfileByOwnerUserId,
+  pgGetMerchantWorkspaceByUserId,
+  pgRedeemInvitationCode,
+  pgUpdateMerchantProfile,
+} from "@/lib/db/postgres-video-chain-repository";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -129,6 +139,10 @@ export async function createInvitationCode(input: {
   expiresAt?: string | null;
   note?: string | null;
 }): Promise<InvitationCodeDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgCreateInvitationCode(input);
+  }
+
   const supabase = createSupabaseAdminClient();
   const code = input.code?.trim() || generateInvitationCode();
 
@@ -161,6 +175,10 @@ export async function redeemInvitationCode(input: {
   ownerUserId: string;
   merchantProfile: MerchantProfileInput;
 }): Promise<MerchantProfileDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgRedeemInvitationCode(input);
+  }
+
   const supabase = createSupabaseAdminClient();
   const profile = input.merchantProfile;
 
@@ -188,6 +206,10 @@ export async function redeemInvitationCode(input: {
 }
 
 export async function getMerchantProfileById(id: string): Promise<MerchantProfileDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgGetMerchantProfileById(id);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     const profile = getLocalDemoMerchantProfile();
 
@@ -235,6 +257,10 @@ export async function getMerchantProfileById(id: string): Promise<MerchantProfil
 export async function getMerchantProfileByOwnerUserId(
   ownerUserId: string,
 ): Promise<MerchantProfileDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgGetMerchantProfileByOwnerUserId(ownerUserId);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     return getLocalDemoMerchantProfile(ownerUserId);
   }
@@ -358,6 +384,10 @@ async function ensureMerchantOwnerMembership(input: {
 }
 
 export async function getMerchantWorkspaceByUserId(userId: string): Promise<MerchantWorkspaceDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgGetMerchantWorkspaceByUserId(userId);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     const identity = resolveLocalDemoWorkspaceIdentity(userId);
     const merchantProfile = getLocalDemoMerchantProfile(
@@ -409,6 +439,10 @@ export async function acceptMemberInvitationCode(input: {
   userId: string;
   displayName?: string | null;
 }): Promise<MemberInvitationAcceptResultDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgAcceptMemberInvitationCode(input);
+  }
+
   const normalizedCode = normalizeMemberInvitationCode(input.code);
 
   if (!normalizedCode) {
@@ -494,6 +528,10 @@ export async function updateMerchantProfile(
   ownerUserId: string,
   input: Partial<MerchantProfileInput>,
 ): Promise<MerchantProfileDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgUpdateMerchantProfile(ownerUserId, input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     return updateLocalDemoMerchantProfile(ownerUserId, input);
   }

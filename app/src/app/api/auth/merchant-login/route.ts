@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isDomesticSessionEnabled, signInDomesticUser } from "@/lib/auth/domestic-session";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import { isSupabasePublicConfigured } from "@/lib/supabase/server";
 
@@ -45,6 +46,16 @@ export async function POST(request: NextRequest) {
 
   if (!email || !password) {
     return redirectToLogin(request, "invalid-credentials", next);
+  }
+
+  if (isDomesticSessionEnabled()) {
+    try {
+      const user = await signInDomesticUser({ email, password });
+      await getOperationalMerchantProfileByOwnerUserId(user.id);
+      return redirectToPath(request, next);
+    } catch {
+      return redirectToLogin(request, "invalid-credentials", next);
+    }
   }
 
   if (!isSupabasePublicConfigured()) {

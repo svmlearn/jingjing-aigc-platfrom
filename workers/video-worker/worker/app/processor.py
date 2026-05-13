@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -232,10 +233,23 @@ class JobProcessor:
         ]
 
     def process(self, job: VideoJob) -> None:
-        log_payload: dict[str, Any] = {"steps": []}
+        job_started_at = time.monotonic()
+        log_payload: dict[str, Any] = {
+            "steps": [],
+            "timings_ms": {},
+            "worker": {"id": getattr(self._settings, "worker_id", "video-worker")},
+        }
+
+        def record_timing(stage: str, started_at: float) -> None:
+            timings = _dict_or_empty(log_payload.get("timings_ms"))
+            timings[stage] = int((time.monotonic() - started_at) * 1000)
+            timings["total_elapsed"] = int((time.monotonic() - job_started_at) * 1000)
+            log_payload["timings_ms"] = timings
+
         try:
             directive = build_production_directive(job)
         except DirectiveValidationError as exc:
+            record_timing("directive_validation", job_started_at)
             log_payload["steps"].append(
                 {
                     "stage": "directive_validation",
@@ -254,6 +268,7 @@ class JobProcessor:
             return
 
         workspace_dir, input_dir, output_dir = self._workspace_for(job)
+        record_timing("directive_validation", job_started_at)
         log_payload["steps"].append(
             {
                 "stage": "directive_validation",
@@ -273,7 +288,9 @@ class JobProcessor:
         )
         run_result: EngineRunResult | None = None
         try:
+            stage_started_at = time.monotonic()
             input_assets = self._download_inputs(job, input_dir)
+            record_timing("downloading_inputs", stage_started_at)
             log_payload["steps"].append(
                 {
                     "stage": "downloading_inputs",
@@ -293,6 +310,7 @@ class JobProcessor:
                 log_payload=log_payload,
             )
             try:
+                stage_started_at = time.monotonic()
                 run_result = self._openstoryline_client.run_job(
                     job=job,
                     directive=directive,
@@ -300,6 +318,7 @@ class JobProcessor:
                     workspace_dir=workspace_dir,
                     output_dir=output_dir,
                 )
+                record_timing("openstoryline_rendering", stage_started_at)
             except Exception as exc:
                 raise EngineRunError(exc) from exc
             log_payload["steps"].append(
@@ -309,6 +328,7 @@ class JobProcessor:
                 }
             )
             self._validate_outputs(directive.desired_outputs, run_result)
+            record_timing("output_validation", time.monotonic())
             log_payload["steps"].append(
                 {
                     "stage": "output_validation",
@@ -328,6 +348,7 @@ class JobProcessor:
                     progress_pct=80,
                     log_payload=log_payload,
                 )
+                stage_started_at = time.monotonic()
                 uploaded_assets = self._upload_outputs(
                     job=job,
                     desired_outputs=directive.desired_outputs,
@@ -335,11 +356,14 @@ class JobProcessor:
                     cover_image_path=run_result.cover_image_path,
                     subtitle_path=run_result.subtitle_path,
                 )
+                record_timing("uploading_outputs", stage_started_at)
                 try:
+                    stage_started_at = time.monotonic()
                     persisted_assets = self._repository.insert_output_assets(
                         job,
                         uploaded_assets,
                     )
+                    record_timing("asset_objects_persistence", stage_started_at)
                 except Exception as exc:
                     raise OutputAssetPersistenceError(exc) from exc
                 upload_mode = "tencent_cos"

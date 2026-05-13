@@ -38,8 +38,9 @@ def validate_video_job_status(
 
 
 class VideoJobRepository:
-    def __init__(self, db_url: str) -> None:
+    def __init__(self, db_url: str, *, worker_id: str = "video-worker") -> None:
         self._db_url = db_url
+        self._worker_id = worker_id
 
     def _connect(self) -> Connection:
         return Connection.connect(self._db_url, row_factory=dict_row)
@@ -51,15 +52,17 @@ class VideoJobRepository:
                 update video_edit_jobs
                 set status = 'failed_retryable',
                     current_stage = 'stale_timeout',
+                    failure_code = 'worker_heartbeat_timeout',
                     failure_reason = concat(
                       coalesce(failure_reason, ''),
                       case when failure_reason is null or failure_reason = '' then '' else '; ' end,
                       'worker marked stale after timeout'
                     ),
+                    timeout_at = timezone('utc', now()),
                     finished_at = timezone('utc', now()),
                     updated_at = timezone('utc', now())
                 where status in ('queued', 'preparing', 'running')
-                  and updated_at < timezone('utc', now()) - (%s * interval '1 minute')
+                  and coalesce(heartbeat_at, updated_at) < timezone('utc', now()) - (%s * interval '1 minute')
                 """,
                 (stale_minutes,),
             )
@@ -82,12 +85,17 @@ class VideoJobRepository:
                     current_stage = 'claimed',
                     progress_pct = 0,
                     failure_reason = null,
+                    failure_code = null,
+                    worker_id = %s,
+                    claimed_at = timezone('utc', now()),
+                    heartbeat_at = timezone('utc', now()),
                     started_at = coalesce(started_at, timezone('utc', now())),
                     updated_at = timezone('utc', now())
                 from next_job
                 where jobs.id = next_job.id
                 returning jobs.*
-                """
+                """,
+                (self._worker_id,),
             )
             record = cursor.fetchone()
             if not record:
@@ -114,6 +122,8 @@ class VideoJobRepository:
                     progress_pct = %s,
                     runtime_payload = coalesce(%s::jsonb, runtime_payload),
                     log_payload = coalesce(%s::jsonb, log_payload),
+                    heartbeat_at = timezone('utc', now()),
+                    worker_id = coalesce(worker_id, %s),
                     updated_at = timezone('utc', now())
                 where id = %s
                 """,
@@ -123,6 +133,7 @@ class VideoJobRepository:
                     progress_pct,
                     Jsonb(runtime_payload) if runtime_payload is not None else None,
                     Jsonb(log_payload) if log_payload is not None else None,
+                    self._worker_id,
                     job_id,
                 ),
             )
@@ -143,6 +154,7 @@ class VideoJobRepository:
                     progress_pct = 100,
                     result_payload = %s::jsonb,
                     log_payload = %s::jsonb,
+                    heartbeat_at = timezone('utc', now()),
                     finished_at = timezone('utc', now()),
                     updated_at = timezone('utc', now())
                 where id = %s
@@ -166,13 +178,22 @@ class VideoJobRepository:
                 update video_edit_jobs
                 set status = %s,
                     current_stage = %s,
+                    failure_code = %s,
                     failure_reason = %s,
                     log_payload = %s::jsonb,
+                    heartbeat_at = timezone('utc', now()),
                     finished_at = timezone('utc', now()),
                     updated_at = timezone('utc', now())
                 where id = %s
                 """,
-                (status, current_stage, failure_reason, Jsonb(log_payload), job_id),
+                (
+                    status,
+                    current_stage,
+                    current_stage,
+                    failure_reason,
+                    Jsonb(log_payload),
+                    job_id,
+                ),
             )
 
     def insert_output_assets(

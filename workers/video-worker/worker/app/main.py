@@ -33,7 +33,7 @@ def main() -> None:
             settings.worker_output_root,
         ]
     )
-    repository = VideoJobRepository(settings.supabase_db_url)
+    repository = VideoJobRepository(settings.database_url, worker_id=settings.worker_id)
     cos_client = TencentCosClient(settings)
     openstoryline_client = OpenStorylineClient(settings)
     logging.getLogger("video-worker").info(
