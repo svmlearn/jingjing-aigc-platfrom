@@ -1,6 +1,7 @@
 import unittest
 
 from worker.app.real_io_smoke import (
+    InvalidRealSmokeEnvError,
     MissingRealSmokeEnvError,
     RealSmokeConfig,
     build_cos_smoke_key,
@@ -74,6 +75,22 @@ class RealIoSmokeTests(unittest.TestCase):
         self.assertEqual("worker-bucket-1250000000", config.cos_bucket)
         self.assertEqual("ap-guangzhou", config.cos_region)
         self.assertEqual("video-results", config.cos_prefix)
+
+    def test_config_rejects_phase_one_worker_concurrency_above_one(self):
+        with self.assertRaises(InvalidRealSmokeEnvError) as raised:
+            RealSmokeConfig.from_env(
+                {
+                    "WORKER_DATABASE_URL": "postgresql://user:db-password@db.example/postgres",
+                    "WORKER_COS_SECRET_ID": "worker-cos-secret-id",
+                    "WORKER_COS_SECRET_KEY": "worker-cos-secret-key",
+                    "WORKER_COS_BUCKET": "worker-bucket-1250000000",
+                    "WORKER_COS_REGION": "ap-guangzhou",
+                    "WORKER_MAX_CONCURRENCY": "2",
+                }
+            )
+
+        self.assertEqual("WORKER_MAX_CONCURRENCY", raised.exception.name)
+        self.assertIn("fixed at 1", raised.exception.message)
 
     def test_cos_smoke_key_is_scoped_under_configured_prefix(self):
         key = build_cos_smoke_key(" /worker-real-smoke/ ", run_id="abc123")

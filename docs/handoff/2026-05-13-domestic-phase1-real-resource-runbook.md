@@ -179,6 +179,7 @@ Expected:
 
 - database `select 1` succeeds
 - `asset_objects` and `video_edit_jobs` tables exist
+- `WORKER_MAX_CONCURRENCY` is `1`
 - COS put / download / delete succeeds
 
 ## 7. Start worker services

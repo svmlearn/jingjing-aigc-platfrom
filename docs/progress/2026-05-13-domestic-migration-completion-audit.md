@@ -44,7 +44,7 @@ Follow-up commits after the first audit added the missing video workbench test d
 | Domestic COS config direction | `app/.env.example` and `workers/video-worker/.env.example` use domestic COS region examples; data model stores `bucket_name + storage_key`; `/api/health` checks COS env | Partial: real COS CORS/STS/upload/download not verified |
 | Worker moves from `SUPABASE_DB_URL` to `WORKER_DATABASE_URL` | `workers/video-worker/worker/app/config.py`, `db.py`, `main.py`, `real_io_smoke.py`, tests updated | Pass for config and DB code path |
 | Worker COS env domestic priority | `real_io_smoke.py`, tests, and `workers/video-worker/docker-compose.yml` now prefer `WORKER_COS_*`, with shared `COS_*` retained as fallback | Pass |
-| Keep worker first phase at `WORKER_MAX_CONCURRENCY=1` | `workers/video-worker/worker/app/config.py` clamps domestic phase to single concurrency; `.env.example` documents it | Pass |
+| Keep worker first phase at `WORKER_MAX_CONCURRENCY=1` | `workers/video-worker/worker/app/config.py` clamps domestic phase to single concurrency; `.env.example` documents it; `real_io_smoke.py` now rejects values above 1 before real smoke | Pass |
 | Worker logs, heartbeat, timeout, failure reason, manual rerun | `video_edit_jobs` columns added; worker DB updates write `worker_id`, heartbeat/timeout/failure fields; retry supports `failed_retryable` and `failed_manual` | Pass in code/tests, not live worker e2e |
 | Health check for domestic server | `app/src/app/api/health/route.ts`; local `next start` + temp PostgreSQL + fake COS config returned `200 OK` | Pass for local runtime |
 | App environment preflight | `app/scripts/check-domestic-app-env.mjs`; missing-env failure path and temp PostgreSQL success path verified | Pass for app preflight |
@@ -53,7 +53,7 @@ Follow-up commits after the first audit added the missing video workbench test d
 | Seed first owner / merchant | `app/db/seeds/domestic_minimal_seed.example.sql`; first and repeat execution passed | Pass |
 | Seed video-chain fixture | `app/db/seeds/domestic_video_chain_fixture.example.sql`; creates source item / draft / approved video script and returns draft COS key prefix | Pass |
 | App local type/lint/build | `pnpm exec tsc --noEmit --pretty false`, `pnpm lint`, `pnpm build` passed after route changes | Pass |
-| Worker tests | `PYTHONPATH=workers/video-worker:workers/video-worker/openstoryline /private/tmp/jj-domestic-worker-venv/bin/python -m unittest discover -s workers/video-worker/tests` returned `48 tests OK`; compileall passed | Pass |
+| Worker tests | `PYTHONPATH=workers/video-worker:workers/video-worker/openstoryline /private/tmp/jj-domestic-worker-venv/bin/python -m unittest discover -s workers/video-worker/tests` returned `49 tests OK`; compileall passed | Pass |
 | Full mobile IP e2e | No domestic server target, no real DB/COS env, no mobile endpoint | Missing |
 | Browser direct upload to domestic COS | Only `/api/media/complete` metadata write was smoke-tested with fake COS config; no real COS STS/CORS/upload | Missing |
 | Worker final.mp4 generation and domestic COS upload | No real worker run against actual COS assets; dummy local metadata only | Missing |

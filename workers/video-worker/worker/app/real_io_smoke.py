@@ -26,6 +26,13 @@ class MissingRealSmokeEnvError(RuntimeError):
         )
 
 
+class InvalidRealSmokeEnvError(RuntimeError):
+    def __init__(self, name: str, message: str) -> None:
+        self.name = name
+        self.message = message
+        super().__init__(f"invalid real smoke environment variable {name}: {message}")
+
+
 @dataclass(frozen=True)
 class RealSmokeConfig:
     database_url: str = field(repr=False)
@@ -34,6 +41,7 @@ class RealSmokeConfig:
     cos_bucket: str
     cos_region: str
     cos_prefix: str = "worker-real-smoke"
+    worker_max_concurrency: int = 1
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "RealSmokeConfig":
@@ -41,6 +49,7 @@ class RealSmokeConfig:
         database_url = str(
             source.get("WORKER_DATABASE_URL") or source.get("SUPABASE_DB_URL") or ""
         ).strip()
+        worker_max_concurrency = _read_worker_max_concurrency(source)
         cos_values = {
             field: _first_env(source, *env_names)
             for field, env_names in COS_ENV_FALLBACKS.items()
@@ -65,6 +74,7 @@ class RealSmokeConfig:
                 or source.get("WORKER_COS_RESULT_PREFIX")
                 or "worker-real-smoke"
             ),
+            worker_max_concurrency=worker_max_concurrency,
         )
 
 
@@ -79,6 +89,24 @@ def _first_env(source: Mapping[str, str], *names: str) -> str:
         if value:
             return value
     return ""
+
+
+def _read_worker_max_concurrency(source: Mapping[str, str]) -> int:
+    raw_value = str(source.get("WORKER_MAX_CONCURRENCY") or "1").strip()
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise InvalidRealSmokeEnvError(
+            "WORKER_MAX_CONCURRENCY",
+            "must be the integer 1 for domestic phase-1 validation",
+        ) from exc
+
+    if value != 1:
+        raise InvalidRealSmokeEnvError(
+            "WORKER_MAX_CONCURRENCY",
+            "must stay fixed at 1 for domestic phase-1 validation",
+        )
+    return value
 
 
 def run_database_smoke(config: RealSmokeConfig) -> dict[str, object]:
@@ -149,6 +177,9 @@ def run_cos_smoke(config: RealSmokeConfig) -> dict[str, object]:
 
 def run_real_io_smoke(config: RealSmokeConfig) -> dict[str, object]:
     return {
+        "config": {
+            "worker_max_concurrency": config.worker_max_concurrency,
+        },
         "database": run_database_smoke(config),
         "cos": run_cos_smoke(config),
     }
@@ -163,6 +194,19 @@ def main() -> int:
                 {
                     "status": "missing_environment",
                     "missing": exc.missing_names,
+                },
+                ensure_ascii=True,
+                sort_keys=True,
+            )
+        )
+        return 2
+    except InvalidRealSmokeEnvError as exc:
+        print(
+            json.dumps(
+                {
+                    "status": "invalid_environment",
+                    "name": exc.name,
+                    "message": exc.message,
                 },
                 ensure_ascii=True,
                 sort_keys=True,
