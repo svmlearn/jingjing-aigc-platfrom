@@ -133,6 +133,7 @@
   - 可读取当前环境或 `--env-file <path>`。
   - 只输出 key 是否存在、DB 是否可连、核心表是否齐，不打印密钥值。
   - 检查核心表：`app_users`、`user_sessions`、`merchant_profiles`、`merchant_team_members`、`source_items`、`content_drafts`、`content_variants`、`asset_objects`、`video_edit_jobs`。
+  - 可加 `--require-video-chain-test-entrypoint`，把 `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED=1` 作为第一阶段 test draft 验证的必需项。
 - 新增 app 侧 COS roundtrip 脚本：`app/scripts/check-domestic-cos-roundtrip.mjs`。
   - 可读取当前环境或 `--env-file <path>`。
   - 真实 COS 资源到位后执行 put object -> signed GET -> delete object。
@@ -215,6 +216,8 @@ curl -sS -b /private/tmp/jj-testdraft-cookie.txt -X POST 'http://127.0.0.1:3112/
 - password hash script：可输出 hash
 - app env check 缺环境失败路径：通过，退出码 `1`，只输出缺失 key 名
 - app env check 临时 PostgreSQL + 假 COS 配置成功路径：通过，退出码 `0`
+- app env check `--require-video-chain-test-entrypoint` 缺环境失败路径：通过，退出码 `1`，只输出缺失 key 名
+- app env check 临时 PostgreSQL + 假 COS + `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED=1` 成功路径：通过，退出码 `0`
 - app COS roundtrip 缺环境失败路径：通过，退出码 `2`，只输出缺失 key 名
 - video chain API smoke 脚本语法检查：通过
 - video chain API smoke 缺参数失败路径：通过，退出码 `2`，只输出缺失参数名

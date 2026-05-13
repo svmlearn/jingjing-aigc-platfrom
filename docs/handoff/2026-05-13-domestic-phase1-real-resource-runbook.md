@@ -82,7 +82,9 @@ VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED=1
 Run local preflight on the app server:
 
 ```bash
-node app/scripts/check-domestic-app-env.mjs --env-file app/.env.production
+node app/scripts/check-domestic-app-env.mjs \
+  --env-file app/.env.production \
+  --require-video-chain-test-entrypoint
 node app/scripts/check-domestic-cos-roundtrip.mjs --env-file app/.env.production
 ```
 

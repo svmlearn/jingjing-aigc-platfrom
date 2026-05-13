@@ -33,6 +33,7 @@
 - `retry` 已支持 `failed_retryable` / `failed_manual` 失败后人工确认重跑；PG 分支记录 `manual_rerun_requested_at`。
 - `.env.example` 已补国内 PostgreSQL、session、国内 COS、test draft 开关和 API smoke 示例。
 - 新增 app 侧环境自检脚本：`app/scripts/check-domestic-app-env.mjs`。
+  - 支持 `--require-video-chain-test-entrypoint`，用于第一阶段强制检查 `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED=1`。
 - 新增 app 侧 COS roundtrip 脚本：`app/scripts/check-domestic-cos-roundtrip.mjs`。
 - 新增 app 侧视频主链路 API smoke 脚本：`app/scripts/check-domestic-video-chain-api-smoke.mjs`，用于登录后创建 test draft、media metadata 和 pending video job；真实 COS 到位时可加 `--with-upload-intent` 验证上传意图、COS key 和临时凭证字段完整性；它不替代真实 COS 字节上传 / worker / 手机 e2e。
 - 新增 `/api/health`，用于国内服务器 IP 阶段检查 app / PostgreSQL / COS 配置。
@@ -65,6 +66,8 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 已在 `/private/tmp` 临时 PostgreSQL 17 空库执行 `app/db/migrations/202605130001_domestic_core_baseline.sql`，通过。
 - 已运行 `node app/scripts/check-domestic-app-env.mjs` 缺环境失败路径，退出码 `1`，只输出缺失 key 名。
 - 已运行 `APP_DATABASE_URL=... COS_*=dummy node app/scripts/check-domestic-app-env.mjs` 成功路径，确认 DB 可连且核心表齐全。
+- 已运行 `node app/scripts/check-domestic-app-env.mjs --require-video-chain-test-entrypoint` 缺环境失败路径，退出码 `1`。
+- 已运行 `APP_DATABASE_URL=... COS_*=dummy VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED=1 node app/scripts/check-domestic-app-env.mjs --require-video-chain-test-entrypoint` 成功路径，确认测试入口开关可被强制校验。
 - 已运行 `node app/scripts/check-domestic-cos-roundtrip.mjs` 缺环境失败路径，退出码 `2`，只输出缺失 key 名。
 - 已运行 `node --check app/scripts/check-domestic-video-chain-api-smoke.mjs`，通过。
 - 已运行 `node app/scripts/check-domestic-video-chain-api-smoke.mjs` 缺参数失败路径，退出码 `2`，只输出缺失参数名。

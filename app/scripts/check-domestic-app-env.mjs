@@ -21,6 +21,9 @@ const requiredTables = [
 
 loadEnvFileFromArgs();
 
+const requireVideoChainTestEntrypoint = process.argv.includes(
+  "--require-video-chain-test-entrypoint",
+);
 const checks = [];
 const databaseUrl = firstEnv("APP_DATABASE_URL", "DATABASE_URL", "LOCAL_REAL_CHAIN_DB_URL");
 checks.push({
@@ -41,6 +44,18 @@ checks.push({
   name: "DATABASE_PROVIDER",
   status: provider === "postgres" || databaseUrl.value ? "ok" : "warning",
   value: provider === "postgres" ? "postgres" : provider ? "non-postgres" : "unset",
+});
+
+const videoChainTestEntrypointEnabled =
+  normalizeBooleanFlag(process.env.VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED) === true;
+checks.push({
+  name: "VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED",
+  status: videoChainTestEntrypointEnabled
+    ? "ok"
+    : requireVideoChainTestEntrypoint
+      ? "missing"
+      : "warning",
+  value: videoChainTestEntrypointEnabled ? "enabled" : "disabled",
 });
 
 const database = databaseUrl.value
@@ -125,4 +140,21 @@ function resolveSslConfig() {
   }
 
   return undefined;
+}
+
+function normalizeBooleanFlag(value) {
+  if (value === undefined) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return null;
 }
