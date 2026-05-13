@@ -219,6 +219,14 @@ curl -sS -b /private/tmp/jj-testdraft-cookie.txt -X POST 'http://127.0.0.1:3112/
 - `GET /api/source-items/<sourceItemId>/comments?limit=5` 在 PostgreSQL 模式下返回 `200`
 - `POST /api/content/video-scripts/test-draft` 在 PostgreSQL 模式 + domestic session 下返回 `201`
 - test draft 响应包含 `draft.id`、已确认 `selectedVariant.id`、`reviewStatus=approved`、`productionScenes.length=3`
+- 已串联验证 test draft -> `/api/media/complete` -> `/api/video-edit-jobs`：
+  - 登录：`303`
+  - test draft：`201`
+  - media complete：`201`
+  - job create：`201`
+  - job 状态：`pending`
+  - `inputPayload.render_mode=asset_driven`
+  - `inputPayload.input_assets.length=1`
 
 备注：
 
