@@ -25,5 +25,17 @@ Generate a first test password hash before inserting a manual `app_users` row:
 node app/scripts/create-domestic-password-hash.mjs '<temporary-password>'
 ```
 
+Seed the first domestic verification owner and merchant:
+
+```bash
+HASH="$(node app/scripts/create-domestic-password-hash.mjs '<temporary-password>')"
+psql "$DATABASE_URL" \
+  -v user_email='owner@example.com' \
+  -v password_hash="$HASH" \
+  -v display_name='Domestic Test Owner' \
+  -v merchant_name='Domestic Test Merchant' \
+  -f app/db/seeds/domestic_minimal_seed.example.sql
+```
+
 Do not use this as a production cutover script yet. Full historical migration,
 password reset, and platform admin migration are separate later phases.

@@ -29,6 +29,8 @@
 - worker 增加 `worker_id`、heartbeat、timeout、failure_code 和阶段耗时日志。
 - `retry` 已支持 `failed_retryable` / `failed_manual` 失败后人工确认重跑；PG 分支记录 `manual_rerun_requested_at`。
 - `.env.example` 已补国内 PostgreSQL、session、国内 COS 示例。
+- 新增 `/api/health`，用于国内服务器 IP 阶段检查 app / PostgreSQL / COS 配置。
+- 新增最小 seed 示例：`app/db/seeds/domestic_minimal_seed.example.sql`。
 - progress 已写入：`docs/progress/2026-05-13-domestic-migration-phase-a0-a6-progress.md`
 
 ## 验证结果
@@ -45,11 +47,19 @@ git diff --check
 node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 ```
 
+追加验证：
+
+- 已安装 Homebrew `postgresql@17 17.9`，没有启动常驻服务。
+- 已在 `/private/tmp` 临时 PostgreSQL 17 空库执行 `app/db/migrations/202605130001_domestic_core_baseline.sql`，通过。
+- 已执行 `app/db/seeds/domestic_minimal_seed.example.sql`，首次和重复执行均通过。
+- 已用 `next start` + 临时 PostgreSQL + 假 COS 配置请求 `/api/health`，返回 `200 OK`。
+- 已用 seed 账号请求 `/api/auth/merchant-login`，返回 `303`，写入 `jingjing_session`，并在 `user_sessions` 中新增 session。
+
 未验证：
 
-- `domestic_core_baseline.sql` 未在真实 PostgreSQL 空库执行。
-- 原因：本机没有 `psql`，Docker daemon 未启动。
 - 国内服务器 IP、国内 PostgreSQL、国内 COS、手机浏览器完整链路都未跑。
+- 浏览器直传国内 COS、worker 真实生成 final.mp4、重新签名下载还未跑。
+- Docker daemon 仍未启动，本轮没有用 Docker 验证。
 
 ## 下一步建议
 
@@ -60,9 +70,16 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
    ```
 
 2. 插入最小测试数据：
-   - 1 个 `app_users`
-   - 1 个 `merchant_profiles`
-   - 1 条 owner `merchant_team_members`
+
+   ```bash
+   HASH="$(node app/scripts/create-domestic-password-hash.mjs '<temporary-password>')"
+   psql "$DATABASE_URL" \
+     -v user_email='owner@example.com' \
+     -v password_hash="$HASH" \
+     -v display_name='Domestic Test Owner' \
+     -v merchant_name='Domestic Test Merchant' \
+     -f app/db/seeds/domestic_minimal_seed.example.sql
+   ```
 
 3. 配置 app env：
    - `DATABASE_PROVIDER=postgres`
@@ -74,6 +91,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
    - `COS_REGION`
 
 4. 验证 app：
+   - `/api/health`
    - 登录
    - 创建 source item / content draft / video script
    - 上传素材 intent

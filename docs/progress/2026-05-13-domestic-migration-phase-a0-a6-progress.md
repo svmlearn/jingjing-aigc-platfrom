@@ -119,6 +119,18 @@
 - `real_io_smoke.py` 已改为优先检查 `WORKER_DATABASE_URL`。
 - `workers/video-worker/.env.example` 已改为国内 PostgreSQL / 国内 COS 示例。
 
+### A7 上机验证辅助
+
+- 新增健康检查接口：`app/src/app/api/health/route.ts`。
+  - app 进程状态：固定返回 `nodejs`。
+  - PostgreSQL：要求配置 `APP_DATABASE_URL` / `DATABASE_URL`，并执行 `select 1`。
+  - COS：复用现有 `getCosConfig()` 校验 `COS_SECRET_ID` / `COS_SECRET_KEY` / `COS_BUCKET` / `COS_REGION`。
+- 新增最小 seed 示例：`app/db/seeds/domestic_minimal_seed.example.sql`。
+  - 可插入或复用 1 个 `app_users`。
+  - 可插入或复用 1 个 `merchant_profiles`。
+  - 可插入或复用 1 条 owner `merchant_team_members`。
+- `app/db/README.md` 已补充 migration + seed 命令。
+
 ## 3. 验证结果
 
 已通过：
@@ -131,6 +143,10 @@ PYTHONPATH=workers/video-worker:workers/video-worker/openstoryline /private/tmp/
 python3 -m compileall workers/video-worker/openstoryline/app workers/video-worker/worker/app
 git diff --check
 node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
+/opt/homebrew/opt/postgresql@17/bin/psql -h 127.0.0.1 -p 55432 -d postgres -v ON_ERROR_STOP=1 -f app/db/migrations/202605130001_domestic_core_baseline.sql
+HASH="$(node app/scripts/create-domestic-password-hash.mjs test-password)"; /opt/homebrew/opt/postgresql@17/bin/psql -h 127.0.0.1 -p 55432 -d postgres -v ON_ERROR_STOP=1 -v user_email='owner@example.com' -v password_hash="$HASH" -v display_name='Domestic Test Owner' -v merchant_name='Domestic Test Merchant' -f app/db/seeds/domestic_minimal_seed.example.sql
+curl -sS -i http://127.0.0.1:3107/api/health
+curl -sS -i -X POST http://127.0.0.1:3107/api/auth/merchant-login -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'email=owner@example.com' --data-urlencode 'password=test-password' --data-urlencode 'next=/dashboard'
 ```
 
 结果：
@@ -142,21 +158,19 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - worker compileall：通过
 - diff whitespace：通过
 - password hash script：可输出 hash
+- PostgreSQL 17 临时空库执行 baseline：通过
+- 最小 seed 示例首次执行和重复执行：通过
+- `/api/health` 在 `next start` + 临时 PostgreSQL + 假 COS 配置下返回 `200 OK`
+- `/api/auth/merchant-login` 使用 seed 账号返回 `303`，写入 `jingjing_session`，并在 `user_sessions` 中新增 session
 
-未跑通：
+备注：
 
-```bash
-psql "$DATABASE_URL" -f app/db/migrations/202605130001_domestic_core_baseline.sql
-```
-
-原因：
-
-- 本机没有 `psql`。
-- Docker CLI 存在，但 Docker daemon 未启动，无法临时拉起 PostgreSQL 容器验证空库执行。
+- 为补齐空库验证，本机安装了 Homebrew `postgresql@17 17.9`，没有注册 `brew services` 常驻服务。
+- Docker CLI 仍存在但 Docker daemon 未启动，本轮没有用 Docker 验证。
+- Homebrew 安装时 PostgreSQL 已成功落盘，最后 cleanup 阶段出现 Homebrew 自身 API 异常，未影响 `psql` / `postgres` 使用。
 
 ## 4. 剩余风险
 
-- `domestic_core_baseline.sql` 还没有在真实 PostgreSQL 空库执行过。
 - 没有国内服务器、国内 PostgreSQL、国内 COS 密钥，无法做 IP 链路验收。
 - 没有真实手机浏览器验证。
 - 还未验证浏览器直传国内 COS。
