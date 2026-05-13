@@ -27,6 +27,7 @@
 - 登录 / 登出 / 当前用户 / dashboard 入口支持 domestic session。
 - worker 优先使用 `WORKER_DATABASE_URL`，保留 `SUPABASE_DB_URL` fallback。
 - worker real I/O smoke 优先使用 `WORKER_COS_*`，shared `COS_*` 仅作为 fallback。
+- worker compose 已显式传入 `WORKER_DATABASE_URL`、`WORKER_COS_*`、`WORKER_COS_RESULT_PREFIX`，同时保留 fallback env。
 - worker 增加 `worker_id`、heartbeat、timeout、failure_code 和阶段耗时日志。
 - `retry` 已支持 `failed_retryable` / `failed_manual` 失败后人工确认重跑；PG 分支记录 `manual_rerun_requested_at`。
 - `.env.example` 已补国内 PostgreSQL、session、国内 COS 示例。
@@ -61,6 +62,8 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 已运行 `APP_DATABASE_URL=... COS_*=dummy node app/scripts/check-domestic-app-env.mjs` 成功路径，确认 DB 可连且核心表齐全。
 - 已运行 `node app/scripts/check-domestic-cos-roundtrip.mjs` 缺环境失败路径，退出码 `2`，只输出缺失 key 名。
 - worker tests 当前为 `48 tests OK`，包含 `WORKER_COS_*` 优先级覆盖。
+- `docker compose -f workers/video-worker/docker-compose.yml config --quiet`：通过。
+- `docker compose -f workers/video-worker/docker-compose.yml -f workers/video-worker/docker-compose.firered.yml --profile firered config --quiet`：通过。
 - 已执行 `app/db/seeds/domestic_minimal_seed.example.sql`，首次和重复执行均通过。
 - 已执行 `app/db/seeds/domestic_video_chain_fixture.example.sql`，创建 source item / draft / approved video script variant，并输出 draft COS key prefix。
 - 已用 `next start` + 临时 PostgreSQL + 假 COS 配置请求 `/api/health`，返回 `200 OK`。

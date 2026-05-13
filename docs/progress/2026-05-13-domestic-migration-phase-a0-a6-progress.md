@@ -104,6 +104,7 @@
 
 - worker 优先使用 `WORKER_DATABASE_URL`。
 - `SUPABASE_DB_URL` 仅作为兼容 fallback。
+- `workers/video-worker/docker-compose.yml` 已显式传入 `WORKER_DATABASE_URL`、`WORKER_COS_*`、`WORKER_COS_RESULT_PREFIX`，同时保留 `SUPABASE_DB_URL` / shared `COS_*` fallback。
 - worker 仍强制 `WORKER_MAX_CONCURRENCY=1`，没有写成 2-3 并发。
 - worker claim / update / fail / success 已写入：
   - `worker_id`
@@ -153,6 +154,8 @@ cd app && pnpm lint
 cd app && pnpm build
 PYTHONPATH=workers/video-worker:workers/video-worker/openstoryline /private/tmp/jj-domestic-worker-venv/bin/python -m unittest discover -s workers/video-worker/tests
 python3 -m compileall workers/video-worker/openstoryline/app workers/video-worker/worker/app
+docker compose -f workers/video-worker/docker-compose.yml config --quiet
+docker compose -f workers/video-worker/docker-compose.yml -f workers/video-worker/docker-compose.firered.yml --profile firered config --quiet
 git diff --check
 node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 node app/scripts/check-domestic-app-env.mjs
@@ -175,6 +178,7 @@ curl -sS -i -b /private/tmp/jj-domestic-cookie.txt 'http://127.0.0.1:3107/api/vi
 - Next build：通过
 - worker Python tests：`48 tests OK`
 - worker compileall：通过
+- worker compose config：通过。校验时临时复制 `workers/video-worker/.env.example` 为 `.env`，校验后已删除。
 - diff whitespace：通过
 - password hash script：可输出 hash
 - app env check 缺环境失败路径：通过，退出码 `1`，只输出缺失 key 名

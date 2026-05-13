@@ -39,7 +39,7 @@ Latest `check.py --skip-verifier` result: failed only on `phase1_e2e_verificatio
 | Minimal Auth / session | `app/src/lib/auth/domestic-session.ts`; login route and dashboard auth support domestic session; API smoke returned `303` and wrote `jingjing_session` | Pass |
 | Domestic COS config direction | `app/.env.example` and `workers/video-worker/.env.example` use domestic COS region examples; data model stores `bucket_name + storage_key`; `/api/health` checks COS env | Partial: real COS CORS/STS/upload/download not verified |
 | Worker moves from `SUPABASE_DB_URL` to `WORKER_DATABASE_URL` | `workers/video-worker/worker/app/config.py`, `db.py`, `main.py`, `real_io_smoke.py`, tests updated | Pass for config and DB code path |
-| Worker COS env domestic priority | `real_io_smoke.py` and tests now prefer `WORKER_COS_*`, with shared `COS_*` retained as fallback | Pass |
+| Worker COS env domestic priority | `real_io_smoke.py`, tests, and `workers/video-worker/docker-compose.yml` now prefer `WORKER_COS_*`, with shared `COS_*` retained as fallback | Pass |
 | Keep worker first phase at `WORKER_MAX_CONCURRENCY=1` | `workers/video-worker/worker/app/config.py` clamps domestic phase to single concurrency; `.env.example` documents it | Pass |
 | Worker logs, heartbeat, timeout, failure reason, manual rerun | `video_edit_jobs` columns added; worker DB updates write `worker_id`, heartbeat/timeout/failure fields; retry supports `failed_retryable` and `failed_manual` | Pass in code/tests, not live worker e2e |
 | Health check for domestic server | `app/src/app/api/health/route.ts`; local `next start` + temp PostgreSQL + fake COS config returned `200 OK` | Pass for local runtime |
