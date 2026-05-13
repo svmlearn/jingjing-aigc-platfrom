@@ -15,20 +15,22 @@ The remaining blocker is external resource availability, not local write access:
 - no domestic server target / IP endpoint
 - no mobile browser IP verification target
 
+After the user confirmed local permissions were open, the worktree was checked again at `2026-05-13T23:06:14+08:00`: only `.env.example` files existed under `app/` and `workers/video-worker/`, and the current process env still had no PostgreSQL, COS, worker, or `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED` values. The blocker therefore remains missing real resource inputs, not filesystem or shell permission.
+
 Long task status has therefore been marked `blocked`, not `complete`.
 
 The local long-task contract was tightened after this audit so that completion now requires `docs/progress/2026-05-13-domestic-migration-phase1-e2e-verification.md` to exist and contain explicit pass markers for mobile browser, `video_edit_jobs`, worker, `final.mp4`, domestic COS, and re-signed download. A pending template now exists at that path, but the completion pass marker is intentionally absent until the real run succeeds.
 
-Latest `check.py --skip-verifier` result at `2026-05-13T21:53:57+08:00`: failed only on `phase1_e2e_verification_doc_contains_pass_markers`, as expected. Typecheck, lint, build, and worker compile hard gates passed.
+Latest correct-worktree `check.py --skip-verifier` result at `2026-05-13T23:12:55+08:00`: failed only on `phase1_e2e_verification_doc_contains_pass_markers`, as expected. Typecheck, lint, build, and worker compile hard gates passed.
 
-Follow-up commits after the first audit added the missing video workbench test draft route, a reusable API smoke script, and a PostgreSQL-first guard for mixed Supabase/Postgres envs. These improve local and server-side verification coverage, but they still do not satisfy the full mobile + real COS + worker `final.mp4` Completion Gate.
+Follow-up commits after the first audit added the missing video workbench test draft route, a reusable API smoke script, a PostgreSQL-first guard for mixed Supabase/Postgres envs, upload intent shape validation, worker env-file smoke support, and a first-phase app env flag check for `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED`. These improve local and server-side verification coverage, but they still do not satisfy the full mobile + real COS + worker `final.mp4` Completion Gate.
 
 ## 2. Prompt-to-artifact checklist
 
 | Requirement | Evidence | Audit status |
 | --- | --- | --- |
 | Do not modify `main` directly | Work done in worktree `/Users/wy/Desktop/静境/静境4.0/jingjing-domestic-infra-migration`; branch `codex/domestic-infra-migration`; main still has only unrelated Dify untracked files | Pass |
-| Use independent branch / worktree | Commits on `codex/domestic-infra-migration`: `22c5a60`, `eced84e`, `dc85a16`, `f831e45`, `e8a92c1` | Pass |
+| Use independent branch / worktree | Commits on `codex/domestic-infra-migration`; latest recorded commit `6c959cd` | Pass |
 | Do not touch unrelated Dify results | Worktree diff is limited to `app/`, `workers/video-worker/`, and domestic progress/handoff docs | Pass |
 | Do not switch `ba-ba-ke.com`, no ICP filing, no production action | No domain / filing / deployment files or production commands changed; handoff records no push / merge / production action | Pass |
 | Read required docs in order | Source docs are recorded in `.codex/long-task/contract.json`; implementation follows V2.1 architecture and domestic decision docs | Pass |
@@ -47,7 +49,7 @@ Follow-up commits after the first audit added the missing video workbench test d
 | Keep worker first phase at `WORKER_MAX_CONCURRENCY=1` | `workers/video-worker/worker/app/config.py` clamps domestic phase to single concurrency; `.env.example` documents it; `real_io_smoke.py` now rejects values above 1 before real smoke | Pass |
 | Worker logs, heartbeat, timeout, failure reason, manual rerun | `video_edit_jobs` columns added; worker DB updates write `worker_id`, heartbeat/timeout/failure fields; retry supports `failed_retryable` and `failed_manual` | Pass in code/tests, not live worker e2e |
 | Health check for domestic server | `app/src/app/api/health/route.ts`; local `next start` + temp PostgreSQL + fake COS config returned `200 OK` | Pass for local runtime |
-| App environment preflight | `app/scripts/check-domestic-app-env.mjs`; missing-env failure path and temp PostgreSQL success path verified | Pass for app preflight |
+| App environment preflight | `app/scripts/check-domestic-app-env.mjs`; missing-env failure path, temp PostgreSQL success path, and `--require-video-chain-test-entrypoint` flag verified | Pass for app preflight |
 | App COS roundtrip preflight | `app/scripts/check-domestic-cos-roundtrip.mjs`; missing-env failure path verified; real put / signed GET / delete awaits real COS credentials | Partial |
 | Video chain API smoke preflight | `app/scripts/check-domestic-video-chain-api-smoke.mjs`; missing-input path returns only missing key names; temporary PostgreSQL + `next start` success path returned `status=ok`, `jobStatus=pending`, `renderMode=asset_driven`, `inputAssetCount=1` | Pass for API-only smoke; not a substitute for real upload/worker/mobile e2e |
 | Seed first owner / merchant | `app/db/seeds/domestic_minimal_seed.example.sql`; first and repeat execution passed | Pass |
@@ -66,6 +68,14 @@ Follow-up commits after the first audit added the missing video workbench test d
 
 Recent commits ahead of `main` include:
 
+- `6c959cd chore: check video chain test entrypoint in app env`
+- `6f8ef4b chore: validate upload intent shape in api smoke`
+- `2e25f55 docs: record worker env-file smoke check`
+- `8a01636 chore: let worker real io smoke load env file`
+- `bed1917 chore: validate worker phase one concurrency in smoke`
+- `38d3630 chore: add upload intent option to domestic api smoke`
+- `8116310 docs: document domestic api smoke env`
+- `2d3f79e docs: refresh domestic completion audit`
 - `61f185d chore: add domestic video chain api smoke`
 - `94ac4eb fix: prefer postgres video payload assembly`
 - `2d29682 docs: record domestic test draft chain smoke`

@@ -31,7 +31,7 @@ Fill these without exposing secrets:
 | Step | Required evidence | Result |
 | --- | --- | --- |
 | Health check | `GET /api/health` response status and redacted JSON | Pending |
-| App env preflight | `node app/scripts/check-domestic-app-env.mjs --env-file app/.env.production` returns `ok` | Pending |
+| App env preflight | `node app/scripts/check-domestic-app-env.mjs --env-file app/.env.production --require-video-chain-test-entrypoint` returns `ok` | Pending |
 | App COS roundtrip | `node app/scripts/check-domestic-cos-roundtrip.mjs --env-file app/.env.production` uploads, signed-downloads, and deletes a smoke object | Pending |
 | Mobile open | 手机浏览器 can open the domestic IP page | Pending |
 | Login | domestic session cookie created after owner login | Pending |
@@ -48,6 +48,16 @@ Fill these without exposing secrets:
 ## 4. Evidence log
 
 Add timestamped entries here during the real run.
+
+### Readiness check - 2026-05-13T23:06:14+08:00
+
+- Operator: Codex in worktree `jingjing-domestic-infra-migration`
+- App commit: `6c959cd`
+- Result: blocked before real run
+- Evidence:
+  - `find app workers -maxdepth 3 \( -name '.env' -o -name '.env.*' \) -print` returned only `app/.env.example` and `workers/video-worker/.env.example`.
+  - Current process env had no PostgreSQL, COS, worker, or `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED` values; only presence/absence was checked, no secret values were printed.
+  - Correct worktree gate check at `2026-05-13T23:12:55+08:00` still failed only because the real phase1 e2e pass evidence is absent.
 
 ### Attempt 1
 
