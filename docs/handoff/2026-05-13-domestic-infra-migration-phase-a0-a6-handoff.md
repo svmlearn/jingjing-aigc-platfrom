@@ -34,7 +34,7 @@
 - `.env.example` 已补国内 PostgreSQL、session、国内 COS、test draft 开关和 API smoke 示例。
 - 新增 app 侧环境自检脚本：`app/scripts/check-domestic-app-env.mjs`。
 - 新增 app 侧 COS roundtrip 脚本：`app/scripts/check-domestic-cos-roundtrip.mjs`。
-- 新增 app 侧视频主链路 API smoke 脚本：`app/scripts/check-domestic-video-chain-api-smoke.mjs`，用于登录后创建 test draft、media metadata 和 pending video job；真实 COS 到位时可加 `--with-upload-intent` 验证上传意图；它不替代真实 COS 字节上传 / worker / 手机 e2e。
+- 新增 app 侧视频主链路 API smoke 脚本：`app/scripts/check-domestic-video-chain-api-smoke.mjs`，用于登录后创建 test draft、media metadata 和 pending video job；真实 COS 到位时可加 `--with-upload-intent` 验证上传意图、COS key 和临时凭证字段完整性；它不替代真实 COS 字节上传 / worker / 手机 e2e。
 - 新增 `/api/health`，用于国内服务器 IP 阶段检查 app / PostgreSQL / COS 配置。
 - 新增最小 seed 示例：`app/db/seeds/domestic_minimal_seed.example.sql`。
 - 新增视频链路 fixture seed：`app/db/seeds/domestic_video_chain_fixture.example.sql`。
@@ -69,7 +69,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 已运行 `node --check app/scripts/check-domestic-video-chain-api-smoke.mjs`，通过。
 - 已运行 `node app/scripts/check-domestic-video-chain-api-smoke.mjs` 缺参数失败路径，退出码 `2`，只输出缺失参数名。
 - 已用临时 PostgreSQL + `next start` 跑通 `check-domestic-video-chain-api-smoke.mjs` 成功路径，返回 `status=ok`、`jobStatus=pending`、`renderMode=asset_driven`、`inputAssetCount=1`。
-- `check-domestic-video-chain-api-smoke.mjs` 新增 `--with-upload-intent` 后，默认跳过上传意图的成功路径再次通过；真实上传意图模式等待国内 COS 凭证后验证。
+- `check-domestic-video-chain-api-smoke.mjs` 新增 `--with-upload-intent` 后，默认跳过上传意图的成功路径再次通过；脚本已把临时凭证字段完整性纳入真实上传意图模式通过条件，该模式等待国内 COS 凭证后验证。
 - worker tests 当前为 `50 tests OK`，包含 `WORKER_COS_*` 优先级、`WORKER_MAX_CONCURRENCY=1` 和 `real_io_smoke --env-file` 覆盖。
 - 已命令级验证 `real_io_smoke --env-file <tmp>` 缺 COS 失败路径，退出码 `2`，只输出缺失 COS key 名，不泄露数据库密码。
 - `docker compose -f workers/video-worker/docker-compose.yml config --quiet`：通过。

@@ -140,7 +140,7 @@
 - 新增 app 侧视频主链路 API smoke 脚本：`app/scripts/check-domestic-video-chain-api-smoke.mjs`。
   - 可读取当前环境或 `--env-file <path>`。
   - 使用测试账号登录后调用 test draft、media complete、video job create。
-  - 真实 COS 凭证到位时可加 `--with-upload-intent`，先验证 `/api/media/upload-intents` 和返回的 COS key。
+  - 真实 COS 凭证到位时可加 `--with-upload-intent`，先验证 `/api/media/upload-intents`、返回的 COS key 和临时凭证字段完整性。
   - 只输出状态、ID、`renderMode` 和 `inputAssetCount`，不输出密码或 cookie。
   - 明确不替代真实 COS 字节上传、worker 生成、`final.mp4` 和手机浏览器 e2e。
 - 新增健康检查接口：`app/src/app/api/health/route.ts`。
@@ -219,7 +219,7 @@ curl -sS -b /private/tmp/jj-testdraft-cookie.txt -X POST 'http://127.0.0.1:3112/
 - video chain API smoke 脚本语法检查：通过
 - video chain API smoke 缺参数失败路径：通过，退出码 `2`，只输出缺失参数名
 - video chain API smoke 临时 PostgreSQL + `next start` 成功路径：通过，退出码 `0`，返回 `status=ok`、`jobStatus=pending`、`renderMode=asset_driven`、`inputAssetCount=1`
-- 增加 `--with-upload-intent` 后，默认 API smoke 成功路径再次通过，返回 `uploadIntentStatus=skipped`；真实上传意图模式等待国内 COS 凭证后验证
+- 增加 `--with-upload-intent` 后，默认 API smoke 成功路径再次通过，返回 `uploadIntentStatus=skipped`、`uploadIntentCredentialsPresent=null`；真实上传意图模式会校验 `TmpSecretId` / `TmpSecretKey` / `Token` / `expiredTime` 等字段完整性，等待国内 COS 凭证后验证
 - PostgreSQL 17 临时空库执行 baseline：通过
 - 最小 seed 示例首次执行和重复执行：通过
 - 视频链路 fixture seed：通过

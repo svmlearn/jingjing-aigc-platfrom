@@ -83,6 +83,7 @@ try {
       })
     : null;
   const uploadIntentPayload = uploadIntent?.body?.uploadIntent ?? null;
+  const uploadIntentShape = inspectUploadIntentShape(uploadIntentPayload);
   const storageKey =
     typeof uploadIntentPayload?.cosKey === "string"
       ? uploadIntentPayload.cosKey
@@ -127,7 +128,7 @@ try {
   const passed =
     login.status === 303 &&
     testDraft.status === 201 &&
-    (!withUploadIntent || uploadIntent?.status === 201) &&
+    (!withUploadIntent || (uploadIntent?.status === 201 && uploadIntentShape.complete)) &&
     mediaComplete.status === 201 &&
     jobCreate.status === 201 &&
     job?.status === "pending" &&
@@ -141,6 +142,7 @@ try {
       loginStatus: login.status,
       testDraftStatus: testDraft.status,
       uploadIntentStatus: uploadIntent?.status ?? "skipped",
+      uploadIntentCredentialsPresent: withUploadIntent ? uploadIntentShape.credentialsPresent : null,
       mediaCompleteStatus: mediaComplete.status,
       jobCreateStatus: jobCreate.status,
       draftId: draft.id,
@@ -152,6 +154,7 @@ try {
       inputAssetCount: inputAssets.length,
       uploadIntentKey:
         typeof uploadIntentPayload?.cosKey === "string" ? uploadIntentPayload.cosKey : null,
+      uploadIntentMissingFields: withUploadIntent ? uploadIntentShape.missingFields : [],
       errorCodes: compact([
         testDraft.body?.error?.code,
         uploadIntent?.body?.error?.code,
@@ -231,6 +234,38 @@ function extractCookieHeader(response) {
     .map((cookie) => cookie?.split(";")[0]?.trim())
     .filter(Boolean)
     .join("; ");
+}
+
+function inspectUploadIntentShape(uploadIntent) {
+  if (!uploadIntent || typeof uploadIntent !== "object") {
+    return {
+      complete: false,
+      credentialsPresent: false,
+      missingFields: ["uploadIntent"],
+    };
+  }
+
+  const requiredFields = [
+    "bucket",
+    "region",
+    "cosKey",
+    "TmpSecretId",
+    "TmpSecretKey",
+    "Token",
+    "expiredTime",
+  ];
+  const missingFields = requiredFields.filter((field) => {
+    const value = uploadIntent[field];
+    return value === null || value === undefined || value === "";
+  });
+
+  return {
+    complete: missingFields.length === 0,
+    credentialsPresent: ["TmpSecretId", "TmpSecretKey", "Token"].every(
+      (field) => typeof uploadIntent[field] === "string" && uploadIntent[field].length > 0,
+    ),
+    missingFields,
+  };
 }
 
 function normalizeBaseUrl(value) {
