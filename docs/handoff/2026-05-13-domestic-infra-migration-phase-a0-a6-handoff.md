@@ -31,6 +31,7 @@
 - `retry` 已支持 `failed_retryable` / `failed_manual` 失败后人工确认重跑；PG 分支记录 `manual_rerun_requested_at`。
 - `.env.example` 已补国内 PostgreSQL、session、国内 COS 示例。
 - 新增 app 侧环境自检脚本：`app/scripts/check-domestic-app-env.mjs`。
+- 新增 app 侧 COS roundtrip 脚本：`app/scripts/check-domestic-cos-roundtrip.mjs`。
 - 新增 `/api/health`，用于国内服务器 IP 阶段检查 app / PostgreSQL / COS 配置。
 - 新增最小 seed 示例：`app/db/seeds/domestic_minimal_seed.example.sql`。
 - 新增视频链路 fixture seed：`app/db/seeds/domestic_video_chain_fixture.example.sql`。
@@ -58,6 +59,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 已在 `/private/tmp` 临时 PostgreSQL 17 空库执行 `app/db/migrations/202605130001_domestic_core_baseline.sql`，通过。
 - 已运行 `node app/scripts/check-domestic-app-env.mjs` 缺环境失败路径，退出码 `1`，只输出缺失 key 名。
 - 已运行 `APP_DATABASE_URL=... COS_*=dummy node app/scripts/check-domestic-app-env.mjs` 成功路径，确认 DB 可连且核心表齐全。
+- 已运行 `node app/scripts/check-domestic-cos-roundtrip.mjs` 缺环境失败路径，退出码 `2`，只输出缺失 key 名。
 - worker tests 当前为 `48 tests OK`，包含 `WORKER_COS_*` 优先级覆盖。
 - 已执行 `app/db/seeds/domestic_minimal_seed.example.sql`，首次和重复执行均通过。
 - 已执行 `app/db/seeds/domestic_video_chain_fixture.example.sql`，创建 source item / draft / approved video script variant，并输出 draft COS key prefix。
@@ -125,6 +127,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 
 5. 验证 app：
    - `node app/scripts/check-domestic-app-env.mjs --env-file app/.env.production`
+   - `node app/scripts/check-domestic-cos-roundtrip.mjs --env-file app/.env.production`
    - `/api/health`
    - 登录
    - 创建 source item / content draft / video script

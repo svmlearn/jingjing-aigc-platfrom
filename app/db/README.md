@@ -25,6 +25,12 @@ Check app-side domestic environment without printing secrets:
 node app/scripts/check-domestic-app-env.mjs --env-file app/.env.production
 ```
 
+Check real domestic COS put / signed download / delete without printing secrets:
+
+```bash
+node app/scripts/check-domestic-cos-roundtrip.mjs --env-file app/.env.production
+```
+
 Generate a first test password hash before inserting a manual `app_users` row:
 
 ```bash

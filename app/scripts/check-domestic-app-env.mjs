@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
 
 import pg from "pg";
+
+import { loadEnvFileFromArgs } from "./lib/env-file.mjs";
 
 const { Pool } = pg;
 
@@ -124,50 +125,4 @@ function resolveSslConfig() {
   }
 
   return undefined;
-}
-
-function loadEnvFileFromArgs() {
-  const envFileIndex = process.argv.indexOf("--env-file");
-  if (envFileIndex === -1) {
-    return;
-  }
-
-  const envFile = process.argv[envFileIndex + 1];
-  if (!envFile) {
-    throw new Error("Usage: node scripts/check-domestic-app-env.mjs --env-file <path>");
-  }
-
-  loadEnvFile(envFile);
-}
-
-function loadEnvFile(path) {
-  const text = readFileSync(path, "utf8");
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) {
-      continue;
-    }
-
-    const separator = line.indexOf("=");
-    if (separator === -1) {
-      continue;
-    }
-
-    const name = line.slice(0, separator).trim();
-    const value = unquote(line.slice(separator + 1).trim());
-    if (!process.env[name]) {
-      process.env[name] = value;
-    }
-  }
-}
-
-function unquote(value) {
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    return value.slice(1, -1);
-  }
-
-  return value;
 }

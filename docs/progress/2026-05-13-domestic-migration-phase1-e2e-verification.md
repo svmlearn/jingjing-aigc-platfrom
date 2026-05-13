@@ -31,6 +31,8 @@ Fill these without exposing secrets:
 | Step | Required evidence | Result |
 | --- | --- | --- |
 | Health check | `GET /api/health` response status and redacted JSON | Pending |
+| App env preflight | `node app/scripts/check-domestic-app-env.mjs --env-file app/.env.production` returns `ok` | Pending |
+| App COS roundtrip | `node app/scripts/check-domestic-cos-roundtrip.mjs --env-file app/.env.production` uploads, signed-downloads, and deletes a smoke object | Pending |
 | Mobile open | 手机浏览器 can open the domestic IP page | Pending |
 | Login | domestic session cookie created after owner login | Pending |
 | Upload intent | `/api/media/upload-intents` returns domestic COS bucket, region, key prefix and temporary credential metadata | Pending |

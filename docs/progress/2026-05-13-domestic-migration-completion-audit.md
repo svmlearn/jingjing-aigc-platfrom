@@ -44,6 +44,7 @@ Latest `check.py --skip-verifier` result: failed only on `phase1_e2e_verificatio
 | Worker logs, heartbeat, timeout, failure reason, manual rerun | `video_edit_jobs` columns added; worker DB updates write `worker_id`, heartbeat/timeout/failure fields; retry supports `failed_retryable` and `failed_manual` | Pass in code/tests, not live worker e2e |
 | Health check for domestic server | `app/src/app/api/health/route.ts`; local `next start` + temp PostgreSQL + fake COS config returned `200 OK` | Pass for local runtime |
 | App environment preflight | `app/scripts/check-domestic-app-env.mjs`; missing-env failure path and temp PostgreSQL success path verified | Pass for app preflight |
+| App COS roundtrip preflight | `app/scripts/check-domestic-cos-roundtrip.mjs`; missing-env failure path verified; real put / signed GET / delete awaits real COS credentials | Partial |
 | Seed first owner / merchant | `app/db/seeds/domestic_minimal_seed.example.sql`; first and repeat execution passed | Pass |
 | Seed video-chain fixture | `app/db/seeds/domestic_video_chain_fixture.example.sql`; creates source item / draft / approved video script and returns draft COS key prefix | Pass |
 | App local type/lint/build | `pnpm exec tsc --noEmit --pretty false`, `pnpm lint`, `pnpm build` passed after route changes | Pass |
