@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>用户端 AI 剪辑进度预览</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --page: #f4f0e7;
+        --paper: #ffffff;
+        --panel: #f7f4ea;
+        --ink: #171717;
+        --muted: rgba(0, 0, 0, 0.55);
+        --soft: rgba(0, 0, 0, 0.45);
+        --line: rgba(0, 0, 0, 0.1);
+        --deep: #1f6f68;
+        --deep-soft: rgba(31, 111, 104, 0.12);
+        --blue: #2563eb;
+        --green: #16a34a;
+        --red: #be123c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--page);
+        color: var(--ink);
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", "Microsoft YaHei", sans-serif;
+        letter-spacing: 0;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .shell {
+        width: min(760px, calc(100% - 28px));
+        margin: 0 auto;
+        padding: 24px 0 36px;
+      }
+
+      .member-card {
+        border: 1px solid var(--line);
+        background: var(--paper);
+        border-radius: 10px;
+        padding: 16px;
+      }
+
+      .eyebrow {
+        margin: 0;
+        color: var(--soft);
+        font-size: 12px;
+      }
+
+      h1 {
+        margin: 8px 0 0;
+        font-size: 22px;
+        line-height: 1.35;
+        font-weight: 650;
+      }
+
+      .summary {
+        margin: 10px 0 0;
+        color: rgba(0, 0, 0, 0.6);
+        font-size: 14px;
+        line-height: 1.75;
+      }
+
+      .script {
+        margin-top: 14px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .scene {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fbfaf7;
+        padding: 12px;
+      }
+
+      .scene-title {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .scene-copy {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .button {
+        border: 0;
+        border-radius: 10px;
+        background: var(--ink);
+        color: white;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .button.secondary {
+        border: 1px solid var(--line);
+        background: white;
+        color: rgba(0, 0, 0, 0.65);
+      }
+
+      .status-card {
+        margin-top: 14px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 10px;
+        padding: 12px;
+      }
+
+      .status-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .status-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        font-size: 14px;
+        font-weight: 650;
+      }
+
+      .icon {
+        width: 18px;
+        height: 18px;
+        flex: 0 0 auto;
+        color: var(--soft);
+      }
+
+      .icon.running {
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .pct {
+        color: var(--soft);
+        font-size: 12px;
+      }
+
+      .overall-bar {
+        margin-top: 12px;
+        height: 8px;
+        overflow: hidden;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.1);
+      }
+
+      .overall-bar.hidden,
+      .current-module.hidden,
+      .pct.hidden {
+        display: none;
+      }
+
+      .overall-fill {
+        height: 100%;
+        width: 5%;
+        border-radius: inherit;
+        background: var(--deep);
+        transition: width 480ms ease;
+      }
+
+      .stage-line {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .current-module {
+        margin-top: 10px;
+        border: 1px solid rgba(37, 99, 235, 0.18);
+        background: rgba(37, 99, 235, 0.06);
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      .current-module.succeeded {
+        border-color: rgba(22, 101, 52, 0.18);
+        background: rgba(22, 163, 74, 0.08);
+      }
+
+      .module-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .module-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        color: #17202a;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .module-dot {
+        width: 8px;
+        height: 8px;
+        flex: 0 0 auto;
+        border-radius: 999px;
+        background: var(--blue);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+      }
+
+      .current-module.succeeded .module-dot {
+        background: var(--green);
+        box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.12);
+      }
+
+      .module-status {
+        flex: 0 0 auto;
+        color: var(--blue);
+        font-size: 12px;
+      }
+
+      .current-module.succeeded .module-status {
+        color: #166534;
+      }
+
+      .module-bar {
+        margin-top: 8px;
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e2e8f0;
+      }
+
+      .module-fill {
+        height: 100%;
+        width: 5%;
+        border-radius: inherit;
+        background: var(--blue);
+        transition: width 480ms ease;
+      }
+
+      .current-module.succeeded .module-fill {
+        background: var(--green);
+      }
+
+      .module-note {
+        margin: 8px 0 0;
+        color: rgba(0, 0, 0, 0.52);
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .result {
+        display: none;
+        margin-top: 12px;
+        border-radius: 10px;
+        background: var(--ink);
+        color: white;
+        padding: 11px 12px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      .hint {
+        margin: 12px 0 0;
+        color: var(--soft);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      @media (max-width: 560px) {
+        .shell {
+          width: min(100% - 20px, 760px);
+          padding-top: 14px;
+        }
+
+        h1 {
+          font-size: 20px;
+        }
+
+        .status-head,
+        .module-top {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 6px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="member-card">
+        <p class="eyebrow">今日视频</p>
+        <h1>门店周末体验短视频</h1>
+        <p class="summary">
+          团队已经把视频脚本准备好。用户上传手机素材后发起 AI 剪辑，这里只在原本进度位置显示当前正在处理的模块。
+        </p>
+
+        <div class="script" aria-label="视频脚本">
+          <article class="scene">
+            <p class="scene-title">1. 开场口播</p>
+            <p class="scene-copy">手机竖屏半身口播，开头直接说客户最关心的问题。</p>
+          </article>
+          <article class="scene">
+            <p class="scene-title">2. 项目补充画面</p>
+            <p class="scene-copy">补充门店、产品和服务细节，节奏紧凑。</p>
+          </article>
+        </div>
+
+        <div class="actions">
+          <button class="button" id="play">发起 AI 剪辑</button>
+          <button class="button secondary" id="finish">跳到完成</button>
+        </div>
+
+        <section class="status-card" aria-label="AI 剪辑任务状态">
+          <div class="status-head">
+            <div class="status-title">
+              <svg class="icon running" id="status-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" opacity="0.25"></circle>
+                <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+              </svg>
+              <span id="status-title">剪辑中</span>
+            </div>
+            <span class="pct" id="overall-pct">10%</span>
+          </div>
+
+          <div class="overall-bar">
+            <div class="overall-fill" id="overall-fill"></div>
+          </div>
+
+          <p class="stage-line" id="stage-line">正在准备素材</p>
+
+          <div class="current-module" id="current-module">
+            <div class="module-top">
+              <div class="module-label">
+                <span class="module-dot"></span>
+                <span id="module-label">素材准备</span>
+              </div>
+              <span class="module-status" id="module-status">处理中</span>
+            </div>
+            <div class="module-bar">
+              <div class="module-fill" id="module-fill"></div>
+            </div>
+            <p class="module-note" id="module-note">正在读取镜头素材</p>
+          </div>
+
+          <a class="result" id="result-link" href="#">查看成片</a>
+        </section>
+
+        <p class="hint">
+          这里对应用户端的视频任务状态：上传、创建任务和剪辑流水线都在同一个进度位置先后替换展示。
+        </p>
+      </section>
+    </main>
+
+    <script>
+      const steps = [
+        {
+          delay: 600,
+          status: "剪辑准备中",
+          stage: "正在整理镜头脚本",
+        },
+        {
+          delay: 900,
+          status: "剪辑准备中",
+          stage: "正在确认脚本版本",
+        },
+        {
+          delay: 900,
+          status: "上传素材中",
+          stage: "正在上传第 1 / 2 段素材",
+          module: "上传手机素材",
+          note: "正在申请上传通道",
+          progress: 24,
+          moduleProgress: 12,
+          moduleStatus: "上传中",
+        },
+        {
+          delay: 1000,
+          status: "上传素材中",
+          stage: "正在上传第 1 / 2 段素材",
+          module: "上传手机素材",
+          note: "正在上传你选择的手机素材",
+          progress: 31,
+          moduleProgress: 58,
+          moduleStatus: "上传中",
+        },
+        {
+          delay: 1000,
+          status: "上传素材中",
+          stage: "正在上传第 2 / 2 段素材",
+          module: "上传手机素材",
+          note: "素材已经上传，正在保存素材记录",
+          progress: 48,
+          moduleProgress: 92,
+          moduleStatus: "保存中",
+        },
+        {
+          delay: 900,
+          status: "剪辑准备中",
+          stage: "正在创建 AI 剪辑任务",
+        },
+        {
+          delay: 900,
+          status: "等待开始",
+          stage: "任务已经创建，正在等待剪辑服务接单",
+        },
+        {
+          delay: 1000,
+          status: "剪辑中",
+          stage: "正在匹配素材",
+          module: "素材匹配",
+          note: "正在按脚本镜头挑选合适素材",
+          progress: 60,
+          moduleProgress: 20,
+          moduleStatus: "处理中",
+        },
+        {
+          delay: 1300,
+          status: "剪辑中",
+          stage: "正在匹配素材",
+          module: "素材匹配",
+          note: "正在筛选更适合当前镜头的片段",
+          progress: 58,
+          moduleProgress: 70,
+          moduleStatus: "处理中",
+        },
+        {
+          delay: 1300,
+          status: "剪辑中",
+          stage: "正在生成配音",
+          module: "配音生成",
+          note: "正在生成旁白配音",
+          progress: 62,
+          moduleProgress: 35,
+          moduleStatus: "处理中",
+        },
+        {
+          delay: 1300,
+          status: "剪辑中",
+          stage: "正在生成字幕和时间线",
+          module: "字幕与时间线",
+          note: "正在对齐字幕和镜头时间线",
+          progress: 68,
+          moduleProgress: 45,
+          moduleStatus: "处理中",
+        },
+        {
+          delay: 1300,
+          status: "剪辑中",
+          stage: "正在合成渲染",
+          module: "合成渲染",
+          note: "正在合成最终视频",
+          progress: 74,
+          moduleProgress: 30,
+          moduleStatus: "处理中",
+        },
+        {
+          delay: 1300,
+          status: "剪辑中",
+          stage: "正在保存成片",
+          module: "保存成片",
+          note: "正在保存到素材库",
+          progress: 86,
+          moduleProgress: 60,
+          moduleStatus: "处理中",
+        },
+        {
+          delay: 1100,
+          status: "成片成功",
+          stage: "成片已经回写完成",
+          module: "保存成片",
+          note: "任务完成，可以查看成片",
+          progress: 100,
+          moduleProgress: 100,
+          moduleStatus: "完成",
+          done: true,
+        },
+      ];
+
+      const statusIcon = document.querySelector("#status-icon");
+      const statusTitle = document.querySelector("#status-title");
+      const overallPct = document.querySelector("#overall-pct");
+      const overallBar = document.querySelector(".overall-bar");
+      const overallFill = document.querySelector("#overall-fill");
+      const stageLine = document.querySelector("#stage-line");
+      const currentModule = document.querySelector("#current-module");
+      const moduleLabel = document.querySelector("#module-label");
+      const moduleStatus = document.querySelector("#module-status");
+      const moduleFill = document.querySelector("#module-fill");
+      const moduleNote = document.querySelector("#module-note");
+      const resultLink = document.querySelector("#result-link");
+      let timers = [];
+
+      function clearTimers() {
+        timers.forEach((timer) => window.clearTimeout(timer));
+        timers = [];
+      }
+
+      function render(step) {
+        statusTitle.textContent = step.status;
+        stageLine.textContent = step.stage;
+        if (typeof step.progress === "number") {
+          overallPct.textContent = `${step.progress}%`;
+          overallFill.style.width = `${Math.max(step.progress, 5)}%`;
+          overallPct.classList.remove("hidden");
+          overallBar.classList.remove("hidden");
+        } else {
+          overallPct.classList.add("hidden");
+          overallBar.classList.add("hidden");
+        }
+        if (step.module && typeof step.moduleProgress === "number") {
+          moduleLabel.textContent = step.module;
+          moduleStatus.textContent = step.moduleStatus || (step.done ? "完成" : "处理中");
+          moduleFill.style.width = `${Math.max(step.moduleProgress, 5)}%`;
+          moduleNote.textContent = step.note || "";
+          currentModule.classList.remove("hidden");
+        } else {
+          currentModule.classList.add("hidden");
+        }
+        currentModule.classList.toggle("succeeded", Boolean(step.done));
+        statusIcon.classList.toggle("running", !step.done);
+        resultLink.style.display = step.done ? "inline-flex" : "none";
+      }
+
+      function play() {
+        clearTimers();
+        render(steps[0]);
+        let elapsed = 0;
+        steps.slice(1).forEach((step) => {
+          elapsed += step.delay;
+          timers.push(window.setTimeout(() => render(step), elapsed));
+        });
+      }
+
+      document.querySelector("#play").addEventListener("click", play);
+      document.querySelector("#finish").addEventListener("click", () => {
+        clearTimers();
+        render(steps[steps.length - 1]);
+      });
+
+      play();
+    </script>
+  </body>
+</html>
