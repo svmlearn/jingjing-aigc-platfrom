@@ -158,6 +158,41 @@ python3 docs/探索/2026-05-11-用dify来测试链路/verify_dify_v31_final_json
 
 未在本地触发真实 Dify 线上调用。本地 worker 已实现，但真实调用需要目标环境配置 `DIFY_API_KEY` 和 workflow 相关 env。
 
+## 2026-05-14 真实 Dify Smoke Test
+
+用户临时提供 Dify API key 后，使用临时环境变量启动本地 dev server，未写入 `.env`、代码或文档。
+
+执行范围：
+
+- `days = 1`
+- `memberScope = self`
+- `DIFY_WORKFLOW_RESPONSE_MODE = streaming`
+
+执行结果：
+
+- `POST /api/content-generation/batches`
+  - 创建 1 个 job
+  - batch status: `pending`
+- `POST /api/content-generation/jobs/run-next`
+  - `processed: true`
+  - job status: `succeeded`
+  - currentStage: `persisted`
+  - errorMessage: `null`
+  - 已生成 `contentDraftId/articleVariantId/videoVariantId`
+- `GET /api/member/tasks/week`
+  - article title: `光明星河天地小户型回归，上次没买到的这次怎么看？`
+  - article status: `succeeded`
+  - video status: `succeeded`
+  - video scene count: `10`
+  - required flags: `[true, false, false, false, true, false, false, false, true, true]`
+
+图片结果：
+
+- 本次真实 Dify 输出的 `article.images` 为空，成员端 `articleImageCount = 0`。
+- 进一步检查本地 demo 素材库：`/api/materials?retrievalTarget=article_image_asset&limit=10` 返回 `count = 0`。
+- 结论：本次没有图片不是前端渲染失败，而是当前本地环境没有可被 Dify 检索/输入的图片素材。
+- 后续 staging 验收图片渲染时，需要先上传项目图片素材，并确认其 `retrievalTargets` 包含 `article_image_asset`。
+
 ## 当前状态
 
 代码位于独立 worktree：
