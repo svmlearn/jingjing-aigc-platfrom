@@ -66,6 +66,7 @@ pnpm --dir app build
 
 - Codex in-app browser 自动化连接超时，未完成浏览器截图验证。
 - 已用 dev server 页面 route、API 冒烟和 production build 覆盖主要风险。
+- Vercel Hobby plan 的 Serverless Function `maxDuration` 上限为 300 秒，线上 run-next route 已按 300 秒部署；若真实 Dify job 继续超过 5 分钟，需要迁到外部 worker 或升级 Vercel plan。
 
 ## 当前 branch / worktree
 
@@ -97,6 +98,5 @@ codex/dify-calendar-member-integration
 
 ## push / merge 状态
 
-- 尚未 push。
-- 尚未 merge。
-- 当前分支待用户验收后再决定是否合入主线。
+- 已按用户要求推送到 Gitee `main`。
+- 尚未 merge 回本地 `main` worktree。

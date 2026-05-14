@@ -100,6 +100,12 @@ Worker 环境变量：
 - `DIFY_WORKFLOW_VERSION`，默认 `v3.1`
 - `CONTENT_GENERATION_WORKER_SECRET`，配置后 worker route 必须带 secret
 
+部署备注：
+
+- Vercel Hobby plan 单个 Serverless Function `maxDuration` 上限为 300 秒。
+- 线上 `/api/content-generation/jobs/run-next` 先按 300 秒部署，Vercel Production 的 `DIFY_WORKFLOW_TIMEOUT_SECONDS` 应配置为 290。
+- 真实 Dify 一次生成曾耗时约 6.2 分钟；如果线上继续出现超时，需要把该 worker 迁到外部常驻 worker/队列，或升级 Vercel plan。
+
 ### 4. 成员端与商家端 UI
 
 成员端：
@@ -408,6 +414,23 @@ pnpm --dir app build
 均已通过。
 
 浏览器自动化连接 Codex in-app browser 超时；本轮已用 dev server + API 冒烟 + production build 验证页面 route 和数据链路。
+
+## 2026-05-14 发布进展
+
+已执行：
+
+- 推送 `codex/dify-calendar-member-integration` 到 Gitee `main`。
+- Supabase 远端项目 `jrveaabguddromjtibbs` 已执行 `202605140001_content_generation_batches_jobs.sql`。
+- Vercel Production 已补充 Dify 相关环境变量：
+  - `DIFY_API_KEY`
+  - `DIFY_WORKFLOW_RESPONSE_MODE=streaming`
+  - `DIFY_WORKFLOW_TIMEOUT_SECONDS=290`
+  - `DIFY_WORKFLOW_VERSION=v3.1`
+
+部署注意：
+
+- 首次 Vercel production deploy 因 Hobby plan 不允许 900 秒 `maxDuration` 被拒绝。
+- 已将 run-next route 调整为 300 秒以满足当前 Vercel plan。
 
 ## 当前状态
 
