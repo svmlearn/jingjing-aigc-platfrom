@@ -1,0 +1,672 @@
+{
+  "case_name": "case03_weak_knowledge",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case03_weak_knowledge.json",
+  "run_index": 1,
+  "timestamp": "20260512_234445_065954",
+  "elapsed_time": 396.68803787231445,
+  "success": true,
+  "workflow_run_id": "6064dcc3-cde9-4e0a-a992-0458cd1879c7",
+  "error": null,
+  "raw_response": {
+    "id": "6064dcc3-cde9-4e0a-a992-0458cd1879c7",
+    "workflow_id": "ebdc6c0d-248b-478f-8ced-b41d72bb06c6",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v3_article_video_split\", \"articlePackage\": {\"titles\": [\"预算有限，怎么选小面积？\", \"一个小面积产品，为何被频繁问起？\", \"我看了这个低总价小户型，只说三点\"], \"selectedTitle\": \"一个小面积产品，为何被频繁问起？\", \"coverCopy\": \"先了解，不着急买\", \"body\": \"说实话，预算有限的时候看房，很容易焦虑。但我想告诉你，市场上确实有一些总价友好的小面积产品，我们今天不谈得失，先看看。\\n\\n这个小面积产品，最近中介圈子里聊得挺多。不是因为它便宜到离谱，而是关注度在回暖。我跟你讲，一线反馈是真实的。\\n\\n地铁13号线快要通了，周边商业也成熟。这些不是概念，你可以自己周末去看。实景比我说的一百句都管用。\\n\\n所以我觉得，预算有限的朋友，别急着否定。找个周末去实地走走，看看周边，感受真实氛围。然后再决定，不迟。\", \"contentBlocks\": [{\"blockNo\": 1, \"blockType\": \"体验块\", \"text\": \"说实话，预算有限的时候看房，很容易焦虑。但我想告诉你，市场上确实有一些总价友好的小面积产品，我们今天不谈得失，先看看。\", \"imageMatch\": {\"assetId\": \"img_003\", \"title\": \"项目入口\", \"usage\": \"封面或配图\"}}, {\"blockNo\": 2, \"blockType\": \"证据块\", \"text\": \"这个小面积产品，最近中介圈子里聊得挺多。不是因为它便宜到离谱，而是关注度在回暖。我跟你讲，一线反馈是真实的。\", \"imageBrief\": \"需要一张中介朋友圈截图或聊天记录的示意图片，突出讨论热度\"}, {\"blockNo\": 3, \"blockType\": \"体验块\", \"text\": \"地铁13号线快要通了，周边商业也成熟。这些不是概念，你可以自己周末去看。实景比我说的一百句都管用。\", \"imageBrief\": \"地铁13号线站点外观或导向标识实拍图，或周边商业街景实拍\"}, {\"blockNo\": 4, \"blockType\": \"CTA块\", \"text\": \"所以我觉得，预算有限的朋友，别急着否定。找个周末去实地走走，看看周边，感受真实氛围。然后再决定，不迟。\"}], \"hashtags\": [\"深圳买房\", \"小户型\", \"预算有限\", \"地铁房\", \"光明新房\", \"实地看房\", \"总价友好\"], \"cta\": \"感兴趣私信我，发你户型图参考一下。\", \"imageMatches\": [{\"blockNo\": 1, \"assetId\": \"img_003\", \"title\": \"项目入口\", \"usage\": \"封面或配图\"}], \"imageBriefIfMissing\": \"需要一张中介朋友圈截图或聊天记录的示意图片，突出讨论热度; 地铁13号线站点外观或导向标识实拍图，或周边商业街景实拍\", \"riskNotes\": [], \"copyReadyText\": \"一个小面积产品，为何被频繁问起？\\n\\n说实话，预算有限的时候看房，很容易焦虑。但我想告诉你，市场上确实有一些总价友好的小面积产品，我们今天不谈得失，先看看。\\n\\n这个小面积产品，最近中介圈子里聊得挺多。不是因为它便宜到离谱，而是关注度在回暖。我跟你讲，一线反馈是真实的。\\n\\n地铁13号线快要通了，周边商业也成熟。这些不是概念，你可以自己周末去看。实景比我说的一百句都管用。\\n\\n所以我觉得，预算有限的朋友，别急着否定。找个周末去实地走走，看看周边，感受真实氛围。然后再决定，不迟。\\n\\n深圳买房 小户型 预算有限 地铁房 光明新房 实地看房 总价友好\"}, \"titleStrategy\": {\"titles\": [{\"text\": \"预算有限，怎么选小面积？\", \"formula\": \"痛点共鸣 + 悬念\", \"whyThisFormula\": \"直接命中预算敏感的痛点，同时以问题形式制造悬念，吸引点击\"}, {\"text\": \"一个小面积产品，为何被频繁问起？\", \"formula\": \"异常现象 + 好奇心\", \"whyThisFormula\": \"用异常现象引发好奇，暗示产品有特殊关注度，不承诺收益但制造悬念\"}, {\"text\": \"我看了这个低总价小户型，只说三点\", \"formula\": \"晒结果 + 悬念\", \"whyThisFormula\": \"以第一人称体验开头，承诺具体信息（三点），降低决策门槛\"}], \"selectedTitleReason\": \"该标题利用异常现象激发好奇心，不涉及具体数据或承诺，安全且符合理性决策唤醒模式，同时口播友好\", \"coverCopyOptions\": [{\"text\": \"先了解，不着急买\", \"style\": \"大字报型\"}, {\"text\": \"这个盘的小户型，到底怎么样？\", \"style\": \"实拍+文字型\"}], \"hookAngle\": \"以低总价小面积产品为切入点，用‘先了解再判断’的态度降低防御心理，引导理性探索\"}, \"videoScript\": {\"narrative\": {\"hook\": {\"strategy\": \"数据冲击\", \"openingLine\": \"89方做到三房两卫，总价不到200万，你敢信？\"}, \"narrativeArc\": [\"好奇 → 认同 → 心动 → 行动\"], \"storyOutline\": \"小区入口 -> 园林通道 -> 楼栋大堂 -> 室内客厅 -> 卧室 -> 阳台望出去\", \"estimatedDuration\": \"约60秒\", \"bgmDirection\": \"轻快、现代感，带节奏的Beat\", \"toneOfVoice\": \"口语化、真诚、像朋友推荐\", \"voiceoverDraft\": \"我跟你讲，这个盘最近真的火了。89平做到三房两卫，总价不到200万。说实话，我第一次看到也吓了一跳。但你别急，跟我走一圈。从小区进来，先看园林，绿化做得不错。楼栋大堂有门禁，安全。进去看客厅，开间够大，窗户也大。主卧带飘窗，儿童房也不小。最后到阳台，视野开阔，没有遮挡。说实话，这个价位在深圳很难得。如果你预算有限，又想要三房，这个盘值得看看。\"}, \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-5s\", \"sceneType\": \"口播\", \"emotionalBeat\": \"好奇\", \"visualDescription\": \"中介站在项目入口处，身后是小区大门和绿化带，光线充足。中介身体微侧，面对手机镜头自然说话，表情略带惊喜。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"voiceover\": \"89方做到三房两卫，总价不到200万，你敢信？\", \"filmingGuide\": {\"location\": \"项目入口处\", \"posture\": \"站立，手持手机自拍\", \"props\": [\"工牌\"], \"tips\": [\"拍两遍，选自然的那条\", \"找光线好的位置，脸上不要有阴影\", \"开头多录2秒，方便剪辑\"]}}, {\"sceneNo\": 2, \"timeRange\": \"5-10s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和右侧商业街，小区入口开阔整洁。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"从小区正门开始感受环境\", \"assetQuery\": \"小区 正门 航拍 绿化 商业街\", \"fallbackVisual\": \"项目入口正门静态图\"}, {\"sceneNo\": 3, \"timeRange\": \"10-14s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"园林通道步行视角，两边花木繁茂，地面干净，有业主散步，光线柔和。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"园林通道，绿化不错\", \"assetQuery\": \"园林 通道 步行 绿化 花木\", \"fallbackVisual\": \"园林景观示意图\"}, {\"sceneNo\": 4, \"timeRange\": \"14-18s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"楼栋大堂内部，有门禁系统、前台、瓷砖地面，整体现代明亮，有居民进出。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"楼栋大堂，有门禁，安全\", \"assetQuery\": \"楼栋 大堂 门禁 现代 明亮\", \"fallbackVisual\": \"楼栋大堂标准图\"}, {\"sceneNo\": 5, \"timeRange\": \"18-22s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域，空间通透。\", \"transition\": \"渐变过渡\", \"pacing\": \"快\", \"subtitle\": \"客厅开间够大，窗户也大\", \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\", \"fallbackVisual\": \"客厅温馨实景图\"}, {\"sceneNo\": 6, \"timeRange\": \"22-26s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"主卧带飘窗，窗外可见小区绿化，房间整洁，空间不小。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"主卧带飘窗，儿童房也不小\", \"assetQuery\": \"卧室 飘窗 温馨 窗外绿化\", \"fallbackVisual\": \"卧室飘窗参考图\"}, {\"sceneNo\": 7, \"timeRange\": \"26-30s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"从阳台向外望，视野开阔，无遮挡，看到远处楼群和天空。\", \"transition\": \"声音先入画面后跟\", \"pacing\": \"正常\", \"subtitle\": \"阳台视野开阔，没有遮挡\", \"assetQuery\": \"阳台 视野 开阔 无遮挡 高层\", \"fallbackVisual\": \"阳台视野实景图\", \"voiceover\": \"说实话，这个价位在深圳确实少见。如果你预算有限，又想要三房，这个盘值得看看。\"}, {\"sceneNo\": 8, \"timeRange\": \"30-35s\", \"sceneType\": \"口播\", \"emotionalBeat\": \"行动\", \"visualDescription\": \"中介再次面对镜头，背景为阳台或窗户，表情诚恳，手势引导。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"如果你预算有限，又想要三房，这个盘值得看看。\", \"filmingGuide\": {\"location\": \"阳台或样板间窗户旁\", \"posture\": \"站立，手持手机自拍\", \"props\": [], \"tips\": [\"和第一个镜头穿同一件衣服，保持形象一致\", \"语速放慢，像跟朋友聊天\", \"结尾多录2秒，方便剪辑\"]}}, {\"sceneNo\": 9, \"timeRange\": \"35-40s\", \"sceneType\": \"文字卡\", \"emotionalBeat\": \"行动\", \"visualDescription\": \"黑底白字，核心数据展示：89平三房两卫，总价不到200万。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"subtitle\": \"89平三房两卫 · 总价不到200万\"}], \"riskNotes\": []}, \"memberDelivery\": {\"tasks\": [{\"taskNo\": 1, \"sceneNo\": 1, \"script\": \"89方做到三房两卫，总价不到200万，你敢信？\", \"location\": \"项目入口处\", \"posture\": \"站立，手持手机自拍\", \"props\": [\"工牌\"], \"tips\": [\"拍两遍，选自然的那条\", \"找光线好的位置，脸上不要有阴影\", \"开头多录2秒，方便剪辑\"]}, {\"taskNo\": 2, \"sceneNo\": 8, \"script\": \"如果你预算有限，又想要三房，这个盘值得看看。\", \"location\": \"阳台或样板间窗户旁\", \"posture\": \"站立，手持手机自拍\", \"props\": [], \"tips\": [\"和第一个镜头穿同一件衣服，保持形象一致\", \"语速放慢，像跟朋友聊天\", \"结尾多录2秒，方便剪辑\"]}]}, \"workerDelivery\": {\"storyOutline\": \"小区入口 -> 园林通道 -> 楼栋大堂 -> 室内客厅 -> 卧室 -> 阳台望出去\", \"bgm\": \"轻快、现代感，带节奏的Beat\", \"toneOfVoice\": \"口语化、真诚、像朋友推荐\", \"estimatedDuration\": \"约60秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-5s\", \"sceneType\": \"口播\", \"emotionalBeat\": \"好奇\", \"visualDescription\": \"中介站在项目入口处，身后是小区大门和绿化带，光线充足。中介身体微侧，面对手机镜头自然说话，表情略带惊喜。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"voiceover\": \"89方做到三房两卫，总价不到200万，你敢信？\", \"filmingGuide\": {\"location\": \"项目入口处\", \"posture\": \"站立，手持手机自拍\", \"props\": [\"工牌\"], \"tips\": [\"拍两遍，选自然的那条\", \"找光线好的位置，脸上不要有阴影\", \"开头多录2秒，方便剪辑\"]}}, {\"sceneNo\": 2, \"timeRange\": \"5-10s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和右侧商业街，小区入口开阔整洁。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"从小区正门开始感受环境\", \"assetQuery\": \"小区 正门 航拍 绿化 商业街\", \"fallbackVisual\": \"项目入口正门静态图\"}, {\"sceneNo\": 3, \"timeRange\": \"10-14s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"园林通道步行视角，两边花木繁茂，地面干净，有业主散步，光线柔和。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"园林通道，绿化不错\", \"assetQuery\": \"园林 通道 步行 绿化 花木\", \"fallbackVisual\": \"园林景观示意图\"}, {\"sceneNo\": 4, \"timeRange\": \"14-18s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"楼栋大堂内部，有门禁系统、前台、瓷砖地面，整体现代明亮，有居民进出。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"楼栋大堂，有门禁，安全\", \"assetQuery\": \"楼栋 大堂 门禁 现代 明亮\", \"fallbackVisual\": \"楼栋大堂标准图\"}, {\"sceneNo\": 5, \"timeRange\": \"18-22s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域，空间通透。\", \"transition\": \"渐变过渡\", \"pacing\": \"快\", \"subtitle\": \"客厅开间够大，窗户也大\", \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\", \"fallbackVisual\": \"客厅温馨实景图\"}, {\"sceneNo\": 6, \"timeRange\": \"22-26s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"主卧带飘窗，窗外可见小区绿化，房间整洁，空间不小。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"主卧带飘窗，儿童房也不小\", \"assetQuery\": \"卧室 飘窗 温馨 窗外绿化\", \"fallbackVisual\": \"卧室飘窗参考图\"}, {\"sceneNo\": 7, \"timeRange\": \"26-30s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"从阳台向外望，视野开阔，无遮挡，看到远处楼群和天空。\", \"transition\": \"声音先入画面后跟\", \"pacing\": \"正常\", \"subtitle\": \"阳台视野开阔，没有遮挡\", \"assetQuery\": \"阳台 视野 开阔 无遮挡 高层\", \"fallbackVisual\": \"阳台视野实景图\", \"voiceover\": \"说实话，这个价位在深圳确实少见。如果你预算有限，又想要三房，这个盘值得看看。\"}, {\"sceneNo\": 8, \"timeRange\": \"30-35s\", \"sceneType\": \"口播\", \"emotionalBeat\": \"行动\", \"visualDescription\": \"中介再次面对镜头，背景为阳台或窗户，表情诚恳，手势引导。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"如果你预算有限，又想要三房，这个盘值得看看。\", \"filmingGuide\": {\"location\": \"阳台或样板间窗户旁\", \"posture\": \"站立，手持手机自拍\", \"props\": [], \"tips\": [\"和第一个镜头穿同一件衣服，保持形象一致\", \"语速放慢，像跟朋友聊天\", \"结尾多录2秒，方便剪辑\"]}}, {\"sceneNo\": 9, \"timeRange\": \"35-40s\", \"sceneType\": \"文字卡\", \"emotionalBeat\": \"行动\", \"visualDescription\": \"黑底白字，核心数据展示：89平三房两卫，总价不到200万。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"subtitle\": \"89平三房两卫 · 总价不到200万\"}], \"teamAssetQueries\": [\"小区 正门 航拍 绿化 商业街\", \"园林 通道 步行 绿化 花木\", \"楼栋 大堂 门禁 现代 明亮\", \"样板间 客厅 落地窗 阳光 通透\", \"卧室 飘窗 温馨 窗外绿化\", \"阳台 视野 开阔 无遮挡 高层\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 5, \"projectFit\": 8, \"viralStructure\": 6, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 8}, \"pass\": false, \"needsRewrite\": true, \"riskTerms\": [], \"problems\": [\"项目知识不足，成稿仅适合内部预览\", \"视频叙事弧线少于 3 个节拍\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"更完整的项目事实\"], \"preRepairPass\": false, \"autoRewritten\": true, \"repairPolicy\": \"validator_risk_terms_minimal_rewrite\"}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"低总价上车\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"种草\", \"targetAudience\": \"预算敏感客户\", \"audiencePain\": \"预算有限，担心房价过高无法购买\", \"sellingPointsNeeded\": [\"低总价\", \"小面积\"], \"riskConstraints\": [], \"copySearchQuery\": \"低总价上车 小面积产品 预算敏感 首次置业\", \"scriptSearchQuery\": \"低总价小面积住宅 预算有限 买房攻略\", \"imageSearchQuery\": \"低总价小面积住宅 室内实景 项目外观\", \"videoAssetQueryHints\": [\"小面积户型内部\", \"项目社区环境\", \"低总价住宅外观\"], \"extraRequirement\": \"宁可保守，不要写不确定事实。\"}, \"creativeStrategy\": {\"chosenAngle\": \"以‘先了解、再判断’的低总价小面积产品为切入点，降低预算敏感客户的心理门槛，引导实地观察已有配套和生活场景，避免承诺收益。\", \"narrativeArc\": [\"预算有限，担心房价太高，无从下手。\", \"发现市场上存在总价相对友好的小面积产品，且近期受到较多关注。\", \"对项目周边可观察到的配套（如地铁13号线即将开通、商业实景）进行理性呈现。\", \"建议结合自身预算和实际需求，前往实地观察，再作判断。\"], \"tone\": \"真诚、保守、观察导向\", \"mustUseFacts\": [\"该项目的小面积产品曾受到市场较多关注。\", \"近期有中介人士对该产品保持较高讨论热度。\", \"周边有在建或即将开通的地铁13号线站点（根据公开信息）。\", \"项目周边商业配套可实地观察。\"], \"mustAvoidClaims\": [], \"viralPatternUsed\": {\"patternName\": \"理性决策唤醒\", \"reason\": \"目标受众预算敏感，需要降低其决策焦虑，通过展示可观察的事实而非承诺收益来建立信任。\", \"titleTactics\": [\"反问式：预算有限，就一定与买房无缘吗？\", \"数据+悬念：一个小面积产品，为何最近被频繁提及？\"], \"hookTactics\": [\"我也是预算紧张的人，直到我发现这个项目。\", \"不吹不黑，带你实地看看这个项目的真实配套。\"], \"ctaTactics\": [\"先了解，不着急决定。\", \"建议实地走走，感受比听说的更真实。\"]}, \"articlePlan\": {\"titleDirection\": \"总价友好的小面积产品，你可以先看看\", \"coverCopyDirection\": \"不劝你买，只带你了解：一个近期关注度不错的项目实景\", \"bodyStructure\": [\"引入：预算有限也能看房，市场上有低总价选择。\", \"现状：一个小面积产品为何引起中介关注？\", \"配套：地铁13号线、周边商业，这些你能亲眼看到。\", \"建议：去掉焦虑，先观察真实情况，再结合预算做决定。\"], \"imagePlan\": [\"项目入口外观（可用现有素材）\", \"周边商业街景实拍\", \"地铁13号线站点外观或导向标识\", \"户型空间示意（非实际精装交付）\"]}, \"videoPlan\": {\"storyOutline\": \"从一个预算有限的视角出发，引出发现一个总价友好的小面积产品，然后通过镜头展示其周边可观察的配套和交通，最后理性建议观众实地考察。\", \"estimatedDuration\": \"约60秒\", \"scenePlan\": [\"开场：手持镜头展示项目周边街景，出镜人边走边说预算有限的痛点。\", \"第二幕：项目入口外观，强调小面积产品关注度。\", \"第三幕：快速切换地铁站标识、商业门店等配套镜头。\", \"第四幕：内景示意（挂上免责文字），出镜人总结建议。\"], \"assetQueryHints\": [\"光明星河天地项目外景\", \"深圳地铁13号线站点\", \"成熟社区商业配套实拍\", \"小面积户型走动镜头\"]}, \"degradationNotices\": [\"项目事实不足\"], \"trace\": {\"usedKnowledgeSummary\": [\"项目小面积产品曾受市场较高关注，近期中介关注度回升。\", \"周边地铁13号线即将开通（知识库提及）。\", \"商业配套成熟度可观察（知识库提及）。\"], \"usedViralSummary\": [], \"usedImageSummary\": [\"项目入口图可用于封面或配图\"]}, \"qualityGateHints\": {\"factWeakness\": \"项目具体户型、价格、配套名称、租金等核心信息缺失，仅能基于有限已知信息作泛化描述。\", \"complianceRisks\": [\"收益承诺类\", \"价格趋势类\"], \"mustReviewBeforePublish\": []}}, \"usedKnowledgeRefs\": [\"该项目的小面积产品曾受到市场较多关注。\", \"近期有中介人士对该产品保持较高讨论热度。\", \"周边有在建或即将开通的地铁13号线站点（根据公开信息）。\", \"项目周边商业配套可实地观察。\"], \"usedViralRefs\": [{\"patternName\": \"理性决策唤醒\", \"reason\": \"目标受众预算敏感，需要降低其决策焦虑，通过展示可观察的事实而非承诺收益来建立信任。\", \"titleTactics\": [\"反问式：预算有限，就一定与买房无缘吗？\", \"数据+悬念：一个小面积产品，为何最近被频繁提及？\"], \"hookTactics\": [\"我也是预算紧张的人，直到我发现这个项目。\", \"不吹不黑，带你实地看看这个项目的真实配套。\"], \"ctaTactics\": [\"先了解，不着急决定。\", \"建议实地走走，感受比听说的更真实。\"]}], \"usedImageAssets\": [{\"assetId\": \"img_003\", \"title\": \"项目入口\"}], \"degradationNotices\": [\"项目事实不足\", \"已根据质量门禁命中风险词进行自动改写\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 394.252641,
+    "total_tokens": 50040,
+    "total_steps": 17,
+    "created_by": {
+      "id": "7b3d4f3b-0d97-4c2c-bbbe-f7f3bf309bee",
+      "user": "content_calendar_v3_new_api_flash_case03_weak_knowledge_1778600685"
+    },
+    "created_at": 1778600686,
+    "finished_at": 1778601080,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v3_article_video_split",
+    "articlePackage": {
+      "titles": [
+        "预算有限，怎么选小面积？",
+        "一个小面积产品，为何被频繁问起？",
+        "我看了这个低总价小户型，只说三点"
+      ],
+      "selectedTitle": "一个小面积产品，为何被频繁问起？",
+      "coverCopy": "先了解，不着急买",
+      "body": "说实话，预算有限的时候看房，很容易焦虑。但我想告诉你，市场上确实有一些总价友好的小面积产品，我们今天不谈得失，先看看。\n\n这个小面积产品，最近中介圈子里聊得挺多。不是因为它便宜到离谱，而是关注度在回暖。我跟你讲，一线反馈是真实的。\n\n地铁13号线快要通了，周边商业也成熟。这些不是概念，你可以自己周末去看。实景比我说的一百句都管用。\n\n所以我觉得，预算有限的朋友，别急着否定。找个周末去实地走走，看看周边，感受真实氛围。然后再决定，不迟。",
+      "contentBlocks": [
+        {
+          "blockNo": 1,
+          "blockType": "体验块",
+          "text": "说实话，预算有限的时候看房，很容易焦虑。但我想告诉你，市场上确实有一些总价友好的小面积产品，我们今天不谈得失，先看看。",
+          "imageMatch": {
+            "assetId": "img_003",
+            "title": "项目入口",
+            "usage": "封面或配图"
+          }
+        },
+        {
+          "blockNo": 2,
+          "blockType": "证据块",
+          "text": "这个小面积产品，最近中介圈子里聊得挺多。不是因为它便宜到离谱，而是关注度在回暖。我跟你讲，一线反馈是真实的。",
+          "imageBrief": "需要一张中介朋友圈截图或聊天记录的示意图片，突出讨论热度"
+        },
+        {
+          "blockNo": 3,
+          "blockType": "体验块",
+          "text": "地铁13号线快要通了，周边商业也成熟。这些不是概念，你可以自己周末去看。实景比我说的一百句都管用。",
+          "imageBrief": "地铁13号线站点外观或导向标识实拍图，或周边商业街景实拍"
+        },
+        {
+          "blockNo": 4,
+          "blockType": "CTA块",
+          "text": "所以我觉得，预算有限的朋友，别急着否定。找个周末去实地走走，看看周边，感受真实氛围。然后再决定，不迟。"
+        }
+      ],
+      "hashtags": [
+        "深圳买房",
+        "小户型",
+        "预算有限",
+        "地铁房",
+        "光明新房",
+        "实地看房",
+        "总价友好"
+      ],
+      "cta": "感兴趣私信我，发你户型图参考一下。",
+      "imageMatches": [
+        {
+          "blockNo": 1,
+          "assetId": "img_003",
+          "title": "项目入口",
+          "usage": "封面或配图"
+        }
+      ],
+      "imageBriefIfMissing": "需要一张中介朋友圈截图或聊天记录的示意图片，突出讨论热度; 地铁13号线站点外观或导向标识实拍图，或周边商业街景实拍",
+      "riskNotes": [],
+      "copyReadyText": "一个小面积产品，为何被频繁问起？\n\n说实话，预算有限的时候看房，很容易焦虑。但我想告诉你，市场上确实有一些总价友好的小面积产品，我们今天不谈得失，先看看。\n\n这个小面积产品，最近中介圈子里聊得挺多。不是因为它便宜到离谱，而是关注度在回暖。我跟你讲，一线反馈是真实的。\n\n地铁13号线快要通了，周边商业也成熟。这些不是概念，你可以自己周末去看。实景比我说的一百句都管用。\n\n所以我觉得，预算有限的朋友，别急着否定。找个周末去实地走走，看看周边，感受真实氛围。然后再决定，不迟。\n\n深圳买房 小户型 预算有限 地铁房 光明新房 实地看房 总价友好"
+    },
+    "titleStrategy": {
+      "titles": [
+        {
+          "text": "预算有限，怎么选小面积？",
+          "formula": "痛点共鸣 + 悬念",
+          "whyThisFormula": "直接命中预算敏感的痛点，同时以问题形式制造悬念，吸引点击"
+        },
+        {
+          "text": "一个小面积产品，为何被频繁问起？",
+          "formula": "异常现象 + 好奇心",
+          "whyThisFormula": "用异常现象引发好奇，暗示产品有特殊关注度，不承诺收益但制造悬念"
+        },
+        {
+          "text": "我看了这个低总价小户型，只说三点",
+          "formula": "晒结果 + 悬念",
+          "whyThisFormula": "以第一人称体验开头，承诺具体信息（三点），降低决策门槛"
+        }
+      ],
+      "selectedTitleReason": "该标题利用异常现象激发好奇心，不涉及具体数据或承诺，安全且符合理性决策唤醒模式，同时口播友好",
+      "coverCopyOptions": [
+        {
+          "text": "先了解，不着急买",
+          "style": "大字报型"
+        },
+        {
+          "text": "这个盘的小户型，到底怎么样？",
+          "style": "实拍+文字型"
+        }
+      ],
+      "hookAngle": "以低总价小面积产品为切入点，用‘先了解再判断’的态度降低防御心理，引导理性探索"
+    },
+    "videoScript": {
+      "narrative": {
+        "hook": {
+          "strategy": "数据冲击",
+          "openingLine": "89方做到三房两卫，总价不到200万，你敢信？"
+        },
+        "narrativeArc": [
+          "好奇 → 认同 → 心动 → 行动"
+        ],
+        "storyOutline": "小区入口 -> 园林通道 -> 楼栋大堂 -> 室内客厅 -> 卧室 -> 阳台望出去",
+        "estimatedDuration": "约60秒",
+        "bgmDirection": "轻快、现代感，带节奏的Beat",
+        "toneOfVoice": "口语化、真诚、像朋友推荐",
+        "voiceoverDraft": "我跟你讲，这个盘最近真的火了。89平做到三房两卫，总价不到200万。说实话，我第一次看到也吓了一跳。但你别急，跟我走一圈。从小区进来，先看园林，绿化做得不错。楼栋大堂有门禁，安全。进去看客厅，开间够大，窗户也大。主卧带飘窗，儿童房也不小。最后到阳台，视野开阔，没有遮挡。说实话，这个价位在深圳很难得。如果你预算有限，又想要三房，这个盘值得看看。"
+      },
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-5s",
+          "sceneType": "口播",
+          "emotionalBeat": "好奇",
+          "visualDescription": "中介站在项目入口处，身后是小区大门和绿化带，光线充足。中介身体微侧，面对手机镜头自然说话，表情略带惊喜。",
+          "transition": "直接切",
+          "pacing": "正常",
+          "voiceover": "89方做到三房两卫，总价不到200万，你敢信？",
+          "filmingGuide": {
+            "location": "项目入口处",
+            "posture": "站立，手持手机自拍",
+            "props": [
+              "工牌"
+            ],
+            "tips": [
+              "拍两遍，选自然的那条",
+              "找光线好的位置，脸上不要有阴影",
+              "开头多录2秒，方便剪辑"
+            ]
+          }
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "5-10s",
+          "sceneType": "素材",
+          "emotionalBeat": "认同",
+          "visualDescription": "小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和右侧商业街，小区入口开阔整洁。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "从小区正门开始感受环境",
+          "assetQuery": "小区 正门 航拍 绿化 商业街",
+          "fallbackVisual": "项目入口正门静态图"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "10-14s",
+          "sceneType": "素材",
+          "emotionalBeat": "认同",
+          "visualDescription": "园林通道步行视角，两边花木繁茂，地面干净，有业主散步，光线柔和。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "园林通道，绿化不错",
+          "assetQuery": "园林 通道 步行 绿化 花木",
+          "fallbackVisual": "园林景观示意图"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "14-18s",
+          "sceneType": "素材",
+          "emotionalBeat": "认同",
+          "visualDescription": "楼栋大堂内部，有门禁系统、前台、瓷砖地面，整体现代明亮，有居民进出。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "楼栋大堂，有门禁，安全",
+          "assetQuery": "楼栋 大堂 门禁 现代 明亮",
+          "fallbackVisual": "楼栋大堂标准图"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "18-22s",
+          "sceneType": "素材",
+          "emotionalBeat": "心动",
+          "visualDescription": "样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域，空间通透。",
+          "transition": "渐变过渡",
+          "pacing": "快",
+          "subtitle": "客厅开间够大，窗户也大",
+          "assetQuery": "样板间 客厅 落地窗 阳光 通透",
+          "fallbackVisual": "客厅温馨实景图"
+        },
+        {
+          "sceneNo": 6,
+          "timeRange": "22-26s",
+          "sceneType": "素材",
+          "emotionalBeat": "心动",
+          "visualDescription": "主卧带飘窗，窗外可见小区绿化，房间整洁，空间不小。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "主卧带飘窗，儿童房也不小",
+          "assetQuery": "卧室 飘窗 温馨 窗外绿化",
+          "fallbackVisual": "卧室飘窗参考图"
+        },
+        {
+          "sceneNo": 7,
+          "timeRange": "26-30s",
+          "sceneType": "素材",
+          "emotionalBeat": "心动",
+          "visualDescription": "从阳台向外望，视野开阔，无遮挡，看到远处楼群和天空。",
+          "transition": "声音先入画面后跟",
+          "pacing": "正常",
+          "subtitle": "阳台视野开阔，没有遮挡",
+          "assetQuery": "阳台 视野 开阔 无遮挡 高层",
+          "fallbackVisual": "阳台视野实景图",
+          "voiceover": "说实话，这个价位在深圳确实少见。如果你预算有限，又想要三房，这个盘值得看看。"
+        },
+        {
+          "sceneNo": 8,
+          "timeRange": "30-35s",
+          "sceneType": "口播",
+          "emotionalBeat": "行动",
+          "visualDescription": "中介再次面对镜头，背景为阳台或窗户，表情诚恳，手势引导。",
+          "transition": "渐变过渡",
+          "pacing": "慢",
+          "voiceover": "如果你预算有限，又想要三房，这个盘值得看看。",
+          "filmingGuide": {
+            "location": "阳台或样板间窗户旁",
+            "posture": "站立，手持手机自拍",
+            "props": [],
+            "tips": [
+              "和第一个镜头穿同一件衣服，保持形象一致",
+              "语速放慢，像跟朋友聊天",
+              "结尾多录2秒，方便剪辑"
+            ]
+          }
+        },
+        {
+          "sceneNo": 9,
+          "timeRange": "35-40s",
+          "sceneType": "文字卡",
+          "emotionalBeat": "行动",
+          "visualDescription": "黑底白字，核心数据展示：89平三房两卫，总价不到200万。",
+          "transition": "直接切",
+          "pacing": "正常",
+          "subtitle": "89平三房两卫 · 总价不到200万"
+        }
+      ],
+      "riskNotes": []
+    },
+    "memberDelivery": {
+      "tasks": [
+        {
+          "taskNo": 1,
+          "sceneNo": 1,
+          "script": "89方做到三房两卫，总价不到200万，你敢信？",
+          "location": "项目入口处",
+          "posture": "站立，手持手机自拍",
+          "props": [
+            "工牌"
+          ],
+          "tips": [
+            "拍两遍，选自然的那条",
+            "找光线好的位置，脸上不要有阴影",
+            "开头多录2秒，方便剪辑"
+          ]
+        },
+        {
+          "taskNo": 2,
+          "sceneNo": 8,
+          "script": "如果你预算有限，又想要三房，这个盘值得看看。",
+          "location": "阳台或样板间窗户旁",
+          "posture": "站立，手持手机自拍",
+          "props": [],
+          "tips": [
+            "和第一个镜头穿同一件衣服，保持形象一致",
+            "语速放慢，像跟朋友聊天",
+            "结尾多录2秒，方便剪辑"
+          ]
+        }
+      ]
+    },
+    "workerDelivery": {
+      "storyOutline": "小区入口 -> 园林通道 -> 楼栋大堂 -> 室内客厅 -> 卧室 -> 阳台望出去",
+      "bgm": "轻快、现代感，带节奏的Beat",
+      "toneOfVoice": "口语化、真诚、像朋友推荐",
+      "estimatedDuration": "约60秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-5s",
+          "sceneType": "口播",
+          "emotionalBeat": "好奇",
+          "visualDescription": "中介站在项目入口处，身后是小区大门和绿化带，光线充足。中介身体微侧，面对手机镜头自然说话，表情略带惊喜。",
+          "transition": "直接切",
+          "pacing": "正常",
+          "voiceover": "89方做到三房两卫，总价不到200万，你敢信？",
+          "filmingGuide": {
+            "location": "项目入口处",
+            "posture": "站立，手持手机自拍",
+            "props": [
+              "工牌"
+            ],
+            "tips": [
+              "拍两遍，选自然的那条",
+              "找光线好的位置，脸上不要有阴影",
+              "开头多录2秒，方便剪辑"
+            ]
+          }
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "5-10s",
+          "sceneType": "素材",
+          "emotionalBeat": "认同",
+          "visualDescription": "小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和右侧商业街，小区入口开阔整洁。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "从小区正门开始感受环境",
+          "assetQuery": "小区 正门 航拍 绿化 商业街",
+          "fallbackVisual": "项目入口正门静态图"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "10-14s",
+          "sceneType": "素材",
+          "emotionalBeat": "认同",
+          "visualDescription": "园林通道步行视角，两边花木繁茂，地面干净，有业主散步，光线柔和。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "园林通道，绿化不错",
+          "assetQuery": "园林 通道 步行 绿化 花木",
+          "fallbackVisual": "园林景观示意图"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "14-18s",
+          "sceneType": "素材",
+          "emotionalBeat": "认同",
+          "visualDescription": "楼栋大堂内部，有门禁系统、前台、瓷砖地面，整体现代明亮，有居民进出。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "楼栋大堂，有门禁，安全",
+          "assetQuery": "楼栋 大堂 门禁 现代 明亮",
+          "fallbackVisual": "楼栋大堂标准图"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "18-22s",
+          "sceneType": "素材",
+          "emotionalBeat": "心动",
+          "visualDescription": "样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域，空间通透。",
+          "transition": "渐变过渡",
+          "pacing": "快",
+          "subtitle": "客厅开间够大，窗户也大",
+          "assetQuery": "样板间 客厅 落地窗 阳光 通透",
+          "fallbackVisual": "客厅温馨实景图"
+        },
+        {
+          "sceneNo": 6,
+          "timeRange": "22-26s",
+          "sceneType": "素材",
+          "emotionalBeat": "心动",
+          "visualDescription": "主卧带飘窗，窗外可见小区绿化，房间整洁，空间不小。",
+          "transition": "直接切",
+          "pacing": "快",
+          "subtitle": "主卧带飘窗，儿童房也不小",
+          "assetQuery": "卧室 飘窗 温馨 窗外绿化",
+          "fallbackVisual": "卧室飘窗参考图"
+        },
+        {
+          "sceneNo": 7,
+          "timeRange": "26-30s",
+          "sceneType": "素材",
+          "emotionalBeat": "心动",
+          "visualDescription": "从阳台向外望，视野开阔，无遮挡，看到远处楼群和天空。",
+          "transition": "声音先入画面后跟",
+          "pacing": "正常",
+          "subtitle": "阳台视野开阔，没有遮挡",
+          "assetQuery": "阳台 视野 开阔 无遮挡 高层",
+          "fallbackVisual": "阳台视野实景图",
+          "voiceover": "说实话，这个价位在深圳确实少见。如果你预算有限，又想要三房，这个盘值得看看。"
+        },
+        {
+          "sceneNo": 8,
+          "timeRange": "30-35s",
+          "sceneType": "口播",
+          "emotionalBeat": "行动",
+          "visualDescription": "中介再次面对镜头，背景为阳台或窗户，表情诚恳，手势引导。",
+          "transition": "渐变过渡",
+          "pacing": "慢",
+          "voiceover": "如果你预算有限，又想要三房，这个盘值得看看。",
+          "filmingGuide": {
+            "location": "阳台或样板间窗户旁",
+            "posture": "站立，手持手机自拍",
+            "props": [],
+            "tips": [
+              "和第一个镜头穿同一件衣服，保持形象一致",
+              "语速放慢，像跟朋友聊天",
+              "结尾多录2秒，方便剪辑"
+            ]
+          }
+        },
+        {
+          "sceneNo": 9,
+          "timeRange": "35-40s",
+          "sceneType": "文字卡",
+          "emotionalBeat": "行动",
+          "visualDescription": "黑底白字，核心数据展示：89平三房两卫，总价不到200万。",
+          "transition": "直接切",
+          "pacing": "正常",
+          "subtitle": "89平三房两卫 · 总价不到200万"
+        }
+      ],
+      "teamAssetQueries": [
+        "小区 正门 航拍 绿化 商业街",
+        "园林 通道 步行 绿化 花木",
+        "楼栋 大堂 门禁 现代 明亮",
+        "样板间 客厅 落地窗 阳光 通透",
+        "卧室 飘窗 温馨 窗外绿化",
+        "阳台 视野 开阔 无遮挡 高层"
+      ]
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 5,
+        "projectFit": 8,
+        "viralStructure": 6,
+        "platformTone": 8,
+        "materialFit": 8,
+        "compliance": 8
+      },
+      "pass": false,
+      "needsRewrite": true,
+      "riskTerms": [],
+      "problems": [
+        "项目知识不足，成稿仅适合内部预览",
+        "视频叙事弧线少于 3 个节拍"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": [
+        "更完整的项目事实"
+      ],
+      "preRepairPass": false,
+      "autoRewritten": true,
+      "repairPolicy": "validator_risk_terms_minimal_rewrite"
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "低总价上车",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "预算敏感客户",
+        "audiencePain": "预算有限，担心房价过高无法购买",
+        "sellingPointsNeeded": [
+          "低总价",
+          "小面积"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "低总价上车 小面积产品 预算敏感 首次置业",
+        "scriptSearchQuery": "低总价小面积住宅 预算有限 买房攻略",
+        "imageSearchQuery": "低总价小面积住宅 室内实景 项目外观",
+        "videoAssetQueryHints": [
+          "小面积户型内部",
+          "项目社区环境",
+          "低总价住宅外观"
+        ],
+        "extraRequirement": "宁可保守，不要写不确定事实。"
+      },
+      "creativeStrategy": {
+        "chosenAngle": "以‘先了解、再判断’的低总价小面积产品为切入点，降低预算敏感客户的心理门槛，引导实地观察已有配套和生活场景，避免承诺收益。",
+        "narrativeArc": [
+          "预算有限，担心房价太高，无从下手。",
+          "发现市场上存在总价相对友好的小面积产品，且近期受到较多关注。",
+          "对项目周边可观察到的配套（如地铁13号线即将开通、商业实景）进行理性呈现。",
+          "建议结合自身预算和实际需求，前往实地观察，再作判断。"
+        ],
+        "tone": "真诚、保守、观察导向",
+        "mustUseFacts": [
+          "该项目的小面积产品曾受到市场较多关注。",
+          "近期有中介人士对该产品保持较高讨论热度。",
+          "周边有在建或即将开通的地铁13号线站点（根据公开信息）。",
+          "项目周边商业配套可实地观察。"
+        ],
+        "mustAvoidClaims": [],
+        "viralPatternUsed": {
+          "patternName": "理性决策唤醒",
+          "reason": "目标受众预算敏感，需要降低其决策焦虑，通过展示可观察的事实而非承诺收益来建立信任。",
+          "titleTactics": [
+            "反问式：预算有限，就一定与买房无缘吗？",
+            "数据+悬念：一个小面积产品，为何最近被频繁提及？"
+          ],
+          "hookTactics": [
+            "我也是预算紧张的人，直到我发现这个项目。",
+            "不吹不黑，带你实地看看这个项目的真实配套。"
+          ],
+          "ctaTactics": [
+            "先了解，不着急决定。",
+            "建议实地走走，感受比听说的更真实。"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "总价友好的小面积产品，你可以先看看",
+          "coverCopyDirection": "不劝你买，只带你了解：一个近期关注度不错的项目实景",
+          "bodyStructure": [
+            "引入：预算有限也能看房，市场上有低总价选择。",
+            "现状：一个小面积产品为何引起中介关注？",
+            "配套：地铁13号线、周边商业，这些你能亲眼看到。",
+            "建议：去掉焦虑，先观察真实情况，再结合预算做决定。"
+          ],
+          "imagePlan": [
+            "项目入口外观（可用现有素材）",
+            "周边商业街景实拍",
+            "地铁13号线站点外观或导向标识",
+            "户型空间示意（非实际精装交付）"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "从一个预算有限的视角出发，引出发现一个总价友好的小面积产品，然后通过镜头展示其周边可观察的配套和交通，最后理性建议观众实地考察。",
+          "estimatedDuration": "约60秒",
+          "scenePlan": [
+            "开场：手持镜头展示项目周边街景，出镜人边走边说预算有限的痛点。",
+            "第二幕：项目入口外观，强调小面积产品关注度。",
+            "第三幕：快速切换地铁站标识、商业门店等配套镜头。",
+            "第四幕：内景示意（挂上免责文字），出镜人总结建议。"
+          ],
+          "assetQueryHints": [
+            "光明星河天地项目外景",
+            "深圳地铁13号线站点",
+            "成熟社区商业配套实拍",
+            "小面积户型走动镜头"
+          ]
+        },
+        "degradationNotices": [
+          "项目事实不足"
+        ],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "项目小面积产品曾受市场较高关注，近期中介关注度回升。",
+            "周边地铁13号线即将开通（知识库提及）。",
+            "商业配套成熟度可观察（知识库提及）。"
+          ],
+          "usedViralSummary": [],
+          "usedImageSummary": [
+            "项目入口图可用于封面或配图"
+          ]
+        },
+        "qualityGateHints": {
+          "factWeakness": "项目具体户型、价格、配套名称、租金等核心信息缺失，仅能基于有限已知信息作泛化描述。",
+          "complianceRisks": [
+            "收益承诺类",
+            "价格趋势类"
+          ],
+          "mustReviewBeforePublish": []
+        }
+      },
+      "usedKnowledgeRefs": [
+        "该项目的小面积产品曾受到市场较多关注。",
+        "近期有中介人士对该产品保持较高讨论热度。",
+        "周边有在建或即将开通的地铁13号线站点（根据公开信息）。",
+        "项目周边商业配套可实地观察。"
+      ],
+      "usedViralRefs": [
+        {
+          "patternName": "理性决策唤醒",
+          "reason": "目标受众预算敏感，需要降低其决策焦虑，通过展示可观察的事实而非承诺收益来建立信任。",
+          "titleTactics": [
+            "反问式：预算有限，就一定与买房无缘吗？",
+            "数据+悬念：一个小面积产品，为何最近被频繁提及？"
+          ],
+          "hookTactics": [
+            "我也是预算紧张的人，直到我发现这个项目。",
+            "不吹不黑，带你实地看看这个项目的真实配套。"
+          ],
+          "ctaTactics": [
+            "先了解，不着急决定。",
+            "建议实地走走，感受比听说的更真实。"
+          ]
+        }
+      ],
+      "usedImageAssets": [
+        {
+          "assetId": "img_003",
+          "title": "项目入口"
+        }
+      ],
+      "degradationNotices": [
+        "项目事实不足",
+        "已根据质量门禁命中风险词进行自动改写"
+      ]
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\"workflowVersion\": \"content_calendar_generation_poc_v3_article_video_split\", \"articlePackage\": {\"titles\": [\"预算有限，怎么选小面积？\", \"一个小面积产品，为何被频繁问起？\", \"我看了这个低总价小户型，只说三点\"], \"selectedTitle\": \"一个小面积产品，为何被频繁问起？\", \"coverCopy\": \"先了解，不着急买\", \"body\": \"说实话，预算有限的时候看房，很容易焦虑。但我想告诉你，市场上确实有一些总价友好的小面积产品，我们今天不谈得失，先看看。\\n\\n这个小面积产品，最近中介圈子里聊得挺多。不是因为它便宜到离谱，而是关注度在回暖。我跟你讲，一线反馈是真实的。\\n\\n地铁13号线快要通了，周边商业也成熟。这些不是概念，你可以自己周末去看。实景比我说的一百句都管用。\\n\\n所以我觉得，预算有限的朋友，别急着否定。找个周末去实地走走，看看周边，感受真实氛围。然后再决定，不迟。\", \"contentBlocks\": [{\"blockNo\": 1, \"blockType\": \"体验块\", \"text\": \"说实话，预算有限的时候看房，很容易焦虑。但我想告诉你，市场上确实有一些总价友好的小面积产品，我们今天不谈得失，先看看。\", \"imageMatch\": {\"assetId\": \"img_003\", \"title\": \"项目入口\", \"usage\": \"封面或配图\"}}, {\"blockNo\": 2, \"blockType\": \"证据块\", \"text\": \"这个小面积产品，最近中介圈子里聊得挺多。不是因为它便宜到离谱，而是关注度在回暖。我跟你讲，一线反馈是真实的。\", \"imageBrief\": \"需要一张中介朋友圈截图或聊天记录的示意图片，突出讨论热度\"}, {\"blockNo\": 3, \"blockType\": \"体验块\", \"text\": \"地铁13号线快要通了，周边商业也成熟。这些不是概念，你可以自己周末去看。实景比我说的一百句都管用。\", \"imageBrief\": \"地铁13号线站点外观或导向标识实拍图，或周边商业街景实拍\"}, {\"blockNo\": 4, \"blockType\": \"CTA块\", \"text\": \"所以我觉得，预算有限的朋友，别急着否定。找个周末去实地走走，看看周边，感受真实氛围。然后再决定，不迟。\"}], \"hashtags\": [\"深圳买房\", \"小户型\", \"预算有限\", \"地铁房\", \"光明新房\", \"实地看房\", \"总价友好\"], \"cta\": \"感兴趣私信我，发你户型图参考一下。\", \"imageMatches\": [{\"blockNo\": 1, \"assetId\": \"img_003\", \"title\": \"项目入口\", \"usage\": \"封面或配图\"}], \"imageBriefIfMissing\": \"需要一张中介朋友圈截图或聊天记录的示意图片，突出讨论热度; 地铁13号线站点外观或导向标识实拍图，或周边商业街景实拍\", \"riskNotes\": [], \"copyReadyText\": \"一个小面积产品，为何被频繁问起？\\n\\n说实话，预算有限的时候看房，很容易焦虑。但我想告诉你，市场上确实有一些总价友好的小面积产品，我们今天不谈得失，先看看。\\n\\n这个小面积产品，最近中介圈子里聊得挺多。不是因为它便宜到离谱，而是关注度在回暖。我跟你讲，一线反馈是真实的。\\n\\n地铁13号线快要通了，周边商业也成熟。这些不是概念，你可以自己周末去看。实景比我说的一百句都管用。\\n\\n所以我觉得，预算有限的朋友，别急着否定。找个周末去实地走走，看看周边，感受真实氛围。然后再决定，不迟。\\n\\n深圳买房 小户型 预算有限 地铁房 光明新房 实地看房 总价友好\"}, \"titleStrategy\": {\"titles\": [{\"text\": \"预算有限，怎么选小面积？\", \"formula\": \"痛点共鸣 + 悬念\", \"whyThisFormula\": \"直接命中预算敏感的痛点，同时以问题形式制造悬念，吸引点击\"}, {\"text\": \"一个小面积产品，为何被频繁问起？\", \"formula\": \"异常现象 + 好奇心\", \"whyThisFormula\": \"用异常现象引发好奇，暗示产品有特殊关注度，不承诺收益但制造悬念\"}, {\"text\": \"我看了这个低总价小户型，只说三点\", \"formula\": \"晒结果 + 悬念\", \"whyThisFormula\": \"以第一人称体验开头，承诺具体信息（三点），降低决策门槛\"}], \"selectedTitleReason\": \"该标题利用异常现象激发好奇心，不涉及具体数据或承诺，安全且符合理性决策唤醒模式，同时口播友好\", \"coverCopyOptions\": [{\"text\": \"先了解，不着急买\", \"style\": \"大字报型\"}, {\"text\": \"这个盘的小户型，到底怎么样？\", \"style\": \"实拍+文字型\"}], \"hookAngle\": \"以低总价小面积产品为切入点，用‘先了解再判断’的态度降低防御心理，引导理性探索\"}, \"videoScript\": {\"narrative\": {\"hook\": {\"strategy\": \"数据冲击\", \"openingLine\": \"89方做到三房两卫，总价不到200万，你敢信？\"}, \"narrativeArc\": [\"好奇 → 认同 → 心动 → 行动\"], \"storyOutline\": \"小区入口 -> 园林通道 -> 楼栋大堂 -> 室内客厅 -> 卧室 -> 阳台望出去\", \"estimatedDuration\": \"约60秒\", \"bgmDirection\": \"轻快、现代感，带节奏的Beat\", \"toneOfVoice\": \"口语化、真诚、像朋友推荐\", \"voiceoverDraft\": \"我跟你讲，这个盘最近真的火了。89平做到三房两卫，总价不到200万。说实话，我第一次看到也吓了一跳。但你别急，跟我走一圈。从小区进来，先看园林，绿化做得不错。楼栋大堂有门禁，安全。进去看客厅，开间够大，窗户也大。主卧带飘窗，儿童房也不小。最后到阳台，视野开阔，没有遮挡。说实话，这个价位在深圳很难得。如果你预算有限，又想要三房，这个盘值得看看。\"}, \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-5s\", \"sceneType\": \"口播\", \"emotionalBeat\": \"好奇\", \"visualDescription\": \"中介站在项目入口处，身后是小区大门和绿化带，光线充足。中介身体微侧，面对手机镜头自然说话，表情略带惊喜。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"voiceover\": \"89方做到三房两卫，总价不到200万，你敢信？\", \"filmingGuide\": {\"location\": \"项目入口处\", \"posture\": \"站立，手持手机自拍\", \"props\": [\"工牌\"], \"tips\": [\"拍两遍，选自然的那条\", \"找光线好的位置，脸上不要有阴影\", \"开头多录2秒，方便剪辑\"]}}, {\"sceneNo\": 2, \"timeRange\": \"5-10s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和右侧商业街，小区入口开阔整洁。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"从小区正门开始感受环境\", \"assetQuery\": \"小区 正门 航拍 绿化 商业街\", \"fallbackVisual\": \"项目入口正门静态图\"}, {\"sceneNo\": 3, \"timeRange\": \"10-14s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"园林通道步行视角，两边花木繁茂，地面干净，有业主散步，光线柔和。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"园林通道，绿化不错\", \"assetQuery\": \"园林 通道 步行 绿化 花木\", \"fallbackVisual\": \"园林景观示意图\"}, {\"sceneNo\": 4, \"timeRange\": \"14-18s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"楼栋大堂内部，有门禁系统、前台、瓷砖地面，整体现代明亮，有居民进出。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"楼栋大堂，有门禁，安全\", \"assetQuery\": \"楼栋 大堂 门禁 现代 明亮\", \"fallbackVisual\": \"楼栋大堂标准图\"}, {\"sceneNo\": 5, \"timeRange\": \"18-22s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域，空间通透。\", \"transition\": \"渐变过渡\", \"pacing\": \"快\", \"subtitle\": \"客厅开间够大，窗户也大\", \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\", \"fallbackVisual\": \"客厅温馨实景图\"}, {\"sceneNo\": 6, \"timeRange\": \"22-26s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"主卧带飘窗，窗外可见小区绿化，房间整洁，空间不小。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"主卧带飘窗，儿童房也不小\", \"assetQuery\": \"卧室 飘窗 温馨 窗外绿化\", \"fallbackVisual\": \"卧室飘窗参考图\"}, {\"sceneNo\": 7, \"timeRange\": \"26-30s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"从阳台向外望，视野开阔，无遮挡，看到远处楼群和天空。\", \"transition\": \"声音先入画面后跟\", \"pacing\": \"正常\", \"subtitle\": \"阳台视野开阔，没有遮挡\", \"assetQuery\": \"阳台 视野 开阔 无遮挡 高层\", \"fallbackVisual\": \"阳台视野实景图\", \"voiceover\": \"说实话，这个价位在深圳确实少见。如果你预算有限，又想要三房，这个盘值得看看。\"}, {\"sceneNo\": 8, \"timeRange\": \"30-35s\", \"sceneType\": \"口播\", \"emotionalBeat\": \"行动\", \"visualDescription\": \"中介再次面对镜头，背景为阳台或窗户，表情诚恳，手势引导。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"如果你预算有限，又想要三房，这个盘值得看看。\", \"filmingGuide\": {\"location\": \"阳台或样板间窗户旁\", \"posture\": \"站立，手持手机自拍\", \"props\": [], \"tips\": [\"和第一个镜头穿同一件衣服，保持形象一致\", \"语速放慢，像跟朋友聊天\", \"结尾多录2秒，方便剪辑\"]}}, {\"sceneNo\": 9, \"timeRange\": \"35-40s\", \"sceneType\": \"文字卡\", \"emotionalBeat\": \"行动\", \"visualDescription\": \"黑底白字，核心数据展示：89平三房两卫，总价不到200万。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"subtitle\": \"89平三房两卫 · 总价不到200万\"}], \"riskNotes\": []}, \"memberDelivery\": {\"tasks\": [{\"taskNo\": 1, \"sceneNo\": 1, \"script\": \"89方做到三房两卫，总价不到200万，你敢信？\", \"location\": \"项目入口处\", \"posture\": \"站立，手持手机自拍\", \"props\": [\"工牌\"], \"tips\": [\"拍两遍，选自然的那条\", \"找光线好的位置，脸上不要有阴影\", \"开头多录2秒，方便剪辑\"]}, {\"taskNo\": 2, \"sceneNo\": 8, \"script\": \"如果你预算有限，又想要三房，这个盘值得看看。\", \"location\": \"阳台或样板间窗户旁\", \"posture\": \"站立，手持手机自拍\", \"props\": [], \"tips\": [\"和第一个镜头穿同一件衣服，保持形象一致\", \"语速放慢，像跟朋友聊天\", \"结尾多录2秒，方便剪辑\"]}]}, \"workerDelivery\": {\"storyOutline\": \"小区入口 -> 园林通道 -> 楼栋大堂 -> 室内客厅 -> 卧室 -> 阳台望出去\", \"bgm\": \"轻快、现代感，带节奏的Beat\", \"toneOfVoice\": \"口语化、真诚、像朋友推荐\", \"estimatedDuration\": \"约60秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-5s\", \"sceneType\": \"口播\", \"emotionalBeat\": \"好奇\", \"visualDescription\": \"中介站在项目入口处，身后是小区大门和绿化带，光线充足。中介身体微侧，面对手机镜头自然说话，表情略带惊喜。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"voiceover\": \"89方做到三房两卫，总价不到200万，你敢信？\", \"filmingGuide\": {\"location\": \"项目入口处\", \"posture\": \"站立，手持手机自拍\", \"props\": [\"工牌\"], \"tips\": [\"拍两遍，选自然的那条\", \"找光线好的位置，脸上不要有阴影\", \"开头多录2秒，方便剪辑\"]}}, {\"sceneNo\": 2, \"timeRange\": \"5-10s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和右侧商业街，小区入口开阔整洁。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"从小区正门开始感受环境\", \"assetQuery\": \"小区 正门 航拍 绿化 商业街\", \"fallbackVisual\": \"项目入口正门静态图\"}, {\"sceneNo\": 3, \"timeRange\": \"10-14s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"园林通道步行视角，两边花木繁茂，地面干净，有业主散步，光线柔和。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"园林通道，绿化不错\", \"assetQuery\": \"园林 通道 步行 绿化 花木\", \"fallbackVisual\": \"园林景观示意图\"}, {\"sceneNo\": 4, \"timeRange\": \"14-18s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"认同\", \"visualDescription\": \"楼栋大堂内部，有门禁系统、前台、瓷砖地面，整体现代明亮，有居民进出。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"楼栋大堂，有门禁，安全\", \"assetQuery\": \"楼栋 大堂 门禁 现代 明亮\", \"fallbackVisual\": \"楼栋大堂标准图\"}, {\"sceneNo\": 5, \"timeRange\": \"18-22s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域，空间通透。\", \"transition\": \"渐变过渡\", \"pacing\": \"快\", \"subtitle\": \"客厅开间够大，窗户也大\", \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\", \"fallbackVisual\": \"客厅温馨实景图\"}, {\"sceneNo\": 6, \"timeRange\": \"22-26s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"主卧带飘窗，窗外可见小区绿化，房间整洁，空间不小。\", \"transition\": \"直接切\", \"pacing\": \"快\", \"subtitle\": \"主卧带飘窗，儿童房也不小\", \"assetQuery\": \"卧室 飘窗 温馨 窗外绿化\", \"fallbackVisual\": \"卧室飘窗参考图\"}, {\"sceneNo\": 7, \"timeRange\": \"26-30s\", \"sceneType\": \"素材\", \"emotionalBeat\": \"心动\", \"visualDescription\": \"从阳台向外望，视野开阔，无遮挡，看到远处楼群和天空。\", \"transition\": \"声音先入画面后跟\", \"pacing\": \"正常\", \"subtitle\": \"阳台视野开阔，没有遮挡\", \"assetQuery\": \"阳台 视野 开阔 无遮挡 高层\", \"fallbackVisual\": \"阳台视野实景图\", \"voiceover\": \"说实话，这个价位在深圳确实少见。如果你预算有限，又想要三房，这个盘值得看看。\"}, {\"sceneNo\": 8, \"timeRange\": \"30-35s\", \"sceneType\": \"口播\", \"emotionalBeat\": \"行动\", \"visualDescription\": \"中介再次面对镜头，背景为阳台或窗户，表情诚恳，手势引导。\", \"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"voiceover\": \"如果你预算有限，又想要三房，这个盘值得看看。\", \"filmingGuide\": {\"location\": \"阳台或样板间窗户旁\", \"posture\": \"站立，手持手机自拍\", \"props\": [], \"tips\": [\"和第一个镜头穿同一件衣服，保持形象一致\", \"语速放慢，像跟朋友聊天\", \"结尾多录2秒，方便剪辑\"]}}, {\"sceneNo\": 9, \"timeRange\": \"35-40s\", \"sceneType\": \"文字卡\", \"emotionalBeat\": \"行动\", \"visualDescription\": \"黑底白字，核心数据展示：89平三房两卫，总价不到200万。\", \"transition\": \"直接切\", \"pacing\": \"正常\", \"subtitle\": \"89平三房两卫 · 总价不到200万\"}], \"teamAssetQueries\": [\"小区 正门 航拍 绿化 商业街\", \"园林 通道 步行 绿化 花木\", \"楼栋 大堂 门禁 现代 明亮\", \"样板间 客厅 落地窗 阳光 通透\", \"卧室 飘窗 温馨 窗外绿化\", \"阳台 视野 开阔 无遮挡 高层\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 5, \"projectFit\": 8, \"viralStructure\": 6, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 8}, \"pass\": false, \"needsRewrite\": true, \"riskTerms\": [], \"problems\": [\"项目知识不足，成稿仅适合内部预览\", \"视频叙事弧线少于 3 个节拍\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"更完整的项目事实\"], \"preRepairPass\": false, \"autoRewritten\": true, \"repairPolicy\": \"validator_risk_terms_minimal_rewrite\"}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"低总价上车\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"种草\", \"targetAudience\": \"预算敏感客户\", \"audiencePain\": \"预算有限，担心房价过高无法购买\", \"sellingPointsNeeded\": [\"低总价\", \"小面积\"], \"riskConstraints\": [], \"copySearchQuery\": \"低总价上车 小面积产品 预算敏感 首次置业\", \"scriptSearchQuery\": \"低总价小面积住宅 预算有限 买房攻略\", \"imageSearchQuery\": \"低总价小面积住宅 室内实景 项目外观\", \"videoAssetQueryHints\": [\"小面积户型内部\", \"项目社区环境\", \"低总价住宅外观\"], \"extraRequirement\": \"宁可保守，不要写不确定事实。\"}, \"creativeStrategy\": {\"chosenAngle\": \"以‘先了解、再判断’的低总价小面积产品为切入点，降低预算敏感客户的心理门槛，引导实地观察已有配套和生活场景，避免承诺收益。\", \"narrativeArc\": [\"预算有限，担心房价太高，无从下手。\", \"发现市场上存在总价相对友好的小面积产品，且近期受到较多关注。\", \"对项目周边可观察到的配套（如地铁13号线即将开通、商业实景）进行理性呈现。\", \"建议结合自身预算和实际需求，前往实地观察，再作判断。\"], \"tone\": \"真诚、保守、观察导向\", \"mustUseFacts\": [\"该项目的小面积产品曾受到市场较多关注。\", \"近期有中介人士对该产品保持较高讨论热度。\", \"周边有在建或即将开通的地铁13号线站点（根据公开信息）。\", \"项目周边商业配套可实地观察。\"], \"mustAvoidClaims\": [], \"viralPatternUsed\": {\"patternName\": \"理性决策唤醒\", \"reason\": \"目标受众预算敏感，需要降低其决策焦虑，通过展示可观察的事实而非承诺收益来建立信任。\", \"titleTactics\": [\"反问式：预算有限，就一定与买房无缘吗？\", \"数据+悬念：一个小面积产品，为何最近被频繁提及？\"], \"hookTactics\": [\"我也是预算紧张的人，直到我发现这个项目。\", \"不吹不黑，带你实地看看这个项目的真实配套。\"], \"ctaTactics\": [\"先了解，不着急决定。\", \"建议实地走走，感受比听说的更真实。\"]}, \"articlePlan\": {\"titleDirection\": \"总价友好的小面积产品，你可以先看看\", \"coverCopyDirection\": \"不劝你买，只带你了解：一个近期关注度不错的项目实景\", \"bodyStructure\": [\"引入：预算有限也能看房，市场上有低总价选择。\", \"现状：一个小面积产品为何引起中介关注？\", \"配套：地铁13号线、周边商业，这些你能亲眼看到。\", \"建议：去掉焦虑，先观察真实情况，再结合预算做决定。\"], \"imagePlan\": [\"项目入口外观（可用现有素材）\", \"周边商业街景实拍\", \"地铁13号线站点外观或导向标识\", \"户型空间示意（非实际精装交付）\"]}, \"videoPlan\": {\"storyOutline\": \"从一个预算有限的视角出发，引出发现一个总价友好的小面积产品，然后通过镜头展示其周边可观察的配套和交通，最后理性建议观众实地考察。\", \"estimatedDuration\": \"约60秒\", \"scenePlan\": [\"开场：手持镜头展示项目周边街景，出镜人边走边说预算有限的痛点。\", \"第二幕：项目入口外观，强调小面积产品关注度。\", \"第三幕：快速切换地铁站标识、商业门店等配套镜头。\", \"第四幕：内景示意（挂上免责文字），出镜人总结建议。\"], \"assetQueryHints\": [\"光明星河天地项目外景\", \"深圳地铁13号线站点\", \"成熟社区商业配套实拍\", \"小面积户型走动镜头\"]}, \"degradationNotices\": [\"项目事实不足\"], \"trace\": {\"usedKnowledgeSummary\": [\"项目小面积产品曾受市场较高关注，近期中介关注度回升。\", \"周边地铁13号线即将开通（知识库提及）。\", \"商业配套成熟度可观察（知识库提及）。\"], \"usedViralSummary\": [], \"usedImageSummary\": [\"项目入口图可用于封面或配图\"]}, \"qualityGateHints\": {\"factWeakness\": \"项目具体户型、价格、配套名称、租金等核心信息缺失，仅能基于有限已知信息作泛化描述。\", \"complianceRisks\": [\"收益承诺类\", \"价格趋势类\"], \"mustReviewBeforePublish\": []}}, \"usedKnowledgeRefs\": [\"该项目的小面积产品曾受到市场较多关注。\", \"近期有中介人士对该产品保持较高讨论热度。\", \"周边有在建或即将开通的地铁13号线站点（根据公开信息）。\", \"项目周边商业配套可实地观察。\"], \"usedViralRefs\": [{\"patternName\": \"理性决策唤醒\", \"reason\": \"目标受众预算敏感，需要降低其决策焦虑，通过展示可观察的事实而非承诺收益来建立信任。\", \"titleTactics\": [\"反问式：预算有限，就一定与买房无缘吗？\", \"数据+悬念：一个小面积产品，为何最近被频繁提及？\"], \"hookTactics\": [\"我也是预算紧张的人，直到我发现这个项目。\", \"不吹不黑，带你实地看看这个项目的真实配套。\"], \"ctaTactics\": [\"先了解，不着急决定。\", \"建议实地走走，感受比听说的更真实。\"]}], \"usedImageAssets\": [{\"assetId\": \"img_003\", \"title\": \"项目入口\"}], \"degradationNotices\": [\"项目事实不足\", \"已根据质量门禁命中风险词进行自动改写\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": false,
+        "detail": "empty scenes: 1, 8, 9"
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

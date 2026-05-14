@@ -1,0 +1,305 @@
+{
+  "case_name": "case01_full_with_compliance_risk",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case01_full_with_compliance_risk.json",
+  "run_index": 1,
+  "timestamp": "20260511_230504_505877",
+  "elapsed_time": 91.94574117660522,
+  "success": true,
+  "workflow_run_id": "a936a7a9-aa50-46dd-ab1e-2c9844ffdda3",
+  "error": null,
+  "raw_response": {
+    "id": "a936a7a9-aa50-46dd-ab1e-2c9844ffdda3",
+    "workflow_id": "fc02f6da-20e7-4b88-bbb3-2ff3b6d64787",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"小户型为何再次成为刚需客户的选择\",\n      \"低总价与成熟配套的完美结合\",\n      \"小户型的回归与市场需求\"\n    ],\n    \"selectedTitle\": \"小户型为何再次成为刚需客户的选择\",\n    \"coverCopy\": \"低总价与成熟配套的完美结合\",\n    \"body\": \"小户型常被误解为不够实用，但其实它们在生活中能提供灵活的空间利用。最近确实有客户重新问起小面积产品，说明市场需求在变化。\\n\\n我们社区内有成熟的消费与服务需求，80万方的大社区，约1万户、3万人口，为生活提供了便利。\\n\\n项目提供4米层高的空间，商务大堂设计，70平、200平、250平的产品可以满足不同的用途，适合结合预算和用途进一步了解。\\n\\n如果你对小户型感兴趣，欢迎私信我获取更多信息。\",\n    \"hashtags\": [\n      \"#小面积产品\",\n      \"#预算友好\",\n      \"#成熟配套\"\n    ],\n    \"cta\": \"欢迎私信我获取更多信息。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"展示社区规模与环境\",\n        \"reason\": \"适合承接项目可信度和封面展示\"\n      },\n      {\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间感与舒适度\",\n        \"reason\": \"适合讲居住体验\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"小户型为何再次成为刚需客户的选择\\n\\n低总价与成熟配套的完美结合\\n\\n小户型常被误解为不够实用，但其实它们在生活中能提供灵活的空间利用。最近确实有客户重新问起小面积产品，说明市场需求在变化。\\n\\n我们社区内有成熟的消费与服务需求，80万方的大社区，约1万户、3万人口，为生活提供了便利。\\n\\n项目提供4米层高的空间，商务大堂设计，70平、200平、250平的产品可以满足不同的用途，适合结合预算和用途进一步了解。\\n\\n如果你对小户型感兴趣，欢迎私信我获取更多信息。\\n\\n#小面积产品 #预算友好 #成熟配套\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"通过小户型的回归引入，展示项目的成熟配套与生活便利，最后引导观众私信了解更多\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-10秒\",\n        \"visualGoal\": \"展示小户型外观，吸引观众注意\",\n        \"voiceover\": \"小户型被误解为不够实用，但它们其实提供了灵活的空间利用。\",\n        \"subtitle\": \"小户型的误解\",\n        \"shotRequirement\": \"项目外立面 远景 小区入口\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"10-30秒\",\n        \"visualGoal\": \"展示社区内的商业配套与服务，强调生活便利\",\n        \"voiceover\": \"我们社区内有成熟的消费与服务需求，80万方的大社区，约1万户、3万人口。\",\n        \"subtitle\": \"成熟配套与生活便利\",\n        \"shotRequirement\": \"社区内商业配套与服务设施\",\n        \"assetQuery\": \"社区内商业配套与服务设施\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"引导观众私信获取更多信息\",\n        \"voiceover\": \"如果你对小户型感兴趣，欢迎私信我获取更多信息。\",\n        \"subtitle\": \"欢迎私信我\",\n        \"shotRequirement\": \"个人现场说明\",\n        \"assetQuery\": \"个人现场说明\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人口播引导观众\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"个人现场说明\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"社区内商业配套与服务设施\"\n    ],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 8,\n      \"projectFit\": 8,\n      \"viralStructure\": 8,\n      \"platformTone\": 8,\n      \"materialFit\": 8,\n      \"compliance\": 9\n    },\n    \"pass\": true,\n    \"problems\": [],\n    \"revisionSuggestions\": [],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"小户型回归\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\n        \"xiaohongshu\",\n        \"douyin\"\n      ],\n      \"contentGoal\": \"种草\",\n      \"targetAudience\": \"刚需客户\",\n      \"audiencePain\": \"\",\n      \"sellingPointsNeeded\": [\n        \"低总价上车\",\n        \"成熟配套\",\n        \"生活便利\"\n      ],\n      \"riskConstraints\": [\n        \"收益承诺类\"\n      ],\n      \"copySearchQuery\": \"小户型 低总价上车 成熟配套 生活便利\",\n      \"scriptSearchQuery\": \"小户型 低总价上车 成熟配套 生活便利\",\n      \"imageSearchQuery\": \"小户型 低总价上车 成熟配套 生活便利\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"小户型的回归与市场需求\",\n      \"narrativeArc\": [\n        \"引入小户型的概念\",\n        \"展示市场变化\",\n        \"强调项目优势\",\n        \"引导观众行动\"\n      ],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [\n        \"社区内有成熟消费与服务需求\",\n        \"80万方大社区，约1万户、3万人口\",\n        \"产品有4米层高、商务大堂，70平、200平、250平可对应不同用途\"\n      ],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"反常识开头\",\n        \"reason\": \"吸引观众注意，打破对小户型的刻板印象\",\n        \"titleTactics\": [\n          \"引发好奇心\",\n          \"使用对比\"\n        ],\n        \"hookTactics\": [\n          \"反常识开头\",\n          \"引入市场变化\"\n        ],\n        \"ctaTactics\": [\n          \"引导私信获取更多信息\"\n        ]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"小户型为何再次成为刚需客户的选择\",\n        \"coverCopyDirection\": \"低总价与成熟配套的完美结合\",\n        \"bodyStructure\": [\n          \"引言：小户型的误解\",\n          \"市场变化：刚需客户的回归\",\n          \"项目优势：成熟配套与生活便利\",\n          \"总结与行动号召\"\n        ],\n        \"imagePlan\": [\n          {\n            \"assetId\": \"img_001\",\n            \"description\": \"项目外立面，展示社区规模与环境\"\n          },\n          {\n            \"assetId\": \"img_002\",\n            \"description\": \"样板间客厅，展示空间感与舒适度\"\n          }\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"通过小户型的回归引入，展示项目的成熟配套与生活便利，最后引导观众私信了解更多\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"开场：展示小户型外观\",\n          \"中段：社区内的商业配套与服务\",\n          \"结尾：引导观众私信获取更多信息\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": [],\n      \"trace\": {\n        \"usedKnowledgeSummary\": [\n          \"社区经济托底与成熟运营验证\",\n          \"舒适度型产品与空间灵活性\"\n        ],\n        \"usedViralSummary\": [\n          \"反常识开头与市场变化的引入\"\n        ],\n        \"usedImageSummary\": [\n          \"项目外立面与样板间客厅\"\n        ]\n      },\n      \"qualityGateHints\": {\n        \"factWeakness\": \"项目事实不足\",\n        \"complianceRisks\": [\n          \"收益承诺类\"\n        ],\n        \"mustReviewBeforePublish\": []\n      }\n    },\n    \"usedKnowledgeRefs\": [],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}"
+    },
+    "error": null,
+    "elapsed_time": 72.91936,
+    "total_tokens": 13554,
+    "total_steps": 9,
+    "created_by": {
+      "id": "4e490aab-0e6b-413d-bf70-69119b012f23",
+      "user": "content_calendar_test_case01_full_with_compliance_risk_1778511904"
+    },
+    "created_at": 1778511922,
+    "finished_at": 1778511995,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [
+        "小户型为何再次成为刚需客户的选择",
+        "低总价与成熟配套的完美结合",
+        "小户型的回归与市场需求"
+      ],
+      "selectedTitle": "小户型为何再次成为刚需客户的选择",
+      "coverCopy": "低总价与成熟配套的完美结合",
+      "body": "小户型常被误解为不够实用，但其实它们在生活中能提供灵活的空间利用。最近确实有客户重新问起小面积产品，说明市场需求在变化。\n\n我们社区内有成熟的消费与服务需求，80万方的大社区，约1万户、3万人口，为生活提供了便利。\n\n项目提供4米层高的空间，商务大堂设计，70平、200平、250平的产品可以满足不同的用途，适合结合预算和用途进一步了解。\n\n如果你对小户型感兴趣，欢迎私信我获取更多信息。",
+      "hashtags": [
+        "#小面积产品",
+        "#预算友好",
+        "#成熟配套"
+      ],
+      "cta": "欢迎私信我获取更多信息。",
+      "imageMatches": [
+        {
+          "assetId": "img_001",
+          "title": "项目外立面",
+          "usage": "展示社区规模与环境",
+          "reason": "适合承接项目可信度和封面展示"
+        },
+        {
+          "assetId": "img_002",
+          "title": "样板间客厅",
+          "usage": "展示空间感与舒适度",
+          "reason": "适合讲居住体验"
+        }
+      ],
+      "imageBriefIfMissing": "",
+      "riskNotes": [],
+      "copyReadyText": "小户型为何再次成为刚需客户的选择\n\n低总价与成熟配套的完美结合\n\n小户型常被误解为不够实用，但其实它们在生活中能提供灵活的空间利用。最近确实有客户重新问起小面积产品，说明市场需求在变化。\n\n我们社区内有成熟的消费与服务需求，80万方的大社区，约1万户、3万人口，为生活提供了便利。\n\n项目提供4米层高的空间，商务大堂设计，70平、200平、250平的产品可以满足不同的用途，适合结合预算和用途进一步了解。\n\n如果你对小户型感兴趣，欢迎私信我获取更多信息。\n\n#小面积产品 #预算友好 #成熟配套"
+    },
+    "videoScript": {
+      "storyOutline": "通过小户型的回归引入，展示项目的成熟配套与生活便利，最后引导观众私信了解更多",
+      "estimatedDuration": "35-45秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-10秒",
+          "visualGoal": "展示小户型外观，吸引观众注意",
+          "voiceover": "小户型被误解为不够实用，但它们其实提供了灵活的空间利用。",
+          "subtitle": "小户型的误解",
+          "shotRequirement": "项目外立面 远景 小区入口",
+          "assetQuery": "项目外立面 远景 小区入口",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "10-30秒",
+          "visualGoal": "展示社区内的商业配套与服务，强调生活便利",
+          "voiceover": "我们社区内有成熟的消费与服务需求，80万方的大社区，约1万户、3万人口。",
+          "subtitle": "成熟配套与生活便利",
+          "shotRequirement": "社区内商业配套与服务设施",
+          "assetQuery": "社区内商业配套与服务设施",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "30-45秒",
+          "visualGoal": "引导观众私信获取更多信息",
+          "voiceover": "如果你对小户型感兴趣，欢迎私信我获取更多信息。",
+          "subtitle": "欢迎私信我",
+          "shotRequirement": "个人现场说明",
+          "assetQuery": "个人现场说明",
+          "uploadRequired": true,
+          "uploadReason": "需要真人口播引导观众",
+          "assetSourceHint": "member_upload",
+          "fallbackVisual": ""
+        }
+      ],
+      "requiredUploads": [
+        "个人现场说明"
+      ],
+      "optionalTeamVideoAssets": [
+        "项目外立面 远景 小区入口",
+        "社区内商业配套与服务设施"
+      ],
+      "shootingTips": [],
+      "riskNotes": []
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 8,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 8,
+        "materialFit": 8,
+        "compliance": 9
+      },
+      "pass": true,
+      "problems": [],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": []
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "小户型回归",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "刚需客户",
+        "audiencePain": "",
+        "sellingPointsNeeded": [
+          "低总价上车",
+          "成熟配套",
+          "生活便利"
+        ],
+        "riskConstraints": [
+          "收益承诺类"
+        ],
+        "copySearchQuery": "小户型 低总价上车 成熟配套 生活便利",
+        "scriptSearchQuery": "小户型 低总价上车 成熟配套 生活便利",
+        "imageSearchQuery": "小户型 低总价上车 成熟配套 生活便利",
+        "videoAssetQueryHints": [],
+        "extraRequirement": ""
+      },
+      "creativeStrategy": {
+        "chosenAngle": "小户型的回归与市场需求",
+        "narrativeArc": [
+          "引入小户型的概念",
+          "展示市场变化",
+          "强调项目优势",
+          "引导观众行动"
+        ],
+        "tone": "本地中介、真实、克制、不夸张",
+        "mustUseFacts": [
+          "社区内有成熟消费与服务需求",
+          "80万方大社区，约1万户、3万人口",
+          "产品有4米层高、商务大堂，70平、200平、250平可对应不同用途"
+        ],
+        "mustAvoidClaims": [],
+        "viralPatternUsed": {
+          "patternName": "反常识开头",
+          "reason": "吸引观众注意，打破对小户型的刻板印象",
+          "titleTactics": [
+            "引发好奇心",
+            "使用对比"
+          ],
+          "hookTactics": [
+            "反常识开头",
+            "引入市场变化"
+          ],
+          "ctaTactics": [
+            "引导私信获取更多信息"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "小户型为何再次成为刚需客户的选择",
+          "coverCopyDirection": "低总价与成熟配套的完美结合",
+          "bodyStructure": [
+            "引言：小户型的误解",
+            "市场变化：刚需客户的回归",
+            "项目优势：成熟配套与生活便利",
+            "总结与行动号召"
+          ],
+          "imagePlan": [
+            {
+              "assetId": "img_001",
+              "description": "项目外立面，展示社区规模与环境"
+            },
+            {
+              "assetId": "img_002",
+              "description": "样板间客厅，展示空间感与舒适度"
+            }
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "通过小户型的回归引入，展示项目的成熟配套与生活便利，最后引导观众私信了解更多",
+          "estimatedDuration": "35-45秒",
+          "scenePlan": [
+            "开场：展示小户型外观",
+            "中段：社区内的商业配套与服务",
+            "结尾：引导观众私信获取更多信息"
+          ],
+          "requiredUploads": [],
+          "assetQueryHints": []
+        },
+        "degradationNotices": [],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "社区经济托底与成熟运营验证",
+            "舒适度型产品与空间灵活性"
+          ],
+          "usedViralSummary": [
+            "反常识开头与市场变化的引入"
+          ],
+          "usedImageSummary": [
+            "项目外立面与样板间客厅"
+          ]
+        },
+        "qualityGateHints": {
+          "factWeakness": "项目事实不足",
+          "complianceRisks": [
+            "收益承诺类"
+          ],
+          "mustReviewBeforePublish": []
+        }
+      },
+      "usedKnowledgeRefs": [],
+      "usedViralRefs": [],
+      "usedImageAssets": [],
+      "degradationNotices": []
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"小户型为何再次成为刚需客户的选择\",\n      \"低总价与成熟配套的完美结合\",\n      \"小户型的回归与市场需求\"\n    ],\n    \"selectedTitle\": \"小户型为何再次成为刚需客户的选择\",\n    \"coverCopy\": \"低总价与成熟配套的完美结合\",\n    \"body\": \"小户型常被误解为不够实用，但其实它们在生活中能提供灵活的空间利用。最近确实有客户重新问起小面积产品，说明市场需求在变化。\\n\\n我们社区内有成熟的消费与服务需求，80万方的大社区，约1万户、3万人口，为生活提供了便利。\\n\\n项目提供4米层高的空间，商务大堂设计，70平、200平、250平的产品可以满足不同的用途，适合结合预算和用途进一步了解。\\n\\n如果你对小户型感兴趣，欢迎私信我获取更多信息。\",\n    \"hashtags\": [\n      \"#小面积产品\",\n      \"#预算友好\",\n      \"#成熟配套\"\n    ],\n    \"cta\": \"欢迎私信我获取更多信息。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"展示社区规模与环境\",\n        \"reason\": \"适合承接项目可信度和封面展示\"\n      },\n      {\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间感与舒适度\",\n        \"reason\": \"适合讲居住体验\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"小户型为何再次成为刚需客户的选择\\n\\n低总价与成熟配套的完美结合\\n\\n小户型常被误解为不够实用，但其实它们在生活中能提供灵活的空间利用。最近确实有客户重新问起小面积产品，说明市场需求在变化。\\n\\n我们社区内有成熟的消费与服务需求，80万方的大社区，约1万户、3万人口，为生活提供了便利。\\n\\n项目提供4米层高的空间，商务大堂设计，70平、200平、250平的产品可以满足不同的用途，适合结合预算和用途进一步了解。\\n\\n如果你对小户型感兴趣，欢迎私信我获取更多信息。\\n\\n#小面积产品 #预算友好 #成熟配套\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"通过小户型的回归引入，展示项目的成熟配套与生活便利，最后引导观众私信了解更多\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-10秒\",\n        \"visualGoal\": \"展示小户型外观，吸引观众注意\",\n        \"voiceover\": \"小户型被误解为不够实用，但它们其实提供了灵活的空间利用。\",\n        \"subtitle\": \"小户型的误解\",\n        \"shotRequirement\": \"项目外立面 远景 小区入口\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"10-30秒\",\n        \"visualGoal\": \"展示社区内的商业配套与服务，强调生活便利\",\n        \"voiceover\": \"我们社区内有成熟的消费与服务需求，80万方的大社区，约1万户、3万人口。\",\n        \"subtitle\": \"成熟配套与生活便利\",\n        \"shotRequirement\": \"社区内商业配套与服务设施\",\n        \"assetQuery\": \"社区内商业配套与服务设施\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"引导观众私信获取更多信息\",\n        \"voiceover\": \"如果你对小户型感兴趣，欢迎私信我获取更多信息。\",\n        \"subtitle\": \"欢迎私信我\",\n        \"shotRequirement\": \"个人现场说明\",\n        \"assetQuery\": \"个人现场说明\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人口播引导观众\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"个人现场说明\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"社区内商业配套与服务设施\"\n    ],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 8,\n      \"projectFit\": 8,\n      \"viralStructure\": 8,\n      \"platformTone\": 8,\n      \"materialFit\": 8,\n      \"compliance\": 9\n    },\n    \"pass\": true,\n    \"problems\": [],\n    \"revisionSuggestions\": [],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"小户型回归\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\n        \"xiaohongshu\",\n        \"douyin\"\n      ],\n      \"contentGoal\": \"种草\",\n      \"targetAudience\": \"刚需客户\",\n      \"audiencePain\": \"\",\n      \"sellingPointsNeeded\": [\n        \"低总价上车\",\n        \"成熟配套\",\n        \"生活便利\"\n      ],\n      \"riskConstraints\": [\n        \"收益承诺类\"\n      ],\n      \"copySearchQuery\": \"小户型 低总价上车 成熟配套 生活便利\",\n      \"scriptSearchQuery\": \"小户型 低总价上车 成熟配套 生活便利\",\n      \"imageSearchQuery\": \"小户型 低总价上车 成熟配套 生活便利\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"小户型的回归与市场需求\",\n      \"narrativeArc\": [\n        \"引入小户型的概念\",\n        \"展示市场变化\",\n        \"强调项目优势\",\n        \"引导观众行动\"\n      ],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [\n        \"社区内有成熟消费与服务需求\",\n        \"80万方大社区，约1万户、3万人口\",\n        \"产品有4米层高、商务大堂，70平、200平、250平可对应不同用途\"\n      ],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"反常识开头\",\n        \"reason\": \"吸引观众注意，打破对小户型的刻板印象\",\n        \"titleTactics\": [\n          \"引发好奇心\",\n          \"使用对比\"\n        ],\n        \"hookTactics\": [\n          \"反常识开头\",\n          \"引入市场变化\"\n        ],\n        \"ctaTactics\": [\n          \"引导私信获取更多信息\"\n        ]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"小户型为何再次成为刚需客户的选择\",\n        \"coverCopyDirection\": \"低总价与成熟配套的完美结合\",\n        \"bodyStructure\": [\n          \"引言：小户型的误解\",\n          \"市场变化：刚需客户的回归\",\n          \"项目优势：成熟配套与生活便利\",\n          \"总结与行动号召\"\n        ],\n        \"imagePlan\": [\n          {\n            \"assetId\": \"img_001\",\n            \"description\": \"项目外立面，展示社区规模与环境\"\n          },\n          {\n            \"assetId\": \"img_002\",\n            \"description\": \"样板间客厅，展示空间感与舒适度\"\n          }\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"通过小户型的回归引入，展示项目的成熟配套与生活便利，最后引导观众私信了解更多\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"开场：展示小户型外观\",\n          \"中段：社区内的商业配套与服务\",\n          \"结尾：引导观众私信获取更多信息\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": [],\n      \"trace\": {\n        \"usedKnowledgeSummary\": [\n          \"社区经济托底与成熟运营验证\",\n          \"舒适度型产品与空间灵活性\"\n        ],\n        \"usedViralSummary\": [\n          \"反常识开头与市场变化的引入\"\n        ],\n        \"usedImageSummary\": [\n          \"项目外立面与样板间客厅\"\n        ]\n      },\n      \"qualityGateHints\": {\n        \"factWeakness\": \"项目事实不足\",\n        \"complianceRisks\": [\n          \"收益承诺类\"\n        ],\n        \"mustReviewBeforePublish\": []\n      }\n    },\n    \"usedKnowledgeRefs\": [],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=True"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

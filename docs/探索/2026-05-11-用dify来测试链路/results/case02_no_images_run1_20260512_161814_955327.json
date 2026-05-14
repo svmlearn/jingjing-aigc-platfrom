@@ -1,0 +1,364 @@
+{
+  "case_name": "case02_no_images",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "run_index": 1,
+  "timestamp": "20260512_161814_955327",
+  "elapsed_time": 443.81038093566895,
+  "success": true,
+  "workflow_run_id": "77508e49-773d-43ca-9343-97b9a49597d2",
+  "error": null,
+  "raw_response": {
+    "id": "77508e49-773d-43ca-9343-97b9a49597d2",
+    "workflow_id": "4cd35676-cdd2-45e7-9503-d58022fee7b5",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"楼下就是生活，不需要等规划\", \"带你看一个已经熟了的社区\", \"买房最怕等配套？这里已经全了\"], \"selectedTitle\": \"楼下就是生活，不需要等规划\", \"coverCopy\": \"现在就能用的配套，才是真方便\", \"body\": \"从地铁口出来，沿街全是开着的店。\\n水果摊、早餐铺、药店，每天经过都有烟火气。\\n\\n大堂挑高4米，不是图纸上的感觉，走进去自然就松一口气。\\n\\n屋里也是4米层高，采光比普通平层舒服很多。\\n窗外能看到学校操场，孩子自己上学，不用绕远路。\\n\\n楼下就是商业街，周末逛个超市、吃顿饭，换双拖鞋就能下楼。\\n\\n这种成熟不是远景，是现在就能走进去的日子。\\n预算有限的话，可以先看总价门槛和生活半径。\", \"hashtags\": [\"#成熟配套\", \"#地铁房\", \"#生活便利\", \"#预算友好\", \"#空间舒适\"], \"cta\": \"想看实际尺度的朋友，可以约我带你在社区里走一圈。\", \"imageMatches\": [], \"imageBriefIfMissing\": \"需要一组社区实景照：沿街底商、大堂挑高、4米层高样板间、窗外学校视角、商业mall入口。\", \"riskNotes\": [], \"copyReadyText\": \"楼下就是生活，不需要等规划\\n\\n从地铁口出来，沿街全是开着的店。\\n水果摊、早餐铺、药店，每天经过都有烟火气。\\n\\n大堂挑高4米，不是图纸上的感觉，走进去自然就松一口气。\\n\\n屋里也是4米层高，采光比普通平层舒服很多。\\n窗外能看到学校操场，孩子自己上学，不用绕远路。\\n\\n楼下就是商业街，周末逛个超市、吃顿饭，换双拖鞋就能下楼。\\n\\n这种成熟不是远景，是现在就能走进去的日子。\\n预算有限的话，可以先看总价门槛和生活半径。\\n\\n#成熟配套 #地铁房 #生活便利 #预算友好 #空间舒适\\n\\n想看实际尺度的朋友，可以约我带你在社区里走一圈。\"}, \"videoScript\": {\"storyOutline\": \"从地铁站出发，沿途展示社区底商、菜市场、便利店等日常消费场景，走进项目大堂感受层高和商务氛围，进入样板间展示4米层高带来的空间舒适感，最后走到街对面商业综合体，用真实生活画面告诉客户：楼下就能解决绝大部分生活需求。全程像朋友边走边聊，不念稿。\", \"estimatedDuration\": \"01:30\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"00:00-00:12\", \"visualGoal\": \"真人出镜建立亲切感，展示地铁口环境\", \"voiceover\": \"大家好我是小陈，今天带你看一个我不需要给你画饼的社区，因为配套都摆在眼前。从地铁6号线出来，我们边走边聊。\", \"subtitle\": \"大家好我是小陈，今天带你看一个我不需要给你画饼的社区，因为配套都摆在眼前。从地铁6号线出来，我们边走边聊。\", \"shotRequirement\": \"真人半身近景，手持自拍或助理跟随拍摄，背景为地铁站出口和站牌\", \"assetQuery\": \"6号线地铁站出口 站牌 手持拍摄\", \"uploadRequired\": true, \"uploadReason\": \"成员真人出镜开场白\", \"assetSourceHint\": \"\", \"fallbackVisual\": \"地铁站口空镜+旁白\"}, {\"sceneNo\": 2, \"timeRange\": \"00:12-00:22\", \"visualGoal\": \"展示真实日常消费场景，传递生活便利\", \"voiceover\": \"你看这条街，水果店、早餐铺、药店，全是开了好几年的店，每天烟火气很足。\", \"subtitle\": \"你看这条街，水果店、早餐铺、药店，全是开了好几年的店，每天烟火气很足。\", \"shotRequirement\": \"手持稳定拍摄，慢速推进，展示店铺招牌和路人生活状态\", \"assetQuery\": \"社区底商一条街 水果店 早餐铺 招牌\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"同类型底商空镜\"}, {\"sceneNo\": 3, \"timeRange\": \"00:22-00:32\", \"visualGoal\": \"突出安全感和社区品质\", \"voiceover\": \"社区大门有全天保安，进出都要刷卡，安全感这个细节我觉得很重要。\", \"subtitle\": \"社区大门有全天保安，进出都要刷卡，安全感这个细节我觉得很重要。\", \"shotRequirement\": \"固定机位或缓慢推动，拍摄保安岗亭、人行闸机、社区 logo\", \"assetQuery\": \"社区主入口 保安岗亭 人行闸机 大门\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"其他社区大门空镜\"}, {\"sceneNo\": 4, \"timeRange\": \"00:32-00:42\", \"visualGoal\": \"用挑高大堂传递品质感\", \"voiceover\": \"走进来大堂挑高4米，石材和灯光搭配得很舒服，不是那种压抑的楼道。\", \"subtitle\": \"走进来大堂挑高4米，石材和灯光搭配得很舒服，不是那种压抑的楼道。\", \"shotRequirement\": \"仰拍突出挑高，横移展示石材墙面和物业前台\", \"assetQuery\": \"商务大堂 4米挑高 石材墙面 物业前台\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"高档大堂空镜\"}, {\"sceneNo\": 5, \"timeRange\": \"00:42-00:50\", \"visualGoal\": \"展示楼道环境整洁明亮\", \"voiceover\": \"电梯间和过道都保持得很干净，平时物业维护很及时。\", \"subtitle\": \"电梯间和过道都保持得很干净，平时物业维护很及时。\", \"shotRequirement\": \"跟随脚步进入电梯，拍摄电梯按钮、楼层指示，出电梯后拍楼道灯光和标示牌\", \"assetQuery\": \"电梯间 楼道灯光 标示牌 干净整洁\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"高档公寓楼道空镜\"}, {\"sceneNo\": 6, \"timeRange\": \"00:50-01:00\", \"visualGoal\": \"直观展示4米层高带来的空间感\", \"voiceover\": \"门一打开，4米层高马上感觉不一样，自然光把整个客厅都打亮了。\", \"subtitle\": \"门一打开，4米层高马上感觉不一样，自然光把整个客厅都打亮了。\", \"shotRequirement\": \"大广角镜头，从开门动作到室内全景，展示层高和采光\", \"assetQuery\": \"4米层高客厅 大广角 自然采光 样板间\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"4米层高室内空镜\"}, {\"sceneNo\": 7, \"timeRange\": \"01:00-01:08\", \"visualGoal\": \"展示窗外学校操场，暗示生活便利\", \"voiceover\": \"往窗外看，学校操场就在旁边，孩子上学你站在窗边就能看到。\", \"subtitle\": \"往窗外看，学校操场就在旁边，孩子上学你站在窗边就能看到。\", \"shotRequirement\": \"从室内向窗外推进，展示学校操场和距离，注意不要拍到敏感信息\", \"assetQuery\": \"卧室窗外 学校操场 空镜\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"窗外景观空镜\"}, {\"sceneNo\": 8, \"timeRange\": \"01:08-01:15\", \"visualGoal\": \"展示功能分区合理，空间可塑性强\", \"voiceover\": \"厨卫都是明窗，通风没问题。这种空间留白多，你可以自己布置成工作室或者会客厅。\", \"subtitle\": \"厨卫都是明窗，通风没问题。这种空间留白多，你可以自己布置成工作室或者会客厅。\", \"shotRequirement\": \"短镜头切换，展示厨房明窗和卫生间设计，强调空间灵活性\", \"assetQuery\": \"厨房明窗 卫生间 空间留白 灵活\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"厨房卫生间空镜\"}, {\"sceneNo\": 9, \"timeRange\": \"01:15-01:22\", \"visualGoal\": \"展示大型商业配套，强调下楼即达\", \"voiceover\": \"街对面就是这个商业中心，周末逛个超市吃顿饭，换双拖鞋就能下楼。\", \"subtitle\": \"街对面就是这个商业中心，周末逛个超市吃顿饭，换双拖鞋就能下楼。\", \"shotRequirement\": \"外景固定或慢摇，拍摄商场入口和品牌招牌\", \"assetQuery\": \"商业综合体 外景 商场入口 品牌招牌\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"商业街空镜\"}, {\"sceneNo\": 10, \"timeRange\": \"01:22-01:30\", \"visualGoal\": \"结尾点题，引导客户主动咨询\", \"voiceover\": \"所以你看，这种成熟真不是规划图上的，是现在就能走进去的日子。想看实际尺度，随时约我带你走一圈。\", \"subtitle\": \"所以你看，这种成熟真不是规划图上的，是现在就能走进去的日子。想看实际尺度，随时约我带你走一圈。\", \"shotRequirement\": \"手持自拍或助理拍摄，成员半身近景，背景为小区花园和绿化\", \"assetQuery\": \"小区花园 成员出镜 CTA\", \"uploadRequired\": true, \"uploadReason\": \"成员真人出镜结尾CTA\", \"assetSourceHint\": \"\", \"fallbackVisual\": \"小区花园空镜+文字CTA\"}], \"requiredUploads\": [\"6号线地铁站出口 站牌 手持拍摄\", \"小区花园 成员出镜 CTA\"], \"optionalTeamVideoAssets\": [\"社区底商一条街 水果店 早餐铺 招牌\", \"社区主入口 保安岗亭 人行闸机 大门\", \"商务大堂 4米挑高 石材墙面 物业前台\", \"电梯间 楼道灯光 标示牌 干净整洁\", \"4米层高客厅 大广角 自然采光 样板间\", \"卧室窗外 学校操场 空镜\", \"厨房明窗 卫生间 空间留白 灵活\", \"商业综合体 外景 商场入口 品牌招牌\"], \"shootingTips\": [\"全部手持拍摄，减少固定机位，增强真实感\", \"旁白用聊天语气，可以带口播气泡音，不要播音腔\", \"每个场景停留不超过8秒，快节奏传递信息密度\", \"避免字幕出现任何价格数字或收益暗示\"], \"riskNotes\": []}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 6, \"compliance\": 8}, \"pass\": false, \"needsRewrite\": true, \"riskTerms\": [], \"problems\": [\"缺少可用图片素材\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"图文图片素材\"], \"preRepairPass\": false, \"autoRewritten\": true, \"repairPolicy\": \"validator_risk_terms_minimal_rewrite\"}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"成熟配套怎么讲\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"信任建立\", \"targetAudience\": \"首次看房客户\", \"audiencePain\": \"担忧项目周边生活配套不成熟\", \"sellingPointsNeeded\": [\"生活便利\", \"配套成熟\", \"交通便捷\"], \"riskConstraints\": [], \"copySearchQuery\": \"首次看房客户 成熟配套 生活便利 项目实景 周边探店\", \"scriptSearchQuery\": \"首次看房客户 成熟配套 生活便利 周边真实生活 项目实景\", \"imageSearchQuery\": \"成熟小区配套实景 商业街 学校 菜市场 公园\", \"videoAssetQueryHints\": [\"周边配套航拍\", \"商业街实拍\", \"学校门口\", \"社区生活场景\"], \"extraRequirement\": \"语气真实一点，像发给老客户看的内容\"}, \"creativeStrategy\": {\"storyOutline\": \"从地铁站出发，沿途展示社区底商、菜市场、便利店等日常消费场景，走进项目大堂感受层高和商务氛围，进入样板间展示4米层高带来的空间舒适感，最后走到街对面商业综合体，用真实生活画面告诉客户：楼下就能解决绝大部分生活需求。全程像朋友边走边聊，不念稿。\", \"estimatedDuration\": \"01:30\", \"scenes\": [\"地铁口全景，带过6号线站牌，边走边说通勤便利性\", \"沿街底商慢镜头：水果店、早餐铺、药店招牌，同步说这就是日常\", \"社区主入口，拍保安岗亭和人行闸机，强调安全感\", \"大堂中景：4米挑高、石材墙面、物业前台，说品质感来自细节\", \"电梯上行手部特写，楼道灯光和标示牌\", \"样板间开门瞬间，大广角展示4米层高客厅，自然光通透\", \"卧室窗口视野，拉近看到楼下学校操场，提到三所学校环绕\", \"厨房和洗手间短镜头，说完功能再说空间留白可自由布置\", \"商业Mall外景，定格品牌商家招牌，说周末下楼就能逛街\", \"回到小区花园，手持镜头平稳，说这种成熟不是图纸上的，是现在就能走进去的\"], \"requiredUploads\": [\"项目周边地铁站实拍视频\", \"社区底商一条街实拍\", \"项目大堂和公共区域实拍\", \"4米层高样板间多角度实拍\", \"社区花园和儿童设施实拍\"], \"optionalTeamVideoAssets\": [\"社区全景航拍\", \"夜间商业街亮灯延时\", \"老人下棋、小孩玩耍的生活镜头\"], \"shootingTips\": [\"全部手持拍摄，减少固定机位，增强真实感\", \"旁白用聊天语气，可以带口播气泡音，不要播音腔\", \"每个场景停留不超过8秒，快节奏传递信息密度\", \"避免字幕出现任何价格数字或收益暗示\"], \"riskNotes\": []}, \"usedKnowledgeRefs\": [], \"usedViralRefs\": [], \"usedImageAssets\": [], \"degradationNotices\": [\"已根据质量门禁命中风险词进行自动改写\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 436.951687,
+    "total_tokens": 31346,
+    "total_steps": 13,
+    "created_by": {
+      "id": "8a18cfff-e47f-4bd5-9561-14a2ebfa2190",
+      "user": "content_calendar_test_case02_no_images_1778573894"
+    },
+    "created_at": 1778573900,
+    "finished_at": 1778574336,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [
+        "楼下就是生活，不需要等规划",
+        "带你看一个已经熟了的社区",
+        "买房最怕等配套？这里已经全了"
+      ],
+      "selectedTitle": "楼下就是生活，不需要等规划",
+      "coverCopy": "现在就能用的配套，才是真方便",
+      "body": "从地铁口出来，沿街全是开着的店。\n水果摊、早餐铺、药店，每天经过都有烟火气。\n\n大堂挑高4米，不是图纸上的感觉，走进去自然就松一口气。\n\n屋里也是4米层高，采光比普通平层舒服很多。\n窗外能看到学校操场，孩子自己上学，不用绕远路。\n\n楼下就是商业街，周末逛个超市、吃顿饭，换双拖鞋就能下楼。\n\n这种成熟不是远景，是现在就能走进去的日子。\n预算有限的话，可以先看总价门槛和生活半径。",
+      "hashtags": [
+        "#成熟配套",
+        "#地铁房",
+        "#生活便利",
+        "#预算友好",
+        "#空间舒适"
+      ],
+      "cta": "想看实际尺度的朋友，可以约我带你在社区里走一圈。",
+      "imageMatches": [],
+      "imageBriefIfMissing": "需要一组社区实景照：沿街底商、大堂挑高、4米层高样板间、窗外学校视角、商业mall入口。",
+      "riskNotes": [],
+      "copyReadyText": "楼下就是生活，不需要等规划\n\n从地铁口出来，沿街全是开着的店。\n水果摊、早餐铺、药店，每天经过都有烟火气。\n\n大堂挑高4米，不是图纸上的感觉，走进去自然就松一口气。\n\n屋里也是4米层高，采光比普通平层舒服很多。\n窗外能看到学校操场，孩子自己上学，不用绕远路。\n\n楼下就是商业街，周末逛个超市、吃顿饭，换双拖鞋就能下楼。\n\n这种成熟不是远景，是现在就能走进去的日子。\n预算有限的话，可以先看总价门槛和生活半径。\n\n#成熟配套 #地铁房 #生活便利 #预算友好 #空间舒适\n\n想看实际尺度的朋友，可以约我带你在社区里走一圈。"
+    },
+    "videoScript": {
+      "storyOutline": "从地铁站出发，沿途展示社区底商、菜市场、便利店等日常消费场景，走进项目大堂感受层高和商务氛围，进入样板间展示4米层高带来的空间舒适感，最后走到街对面商业综合体，用真实生活画面告诉客户：楼下就能解决绝大部分生活需求。全程像朋友边走边聊，不念稿。",
+      "estimatedDuration": "01:30",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "00:00-00:12",
+          "visualGoal": "真人出镜建立亲切感，展示地铁口环境",
+          "voiceover": "大家好我是小陈，今天带你看一个我不需要给你画饼的社区，因为配套都摆在眼前。从地铁6号线出来，我们边走边聊。",
+          "subtitle": "大家好我是小陈，今天带你看一个我不需要给你画饼的社区，因为配套都摆在眼前。从地铁6号线出来，我们边走边聊。",
+          "shotRequirement": "真人半身近景，手持自拍或助理跟随拍摄，背景为地铁站出口和站牌",
+          "assetQuery": "6号线地铁站出口 站牌 手持拍摄",
+          "uploadRequired": true,
+          "uploadReason": "成员真人出镜开场白",
+          "assetSourceHint": "",
+          "fallbackVisual": "地铁站口空镜+旁白"
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "00:12-00:22",
+          "visualGoal": "展示真实日常消费场景，传递生活便利",
+          "voiceover": "你看这条街，水果店、早餐铺、药店，全是开了好几年的店，每天烟火气很足。",
+          "subtitle": "你看这条街，水果店、早餐铺、药店，全是开了好几年的店，每天烟火气很足。",
+          "shotRequirement": "手持稳定拍摄，慢速推进，展示店铺招牌和路人生活状态",
+          "assetQuery": "社区底商一条街 水果店 早餐铺 招牌",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "同类型底商空镜"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "00:22-00:32",
+          "visualGoal": "突出安全感和社区品质",
+          "voiceover": "社区大门有全天保安，进出都要刷卡，安全感这个细节我觉得很重要。",
+          "subtitle": "社区大门有全天保安，进出都要刷卡，安全感这个细节我觉得很重要。",
+          "shotRequirement": "固定机位或缓慢推动，拍摄保安岗亭、人行闸机、社区 logo",
+          "assetQuery": "社区主入口 保安岗亭 人行闸机 大门",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "其他社区大门空镜"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "00:32-00:42",
+          "visualGoal": "用挑高大堂传递品质感",
+          "voiceover": "走进来大堂挑高4米，石材和灯光搭配得很舒服，不是那种压抑的楼道。",
+          "subtitle": "走进来大堂挑高4米，石材和灯光搭配得很舒服，不是那种压抑的楼道。",
+          "shotRequirement": "仰拍突出挑高，横移展示石材墙面和物业前台",
+          "assetQuery": "商务大堂 4米挑高 石材墙面 物业前台",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "高档大堂空镜"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "00:42-00:50",
+          "visualGoal": "展示楼道环境整洁明亮",
+          "voiceover": "电梯间和过道都保持得很干净，平时物业维护很及时。",
+          "subtitle": "电梯间和过道都保持得很干净，平时物业维护很及时。",
+          "shotRequirement": "跟随脚步进入电梯，拍摄电梯按钮、楼层指示，出电梯后拍楼道灯光和标示牌",
+          "assetQuery": "电梯间 楼道灯光 标示牌 干净整洁",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "高档公寓楼道空镜"
+        },
+        {
+          "sceneNo": 6,
+          "timeRange": "00:50-01:00",
+          "visualGoal": "直观展示4米层高带来的空间感",
+          "voiceover": "门一打开，4米层高马上感觉不一样，自然光把整个客厅都打亮了。",
+          "subtitle": "门一打开，4米层高马上感觉不一样，自然光把整个客厅都打亮了。",
+          "shotRequirement": "大广角镜头，从开门动作到室内全景，展示层高和采光",
+          "assetQuery": "4米层高客厅 大广角 自然采光 样板间",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "4米层高室内空镜"
+        },
+        {
+          "sceneNo": 7,
+          "timeRange": "01:00-01:08",
+          "visualGoal": "展示窗外学校操场，暗示生活便利",
+          "voiceover": "往窗外看，学校操场就在旁边，孩子上学你站在窗边就能看到。",
+          "subtitle": "往窗外看，学校操场就在旁边，孩子上学你站在窗边就能看到。",
+          "shotRequirement": "从室内向窗外推进，展示学校操场和距离，注意不要拍到敏感信息",
+          "assetQuery": "卧室窗外 学校操场 空镜",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "窗外景观空镜"
+        },
+        {
+          "sceneNo": 8,
+          "timeRange": "01:08-01:15",
+          "visualGoal": "展示功能分区合理，空间可塑性强",
+          "voiceover": "厨卫都是明窗，通风没问题。这种空间留白多，你可以自己布置成工作室或者会客厅。",
+          "subtitle": "厨卫都是明窗，通风没问题。这种空间留白多，你可以自己布置成工作室或者会客厅。",
+          "shotRequirement": "短镜头切换，展示厨房明窗和卫生间设计，强调空间灵活性",
+          "assetQuery": "厨房明窗 卫生间 空间留白 灵活",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "厨房卫生间空镜"
+        },
+        {
+          "sceneNo": 9,
+          "timeRange": "01:15-01:22",
+          "visualGoal": "展示大型商业配套，强调下楼即达",
+          "voiceover": "街对面就是这个商业中心，周末逛个超市吃顿饭，换双拖鞋就能下楼。",
+          "subtitle": "街对面就是这个商业中心，周末逛个超市吃顿饭，换双拖鞋就能下楼。",
+          "shotRequirement": "外景固定或慢摇，拍摄商场入口和品牌招牌",
+          "assetQuery": "商业综合体 外景 商场入口 品牌招牌",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "商业街空镜"
+        },
+        {
+          "sceneNo": 10,
+          "timeRange": "01:22-01:30",
+          "visualGoal": "结尾点题，引导客户主动咨询",
+          "voiceover": "所以你看，这种成熟真不是规划图上的，是现在就能走进去的日子。想看实际尺度，随时约我带你走一圈。",
+          "subtitle": "所以你看，这种成熟真不是规划图上的，是现在就能走进去的日子。想看实际尺度，随时约我带你走一圈。",
+          "shotRequirement": "手持自拍或助理拍摄，成员半身近景，背景为小区花园和绿化",
+          "assetQuery": "小区花园 成员出镜 CTA",
+          "uploadRequired": true,
+          "uploadReason": "成员真人出镜结尾CTA",
+          "assetSourceHint": "",
+          "fallbackVisual": "小区花园空镜+文字CTA"
+        }
+      ],
+      "requiredUploads": [
+        "6号线地铁站出口 站牌 手持拍摄",
+        "小区花园 成员出镜 CTA"
+      ],
+      "optionalTeamVideoAssets": [
+        "社区底商一条街 水果店 早餐铺 招牌",
+        "社区主入口 保安岗亭 人行闸机 大门",
+        "商务大堂 4米挑高 石材墙面 物业前台",
+        "电梯间 楼道灯光 标示牌 干净整洁",
+        "4米层高客厅 大广角 自然采光 样板间",
+        "卧室窗外 学校操场 空镜",
+        "厨房明窗 卫生间 空间留白 灵活",
+        "商业综合体 外景 商场入口 品牌招牌"
+      ],
+      "shootingTips": [
+        "全部手持拍摄，减少固定机位，增强真实感",
+        "旁白用聊天语气，可以带口播气泡音，不要播音腔",
+        "每个场景停留不超过8秒，快节奏传递信息密度",
+        "避免字幕出现任何价格数字或收益暗示"
+      ],
+      "riskNotes": []
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 8,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 8,
+        "materialFit": 6,
+        "compliance": 8
+      },
+      "pass": false,
+      "needsRewrite": true,
+      "riskTerms": [],
+      "problems": [
+        "缺少可用图片素材"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": [
+        "图文图片素材"
+      ],
+      "preRepairPass": false,
+      "autoRewritten": true,
+      "repairPolicy": "validator_risk_terms_minimal_rewrite"
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "成熟配套怎么讲",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "信任建立",
+        "targetAudience": "首次看房客户",
+        "audiencePain": "担忧项目周边生活配套不成熟",
+        "sellingPointsNeeded": [
+          "生活便利",
+          "配套成熟",
+          "交通便捷"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "首次看房客户 成熟配套 生活便利 项目实景 周边探店",
+        "scriptSearchQuery": "首次看房客户 成熟配套 生活便利 周边真实生活 项目实景",
+        "imageSearchQuery": "成熟小区配套实景 商业街 学校 菜市场 公园",
+        "videoAssetQueryHints": [
+          "周边配套航拍",
+          "商业街实拍",
+          "学校门口",
+          "社区生活场景"
+        ],
+        "extraRequirement": "语气真实一点，像发给老客户看的内容"
+      },
+      "creativeStrategy": {
+        "storyOutline": "从地铁站出发，沿途展示社区底商、菜市场、便利店等日常消费场景，走进项目大堂感受层高和商务氛围，进入样板间展示4米层高带来的空间舒适感，最后走到街对面商业综合体，用真实生活画面告诉客户：楼下就能解决绝大部分生活需求。全程像朋友边走边聊，不念稿。",
+        "estimatedDuration": "01:30",
+        "scenes": [
+          "地铁口全景，带过6号线站牌，边走边说通勤便利性",
+          "沿街底商慢镜头：水果店、早餐铺、药店招牌，同步说这就是日常",
+          "社区主入口，拍保安岗亭和人行闸机，强调安全感",
+          "大堂中景：4米挑高、石材墙面、物业前台，说品质感来自细节",
+          "电梯上行手部特写，楼道灯光和标示牌",
+          "样板间开门瞬间，大广角展示4米层高客厅，自然光通透",
+          "卧室窗口视野，拉近看到楼下学校操场，提到三所学校环绕",
+          "厨房和洗手间短镜头，说完功能再说空间留白可自由布置",
+          "商业Mall外景，定格品牌商家招牌，说周末下楼就能逛街",
+          "回到小区花园，手持镜头平稳，说这种成熟不是图纸上的，是现在就能走进去的"
+        ],
+        "requiredUploads": [
+          "项目周边地铁站实拍视频",
+          "社区底商一条街实拍",
+          "项目大堂和公共区域实拍",
+          "4米层高样板间多角度实拍",
+          "社区花园和儿童设施实拍"
+        ],
+        "optionalTeamVideoAssets": [
+          "社区全景航拍",
+          "夜间商业街亮灯延时",
+          "老人下棋、小孩玩耍的生活镜头"
+        ],
+        "shootingTips": [
+          "全部手持拍摄，减少固定机位，增强真实感",
+          "旁白用聊天语气，可以带口播气泡音，不要播音腔",
+          "每个场景停留不超过8秒，快节奏传递信息密度",
+          "避免字幕出现任何价格数字或收益暗示"
+        ],
+        "riskNotes": []
+      },
+      "usedKnowledgeRefs": [],
+      "usedViralRefs": [],
+      "usedImageAssets": [],
+      "degradationNotices": [
+        "已根据质量门禁命中风险词进行自动改写"
+      ]
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"楼下就是生活，不需要等规划\", \"带你看一个已经熟了的社区\", \"买房最怕等配套？这里已经全了\"], \"selectedTitle\": \"楼下就是生活，不需要等规划\", \"coverCopy\": \"现在就能用的配套，才是真方便\", \"body\": \"从地铁口出来，沿街全是开着的店。\\n水果摊、早餐铺、药店，每天经过都有烟火气。\\n\\n大堂挑高4米，不是图纸上的感觉，走进去自然就松一口气。\\n\\n屋里也是4米层高，采光比普通平层舒服很多。\\n窗外能看到学校操场，孩子自己上学，不用绕远路。\\n\\n楼下就是商业街，周末逛个超市、吃顿饭，换双拖鞋就能下楼。\\n\\n这种成熟不是远景，是现在就能走进去的日子。\\n预算有限的话，可以先看总价门槛和生活半径。\", \"hashtags\": [\"#成熟配套\", \"#地铁房\", \"#生活便利\", \"#预算友好\", \"#空间舒适\"], \"cta\": \"想看实际尺度的朋友，可以约我带你在社区里走一圈。\", \"imageMatches\": [], \"imageBriefIfMissing\": \"需要一组社区实景照：沿街底商、大堂挑高、4米层高样板间、窗外学校视角、商业mall入口。\", \"riskNotes\": [], \"copyReadyText\": \"楼下就是生活，不需要等规划\\n\\n从地铁口出来，沿街全是开着的店。\\n水果摊、早餐铺、药店，每天经过都有烟火气。\\n\\n大堂挑高4米，不是图纸上的感觉，走进去自然就松一口气。\\n\\n屋里也是4米层高，采光比普通平层舒服很多。\\n窗外能看到学校操场，孩子自己上学，不用绕远路。\\n\\n楼下就是商业街，周末逛个超市、吃顿饭，换双拖鞋就能下楼。\\n\\n这种成熟不是远景，是现在就能走进去的日子。\\n预算有限的话，可以先看总价门槛和生活半径。\\n\\n#成熟配套 #地铁房 #生活便利 #预算友好 #空间舒适\\n\\n想看实际尺度的朋友，可以约我带你在社区里走一圈。\"}, \"videoScript\": {\"storyOutline\": \"从地铁站出发，沿途展示社区底商、菜市场、便利店等日常消费场景，走进项目大堂感受层高和商务氛围，进入样板间展示4米层高带来的空间舒适感，最后走到街对面商业综合体，用真实生活画面告诉客户：楼下就能解决绝大部分生活需求。全程像朋友边走边聊，不念稿。\", \"estimatedDuration\": \"01:30\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"00:00-00:12\", \"visualGoal\": \"真人出镜建立亲切感，展示地铁口环境\", \"voiceover\": \"大家好我是小陈，今天带你看一个我不需要给你画饼的社区，因为配套都摆在眼前。从地铁6号线出来，我们边走边聊。\", \"subtitle\": \"大家好我是小陈，今天带你看一个我不需要给你画饼的社区，因为配套都摆在眼前。从地铁6号线出来，我们边走边聊。\", \"shotRequirement\": \"真人半身近景，手持自拍或助理跟随拍摄，背景为地铁站出口和站牌\", \"assetQuery\": \"6号线地铁站出口 站牌 手持拍摄\", \"uploadRequired\": true, \"uploadReason\": \"成员真人出镜开场白\", \"assetSourceHint\": \"\", \"fallbackVisual\": \"地铁站口空镜+旁白\"}, {\"sceneNo\": 2, \"timeRange\": \"00:12-00:22\", \"visualGoal\": \"展示真实日常消费场景，传递生活便利\", \"voiceover\": \"你看这条街，水果店、早餐铺、药店，全是开了好几年的店，每天烟火气很足。\", \"subtitle\": \"你看这条街，水果店、早餐铺、药店，全是开了好几年的店，每天烟火气很足。\", \"shotRequirement\": \"手持稳定拍摄，慢速推进，展示店铺招牌和路人生活状态\", \"assetQuery\": \"社区底商一条街 水果店 早餐铺 招牌\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"同类型底商空镜\"}, {\"sceneNo\": 3, \"timeRange\": \"00:22-00:32\", \"visualGoal\": \"突出安全感和社区品质\", \"voiceover\": \"社区大门有全天保安，进出都要刷卡，安全感这个细节我觉得很重要。\", \"subtitle\": \"社区大门有全天保安，进出都要刷卡，安全感这个细节我觉得很重要。\", \"shotRequirement\": \"固定机位或缓慢推动，拍摄保安岗亭、人行闸机、社区 logo\", \"assetQuery\": \"社区主入口 保安岗亭 人行闸机 大门\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"其他社区大门空镜\"}, {\"sceneNo\": 4, \"timeRange\": \"00:32-00:42\", \"visualGoal\": \"用挑高大堂传递品质感\", \"voiceover\": \"走进来大堂挑高4米，石材和灯光搭配得很舒服，不是那种压抑的楼道。\", \"subtitle\": \"走进来大堂挑高4米，石材和灯光搭配得很舒服，不是那种压抑的楼道。\", \"shotRequirement\": \"仰拍突出挑高，横移展示石材墙面和物业前台\", \"assetQuery\": \"商务大堂 4米挑高 石材墙面 物业前台\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"高档大堂空镜\"}, {\"sceneNo\": 5, \"timeRange\": \"00:42-00:50\", \"visualGoal\": \"展示楼道环境整洁明亮\", \"voiceover\": \"电梯间和过道都保持得很干净，平时物业维护很及时。\", \"subtitle\": \"电梯间和过道都保持得很干净，平时物业维护很及时。\", \"shotRequirement\": \"跟随脚步进入电梯，拍摄电梯按钮、楼层指示，出电梯后拍楼道灯光和标示牌\", \"assetQuery\": \"电梯间 楼道灯光 标示牌 干净整洁\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"高档公寓楼道空镜\"}, {\"sceneNo\": 6, \"timeRange\": \"00:50-01:00\", \"visualGoal\": \"直观展示4米层高带来的空间感\", \"voiceover\": \"门一打开，4米层高马上感觉不一样，自然光把整个客厅都打亮了。\", \"subtitle\": \"门一打开，4米层高马上感觉不一样，自然光把整个客厅都打亮了。\", \"shotRequirement\": \"大广角镜头，从开门动作到室内全景，展示层高和采光\", \"assetQuery\": \"4米层高客厅 大广角 自然采光 样板间\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"4米层高室内空镜\"}, {\"sceneNo\": 7, \"timeRange\": \"01:00-01:08\", \"visualGoal\": \"展示窗外学校操场，暗示生活便利\", \"voiceover\": \"往窗外看，学校操场就在旁边，孩子上学你站在窗边就能看到。\", \"subtitle\": \"往窗外看，学校操场就在旁边，孩子上学你站在窗边就能看到。\", \"shotRequirement\": \"从室内向窗外推进，展示学校操场和距离，注意不要拍到敏感信息\", \"assetQuery\": \"卧室窗外 学校操场 空镜\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"窗外景观空镜\"}, {\"sceneNo\": 8, \"timeRange\": \"01:08-01:15\", \"visualGoal\": \"展示功能分区合理，空间可塑性强\", \"voiceover\": \"厨卫都是明窗，通风没问题。这种空间留白多，你可以自己布置成工作室或者会客厅。\", \"subtitle\": \"厨卫都是明窗，通风没问题。这种空间留白多，你可以自己布置成工作室或者会客厅。\", \"shotRequirement\": \"短镜头切换，展示厨房明窗和卫生间设计，强调空间灵活性\", \"assetQuery\": \"厨房明窗 卫生间 空间留白 灵活\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"厨房卫生间空镜\"}, {\"sceneNo\": 9, \"timeRange\": \"01:15-01:22\", \"visualGoal\": \"展示大型商业配套，强调下楼即达\", \"voiceover\": \"街对面就是这个商业中心，周末逛个超市吃顿饭，换双拖鞋就能下楼。\", \"subtitle\": \"街对面就是这个商业中心，周末逛个超市吃顿饭，换双拖鞋就能下楼。\", \"shotRequirement\": \"外景固定或慢摇，拍摄商场入口和品牌招牌\", \"assetQuery\": \"商业综合体 外景 商场入口 品牌招牌\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"商业街空镜\"}, {\"sceneNo\": 10, \"timeRange\": \"01:22-01:30\", \"visualGoal\": \"结尾点题，引导客户主动咨询\", \"voiceover\": \"所以你看，这种成熟真不是规划图上的，是现在就能走进去的日子。想看实际尺度，随时约我带你走一圈。\", \"subtitle\": \"所以你看，这种成熟真不是规划图上的，是现在就能走进去的日子。想看实际尺度，随时约我带你走一圈。\", \"shotRequirement\": \"手持自拍或助理拍摄，成员半身近景，背景为小区花园和绿化\", \"assetQuery\": \"小区花园 成员出镜 CTA\", \"uploadRequired\": true, \"uploadReason\": \"成员真人出镜结尾CTA\", \"assetSourceHint\": \"\", \"fallbackVisual\": \"小区花园空镜+文字CTA\"}], \"requiredUploads\": [\"6号线地铁站出口 站牌 手持拍摄\", \"小区花园 成员出镜 CTA\"], \"optionalTeamVideoAssets\": [\"社区底商一条街 水果店 早餐铺 招牌\", \"社区主入口 保安岗亭 人行闸机 大门\", \"商务大堂 4米挑高 石材墙面 物业前台\", \"电梯间 楼道灯光 标示牌 干净整洁\", \"4米层高客厅 大广角 自然采光 样板间\", \"卧室窗外 学校操场 空镜\", \"厨房明窗 卫生间 空间留白 灵活\", \"商业综合体 外景 商场入口 品牌招牌\"], \"shootingTips\": [\"全部手持拍摄，减少固定机位，增强真实感\", \"旁白用聊天语气，可以带口播气泡音，不要播音腔\", \"每个场景停留不超过8秒，快节奏传递信息密度\", \"避免字幕出现任何价格数字或收益暗示\"], \"riskNotes\": []}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 6, \"compliance\": 8}, \"pass\": false, \"needsRewrite\": true, \"riskTerms\": [], \"problems\": [\"缺少可用图片素材\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"图文图片素材\"], \"preRepairPass\": false, \"autoRewritten\": true, \"repairPolicy\": \"validator_risk_terms_minimal_rewrite\"}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"成熟配套怎么讲\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"信任建立\", \"targetAudience\": \"首次看房客户\", \"audiencePain\": \"担忧项目周边生活配套不成熟\", \"sellingPointsNeeded\": [\"生活便利\", \"配套成熟\", \"交通便捷\"], \"riskConstraints\": [], \"copySearchQuery\": \"首次看房客户 成熟配套 生活便利 项目实景 周边探店\", \"scriptSearchQuery\": \"首次看房客户 成熟配套 生活便利 周边真实生活 项目实景\", \"imageSearchQuery\": \"成熟小区配套实景 商业街 学校 菜市场 公园\", \"videoAssetQueryHints\": [\"周边配套航拍\", \"商业街实拍\", \"学校门口\", \"社区生活场景\"], \"extraRequirement\": \"语气真实一点，像发给老客户看的内容\"}, \"creativeStrategy\": {\"storyOutline\": \"从地铁站出发，沿途展示社区底商、菜市场、便利店等日常消费场景，走进项目大堂感受层高和商务氛围，进入样板间展示4米层高带来的空间舒适感，最后走到街对面商业综合体，用真实生活画面告诉客户：楼下就能解决绝大部分生活需求。全程像朋友边走边聊，不念稿。\", \"estimatedDuration\": \"01:30\", \"scenes\": [\"地铁口全景，带过6号线站牌，边走边说通勤便利性\", \"沿街底商慢镜头：水果店、早餐铺、药店招牌，同步说这就是日常\", \"社区主入口，拍保安岗亭和人行闸机，强调安全感\", \"大堂中景：4米挑高、石材墙面、物业前台，说品质感来自细节\", \"电梯上行手部特写，楼道灯光和标示牌\", \"样板间开门瞬间，大广角展示4米层高客厅，自然光通透\", \"卧室窗口视野，拉近看到楼下学校操场，提到三所学校环绕\", \"厨房和洗手间短镜头，说完功能再说空间留白可自由布置\", \"商业Mall外景，定格品牌商家招牌，说周末下楼就能逛街\", \"回到小区花园，手持镜头平稳，说这种成熟不是图纸上的，是现在就能走进去的\"], \"requiredUploads\": [\"项目周边地铁站实拍视频\", \"社区底商一条街实拍\", \"项目大堂和公共区域实拍\", \"4米层高样板间多角度实拍\", \"社区花园和儿童设施实拍\"], \"optionalTeamVideoAssets\": [\"社区全景航拍\", \"夜间商业街亮灯延时\", \"老人下棋、小孩玩耍的生活镜头\"], \"shootingTips\": [\"全部手持拍摄，减少固定机位，增强真实感\", \"旁白用聊天语气，可以带口播气泡音，不要播音腔\", \"每个场景停留不超过8秒，快节奏传递信息密度\", \"避免字幕出现任何价格数字或收益暗示\"], \"riskNotes\": []}, \"usedKnowledgeRefs\": [], \"usedViralRefs\": [], \"usedImageAssets\": [], \"degradationNotices\": [\"已根据质量门禁命中风险词进行自动改写\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

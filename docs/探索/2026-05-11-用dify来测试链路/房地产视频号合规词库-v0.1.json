@@ -1,0 +1,391 @@
+{
+  "version": "real_estate_video_compliance_lexicon_v0.1",
+  "updatedAt": "2026-05-11",
+  "scope": [
+    "微信视频号房地产内容",
+    "房地产广告/营销文案",
+    "小红书/抖音等短视频图文内容的预审参考"
+  ],
+  "sourceNotes": [
+    {
+      "name": "微信视频号房地产类直播营销信息发布规范",
+      "url": "https://weixin.qq.com/cgi-bin/readtemplate?t=finder_estate_marketing_guide&lang=zh_CN",
+      "type": "platform_official",
+      "notes": "适用于视频号直播活动中房地产类营销信息；短视频内容可参考同类口径。"
+    },
+    {
+      "name": "房地产广告发布规定",
+      "url": "https://www.gov.cn/zhengce/2021-04/22/content_5723680.htm",
+      "type": "regulation_official",
+      "notes": "国家市场监督管理总局规章；房地产广告必须真实、合法、科学、准确。"
+    },
+    {
+      "name": "中华人民共和国广告法",
+      "url": "https://www.npc.gov.cn/zgrdw/npc/cwhhy/12jcwh/2015-04/25/content_1934594.htm",
+      "type": "law_official",
+      "notes": "包含绝对化用语禁用和房地产广告禁止事项。"
+    },
+    {
+      "name": "视频号房地产行业公约媒体报道",
+      "url": "https://www.nbd.com.cn/articles/2026-05-09/4385189.html",
+      "type": "platform_policy_media_report",
+      "notes": "报道称公约 2026-05-12 生效，来源指向微信视频创作安全中心；需后续补官方原文。"
+    }
+  ],
+  "severityLevels": {
+    "hard_block": "公开成稿命中即不建议发布，需要改写或补证据",
+    "high_risk": "强风险，通常应改写；如必须保留需人工确认依据和资质",
+    "needs_fact_check": "可以说，但必须有官方/合同/许可证/规划文件等依据",
+    "platform_risk": "可能触发视频号限流、删除、取消认证、封禁等平台处置"
+  },
+  "categories": [
+    {
+      "id": "return_or_appreciation_promise",
+      "name": "升值/收益/投资回报承诺",
+      "severity": "hard_block",
+      "sourceBasis": [
+        "广告法第二十六条",
+        "房地产广告发布规定第四条",
+        "微信视频号房地产类直播营销信息发布规范 2.9.1"
+      ],
+      "blockedTerms": [
+        "升值",
+        "增值",
+        "保值增值",
+        "投资回报",
+        "回报率",
+        "投资回报率",
+        "租金回报",
+        "收益稳定",
+        "稳定收益",
+        "稳赚",
+        "稳赚",
+        "躺赚",
+        "包赚",
+        "暴富",
+        "翻倍",
+        "现金流",
+        "资产回报",
+        "资产配置",
+        "收租",
+        "包租",
+        "返租",
+        "保租",
+        "贴月供",
+        "租出去不是问题"
+      ],
+      "regexPatterns": [
+        "(必|肯定|一定| guaranteed)?(涨|升值|增值)",
+        "(年化|年收益|收益率|回报率)\\s*\\d+(\\.\\d+)?\\s*%",
+        "(月租|租金|租金回报).*(覆盖|抵|贴).*(月供|房贷)"
+      ],
+      "safeAlternatives": [
+        "预算门槛相对友好，适合结合预算进一步了解",
+        "周边已有真实生活和经营场景可观察",
+        "空间用途较灵活，具体用途以实际需求和官方口径为准"
+      ]
+    },
+    {
+      "id": "price_panic_or_market_hype",
+      "name": "价格趋势/抄底/焦虑营销",
+      "severity": "high_risk",
+      "sourceBasis": [
+        "房地产广告发布规定第四条",
+        "微信视频号房地产类直播营销信息发布规范 2.9.7、2.9.9",
+        "视频号房地产行业公约媒体报道"
+      ],
+      "blockedTerms": [
+        "抄底",
+        "底部价",
+        "最低价",
+        "历史最低",
+        "价格洼地",
+        "价值洼地",
+        "低位价格",
+        "价格错位",
+        "捡漏",
+        "笋盘",
+        "最后机会",
+        "错过后悔",
+        "马上涨价",
+        "再不上车就晚了",
+        "楼王",
+        "地王",
+        "最牛楼盘"
+      ],
+      "regexPatterns": [
+        "(错过|不买|不上车).*(后悔|晚了|没机会)",
+        "(马上|即将|明天|下周).*(涨价|调价|收回优惠)"
+      ],
+      "safeAlternatives": [
+        "可以结合当前报价和自身预算判断",
+        "先看总价、生活半径和空间是否匹配",
+        "具体价格和优惠以案场/官方最新口径为准"
+      ]
+    },
+    {
+      "id": "absolute_superlatives",
+      "name": "绝对化用语",
+      "severity": "hard_block",
+      "sourceBasis": [
+        "广告法第九条",
+        "微信视频号房地产类直播营销信息发布规范 2.9.9"
+      ],
+      "blockedTerms": [
+        "国家级",
+        "最高级",
+        "最佳",
+        "最好",
+        "最先进",
+        "第一",
+        "全国第一",
+        "唯一",
+        "顶级",
+        "极品",
+        "绝版",
+        "首选",
+        "天花板",
+        "无敌",
+        "完美"
+      ],
+      "regexPatterns": [
+        "(全国|全城|区域|板块)?第[一1]",
+        "最(好|佳|低|强|牛|火|值得|划算)"
+      ],
+      "safeAlternatives": [
+        "比较受关注",
+        "对部分客户来说更匹配",
+        "可以重点看看"
+      ]
+    },
+    {
+      "id": "hukou_school_employment_promise",
+      "name": "户口/就业/升学承诺",
+      "severity": "hard_block",
+      "sourceBasis": [
+        "房地产广告发布规定第十八条",
+        "微信视频号房地产类直播营销信息发布规范 2.9.6"
+      ],
+      "blockedTerms": [
+        "包落户",
+        "可落户",
+        "解决户口",
+        "办理户口",
+        "包就业",
+        "安排就业",
+        "包上学",
+        "保证入学",
+        "保证升学",
+        "学区房",
+        "学位房",
+        "名校名额",
+        "对口名校",
+        "买房送学位"
+      ],
+      "regexPatterns": [
+        "(买|购).*(房|铺|公寓).*(落户|户口|入学|升学|就业)",
+        "(保证|确保|包).*(入学|上学|升学|落户|就业)"
+      ],
+      "safeAlternatives": [
+        "周边教育资源需以主管部门当年政策为准",
+        "落户、入学等事项请以官方政策和实际审核结果为准"
+      ]
+    },
+    {
+      "id": "planning_or_location_misleading",
+      "name": "规划/位置/配套误导",
+      "severity": "needs_fact_check",
+      "sourceBasis": [
+        "广告法第二十六条",
+        "房地产广告发布规定第四条、第十一条、第十二条",
+        "微信视频号房地产类直播营销信息发布规范 2.7、2.9.3"
+      ],
+      "blockedTerms": [
+        "地铁上盖",
+        "地铁口",
+        "政府重点规划",
+        "规划利好",
+        "马上通车",
+        "即将通车",
+        "成熟兑现",
+        "确定兑现",
+        "未来核心区"
+      ],
+      "regexPatterns": [
+        "\\d+\\s*(分钟|min).*(到达|直达|到).*(地铁|学校|商圈|医院|机场|高铁)",
+        "(规划|建设中|待建|在建).*(已成熟|已兑现|确定|保证)"
+      ],
+      "safeAlternatives": [
+        "距离和通勤时间建议以地图实测为准",
+        "规划或建设中配套需明确说明当前状态",
+        "现有配套可现场查看，规划信息以官方公示为准"
+      ]
+    },
+    {
+      "id": "false_or_incomplete_listing",
+      "name": "虚假房源/关键信息缺失",
+      "severity": "hard_block",
+      "sourceBasis": [
+        "房地产广告发布规定第三条、第四条",
+        "视频号房地产行业公约媒体报道"
+      ],
+      "blockedTerms": [
+        "房东急售但无项目名",
+        "领取资料私聊",
+        "加微信看底价",
+        "内部房源",
+        "神秘房源",
+        "不方便说楼盘名",
+        "私信发定位",
+        "虚构房源",
+        "已售仍推",
+        "已租仍推"
+      ],
+      "requiredInfoWhenSellingSpecificProject": [
+        "项目名称",
+        "开发企业或中介机构名称",
+        "预售/销售许可证号",
+        "价格有效期",
+        "建筑面积或套内建筑面积",
+        "物业类型",
+        "房源状态"
+      ],
+      "safeAlternatives": [
+        "公开说明项目名、类型、面积、价格口径和许可证信息",
+        "不确定的房源状态先不要发布"
+      ]
+    },
+    {
+      "id": "property_type_or_area_misrepresentation",
+      "name": "物业类型/面积误导",
+      "severity": "hard_block",
+      "sourceBasis": [
+        "房地产广告发布规定第四条、第十三条、第十四条、第十五条",
+        "微信视频号房地产类直播营销信息发布规范 2.4、2.9.4、2.9.8",
+        "视频号房地产行业公约媒体报道"
+      ],
+      "blockedTerms": [
+        "商办当住宅",
+        "公寓包装成住宅",
+        "买一层送一层",
+        "赠送面积",
+        "实际使用面积翻倍",
+        "偷面积",
+        "搭板赠送",
+        "不限购不限贷但未说明性质",
+        "效果图当实景",
+        "其他项目实景冒充本项目"
+      ],
+      "safeAlternatives": [
+        "明确物业类型和产权/使用权口径",
+        "面积按建筑面积或套内建筑面积表达",
+        "效果图、模型图、示意图需明确标注"
+      ]
+    },
+    {
+      "id": "financing_or_loan_misleading",
+      "name": "融资/贷款误导",
+      "severity": "hard_block",
+      "sourceBasis": [
+        "房地产广告发布规定第十六条、第十七条",
+        "微信视频号房地产类直播营销信息发布规范 2.9.5"
+      ],
+      "blockedTerms": [
+        "零首付",
+        "首付贷",
+        "首付分期",
+        "垫资",
+        "返现",
+        "贴息",
+        "众筹买房",
+        "融资认购",
+        "代办贷款保证过",
+        "贷款包过"
+      ],
+      "safeAlternatives": [
+        "贷款政策以银行实际审核为准",
+        "涉及贷款服务需载明合作银行、额度、年期等真实信息"
+      ]
+    },
+    {
+      "id": "superstition_or_fengshui",
+      "name": "风水/迷信营销",
+      "severity": "hard_block",
+      "sourceBasis": [
+        "房地产广告发布规定第八条",
+        "微信视频号房地产类直播营销信息发布规范 2.9.2"
+      ],
+      "blockedTerms": [
+        "风水宝地",
+        "旺财",
+        "旺丁",
+        "龙脉",
+        "聚财",
+        "镇宅",
+        "招财",
+        "大师开光",
+        "五行旺宅"
+      ],
+      "safeAlternatives": [
+        "采光、通风、动线、噪音等可观察居住体验"
+      ]
+    },
+    {
+      "id": "platform_account_and_traffic_risk",
+      "name": "视频号账号/引流/低质内容风险",
+      "severity": "platform_risk",
+      "sourceBasis": [
+        "视频号房地产行业公约媒体报道",
+        "微信视频号房地产类直播营销信息发布规范 3"
+      ],
+      "blockedTerms": [
+        "加微信领资料",
+        "私加我发底价",
+        "不方便公开说",
+        "矩阵霸屏",
+        "批量号",
+        "同质化搬运",
+        "标题党",
+        "蹭监管热点",
+        "被叫停",
+        "遭查处"
+      ],
+      "safeAlternatives": [
+        "使用平台允许的留资方式",
+        "内容保持项目事实完整、客观真实、专业克制"
+      ]
+    }
+  ],
+  "validatorDefaults": {
+    "hardBlockCategories": [
+      "return_or_appreciation_promise",
+      "absolute_superlatives",
+      "hukou_school_employment_promise",
+      "false_or_incomplete_listing",
+      "property_type_or_area_misrepresentation",
+      "financing_or_loan_misleading",
+      "superstition_or_fengshui"
+    ],
+    "publicFieldsToScan": [
+      "articlePackage.selectedTitle",
+      "articlePackage.coverCopy",
+      "articlePackage.body",
+      "articlePackage.hashtags",
+      "articlePackage.cta",
+      "articlePackage.copyReadyText",
+      "videoScript.storyOutline",
+      "videoScript.scenes[].voiceover",
+      "videoScript.scenes[].subtitle",
+      "videoScript.scenes[].shotRequirement",
+      "videoScript.scenes[].assetQuery"
+    ],
+    "doNotScanAsViolation": [
+      "trace",
+      "riskNotes",
+      "qualityReview.problems",
+      "qualityReview.redFlags",
+      "rawInput",
+      "knowledgeRefs"
+    ]
+  }
+}

@@ -1,0 +1,466 @@
+{
+  "case_name": "case03_weak_knowledge",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case03_weak_knowledge.json",
+  "run_index": 1,
+  "timestamp": "20260512_150017_250466",
+  "elapsed_time": 207.94690704345703,
+  "success": true,
+  "workflow_run_id": "32484743-55d9-49c5-8f07-6f17c749d82b",
+  "error": null,
+  "raw_response": {
+    "id": "32484743-55d9-49c5-8f07-6f17c749d82b",
+    "workflow_id": "a8efdbbd-6ecd-4dd9-b1ad-834ad8236e7a",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"低总价小面积，先别急着买，先看这3件事\", \"预算有限也能看房，但有些盘不该冲\", \"小面积产品，适合先了解再判断\"], \"selectedTitle\": \"低总价小面积，先别急着买，先看这3件事\", \"coverCopy\": \"预算有限？先了解再判断，不踩坑\", \"body\": \"预算有限也能看房，但别冲动。\\n\\n最近确实有客户重新问起小面积产品。总价门槛相对友好，空间用途较灵活，但关键要看是否适合你。\\n\\n看房前先理清三个问题：\\n1. 通勤时间能不能接受？\\n2. 周边配套是否真实可用？\\n3. 未来用途是自用还是其他？\\n\\n项目已有商业配套和真实经营场景可观察，不是图纸上的规划。但有些客户不该买，有些盘不该冲。\\n\\n不急着决定，先把判断逻辑弄清。私信发送你的预算和家庭结构，我帮你分析这盘值不值得看。\", \"hashtags\": [\"#小面积产品\", \"#预算友好\", \"#看房前必看\", \"#真实顾问\", \"#先了解再判断\"], \"cta\": \"私信发送你的预算和家庭结构，获取个性化判断。\", \"imageMatches\": [{\"assetId\": \"img_003\", \"title\": \"项目入口\", \"usage\": \"封面图\", \"reason\": \"项目入口实景图，适合作为封面，建立真实感\"}], \"imageBriefIfMissing\": \"需要补充小面积样板间或空间示意图、周边商业配套实拍图、看房过程或顾问沟通场景图，以增强内容可信度。\", \"riskNotes\": [\"已过滤风险词：投资回报率高、租金回报高、稳赚、保值增值、满租、租金区间、租金回报、低位价格、价格错位、收租、贴月供、租出去、保租、保回报、确定兑现、运营成熟验证\", \"所有价格、收益相关表述已替换为安全措辞，未承诺具体投资回报或租金水平\", \"未使用任何风险词词典中的原词\"], \"copyReadyText\": \"低总价小面积，先别急着买，先看这3件事\\n\\n预算有限？先了解再判断，不踩坑\\n\\n预算有限也能看房，但别冲动。\\n\\n最近确实有客户重新问起小面积产品。总价门槛相对友好，空间用途较灵活，但关键要看是否适合你。\\n\\n看房前先理清三个问题：\\n1. 通勤时间能不能接受？\\n2. 周边配套是否真实可用？\\n3. 未来用途是自用还是其他？\\n\\n项目已有商业配套和真实经营场景可观察，不是图纸上的规划。但有些客户不该买，有些盘不该冲。\\n\\n不急着决定，先把判断逻辑弄清。私信发送你的预算和家庭结构，我帮你分析这盘值不值得看。\\n\\n#小面积产品 #预算友好 #看房前必看 #真实顾问 #先了解再判断\\n\\n私信发送你的预算和家庭结构，获取个性化判断。\"}, \"videoScript\": {\"storyOutline\": \"以顾问视角，带观众了解低总价小面积产品，强调先判断再决定，避免冲动。开头用反焦虑钩子，中间展示项目入口和空间，穿插看房逻辑讲解，结尾引导私信。\", \"estimatedDuration\": \"45-60秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-8秒\", \"visualGoal\": \"项目入口外景，建立真实感，配合反焦虑字幕\", \"voiceover\": \"预算有限也能看房，但别急着决定。先看这3件事。\", \"subtitle\": \"预算有限？先别急\", \"shotRequirement\": \"项目入口实拍视频，稳定运镜，展示小区大门或楼栋外观\", \"assetQuery\": \"项目入口外景 小区大门 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"项目入口静态照片缓慢放大\"}, {\"sceneNo\": 2, \"timeRange\": \"8-18秒\", \"visualGoal\": \"小面积空间展示，突出总价友好但需理性判断\", \"voiceover\": \"小面积产品总价门槛相对友好，空间用途较灵活，但关键要看是否适合你。\", \"subtitle\": \"总价友好，但要看是否适合你\", \"shotRequirement\": \"小面积样板间内部视频，展示客厅或主要功能区，光线明亮\", \"assetQuery\": \"小面积样板间 内部空间 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"小面积户型图动态展示\"}, {\"sceneNo\": 3, \"timeRange\": \"18-28秒\", \"visualGoal\": \"周边配套镜头，证明生活便利可观察\", \"voiceover\": \"项目已有商业配套和真实经营场景可观察，不是图纸上的规划。\", \"subtitle\": \"真实配套，可实地感受\", \"shotRequirement\": \"周边商业街或配套实拍，如便利店、餐饮店等，体现生活气息\", \"assetQuery\": \"项目周边商业配套 街景 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"商业配套照片轮播\"}, {\"sceneNo\": 4, \"timeRange\": \"28-40秒\", \"visualGoal\": \"顾问出镜或画外音，讲解三个判断问题，建立专业信任感\", \"voiceover\": \"看房前先理清三个问题：通勤时间能不能接受？周边配套是否真实可用？未来用途是自用还是其他？\", \"subtitle\": \"三个问题帮你判断\", \"shotRequirement\": \"真人出镜或手持手机自拍，背景可为项目环境，语气理性克制\", \"assetQuery\": \"顾问讲解 看房逻辑 真人出镜\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜讲解看房逻辑，建立顾问信任感\", \"assetSourceHint\": \"self_shoot\", \"fallbackVisual\": \"文字动画展示三个问题\"}, {\"sceneNo\": 5, \"timeRange\": \"40-50秒\", \"visualGoal\": \"真实案例感，强调有些客户不该买，强化顾问人设\", \"voiceover\": \"有些客户不该买，有些盘不该冲。不急着决定，先把判断逻辑弄清。\", \"subtitle\": \"不急着决定，先弄清逻辑\", \"shotRequirement\": \"顾问出镜或画外音，配合项目环境空镜，表情认真\", \"assetQuery\": \"顾问沟通场景 真实感\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜表达理性建议，增强可信度\", \"assetSourceHint\": \"self_shoot\", \"fallbackVisual\": \"项目环境空镜配文字\"}, {\"sceneNo\": 6, \"timeRange\": \"50-60秒\", \"visualGoal\": \"结尾CTA，引导私信获取个性化判断\", \"voiceover\": \"私信发送你的预算和家庭结构，我帮你分析这盘值不值得看。\", \"subtitle\": \"私信获取个性化建议\", \"shotRequirement\": \"结尾字幕或真人出镜，手势引导私信，背景为项目或纯色\", \"assetQuery\": \"结尾CTA 私信引导 真人出镜\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜引导私信，完成转化动作\", \"assetSourceHint\": \"self_shoot\", \"fallbackVisual\": \"动态文字引导私信\"}], \"requiredUploads\": [\"真人出镜讲解看房逻辑，背景可为项目环境，语气理性克制\", \"真人出镜表达理性建议，增强可信度\", \"真人出镜引导私信，完成转化动作\"], \"optionalTeamVideoAssets\": [\"项目入口外景 小区大门 实拍\", \"小面积样板间 内部空间 实拍\", \"项目周边商业配套 街景 实拍\"], \"shootingTips\": [\"场景1-3使用团队已有素材或补拍，确保画面稳定、光线充足\", \"场景4-6需真人出镜，建议使用手机自拍或固定机位，背景简洁，声音清晰\", \"字幕与口播严格同步，避免风险词，所有价格相关表述使用‘总价门槛相对友好’等安全措辞\", \"结尾CTA明确，手势或箭头引导私信，停留2-3秒\"], \"riskNotes\": [\"已过滤风险词：投资回报率高、租金回报高、稳赚、保值增值、满租、租金区间、租金回报、低位价格、价格错位、收租、贴月供、租出去、保租、保回报、确定兑现、运营成熟验证\", \"所有价格、收益相关表述已替换为安全措辞，未承诺具体投资回报或租金水平\", \"未使用任何风险词词典中的原词\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 5, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 8}, \"pass\": false, \"needsRewrite\": true, \"riskTerms\": [\"投资回报率高\", \"租金回报高\", \"稳赚\", \"保值增值\", \"满租\", \"租金区间\", \"租金回报\", \"低位价格\", \"价格错位\", \"确定兑现\", \"运营成熟验证\", \"收租\", \"贴月供\", \"租出去\", \"保租\", \"保回报\"], \"problems\": [\"项目知识不足，成稿仅适合内部预览\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"更完整的项目事实\"], \"preRepairPass\": false, \"autoRewritten\": true, \"repairPolicy\": \"validator_risk_terms_minimal_rewrite\"}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"低总价上车\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"种草\", \"targetAudience\": \"预算敏感客户\", \"audiencePain\": \"预算有限，担心买不起，想找门槛低的房产\", \"sellingPointsNeeded\": [\"低总价门槛\", \"小户型实用空间\", \"月供轻松\", \"首付压力小\"], \"riskConstraints\": [], \"copySearchQuery\": \"低总价上车小面积户型 预算敏感客户 首付低 月供轻松 年轻刚需 第一套房\", \"scriptSearchQuery\": \"低总价小户型 首付月供 预算有限 看房 vlog 小面积\", \"imageSearchQuery\": \"低总价小户型 客厅 卧室 样板间 实景 精致 小空间\", \"videoAssetQueryHints\": [\"小户型样板间实拍\", \"置业顾问解说低总价\", \"客户看房过程\", \"户型图展示\"], \"extraRequirement\": \"内容需严谨，仅陈述普遍事实，不承诺具体价格或收益\"}, \"creativeStrategy\": {\"chosenAngle\": \"低总价小面积产品，适合预算有限客户先了解\", \"narrativeArc\": [\"预算有限也能先看房，不急着买\", \"小面积产品为什么值得关注\", \"看房前需要理清的三个问题\", \"真实顾问感：有些客户不该买、有些盘不该冲\", \"引导私信获取个性化判断\"], \"tone\": \"理性、克制、顾问式\", \"mustUseFacts\": [\"项目有小面积产品可供了解\", \"已有商业配套和真实经营场景可观察\", \"当前总价门槛相对友好，需结合预算判断\", \"空间用途较灵活，具体使用以实际需求和官方口径为准\"], \"mustAvoidClaims\": [\"投资回报率高\", \"租金回报高\", \"稳赚\", \"保值增值\", \"满租\", \"租金区间\", \"租金回报\", \"投资属性\", \"资产回报\", \"低位价格\", \"价格错位\", \"收租\", \"贴月供\", \"租出去\", \"保租\", \"保回报\", \"确定兑现\", \"运营成熟验证\"], \"viralPatternUsed\": {\"patternName\": \"顾问式种草\", \"reason\": \"预算敏感客户需要信任感，通过提供判断逻辑而非推销来建立连接\", \"titleTactics\": [\"数字清单式\", \"反焦虑式\"], \"hookTactics\": [\"先别急着交定金，先看这3件事\", \"预算有限也能看房，但有些盘不该冲\"], \"ctaTactics\": [\"私信发送预算和家庭结构，获取个性化判断\", \"不急着买也可以，先把判断逻辑弄清\"]}, \"articlePlan\": {\"titleDirection\": \"低总价小面积，先别急着买，先看这3件事\", \"coverCopyDirection\": \"预算有限？先了解再判断，不踩坑\", \"bodyStructure\": [\"开头：预算有限也能看房，但别冲动\", \"小面积产品特点：总价友好，空间灵活\", \"看房前必问的三个问题：通勤、配套、未来用途\", \"真实案例：有些客户不该买，有些盘不该冲\", \"结尾：私信获取个性化判断，不急着买\"], \"imagePlan\": [\"项目入口实景图（已有素材）\", \"小面积样板间或空间示意图（需补充）\", \"周边商业配套实拍（如有）\", \"看房过程或顾问沟通场景图（需补充）\"]}, \"videoPlan\": {\"storyOutline\": \"以顾问视角，带观众了解低总价小面积产品，强调先判断再决定，避免冲动。开头用反焦虑钩子，中间展示项目入口和空间，穿插看房逻辑讲解，结尾引导私信。\", \"estimatedDuration\": \"45-60秒\", \"scenePlan\": [\"项目入口外景，带字幕：预算有限？先别急\", \"小面积空间展示，配解说：总价友好，但要看是否适合你\", \"周边配套镜头，解说：已有真实经营场景，生活便利可观察\", \"顾问出镜或画外音：三个问题帮你判断——通勤、用途、长期计划\", \"结尾字幕：私信发送你的情况，获取个性化建议\"], \"requiredUploads\": [\"项目入口实拍视频\", \"小面积空间内部视频\", \"周边商业配套视频\"], \"assetQueryHints\": [\"小面积样板间实拍\", \"项目周边商业街景\", \"顾问讲解场景\"]}, \"degradationNotices\": [\"项目事实不足：未提供具体项目名、区域、户型、配套名称，内容保持泛化但克制\"], \"trace\": {\"usedKnowledgeSummary\": [\"知识库片段1：提及小户型市场关注度高，总价五六十万，但未提供具体项目名，且含风险词，已过滤\", \"知识库片段2：提供线上入口话术，如“把预算、家庭结构、工作通勤发我，我先告诉你这盘值不值得看”\", \"知识库片段3：提供内容方向，如买错风险拆解、家庭阶段匹配、过程透明、真实顾问感\"], \"usedViralSummary\": [\"无爆款内容参考，采用通用顾问式种草结构\"], \"usedImageSummary\": [\"使用图片素材：项目入口图（img_003）\"]}, \"qualityGateHints\": {\"factWeakness\": \"项目具体信息缺失，所有事实均为通用描述，需后续补充项目名、区域、户型等\", \"complianceRisks\": [\"收益承诺类\", \"出租确定性类\", \"价格趋势类\"], \"mustReviewBeforePublish\": [\"确认所有价格、收益相关表述已替换为安全措辞\", \"确认未使用任何风险词词典中的原词\", \"确认未承诺具体投资回报或租金水平\"]}}, \"usedKnowledgeRefs\": [\"项目有小面积产品可供了解\", \"已有商业配套和真实经营场景可观察\", \"当前总价门槛相对友好，需结合预算判断\", \"空间用途较灵活，具体使用以实际需求和官方口径为准\"], \"usedViralRefs\": [{\"patternName\": \"顾问式种草\", \"reason\": \"预算敏感客户需要信任感，通过提供判断逻辑而非推销来建立连接\", \"titleTactics\": [\"数字清单式\", \"反焦虑式\"], \"hookTactics\": [\"先别急着交定金，先看这3件事\", \"预算有限也能看房，但有些盘不该冲\"], \"ctaTactics\": [\"私信发送预算和家庭结构，获取个性化判断\", \"不急着买也可以，先把判断逻辑弄清\"]}], \"usedImageAssets\": [{\"assetId\": \"img_003\", \"title\": \"项目入口\"}], \"degradationNotices\": [\"项目事实不足：未提供具体项目名、区域、户型、配套名称，内容保持泛化但克制\", \"已根据质量门禁命中风险词进行自动改写\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 201.463946,
+    "total_tokens": 19365,
+    "total_steps": 13,
+    "created_by": {
+      "id": "2f9bc242-3070-4c96-b8b2-8f790bd39f57",
+      "user": "content_calendar_test_case03_weak_knowledge_1778569217"
+    },
+    "created_at": 1778569222,
+    "finished_at": 1778569423,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [
+        "低总价小面积，先别急着买，先看这3件事",
+        "预算有限也能看房，但有些盘不该冲",
+        "小面积产品，适合先了解再判断"
+      ],
+      "selectedTitle": "低总价小面积，先别急着买，先看这3件事",
+      "coverCopy": "预算有限？先了解再判断，不踩坑",
+      "body": "预算有限也能看房，但别冲动。\n\n最近确实有客户重新问起小面积产品。总价门槛相对友好，空间用途较灵活，但关键要看是否适合你。\n\n看房前先理清三个问题：\n1. 通勤时间能不能接受？\n2. 周边配套是否真实可用？\n3. 未来用途是自用还是其他？\n\n项目已有商业配套和真实经营场景可观察，不是图纸上的规划。但有些客户不该买，有些盘不该冲。\n\n不急着决定，先把判断逻辑弄清。私信发送你的预算和家庭结构，我帮你分析这盘值不值得看。",
+      "hashtags": [
+        "#小面积产品",
+        "#预算友好",
+        "#看房前必看",
+        "#真实顾问",
+        "#先了解再判断"
+      ],
+      "cta": "私信发送你的预算和家庭结构，获取个性化判断。",
+      "imageMatches": [
+        {
+          "assetId": "img_003",
+          "title": "项目入口",
+          "usage": "封面图",
+          "reason": "项目入口实景图，适合作为封面，建立真实感"
+        }
+      ],
+      "imageBriefIfMissing": "需要补充小面积样板间或空间示意图、周边商业配套实拍图、看房过程或顾问沟通场景图，以增强内容可信度。",
+      "riskNotes": [
+        "已过滤风险词：投资回报率高、租金回报高、稳赚、保值增值、满租、租金区间、租金回报、低位价格、价格错位、收租、贴月供、租出去、保租、保回报、确定兑现、运营成熟验证",
+        "所有价格、收益相关表述已替换为安全措辞，未承诺具体投资回报或租金水平",
+        "未使用任何风险词词典中的原词"
+      ],
+      "copyReadyText": "低总价小面积，先别急着买，先看这3件事\n\n预算有限？先了解再判断，不踩坑\n\n预算有限也能看房，但别冲动。\n\n最近确实有客户重新问起小面积产品。总价门槛相对友好，空间用途较灵活，但关键要看是否适合你。\n\n看房前先理清三个问题：\n1. 通勤时间能不能接受？\n2. 周边配套是否真实可用？\n3. 未来用途是自用还是其他？\n\n项目已有商业配套和真实经营场景可观察，不是图纸上的规划。但有些客户不该买，有些盘不该冲。\n\n不急着决定，先把判断逻辑弄清。私信发送你的预算和家庭结构，我帮你分析这盘值不值得看。\n\n#小面积产品 #预算友好 #看房前必看 #真实顾问 #先了解再判断\n\n私信发送你的预算和家庭结构，获取个性化判断。"
+    },
+    "videoScript": {
+      "storyOutline": "以顾问视角，带观众了解低总价小面积产品，强调先判断再决定，避免冲动。开头用反焦虑钩子，中间展示项目入口和空间，穿插看房逻辑讲解，结尾引导私信。",
+      "estimatedDuration": "45-60秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-8秒",
+          "visualGoal": "项目入口外景，建立真实感，配合反焦虑字幕",
+          "voiceover": "预算有限也能看房，但别急着决定。先看这3件事。",
+          "subtitle": "预算有限？先别急",
+          "shotRequirement": "项目入口实拍视频，稳定运镜，展示小区大门或楼栋外观",
+          "assetQuery": "项目入口外景 小区大门 实拍",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "项目入口静态照片缓慢放大"
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "8-18秒",
+          "visualGoal": "小面积空间展示，突出总价友好但需理性判断",
+          "voiceover": "小面积产品总价门槛相对友好，空间用途较灵活，但关键要看是否适合你。",
+          "subtitle": "总价友好，但要看是否适合你",
+          "shotRequirement": "小面积样板间内部视频，展示客厅或主要功能区，光线明亮",
+          "assetQuery": "小面积样板间 内部空间 实拍",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "小面积户型图动态展示"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "18-28秒",
+          "visualGoal": "周边配套镜头，证明生活便利可观察",
+          "voiceover": "项目已有商业配套和真实经营场景可观察，不是图纸上的规划。",
+          "subtitle": "真实配套，可实地感受",
+          "shotRequirement": "周边商业街或配套实拍，如便利店、餐饮店等，体现生活气息",
+          "assetQuery": "项目周边商业配套 街景 实拍",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "商业配套照片轮播"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "28-40秒",
+          "visualGoal": "顾问出镜或画外音，讲解三个判断问题，建立专业信任感",
+          "voiceover": "看房前先理清三个问题：通勤时间能不能接受？周边配套是否真实可用？未来用途是自用还是其他？",
+          "subtitle": "三个问题帮你判断",
+          "shotRequirement": "真人出镜或手持手机自拍，背景可为项目环境，语气理性克制",
+          "assetQuery": "顾问讲解 看房逻辑 真人出镜",
+          "uploadRequired": true,
+          "uploadReason": "需要真人出镜讲解看房逻辑，建立顾问信任感",
+          "assetSourceHint": "self_shoot",
+          "fallbackVisual": "文字动画展示三个问题"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "40-50秒",
+          "visualGoal": "真实案例感，强调有些客户不该买，强化顾问人设",
+          "voiceover": "有些客户不该买，有些盘不该冲。不急着决定，先把判断逻辑弄清。",
+          "subtitle": "不急着决定，先弄清逻辑",
+          "shotRequirement": "顾问出镜或画外音，配合项目环境空镜，表情认真",
+          "assetQuery": "顾问沟通场景 真实感",
+          "uploadRequired": true,
+          "uploadReason": "需要真人出镜表达理性建议，增强可信度",
+          "assetSourceHint": "self_shoot",
+          "fallbackVisual": "项目环境空镜配文字"
+        },
+        {
+          "sceneNo": 6,
+          "timeRange": "50-60秒",
+          "visualGoal": "结尾CTA，引导私信获取个性化判断",
+          "voiceover": "私信发送你的预算和家庭结构，我帮你分析这盘值不值得看。",
+          "subtitle": "私信获取个性化建议",
+          "shotRequirement": "结尾字幕或真人出镜，手势引导私信，背景为项目或纯色",
+          "assetQuery": "结尾CTA 私信引导 真人出镜",
+          "uploadRequired": true,
+          "uploadReason": "需要真人出镜引导私信，完成转化动作",
+          "assetSourceHint": "self_shoot",
+          "fallbackVisual": "动态文字引导私信"
+        }
+      ],
+      "requiredUploads": [
+        "真人出镜讲解看房逻辑，背景可为项目环境，语气理性克制",
+        "真人出镜表达理性建议，增强可信度",
+        "真人出镜引导私信，完成转化动作"
+      ],
+      "optionalTeamVideoAssets": [
+        "项目入口外景 小区大门 实拍",
+        "小面积样板间 内部空间 实拍",
+        "项目周边商业配套 街景 实拍"
+      ],
+      "shootingTips": [
+        "场景1-3使用团队已有素材或补拍，确保画面稳定、光线充足",
+        "场景4-6需真人出镜，建议使用手机自拍或固定机位，背景简洁，声音清晰",
+        "字幕与口播严格同步，避免风险词，所有价格相关表述使用‘总价门槛相对友好’等安全措辞",
+        "结尾CTA明确，手势或箭头引导私信，停留2-3秒"
+      ],
+      "riskNotes": [
+        "已过滤风险词：投资回报率高、租金回报高、稳赚、保值增值、满租、租金区间、租金回报、低位价格、价格错位、收租、贴月供、租出去、保租、保回报、确定兑现、运营成熟验证",
+        "所有价格、收益相关表述已替换为安全措辞，未承诺具体投资回报或租金水平",
+        "未使用任何风险词词典中的原词"
+      ]
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 5,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 8,
+        "materialFit": 8,
+        "compliance": 8
+      },
+      "pass": false,
+      "needsRewrite": true,
+      "riskTerms": [
+        "投资回报率高",
+        "租金回报高",
+        "稳赚",
+        "保值增值",
+        "满租",
+        "租金区间",
+        "租金回报",
+        "低位价格",
+        "价格错位",
+        "确定兑现",
+        "运营成熟验证",
+        "收租",
+        "贴月供",
+        "租出去",
+        "保租",
+        "保回报"
+      ],
+      "problems": [
+        "项目知识不足，成稿仅适合内部预览"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": [
+        "更完整的项目事实"
+      ],
+      "preRepairPass": false,
+      "autoRewritten": true,
+      "repairPolicy": "validator_risk_terms_minimal_rewrite"
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "低总价上车",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "预算敏感客户",
+        "audiencePain": "预算有限，担心买不起，想找门槛低的房产",
+        "sellingPointsNeeded": [
+          "低总价门槛",
+          "小户型实用空间",
+          "月供轻松",
+          "首付压力小"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "低总价上车小面积户型 预算敏感客户 首付低 月供轻松 年轻刚需 第一套房",
+        "scriptSearchQuery": "低总价小户型 首付月供 预算有限 看房 vlog 小面积",
+        "imageSearchQuery": "低总价小户型 客厅 卧室 样板间 实景 精致 小空间",
+        "videoAssetQueryHints": [
+          "小户型样板间实拍",
+          "置业顾问解说低总价",
+          "客户看房过程",
+          "户型图展示"
+        ],
+        "extraRequirement": "内容需严谨，仅陈述普遍事实，不承诺具体价格或收益"
+      },
+      "creativeStrategy": {
+        "chosenAngle": "低总价小面积产品，适合预算有限客户先了解",
+        "narrativeArc": [
+          "预算有限也能先看房，不急着买",
+          "小面积产品为什么值得关注",
+          "看房前需要理清的三个问题",
+          "真实顾问感：有些客户不该买、有些盘不该冲",
+          "引导私信获取个性化判断"
+        ],
+        "tone": "理性、克制、顾问式",
+        "mustUseFacts": [
+          "项目有小面积产品可供了解",
+          "已有商业配套和真实经营场景可观察",
+          "当前总价门槛相对友好，需结合预算判断",
+          "空间用途较灵活，具体使用以实际需求和官方口径为准"
+        ],
+        "mustAvoidClaims": [
+          "投资回报率高",
+          "租金回报高",
+          "稳赚",
+          "保值增值",
+          "满租",
+          "租金区间",
+          "租金回报",
+          "投资属性",
+          "资产回报",
+          "低位价格",
+          "价格错位",
+          "收租",
+          "贴月供",
+          "租出去",
+          "保租",
+          "保回报",
+          "确定兑现",
+          "运营成熟验证"
+        ],
+        "viralPatternUsed": {
+          "patternName": "顾问式种草",
+          "reason": "预算敏感客户需要信任感，通过提供判断逻辑而非推销来建立连接",
+          "titleTactics": [
+            "数字清单式",
+            "反焦虑式"
+          ],
+          "hookTactics": [
+            "先别急着交定金，先看这3件事",
+            "预算有限也能看房，但有些盘不该冲"
+          ],
+          "ctaTactics": [
+            "私信发送预算和家庭结构，获取个性化判断",
+            "不急着买也可以，先把判断逻辑弄清"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "低总价小面积，先别急着买，先看这3件事",
+          "coverCopyDirection": "预算有限？先了解再判断，不踩坑",
+          "bodyStructure": [
+            "开头：预算有限也能看房，但别冲动",
+            "小面积产品特点：总价友好，空间灵活",
+            "看房前必问的三个问题：通勤、配套、未来用途",
+            "真实案例：有些客户不该买，有些盘不该冲",
+            "结尾：私信获取个性化判断，不急着买"
+          ],
+          "imagePlan": [
+            "项目入口实景图（已有素材）",
+            "小面积样板间或空间示意图（需补充）",
+            "周边商业配套实拍（如有）",
+            "看房过程或顾问沟通场景图（需补充）"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "以顾问视角，带观众了解低总价小面积产品，强调先判断再决定，避免冲动。开头用反焦虑钩子，中间展示项目入口和空间，穿插看房逻辑讲解，结尾引导私信。",
+          "estimatedDuration": "45-60秒",
+          "scenePlan": [
+            "项目入口外景，带字幕：预算有限？先别急",
+            "小面积空间展示，配解说：总价友好，但要看是否适合你",
+            "周边配套镜头，解说：已有真实经营场景，生活便利可观察",
+            "顾问出镜或画外音：三个问题帮你判断——通勤、用途、长期计划",
+            "结尾字幕：私信发送你的情况，获取个性化建议"
+          ],
+          "requiredUploads": [
+            "项目入口实拍视频",
+            "小面积空间内部视频",
+            "周边商业配套视频"
+          ],
+          "assetQueryHints": [
+            "小面积样板间实拍",
+            "项目周边商业街景",
+            "顾问讲解场景"
+          ]
+        },
+        "degradationNotices": [
+          "项目事实不足：未提供具体项目名、区域、户型、配套名称，内容保持泛化但克制"
+        ],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "知识库片段1：提及小户型市场关注度高，总价五六十万，但未提供具体项目名，且含风险词，已过滤",
+            "知识库片段2：提供线上入口话术，如“把预算、家庭结构、工作通勤发我，我先告诉你这盘值不值得看”",
+            "知识库片段3：提供内容方向，如买错风险拆解、家庭阶段匹配、过程透明、真实顾问感"
+          ],
+          "usedViralSummary": [
+            "无爆款内容参考，采用通用顾问式种草结构"
+          ],
+          "usedImageSummary": [
+            "使用图片素材：项目入口图（img_003）"
+          ]
+        },
+        "qualityGateHints": {
+          "factWeakness": "项目具体信息缺失，所有事实均为通用描述，需后续补充项目名、区域、户型等",
+          "complianceRisks": [
+            "收益承诺类",
+            "出租确定性类",
+            "价格趋势类"
+          ],
+          "mustReviewBeforePublish": [
+            "确认所有价格、收益相关表述已替换为安全措辞",
+            "确认未使用任何风险词词典中的原词",
+            "确认未承诺具体投资回报或租金水平"
+          ]
+        }
+      },
+      "usedKnowledgeRefs": [
+        "项目有小面积产品可供了解",
+        "已有商业配套和真实经营场景可观察",
+        "当前总价门槛相对友好，需结合预算判断",
+        "空间用途较灵活，具体使用以实际需求和官方口径为准"
+      ],
+      "usedViralRefs": [
+        {
+          "patternName": "顾问式种草",
+          "reason": "预算敏感客户需要信任感，通过提供判断逻辑而非推销来建立连接",
+          "titleTactics": [
+            "数字清单式",
+            "反焦虑式"
+          ],
+          "hookTactics": [
+            "先别急着交定金，先看这3件事",
+            "预算有限也能看房，但有些盘不该冲"
+          ],
+          "ctaTactics": [
+            "私信发送预算和家庭结构，获取个性化判断",
+            "不急着买也可以，先把判断逻辑弄清"
+          ]
+        }
+      ],
+      "usedImageAssets": [
+        {
+          "assetId": "img_003",
+          "title": "项目入口"
+        }
+      ],
+      "degradationNotices": [
+        "项目事实不足：未提供具体项目名、区域、户型、配套名称，内容保持泛化但克制",
+        "已根据质量门禁命中风险词进行自动改写"
+      ]
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"低总价小面积，先别急着买，先看这3件事\", \"预算有限也能看房，但有些盘不该冲\", \"小面积产品，适合先了解再判断\"], \"selectedTitle\": \"低总价小面积，先别急着买，先看这3件事\", \"coverCopy\": \"预算有限？先了解再判断，不踩坑\", \"body\": \"预算有限也能看房，但别冲动。\\n\\n最近确实有客户重新问起小面积产品。总价门槛相对友好，空间用途较灵活，但关键要看是否适合你。\\n\\n看房前先理清三个问题：\\n1. 通勤时间能不能接受？\\n2. 周边配套是否真实可用？\\n3. 未来用途是自用还是其他？\\n\\n项目已有商业配套和真实经营场景可观察，不是图纸上的规划。但有些客户不该买，有些盘不该冲。\\n\\n不急着决定，先把判断逻辑弄清。私信发送你的预算和家庭结构，我帮你分析这盘值不值得看。\", \"hashtags\": [\"#小面积产品\", \"#预算友好\", \"#看房前必看\", \"#真实顾问\", \"#先了解再判断\"], \"cta\": \"私信发送你的预算和家庭结构，获取个性化判断。\", \"imageMatches\": [{\"assetId\": \"img_003\", \"title\": \"项目入口\", \"usage\": \"封面图\", \"reason\": \"项目入口实景图，适合作为封面，建立真实感\"}], \"imageBriefIfMissing\": \"需要补充小面积样板间或空间示意图、周边商业配套实拍图、看房过程或顾问沟通场景图，以增强内容可信度。\", \"riskNotes\": [\"已过滤风险词：投资回报率高、租金回报高、稳赚、保值增值、满租、租金区间、租金回报、低位价格、价格错位、收租、贴月供、租出去、保租、保回报、确定兑现、运营成熟验证\", \"所有价格、收益相关表述已替换为安全措辞，未承诺具体投资回报或租金水平\", \"未使用任何风险词词典中的原词\"], \"copyReadyText\": \"低总价小面积，先别急着买，先看这3件事\\n\\n预算有限？先了解再判断，不踩坑\\n\\n预算有限也能看房，但别冲动。\\n\\n最近确实有客户重新问起小面积产品。总价门槛相对友好，空间用途较灵活，但关键要看是否适合你。\\n\\n看房前先理清三个问题：\\n1. 通勤时间能不能接受？\\n2. 周边配套是否真实可用？\\n3. 未来用途是自用还是其他？\\n\\n项目已有商业配套和真实经营场景可观察，不是图纸上的规划。但有些客户不该买，有些盘不该冲。\\n\\n不急着决定，先把判断逻辑弄清。私信发送你的预算和家庭结构，我帮你分析这盘值不值得看。\\n\\n#小面积产品 #预算友好 #看房前必看 #真实顾问 #先了解再判断\\n\\n私信发送你的预算和家庭结构，获取个性化判断。\"}, \"videoScript\": {\"storyOutline\": \"以顾问视角，带观众了解低总价小面积产品，强调先判断再决定，避免冲动。开头用反焦虑钩子，中间展示项目入口和空间，穿插看房逻辑讲解，结尾引导私信。\", \"estimatedDuration\": \"45-60秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-8秒\", \"visualGoal\": \"项目入口外景，建立真实感，配合反焦虑字幕\", \"voiceover\": \"预算有限也能看房，但别急着决定。先看这3件事。\", \"subtitle\": \"预算有限？先别急\", \"shotRequirement\": \"项目入口实拍视频，稳定运镜，展示小区大门或楼栋外观\", \"assetQuery\": \"项目入口外景 小区大门 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"项目入口静态照片缓慢放大\"}, {\"sceneNo\": 2, \"timeRange\": \"8-18秒\", \"visualGoal\": \"小面积空间展示，突出总价友好但需理性判断\", \"voiceover\": \"小面积产品总价门槛相对友好，空间用途较灵活，但关键要看是否适合你。\", \"subtitle\": \"总价友好，但要看是否适合你\", \"shotRequirement\": \"小面积样板间内部视频，展示客厅或主要功能区，光线明亮\", \"assetQuery\": \"小面积样板间 内部空间 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"小面积户型图动态展示\"}, {\"sceneNo\": 3, \"timeRange\": \"18-28秒\", \"visualGoal\": \"周边配套镜头，证明生活便利可观察\", \"voiceover\": \"项目已有商业配套和真实经营场景可观察，不是图纸上的规划。\", \"subtitle\": \"真实配套，可实地感受\", \"shotRequirement\": \"周边商业街或配套实拍，如便利店、餐饮店等，体现生活气息\", \"assetQuery\": \"项目周边商业配套 街景 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"商业配套照片轮播\"}, {\"sceneNo\": 4, \"timeRange\": \"28-40秒\", \"visualGoal\": \"顾问出镜或画外音，讲解三个判断问题，建立专业信任感\", \"voiceover\": \"看房前先理清三个问题：通勤时间能不能接受？周边配套是否真实可用？未来用途是自用还是其他？\", \"subtitle\": \"三个问题帮你判断\", \"shotRequirement\": \"真人出镜或手持手机自拍，背景可为项目环境，语气理性克制\", \"assetQuery\": \"顾问讲解 看房逻辑 真人出镜\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜讲解看房逻辑，建立顾问信任感\", \"assetSourceHint\": \"self_shoot\", \"fallbackVisual\": \"文字动画展示三个问题\"}, {\"sceneNo\": 5, \"timeRange\": \"40-50秒\", \"visualGoal\": \"真实案例感，强调有些客户不该买，强化顾问人设\", \"voiceover\": \"有些客户不该买，有些盘不该冲。不急着决定，先把判断逻辑弄清。\", \"subtitle\": \"不急着决定，先弄清逻辑\", \"shotRequirement\": \"顾问出镜或画外音，配合项目环境空镜，表情认真\", \"assetQuery\": \"顾问沟通场景 真实感\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜表达理性建议，增强可信度\", \"assetSourceHint\": \"self_shoot\", \"fallbackVisual\": \"项目环境空镜配文字\"}, {\"sceneNo\": 6, \"timeRange\": \"50-60秒\", \"visualGoal\": \"结尾CTA，引导私信获取个性化判断\", \"voiceover\": \"私信发送你的预算和家庭结构，我帮你分析这盘值不值得看。\", \"subtitle\": \"私信获取个性化建议\", \"shotRequirement\": \"结尾字幕或真人出镜，手势引导私信，背景为项目或纯色\", \"assetQuery\": \"结尾CTA 私信引导 真人出镜\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜引导私信，完成转化动作\", \"assetSourceHint\": \"self_shoot\", \"fallbackVisual\": \"动态文字引导私信\"}], \"requiredUploads\": [\"真人出镜讲解看房逻辑，背景可为项目环境，语气理性克制\", \"真人出镜表达理性建议，增强可信度\", \"真人出镜引导私信，完成转化动作\"], \"optionalTeamVideoAssets\": [\"项目入口外景 小区大门 实拍\", \"小面积样板间 内部空间 实拍\", \"项目周边商业配套 街景 实拍\"], \"shootingTips\": [\"场景1-3使用团队已有素材或补拍，确保画面稳定、光线充足\", \"场景4-6需真人出镜，建议使用手机自拍或固定机位，背景简洁，声音清晰\", \"字幕与口播严格同步，避免风险词，所有价格相关表述使用‘总价门槛相对友好’等安全措辞\", \"结尾CTA明确，手势或箭头引导私信，停留2-3秒\"], \"riskNotes\": [\"已过滤风险词：投资回报率高、租金回报高、稳赚、保值增值、满租、租金区间、租金回报、低位价格、价格错位、收租、贴月供、租出去、保租、保回报、确定兑现、运营成熟验证\", \"所有价格、收益相关表述已替换为安全措辞，未承诺具体投资回报或租金水平\", \"未使用任何风险词词典中的原词\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 5, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 8}, \"pass\": false, \"needsRewrite\": true, \"riskTerms\": [\"投资回报率高\", \"租金回报高\", \"稳赚\", \"保值增值\", \"满租\", \"租金区间\", \"租金回报\", \"低位价格\", \"价格错位\", \"确定兑现\", \"运营成熟验证\", \"收租\", \"贴月供\", \"租出去\", \"保租\", \"保回报\"], \"problems\": [\"项目知识不足，成稿仅适合内部预览\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"更完整的项目事实\"], \"preRepairPass\": false, \"autoRewritten\": true, \"repairPolicy\": \"validator_risk_terms_minimal_rewrite\"}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"低总价上车\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"种草\", \"targetAudience\": \"预算敏感客户\", \"audiencePain\": \"预算有限，担心买不起，想找门槛低的房产\", \"sellingPointsNeeded\": [\"低总价门槛\", \"小户型实用空间\", \"月供轻松\", \"首付压力小\"], \"riskConstraints\": [], \"copySearchQuery\": \"低总价上车小面积户型 预算敏感客户 首付低 月供轻松 年轻刚需 第一套房\", \"scriptSearchQuery\": \"低总价小户型 首付月供 预算有限 看房 vlog 小面积\", \"imageSearchQuery\": \"低总价小户型 客厅 卧室 样板间 实景 精致 小空间\", \"videoAssetQueryHints\": [\"小户型样板间实拍\", \"置业顾问解说低总价\", \"客户看房过程\", \"户型图展示\"], \"extraRequirement\": \"内容需严谨，仅陈述普遍事实，不承诺具体价格或收益\"}, \"creativeStrategy\": {\"chosenAngle\": \"低总价小面积产品，适合预算有限客户先了解\", \"narrativeArc\": [\"预算有限也能先看房，不急着买\", \"小面积产品为什么值得关注\", \"看房前需要理清的三个问题\", \"真实顾问感：有些客户不该买、有些盘不该冲\", \"引导私信获取个性化判断\"], \"tone\": \"理性、克制、顾问式\", \"mustUseFacts\": [\"项目有小面积产品可供了解\", \"已有商业配套和真实经营场景可观察\", \"当前总价门槛相对友好，需结合预算判断\", \"空间用途较灵活，具体使用以实际需求和官方口径为准\"], \"mustAvoidClaims\": [\"投资回报率高\", \"租金回报高\", \"稳赚\", \"保值增值\", \"满租\", \"租金区间\", \"租金回报\", \"投资属性\", \"资产回报\", \"低位价格\", \"价格错位\", \"收租\", \"贴月供\", \"租出去\", \"保租\", \"保回报\", \"确定兑现\", \"运营成熟验证\"], \"viralPatternUsed\": {\"patternName\": \"顾问式种草\", \"reason\": \"预算敏感客户需要信任感，通过提供判断逻辑而非推销来建立连接\", \"titleTactics\": [\"数字清单式\", \"反焦虑式\"], \"hookTactics\": [\"先别急着交定金，先看这3件事\", \"预算有限也能看房，但有些盘不该冲\"], \"ctaTactics\": [\"私信发送预算和家庭结构，获取个性化判断\", \"不急着买也可以，先把判断逻辑弄清\"]}, \"articlePlan\": {\"titleDirection\": \"低总价小面积，先别急着买，先看这3件事\", \"coverCopyDirection\": \"预算有限？先了解再判断，不踩坑\", \"bodyStructure\": [\"开头：预算有限也能看房，但别冲动\", \"小面积产品特点：总价友好，空间灵活\", \"看房前必问的三个问题：通勤、配套、未来用途\", \"真实案例：有些客户不该买，有些盘不该冲\", \"结尾：私信获取个性化判断，不急着买\"], \"imagePlan\": [\"项目入口实景图（已有素材）\", \"小面积样板间或空间示意图（需补充）\", \"周边商业配套实拍（如有）\", \"看房过程或顾问沟通场景图（需补充）\"]}, \"videoPlan\": {\"storyOutline\": \"以顾问视角，带观众了解低总价小面积产品，强调先判断再决定，避免冲动。开头用反焦虑钩子，中间展示项目入口和空间，穿插看房逻辑讲解，结尾引导私信。\", \"estimatedDuration\": \"45-60秒\", \"scenePlan\": [\"项目入口外景，带字幕：预算有限？先别急\", \"小面积空间展示，配解说：总价友好，但要看是否适合你\", \"周边配套镜头，解说：已有真实经营场景，生活便利可观察\", \"顾问出镜或画外音：三个问题帮你判断——通勤、用途、长期计划\", \"结尾字幕：私信发送你的情况，获取个性化建议\"], \"requiredUploads\": [\"项目入口实拍视频\", \"小面积空间内部视频\", \"周边商业配套视频\"], \"assetQueryHints\": [\"小面积样板间实拍\", \"项目周边商业街景\", \"顾问讲解场景\"]}, \"degradationNotices\": [\"项目事实不足：未提供具体项目名、区域、户型、配套名称，内容保持泛化但克制\"], \"trace\": {\"usedKnowledgeSummary\": [\"知识库片段1：提及小户型市场关注度高，总价五六十万，但未提供具体项目名，且含风险词，已过滤\", \"知识库片段2：提供线上入口话术，如“把预算、家庭结构、工作通勤发我，我先告诉你这盘值不值得看”\", \"知识库片段3：提供内容方向，如买错风险拆解、家庭阶段匹配、过程透明、真实顾问感\"], \"usedViralSummary\": [\"无爆款内容参考，采用通用顾问式种草结构\"], \"usedImageSummary\": [\"使用图片素材：项目入口图（img_003）\"]}, \"qualityGateHints\": {\"factWeakness\": \"项目具体信息缺失，所有事实均为通用描述，需后续补充项目名、区域、户型等\", \"complianceRisks\": [\"收益承诺类\", \"出租确定性类\", \"价格趋势类\"], \"mustReviewBeforePublish\": [\"确认所有价格、收益相关表述已替换为安全措辞\", \"确认未使用任何风险词词典中的原词\", \"确认未承诺具体投资回报或租金水平\"]}}, \"usedKnowledgeRefs\": [\"项目有小面积产品可供了解\", \"已有商业配套和真实经营场景可观察\", \"当前总价门槛相对友好，需结合预算判断\", \"空间用途较灵活，具体使用以实际需求和官方口径为准\"], \"usedViralRefs\": [{\"patternName\": \"顾问式种草\", \"reason\": \"预算敏感客户需要信任感，通过提供判断逻辑而非推销来建立连接\", \"titleTactics\": [\"数字清单式\", \"反焦虑式\"], \"hookTactics\": [\"先别急着交定金，先看这3件事\", \"预算有限也能看房，但有些盘不该冲\"], \"ctaTactics\": [\"私信发送预算和家庭结构，获取个性化判断\", \"不急着买也可以，先把判断逻辑弄清\"]}], \"usedImageAssets\": [{\"assetId\": \"img_003\", \"title\": \"项目入口\"}], \"degradationNotices\": [\"项目事实不足：未提供具体项目名、区域、户型、配套名称，内容保持泛化但克制\", \"已根据质量门禁命中风险词进行自动改写\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": false,
+        "detail": "投资回报率高 / 租金回报高 / 稳赚 / 保值增值 / 满租 / 租金区间 / 租金回报 / 低位价格 / 价格错位 / 确定兑现 / 运营成熟验证"
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "risk_terms": [
+      "投资回报率高",
+      "租金回报高",
+      "稳赚",
+      "保值增值",
+      "满租",
+      "租金区间",
+      "租金回报",
+      "低位价格",
+      "价格错位",
+      "确定兑现",
+      "运营成熟验证"
+    ]
+  }
+}

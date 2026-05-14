@@ -1,0 +1,162 @@
+{
+  "success": false,
+  "case_name": "case01_full_with_compliance_risk",
+  "case_path": "docs/探索/2026-05-11-用dify来测试链路/testcases/case01_full_with_compliance_risk.json",
+  "elapsed_time": 327.64493918418884,
+  "workflow_run_id": "3a4050d5-c369-4886-ba56-eb0f87fa567e",
+  "task_id": "af478e26-e60b-4156-9b46-22051f2d021f",
+  "workflow_status": "succeeded",
+  "stream_error": null,
+  "raw_response": {
+    "id": "3a4050d5-c369-4886-ba56-eb0f87fa567e",
+    "workflow_id": "2eb0b28b-0340-4c99-a5dd-1bef7417558d",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"status\": \"needs_review\", \"article\": {\"title\": \"以为小户型没人看了？刚需又回来了\", \"coverCopy\": \"总价友好 大社区现成配套\", \"images\": [{\"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"cover\"}, {\"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"body\"}], \"copyText\": \"以为小户型没人看了？刚需又回来了\\n\\n很多人以为小户型早就卖完了，要么就是没人看了。但你还别说，最近几组客户都在问小面积。谁说刚需不回来？\\n\\n这个小区住了将近1万户。什么概念？楼下底商已经开起来了，买菜、便利店、早餐店都有。不是画饼，是现成的。\\n\\n层高4米，70平的小户型，进去感觉不压抑。样板间实地看，通透感很好，不是那种鸽子笼。\\n\\n面积段从70平到200平以上都有。70平适合独居或小两口，110平适合小家庭，再大的可以给改善型。看你的预算和需求来。\\n\\n我上周带客户去看，从小区走到公交站就几分钟，地铁也在规划。周边超市、饭馆都看得见。真实生活场景。\\n\\n去看房的时候，别光听销售说未来多好。多看看现在楼下的店开没开，通勤时间自己走一遍。配套是现成的才靠谱。\\n\\n感兴趣私信我，发你户型图和具体总价参考。\\n\\n#小户型 #刚需 #买房 #学区 #地铁 #总价友好 #首次置业 #社区生活\"}, \"video\": {\"storyOutline\": \"\", \"estimatedDuration\": \"\", \"bgm\": \"\", \"toneOfVoice\": \"\", \"scenes\": []}, \"quality\": {\"riskTerms\": [\"合规敏感表述\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 324.790957,
+    "total_tokens": 37739,
+    "total_steps": 17,
+    "created_by": {
+      "id": "d6d28abb-2ec9-4f8f-b58c-ae5eea04828e",
+      "user": "v31_poll_case01_full_with_compliance_risk_1778658851"
+    },
+    "created_at": 1778658853,
+    "finished_at": 1778659178,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "status": "needs_review",
+    "article": {
+      "title": "以为小户型没人看了？刚需又回来了",
+      "coverCopy": "总价友好 大社区现成配套",
+      "images": [
+        {
+          "cosPath": "https://example.com/facade.jpg",
+          "role": "cover"
+        },
+        {
+          "cosPath": "https://example.com/living-room.jpg",
+          "role": "body"
+        }
+      ],
+      "copyText": "以为小户型没人看了？刚需又回来了\n\n很多人以为小户型早就卖完了，要么就是没人看了。但你还别说，最近几组客户都在问小面积。谁说刚需不回来？\n\n这个小区住了将近1万户。什么概念？楼下底商已经开起来了，买菜、便利店、早餐店都有。不是画饼，是现成的。\n\n层高4米，70平的小户型，进去感觉不压抑。样板间实地看，通透感很好，不是那种鸽子笼。\n\n面积段从70平到200平以上都有。70平适合独居或小两口，110平适合小家庭，再大的可以给改善型。看你的预算和需求来。\n\n我上周带客户去看，从小区走到公交站就几分钟，地铁也在规划。周边超市、饭馆都看得见。真实生活场景。\n\n去看房的时候，别光听销售说未来多好。多看看现在楼下的店开没开，通勤时间自己走一遍。配套是现成的才靠谱。\n\n感兴趣私信我，发你户型图和具体总价参考。\n\n#小户型 #刚需 #买房 #学区 #地铁 #总价友好 #首次置业 #社区生活"
+    },
+    "video": {
+      "storyOutline": "",
+      "estimatedDuration": "",
+      "bgm": "",
+      "toneOfVoice": "",
+      "scenes": []
+    },
+    "quality": {
+      "riskTerms": [
+        "合规敏感表述"
+      ]
+    }
+  },
+  "final_text": "{\"status\": \"needs_review\", \"article\": {\"title\": \"以为小户型没人看了？刚需又回来了\", \"coverCopy\": \"总价友好 大社区现成配套\", \"images\": [{\"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"cover\"}, {\"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"body\"}], \"copyText\": \"以为小户型没人看了？刚需又回来了\\n\\n很多人以为小户型早就卖完了，要么就是没人看了。但你还别说，最近几组客户都在问小面积。谁说刚需不回来？\\n\\n这个小区住了将近1万户。什么概念？楼下底商已经开起来了，买菜、便利店、早餐店都有。不是画饼，是现成的。\\n\\n层高4米，70平的小户型，进去感觉不压抑。样板间实地看，通透感很好，不是那种鸽子笼。\\n\\n面积段从70平到200平以上都有。70平适合独居或小两口，110平适合小家庭，再大的可以给改善型。看你的预算和需求来。\\n\\n我上周带客户去看，从小区走到公交站就几分钟，地铁也在规划。周边超市、饭馆都看得见。真实生活场景。\\n\\n去看房的时候，别光听销售说未来多好。多看看现在楼下的店开没开，通勤时间自己走一遍。配套是现成的才靠谱。\\n\\n感兴趣私信我，发你户型图和具体总价参考。\\n\\n#小户型 #刚需 #买房 #学区 #地铁 #总价友好 #首次置业 #社区生活\"}, \"video\": {\"storyOutline\": \"\", \"estimatedDuration\": \"\", \"bgm\": \"\", \"toneOfVoice\": \"\", \"scenes\": []}, \"quality\": {\"riskTerms\": [\"合规敏感表述\"]}}",
+  "parse_error": null,
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "top_level_only_status_article_video_quality",
+        "passed": true,
+        "detail": "['article', 'quality', 'status', 'video']"
+      },
+      {
+        "name": "removed_fields_absent",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_title_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_cover_copy_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_copy_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_copy_text_has_hashtag",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_images_is_list",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_images_shape",
+        "passed": true,
+        "detail": "bad_count=0"
+      },
+      {
+        "name": "video_storyOutline_present",
+        "passed": false,
+        "detail": ""
+      },
+      {
+        "name": "video_estimatedDuration_present",
+        "passed": false,
+        "detail": ""
+      },
+      {
+        "name": "video_bgm_present",
+        "passed": false,
+        "detail": ""
+      },
+      {
+        "name": "video_toneOfVoice_present",
+        "passed": false,
+        "detail": ""
+      },
+      {
+        "name": "video_scenes_nonempty_list",
+        "passed": false,
+        "detail": ""
+      },
+      {
+        "name": "video_scene_required_fields_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scene_types_ok",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "requires_user_upload_has_true",
+        "passed": false,
+        "detail": ""
+      },
+      {
+        "name": "quality_only_risk_terms",
+        "passed": true,
+        "detail": "['riskTerms']"
+      },
+      {
+        "name": "quality_risk_terms_array",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms_in_final_json",
+        "passed": true,
+        "detail": ""
+      }
+    ]
+  }
+}

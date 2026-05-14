@@ -1,0 +1,341 @@
+{
+  "success": true,
+  "case_name": "case02_no_images",
+  "case_path": "docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "elapsed_time": 55.55917191505432,
+  "workflow_run_id": "a0a0e0d1-ce98-4495-8419-3a035a0b184d",
+  "task_id": "800adff9-9e87-4858-a054-230d678e7646",
+  "workflow_status": "succeeded",
+  "stream_error": null,
+  "raw_response": {
+    "id": "a0a0e0d1-ce98-4495-8419-3a035a0b184d",
+    "workflow_id": "272d9edc-9b40-48ac-a33a-a0d5b7f29c19",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"status\": \"needs_review\", \"article\": {\"title\": \"住在这里是什么体验？我带你看小区周边的生活便利\", \"coverCopy\": \"生活便利度，选房关键\", \"images\": [], \"copyText\": \"住在这里是什么体验？我带你看小区周边的生活便利\\n\\n早晨出门，楼下就是便利店和早餐铺，买一杯豆浆就能轻松开启一天。\\n\\n小区周边步行5分钟内有超市、药店和银行，日常需求一站解决。\\n\\n晚上散步时，社区内有休闲广场，孩子们玩耍，大人们聊天，氛围很温馨。\\n\\n一位业主表示：“这里生活很方便，买菜、吃饭都不用走远。”\\n\\n生活便利的关键点：1. 配套设施齐全；2. 步行可达；3. 社区氛围好。\\n\\n#生活便利 #社区配套 #首次购房 #居住体验 #买房攻略 #社区氛围 #生活场景\"}, \"video\": {\"storyOutline\": \"开场通过首次购房者的疑问引入话题，强调生活便利度的重要性。随后展示项目周边的成熟配套设施，如商店、餐饮、交通等，结合真实客户的体验分享，建立信任。最后总结如何通过观察生活便利度选择适合的房产，提出建议。\", \"estimatedDuration\": \"2-3分钟\", \"bgm\": \"轻快、温馨，适合展现生活场景\", \"toneOfVoice\": \"真实可信，贴近生活\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 6, \"sceneType\": \"口播\", \"title\": \"引入话题\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意，提出生活便利度的重要性\", \"taskDescription\": \"引入话题\", \"visualDescription\": \"中介站在售楼处门口，面对镜头自然说话，背景是售楼处和周边环境\", \"voiceover\": \"买房时，生活便利度究竟有多重要？很多首次购房者忽略了这个关键点。\", \"subtitle\": \"买房时，生活便利度究竟有多重要？很多首次购房者忽略了这个关键点。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处门口，面对镜头自然说话，背景是售楼处和周边环境\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"售楼处门口\", \"posture\": \"站着\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示生活便利设施\", \"requiresUserUpload\": false, \"purpose\": \"展示项目周边的成熟配套设施\", \"taskDescription\": \"展示生活便利设施\", \"visualDescription\": \"超市入口的外景，顾客推着购物车进出，周围环境干净整洁\", \"voiceover\": \"\", \"subtitle\": \"楼下就是超市，买东西特别方便\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"超市入口的外景，顾客推着购物车进出，周围环境干净整洁\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"超市入口 顾客推购物车 干净整洁\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示交通便利\", \"requiresUserUpload\": false, \"purpose\": \"展示项目周边的交通便利性\", \"taskDescription\": \"展示交通便利\", \"visualDescription\": \"公交站台的全景，几位乘客正在等车，背景是绿化带和行驶的车辆\", \"voiceover\": \"\", \"subtitle\": \"步行五分钟到公交站，出行很方便\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"公交站台的全景，几位乘客正在等车，背景是绿化带和行驶的车辆\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"公交站台 乘客等车 绿化带\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示休闲设施\", \"requiresUserUpload\": false, \"purpose\": \"展示项目周边的休闲设施\", \"taskDescription\": \"展示休闲设施\", \"visualDescription\": \"社区公园一角，家长带着孩子在草坪上玩耍，阳光明媚\", \"voiceover\": \"\", \"subtitle\": \"周末还能带孩子去附近的公园玩\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区公园一角，家长带着孩子在草坪上玩耍，阳光明媚\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区公园 家长 孩子 草坪 阳光\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 8, \"sceneType\": \"口播\", \"title\": \"客户体验分享\", \"requiresUserUpload\": true, \"purpose\": \"通过客户的真实体验增强信任感\", \"taskDescription\": \"客户体验分享\", \"visualDescription\": \"中介站在样板间客厅，面对镜头自然说话，背景是布置整洁的客厅\", \"voiceover\": \"一个客户告诉我，她选这里就是为了方便工作和生活。买房不仅是选一个房子，也是选一个生活方式。\", \"subtitle\": \"一个客户告诉我，她选这里就是为了方便工作和生活。买房不仅是选一个房子，也是选一个生活方式。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅，面对镜头自然说话，背景是布置整洁的客厅\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"样板间客厅\", \"posture\": \"站着\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"声音先入画面后跟\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 6, \"timeRange\": \"0-3s\", \"durationSec\": 5, \"sceneType\": \"文字卡\", \"title\": \"总结与建议\", \"requiresUserUpload\": false, \"purpose\": \"总结如何通过生活便利度选择房产\", \"taskDescription\": \"总结与建议\", \"visualDescription\": \"纯文字画面，白底黑字，简洁明了\", \"voiceover\": \"\", \"subtitle\": \"买房时，别忘了观察生活便利度，选一个适合你的生活方式。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"纯文字画面，白底黑字，简洁明了\"}, \"filmingGuide\": {\"method\": \"剪辑生成文字卡\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": []}}"
+    },
+    "error": null,
+    "elapsed_time": 54.134184,
+    "total_tokens": 13515,
+    "total_steps": 16,
+    "created_by": {
+      "id": "face61ef-f21e-4dcb-be38-aa4990fad8ea",
+      "user": "v31_poll_case02_no_images_1778668137"
+    },
+    "created_at": 1778668139,
+    "finished_at": 1778668193,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "status": "needs_review",
+    "article": {
+      "title": "住在这里是什么体验？我带你看小区周边的生活便利",
+      "coverCopy": "生活便利度，选房关键",
+      "images": [],
+      "copyText": "住在这里是什么体验？我带你看小区周边的生活便利\n\n早晨出门，楼下就是便利店和早餐铺，买一杯豆浆就能轻松开启一天。\n\n小区周边步行5分钟内有超市、药店和银行，日常需求一站解决。\n\n晚上散步时，社区内有休闲广场，孩子们玩耍，大人们聊天，氛围很温馨。\n\n一位业主表示：“这里生活很方便，买菜、吃饭都不用走远。”\n\n生活便利的关键点：1. 配套设施齐全；2. 步行可达；3. 社区氛围好。\n\n#生活便利 #社区配套 #首次购房 #居住体验 #买房攻略 #社区氛围 #生活场景"
+    },
+    "video": {
+      "storyOutline": "开场通过首次购房者的疑问引入话题，强调生活便利度的重要性。随后展示项目周边的成熟配套设施，如商店、餐饮、交通等，结合真实客户的体验分享，建立信任。最后总结如何通过观察生活便利度选择适合的房产，提出建议。",
+      "estimatedDuration": "2-3分钟",
+      "bgm": "轻快、温馨，适合展现生活场景",
+      "toneOfVoice": "真实可信，贴近生活",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-3s",
+          "durationSec": 6,
+          "sceneType": "口播",
+          "title": "引入话题",
+          "requiresUserUpload": true,
+          "purpose": "吸引观众注意，提出生活便利度的重要性",
+          "taskDescription": "引入话题",
+          "visualDescription": "中介站在售楼处门口，面对镜头自然说话，背景是售楼处和周边环境",
+          "voiceover": "买房时，生活便利度究竟有多重要？很多首次购房者忽略了这个关键点。",
+          "subtitle": "买房时，生活便利度究竟有多重要？很多首次购房者忽略了这个关键点。",
+          "shotLanguage": {
+            "framing": "中景",
+            "cameraMovement": "固定镜头",
+            "orientation": "横屏",
+            "composition": "中介站在售楼处门口，面对镜头自然说话，背景是售楼处和周边环境"
+          },
+          "filmingGuide": {
+            "method": "手机横屏，半身自拍口播",
+            "location": "售楼处门口",
+            "posture": "站着",
+            "tips": [
+              "找光线好的位置，脸上不要有阴影",
+              "语速放慢，像跟朋友聊天",
+              "开头和结尾各多录 2 秒，方便剪辑"
+            ]
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "正常",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": ""
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "0-3s",
+          "durationSec": 3,
+          "sceneType": "素材",
+          "title": "展示生活便利设施",
+          "requiresUserUpload": false,
+          "purpose": "展示项目周边的成熟配套设施",
+          "taskDescription": "展示生活便利设施",
+          "visualDescription": "超市入口的外景，顾客推着购物车进出，周围环境干净整洁",
+          "voiceover": "",
+          "subtitle": "楼下就是超市，买东西特别方便",
+          "shotLanguage": {
+            "framing": "全景",
+            "cameraMovement": "稳定推进或平移",
+            "orientation": "横屏",
+            "composition": "超市入口的外景，顾客推着购物车进出，周围环境干净整洁"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": "超市入口 顾客推购物车 干净整洁"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "0-3s",
+          "durationSec": 3,
+          "sceneType": "素材",
+          "title": "展示交通便利",
+          "requiresUserUpload": false,
+          "purpose": "展示项目周边的交通便利性",
+          "taskDescription": "展示交通便利",
+          "visualDescription": "公交站台的全景，几位乘客正在等车，背景是绿化带和行驶的车辆",
+          "voiceover": "",
+          "subtitle": "步行五分钟到公交站，出行很方便",
+          "shotLanguage": {
+            "framing": "全景",
+            "cameraMovement": "稳定推进或平移",
+            "orientation": "横屏",
+            "composition": "公交站台的全景，几位乘客正在等车，背景是绿化带和行驶的车辆"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": "公交站台 乘客等车 绿化带"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "0-3s",
+          "durationSec": 3,
+          "sceneType": "素材",
+          "title": "展示休闲设施",
+          "requiresUserUpload": false,
+          "purpose": "展示项目周边的休闲设施",
+          "taskDescription": "展示休闲设施",
+          "visualDescription": "社区公园一角，家长带着孩子在草坪上玩耍，阳光明媚",
+          "voiceover": "",
+          "subtitle": "周末还能带孩子去附近的公园玩",
+          "shotLanguage": {
+            "framing": "全景",
+            "cameraMovement": "稳定推进或平移",
+            "orientation": "横屏",
+            "composition": "社区公园一角，家长带着孩子在草坪上玩耍，阳光明媚"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": "社区公园 家长 孩子 草坪 阳光"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "0-3s",
+          "durationSec": 8,
+          "sceneType": "口播",
+          "title": "客户体验分享",
+          "requiresUserUpload": true,
+          "purpose": "通过客户的真实体验增强信任感",
+          "taskDescription": "客户体验分享",
+          "visualDescription": "中介站在样板间客厅，面对镜头自然说话，背景是布置整洁的客厅",
+          "voiceover": "一个客户告诉我，她选这里就是为了方便工作和生活。买房不仅是选一个房子，也是选一个生活方式。",
+          "subtitle": "一个客户告诉我，她选这里就是为了方便工作和生活。买房不仅是选一个房子，也是选一个生活方式。",
+          "shotLanguage": {
+            "framing": "中景",
+            "cameraMovement": "固定镜头",
+            "orientation": "横屏",
+            "composition": "中介站在样板间客厅，面对镜头自然说话，背景是布置整洁的客厅"
+          },
+          "filmingGuide": {
+            "method": "手机横屏，半身自拍口播",
+            "location": "样板间客厅",
+            "posture": "站着",
+            "tips": [
+              "不要站在房间正中央，站在角落或门框边，画面更有纵深感",
+              "拍两遍，选自然的那条",
+              "开头和结尾各多录 2 秒，方便剪辑"
+            ]
+          },
+          "editGuide": {
+            "transition": "声音先入画面后跟",
+            "pacing": "正常",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": ""
+        },
+        {
+          "sceneNo": 6,
+          "timeRange": "0-3s",
+          "durationSec": 5,
+          "sceneType": "文字卡",
+          "title": "总结与建议",
+          "requiresUserUpload": false,
+          "purpose": "总结如何通过生活便利度选择房产",
+          "taskDescription": "总结与建议",
+          "visualDescription": "纯文字画面，白底黑字，简洁明了",
+          "voiceover": "",
+          "subtitle": "买房时，别忘了观察生活便利度，选一个适合你的生活方式。",
+          "shotLanguage": {
+            "framing": "全景",
+            "cameraMovement": "稳定推进或平移",
+            "orientation": "横屏",
+            "composition": "纯文字画面，白底黑字，简洁明了"
+          },
+          "filmingGuide": {
+            "method": "剪辑生成文字卡",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "渐变过渡",
+            "pacing": "正常",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": ""
+        }
+      ]
+    },
+    "quality": {
+      "riskTerms": []
+    }
+  },
+  "final_text": "{\"status\": \"needs_review\", \"article\": {\"title\": \"住在这里是什么体验？我带你看小区周边的生活便利\", \"coverCopy\": \"生活便利度，选房关键\", \"images\": [], \"copyText\": \"住在这里是什么体验？我带你看小区周边的生活便利\\n\\n早晨出门，楼下就是便利店和早餐铺，买一杯豆浆就能轻松开启一天。\\n\\n小区周边步行5分钟内有超市、药店和银行，日常需求一站解决。\\n\\n晚上散步时，社区内有休闲广场，孩子们玩耍，大人们聊天，氛围很温馨。\\n\\n一位业主表示：“这里生活很方便，买菜、吃饭都不用走远。”\\n\\n生活便利的关键点：1. 配套设施齐全；2. 步行可达；3. 社区氛围好。\\n\\n#生活便利 #社区配套 #首次购房 #居住体验 #买房攻略 #社区氛围 #生活场景\"}, \"video\": {\"storyOutline\": \"开场通过首次购房者的疑问引入话题，强调生活便利度的重要性。随后展示项目周边的成熟配套设施，如商店、餐饮、交通等，结合真实客户的体验分享，建立信任。最后总结如何通过观察生活便利度选择适合的房产，提出建议。\", \"estimatedDuration\": \"2-3分钟\", \"bgm\": \"轻快、温馨，适合展现生活场景\", \"toneOfVoice\": \"真实可信，贴近生活\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 6, \"sceneType\": \"口播\", \"title\": \"引入话题\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意，提出生活便利度的重要性\", \"taskDescription\": \"引入话题\", \"visualDescription\": \"中介站在售楼处门口，面对镜头自然说话，背景是售楼处和周边环境\", \"voiceover\": \"买房时，生活便利度究竟有多重要？很多首次购房者忽略了这个关键点。\", \"subtitle\": \"买房时，生活便利度究竟有多重要？很多首次购房者忽略了这个关键点。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处门口，面对镜头自然说话，背景是售楼处和周边环境\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"售楼处门口\", \"posture\": \"站着\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示生活便利设施\", \"requiresUserUpload\": false, \"purpose\": \"展示项目周边的成熟配套设施\", \"taskDescription\": \"展示生活便利设施\", \"visualDescription\": \"超市入口的外景，顾客推着购物车进出，周围环境干净整洁\", \"voiceover\": \"\", \"subtitle\": \"楼下就是超市，买东西特别方便\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"超市入口的外景，顾客推着购物车进出，周围环境干净整洁\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"超市入口 顾客推购物车 干净整洁\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示交通便利\", \"requiresUserUpload\": false, \"purpose\": \"展示项目周边的交通便利性\", \"taskDescription\": \"展示交通便利\", \"visualDescription\": \"公交站台的全景，几位乘客正在等车，背景是绿化带和行驶的车辆\", \"voiceover\": \"\", \"subtitle\": \"步行五分钟到公交站，出行很方便\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"公交站台的全景，几位乘客正在等车，背景是绿化带和行驶的车辆\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"公交站台 乘客等车 绿化带\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示休闲设施\", \"requiresUserUpload\": false, \"purpose\": \"展示项目周边的休闲设施\", \"taskDescription\": \"展示休闲设施\", \"visualDescription\": \"社区公园一角，家长带着孩子在草坪上玩耍，阳光明媚\", \"voiceover\": \"\", \"subtitle\": \"周末还能带孩子去附近的公园玩\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区公园一角，家长带着孩子在草坪上玩耍，阳光明媚\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区公园 家长 孩子 草坪 阳光\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 8, \"sceneType\": \"口播\", \"title\": \"客户体验分享\", \"requiresUserUpload\": true, \"purpose\": \"通过客户的真实体验增强信任感\", \"taskDescription\": \"客户体验分享\", \"visualDescription\": \"中介站在样板间客厅，面对镜头自然说话，背景是布置整洁的客厅\", \"voiceover\": \"一个客户告诉我，她选这里就是为了方便工作和生活。买房不仅是选一个房子，也是选一个生活方式。\", \"subtitle\": \"一个客户告诉我，她选这里就是为了方便工作和生活。买房不仅是选一个房子，也是选一个生活方式。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅，面对镜头自然说话，背景是布置整洁的客厅\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"样板间客厅\", \"posture\": \"站着\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"声音先入画面后跟\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 6, \"timeRange\": \"0-3s\", \"durationSec\": 5, \"sceneType\": \"文字卡\", \"title\": \"总结与建议\", \"requiresUserUpload\": false, \"purpose\": \"总结如何通过生活便利度选择房产\", \"taskDescription\": \"总结与建议\", \"visualDescription\": \"纯文字画面，白底黑字，简洁明了\", \"voiceover\": \"\", \"subtitle\": \"买房时，别忘了观察生活便利度，选一个适合你的生活方式。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"纯文字画面，白底黑字，简洁明了\"}, \"filmingGuide\": {\"method\": \"剪辑生成文字卡\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": []}}",
+  "parse_error": null,
+  "evaluation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "top_level_only_status_article_video_quality",
+        "passed": true,
+        "detail": "['article', 'quality', 'status', 'video']"
+      },
+      {
+        "name": "removed_fields_absent",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_title_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_cover_copy_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_copy_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_copy_text_has_hashtag",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_images_is_list",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_storyOutline_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_estimatedDuration_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_bgm_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_toneOfVoice_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scenes_nonempty_list",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scene_required_fields_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scene_types_ok",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "requires_user_upload_has_true",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_only_risk_terms",
+        "passed": true,
+        "detail": "['riskTerms']"
+      },
+      {
+        "name": "quality_risk_terms_array",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms_in_final_json",
+        "passed": true,
+        "detail": ""
+      }
+    ]
+  }
+}

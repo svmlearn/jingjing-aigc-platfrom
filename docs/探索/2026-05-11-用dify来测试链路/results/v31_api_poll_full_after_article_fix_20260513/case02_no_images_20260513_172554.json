@@ -1,0 +1,374 @@
+{
+  "success": true,
+  "case_name": "case02_no_images",
+  "case_path": "docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "elapsed_time": 449.6044180393219,
+  "workflow_run_id": "e07deba1-b43b-4293-a86c-1d2c1377cdd1",
+  "task_id": "b70d828d-3224-4721-a82b-406c9be54872",
+  "workflow_status": "succeeded",
+  "stream_error": null,
+  "raw_response": {
+    "id": "e07deba1-b43b-4293-a86c-1d2c1377cdd1",
+    "workflow_id": "7bf2619e-6097-469e-b469-4d4929bfb4ba",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"status\": \"needs_review\", \"article\": {\"title\": \"买房先看楼下：生活圈比户型更重要\", \"coverCopy\": \"楼下生活圈，比户型更值得看\", \"images\": [], \"copyText\": \"买房先看楼下：生活圈比户型更重要\\n\\n第一次看房，别只盯着户型图。下楼走一圈，才是真正的考验。很多人花了很长时间选户型，结果住进去发现，买个菜要走20分钟。我今天带你看看，什么叫真实生活半径。\\n\\n从地铁站出来，步行大约5分钟就到社区门口。一路沿街都是商铺，早上有包子铺、晚上有水果店，烟火气很足。\\n\\n楼下底商已经开了不少。便利店、药店、干洗店，日常需要的基本都有。不用开车，下楼就能解决。\\n\\n大堂空间挑高约4米，装修简洁大方。虽然是商用属性，但品质感不输住宅。朋友来了也体面。\\n\\n看配套到底怎么看？别信规划图，就看两点：一是现在有没有人用，二是走路方不方便。这里周边配套基本都兑现了，所见即所得。\\n\\n如果你也在看房，想了解怎么评估生活配套，可以私信我，我发你一份细项清单参考。\\n\\n#买房经验 #看房技巧 #生活配套 #首次买房 #买房攻略 #社区配套 #买房避坑 #看房日记\"}, \"video\": {\"storyOutline\": \"以一个首次看房客户的视角，从项目外部进入社区，沿途展现真实的生活便利，然后进入大堂和样板间，强调生活动线比户型图更值得关注。\", \"estimatedDuration\": \"约45秒\", \"bgm\": \"开篇轻快带悬念，中段温馨生活感，结尾积极明朗\", \"toneOfVoice\": \"真实分享，如同和老客户提醒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:10\", \"durationSec\": 10, \"sceneType\": \"口播\", \"title\": \"误区提醒：只盯户型图的误区\", \"requiresUserUpload\": true, \"purpose\": \"用痛点引发共鸣，建立信任\", \"taskDescription\": \"中介在售楼处沙盘旁面对镜头自然说话，背景有沙盘和项目效果图\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘和项目效果图；光线明亮，脸部无阴影\", \"voiceover\": \"很多人第一次看房只盯户型图，但住进去后才发现生活动线有多重要。你每天走的路、楼下的早餐店、便利店——这些才是决定生活质量的关键。\", \"subtitle\": \"很多人第一次看房只盯户型图，但住进去后才发现生活动线有多重要。你每天走的路、楼下的早餐店、便利店——这些才是决定生活质量的关键。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定\", \"orientation\": \"水平\", \"composition\": \"中介居中偏左，背景有沙盘\"}, \"filmingGuide\": {\"method\": \"自拍\", \"location\": \"售楼处沙盘区\", \"posture\": \"站立面对镜头\", \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"确保脸部光线均匀，避免阴影\", \"开头多录2秒方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0:10-0:14\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"从地铁站走向社区\", \"requiresUserUpload\": false, \"purpose\": \"带入生活动线，展示周边交通便利\", \"taskDescription\": \"使用地铁站出口到社区步行的航拍或跟随镜头素材，展现沿途商铺和街道活力\", \"visualDescription\": \"地铁站出口航拍，镜头从高处下降跟随一个人走向社区方向，沿途可见沿街商铺、早餐店、便利店，阳光充足，街道干净整洁\", \"voiceover\": \"今天我们就从地铁站走到社区，帮你感受真实的生活半径。\", \"subtitle\": \"从地铁站走到社区，感受真实生活半径\", \"shotLanguage\": {\"framing\": \"全景航拍转中景跟随\", \"cameraMovement\": \"下降跟随\", \"orientation\": \"水平\", \"composition\": \"人物在画面中心偏下，街道引导线\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"地铁站 出口 行人 步行 社区 沿街商铺 活力\"}, {\"sceneNo\": 3, \"timeRange\": \"0:14-0:18\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"楼下底商已运营\", \"requiresUserUpload\": false, \"purpose\": \"展示已有配套，打消顾虑\", \"taskDescription\": \"展示社区底商已有商家经营，如早餐店、便利店、咖啡店等\", \"visualDescription\": \"社区底商外景，镜头平缓扫过一排店铺，有醒目的招牌和正在营业的商家，有人在店内消费，早晨阳光柔和\", \"voiceover\": \"你看，底商已经有很多店在营业了，买杯咖啡、吃个早饭都很方便。\", \"subtitle\": \"底商已运营，买咖啡吃早饭都很方便\", \"shotLanguage\": {\"framing\": \"中景平移\", \"cameraMovement\": \"平移\", \"orientation\": \"水平\", \"composition\": \"店铺居中，招牌清晰\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"社区底商 店铺 营业 早餐店 便利店 咖啡店 实景\"}, {\"sceneNo\": 4, \"timeRange\": \"0:18-0:22\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"品质大堂和电梯厅\", \"requiresUserUpload\": false, \"purpose\": \"体现项目品质感\", \"taskDescription\": \"展示社区大堂和公共区域的实景素材，强调层高和质感\", \"visualDescription\": \"大堂室内全景，镜头从门口推进，展示4米层高、石材地面、现代简约装修，商务大堂风格，有休息区，灯光明亮\", \"voiceover\": \"再进到大堂，层高4米，很有品质感。\", \"subtitle\": \"大堂层高4米，品质感十足\", \"shotLanguage\": {\"framing\": \"全景推近\", \"cameraMovement\": \"推进\", \"orientation\": \"水平\", \"composition\": \"大堂中心为视觉焦点，对称构图\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"大堂 层高 4米 商务风格 品质 室内 现代\"}, {\"sceneNo\": 5, \"timeRange\": \"0:22-0:26\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"样板间窗外视野\", \"requiresUserUpload\": false, \"purpose\": \"展示空间感和视野\", \"taskDescription\": \"使用样板间内拍摄的素材，重点展示窗外视野或室内通透感\", \"visualDescription\": \"站在样板间窗边，镜头从室内向窗外拍摄，透过窗户看到社区景观或远处城市天际线，室内空间宽敞，自然光充足\", \"voiceover\": \"最后进样板间，站在窗边看看视野。\", \"subtitle\": \"站在窗边，感受开阔视野\", \"shotLanguage\": {\"framing\": \"中景定镜\", \"cameraMovement\": \"固定\", \"orientation\": \"水平\", \"composition\": \"窗户占据画面中心，室内的部分空间为前景\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 窗户 视野 城市景观 室内 光线 通透\"}, {\"sceneNo\": 6, \"timeRange\": \"0:26-0:30\", \"durationSec\": 4, \"sceneType\": \"文字卡\", \"title\": \"社区数据展示\", \"requiresUserUpload\": false, \"purpose\": \"用数据增强说服力\", \"taskDescription\": \"展示文字卡片，内容为社区体量和配套现状\", \"visualDescription\": \"纯文字黑色背景或半透明渐变，白色字体，居中显示：约80万方生活大城 1万户、3万人口 配套已呈现\", \"voiceover\": \"\", \"subtitle\": \"约80万方生活大城 1万户、3万人口 配套已呈现\", \"shotLanguage\": {\"framing\": \"全屏\", \"cameraMovement\": \"固定\", \"orientation\": \"水平\", \"composition\": \"文字居中\"}, \"filmingGuide\": {\"method\": \"剪辑生成文字卡\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 7, \"timeRange\": \"0:30-0:40\", \"durationSec\": 10, \"sceneType\": \"口播\", \"title\": \"轻CTA：提供生活半径清单\", \"requiresUserUpload\": true, \"purpose\": \"引导行动，提供价值\", \"taskDescription\": \"中介再次面对镜头，自然引出提供清单，保持与场景1相同穿着和背景\", \"visualDescription\": \"中介站在同一位置（售楼处沙盘旁），面对镜头自然说话，表情真诚\", \"voiceover\": \"如果你也在担心配套，可以找我拿一份生活半径清单，提前了解周边有什么。\", \"subtitle\": \"如果你也在担心配套，可以找我拿一份生活半径清单，提前了解周边有什么。\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"水平\", \"composition\": \"中介居中，面部表情清晰\"}, \"filmingGuide\": {\"method\": \"自拍\", \"location\": \"建议与场景1同一位置（售楼处）\", \"posture\": \"站立面对镜头\", \"tips\": [\"保持与开头相同的穿着和发型\", \"语速放慢，像跟朋友聊天\", \"句尾停顿1秒再结束\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": [\"合规敏感表述\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 442.722538,
+    "total_tokens": 46234,
+    "total_steps": 17,
+    "created_by": {
+      "id": "9d547cbd-c089-4057-a176-c20a6fa25c39",
+      "user": "v31_poll_case02_no_images_1778663904"
+    },
+    "created_at": 1778663908,
+    "finished_at": 1778664351,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "status": "needs_review",
+    "article": {
+      "title": "买房先看楼下：生活圈比户型更重要",
+      "coverCopy": "楼下生活圈，比户型更值得看",
+      "images": [],
+      "copyText": "买房先看楼下：生活圈比户型更重要\n\n第一次看房，别只盯着户型图。下楼走一圈，才是真正的考验。很多人花了很长时间选户型，结果住进去发现，买个菜要走20分钟。我今天带你看看，什么叫真实生活半径。\n\n从地铁站出来，步行大约5分钟就到社区门口。一路沿街都是商铺，早上有包子铺、晚上有水果店，烟火气很足。\n\n楼下底商已经开了不少。便利店、药店、干洗店，日常需要的基本都有。不用开车，下楼就能解决。\n\n大堂空间挑高约4米，装修简洁大方。虽然是商用属性，但品质感不输住宅。朋友来了也体面。\n\n看配套到底怎么看？别信规划图，就看两点：一是现在有没有人用，二是走路方不方便。这里周边配套基本都兑现了，所见即所得。\n\n如果你也在看房，想了解怎么评估生活配套，可以私信我，我发你一份细项清单参考。\n\n#买房经验 #看房技巧 #生活配套 #首次买房 #买房攻略 #社区配套 #买房避坑 #看房日记"
+    },
+    "video": {
+      "storyOutline": "以一个首次看房客户的视角，从项目外部进入社区，沿途展现真实的生活便利，然后进入大堂和样板间，强调生活动线比户型图更值得关注。",
+      "estimatedDuration": "约45秒",
+      "bgm": "开篇轻快带悬念，中段温馨生活感，结尾积极明朗",
+      "toneOfVoice": "真实分享，如同和老客户提醒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0:00-0:10",
+          "durationSec": 10,
+          "sceneType": "口播",
+          "title": "误区提醒：只盯户型图的误区",
+          "requiresUserUpload": true,
+          "purpose": "用痛点引发共鸣，建立信任",
+          "taskDescription": "中介在售楼处沙盘旁面对镜头自然说话，背景有沙盘和项目效果图",
+          "visualDescription": "中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘和项目效果图；光线明亮，脸部无阴影",
+          "voiceover": "很多人第一次看房只盯户型图，但住进去后才发现生活动线有多重要。你每天走的路、楼下的早餐店、便利店——这些才是决定生活质量的关键。",
+          "subtitle": "很多人第一次看房只盯户型图，但住进去后才发现生活动线有多重要。你每天走的路、楼下的早餐店、便利店——这些才是决定生活质量的关键。",
+          "shotLanguage": {
+            "framing": "中景",
+            "cameraMovement": "固定",
+            "orientation": "水平",
+            "composition": "中介居中偏左，背景有沙盘"
+          },
+          "filmingGuide": {
+            "method": "自拍",
+            "location": "售楼处沙盘区",
+            "posture": "站立面对镜头",
+            "tips": [
+              "手机横屏拍摄，画质1080p以上",
+              "确保脸部光线均匀，避免阴影",
+              "开头多录2秒方便剪辑"
+            ]
+          },
+          "editGuide": {
+            "transition": "渐变过渡",
+            "pacing": "正常",
+            "minUsableSeconds": 5
+          },
+          "assetQuery": ""
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "0:10-0:14",
+          "durationSec": 4,
+          "sceneType": "素材",
+          "title": "从地铁站走向社区",
+          "requiresUserUpload": false,
+          "purpose": "带入生活动线，展示周边交通便利",
+          "taskDescription": "使用地铁站出口到社区步行的航拍或跟随镜头素材，展现沿途商铺和街道活力",
+          "visualDescription": "地铁站出口航拍，镜头从高处下降跟随一个人走向社区方向，沿途可见沿街商铺、早餐店、便利店，阳光充足，街道干净整洁",
+          "voiceover": "今天我们就从地铁站走到社区，帮你感受真实的生活半径。",
+          "subtitle": "从地铁站走到社区，感受真实生活半径",
+          "shotLanguage": {
+            "framing": "全景航拍转中景跟随",
+            "cameraMovement": "下降跟随",
+            "orientation": "水平",
+            "composition": "人物在画面中心偏下，街道引导线"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 2
+          },
+          "assetQuery": "地铁站 出口 行人 步行 社区 沿街商铺 活力"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "0:14-0:18",
+          "durationSec": 4,
+          "sceneType": "素材",
+          "title": "楼下底商已运营",
+          "requiresUserUpload": false,
+          "purpose": "展示已有配套，打消顾虑",
+          "taskDescription": "展示社区底商已有商家经营，如早餐店、便利店、咖啡店等",
+          "visualDescription": "社区底商外景，镜头平缓扫过一排店铺，有醒目的招牌和正在营业的商家，有人在店内消费，早晨阳光柔和",
+          "voiceover": "你看，底商已经有很多店在营业了，买杯咖啡、吃个早饭都很方便。",
+          "subtitle": "底商已运营，买咖啡吃早饭都很方便",
+          "shotLanguage": {
+            "framing": "中景平移",
+            "cameraMovement": "平移",
+            "orientation": "水平",
+            "composition": "店铺居中，招牌清晰"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 2
+          },
+          "assetQuery": "社区底商 店铺 营业 早餐店 便利店 咖啡店 实景"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "0:18-0:22",
+          "durationSec": 4,
+          "sceneType": "素材",
+          "title": "品质大堂和电梯厅",
+          "requiresUserUpload": false,
+          "purpose": "体现项目品质感",
+          "taskDescription": "展示社区大堂和公共区域的实景素材，强调层高和质感",
+          "visualDescription": "大堂室内全景，镜头从门口推进，展示4米层高、石材地面、现代简约装修，商务大堂风格，有休息区，灯光明亮",
+          "voiceover": "再进到大堂，层高4米，很有品质感。",
+          "subtitle": "大堂层高4米，品质感十足",
+          "shotLanguage": {
+            "framing": "全景推近",
+            "cameraMovement": "推进",
+            "orientation": "水平",
+            "composition": "大堂中心为视觉焦点，对称构图"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 2
+          },
+          "assetQuery": "大堂 层高 4米 商务风格 品质 室内 现代"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "0:22-0:26",
+          "durationSec": 4,
+          "sceneType": "素材",
+          "title": "样板间窗外视野",
+          "requiresUserUpload": false,
+          "purpose": "展示空间感和视野",
+          "taskDescription": "使用样板间内拍摄的素材，重点展示窗外视野或室内通透感",
+          "visualDescription": "站在样板间窗边，镜头从室内向窗外拍摄，透过窗户看到社区景观或远处城市天际线，室内空间宽敞，自然光充足",
+          "voiceover": "最后进样板间，站在窗边看看视野。",
+          "subtitle": "站在窗边，感受开阔视野",
+          "shotLanguage": {
+            "framing": "中景定镜",
+            "cameraMovement": "固定",
+            "orientation": "水平",
+            "composition": "窗户占据画面中心，室内的部分空间为前景"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "渐变过渡",
+            "pacing": "正常",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": "样板间 窗户 视野 城市景观 室内 光线 通透"
+        },
+        {
+          "sceneNo": 6,
+          "timeRange": "0:26-0:30",
+          "durationSec": 4,
+          "sceneType": "文字卡",
+          "title": "社区数据展示",
+          "requiresUserUpload": false,
+          "purpose": "用数据增强说服力",
+          "taskDescription": "展示文字卡片，内容为社区体量和配套现状",
+          "visualDescription": "纯文字黑色背景或半透明渐变，白色字体，居中显示：约80万方生活大城 1万户、3万人口 配套已呈现",
+          "voiceover": "",
+          "subtitle": "约80万方生活大城 1万户、3万人口 配套已呈现",
+          "shotLanguage": {
+            "framing": "全屏",
+            "cameraMovement": "固定",
+            "orientation": "水平",
+            "composition": "文字居中"
+          },
+          "filmingGuide": {
+            "method": "剪辑生成文字卡",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "正常",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": ""
+        },
+        {
+          "sceneNo": 7,
+          "timeRange": "0:30-0:40",
+          "durationSec": 10,
+          "sceneType": "口播",
+          "title": "轻CTA：提供生活半径清单",
+          "requiresUserUpload": true,
+          "purpose": "引导行动，提供价值",
+          "taskDescription": "中介再次面对镜头，自然引出提供清单，保持与场景1相同穿着和背景",
+          "visualDescription": "中介站在同一位置（售楼处沙盘旁），面对镜头自然说话，表情真诚",
+          "voiceover": "如果你也在担心配套，可以找我拿一份生活半径清单，提前了解周边有什么。",
+          "subtitle": "如果你也在担心配套，可以找我拿一份生活半径清单，提前了解周边有什么。",
+          "shotLanguage": {
+            "framing": "中近景",
+            "cameraMovement": "固定",
+            "orientation": "水平",
+            "composition": "中介居中，面部表情清晰"
+          },
+          "filmingGuide": {
+            "method": "自拍",
+            "location": "建议与场景1同一位置（售楼处）",
+            "posture": "站立面对镜头",
+            "tips": [
+              "保持与开头相同的穿着和发型",
+              "语速放慢，像跟朋友聊天",
+              "句尾停顿1秒再结束"
+            ]
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "正常",
+            "minUsableSeconds": 5
+          },
+          "assetQuery": ""
+        }
+      ]
+    },
+    "quality": {
+      "riskTerms": [
+        "合规敏感表述"
+      ]
+    }
+  },
+  "final_text": "{\"status\": \"needs_review\", \"article\": {\"title\": \"买房先看楼下：生活圈比户型更重要\", \"coverCopy\": \"楼下生活圈，比户型更值得看\", \"images\": [], \"copyText\": \"买房先看楼下：生活圈比户型更重要\\n\\n第一次看房，别只盯着户型图。下楼走一圈，才是真正的考验。很多人花了很长时间选户型，结果住进去发现，买个菜要走20分钟。我今天带你看看，什么叫真实生活半径。\\n\\n从地铁站出来，步行大约5分钟就到社区门口。一路沿街都是商铺，早上有包子铺、晚上有水果店，烟火气很足。\\n\\n楼下底商已经开了不少。便利店、药店、干洗店，日常需要的基本都有。不用开车，下楼就能解决。\\n\\n大堂空间挑高约4米，装修简洁大方。虽然是商用属性，但品质感不输住宅。朋友来了也体面。\\n\\n看配套到底怎么看？别信规划图，就看两点：一是现在有没有人用，二是走路方不方便。这里周边配套基本都兑现了，所见即所得。\\n\\n如果你也在看房，想了解怎么评估生活配套，可以私信我，我发你一份细项清单参考。\\n\\n#买房经验 #看房技巧 #生活配套 #首次买房 #买房攻略 #社区配套 #买房避坑 #看房日记\"}, \"video\": {\"storyOutline\": \"以一个首次看房客户的视角，从项目外部进入社区，沿途展现真实的生活便利，然后进入大堂和样板间，强调生活动线比户型图更值得关注。\", \"estimatedDuration\": \"约45秒\", \"bgm\": \"开篇轻快带悬念，中段温馨生活感，结尾积极明朗\", \"toneOfVoice\": \"真实分享，如同和老客户提醒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:10\", \"durationSec\": 10, \"sceneType\": \"口播\", \"title\": \"误区提醒：只盯户型图的误区\", \"requiresUserUpload\": true, \"purpose\": \"用痛点引发共鸣，建立信任\", \"taskDescription\": \"中介在售楼处沙盘旁面对镜头自然说话，背景有沙盘和项目效果图\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘和项目效果图；光线明亮，脸部无阴影\", \"voiceover\": \"很多人第一次看房只盯户型图，但住进去后才发现生活动线有多重要。你每天走的路、楼下的早餐店、便利店——这些才是决定生活质量的关键。\", \"subtitle\": \"很多人第一次看房只盯户型图，但住进去后才发现生活动线有多重要。你每天走的路、楼下的早餐店、便利店——这些才是决定生活质量的关键。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定\", \"orientation\": \"水平\", \"composition\": \"中介居中偏左，背景有沙盘\"}, \"filmingGuide\": {\"method\": \"自拍\", \"location\": \"售楼处沙盘区\", \"posture\": \"站立面对镜头\", \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"确保脸部光线均匀，避免阴影\", \"开头多录2秒方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0:10-0:14\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"从地铁站走向社区\", \"requiresUserUpload\": false, \"purpose\": \"带入生活动线，展示周边交通便利\", \"taskDescription\": \"使用地铁站出口到社区步行的航拍或跟随镜头素材，展现沿途商铺和街道活力\", \"visualDescription\": \"地铁站出口航拍，镜头从高处下降跟随一个人走向社区方向，沿途可见沿街商铺、早餐店、便利店，阳光充足，街道干净整洁\", \"voiceover\": \"今天我们就从地铁站走到社区，帮你感受真实的生活半径。\", \"subtitle\": \"从地铁站走到社区，感受真实生活半径\", \"shotLanguage\": {\"framing\": \"全景航拍转中景跟随\", \"cameraMovement\": \"下降跟随\", \"orientation\": \"水平\", \"composition\": \"人物在画面中心偏下，街道引导线\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"地铁站 出口 行人 步行 社区 沿街商铺 活力\"}, {\"sceneNo\": 3, \"timeRange\": \"0:14-0:18\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"楼下底商已运营\", \"requiresUserUpload\": false, \"purpose\": \"展示已有配套，打消顾虑\", \"taskDescription\": \"展示社区底商已有商家经营，如早餐店、便利店、咖啡店等\", \"visualDescription\": \"社区底商外景，镜头平缓扫过一排店铺，有醒目的招牌和正在营业的商家，有人在店内消费，早晨阳光柔和\", \"voiceover\": \"你看，底商已经有很多店在营业了，买杯咖啡、吃个早饭都很方便。\", \"subtitle\": \"底商已运营，买咖啡吃早饭都很方便\", \"shotLanguage\": {\"framing\": \"中景平移\", \"cameraMovement\": \"平移\", \"orientation\": \"水平\", \"composition\": \"店铺居中，招牌清晰\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"社区底商 店铺 营业 早餐店 便利店 咖啡店 实景\"}, {\"sceneNo\": 4, \"timeRange\": \"0:18-0:22\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"品质大堂和电梯厅\", \"requiresUserUpload\": false, \"purpose\": \"体现项目品质感\", \"taskDescription\": \"展示社区大堂和公共区域的实景素材，强调层高和质感\", \"visualDescription\": \"大堂室内全景，镜头从门口推进，展示4米层高、石材地面、现代简约装修，商务大堂风格，有休息区，灯光明亮\", \"voiceover\": \"再进到大堂，层高4米，很有品质感。\", \"subtitle\": \"大堂层高4米，品质感十足\", \"shotLanguage\": {\"framing\": \"全景推近\", \"cameraMovement\": \"推进\", \"orientation\": \"水平\", \"composition\": \"大堂中心为视觉焦点，对称构图\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"大堂 层高 4米 商务风格 品质 室内 现代\"}, {\"sceneNo\": 5, \"timeRange\": \"0:22-0:26\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"样板间窗外视野\", \"requiresUserUpload\": false, \"purpose\": \"展示空间感和视野\", \"taskDescription\": \"使用样板间内拍摄的素材，重点展示窗外视野或室内通透感\", \"visualDescription\": \"站在样板间窗边，镜头从室内向窗外拍摄，透过窗户看到社区景观或远处城市天际线，室内空间宽敞，自然光充足\", \"voiceover\": \"最后进样板间，站在窗边看看视野。\", \"subtitle\": \"站在窗边，感受开阔视野\", \"shotLanguage\": {\"framing\": \"中景定镜\", \"cameraMovement\": \"固定\", \"orientation\": \"水平\", \"composition\": \"窗户占据画面中心，室内的部分空间为前景\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 窗户 视野 城市景观 室内 光线 通透\"}, {\"sceneNo\": 6, \"timeRange\": \"0:26-0:30\", \"durationSec\": 4, \"sceneType\": \"文字卡\", \"title\": \"社区数据展示\", \"requiresUserUpload\": false, \"purpose\": \"用数据增强说服力\", \"taskDescription\": \"展示文字卡片，内容为社区体量和配套现状\", \"visualDescription\": \"纯文字黑色背景或半透明渐变，白色字体，居中显示：约80万方生活大城 1万户、3万人口 配套已呈现\", \"voiceover\": \"\", \"subtitle\": \"约80万方生活大城 1万户、3万人口 配套已呈现\", \"shotLanguage\": {\"framing\": \"全屏\", \"cameraMovement\": \"固定\", \"orientation\": \"水平\", \"composition\": \"文字居中\"}, \"filmingGuide\": {\"method\": \"剪辑生成文字卡\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 7, \"timeRange\": \"0:30-0:40\", \"durationSec\": 10, \"sceneType\": \"口播\", \"title\": \"轻CTA：提供生活半径清单\", \"requiresUserUpload\": true, \"purpose\": \"引导行动，提供价值\", \"taskDescription\": \"中介再次面对镜头，自然引出提供清单，保持与场景1相同穿着和背景\", \"visualDescription\": \"中介站在同一位置（售楼处沙盘旁），面对镜头自然说话，表情真诚\", \"voiceover\": \"如果你也在担心配套，可以找我拿一份生活半径清单，提前了解周边有什么。\", \"subtitle\": \"如果你也在担心配套，可以找我拿一份生活半径清单，提前了解周边有什么。\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"水平\", \"composition\": \"中介居中，面部表情清晰\"}, \"filmingGuide\": {\"method\": \"自拍\", \"location\": \"建议与场景1同一位置（售楼处）\", \"posture\": \"站立面对镜头\", \"tips\": [\"保持与开头相同的穿着和发型\", \"语速放慢，像跟朋友聊天\", \"句尾停顿1秒再结束\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": [\"合规敏感表述\"]}}",
+  "parse_error": null,
+  "evaluation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "top_level_only_status_article_video_quality",
+        "passed": true,
+        "detail": "['article', 'quality', 'status', 'video']"
+      },
+      {
+        "name": "removed_fields_absent",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_title_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_cover_copy_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_copy_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_copy_text_has_hashtag",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_images_is_list",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_storyOutline_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_estimatedDuration_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_bgm_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_toneOfVoice_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scenes_nonempty_list",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scene_required_fields_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scene_types_ok",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "requires_user_upload_has_true",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_only_risk_terms",
+        "passed": true,
+        "detail": "['riskTerms']"
+      },
+      {
+        "name": "quality_risk_terms_array",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms_in_final_json",
+        "passed": true,
+        "detail": ""
+      }
+    ]
+  }
+}

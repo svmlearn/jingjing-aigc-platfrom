@@ -1,0 +1,44 @@
+{
+  "case_name": "case01_full_with_compliance_risk",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case01_full_with_compliance_risk.json",
+  "run_index": 1,
+  "timestamp": "20260512_141538_836461",
+  "elapsed_time": 806.1744079589844,
+  "success": true,
+  "workflow_run_id": "a92e30d8-ae24-4a1e-9739-8ecb75a343cb",
+  "error": null,
+  "raw_response": {
+    "id": "a92e30d8-ae24-4a1e-9739-8ecb75a343cb",
+    "workflow_id": "e4f8d2b4-8d5a-49e8-bf85-f2526c369b77",
+    "status": "failed",
+    "outputs": {},
+    "error": "[deepseek] Error: req_id: bf3a8eb354 PluginDaemonInternalServerError: killed by timeout",
+    "elapsed_time": 802.735273,
+    "total_tokens": 16390,
+    "total_steps": 6,
+    "created_by": {
+      "id": "67344220-2c75-4453-a007-cb7bd4f2d8b0",
+      "user": "content_calendar_test_case01_full_with_compliance_risk_1778566538"
+    },
+    "created_at": 1778566541,
+    "finished_at": 1778567343,
+    "exceptions_count": 1,
+    "files": []
+  },
+  "final_json": null,
+  "final_text": "",
+  "parse_errors": [
+    "missing final output text"
+  ],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": false,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

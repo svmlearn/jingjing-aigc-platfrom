@@ -1,0 +1,404 @@
+{
+  "case_name": "case02_no_images",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "run_index": 1,
+  "timestamp": "20260512_143849_671898",
+  "elapsed_time": 123.6346607208252,
+  "success": true,
+  "workflow_run_id": "937b418d-0863-428b-b6ec-25c5ab48716e",
+  "error": null,
+  "raw_response": {
+    "id": "937b418d-0863-428b-b6ec-25c5ab48716e",
+    "workflow_id": "a8efdbbd-6ecd-4dd9-b1ad-834ad8236e7a",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"买房别只看户型，楼下生活半径更关键\", \"第一次看房，记得先下楼走一圈\", \"看房时，别忽略楼下真实的生活动线\"], \"selectedTitle\": \"买房别只看户型，楼下生活半径更关键\", \"coverCopy\": \"第一次看房，记得先下楼走一圈\", \"body\": \"很多人第一次看房，习惯先研究户型图。\\n但住进来后，每天打交道最多的，其实是楼下有什么。\\n\\n买菜方不方便，吃早餐顺不顺路，孩子上学要走多远。\\n这些日常动线，比户型更影响居住感受。\\n\\n我们这边社区体量不小，楼下超市、餐馆、学校都配得比较齐。\\n建议你实地走一遍：从小区门口到菜场，再到常去的早餐店，感受一下真实的生活半径。\\n\\n看房不只看房子，更要看生活。\", \"hashtags\": [\"#看房技巧\", \"#生活半径\", \"#社区配套\", \"#首次看房\", \"#真实生活场景\"], \"cta\": \"想要一份周边生活动线清单，可以发你参考。\", \"imageMatches\": [], \"imageBriefIfMissing\": \"需要社区周边超市、餐饮店、学校或幼儿园、公交站或地铁口的实拍照片，展示真实生活配套。\", \"riskNotes\": [\"已避开收益承诺、出租确定性、价格趋势等风险主题\", \"未使用风险词词典中的任何原词\", \"生活场景描述基于社区体量大、配套成熟等事实，未虚构具体名称\"], \"copyReadyText\": \"买房别只看户型，楼下生活半径更关键\\n\\n第一次看房，记得先下楼走一圈\\n\\n很多人第一次看房，习惯先研究户型图。\\n但住进来后，每天打交道最多的，其实是楼下有什么。\\n\\n买菜方不方便，吃早餐顺不顺路，孩子上学要走多远。\\n这些日常动线，比户型更影响居住感受。\\n\\n我们这边社区体量不小，楼下超市、餐馆、学校都配得比较齐。\\n建议你实地走一遍：从小区门口到菜场，再到常去的早餐店，感受一下真实的生活半径。\\n\\n看房不只看房子，更要看生活。\\n\\n想要一份周边生活动线清单，可以发你参考。\\n\\n#看房技巧 #生活半径 #社区配套 #首次看房 #真实生活场景\"}, \"videoScript\": {\"storyOutline\": \"以第一人称视角，带观众实地走一遍社区周边生活动线，从下楼买菜、吃早餐到送孩子上学，展示真实配套，结尾提醒看房前先关注生活半径。\", \"estimatedDuration\": \"30-45秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-8秒\", \"visualGoal\": \"从小区大门开始，走向周边超市，展示社区体量和生活便利的第一印象\", \"voiceover\": \"很多人第一次看房，习惯先研究户型图。但住进来后，每天打交道最多的，其实是楼下有什么。\", \"subtitle\": \"买房别只看户型，楼下生活半径更关键\", \"shotRequirement\": \"手持跟拍，从小区大门走出，镜头平稳移动，带到社区底商和街道，自然光线\", \"assetQuery\": \"项目外立面 小区入口 底商街景 远景\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"社区大门和周边道路的空镜\"}, {\"sceneNo\": 2, \"timeRange\": \"8-15秒\", \"visualGoal\": \"在超市门口停留，展示商品和人群，体现日常购物便利\", \"voiceover\": \"买菜方不方便，吃早餐顺不顺路，孩子上学要走多远。这些日常动线，比户型更影响居住感受。\", \"subtitle\": \"买菜、吃早餐、上学，这些动线比户型更重要\", \"shotRequirement\": \"固定镜头或轻微摇摄，拍摄超市门头、顾客进出、货架可见，避免拍到具体价格\", \"assetQuery\": \"社区超市 便利店 居民购物 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"社区底商超市招牌和行人\"}, {\"sceneNo\": 3, \"timeRange\": \"15-22秒\", \"visualGoal\": \"转场到附近早餐店或餐馆，展示餐饮配套的真实场景\", \"voiceover\": \"我们这边社区体量不小，楼下超市、餐馆、学校都配得比较齐。\", \"subtitle\": \"楼下超市、餐馆、学校都配得比较齐\", \"shotRequirement\": \"快速转场，拍摄餐馆外景或内部环境，可带过食客（避免面部特写），突出烟火气\", \"assetQuery\": \"社区餐饮 早餐店 餐馆 街边小吃 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"餐饮店铺招牌和街道全景\"}, {\"sceneNo\": 4, \"timeRange\": \"22-30秒\", \"visualGoal\": \"路过学校或幼儿园，捕捉学生上学场景，体现教育配套便利\", \"voiceover\": \"建议你实地走一遍：从小区门口到菜场，再到常去的早餐店，感受一下真实的生活半径。\", \"subtitle\": \"从小区门口到菜场、早餐店，感受真实生活半径\", \"shotRequirement\": \"移动镜头，从小区附近走向学校，拍摄学校外观和上学人流（避免学生正面特写），可用延时\", \"assetQuery\": \"学校外观 幼儿园 学生上学 社区教育配套\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"学校大门和周边道路\"}, {\"sceneNo\": 5, \"timeRange\": \"30-38秒\", \"visualGoal\": \"最后回到小区，总结生活便利性，并给出轻CTA\", \"voiceover\": \"看房不只看房子，更要看生活。想要一份周边生活动线清单，可以发你参考。\", \"subtitle\": \"看房更要看生活，想要清单可以找我\", \"shotRequirement\": \"中景或近景，真人出镜面对镜头，表情自然，背景为小区环境或标志物，口播清晰\", \"assetQuery\": \"真人出镜 口播 小区环境 结尾CTA\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜口播结尾CTA，建立信任并引导互动\", \"assetSourceHint\": \"self_shoot\", \"fallbackVisual\": \"小区花园或楼栋背景\"}], \"requiredUploads\": [\"真人出镜口播结尾CTA，背景为小区环境或标志物\"], \"optionalTeamVideoAssets\": [\"项目外立面 小区入口 底商街景 远景\", \"社区超市 便利店 居民购物 实拍\", \"社区餐饮 早餐店 餐馆 街边小吃 实拍\", \"学校外观 幼儿园 学生上学 社区教育配套\"], \"shootingTips\": [\"全程手持拍摄，保持画面稳定，使用防抖设备\", \"自然光线为主，避免逆光，早晨或傍晚拍摄更佳\", \"转场时使用快速摇摄或相似物体转场，保持节奏\", \"超市和餐馆拍摄时避免拍到具体价格和品牌商标\", \"学校场景避免学生正面特写，保护隐私\", \"真人出镜时穿着休闲，语气亲切，像和朋友聊天\"], \"riskNotes\": [\"已避开收益承诺、出租确定性、价格趋势等风险主题\", \"未使用风险词词典中的任何原词\", \"生活场景描述基于社区体量大、配套成熟等事实，未虚构具体名称\", \"voiceover和subtitle均使用'配得比较齐'等客观描述，避免'成熟''完善'等绝对化表述\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 6, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"缺少可用图片素材\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"图文图片素材\"]}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"成熟配套\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"信任建立\", \"targetAudience\": \"首次看房客户\", \"audiencePain\": \"担心周边配套不成熟，生活不便\", \"sellingPointsNeeded\": [\"生活便利\", \"配套齐全\", \"即享成熟商圈\"], \"riskConstraints\": [], \"copySearchQuery\": \"首次看房 成熟配套 生活便利 小区周边 超市学校医院\", \"scriptSearchQuery\": \"看房 成熟配套 生活便利 小区实景 配套展示\", \"imageSearchQuery\": \"小区周边配套 超市 学校 医院 商业街\", \"videoAssetQueryHints\": [\"小区周边航拍\", \"配套实景\", \"生活场景\"], \"extraRequirement\": \"语气真实一点，像发给老客户看的内容\"}, \"creativeStrategy\": {\"chosenAngle\": \"从日常通勤、买菜、吃饭等真实生活场景切入，展示社区周边已落地的成熟配套，帮助首次看房客户建立信任，避免收益承诺。\", \"narrativeArc\": [\"提醒误区：首次看房容易只关注户型，忽略楼下生活半径\", \"讲生活场景：展示社区周边超市、餐饮、学校等日常配套的真实画面\", \"列看房要点：建议客户实地走一遍买菜、吃饭、通勤动线\", \"轻CTA：可提供生活半径清单供参考\"], \"tone\": \"真实、亲切，像发给老客户看的语气，避免夸张和宏观判断\", \"mustUseFacts\": [\"社区体量大，楼下消费和服务设施较成熟\", \"适合从日常通勤、买菜、吃饭、看房动线等生活场景解释\"], \"mustAvoidClaims\": [\"投资回报率高\", \"收益稳定\", \"租金回报高\", \"稳赚\", \"保值增值\", \"满租\", \"租金区间\", \"租金回报\", \"投资属性\", \"资产回报\", \"低位价格\", \"价格错位\", \"收租\", \"贴月供\", \"租出去\", \"保租\", \"保回报\", \"确定兑现\", \"运营成熟验证\"], \"viralPatternUsed\": {\"patternName\": \"提醒误区+生活场景+看房要点+轻CTA\", \"reason\": \"借鉴爆款结构，用生活半径概念替代户型焦点，适合首次看房客户建立信任\", \"titleTactics\": [\"用“别只看”制造认知反差\", \"突出“生活半径”这个具体概念\"], \"hookTactics\": [\"从常见误区切入，引发共鸣\", \"用“很多人”降低针对性，让读者自我代入\"], \"ctaTactics\": [\"提供实用清单，引导互动\", \"语气轻松，不施压\"]}, \"articlePlan\": {\"titleDirection\": \"买房别只看户型，楼下生活半径更关键\", \"coverCopyDirection\": \"第一次看房，记得先下楼走一圈\", \"bodyStructure\": [\"误区提醒：很多人第一次看房只盯户型图\", \"生活场景：展示社区周边超市、餐饮、学校等真实配套\", \"看房要点：建议实地走买菜、吃饭、通勤动线\", \"轻CTA：想要看生活半径清单可以问我\"], \"imagePlan\": [\"社区周边超市实拍\", \"附近餐饮店或菜市场\", \"学校或幼儿园外观\", \"公交站或地铁口\", \"社区底商街景\"]}, \"videoPlan\": {\"storyOutline\": \"以第一人称视角，带观众实地走一遍社区周边生活动线，从下楼买菜、吃早餐到送孩子上学，展示真实配套，结尾提醒看房前先关注生活半径。\", \"estimatedDuration\": \"30-45秒\", \"scenePlan\": [\"镜头从小区大门开始，走向周边超市\", \"在超市门口停留，展示商品和人群\", \"转场到附近早餐店或餐馆\", \"路过学校或幼儿园，捕捉学生上学场景\", \"最后回到小区，总结生活便利性\"], \"requiredUploads\": [\"社区周边超市实拍视频\", \"餐饮店或菜市场视频\", \"学校或幼儿园外观视频\", \"公交站或地铁口视频\"], \"assetQueryHints\": [\"小区周边航拍\", \"配套实景\", \"生活场景\"]}, \"degradationNotices\": [\"项目事实不足：知识库未提供明确项目名、区域、户型、配套名称，内容保持泛化但克制\"], \"trace\": {\"usedKnowledgeSummary\": [\"社区体量大，楼下消费和服务设施较成熟\", \"适合从日常通勤、买菜、吃饭、看房动线等生活场景解释\"], \"usedViralSummary\": [\"爆款结构：提醒误区+讲生活场景+列看房要点+轻CTA\", \"hook：很多人第一次看房只盯户型图\", \"ctaStyle：想要看生活半径清单可以问我\"], \"usedImageSummary\": []}, \"qualityGateHints\": {\"factWeakness\": \"项目具体名称、区域、户型、配套名称缺失，只能依赖泛化描述\", \"complianceRisks\": [\"收益承诺类\", \"出租确定性类\", \"价格趋势类\"], \"mustReviewBeforePublish\": [\"确认所有描述未隐含收益承诺\", \"检查是否出现风险词或变体\", \"确保生活场景描述基于真实可观察的配套\"]}}, \"usedKnowledgeRefs\": [\"社区体量大，楼下消费和服务设施较成熟\", \"适合从日常通勤、买菜、吃饭、看房动线等生活场景解释\"], \"usedViralRefs\": [{\"patternName\": \"提醒误区+生活场景+看房要点+轻CTA\", \"reason\": \"借鉴爆款结构，用生活半径概念替代户型焦点，适合首次看房客户建立信任\", \"titleTactics\": [\"用“别只看”制造认知反差\", \"突出“生活半径”这个具体概念\"], \"hookTactics\": [\"从常见误区切入，引发共鸣\", \"用“很多人”降低针对性，让读者自我代入\"], \"ctaTactics\": [\"提供实用清单，引导互动\", \"语气轻松，不施压\"]}], \"usedImageAssets\": [], \"degradationNotices\": [\"项目事实不足：知识库未提供明确项目名、区域、户型、配套名称，内容保持泛化但克制\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 117.819721,
+    "total_tokens": 13569,
+    "total_steps": 12,
+    "created_by": {
+      "id": "69eaeb9c-1afa-410c-a780-900527549858",
+      "user": "content_calendar_test_case02_no_images_1778567929"
+    },
+    "created_at": 1778567934,
+    "finished_at": 1778568052,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [
+        "买房别只看户型，楼下生活半径更关键",
+        "第一次看房，记得先下楼走一圈",
+        "看房时，别忽略楼下真实的生活动线"
+      ],
+      "selectedTitle": "买房别只看户型，楼下生活半径更关键",
+      "coverCopy": "第一次看房，记得先下楼走一圈",
+      "body": "很多人第一次看房，习惯先研究户型图。\n但住进来后，每天打交道最多的，其实是楼下有什么。\n\n买菜方不方便，吃早餐顺不顺路，孩子上学要走多远。\n这些日常动线，比户型更影响居住感受。\n\n我们这边社区体量不小，楼下超市、餐馆、学校都配得比较齐。\n建议你实地走一遍：从小区门口到菜场，再到常去的早餐店，感受一下真实的生活半径。\n\n看房不只看房子，更要看生活。",
+      "hashtags": [
+        "#看房技巧",
+        "#生活半径",
+        "#社区配套",
+        "#首次看房",
+        "#真实生活场景"
+      ],
+      "cta": "想要一份周边生活动线清单，可以发你参考。",
+      "imageMatches": [],
+      "imageBriefIfMissing": "需要社区周边超市、餐饮店、学校或幼儿园、公交站或地铁口的实拍照片，展示真实生活配套。",
+      "riskNotes": [
+        "已避开收益承诺、出租确定性、价格趋势等风险主题",
+        "未使用风险词词典中的任何原词",
+        "生活场景描述基于社区体量大、配套成熟等事实，未虚构具体名称"
+      ],
+      "copyReadyText": "买房别只看户型，楼下生活半径更关键\n\n第一次看房，记得先下楼走一圈\n\n很多人第一次看房，习惯先研究户型图。\n但住进来后，每天打交道最多的，其实是楼下有什么。\n\n买菜方不方便，吃早餐顺不顺路，孩子上学要走多远。\n这些日常动线，比户型更影响居住感受。\n\n我们这边社区体量不小，楼下超市、餐馆、学校都配得比较齐。\n建议你实地走一遍：从小区门口到菜场，再到常去的早餐店，感受一下真实的生活半径。\n\n看房不只看房子，更要看生活。\n\n想要一份周边生活动线清单，可以发你参考。\n\n#看房技巧 #生活半径 #社区配套 #首次看房 #真实生活场景"
+    },
+    "videoScript": {
+      "storyOutline": "以第一人称视角，带观众实地走一遍社区周边生活动线，从下楼买菜、吃早餐到送孩子上学，展示真实配套，结尾提醒看房前先关注生活半径。",
+      "estimatedDuration": "30-45秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-8秒",
+          "visualGoal": "从小区大门开始，走向周边超市，展示社区体量和生活便利的第一印象",
+          "voiceover": "很多人第一次看房，习惯先研究户型图。但住进来后，每天打交道最多的，其实是楼下有什么。",
+          "subtitle": "买房别只看户型，楼下生活半径更关键",
+          "shotRequirement": "手持跟拍，从小区大门走出，镜头平稳移动，带到社区底商和街道，自然光线",
+          "assetQuery": "项目外立面 小区入口 底商街景 远景",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "社区大门和周边道路的空镜"
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "8-15秒",
+          "visualGoal": "在超市门口停留，展示商品和人群，体现日常购物便利",
+          "voiceover": "买菜方不方便，吃早餐顺不顺路，孩子上学要走多远。这些日常动线，比户型更影响居住感受。",
+          "subtitle": "买菜、吃早餐、上学，这些动线比户型更重要",
+          "shotRequirement": "固定镜头或轻微摇摄，拍摄超市门头、顾客进出、货架可见，避免拍到具体价格",
+          "assetQuery": "社区超市 便利店 居民购物 实拍",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "社区底商超市招牌和行人"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "15-22秒",
+          "visualGoal": "转场到附近早餐店或餐馆，展示餐饮配套的真实场景",
+          "voiceover": "我们这边社区体量不小，楼下超市、餐馆、学校都配得比较齐。",
+          "subtitle": "楼下超市、餐馆、学校都配得比较齐",
+          "shotRequirement": "快速转场，拍摄餐馆外景或内部环境，可带过食客（避免面部特写），突出烟火气",
+          "assetQuery": "社区餐饮 早餐店 餐馆 街边小吃 实拍",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "餐饮店铺招牌和街道全景"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "22-30秒",
+          "visualGoal": "路过学校或幼儿园，捕捉学生上学场景，体现教育配套便利",
+          "voiceover": "建议你实地走一遍：从小区门口到菜场，再到常去的早餐店，感受一下真实的生活半径。",
+          "subtitle": "从小区门口到菜场、早餐店，感受真实生活半径",
+          "shotRequirement": "移动镜头，从小区附近走向学校，拍摄学校外观和上学人流（避免学生正面特写），可用延时",
+          "assetQuery": "学校外观 幼儿园 学生上学 社区教育配套",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "学校大门和周边道路"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "30-38秒",
+          "visualGoal": "最后回到小区，总结生活便利性，并给出轻CTA",
+          "voiceover": "看房不只看房子，更要看生活。想要一份周边生活动线清单，可以发你参考。",
+          "subtitle": "看房更要看生活，想要清单可以找我",
+          "shotRequirement": "中景或近景，真人出镜面对镜头，表情自然，背景为小区环境或标志物，口播清晰",
+          "assetQuery": "真人出镜 口播 小区环境 结尾CTA",
+          "uploadRequired": true,
+          "uploadReason": "需要真人出镜口播结尾CTA，建立信任并引导互动",
+          "assetSourceHint": "self_shoot",
+          "fallbackVisual": "小区花园或楼栋背景"
+        }
+      ],
+      "requiredUploads": [
+        "真人出镜口播结尾CTA，背景为小区环境或标志物"
+      ],
+      "optionalTeamVideoAssets": [
+        "项目外立面 小区入口 底商街景 远景",
+        "社区超市 便利店 居民购物 实拍",
+        "社区餐饮 早餐店 餐馆 街边小吃 实拍",
+        "学校外观 幼儿园 学生上学 社区教育配套"
+      ],
+      "shootingTips": [
+        "全程手持拍摄，保持画面稳定，使用防抖设备",
+        "自然光线为主，避免逆光，早晨或傍晚拍摄更佳",
+        "转场时使用快速摇摄或相似物体转场，保持节奏",
+        "超市和餐馆拍摄时避免拍到具体价格和品牌商标",
+        "学校场景避免学生正面特写，保护隐私",
+        "真人出镜时穿着休闲，语气亲切，像和朋友聊天"
+      ],
+      "riskNotes": [
+        "已避开收益承诺、出租确定性、价格趋势等风险主题",
+        "未使用风险词词典中的任何原词",
+        "生活场景描述基于社区体量大、配套成熟等事实，未虚构具体名称",
+        "voiceover和subtitle均使用'配得比较齐'等客观描述，避免'成熟''完善'等绝对化表述"
+      ]
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 8,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 8,
+        "materialFit": 6,
+        "compliance": 9
+      },
+      "pass": false,
+      "needsRewrite": false,
+      "riskTerms": [],
+      "problems": [
+        "缺少可用图片素材"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": [
+        "图文图片素材"
+      ]
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "成熟配套",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "信任建立",
+        "targetAudience": "首次看房客户",
+        "audiencePain": "担心周边配套不成熟，生活不便",
+        "sellingPointsNeeded": [
+          "生活便利",
+          "配套齐全",
+          "即享成熟商圈"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "首次看房 成熟配套 生活便利 小区周边 超市学校医院",
+        "scriptSearchQuery": "看房 成熟配套 生活便利 小区实景 配套展示",
+        "imageSearchQuery": "小区周边配套 超市 学校 医院 商业街",
+        "videoAssetQueryHints": [
+          "小区周边航拍",
+          "配套实景",
+          "生活场景"
+        ],
+        "extraRequirement": "语气真实一点，像发给老客户看的内容"
+      },
+      "creativeStrategy": {
+        "chosenAngle": "从日常通勤、买菜、吃饭等真实生活场景切入，展示社区周边已落地的成熟配套，帮助首次看房客户建立信任，避免收益承诺。",
+        "narrativeArc": [
+          "提醒误区：首次看房容易只关注户型，忽略楼下生活半径",
+          "讲生活场景：展示社区周边超市、餐饮、学校等日常配套的真实画面",
+          "列看房要点：建议客户实地走一遍买菜、吃饭、通勤动线",
+          "轻CTA：可提供生活半径清单供参考"
+        ],
+        "tone": "真实、亲切，像发给老客户看的语气，避免夸张和宏观判断",
+        "mustUseFacts": [
+          "社区体量大，楼下消费和服务设施较成熟",
+          "适合从日常通勤、买菜、吃饭、看房动线等生活场景解释"
+        ],
+        "mustAvoidClaims": [
+          "投资回报率高",
+          "收益稳定",
+          "租金回报高",
+          "稳赚",
+          "保值增值",
+          "满租",
+          "租金区间",
+          "租金回报",
+          "投资属性",
+          "资产回报",
+          "低位价格",
+          "价格错位",
+          "收租",
+          "贴月供",
+          "租出去",
+          "保租",
+          "保回报",
+          "确定兑现",
+          "运营成熟验证"
+        ],
+        "viralPatternUsed": {
+          "patternName": "提醒误区+生活场景+看房要点+轻CTA",
+          "reason": "借鉴爆款结构，用生活半径概念替代户型焦点，适合首次看房客户建立信任",
+          "titleTactics": [
+            "用“别只看”制造认知反差",
+            "突出“生活半径”这个具体概念"
+          ],
+          "hookTactics": [
+            "从常见误区切入，引发共鸣",
+            "用“很多人”降低针对性，让读者自我代入"
+          ],
+          "ctaTactics": [
+            "提供实用清单，引导互动",
+            "语气轻松，不施压"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "买房别只看户型，楼下生活半径更关键",
+          "coverCopyDirection": "第一次看房，记得先下楼走一圈",
+          "bodyStructure": [
+            "误区提醒：很多人第一次看房只盯户型图",
+            "生活场景：展示社区周边超市、餐饮、学校等真实配套",
+            "看房要点：建议实地走买菜、吃饭、通勤动线",
+            "轻CTA：想要看生活半径清单可以问我"
+          ],
+          "imagePlan": [
+            "社区周边超市实拍",
+            "附近餐饮店或菜市场",
+            "学校或幼儿园外观",
+            "公交站或地铁口",
+            "社区底商街景"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "以第一人称视角，带观众实地走一遍社区周边生活动线，从下楼买菜、吃早餐到送孩子上学，展示真实配套，结尾提醒看房前先关注生活半径。",
+          "estimatedDuration": "30-45秒",
+          "scenePlan": [
+            "镜头从小区大门开始，走向周边超市",
+            "在超市门口停留，展示商品和人群",
+            "转场到附近早餐店或餐馆",
+            "路过学校或幼儿园，捕捉学生上学场景",
+            "最后回到小区，总结生活便利性"
+          ],
+          "requiredUploads": [
+            "社区周边超市实拍视频",
+            "餐饮店或菜市场视频",
+            "学校或幼儿园外观视频",
+            "公交站或地铁口视频"
+          ],
+          "assetQueryHints": [
+            "小区周边航拍",
+            "配套实景",
+            "生活场景"
+          ]
+        },
+        "degradationNotices": [
+          "项目事实不足：知识库未提供明确项目名、区域、户型、配套名称，内容保持泛化但克制"
+        ],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "社区体量大，楼下消费和服务设施较成熟",
+            "适合从日常通勤、买菜、吃饭、看房动线等生活场景解释"
+          ],
+          "usedViralSummary": [
+            "爆款结构：提醒误区+讲生活场景+列看房要点+轻CTA",
+            "hook：很多人第一次看房只盯户型图",
+            "ctaStyle：想要看生活半径清单可以问我"
+          ],
+          "usedImageSummary": []
+        },
+        "qualityGateHints": {
+          "factWeakness": "项目具体名称、区域、户型、配套名称缺失，只能依赖泛化描述",
+          "complianceRisks": [
+            "收益承诺类",
+            "出租确定性类",
+            "价格趋势类"
+          ],
+          "mustReviewBeforePublish": [
+            "确认所有描述未隐含收益承诺",
+            "检查是否出现风险词或变体",
+            "确保生活场景描述基于真实可观察的配套"
+          ]
+        }
+      },
+      "usedKnowledgeRefs": [
+        "社区体量大，楼下消费和服务设施较成熟",
+        "适合从日常通勤、买菜、吃饭、看房动线等生活场景解释"
+      ],
+      "usedViralRefs": [
+        {
+          "patternName": "提醒误区+生活场景+看房要点+轻CTA",
+          "reason": "借鉴爆款结构，用生活半径概念替代户型焦点，适合首次看房客户建立信任",
+          "titleTactics": [
+            "用“别只看”制造认知反差",
+            "突出“生活半径”这个具体概念"
+          ],
+          "hookTactics": [
+            "从常见误区切入，引发共鸣",
+            "用“很多人”降低针对性，让读者自我代入"
+          ],
+          "ctaTactics": [
+            "提供实用清单，引导互动",
+            "语气轻松，不施压"
+          ]
+        }
+      ],
+      "usedImageAssets": [],
+      "degradationNotices": [
+        "项目事实不足：知识库未提供明确项目名、区域、户型、配套名称，内容保持泛化但克制"
+      ]
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"买房别只看户型，楼下生活半径更关键\", \"第一次看房，记得先下楼走一圈\", \"看房时，别忽略楼下真实的生活动线\"], \"selectedTitle\": \"买房别只看户型，楼下生活半径更关键\", \"coverCopy\": \"第一次看房，记得先下楼走一圈\", \"body\": \"很多人第一次看房，习惯先研究户型图。\\n但住进来后，每天打交道最多的，其实是楼下有什么。\\n\\n买菜方不方便，吃早餐顺不顺路，孩子上学要走多远。\\n这些日常动线，比户型更影响居住感受。\\n\\n我们这边社区体量不小，楼下超市、餐馆、学校都配得比较齐。\\n建议你实地走一遍：从小区门口到菜场，再到常去的早餐店，感受一下真实的生活半径。\\n\\n看房不只看房子，更要看生活。\", \"hashtags\": [\"#看房技巧\", \"#生活半径\", \"#社区配套\", \"#首次看房\", \"#真实生活场景\"], \"cta\": \"想要一份周边生活动线清单，可以发你参考。\", \"imageMatches\": [], \"imageBriefIfMissing\": \"需要社区周边超市、餐饮店、学校或幼儿园、公交站或地铁口的实拍照片，展示真实生活配套。\", \"riskNotes\": [\"已避开收益承诺、出租确定性、价格趋势等风险主题\", \"未使用风险词词典中的任何原词\", \"生活场景描述基于社区体量大、配套成熟等事实，未虚构具体名称\"], \"copyReadyText\": \"买房别只看户型，楼下生活半径更关键\\n\\n第一次看房，记得先下楼走一圈\\n\\n很多人第一次看房，习惯先研究户型图。\\n但住进来后，每天打交道最多的，其实是楼下有什么。\\n\\n买菜方不方便，吃早餐顺不顺路，孩子上学要走多远。\\n这些日常动线，比户型更影响居住感受。\\n\\n我们这边社区体量不小，楼下超市、餐馆、学校都配得比较齐。\\n建议你实地走一遍：从小区门口到菜场，再到常去的早餐店，感受一下真实的生活半径。\\n\\n看房不只看房子，更要看生活。\\n\\n想要一份周边生活动线清单，可以发你参考。\\n\\n#看房技巧 #生活半径 #社区配套 #首次看房 #真实生活场景\"}, \"videoScript\": {\"storyOutline\": \"以第一人称视角，带观众实地走一遍社区周边生活动线，从下楼买菜、吃早餐到送孩子上学，展示真实配套，结尾提醒看房前先关注生活半径。\", \"estimatedDuration\": \"30-45秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-8秒\", \"visualGoal\": \"从小区大门开始，走向周边超市，展示社区体量和生活便利的第一印象\", \"voiceover\": \"很多人第一次看房，习惯先研究户型图。但住进来后，每天打交道最多的，其实是楼下有什么。\", \"subtitle\": \"买房别只看户型，楼下生活半径更关键\", \"shotRequirement\": \"手持跟拍，从小区大门走出，镜头平稳移动，带到社区底商和街道，自然光线\", \"assetQuery\": \"项目外立面 小区入口 底商街景 远景\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"社区大门和周边道路的空镜\"}, {\"sceneNo\": 2, \"timeRange\": \"8-15秒\", \"visualGoal\": \"在超市门口停留，展示商品和人群，体现日常购物便利\", \"voiceover\": \"买菜方不方便，吃早餐顺不顺路，孩子上学要走多远。这些日常动线，比户型更影响居住感受。\", \"subtitle\": \"买菜、吃早餐、上学，这些动线比户型更重要\", \"shotRequirement\": \"固定镜头或轻微摇摄，拍摄超市门头、顾客进出、货架可见，避免拍到具体价格\", \"assetQuery\": \"社区超市 便利店 居民购物 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"社区底商超市招牌和行人\"}, {\"sceneNo\": 3, \"timeRange\": \"15-22秒\", \"visualGoal\": \"转场到附近早餐店或餐馆，展示餐饮配套的真实场景\", \"voiceover\": \"我们这边社区体量不小，楼下超市、餐馆、学校都配得比较齐。\", \"subtitle\": \"楼下超市、餐馆、学校都配得比较齐\", \"shotRequirement\": \"快速转场，拍摄餐馆外景或内部环境，可带过食客（避免面部特写），突出烟火气\", \"assetQuery\": \"社区餐饮 早餐店 餐馆 街边小吃 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"餐饮店铺招牌和街道全景\"}, {\"sceneNo\": 4, \"timeRange\": \"22-30秒\", \"visualGoal\": \"路过学校或幼儿园，捕捉学生上学场景，体现教育配套便利\", \"voiceover\": \"建议你实地走一遍：从小区门口到菜场，再到常去的早餐店，感受一下真实的生活半径。\", \"subtitle\": \"从小区门口到菜场、早餐店，感受真实生活半径\", \"shotRequirement\": \"移动镜头，从小区附近走向学校，拍摄学校外观和上学人流（避免学生正面特写），可用延时\", \"assetQuery\": \"学校外观 幼儿园 学生上学 社区教育配套\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"学校大门和周边道路\"}, {\"sceneNo\": 5, \"timeRange\": \"30-38秒\", \"visualGoal\": \"最后回到小区，总结生活便利性，并给出轻CTA\", \"voiceover\": \"看房不只看房子，更要看生活。想要一份周边生活动线清单，可以发你参考。\", \"subtitle\": \"看房更要看生活，想要清单可以找我\", \"shotRequirement\": \"中景或近景，真人出镜面对镜头，表情自然，背景为小区环境或标志物，口播清晰\", \"assetQuery\": \"真人出镜 口播 小区环境 结尾CTA\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜口播结尾CTA，建立信任并引导互动\", \"assetSourceHint\": \"self_shoot\", \"fallbackVisual\": \"小区花园或楼栋背景\"}], \"requiredUploads\": [\"真人出镜口播结尾CTA，背景为小区环境或标志物\"], \"optionalTeamVideoAssets\": [\"项目外立面 小区入口 底商街景 远景\", \"社区超市 便利店 居民购物 实拍\", \"社区餐饮 早餐店 餐馆 街边小吃 实拍\", \"学校外观 幼儿园 学生上学 社区教育配套\"], \"shootingTips\": [\"全程手持拍摄，保持画面稳定，使用防抖设备\", \"自然光线为主，避免逆光，早晨或傍晚拍摄更佳\", \"转场时使用快速摇摄或相似物体转场，保持节奏\", \"超市和餐馆拍摄时避免拍到具体价格和品牌商标\", \"学校场景避免学生正面特写，保护隐私\", \"真人出镜时穿着休闲，语气亲切，像和朋友聊天\"], \"riskNotes\": [\"已避开收益承诺、出租确定性、价格趋势等风险主题\", \"未使用风险词词典中的任何原词\", \"生活场景描述基于社区体量大、配套成熟等事实，未虚构具体名称\", \"voiceover和subtitle均使用'配得比较齐'等客观描述，避免'成熟''完善'等绝对化表述\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 6, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"缺少可用图片素材\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"图文图片素材\"]}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"成熟配套\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"信任建立\", \"targetAudience\": \"首次看房客户\", \"audiencePain\": \"担心周边配套不成熟，生活不便\", \"sellingPointsNeeded\": [\"生活便利\", \"配套齐全\", \"即享成熟商圈\"], \"riskConstraints\": [], \"copySearchQuery\": \"首次看房 成熟配套 生活便利 小区周边 超市学校医院\", \"scriptSearchQuery\": \"看房 成熟配套 生活便利 小区实景 配套展示\", \"imageSearchQuery\": \"小区周边配套 超市 学校 医院 商业街\", \"videoAssetQueryHints\": [\"小区周边航拍\", \"配套实景\", \"生活场景\"], \"extraRequirement\": \"语气真实一点，像发给老客户看的内容\"}, \"creativeStrategy\": {\"chosenAngle\": \"从日常通勤、买菜、吃饭等真实生活场景切入，展示社区周边已落地的成熟配套，帮助首次看房客户建立信任，避免收益承诺。\", \"narrativeArc\": [\"提醒误区：首次看房容易只关注户型，忽略楼下生活半径\", \"讲生活场景：展示社区周边超市、餐饮、学校等日常配套的真实画面\", \"列看房要点：建议客户实地走一遍买菜、吃饭、通勤动线\", \"轻CTA：可提供生活半径清单供参考\"], \"tone\": \"真实、亲切，像发给老客户看的语气，避免夸张和宏观判断\", \"mustUseFacts\": [\"社区体量大，楼下消费和服务设施较成熟\", \"适合从日常通勤、买菜、吃饭、看房动线等生活场景解释\"], \"mustAvoidClaims\": [\"投资回报率高\", \"收益稳定\", \"租金回报高\", \"稳赚\", \"保值增值\", \"满租\", \"租金区间\", \"租金回报\", \"投资属性\", \"资产回报\", \"低位价格\", \"价格错位\", \"收租\", \"贴月供\", \"租出去\", \"保租\", \"保回报\", \"确定兑现\", \"运营成熟验证\"], \"viralPatternUsed\": {\"patternName\": \"提醒误区+生活场景+看房要点+轻CTA\", \"reason\": \"借鉴爆款结构，用生活半径概念替代户型焦点，适合首次看房客户建立信任\", \"titleTactics\": [\"用“别只看”制造认知反差\", \"突出“生活半径”这个具体概念\"], \"hookTactics\": [\"从常见误区切入，引发共鸣\", \"用“很多人”降低针对性，让读者自我代入\"], \"ctaTactics\": [\"提供实用清单，引导互动\", \"语气轻松，不施压\"]}, \"articlePlan\": {\"titleDirection\": \"买房别只看户型，楼下生活半径更关键\", \"coverCopyDirection\": \"第一次看房，记得先下楼走一圈\", \"bodyStructure\": [\"误区提醒：很多人第一次看房只盯户型图\", \"生活场景：展示社区周边超市、餐饮、学校等真实配套\", \"看房要点：建议实地走买菜、吃饭、通勤动线\", \"轻CTA：想要看生活半径清单可以问我\"], \"imagePlan\": [\"社区周边超市实拍\", \"附近餐饮店或菜市场\", \"学校或幼儿园外观\", \"公交站或地铁口\", \"社区底商街景\"]}, \"videoPlan\": {\"storyOutline\": \"以第一人称视角，带观众实地走一遍社区周边生活动线，从下楼买菜、吃早餐到送孩子上学，展示真实配套，结尾提醒看房前先关注生活半径。\", \"estimatedDuration\": \"30-45秒\", \"scenePlan\": [\"镜头从小区大门开始，走向周边超市\", \"在超市门口停留，展示商品和人群\", \"转场到附近早餐店或餐馆\", \"路过学校或幼儿园，捕捉学生上学场景\", \"最后回到小区，总结生活便利性\"], \"requiredUploads\": [\"社区周边超市实拍视频\", \"餐饮店或菜市场视频\", \"学校或幼儿园外观视频\", \"公交站或地铁口视频\"], \"assetQueryHints\": [\"小区周边航拍\", \"配套实景\", \"生活场景\"]}, \"degradationNotices\": [\"项目事实不足：知识库未提供明确项目名、区域、户型、配套名称，内容保持泛化但克制\"], \"trace\": {\"usedKnowledgeSummary\": [\"社区体量大，楼下消费和服务设施较成熟\", \"适合从日常通勤、买菜、吃饭、看房动线等生活场景解释\"], \"usedViralSummary\": [\"爆款结构：提醒误区+讲生活场景+列看房要点+轻CTA\", \"hook：很多人第一次看房只盯户型图\", \"ctaStyle：想要看生活半径清单可以问我\"], \"usedImageSummary\": []}, \"qualityGateHints\": {\"factWeakness\": \"项目具体名称、区域、户型、配套名称缺失，只能依赖泛化描述\", \"complianceRisks\": [\"收益承诺类\", \"出租确定性类\", \"价格趋势类\"], \"mustReviewBeforePublish\": [\"确认所有描述未隐含收益承诺\", \"检查是否出现风险词或变体\", \"确保生活场景描述基于真实可观察的配套\"]}}, \"usedKnowledgeRefs\": [\"社区体量大，楼下消费和服务设施较成熟\", \"适合从日常通勤、买菜、吃饭、看房动线等生活场景解释\"], \"usedViralRefs\": [{\"patternName\": \"提醒误区+生活场景+看房要点+轻CTA\", \"reason\": \"借鉴爆款结构，用生活半径概念替代户型焦点，适合首次看房客户建立信任\", \"titleTactics\": [\"用“别只看”制造认知反差\", \"突出“生活半径”这个具体概念\"], \"hookTactics\": [\"从常见误区切入，引发共鸣\", \"用“很多人”降低针对性，让读者自我代入\"], \"ctaTactics\": [\"提供实用清单，引导互动\", \"语气轻松，不施压\"]}], \"usedImageAssets\": [], \"degradationNotices\": [\"项目事实不足：知识库未提供明确项目名、区域、户型、配套名称，内容保持泛化但克制\"]}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

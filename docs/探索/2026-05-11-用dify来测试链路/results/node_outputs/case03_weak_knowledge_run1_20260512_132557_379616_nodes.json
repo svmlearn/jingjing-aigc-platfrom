@@ -1,0 +1,109 @@
+{
+  "start": {
+    "node_type": "start",
+    "title": "开始",
+    "started_at": 1778563560,
+    "status": "succeeded",
+    "inputs": {
+      "calendar_task_json": "{\"taskId\":\"task_20260511_003\",\"theme\":\"低总价上车\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"预算敏感客户\",\"summary\":\"讲清楚为什么可以先了解小面积产品\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-13\"}",
+      "viral_references_json": "[]",
+      "image_assets_json": "[{\"assetId\":\"img_003\",\"title\":\"项目入口\",\"url\":\"https://example.com/entrance.jpg\",\"tags\":[\"项目入口\",\"封面\"],\"description\":\"可作为项目识别图\"}]",
+      "fallback_knowledge_text": "只有很少资料：这是一个可看小面积产品的项目。不要编造具体位置、价格、户型、配套、租金、收益。",
+      "extra_requirement": "宁可保守，不要写不确定事实。",
+      "sys.files": [],
+      "sys.user_id": "content_calendar_test_case03_weak_knowledge_1778563557",
+      "sys.app_id": "700e63ec-7c42-48fe-803f-c3873c889d07",
+      "sys.workflow_id": "9d1dee4c-a686-4cca-a886-55c42da4cbfa",
+      "sys.workflow_run_id": "ae57e97d-0eb5-4827-b9f3-3dd6e0a0ec4c",
+      "sys.timestamp": 1778563558
+    },
+    "outputs": {
+      "calendar_task_json": "{\"taskId\":\"task_20260511_003\",\"theme\":\"低总价上车\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"预算敏感客户\",\"summary\":\"讲清楚为什么可以先了解小面积产品\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-13\"}",
+      "viral_references_json": "[]",
+      "image_assets_json": "[{\"assetId\":\"img_003\",\"title\":\"项目入口\",\"url\":\"https://example.com/entrance.jpg\",\"tags\":[\"项目入口\",\"封面\"],\"description\":\"可作为项目识别图\"}]",
+      "fallback_knowledge_text": "只有很少资料：这是一个可看小面积产品的项目。不要编造具体位置、价格、户型、配套、租金、收益。",
+      "extra_requirement": "宁可保守，不要写不确定事实。",
+      "sys.files": [],
+      "sys.user_id": "content_calendar_test_case03_weak_knowledge_1778563557",
+      "sys.app_id": "700e63ec-7c42-48fe-803f-c3873c889d07",
+      "sys.workflow_id": "9d1dee4c-a686-4cca-a886-55c42da4cbfa",
+      "sys.workflow_run_id": "ae57e97d-0eb5-4827-b9f3-3dd6e0a0ec4c",
+      "sys.timestamp": 1778563558
+    },
+    "finished_at": 1778563560,
+    "error": null,
+    "execution_metadata": null
+  },
+  "task_understanding": {
+    "node_type": "llm",
+    "title": "任务理解",
+    "started_at": 1778563560,
+    "status": "succeeded",
+    "inputs": {},
+    "outputs": {
+      "text": "<think>\n我们根据输入解析任务。核心主题是\"低总价上车\"，内容类型是文章和视频，平台为小红书和抖音，内容目标为种草，目标受众为预算敏感客户。总结为\"讲清楚为什么可以先了解小面积产品\"。需要填充所有字段。卖点需要从主题和总结中提取：小面积、低总价、预算友好。客群痛点：预算有限但想上车。风险约束：可能涉及价格趋势或投资属性，但输入中没有明确风险词，所以空数组？但注意：输入中有\"低总价\"，但这不是风险词，是卖点。根据约束5，如果出现租金回报等才需要，所以这里没有。但为了安全，可以空数组。copySearchQuery, scriptSearchQuery, imageSearchQuery需要组合中文检索句。例如：低总价小户型 预算友好 首次购房。视频资产查询提示：可包含样板间、户型图等。extraRequirement：保守，不要编造。output JSON。\n</think>{\n  \"coreTopic\": \"低总价上车\",\n  \"contentType\": \"article_and_video\",\n  \"platforms\": [\"xiaohongshu\", \"douyin\"],\n  \"contentGoal\": \"种草\",\n  \"targetAudience\": \"预算敏感客户\",\n  \"audiencePain\": \"预算有限但希望购置房产\",\n  \"sellingPointsNeeded\": [\"小面积\", \"低总价\", \"预算友好\"],\n  \"riskConstraints\": [],\n  \"copySearchQuery\": \"低总价小户型 预算友好 首次购房 上车门槛低\",\n  \"scriptSearchQuery\": \"小面积低总价 购房入门 预算有限 刚需首选\",\n  \"imageSearchQuery\": \"小户型样板间 低总价楼盘 预算友好户型 首次置业\",\n  \"videoAssetQueryHints\": [\"样板间视频\", \"户型图展示\", \"项目实景\"],\n  \"extraRequirement\": \"宁可保守，不要写不确定事实\"\n}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 794,
+        "prompt_unit_price": "1",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.000794",
+        "completion_tokens": 418,
+        "completion_unit_price": "2",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.000836",
+        "total_tokens": 1212,
+        "total_price": "0.00163",
+        "currency": "RMB",
+        "latency": 6.874,
+        "time_to_first_token": 0.881,
+        "time_to_generate": 5.993
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "coreTopic": "低总价上车",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "预算敏感客户",
+        "audiencePain": "预算有限但希望购置房产",
+        "sellingPointsNeeded": [
+          "小面积",
+          "低总价",
+          "预算友好"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "低总价小户型 预算友好 首次购房 上车门槛低",
+        "scriptSearchQuery": "小面积低总价 购房入门 预算有限 刚需首选",
+        "imageSearchQuery": "小户型样板间 低总价楼盘 预算友好户型 首次置业",
+        "videoAssetQueryHints": [
+          "样板间视频",
+          "户型图展示",
+          "项目实景"
+        ],
+        "extraRequirement": "宁可保守，不要写不确定事实"
+      }
+    },
+    "finished_at": 1778563560,
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 1212,
+      "total_price": "0.00163",
+      "currency": "RMB"
+    }
+  },
+  "kb_project_knowledge": {
+    "node_type": "knowledge-retrieval",
+    "title": "txt 知识库检索",
+    "started_at": 1778563567,
+    "status": "failed",
+    "inputs": {},
+    "outputs": {},
+    "finished_at": 1778563567,
+    "error": "Query variable is not string type.",
+    "execution_metadata": null
+  }
+}

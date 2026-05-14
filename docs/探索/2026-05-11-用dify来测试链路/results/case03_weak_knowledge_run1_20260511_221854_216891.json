@@ -1,0 +1,280 @@
+{
+  "case_name": "case03_weak_knowledge",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case03_weak_knowledge.json",
+  "run_index": 1,
+  "timestamp": "20260511_221854_216891",
+  "elapsed_time": 61.11970591545105,
+  "success": true,
+  "workflow_run_id": "1dc22b99-77a0-4709-8066-991e2eaca3b2",
+  "error": null,
+  "raw_response": {
+    "id": "1dc22b99-77a0-4709-8066-991e2eaca3b2",
+    "workflow_id": "a2eae42c-435b-4b6e-9d99-ec3ca72038bb",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"预算有限？小面积产品让你轻松上车！\"\n    ],\n    \"selectedTitle\": \"预算有限？小面积产品让你轻松上车！\",\n    \"coverCopy\": \"预算敏感客户的理想选择\",\n    \"body\": \"你是否在寻找低总价的房产？小面积产品是个不错的选择。它们通常总价较低，适合预算有限的买家。小面积产品不仅可以满足基本居住需求，还方便打理，非常适合首次购房者。\\n\\n选择小面积产品还有一个好处，就是在未来的生活中，您可以更灵活地进行空间规划。无论是自住还是出租，小面积产品都能为您提供更好的选择空间。适合先了解一下市场上的小面积产品，看看是否符合您的需求。\\n\\n如果您对小面积产品感兴趣，欢迎随时联系我，了解更多信息！\",\n    \"hashtags\": [\n      \"#小面积房产\",\n      \"#预算友好\",\n      \"#首次购房\"\n    ],\n    \"cta\": \"立即了解更多小面积产品信息！\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_003\",\n        \"title\": \"项目入口\",\n        \"usage\": \"可作为项目识别图\",\n        \"reason\": \"展示项目的入口，吸引潜在客户关注\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"预算有限？小面积产品让你轻松上车！\\n\\n预算敏感客户的理想选择\\n\\n你是否在寻找低总价的房产？小面积产品是个不错的选择。它们通常总价较低，适合预算有限的买家。小面积产品不仅可以满足基本居住需求，还方便打理，非常适合首次购房者。\\n\\n选择小面积产品还有一个好处，就是在未来的生活中，您可以更灵活地进行空间规划。无论是自住还是出租，小面积产品都能为您提供更好的选择空间。适合先了解一下市场上的小面积产品，看看是否符合您的需求。\\n\\n如果您对小面积产品感兴趣，欢迎随时联系我，了解更多信息！\\n\\n#小面积房产 #预算友好 #首次购房\\n\\n立即了解更多小面积产品信息！\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"开场提出预算问题 -> 展示小面积产品的优势 -> 结尾引导观众了解更多信息\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-15秒\",\n        \"visualGoal\": \"展示预算敏感客户的困惑\",\n        \"voiceover\": \"你是否在寻找低总价的房产？\",\n        \"subtitle\": \"预算有限？\",\n        \"shotRequirement\": \"真人口播，表现客户的困惑情绪\",\n        \"assetQuery\": \"预算敏感客户 情绪困惑\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人口播\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"15-30秒\",\n        \"visualGoal\": \"展示小面积产品的实景\",\n        \"voiceover\": \"小面积产品是个不错的选择，适合预算有限的买家。\",\n        \"subtitle\": \"小面积产品的优势\",\n        \"shotRequirement\": \"项目外立面和样板间的实景拍摄\",\n        \"assetQuery\": \"项目外立面 小面积样板间\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"总结小面积产品的优势，呼吁行动\",\n        \"voiceover\": \"如果您对小面积产品感兴趣，欢迎随时联系我，了解更多信息！\",\n        \"subtitle\": \"立即了解更多小面积产品信息！\",\n        \"shotRequirement\": \"真人口播，表现热情和专业\",\n        \"assetQuery\": \"口播总结 小面积产品\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人口播\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"真人口播，表现客户的困惑情绪\",\n      \"真人口播，表现热情和专业\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 小面积样板间\"\n    ],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 5,\n      \"projectFit\": 8,\n      \"viralStructure\": 8,\n      \"platformTone\": 7,\n      \"materialFit\": 5,\n      \"compliance\": 4\n    },\n    \"pass\": false,\n    \"problems\": [\n      \"项目事实不足，正文写得很确定。\",\n      \"存在收益、升值、投资回报率高等风险承诺，导致合规性分数较低。\",\n      \"视频镜头脚本中存在上传要求的场景，但缺少必要的上传内容。\"\n    ],\n    \"revisionSuggestions\": [\n      \"增加项目事实的支持，以提高事实准确性。\",\n      \"确保合规性，避免任何风险承诺的表达。\",\n      \"补充视频镜头脚本中缺失的上传内容。\"\n    ],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"低总价上车\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\"xiaohongshu\", \"douyin\"],\n      \"contentGoal\": \"种草\",\n      \"targetAudience\": \"预算敏感客户\",\n      \"audiencePain\": \"\",\n      \"sellingPointsNeeded\": [\"小面积产品的优势\"],\n      \"riskConstraints\": [],\n      \"copySearchQuery\": \"低总价上车 预算敏感客户 小面积产品\",\n      \"scriptSearchQuery\": \"低总价上车 预算敏感客户 小面积产品\",\n      \"imageSearchQuery\": \"低总价上车 预算敏感客户 小面积产品\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"聚焦小面积产品的优势，适合预算敏感客户\",\n      \"narrativeArc\": [],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"问题-解决-行动\",\n        \"reason\": \"通过提出预算敏感客户的痛点，提供小面积产品的解决方案，并引导行动\",\n        \"titleTactics\": [\"预算有限？小面积产品让你轻松上车！\"],\n        \"hookTactics\": [\"你是否在寻找低总价的房产？\"],\n        \"ctaTactics\": [\"立即了解更多小面积产品信息！\"]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"低总价小面积产品的优势与选择\",\n        \"coverCopyDirection\": \"预算敏感客户的理想选择\",\n        \"bodyStructure\": [\n          \"引入预算敏感客户的痛点\",\n          \"介绍小面积产品的优势\",\n          \"提供选择小面积产品的理由\",\n          \"总结并引导读者行动\"\n        ],\n        \"imagePlan\": [\n          {\n            \"assetId\": \"img_003\",\n            \"title\": \"项目入口\",\n            \"description\": \"可作为项目识别图\"\n          }\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"开场提出预算问题 -> 展示小面积产品的优势 -> 结尾引导观众了解更多信息\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"镜头1：展示预算敏感客户的困惑\",\n          \"镜头2：展示小面积产品的实景\",\n          \"镜头3：总结小面积产品的优势，呼吁行动\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": [],\n      \"trace\": {\n        \"usedKnowledgeSummary\": [],\n        \"usedViralSummary\": [],\n        \"usedImageSummary\": []\n      },\n      \"qualityGateHints\": {\n        \"factWeakness\": \"项目事实不足\",\n        \"complianceRisks\": [],\n        \"mustReviewBeforePublish\": []\n      }\n    },\n    \"usedKnowledgeRefs\": [],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}"
+    },
+    "error": null,
+    "elapsed_time": 57.49644,
+    "total_tokens": 13955,
+    "total_steps": 9,
+    "created_by": {
+      "id": "a66d563b-93f1-4072-8c2c-20dab72f544b",
+      "user": "content_calendar_test_case03_weak_knowledge_1778509134"
+    },
+    "created_at": 1778509136,
+    "finished_at": 1778509194,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [
+        "预算有限？小面积产品让你轻松上车！"
+      ],
+      "selectedTitle": "预算有限？小面积产品让你轻松上车！",
+      "coverCopy": "预算敏感客户的理想选择",
+      "body": "你是否在寻找低总价的房产？小面积产品是个不错的选择。它们通常总价较低，适合预算有限的买家。小面积产品不仅可以满足基本居住需求，还方便打理，非常适合首次购房者。\n\n选择小面积产品还有一个好处，就是在未来的生活中，您可以更灵活地进行空间规划。无论是自住还是出租，小面积产品都能为您提供更好的选择空间。适合先了解一下市场上的小面积产品，看看是否符合您的需求。\n\n如果您对小面积产品感兴趣，欢迎随时联系我，了解更多信息！",
+      "hashtags": [
+        "#小面积房产",
+        "#预算友好",
+        "#首次购房"
+      ],
+      "cta": "立即了解更多小面积产品信息！",
+      "imageMatches": [
+        {
+          "assetId": "img_003",
+          "title": "项目入口",
+          "usage": "可作为项目识别图",
+          "reason": "展示项目的入口，吸引潜在客户关注"
+        }
+      ],
+      "imageBriefIfMissing": "",
+      "riskNotes": [],
+      "copyReadyText": "预算有限？小面积产品让你轻松上车！\n\n预算敏感客户的理想选择\n\n你是否在寻找低总价的房产？小面积产品是个不错的选择。它们通常总价较低，适合预算有限的买家。小面积产品不仅可以满足基本居住需求，还方便打理，非常适合首次购房者。\n\n选择小面积产品还有一个好处，就是在未来的生活中，您可以更灵活地进行空间规划。无论是自住还是出租，小面积产品都能为您提供更好的选择空间。适合先了解一下市场上的小面积产品，看看是否符合您的需求。\n\n如果您对小面积产品感兴趣，欢迎随时联系我，了解更多信息！\n\n#小面积房产 #预算友好 #首次购房\n\n立即了解更多小面积产品信息！"
+    },
+    "videoScript": {
+      "storyOutline": "开场提出预算问题 -> 展示小面积产品的优势 -> 结尾引导观众了解更多信息",
+      "estimatedDuration": "35-45秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-15秒",
+          "visualGoal": "展示预算敏感客户的困惑",
+          "voiceover": "你是否在寻找低总价的房产？",
+          "subtitle": "预算有限？",
+          "shotRequirement": "真人口播，表现客户的困惑情绪",
+          "assetQuery": "预算敏感客户 情绪困惑",
+          "uploadRequired": true,
+          "uploadReason": "需要真人口播",
+          "assetSourceHint": "member_upload",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "15-30秒",
+          "visualGoal": "展示小面积产品的实景",
+          "voiceover": "小面积产品是个不错的选择，适合预算有限的买家。",
+          "subtitle": "小面积产品的优势",
+          "shotRequirement": "项目外立面和样板间的实景拍摄",
+          "assetQuery": "项目外立面 小面积样板间",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "30-45秒",
+          "visualGoal": "总结小面积产品的优势，呼吁行动",
+          "voiceover": "如果您对小面积产品感兴趣，欢迎随时联系我，了解更多信息！",
+          "subtitle": "立即了解更多小面积产品信息！",
+          "shotRequirement": "真人口播，表现热情和专业",
+          "assetQuery": "口播总结 小面积产品",
+          "uploadRequired": true,
+          "uploadReason": "需要真人口播",
+          "assetSourceHint": "member_upload",
+          "fallbackVisual": ""
+        }
+      ],
+      "requiredUploads": [
+        "真人口播，表现客户的困惑情绪",
+        "真人口播，表现热情和专业"
+      ],
+      "optionalTeamVideoAssets": [
+        "项目外立面 小面积样板间"
+      ],
+      "shootingTips": [],
+      "riskNotes": []
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 5,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 7,
+        "materialFit": 5,
+        "compliance": 4
+      },
+      "pass": false,
+      "problems": [
+        "项目事实不足，正文写得很确定。",
+        "存在收益、升值、投资回报率高等风险承诺，导致合规性分数较低。",
+        "视频镜头脚本中存在上传要求的场景，但缺少必要的上传内容。"
+      ],
+      "revisionSuggestions": [
+        "增加项目事实的支持，以提高事实准确性。",
+        "确保合规性，避免任何风险承诺的表达。",
+        "补充视频镜头脚本中缺失的上传内容。"
+      ],
+      "redFlags": [],
+      "missingInputs": []
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "低总价上车",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "预算敏感客户",
+        "audiencePain": "",
+        "sellingPointsNeeded": [
+          "小面积产品的优势"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "低总价上车 预算敏感客户 小面积产品",
+        "scriptSearchQuery": "低总价上车 预算敏感客户 小面积产品",
+        "imageSearchQuery": "低总价上车 预算敏感客户 小面积产品",
+        "videoAssetQueryHints": [],
+        "extraRequirement": ""
+      },
+      "creativeStrategy": {
+        "chosenAngle": "聚焦小面积产品的优势，适合预算敏感客户",
+        "narrativeArc": [],
+        "tone": "本地中介、真实、克制、不夸张",
+        "mustUseFacts": [],
+        "mustAvoidClaims": [],
+        "viralPatternUsed": {
+          "patternName": "问题-解决-行动",
+          "reason": "通过提出预算敏感客户的痛点，提供小面积产品的解决方案，并引导行动",
+          "titleTactics": [
+            "预算有限？小面积产品让你轻松上车！"
+          ],
+          "hookTactics": [
+            "你是否在寻找低总价的房产？"
+          ],
+          "ctaTactics": [
+            "立即了解更多小面积产品信息！"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "低总价小面积产品的优势与选择",
+          "coverCopyDirection": "预算敏感客户的理想选择",
+          "bodyStructure": [
+            "引入预算敏感客户的痛点",
+            "介绍小面积产品的优势",
+            "提供选择小面积产品的理由",
+            "总结并引导读者行动"
+          ],
+          "imagePlan": [
+            {
+              "assetId": "img_003",
+              "title": "项目入口",
+              "description": "可作为项目识别图"
+            }
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "开场提出预算问题 -> 展示小面积产品的优势 -> 结尾引导观众了解更多信息",
+          "estimatedDuration": "35-45秒",
+          "scenePlan": [
+            "镜头1：展示预算敏感客户的困惑",
+            "镜头2：展示小面积产品的实景",
+            "镜头3：总结小面积产品的优势，呼吁行动"
+          ],
+          "requiredUploads": [],
+          "assetQueryHints": []
+        },
+        "degradationNotices": [],
+        "trace": {
+          "usedKnowledgeSummary": [],
+          "usedViralSummary": [],
+          "usedImageSummary": []
+        },
+        "qualityGateHints": {
+          "factWeakness": "项目事实不足",
+          "complianceRisks": [],
+          "mustReviewBeforePublish": []
+        }
+      },
+      "usedKnowledgeRefs": [],
+      "usedViralRefs": [],
+      "usedImageAssets": [],
+      "degradationNotices": []
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"预算有限？小面积产品让你轻松上车！\"\n    ],\n    \"selectedTitle\": \"预算有限？小面积产品让你轻松上车！\",\n    \"coverCopy\": \"预算敏感客户的理想选择\",\n    \"body\": \"你是否在寻找低总价的房产？小面积产品是个不错的选择。它们通常总价较低，适合预算有限的买家。小面积产品不仅可以满足基本居住需求，还方便打理，非常适合首次购房者。\\n\\n选择小面积产品还有一个好处，就是在未来的生活中，您可以更灵活地进行空间规划。无论是自住还是出租，小面积产品都能为您提供更好的选择空间。适合先了解一下市场上的小面积产品，看看是否符合您的需求。\\n\\n如果您对小面积产品感兴趣，欢迎随时联系我，了解更多信息！\",\n    \"hashtags\": [\n      \"#小面积房产\",\n      \"#预算友好\",\n      \"#首次购房\"\n    ],\n    \"cta\": \"立即了解更多小面积产品信息！\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"img_003\",\n        \"title\": \"项目入口\",\n        \"usage\": \"可作为项目识别图\",\n        \"reason\": \"展示项目的入口，吸引潜在客户关注\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"预算有限？小面积产品让你轻松上车！\\n\\n预算敏感客户的理想选择\\n\\n你是否在寻找低总价的房产？小面积产品是个不错的选择。它们通常总价较低，适合预算有限的买家。小面积产品不仅可以满足基本居住需求，还方便打理，非常适合首次购房者。\\n\\n选择小面积产品还有一个好处，就是在未来的生活中，您可以更灵活地进行空间规划。无论是自住还是出租，小面积产品都能为您提供更好的选择空间。适合先了解一下市场上的小面积产品，看看是否符合您的需求。\\n\\n如果您对小面积产品感兴趣，欢迎随时联系我，了解更多信息！\\n\\n#小面积房产 #预算友好 #首次购房\\n\\n立即了解更多小面积产品信息！\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"开场提出预算问题 -> 展示小面积产品的优势 -> 结尾引导观众了解更多信息\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-15秒\",\n        \"visualGoal\": \"展示预算敏感客户的困惑\",\n        \"voiceover\": \"你是否在寻找低总价的房产？\",\n        \"subtitle\": \"预算有限？\",\n        \"shotRequirement\": \"真人口播，表现客户的困惑情绪\",\n        \"assetQuery\": \"预算敏感客户 情绪困惑\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人口播\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"15-30秒\",\n        \"visualGoal\": \"展示小面积产品的实景\",\n        \"voiceover\": \"小面积产品是个不错的选择，适合预算有限的买家。\",\n        \"subtitle\": \"小面积产品的优势\",\n        \"shotRequirement\": \"项目外立面和样板间的实景拍摄\",\n        \"assetQuery\": \"项目外立面 小面积样板间\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"总结小面积产品的优势，呼吁行动\",\n        \"voiceover\": \"如果您对小面积产品感兴趣，欢迎随时联系我，了解更多信息！\",\n        \"subtitle\": \"立即了解更多小面积产品信息！\",\n        \"shotRequirement\": \"真人口播，表现热情和专业\",\n        \"assetQuery\": \"口播总结 小面积产品\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人口播\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"真人口播，表现客户的困惑情绪\",\n      \"真人口播，表现热情和专业\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 小面积样板间\"\n    ],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 5,\n      \"projectFit\": 8,\n      \"viralStructure\": 8,\n      \"platformTone\": 7,\n      \"materialFit\": 5,\n      \"compliance\": 4\n    },\n    \"pass\": false,\n    \"problems\": [\n      \"项目事实不足，正文写得很确定。\",\n      \"存在收益、升值、投资回报率高等风险承诺，导致合规性分数较低。\",\n      \"视频镜头脚本中存在上传要求的场景，但缺少必要的上传内容。\"\n    ],\n    \"revisionSuggestions\": [\n      \"增加项目事实的支持，以提高事实准确性。\",\n      \"确保合规性，避免任何风险承诺的表达。\",\n      \"补充视频镜头脚本中缺失的上传内容。\"\n    ],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"低总价上车\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\"xiaohongshu\", \"douyin\"],\n      \"contentGoal\": \"种草\",\n      \"targetAudience\": \"预算敏感客户\",\n      \"audiencePain\": \"\",\n      \"sellingPointsNeeded\": [\"小面积产品的优势\"],\n      \"riskConstraints\": [],\n      \"copySearchQuery\": \"低总价上车 预算敏感客户 小面积产品\",\n      \"scriptSearchQuery\": \"低总价上车 预算敏感客户 小面积产品\",\n      \"imageSearchQuery\": \"低总价上车 预算敏感客户 小面积产品\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"聚焦小面积产品的优势，适合预算敏感客户\",\n      \"narrativeArc\": [],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"问题-解决-行动\",\n        \"reason\": \"通过提出预算敏感客户的痛点，提供小面积产品的解决方案，并引导行动\",\n        \"titleTactics\": [\"预算有限？小面积产品让你轻松上车！\"],\n        \"hookTactics\": [\"你是否在寻找低总价的房产？\"],\n        \"ctaTactics\": [\"立即了解更多小面积产品信息！\"]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"低总价小面积产品的优势与选择\",\n        \"coverCopyDirection\": \"预算敏感客户的理想选择\",\n        \"bodyStructure\": [\n          \"引入预算敏感客户的痛点\",\n          \"介绍小面积产品的优势\",\n          \"提供选择小面积产品的理由\",\n          \"总结并引导读者行动\"\n        ],\n        \"imagePlan\": [\n          {\n            \"assetId\": \"img_003\",\n            \"title\": \"项目入口\",\n            \"description\": \"可作为项目识别图\"\n          }\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"开场提出预算问题 -> 展示小面积产品的优势 -> 结尾引导观众了解更多信息\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"镜头1：展示预算敏感客户的困惑\",\n          \"镜头2：展示小面积产品的实景\",\n          \"镜头3：总结小面积产品的优势，呼吁行动\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": [],\n      \"trace\": {\n        \"usedKnowledgeSummary\": [],\n        \"usedViralSummary\": [],\n        \"usedImageSummary\": []\n      },\n      \"qualityGateHints\": {\n        \"factWeakness\": \"项目事实不足\",\n        \"complianceRisks\": [],\n        \"mustReviewBeforePublish\": []\n      }\n    },\n    \"usedKnowledgeRefs\": [],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": false,
+        "detail": "投资回报率高"
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": false,
+        "detail": "compliance:4<7"
+      }
+    ],
+    "risk_terms": [
+      "投资回报率高"
+    ]
+  }
+}

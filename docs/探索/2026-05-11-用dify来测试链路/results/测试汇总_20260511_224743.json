@@ -1,0 +1,51 @@
+{
+  "test_time": "2026-05-11 22:42:27",
+  "base_url": "https://api.dify.ai/v1",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases",
+  "runs": 1,
+  "save_nodes": true,
+  "cases": [
+    {
+      "case_name": "case01_full_with_compliance_risk",
+      "runs": [
+        {
+          "run_index": 1,
+          "success": true,
+          "elapsed_time": 74.24753212928772,
+          "output_file": "case01_full_with_compliance_risk_run1_20260511_224227_038229.json",
+          "node_output_file": "case01_full_with_compliance_risk_run1_20260511_224227_038229_nodes.json",
+          "evaluation_passed": false,
+          "parse_errors": []
+        }
+      ]
+    },
+    {
+      "case_name": "case02_no_images",
+      "runs": [
+        {
+          "run_index": 1,
+          "success": true,
+          "elapsed_time": 177.46705412864685,
+          "output_file": "case02_no_images_run1_20260511_224341_292330.json",
+          "node_output_file": "case02_no_images_run1_20260511_224341_292330_nodes.json",
+          "evaluation_passed": false,
+          "parse_errors": []
+        }
+      ]
+    },
+    {
+      "case_name": "case03_weak_knowledge",
+      "runs": [
+        {
+          "run_index": 1,
+          "success": true,
+          "elapsed_time": 64.64172887802124,
+          "output_file": "case03_weak_knowledge_run1_20260511_224638_765458.json",
+          "node_output_file": "case03_weak_knowledge_run1_20260511_224638_765458_nodes.json",
+          "evaluation_passed": false,
+          "parse_errors": []
+        }
+      ]
+    }
+  ]
+}

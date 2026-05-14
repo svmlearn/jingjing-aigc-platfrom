@@ -1,0 +1,290 @@
+{
+  "case_name": "case02_no_images",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "run_index": 1,
+  "timestamp": "20260511_224341_292330",
+  "elapsed_time": 177.46705412864685,
+  "success": true,
+  "workflow_run_id": "8bc2fdca-e0d9-4050-a3d6-4a554113d98f",
+  "error": null,
+  "raw_response": {
+    "id": "8bc2fdca-e0d9-4050-a3d6-4a554113d98f",
+    "workflow_id": "ff432f99-8f4f-4782-8fcd-26727a124423",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"社区成熟配套如何提升生活质量\"\n    ],\n    \"selectedTitle\": \"社区成熟配套如何提升生活质量\",\n    \"coverCopy\": \"探索社区生活的便利性与舒适度\",\n    \"body\": \"在这个社区，楼下的消费和服务设施非常成熟，满足了日常生活的需求。无论是购物还是就餐，都能在附近找到合适的选择。\\n\\n这里的商业配套已经成熟，真实的经营场景让你可以直观感受到生活的便利。周边的设施能够为居民提供便捷的服务，提升生活质量。\\n\\n空间用途也相对灵活，具体使用可以根据实际需求来调整，适合不同的生活方式。\\n\\n如果你对这个社区感兴趣，欢迎随时咨询，了解更多具体的生活半径信息。\",\n    \"hashtags\": [\n      \"#社区生活\",\n      \"#生活便利\",\n      \"#成熟配套\"\n    ],\n    \"cta\": \"欢迎咨询了解更多信息。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"\",\n        \"title\": \"\",\n        \"usage\": \"\",\n        \"reason\": \"\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"暂无合适的图片素材，建议补充社区内商业设施和居民生活场景的照片。\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"社区成熟配套如何提升生活质量\\n探索社区生活的便利性与舒适度\\n在这个社区，楼下的消费和服务设施非常成熟，满足了日常生活的需求。无论是购物还是就餐，都能在附近找到合适的选择。\\n\\n这里的商业配套已经成熟，真实的经营场景让你可以直观感受到生活的便利。周边的设施能够为居民提供便捷的服务，提升生活质量。\\n\\n空间用途也相对灵活，具体使用可以根据实际需求来调整，适合不同的生活方式。\\n\\n如果你对这个社区感兴趣，欢迎随时咨询，了解更多具体的生活半径信息。\\n\\n#社区生活 #生活便利 #成熟配套\\n欢迎咨询了解更多信息。\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"通过镜头展示社区的成熟配套与生活便利性，结合居民的日常生活场景\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-10秒\",\n        \"visualGoal\": \"展示社区外观与周边环境，突出成熟的商业配套\",\n        \"voiceover\": \"这里是一个拥有丰富商业设施的社区，生活便利性突出。\",\n        \"subtitle\": \"社区外观与周边环境\",\n        \"shotRequirement\": \"拍摄社区外立面及周边商业设施的全景\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"10-20秒\",\n        \"visualGoal\": \"展示居民在商业设施内购物或用餐的场景\",\n        \"voiceover\": \"居民在这里享受购物和用餐的乐趣，周围设施齐全。\",\n        \"subtitle\": \"居民的日常生活\",\n        \"shotRequirement\": \"拍摄居民在商业设施内的真实活动\",\n        \"assetQuery\": \"居民 商业设施 购物 用餐\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"20-30秒\",\n        \"visualGoal\": \"展示不同空间的使用场景，强调灵活性\",\n        \"voiceover\": \"这里的空间用途灵活，适合多种生活方式。\",\n        \"subtitle\": \"空间使用示例\",\n        \"shotRequirement\": \"拍摄不同空间的使用场景，如家庭聚会、办公等\",\n        \"assetQuery\": \"空间使用示例 灵活用途\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"总结社区的生活便利性与舒适度\",\n        \"voiceover\": \"这个社区的成熟配套为居民带来了极大的便利与舒适。\",\n        \"subtitle\": \"总结社区生活便利性\",\n        \"shotRequirement\": \"拍摄社区全景或居民幸福生活的场景\",\n        \"assetQuery\": \"社区全景 居民生活 场景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [],\n    \"optionalTeamVideoAssets\": [],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 8,\n      \"projectFit\": 9,\n      \"viralStructure\": 7,\n      \"platformTone\": 8,\n      \"materialFit\": 5,\n      \"compliance\": 10\n    },\n    \"pass\": false,\n    \"problems\": [\n      \"存在 uploadRequired=true 的 scene，但 requiredUploads 为空\"\n    ],\n    \"revisionSuggestions\": [],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"成熟配套怎么讲\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\"xiaohongshu\", \"douyin\"],\n      \"contentGoal\": \"信任建立\",\n      \"targetAudience\": \"首次看房客户\",\n      \"audiencePain\": \"\",\n      \"sellingPointsNeeded\": [\"生活便利度\", \"项目实景\", \"预算友好\", \"成熟配套\", \"空间使用\"],\n      \"riskConstraints\": [],\n      \"copySearchQuery\": \"成熟配套 生活便利度 项目实景 预算友好\",\n      \"scriptSearchQuery\": \"成熟配套 生活便利度 项目实景 预算友好\",\n      \"imageSearchQuery\": \"成熟配套 生活便利度 项目实景 预算友好\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"强调社区成熟配套与生活便利性\",\n      \"narrativeArc\": [],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [\n        \"社区体量大，楼下消费和服务设施较成熟，适合日常生活需求\",\n        \"已有商业配套和真实经营场景可观察\",\n        \"空间用途较灵活，具体使用以实际需求和官方口径为准\"\n      ],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"生活场景引导\",\n        \"reason\": \"通过真实生活场景吸引首次看房客户\",\n        \"titleTactics\": [\"强调生活便利性\"],\n        \"hookTactics\": [\"提醒首次看房的误区\"],\n        \"ctaTactics\": [\"鼓励客户咨询具体生活半径\"]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"社区成熟配套如何提升生活质量\",\n        \"coverCopyDirection\": \"探索社区生活的便利性与舒适度\",\n        \"bodyStructure\": [\n          \"引入生活场景，展示社区配套\",\n          \"列出日常生活便利性\",\n          \"强调空间使用的灵活性\",\n          \"轻松的呼吁行动\"\n        ],\n        \"imagePlan\": [\n          \"展示社区内的商业设施和服务场景\",\n          \"展示居民日常生活的照片\",\n          \"展示不同空间用途的示例\"\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"通过镜头展示社区的成熟配套与生活便利性，结合居民的日常生活场景\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"镜头1：社区外观与周边环境\",\n          \"镜头2：居民在商业设施内购物或用餐\",\n          \"镜头3：展示不同空间的使用场景\",\n          \"镜头4：总结社区的生活便利性与舒适度\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": [],\n      \"trace\": {\n        \"usedKnowledgeSummary\": [\n          \"社区经济托底与成熟运营验证\",\n          \"舒适度型产品与空间用途灵活性\"\n        ],\n        \"usedViralSummary\": [],\n        \"usedImageSummary\": []\n      },\n      \"qualityGateHints\": {\n        \"factWeakness\": \"项目事实不足\",\n        \"complianceRisks\": [],\n        \"mustReviewBeforePublish\": []\n      }\n    },\n    \"usedKnowledgeRefs\": [],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}"
+    },
+    "error": null,
+    "elapsed_time": 171.652339,
+    "total_tokens": 14368,
+    "total_steps": 9,
+    "created_by": {
+      "id": "ccfe5ec8-5666-4dcc-a14d-cd10f9ecb549",
+      "user": "content_calendar_test_case02_no_images_1778510621"
+    },
+    "created_at": 1778510625,
+    "finished_at": 1778510797,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [
+        "社区成熟配套如何提升生活质量"
+      ],
+      "selectedTitle": "社区成熟配套如何提升生活质量",
+      "coverCopy": "探索社区生活的便利性与舒适度",
+      "body": "在这个社区，楼下的消费和服务设施非常成熟，满足了日常生活的需求。无论是购物还是就餐，都能在附近找到合适的选择。\n\n这里的商业配套已经成熟，真实的经营场景让你可以直观感受到生活的便利。周边的设施能够为居民提供便捷的服务，提升生活质量。\n\n空间用途也相对灵活，具体使用可以根据实际需求来调整，适合不同的生活方式。\n\n如果你对这个社区感兴趣，欢迎随时咨询，了解更多具体的生活半径信息。",
+      "hashtags": [
+        "#社区生活",
+        "#生活便利",
+        "#成熟配套"
+      ],
+      "cta": "欢迎咨询了解更多信息。",
+      "imageMatches": [
+        {
+          "assetId": "",
+          "title": "",
+          "usage": "",
+          "reason": ""
+        }
+      ],
+      "imageBriefIfMissing": "暂无合适的图片素材，建议补充社区内商业设施和居民生活场景的照片。",
+      "riskNotes": [],
+      "copyReadyText": "社区成熟配套如何提升生活质量\n探索社区生活的便利性与舒适度\n在这个社区，楼下的消费和服务设施非常成熟，满足了日常生活的需求。无论是购物还是就餐，都能在附近找到合适的选择。\n\n这里的商业配套已经成熟，真实的经营场景让你可以直观感受到生活的便利。周边的设施能够为居民提供便捷的服务，提升生活质量。\n\n空间用途也相对灵活，具体使用可以根据实际需求来调整，适合不同的生活方式。\n\n如果你对这个社区感兴趣，欢迎随时咨询，了解更多具体的生活半径信息。\n\n#社区生活 #生活便利 #成熟配套\n欢迎咨询了解更多信息。"
+    },
+    "videoScript": {
+      "storyOutline": "通过镜头展示社区的成熟配套与生活便利性，结合居民的日常生活场景",
+      "estimatedDuration": "35-45秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-10秒",
+          "visualGoal": "展示社区外观与周边环境，突出成熟的商业配套",
+          "voiceover": "这里是一个拥有丰富商业设施的社区，生活便利性突出。",
+          "subtitle": "社区外观与周边环境",
+          "shotRequirement": "拍摄社区外立面及周边商业设施的全景",
+          "assetQuery": "项目外立面 远景 小区入口",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "10-20秒",
+          "visualGoal": "展示居民在商业设施内购物或用餐的场景",
+          "voiceover": "居民在这里享受购物和用餐的乐趣，周围设施齐全。",
+          "subtitle": "居民的日常生活",
+          "shotRequirement": "拍摄居民在商业设施内的真实活动",
+          "assetQuery": "居民 商业设施 购物 用餐",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "20-30秒",
+          "visualGoal": "展示不同空间的使用场景，强调灵活性",
+          "voiceover": "这里的空间用途灵活，适合多种生活方式。",
+          "subtitle": "空间使用示例",
+          "shotRequirement": "拍摄不同空间的使用场景，如家庭聚会、办公等",
+          "assetQuery": "空间使用示例 灵活用途",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "30-45秒",
+          "visualGoal": "总结社区的生活便利性与舒适度",
+          "voiceover": "这个社区的成熟配套为居民带来了极大的便利与舒适。",
+          "subtitle": "总结社区生活便利性",
+          "shotRequirement": "拍摄社区全景或居民幸福生活的场景",
+          "assetQuery": "社区全景 居民生活 场景",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        }
+      ],
+      "requiredUploads": [],
+      "optionalTeamVideoAssets": [],
+      "shootingTips": [],
+      "riskNotes": []
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 8,
+        "projectFit": 9,
+        "viralStructure": 7,
+        "platformTone": 8,
+        "materialFit": 5,
+        "compliance": 10
+      },
+      "pass": false,
+      "problems": [
+        "存在 uploadRequired=true 的 scene，但 requiredUploads 为空"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": []
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "成熟配套怎么讲",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "信任建立",
+        "targetAudience": "首次看房客户",
+        "audiencePain": "",
+        "sellingPointsNeeded": [
+          "生活便利度",
+          "项目实景",
+          "预算友好",
+          "成熟配套",
+          "空间使用"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "成熟配套 生活便利度 项目实景 预算友好",
+        "scriptSearchQuery": "成熟配套 生活便利度 项目实景 预算友好",
+        "imageSearchQuery": "成熟配套 生活便利度 项目实景 预算友好",
+        "videoAssetQueryHints": [],
+        "extraRequirement": ""
+      },
+      "creativeStrategy": {
+        "chosenAngle": "强调社区成熟配套与生活便利性",
+        "narrativeArc": [],
+        "tone": "本地中介、真实、克制、不夸张",
+        "mustUseFacts": [
+          "社区体量大，楼下消费和服务设施较成熟，适合日常生活需求",
+          "已有商业配套和真实经营场景可观察",
+          "空间用途较灵活，具体使用以实际需求和官方口径为准"
+        ],
+        "mustAvoidClaims": [],
+        "viralPatternUsed": {
+          "patternName": "生活场景引导",
+          "reason": "通过真实生活场景吸引首次看房客户",
+          "titleTactics": [
+            "强调生活便利性"
+          ],
+          "hookTactics": [
+            "提醒首次看房的误区"
+          ],
+          "ctaTactics": [
+            "鼓励客户咨询具体生活半径"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "社区成熟配套如何提升生活质量",
+          "coverCopyDirection": "探索社区生活的便利性与舒适度",
+          "bodyStructure": [
+            "引入生活场景，展示社区配套",
+            "列出日常生活便利性",
+            "强调空间使用的灵活性",
+            "轻松的呼吁行动"
+          ],
+          "imagePlan": [
+            "展示社区内的商业设施和服务场景",
+            "展示居民日常生活的照片",
+            "展示不同空间用途的示例"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "通过镜头展示社区的成熟配套与生活便利性，结合居民的日常生活场景",
+          "estimatedDuration": "35-45秒",
+          "scenePlan": [
+            "镜头1：社区外观与周边环境",
+            "镜头2：居民在商业设施内购物或用餐",
+            "镜头3：展示不同空间的使用场景",
+            "镜头4：总结社区的生活便利性与舒适度"
+          ],
+          "requiredUploads": [],
+          "assetQueryHints": []
+        },
+        "degradationNotices": [],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "社区经济托底与成熟运营验证",
+            "舒适度型产品与空间用途灵活性"
+          ],
+          "usedViralSummary": [],
+          "usedImageSummary": []
+        },
+        "qualityGateHints": {
+          "factWeakness": "项目事实不足",
+          "complianceRisks": [],
+          "mustReviewBeforePublish": []
+        }
+      },
+      "usedKnowledgeRefs": [],
+      "usedViralRefs": [],
+      "usedImageAssets": [],
+      "degradationNotices": []
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"社区成熟配套如何提升生活质量\"\n    ],\n    \"selectedTitle\": \"社区成熟配套如何提升生活质量\",\n    \"coverCopy\": \"探索社区生活的便利性与舒适度\",\n    \"body\": \"在这个社区，楼下的消费和服务设施非常成熟，满足了日常生活的需求。无论是购物还是就餐，都能在附近找到合适的选择。\\n\\n这里的商业配套已经成熟，真实的经营场景让你可以直观感受到生活的便利。周边的设施能够为居民提供便捷的服务，提升生活质量。\\n\\n空间用途也相对灵活，具体使用可以根据实际需求来调整，适合不同的生活方式。\\n\\n如果你对这个社区感兴趣，欢迎随时咨询，了解更多具体的生活半径信息。\",\n    \"hashtags\": [\n      \"#社区生活\",\n      \"#生活便利\",\n      \"#成熟配套\"\n    ],\n    \"cta\": \"欢迎咨询了解更多信息。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"\",\n        \"title\": \"\",\n        \"usage\": \"\",\n        \"reason\": \"\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"暂无合适的图片素材，建议补充社区内商业设施和居民生活场景的照片。\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"社区成熟配套如何提升生活质量\\n探索社区生活的便利性与舒适度\\n在这个社区，楼下的消费和服务设施非常成熟，满足了日常生活的需求。无论是购物还是就餐，都能在附近找到合适的选择。\\n\\n这里的商业配套已经成熟，真实的经营场景让你可以直观感受到生活的便利。周边的设施能够为居民提供便捷的服务，提升生活质量。\\n\\n空间用途也相对灵活，具体使用可以根据实际需求来调整，适合不同的生活方式。\\n\\n如果你对这个社区感兴趣，欢迎随时咨询，了解更多具体的生活半径信息。\\n\\n#社区生活 #生活便利 #成熟配套\\n欢迎咨询了解更多信息。\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"通过镜头展示社区的成熟配套与生活便利性，结合居民的日常生活场景\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-10秒\",\n        \"visualGoal\": \"展示社区外观与周边环境，突出成熟的商业配套\",\n        \"voiceover\": \"这里是一个拥有丰富商业设施的社区，生活便利性突出。\",\n        \"subtitle\": \"社区外观与周边环境\",\n        \"shotRequirement\": \"拍摄社区外立面及周边商业设施的全景\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"10-20秒\",\n        \"visualGoal\": \"展示居民在商业设施内购物或用餐的场景\",\n        \"voiceover\": \"居民在这里享受购物和用餐的乐趣，周围设施齐全。\",\n        \"subtitle\": \"居民的日常生活\",\n        \"shotRequirement\": \"拍摄居民在商业设施内的真实活动\",\n        \"assetQuery\": \"居民 商业设施 购物 用餐\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"20-30秒\",\n        \"visualGoal\": \"展示不同空间的使用场景，强调灵活性\",\n        \"voiceover\": \"这里的空间用途灵活，适合多种生活方式。\",\n        \"subtitle\": \"空间使用示例\",\n        \"shotRequirement\": \"拍摄不同空间的使用场景，如家庭聚会、办公等\",\n        \"assetQuery\": \"空间使用示例 灵活用途\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"总结社区的生活便利性与舒适度\",\n        \"voiceover\": \"这个社区的成熟配套为居民带来了极大的便利与舒适。\",\n        \"subtitle\": \"总结社区生活便利性\",\n        \"shotRequirement\": \"拍摄社区全景或居民幸福生活的场景\",\n        \"assetQuery\": \"社区全景 居民生活 场景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [],\n    \"optionalTeamVideoAssets\": [],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 8,\n      \"projectFit\": 9,\n      \"viralStructure\": 7,\n      \"platformTone\": 8,\n      \"materialFit\": 5,\n      \"compliance\": 10\n    },\n    \"pass\": false,\n    \"problems\": [\n      \"存在 uploadRequired=true 的 scene，但 requiredUploads 为空\"\n    ],\n    \"revisionSuggestions\": [],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"成熟配套怎么讲\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\"xiaohongshu\", \"douyin\"],\n      \"contentGoal\": \"信任建立\",\n      \"targetAudience\": \"首次看房客户\",\n      \"audiencePain\": \"\",\n      \"sellingPointsNeeded\": [\"生活便利度\", \"项目实景\", \"预算友好\", \"成熟配套\", \"空间使用\"],\n      \"riskConstraints\": [],\n      \"copySearchQuery\": \"成熟配套 生活便利度 项目实景 预算友好\",\n      \"scriptSearchQuery\": \"成熟配套 生活便利度 项目实景 预算友好\",\n      \"imageSearchQuery\": \"成熟配套 生活便利度 项目实景 预算友好\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"强调社区成熟配套与生活便利性\",\n      \"narrativeArc\": [],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [\n        \"社区体量大，楼下消费和服务设施较成熟，适合日常生活需求\",\n        \"已有商业配套和真实经营场景可观察\",\n        \"空间用途较灵活，具体使用以实际需求和官方口径为准\"\n      ],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"生活场景引导\",\n        \"reason\": \"通过真实生活场景吸引首次看房客户\",\n        \"titleTactics\": [\"强调生活便利性\"],\n        \"hookTactics\": [\"提醒首次看房的误区\"],\n        \"ctaTactics\": [\"鼓励客户咨询具体生活半径\"]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"社区成熟配套如何提升生活质量\",\n        \"coverCopyDirection\": \"探索社区生活的便利性与舒适度\",\n        \"bodyStructure\": [\n          \"引入生活场景，展示社区配套\",\n          \"列出日常生活便利性\",\n          \"强调空间使用的灵活性\",\n          \"轻松的呼吁行动\"\n        ],\n        \"imagePlan\": [\n          \"展示社区内的商业设施和服务场景\",\n          \"展示居民日常生活的照片\",\n          \"展示不同空间用途的示例\"\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"通过镜头展示社区的成熟配套与生活便利性，结合居民的日常生活场景\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"镜头1：社区外观与周边环境\",\n          \"镜头2：居民在商业设施内购物或用餐\",\n          \"镜头3：展示不同空间的使用场景\",\n          \"镜头4：总结社区的生活便利性与舒适度\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": [],\n      \"trace\": {\n        \"usedKnowledgeSummary\": [\n          \"社区经济托底与成熟运营验证\",\n          \"舒适度型产品与空间用途灵活性\"\n        ],\n        \"usedViralSummary\": [],\n        \"usedImageSummary\": []\n      },\n      \"qualityGateHints\": {\n        \"factWeakness\": \"项目事实不足\",\n        \"complianceRisks\": [],\n        \"mustReviewBeforePublish\": []\n      }\n    },\n    \"usedKnowledgeRefs\": [],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": false,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

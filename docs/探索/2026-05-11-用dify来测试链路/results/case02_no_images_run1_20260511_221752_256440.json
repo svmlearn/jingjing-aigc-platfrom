@@ -1,0 +1,293 @@
+{
+  "case_name": "case02_no_images",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "run_index": 1,
+  "timestamp": "20260511_221752_256440",
+  "elapsed_time": 61.9555299282074,
+  "success": true,
+  "workflow_run_id": "8d642ac2-6689-48ad-86d7-0c44b9330e68",
+  "error": null,
+  "raw_response": {
+    "id": "8d642ac2-6689-48ad-86d7-0c44b9330e68",
+    "workflow_id": "a2eae42c-435b-4b6e-9d99-ec3ca72038bb",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"成熟配套如何提升生活便利性\"\n    ],\n    \"selectedTitle\": \"成熟配套如何提升生活便利性\",\n    \"coverCopy\": \"生活半径决定生活质量\",\n    \"body\": \"很多人忽视了生活半径的重要性。我们这个80万方的大社区，拥有约1万户、3万人口，楼下就是现成的消费与服务需求，绝不是未来的设想。\\n\\n这里的底商和二期商办已经实现满租，实际租金区间也在稳定，这意味着能否租出去是有依据的。\\n\\n我们的产品设计注重舒适度，4米层高、商务大堂，让你享受到空间的品质感，而不是简单的功能拼凑。\\n\\n不同面积的房源提供多种用途，70平、200平、250平可以满足居住、公寓收租、自用办公等多种需求，灵活性很高。\\n\\n想要了解更多生活配套信息可以联系我。\",\n    \"hashtags\": [\n      \"#生活便利性\",\n      \"#成熟配套\",\n      \"#社区生活\",\n      \"#房产信息\"\n    ],\n    \"cta\": \"想要了解更多生活配套信息可以联系我。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"\",\n        \"title\": \"\",\n        \"usage\": \"\",\n        \"reason\": \"\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"缺少合适的图片素材，建议补充社区内部设施、周边商铺和居民生活场景的照片。\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"成熟配套如何提升生活便利性\\n生活半径决定生活质量\\n很多人忽视了生活半径的重要性。我们这个80万方的大社区，拥有约1万户、3万人口，楼下就是现成的消费与服务需求，绝不是未来的设想。\\n这里的底商和二期商办已经实现满租，实际租金区间也在稳定，这意味着能否租出去是有依据的。\\n我们的产品设计注重舒适度，4米层高、商务大堂，让你享受到空间的品质感，而不是简单的功能拼凑。\\n不同面积的房源提供多种用途，70平、200平、250平可以满足居住、公寓收租、自用办公等多种需求，灵活性很高。\\n想要了解更多生活配套信息可以联系我。#生活便利性 #成熟配套 #社区生活 #房产信息\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"展示社区生活场景，强调成熟配套的便利性\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-10秒\",\n        \"visualGoal\": \"展示社区外观与规模，突出80万方大社区的特点\",\n        \"voiceover\": \"这是我们80万方的大社区，拥有约1万户、3万人口。\",\n        \"subtitle\": \"80万方大社区，约1万户、3万人口\",\n        \"shotRequirement\": \"项目外立面 远景 小区入口\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"10-20秒\",\n        \"visualGoal\": \"展示居民在商铺购物的场景，体现生活便利性\",\n        \"voiceover\": \"楼下就是现成的消费与服务需求。\",\n        \"subtitle\": \"现成的消费与服务需求\",\n        \"shotRequirement\": \"居民在商铺购物 生活场景\",\n        \"assetQuery\": \"居民在商铺购物 生活场景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"20-30秒\",\n        \"visualGoal\": \"展示社区内部设施的使用场景，强调舒适度\",\n        \"voiceover\": \"我们的产品设计注重舒适度，4米层高、商务大堂。\",\n        \"subtitle\": \"注重舒适度的产品设计\",\n        \"shotRequirement\": \"社区内部设施使用场景\",\n        \"assetQuery\": \"社区内部设施使用场景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"总结性镜头，强调生活便利性\",\n        \"voiceover\": \"想要了解更多生活配套信息可以联系我。\",\n        \"subtitle\": \"了解更多生活配套信息\",\n        \"shotRequirement\": \"总结性镜头\",\n        \"assetQuery\": \"总结性镜头\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人口播\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"需要真人口播\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"居民在商铺购物 生活场景\",\n      \"社区内部设施使用场景\"\n    ],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 5,\n      \"projectFit\": 8,\n      \"viralStructure\": 7,\n      \"platformTone\": 6,\n      \"materialFit\": 5,\n      \"compliance\": 4\n    },\n    \"pass\": false,\n    \"problems\": [\n      \"项目事实不足，虽然有一些事实支持，但整体信息不够充分。\",\n      \"缺少合适的图片素材，建议补充社区内部设施、周边商铺和居民生活场景的照片。\",\n      \"存在风险承诺，尤其是关于租金和投资回报的暗示，导致合规性分数较低。\"\n    ],\n    \"revisionSuggestions\": [\n      \"增加更多具体的项目事实和数据支持，以提高项目的可信度。\",\n      \"补充缺失的图片素材，以提升视觉效果和内容的完整性。\",\n      \"避免使用可能被视为风险承诺的表述，确保合规性。\"\n    ],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"成熟配套怎么讲\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\n        \"xiaohongshu\",\n        \"douyin\"\n      ],\n      \"contentGoal\": \"信任建立\",\n      \"targetAudience\": \"首次看房客户\",\n      \"audiencePain\": \"生活便利度不足\",\n      \"sellingPointsNeeded\": [],\n      \"riskConstraints\": [],\n      \"copySearchQuery\": \"成熟配套 首次看房客户 生活便利度\",\n      \"scriptSearchQuery\": \"成熟配套 首次看房客户 生活便利度\",\n      \"imageSearchQuery\": \"成熟配套 首次看房客户 生活便利度\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"强调生活便利性与成熟配套的重要性\",\n      \"narrativeArc\": [],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [\n        \"社区经济托底：80万方大社区，约1万户、3万人口，楼下就是现成消费与服务需求，不是PPT里的未来人口。\",\n        \"成熟运营验证：底商、二期商办已经有满租和实际租金区间，这意味着“能不能租出去”不是想象题，而是证据题。\",\n        \"舒适度型产品：4米层高、商务大堂、品质感强，它不是靠搭板赠送拼功能，而是靠空间舒适度和场景质感取胜。\",\n        \"一套资产，多种用途：70平、200平、250平不是一个逻辑。它们分别对应类居住、公寓收租、自用办公、会所接待、分租贴月供。\"\n      ],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"生活场景导向\",\n        \"reason\": \"通过生活场景展示成熟配套的便利性，增强客户信任感\",\n        \"titleTactics\": [\n          \"强调生活便利性\"\n        ],\n        \"hookTactics\": [\n          \"很多人忽视了生活半径的重要性\"\n        ],\n        \"ctaTactics\": [\n          \"想要了解更多生活配套信息可以联系我\"\n        ]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"成熟配套如何提升生活便利性\",\n        \"coverCopyDirection\": \"生活半径决定生活质量\",\n        \"bodyStructure\": [\n          \"引入生活场景，强调便利性\",\n          \"介绍社区成熟配套的具体内容\",\n          \"列出看房时需要关注的生活配套要素\",\n          \"总结并引导客户行动\"\n        ],\n        \"imagePlan\": [\n          \"社区内部设施的照片\",\n          \"周边商铺和服务设施的照片\",\n          \"居民日常生活场景的照片\"\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"展示社区生活场景，强调成熟配套的便利性\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"镜头1：社区外观，展示社区规模\",\n          \"镜头2：居民在商铺购物的场景\",\n          \"镜头3：社区内部设施的使用场景\",\n          \"镜头4：总结性镜头，强调生活便利性\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": []\n    },\n    \"usedKnowledgeRefs\": [\n      \"社区经济托底\",\n      \"成熟运营验证\",\n      \"舒适度型产品\",\n      \"一套资产，多种用途\"\n    ],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}"
+    },
+    "error": null,
+    "elapsed_time": 58.238942,
+    "total_tokens": 15894,
+    "total_steps": 9,
+    "created_by": {
+      "id": "740a4da7-05a9-4aa8-b181-246fc6e7c0f8",
+      "user": "content_calendar_test_case02_no_images_1778509072"
+    },
+    "created_at": 1778509074,
+    "finished_at": 1778509133,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [
+        "成熟配套如何提升生活便利性"
+      ],
+      "selectedTitle": "成熟配套如何提升生活便利性",
+      "coverCopy": "生活半径决定生活质量",
+      "body": "很多人忽视了生活半径的重要性。我们这个80万方的大社区，拥有约1万户、3万人口，楼下就是现成的消费与服务需求，绝不是未来的设想。\n\n这里的底商和二期商办已经实现满租，实际租金区间也在稳定，这意味着能否租出去是有依据的。\n\n我们的产品设计注重舒适度，4米层高、商务大堂，让你享受到空间的品质感，而不是简单的功能拼凑。\n\n不同面积的房源提供多种用途，70平、200平、250平可以满足居住、公寓收租、自用办公等多种需求，灵活性很高。\n\n想要了解更多生活配套信息可以联系我。",
+      "hashtags": [
+        "#生活便利性",
+        "#成熟配套",
+        "#社区生活",
+        "#房产信息"
+      ],
+      "cta": "想要了解更多生活配套信息可以联系我。",
+      "imageMatches": [
+        {
+          "assetId": "",
+          "title": "",
+          "usage": "",
+          "reason": ""
+        }
+      ],
+      "imageBriefIfMissing": "缺少合适的图片素材，建议补充社区内部设施、周边商铺和居民生活场景的照片。",
+      "riskNotes": [],
+      "copyReadyText": "成熟配套如何提升生活便利性\n生活半径决定生活质量\n很多人忽视了生活半径的重要性。我们这个80万方的大社区，拥有约1万户、3万人口，楼下就是现成的消费与服务需求，绝不是未来的设想。\n这里的底商和二期商办已经实现满租，实际租金区间也在稳定，这意味着能否租出去是有依据的。\n我们的产品设计注重舒适度，4米层高、商务大堂，让你享受到空间的品质感，而不是简单的功能拼凑。\n不同面积的房源提供多种用途，70平、200平、250平可以满足居住、公寓收租、自用办公等多种需求，灵活性很高。\n想要了解更多生活配套信息可以联系我。#生活便利性 #成熟配套 #社区生活 #房产信息"
+    },
+    "videoScript": {
+      "storyOutline": "展示社区生活场景，强调成熟配套的便利性",
+      "estimatedDuration": "35-45秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0-10秒",
+          "visualGoal": "展示社区外观与规模，突出80万方大社区的特点",
+          "voiceover": "这是我们80万方的大社区，拥有约1万户、3万人口。",
+          "subtitle": "80万方大社区，约1万户、3万人口",
+          "shotRequirement": "项目外立面 远景 小区入口",
+          "assetQuery": "项目外立面 远景 小区入口",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "10-20秒",
+          "visualGoal": "展示居民在商铺购物的场景，体现生活便利性",
+          "voiceover": "楼下就是现成的消费与服务需求。",
+          "subtitle": "现成的消费与服务需求",
+          "shotRequirement": "居民在商铺购物 生活场景",
+          "assetQuery": "居民在商铺购物 生活场景",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "20-30秒",
+          "visualGoal": "展示社区内部设施的使用场景，强调舒适度",
+          "voiceover": "我们的产品设计注重舒适度，4米层高、商务大堂。",
+          "subtitle": "注重舒适度的产品设计",
+          "shotRequirement": "社区内部设施使用场景",
+          "assetQuery": "社区内部设施使用场景",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": ""
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "30-45秒",
+          "visualGoal": "总结性镜头，强调生活便利性",
+          "voiceover": "想要了解更多生活配套信息可以联系我。",
+          "subtitle": "了解更多生活配套信息",
+          "shotRequirement": "总结性镜头",
+          "assetQuery": "总结性镜头",
+          "uploadRequired": true,
+          "uploadReason": "需要真人口播",
+          "assetSourceHint": "member_upload",
+          "fallbackVisual": ""
+        }
+      ],
+      "requiredUploads": [
+        "需要真人口播"
+      ],
+      "optionalTeamVideoAssets": [
+        "项目外立面 远景 小区入口",
+        "居民在商铺购物 生活场景",
+        "社区内部设施使用场景"
+      ],
+      "shootingTips": [],
+      "riskNotes": []
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 5,
+        "projectFit": 8,
+        "viralStructure": 7,
+        "platformTone": 6,
+        "materialFit": 5,
+        "compliance": 4
+      },
+      "pass": false,
+      "problems": [
+        "项目事实不足，虽然有一些事实支持，但整体信息不够充分。",
+        "缺少合适的图片素材，建议补充社区内部设施、周边商铺和居民生活场景的照片。",
+        "存在风险承诺，尤其是关于租金和投资回报的暗示，导致合规性分数较低。"
+      ],
+      "revisionSuggestions": [
+        "增加更多具体的项目事实和数据支持，以提高项目的可信度。",
+        "补充缺失的图片素材，以提升视觉效果和内容的完整性。",
+        "避免使用可能被视为风险承诺的表述，确保合规性。"
+      ],
+      "redFlags": [],
+      "missingInputs": []
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "成熟配套怎么讲",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "信任建立",
+        "targetAudience": "首次看房客户",
+        "audiencePain": "生活便利度不足",
+        "sellingPointsNeeded": [],
+        "riskConstraints": [],
+        "copySearchQuery": "成熟配套 首次看房客户 生活便利度",
+        "scriptSearchQuery": "成熟配套 首次看房客户 生活便利度",
+        "imageSearchQuery": "成熟配套 首次看房客户 生活便利度",
+        "videoAssetQueryHints": [],
+        "extraRequirement": ""
+      },
+      "creativeStrategy": {
+        "chosenAngle": "强调生活便利性与成熟配套的重要性",
+        "narrativeArc": [],
+        "tone": "本地中介、真实、克制、不夸张",
+        "mustUseFacts": [
+          "社区经济托底：80万方大社区，约1万户、3万人口，楼下就是现成消费与服务需求，不是PPT里的未来人口。",
+          "成熟运营验证：底商、二期商办已经有满租和实际租金区间，这意味着“能不能租出去”不是想象题，而是证据题。",
+          "舒适度型产品：4米层高、商务大堂、品质感强，它不是靠搭板赠送拼功能，而是靠空间舒适度和场景质感取胜。",
+          "一套资产，多种用途：70平、200平、250平不是一个逻辑。它们分别对应类居住、公寓收租、自用办公、会所接待、分租贴月供。"
+        ],
+        "mustAvoidClaims": [],
+        "viralPatternUsed": {
+          "patternName": "生活场景导向",
+          "reason": "通过生活场景展示成熟配套的便利性，增强客户信任感",
+          "titleTactics": [
+            "强调生活便利性"
+          ],
+          "hookTactics": [
+            "很多人忽视了生活半径的重要性"
+          ],
+          "ctaTactics": [
+            "想要了解更多生活配套信息可以联系我"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "成熟配套如何提升生活便利性",
+          "coverCopyDirection": "生活半径决定生活质量",
+          "bodyStructure": [
+            "引入生活场景，强调便利性",
+            "介绍社区成熟配套的具体内容",
+            "列出看房时需要关注的生活配套要素",
+            "总结并引导客户行动"
+          ],
+          "imagePlan": [
+            "社区内部设施的照片",
+            "周边商铺和服务设施的照片",
+            "居民日常生活场景的照片"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "展示社区生活场景，强调成熟配套的便利性",
+          "estimatedDuration": "35-45秒",
+          "scenePlan": [
+            "镜头1：社区外观，展示社区规模",
+            "镜头2：居民在商铺购物的场景",
+            "镜头3：社区内部设施的使用场景",
+            "镜头4：总结性镜头，强调生活便利性"
+          ],
+          "requiredUploads": [],
+          "assetQueryHints": []
+        },
+        "degradationNotices": []
+      },
+      "usedKnowledgeRefs": [
+        "社区经济托底",
+        "成熟运营验证",
+        "舒适度型产品",
+        "一套资产，多种用途"
+      ],
+      "usedViralRefs": [],
+      "usedImageAssets": [],
+      "degradationNotices": []
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\n  \"workflowVersion\": \"content_calendar_generation_poc_v1\",\n  \"articlePackage\": {\n    \"titles\": [\n      \"成熟配套如何提升生活便利性\"\n    ],\n    \"selectedTitle\": \"成熟配套如何提升生活便利性\",\n    \"coverCopy\": \"生活半径决定生活质量\",\n    \"body\": \"很多人忽视了生活半径的重要性。我们这个80万方的大社区，拥有约1万户、3万人口，楼下就是现成的消费与服务需求，绝不是未来的设想。\\n\\n这里的底商和二期商办已经实现满租，实际租金区间也在稳定，这意味着能否租出去是有依据的。\\n\\n我们的产品设计注重舒适度，4米层高、商务大堂，让你享受到空间的品质感，而不是简单的功能拼凑。\\n\\n不同面积的房源提供多种用途，70平、200平、250平可以满足居住、公寓收租、自用办公等多种需求，灵活性很高。\\n\\n想要了解更多生活配套信息可以联系我。\",\n    \"hashtags\": [\n      \"#生活便利性\",\n      \"#成熟配套\",\n      \"#社区生活\",\n      \"#房产信息\"\n    ],\n    \"cta\": \"想要了解更多生活配套信息可以联系我。\",\n    \"imageMatches\": [\n      {\n        \"assetId\": \"\",\n        \"title\": \"\",\n        \"usage\": \"\",\n        \"reason\": \"\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"缺少合适的图片素材，建议补充社区内部设施、周边商铺和居民生活场景的照片。\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"成熟配套如何提升生活便利性\\n生活半径决定生活质量\\n很多人忽视了生活半径的重要性。我们这个80万方的大社区，拥有约1万户、3万人口，楼下就是现成的消费与服务需求，绝不是未来的设想。\\n这里的底商和二期商办已经实现满租，实际租金区间也在稳定，这意味着能否租出去是有依据的。\\n我们的产品设计注重舒适度，4米层高、商务大堂，让你享受到空间的品质感，而不是简单的功能拼凑。\\n不同面积的房源提供多种用途，70平、200平、250平可以满足居住、公寓收租、自用办公等多种需求，灵活性很高。\\n想要了解更多生活配套信息可以联系我。#生活便利性 #成熟配套 #社区生活 #房产信息\"\n  },\n  \"videoScript\": {\n    \"storyOutline\": \"展示社区生活场景，强调成熟配套的便利性\",\n    \"estimatedDuration\": \"35-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0-10秒\",\n        \"visualGoal\": \"展示社区外观与规模，突出80万方大社区的特点\",\n        \"voiceover\": \"这是我们80万方的大社区，拥有约1万户、3万人口。\",\n        \"subtitle\": \"80万方大社区，约1万户、3万人口\",\n        \"shotRequirement\": \"项目外立面 远景 小区入口\",\n        \"assetQuery\": \"项目外立面 远景 小区入口\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"10-20秒\",\n        \"visualGoal\": \"展示居民在商铺购物的场景，体现生活便利性\",\n        \"voiceover\": \"楼下就是现成的消费与服务需求。\",\n        \"subtitle\": \"现成的消费与服务需求\",\n        \"shotRequirement\": \"居民在商铺购物 生活场景\",\n        \"assetQuery\": \"居民在商铺购物 生活场景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"20-30秒\",\n        \"visualGoal\": \"展示社区内部设施的使用场景，强调舒适度\",\n        \"voiceover\": \"我们的产品设计注重舒适度，4米层高、商务大堂。\",\n        \"subtitle\": \"注重舒适度的产品设计\",\n        \"shotRequirement\": \"社区内部设施使用场景\",\n        \"assetQuery\": \"社区内部设施使用场景\",\n        \"uploadRequired\": false,\n        \"uploadReason\": \"\",\n        \"assetSourceHint\": \"team_video_asset\",\n        \"fallbackVisual\": \"\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"30-45秒\",\n        \"visualGoal\": \"总结性镜头，强调生活便利性\",\n        \"voiceover\": \"想要了解更多生活配套信息可以联系我。\",\n        \"subtitle\": \"了解更多生活配套信息\",\n        \"shotRequirement\": \"总结性镜头\",\n        \"assetQuery\": \"总结性镜头\",\n        \"uploadRequired\": true,\n        \"uploadReason\": \"需要真人口播\",\n        \"assetSourceHint\": \"member_upload\",\n        \"fallbackVisual\": \"\"\n      }\n    ],\n    \"requiredUploads\": [\n      \"需要真人口播\"\n    ],\n    \"optionalTeamVideoAssets\": [\n      \"项目外立面 远景 小区入口\",\n      \"居民在商铺购物 生活场景\",\n      \"社区内部设施使用场景\"\n    ],\n    \"shootingTips\": [],\n    \"riskNotes\": []\n  },\n  \"qualityReview\": {\n    \"scores\": {\n      \"factAccuracy\": 5,\n      \"projectFit\": 8,\n      \"viralStructure\": 7,\n      \"platformTone\": 6,\n      \"materialFit\": 5,\n      \"compliance\": 4\n    },\n    \"pass\": false,\n    \"problems\": [\n      \"项目事实不足，虽然有一些事实支持，但整体信息不够充分。\",\n      \"缺少合适的图片素材，建议补充社区内部设施、周边商铺和居民生活场景的照片。\",\n      \"存在风险承诺，尤其是关于租金和投资回报的暗示，导致合规性分数较低。\"\n    ],\n    \"revisionSuggestions\": [\n      \"增加更多具体的项目事实和数据支持，以提高项目的可信度。\",\n      \"补充缺失的图片素材，以提升视觉效果和内容的完整性。\",\n      \"避免使用可能被视为风险承诺的表述，确保合规性。\"\n    ],\n    \"redFlags\": [],\n    \"missingInputs\": []\n  },\n  \"trace\": {\n    \"taskUnderstanding\": {\n      \"coreTopic\": \"成熟配套怎么讲\",\n      \"contentType\": \"article_and_video\",\n      \"platforms\": [\n        \"xiaohongshu\",\n        \"douyin\"\n      ],\n      \"contentGoal\": \"信任建立\",\n      \"targetAudience\": \"首次看房客户\",\n      \"audiencePain\": \"生活便利度不足\",\n      \"sellingPointsNeeded\": [],\n      \"riskConstraints\": [],\n      \"copySearchQuery\": \"成熟配套 首次看房客户 生活便利度\",\n      \"scriptSearchQuery\": \"成熟配套 首次看房客户 生活便利度\",\n      \"imageSearchQuery\": \"成熟配套 首次看房客户 生活便利度\",\n      \"videoAssetQueryHints\": [],\n      \"extraRequirement\": \"\"\n    },\n    \"creativeStrategy\": {\n      \"chosenAngle\": \"强调生活便利性与成熟配套的重要性\",\n      \"narrativeArc\": [],\n      \"tone\": \"本地中介、真实、克制、不夸张\",\n      \"mustUseFacts\": [\n        \"社区经济托底：80万方大社区，约1万户、3万人口，楼下就是现成消费与服务需求，不是PPT里的未来人口。\",\n        \"成熟运营验证：底商、二期商办已经有满租和实际租金区间，这意味着“能不能租出去”不是想象题，而是证据题。\",\n        \"舒适度型产品：4米层高、商务大堂、品质感强，它不是靠搭板赠送拼功能，而是靠空间舒适度和场景质感取胜。\",\n        \"一套资产，多种用途：70平、200平、250平不是一个逻辑。它们分别对应类居住、公寓收租、自用办公、会所接待、分租贴月供。\"\n      ],\n      \"mustAvoidClaims\": [],\n      \"viralPatternUsed\": {\n        \"patternName\": \"生活场景导向\",\n        \"reason\": \"通过生活场景展示成熟配套的便利性，增强客户信任感\",\n        \"titleTactics\": [\n          \"强调生活便利性\"\n        ],\n        \"hookTactics\": [\n          \"很多人忽视了生活半径的重要性\"\n        ],\n        \"ctaTactics\": [\n          \"想要了解更多生活配套信息可以联系我\"\n        ]\n      },\n      \"articlePlan\": {\n        \"titleDirection\": \"成熟配套如何提升生活便利性\",\n        \"coverCopyDirection\": \"生活半径决定生活质量\",\n        \"bodyStructure\": [\n          \"引入生活场景，强调便利性\",\n          \"介绍社区成熟配套的具体内容\",\n          \"列出看房时需要关注的生活配套要素\",\n          \"总结并引导客户行动\"\n        ],\n        \"imagePlan\": [\n          \"社区内部设施的照片\",\n          \"周边商铺和服务设施的照片\",\n          \"居民日常生活场景的照片\"\n        ]\n      },\n      \"videoPlan\": {\n        \"storyOutline\": \"展示社区生活场景，强调成熟配套的便利性\",\n        \"estimatedDuration\": \"35-45秒\",\n        \"scenePlan\": [\n          \"镜头1：社区外观，展示社区规模\",\n          \"镜头2：居民在商铺购物的场景\",\n          \"镜头3：社区内部设施的使用场景\",\n          \"镜头4：总结性镜头，强调生活便利性\"\n        ],\n        \"requiredUploads\": [],\n        \"assetQueryHints\": []\n      },\n      \"degradationNotices\": []\n    },\n    \"usedKnowledgeRefs\": [\n      \"社区经济托底\",\n      \"成熟运营验证\",\n      \"舒适度型产品\",\n      \"一套资产，多种用途\"\n    ],\n    \"usedViralRefs\": [],\n    \"usedImageAssets\": [],\n    \"degradationNotices\": []\n  },\n  \"saveHints\": {\n    \"contentDraftInputSnapshotKeys\": [\n      \"source\",\n      \"teamCalendarTask\",\n      \"knowledgeRefs\",\n      \"viralRefs\",\n      \"imageAssetRefs\",\n      \"qualityReview\"\n    ]\n  }\n}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": false,
+        "detail": "满租 / 租金区间"
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": false,
+        "detail": "compliance:4<7"
+      }
+    ],
+    "risk_terms": [
+      "满租",
+      "租金区间"
+    ]
+  }
+}

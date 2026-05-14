@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "name": "没有图片素材",
+    "purpose": "验证没有图片时图文仍可生成，并输出 imageBriefIfMissing"
+  },
+  "inputs": {
+    "calendar_task_json": "{\"taskId\":\"task_20260511_002\",\"theme\":\"成熟配套怎么讲\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"信任建立\",\"targetAudience\":\"首次看房客户\",\"summary\":\"用生活便利度解释为什么先了解这个项目\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-12\"}",
+    "viral_references_json": "[{\"id\":\"viral_002\",\"platform\":\"xiaohongshu\",\"title\":\"买房别只看户型，楼下生活半径更关键\",\"structure\":[\"提醒误区\",\"讲生活场景\",\"列看房要点\",\"轻CTA\"],\"hook\":\"很多人第一次看房只盯户型图\",\"ctaStyle\":\"想要看生活半径清单可以问我\"}]",
+    "image_assets_json": "[]",
+    "fallback_knowledge_text": "项目资料：社区体量大，楼下消费和服务设施较成熟。适合从日常通勤、买菜、吃饭、看房动线等生活场景解释，不做收益承诺。",
+    "extra_requirement": "语气真实一点，像发给老客户看的内容。"
+  },
+  "expected": {
+    "quality_pass": false,
+    "min_scores": {
+      "compliance": 7
+    }
+  }
+}
