@@ -182,6 +182,19 @@ export const memberInvitationAcceptSchema = z.object({
   displayName: z.string().trim().max(80).nullish(),
 });
 
+export const createMemberInvitationCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(4)
+    .max(80)
+    .regex(/^[a-zA-Z0-9][a-zA-Z0-9-]*$/, "Only letters, numbers and dashes are allowed.")
+    .optional(),
+  maxRedemptions: z.number().int().min(1).max(100).optional(),
+  expiresAt: z.iso.datetime().nullish(),
+  note: z.string().trim().max(200).nullish(),
+});
+
 export const createInvitationCodeSchema = z.object({
   code: z.string().trim().min(4).max(80).optional(),
   maxRedemptions: z.number().int().min(1).max(50).optional(),

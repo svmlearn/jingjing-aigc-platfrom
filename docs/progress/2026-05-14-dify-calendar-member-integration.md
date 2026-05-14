@@ -248,6 +248,167 @@ python3 docs/探索/2026-05-11-用dify来测试链路/verify_dify_v31_final_json
 - `docs/架构规范/2026-05-12-内容日历批量生成与Dify过渡架构决策.md`
 - `docs/progress/总架构流程进度图.html`
 
+## 2026-05-14 完整主链路 E2E 测试计划
+
+本阶段测试目标不是只验证某一个按钮，而是验证 owner、成员、素材、Dify、worker、剪辑任务之间的数据能连续流动。
+
+### Completion Gate
+
+完整链路通过必须同时满足：
+
+1. owner 能在商家端创建团队邀请码，并看到已加入成员。
+2. 新成员能使用邀请码加入团队，进入成员端后只看到所属团队的项目和内容。
+3. owner 能上传或准备图片/视频素材，素材能被标记为 Dify 可检索/可输入。
+4. owner 能基于内容日历为未来 7 天、至少 1 个成员发起 Dify 批量生成。
+5. worker 能消费 batch/job，真实调用 Dify，并落库图文内容包和视频脚本。
+6. 成员端未来一周日历能看到生成结果，图文图片链接能渲染为图片。
+7. 成员能按视频分镜上传必需素材。
+8. 成员能发起 AI 剪辑任务，任务完成后在成员端“内容/历史”看到结果。
+
+### Phase A：成员与权限冒烟
+
+测试范围：
+
+- owner 登录 `ywangyangw1@163.com` 对应商家。
+- 创建 1 个团队邀请码。
+- 使用另一个测试成员账号接受邀请码。
+- 查询 `merchant_team_members`，确认出现 owner + member 两条 active membership。
+- 成员访问 `/member`、`/member/calendar`、`/member/invite`，确认身份和团队绑定正确。
+
+验收证据：
+
+- 邀请码 API 返回 code。
+- 成员接受 API 返回 merchant workspace。
+- owner 团队管理页面能看到成员。
+
+### Phase B：素材检索冒烟
+
+测试范围：
+
+- owner 素材库存在至少 3 张 `article_image_asset` 图片素材。
+- 至少 1 条视频素材或分镜上传素材能落到 `asset_objects` / 视频剪辑输入。
+- Dify batch 入参里能看到图片素材标题、描述和 URL/COS preview。
+
+验收证据：
+
+- `source_items.metadata.retrievalTargets` 包含 `article_image_asset`。
+- batch/job 的 input snapshot 包含 `imageMaterials`。
+- 若 Dify 输出 `article.images[].url` 或 `cosPath`，成员端图文页能直接渲染。
+
+### Phase C：1 成员 1 天真实 Dify 链路
+
+测试范围：
+
+- owner 为 1 个成员、1 天内容日历发起 batch。
+- worker 使用真实 Dify API key 消费 1 个 job。
+- 生成图文内容包和视频脚本。
+
+验收证据：
+
+- `content_generation_batches.status` 进入 finished 或 partial。
+- `content_generation_jobs.status = succeeded`。
+- `daily_content_tasks.article_task.generationStatus = succeeded`。
+- `daily_content_tasks.video_task.generationStatus = succeeded`。
+- 成员端图文页和视频脚本页能打开。
+
+### Phase D：1 成员 7 天一周链路
+
+测试范围：
+
+- owner 使用“生成本周”创建 7 天 job。
+- worker 连续消费直到本周 jobs 全部结束。
+- 成员端 `/member/calendar` 未来 7 天均能看到生成状态和内容入口。
+
+验收证据：
+
+- job 总数与目标天数一致。
+- 失败 job 有 error message，可重试或定位。
+- 成员端一周列表无空白、无前端报错。
+
+### Phase E：多成员分发链路
+
+测试范围：
+
+- 团队至少 2 个 active member。
+- owner 选择 `active_members` 发起一周生成。
+- 每个成员看到自己对应的内容任务。
+
+验收证据：
+
+- 每个成员都有独立 daily task / generation job 关联。
+- 成员 A 与成员 B 的成员端视图不会互相串数据。
+
+### Phase F：视频素材上传与 AI 剪辑
+
+测试范围：
+
+- 成员打开某天视频脚本。
+- 按 required 分镜上传素材。
+- 确认视频脚本草稿、媒体上传、variant approve、AI 剪辑 job 创建成功。
+- 等待 worker/剪辑服务完成。
+
+验收证据：
+
+- 成员端视频页展示上传进度和剪辑任务状态。
+- `video_edit_jobs` 有完整状态流转。
+- `/member/history` 能看到剪辑任务或最终成片结果。
+
+### 当前优先实现切片
+
+下一步先补“成员管理 / 邀请码生成”：
+
+- owner 侧新增团队成员页面。
+- owner 能创建邀请码、复制成员加入链接。
+- owner 能查看团队成员和邀请码使用次数。
+- 保留成员端已有的邀请码接受链路。
+
+## 2026-05-14 成员管理 / 邀请码实现进展
+
+本轮新增：
+
+- `GET /api/merchant-team`
+  - owner 读取当前 workspace、active team members、团队邀请码列表。
+- `POST /api/merchant-team/invitation-codes`
+  - owner 创建团队邀请码。
+  - 支持自定义 code、最大兑换次数、过期时间、备注。
+- `/dashboard/team`
+  - owner 侧团队成员页面。
+  - 可生成邀请码、复制成员加入链接、查看成员列表和邀请码使用次数。
+
+复用已有：
+
+- `POST /api/member/invitations/accept`
+  - 成员通过邀请码加入团队。
+- `/member/invite?code=...`
+  - 成员端邀请码入口已支持从 URL 预填 code。
+
+本地 demo 冒烟结果：
+
+1. `GET /api/merchant-team`
+   - 返回 owner workspace。
+   - 初始 members 只有 owner。
+2. `POST /api/merchant-team/invitation-codes`
+   - 使用 `TEAM-TEST-01` 创建邀请码成功。
+   - 返回 `redemptionCount = 0`。
+3. `POST /api/member/invitations/accept`
+   - 使用 header `x-jingjing-demo-user-id: demo-member-001` 模拟成员。
+   - 成员加入成功，返回 `role = member`。
+4. 再次 `GET /api/merchant-team`
+   - members 变为 owner + member。
+   - `TEAM-TEST-01.redemptionCount = 1`。
+
+验证结果：
+
+```bash
+pnpm --dir app typecheck
+pnpm --dir app lint
+pnpm --dir app build
+```
+
+均已通过。
+
+浏览器自动化连接 Codex in-app browser 超时；本轮已用 dev server + API 冒烟 + production build 验证页面 route 和数据链路。
+
 ## 当前状态
 
 代码位于独立 worktree：

@@ -48,10 +48,30 @@ export type MerchantTeamMemberDto = {
   updatedAt: string;
 };
 
+export type MerchantTeamInvitationCodeDto = {
+  id: string;
+  merchantId: string;
+  code: string;
+  status: "active" | "disabled" | "expired";
+  maxRedemptions: number;
+  redemptionCount: number;
+  expiresAt?: string | null;
+  note?: string | null;
+  createdByUserId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type MerchantWorkspaceDto = {
   merchantProfile: MerchantProfileDto;
   role: MerchantTeamRole;
   membershipId?: string | null;
+};
+
+export type MerchantTeamManagementDto = {
+  workspace: MerchantWorkspaceDto;
+  members: MerchantTeamMemberDto[];
+  invitationCodes: MerchantTeamInvitationCodeDto[];
 };
 
 export type MemberInvitationAcceptResultDto = MerchantWorkspaceDto & {
