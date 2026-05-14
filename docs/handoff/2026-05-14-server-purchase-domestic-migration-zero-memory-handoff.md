@@ -1,36 +1,36 @@
-# 2026-05-14 server purchase and domestic migration zero-memory handoff
+# 2026-05-14 服务器采购与国内化迁移零上下文交接
 
-## 1. Purpose
+## 1. 这份文档是干嘛的
 
-This handoff lets a new Codex window continue two related threads without relying on chat history:
+这份 handoff 是给新窗口 / 新 Agent 看的，目标是不用翻聊天记录，也能继续接上两件事：
 
-1. Cloud resource purchase decision for the app's next verification environment.
-2. Domestic infrastructure migration branch/worktree status.
+1. 下一套云资源到底怎么买：大陆还是香港，腾讯云还是阿里云。
+2. `codex/domestic-infra-migration` 这个国内化代码改造 worktree 现在停在哪个断点。
 
-Current user goal:
+当前用户目标：
 
 ```text
-First decide whether the next verification environment should be mainland China or Hong Kong.
-Then decide Tencent Cloud vs Alibaba Cloud.
-Then buy server + object storage + PostgreSQL.
-Then resume the domestic-infra-migration worktree for real-resource validation.
+先决定下一套验证环境走大陆还是香港。
+再决定腾讯云还是阿里云。
+然后购买服务器 + 对象存储 + PostgreSQL。
+资源买好后，再回到国内化迁移 worktree 做真实资源验证。
 ```
 
-## 2. Main Repo State
+## 2. 主仓库当前状态
 
-Main repo:
+主仓库路径：
 
 ```text
 /Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台
 ```
 
-Current branch:
+当前分支：
 
 ```text
 main
 ```
 
-Latest relevant commits before this handoff:
+写这份 handoff 前，main 上最近几个相关提交是：
 
 ```text
 af44893 docs: add dify siliconflow v32 test results
@@ -38,9 +38,9 @@ af44893 docs: add dify siliconflow v32 test results
 c5e0ace docs: add domestic server purchase comparison
 ```
 
-At the time this handoff was written, `git status --short` in main was clean.
+写这份 handoff 时，main 的 `git status --short` 是干净的。
 
-Important main-branch docs for the next window:
+新窗口优先读这些文档：
 
 ```text
 docs/handoff/2026-05-14-国内云服务器采购配置与对比.md
@@ -48,154 +48,156 @@ docs/handoff/2026-05-13-国内化代码改造与迁移计划表.md
 docs/handoff/2026-05-13-国内化技术验证采购与迁移执行计划.md
 ```
 
-## 3. Cloud Purchase Decision Status
+## 3. 服务器采购决策当前状态
 
-The team has not yet decided between mainland China and Hong Kong deployment.
+现在还没有最终决定走大陆还是香港。
 
-The current decision sequence should be:
-
-```text
-1. Decide mainland China vs Hong Kong.
-2. Decide Tencent Cloud vs Alibaba Cloud.
-3. Buy matching server + object storage + PostgreSQL from the same cloud/region family.
-4. Only then resume real-resource validation in the domestic migration worktree.
-```
-
-Do not jump directly into purchase if the domain/company-subject question is still unanswered.
-
-## 4. Domain / ICP / Company Subject Questions
-
-Open decision for tomorrow:
+正确决策顺序是：
 
 ```text
-Domain: ba-ba-ke.com
-Unknown: whether it is already held / real-name-authenticated under the boss's Hong Kong company.
-Unknown: whether it can be transferred or real-name-authenticated under a mainland China company.
-Known: there is likely a legitimate mainland company that can do ICP filing if a suitable domain is available.
+1. 先决定：大陆路线 vs 香港路线。
+2. 再决定：腾讯云 vs 阿里云。
+3. 再买：同一家云、同一区域或近区域的一整套资源。
+4. 资源买完后，才恢复国内化迁移 worktree 的真实资源验证。
 ```
 
-Tomorrow the user will provide a conclusion. Ask/record:
+如果域名主体、公司主体、ICP备案路径还没确认，不要直接进入购买。
 
-1. Is `ba-ba-ke.com` currently under a Hong Kong company?
-2. Can `ba-ba-ke.com` be moved to a mainland company subject?
-3. If it cannot be moved, is the user willing to buy a new domain for mainland ICP?
-4. Can the mainland company also own the cloud account, domain real-name auth, ICP filing, server, object storage, and database?
+## 4. 域名 / ICP / 公司主体还要确认什么
 
-Decision rules:
+明天用户会给结论，目前待确认：
 
-| Condition | Preferred route |
+```text
+域名：ba-ba-ke.com
+未知：这个域名是不是已经挂在老板香港公司名下。
+未知：这个域名能不能转到国内公司主体。
+已知：大概率有一个国内正规公司可以做 ICP 备案，只要域名和云账号主体能配合。
+```
+
+明天要问清 / 记录清楚：
+
+1. `ba-ba-ke.com` 当前域名持有人 / 实名主体是谁。
+2. 它是不是已经挂在香港公司名下。
+3. 它能不能转到国内公司主体。
+4. 如果不能转，用户是否愿意新买一个域名给国内公司备案。
+5. 国内公司是否能统一承担：云账号实名、域名实名、ICP备案、服务器、对象存储、数据库。
+
+决策规则：
+
+| 情况 | 优先路线 |
 | --- | --- |
-| Mainland company can own/real-name-auth a domain and do ICP | Mainland China server + mainland object storage + mainland PostgreSQL |
-| `ba-ba-ke.com` is stuck under Hong Kong company and user does not want a new domain | Hong Kong server + Hong Kong object storage + Hong Kong PostgreSQL |
-| User only wants phase1 technical validation | IP-based test is OK before ICP/HTTPS/domain finalization |
-| User wants stable long-term usage by mainland real-estate agents | Prefer mainland China route if ICP is feasible |
+| 国内公司能持有/实名域名，并且能做 ICP | 大陆服务器 + 大陆对象存储 + 大陆 PostgreSQL |
+| `ba-ba-ke.com` 卡在香港公司，且用户不想换域名 | 香港服务器 + 香港对象存储 + 香港 PostgreSQL |
+| 只是 phase1 技术验证 | 可以先用服务器 IP 验证，不被域名/ICP/HTTPS 卡住 |
+| 最终要给国内房产中介长期稳定使用 | 如果 ICP 可行，优先大陆路线 |
 
-## 5. Mainland Route Summary
+## 5. 大陆路线怎么走
 
-Use this if a mainland company/domain/ICP path is feasible.
+适用前提：国内公司、域名、ICP备案这条路能走通。
 
-Recommended shape:
+推荐形态：
 
 ```text
-Mainland company cloud account
--> Mainland server
--> Mainland PostgreSQL
--> Mainland COS/OSS bucket
--> ICP-filed domain
+国内公司实名云账号
+-> 大陆服务器
+-> 大陆 PostgreSQL
+-> 大陆 COS/OSS bucket
+-> 已 ICP 备案域名
 -> HTTPS
--> PWA for member/intermediary users
+-> 中介端 / 成员端 PWA
 ```
 
-Key points:
+关键点：
 
-- For phase1 validation, IP access is enough: `http://<server-ip>`.
-- For production PWA, use `https://<domain>`.
-- PWA needs HTTPS for reliable Service Worker behavior; ICP is not the PWA requirement, but mainland hosting requires ICP.
-- ICP should use consistent subject information: cloud account real-name subject, domain holder, ICP subject, and business owner should align.
-- If using mainland China for web access, the server duration may need to be 3 months or longer for ICP filing.
+- phase1 验证可以先用 `http://<服务器IP>`。
+- 正式 PWA 建议用 `https://<域名>`。
+- PWA 需要 HTTPS 才稳定支持 Service Worker；ICP备案不是 PWA 本身的要求，而是大陆服务器/大陆接入的要求。
+- 备案时主体最好一致：云账号实名主体、域名持有人、ICP备案主体、实际业务主体尽量都用同一个国内公司。
+- 如果要用大陆服务器做备案，服务器购买时长通常要 3 个月及以上。
 
-Mainland server purchase configs already documented:
+大陆服务器已记录过两套购买配置：
 
 ```text
 docs/handoff/2026-05-14-国内云服务器采购配置与对比.md
 ```
 
-Currently recorded mainland options:
+已记录的大陆配置：
 
-| Cloud | Server | Region | System | Disk | Network | Price shown |
+| 云厂商 | 服务器 | 地域 | 系统 | 磁盘 | 网络 | 页面价格 |
 | --- | --- | --- | --- | --- | --- | ---: |
-| Tencent Cloud | CVM `C6.2XLARGE16`, 8C16G | Shanghai | Ubuntu 22.04 | 100 GiB | traffic billing, 5 Mbps | `¥980.00` + `¥0.80/GB` |
-| Alibaba Cloud | ECS `ecs.c9i.2xlarge`, 8C16G | Hangzhou | Ubuntu 22.04 | 100 GiB | pay by traffic, 5 Mbps | `¥793.64` + traffic |
+| 腾讯云 | CVM `C6.2XLARGE16`，8核16G | 上海 | Ubuntu 22.04 | 100 GiB | 按流量，5 Mbps | `¥980.00` + `¥0.80/GB` |
+| 阿里云 | ECS `ecs.c9i.2xlarge`，8核16G | 杭州 | Ubuntu 22.04 | 100 GiB | 按使用流量，5 Mbps | `¥793.64` + 流量费 |
 
-Current mainland cloud preference:
+当前大陆云厂商判断：
 
-- If using Tencent COS / Tencent PostgreSQL, Tencent Cloud is operationally simpler.
-- If starting fresh and prioritizing compute price, Alibaba Cloud is cheaper.
-- Do not mix server on one cloud, object storage on another, and database on a third unless there is a strong reason.
+- 如果继续用腾讯 COS / 腾讯 PostgreSQL，腾讯云更省心，因为当前代码和 COS 链路更接近。
+- 如果从零重新开一套、优先考虑价格，阿里云更便宜。
+- 不建议服务器在阿里云、对象存储在腾讯云、数据库又在第三家。短期能跑，长期排障会烦。
 
-## 6. Hong Kong Route Summary
+## 6. 香港路线怎么走
 
-Use this if `ba-ba-ke.com` is stuck under a Hong Kong company and the user wants fast trial operation without mainland ICP.
+适用前提：`ba-ba-ke.com` 卡在香港公司名下，且用户想先快速试运营，不想等大陆 ICP。
 
-Recommended shape:
+推荐形态：
 
 ```text
-Hong Kong server
--> Hong Kong PostgreSQL
--> Hong Kong COS/OSS bucket
--> HTTPS on ba-ba-ke.com
--> PWA for mainland users
+香港服务器
+-> 香港 PostgreSQL
+-> 香港 COS/OSS bucket
+-> ba-ba-ke.com 配 HTTPS
+-> 国内用户手机访问 PWA
 ```
 
-Known availability:
+已确认的香港资源可用性：
 
-| Cloud | Server | Object storage | PostgreSQL | Notes |
+| 云厂商 | 服务器 | 对象存储 | PostgreSQL | 备注 |
 | --- | --- | --- | --- | --- |
-| Tencent Cloud | Hong Kong CVM, `ap-hongkong` | Hong Kong COS bucket | Hong Kong TencentDB for PostgreSQL | Current code is already closer to COS |
-| Alibaba Cloud | Hong Kong ECS, `cn-hongkong` | Hong Kong OSS bucket, endpoint `oss-cn-hongkong.aliyuncs.com` | Hong Kong RDS PostgreSQL | Good fresh-start option |
+| 腾讯云 | 香港 CVM，`ap-hongkong` | 香港 COS bucket | 香港 TencentDB for PostgreSQL | 当前代码更接近 COS，改动更小 |
+| 阿里云 | 香港 ECS，`cn-hongkong` | 香港 OSS bucket，endpoint `oss-cn-hongkong.aliyuncs.com` | 香港 RDS PostgreSQL | 从零开也可行 |
 
-Hong Kong route boundaries:
+香港路线边界：
 
-- Hong Kong deployment usually does not require mainland ICP if web access and object storage are outside mainland China.
-- Mainland users can access Hong Kong HTTPS/PWA, but uploads/downloads may be slower or less stable because the link is cross-border.
-- Hong Kong does not solve mainland CDN acceleration. If using mainland CDN nodes, mainland ICP usually comes back into scope.
-- Do not mix Hong Kong server with mainland object storage/CDN if the goal is to avoid ICP complexity.
+- 如果 Web 接入、对象存储、数据库都在香港，通常不需要大陆 ICP。
+- 国内用户可以访问香港 HTTPS / PWA。
+- 但香港到国内是跨境链路，视频上传和下载可能比大陆机房慢，也可能受运营商/地区/时段影响。
+- 香港路线不能顺手解决大陆 CDN 加速。只要用了中国大陆 CDN 节点，通常又会回到 ICP 问题。
+- 如果目标是减少 ICP 复杂度，不要把香港服务器和大陆对象存储 / 大陆 CDN 混搭。
 
-Current Hong Kong recommendation:
+当前香港云厂商判断：
 
-- If continuing from the current COS implementation, choose Tencent Cloud Hong Kong for less code/storage-adapter friction.
-- If starting fresh and willing to adapt OSS, Alibaba Cloud Hong Kong is also viable.
+- 如果沿用当前 COS 代码链路，香港也优先腾讯云，少改存储适配。
+- 如果愿意做 OSS 适配，阿里云香港也完全可行。
 
-## 7. Domestic Migration Worktree Status
+## 7. 国内化迁移 worktree 当前状态
 
-Do not continue the real e2e yet. The migration branch is paused at a resource-blocked checkpoint.
+不要继续追真实 e2e。这个 worktree 当前是“资源未买好，所以暂停”的状态。
 
-Worktree:
+worktree 路径：
 
 ```text
 /Users/wy/Desktop/静境/静境4.0/jingjing-domestic-infra-migration
 ```
 
-Branch:
+分支：
 
 ```text
 codex/domestic-infra-migration
 ```
 
-Latest commit:
+最新提交：
 
 ```text
 cdc5ca1 docs: add domestic offline deployment readiness kit
 ```
 
-Verified status:
+已核对状态：
 
 ```text
 git status --short
-# clean
+# 干净
 ```
 
-Long-task state:
+long-task 状态：
 
 ```text
 .codex/long-task/active.json
@@ -204,34 +206,34 @@ taskId: domestic-infra-migration
 completionPromise: DOMESTIC_INFRA_MIGRATION_PHASE1_COMPLETE
 ```
 
-Do not mark the project long-task complete yet.
+不要标记 project long-task complete。
 
-Do not do any of these before real resources exist:
-
-```text
-Do not merge.
-Do not push.
-Do not switch ba-ba-ke.com.
-Do not do ICP changes.
-Do not write DOMESTIC_PHASE1_E2E_PASS.
-Do not mark project long-task complete.
-Do not claim domestic phase1 e2e passed.
-```
-
-## 8. What The Migration Branch Already Did
-
-The worker in the other context reported:
+真实资源到位之前，不要做这些事：
 
 ```text
-Completed resource-independent / offline hardening.
-Branch: codex/domestic-infra-migration
-Latest commit: cdc5ca1 docs: add domestic offline deployment readiness kit
-git status --short: clean
-project long-task: still blocked, not complete
-No merge, no push, no ba-ba-ke.com switch, no ICP, no completion marker.
+不要 merge。
+不要 push。
+不要切 ba-ba-ke.com。
+不要做 ICP。
+不要写 DOMESTIC_PHASE1_E2E_PASS。
+不要标记 project long-task complete。
+不要声称 domestic phase1 e2e 已通过。
 ```
 
-Key updated/created files in the worktree:
+## 8. 国内化迁移分支已经做了什么
+
+另一个执行国内化迁移的窗口汇报过：
+
+```text
+已完成 resource-independent / offline hardening。
+分支：codex/domestic-infra-migration
+最新提交：cdc5ca1 docs: add domestic offline deployment readiness kit
+git status --short：干净
+project long-task：仍是 blocked，未 complete
+未 merge、未 push、未切 ba-ba-ke.com、未做 ICP、未写完成 marker。
+```
+
+这个 worktree 里的重点文件：
 
 ```text
 deploy/domestic/README.md
@@ -241,7 +243,7 @@ docs/handoff/2026-05-13-domestic-phase1-real-resource-runbook.md
 docs/handoff/2026-05-13-domestic-infra-migration-phase-a0-a6-handoff.md
 ```
 
-Reported local validations passed:
+已汇报通过的本地验证：
 
 ```text
 pnpm typecheck
@@ -250,60 +252,60 @@ pnpm build
 worker 50 tests OK
 worker compileall
 Docker compose config
-deployment template checks
-app/COS/API/worker missing-env failure paths
-PostgreSQL baseline/seed local validation
-local login
+部署模板校验
+app/COS/API/worker missing-env 失败路径
+PostgreSQL baseline/seed 本地验证
+本地 login
 test draft
 media complete
 video job create
 source item read API
-mixed Supabase/Postgres env priority
+mixed Supabase/Postgres env 优先级
 app env preflight
 API smoke
 worker env-file smoke
 ```
 
-Still blocked because these do not exist yet:
+仍然阻塞的原因：
 
 ```text
-Domestic or Hong Kong target server
-Target PostgreSQL
-Target COS/OSS bucket and CORS
-Mobile browser/IP verification environment
-Real provider keys/test account/env files
+目标服务器还没买好
+目标 PostgreSQL 还没买好
+目标 COS/OSS bucket 和 CORS 还没配好
+手机端 IP 访问验证环境还没有
+真实 provider key / 测试账号 / env 文件还没有
 ```
 
-## 9. When Resources Are Ready
+## 9. 资源买好后再怎么继续
 
-The user will return with some or all of:
+用户后面会带回来这些信息中的一部分或全部：
 
 ```text
-Server IP
-Server SSH user / login method
-Server region
-PostgreSQL connection string
+服务器 IP
+服务器 SSH 用户 / 登录方式
+服务器地域
+PostgreSQL 连接串
 PostgreSQL SSL mode
 COS/OSS bucket
 COS/OSS region
 COS/OSS CORS origin
-Secret ID / key, only in local env, never committed
-Test owner email
-Temporary password
-Provider keys
-Mobile test device/browser
+Secret ID / key，只能放本地 env，不能提交
+测试 owner email
+临时密码
+provider keys
+手机测试设备 / 浏览器
 ```
 
-Do not paste secrets into committed docs.
+不要把任何密钥、密码、provider key 写进提交文档。
 
-Then resume from:
+资源到位后，从这两份 worktree 文档继续：
 
 ```text
 /Users/wy/Desktop/静境/静境4.0/jingjing-domestic-infra-migration/docs/handoff/2026-05-14-domestic-resource-readiness-checklist.md
 /Users/wy/Desktop/静境/静境4.0/jingjing-domestic-infra-migration/docs/handoff/2026-05-13-domestic-phase1-real-resource-runbook.md
 ```
 
-First commands after resources exist:
+资源到位后的第一批命令：
 
 ```bash
 psql "$APP_DATABASE_URL" -f app/db/migrations/202605130001_domestic_core_baseline.sql
@@ -311,46 +313,62 @@ node app/scripts/check-domestic-app-env.mjs --env-file /etc/jingjing/app.env --r
 node app/scripts/check-domestic-cos-roundtrip.mjs --env-file /etc/jingjing/app.env
 ```
 
-Then continue server bootstrap, app smoke, worker smoke, and only then real mobile e2e.
-
-Real pass criteria:
+然后再做：
 
 ```text
-Mobile browser opens target IP/domain.
-User can log in.
-User can create/upload material.
-Bytes land in target COS/OSS.
-API creates video job.
-Worker picks the job.
-OpenStoryline/FireRed returns success.
-final.mp4, cover, subtitles upload to target COS/OSS.
-DB records succeeded job and asset_objects.
-Page can re-sign and download final.mp4 from target object storage.
-Evidence is recorded in progress docs.
+服务器 bootstrap
+app smoke
+worker smoke
+手机端真实 e2e
 ```
 
-Only after that may the project move toward completion marker / long-task complete.
-
-## 10. Suggested First Message In New Window
-
-The user can paste this to a new Codex window:
+真实 e2e 通过标准：
 
 ```text
-Continue from docs/handoff/2026-05-14-server-purchase-domestic-migration-zero-memory-handoff.md.
+手机浏览器能打开目标 IP / 域名。
+用户能登录。
+用户能创建 / 上传素材。
+素材字节落到目标 COS/OSS。
+API 能创建 video job。
+worker 能领取 job。
+OpenStoryline / FireRed 成功返回。
+final.mp4、cover、subtitles 上传到目标 COS/OSS。
+数据库记录 succeeded job 和 asset_objects。
+页面能重新签名并下载 final.mp4。
+progress 文档里有证据记录。
+```
 
-We are deciding the next server/resource route for the project and then resuming the domestic-infra-migration worktree.
+只有这些都过了，才考虑 completion marker / long-task complete。
 
-First help me decide:
-1. Mainland China vs Hong Kong deployment, based on ba-ba-ke.com domain subject and whether we can use a mainland company/domain for ICP.
-2. Tencent Cloud vs Alibaba Cloud after that route is chosen.
+## 10. 新窗口可以直接复制的提示词
 
-Do not touch /Users/wy/Desktop/静境/静境4.0/jingjing-domestic-infra-migration until I explicitly say resources are ready or ask you to inspect it.
+用户新开 Codex 窗口后，可以直接复制这一段：
 
-That worktree should remain:
-branch codex/domestic-infra-migration
+```text
+请继续读取：
+docs/handoff/2026-05-14-server-purchase-domestic-migration-zero-memory-handoff.md
+
+我们现在要继续两件事：
+
+第一件事：决定下一套服务器和云资源路线。
+先根据 ba-ba-ke.com 的域名主体、是否能转国内公司、是否能用国内公司做 ICP，判断走大陆部署还是香港部署。
+然后再判断腾讯云还是阿里云。
+
+第二件事：后面资源买好后，再恢复国内化代码改造 worktree。
+
+在我明确说资源已经买好之前，不要动这个 worktree：
+/Users/wy/Desktop/静境/静境4.0/jingjing-domestic-infra-migration
+
+这个 worktree 当前应保持：
+分支 codex/domestic-infra-migration
 commit cdc5ca1 docs: add domestic offline deployment readiness kit
-git status clean
-long-task blocked, not complete
+git status 干净
+long-task blocked，不能 complete
 
-No merge, no push, no ba-ba-ke.com switch, no ICP, no DOMESTIC_PHASE1_E2E_PASS until real resources and real mobile e2e pass.
+不要 merge。
+不要 push。
+不要切 ba-ba-ke.com。
+不要做 ICP。
+不要写 DOMESTIC_PHASE1_E2E_PASS。
+不要在真实资源和真实手机端 e2e 通过前，声称国内 phase1 完成。
 ```
