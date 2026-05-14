@@ -193,6 +193,61 @@ python3 docs/探索/2026-05-11-用dify来测试链路/verify_dify_v31_final_json
 - 结论：本次没有图片不是前端渲染失败，而是当前本地环境没有可被 Dify 检索/输入的图片素材。
 - 后续 staging 验收图片渲染时，需要先上传项目图片素材，并确认其 `retrievalTargets` 包含 `article_image_asset`。
 
+## 2026-05-14 房地产图片素材种子入库
+
+目标账号：
+
+- `ywangyangw1@163.com`
+- 对应 Supabase auth user 已确认存在。
+- 对应 merchant profile：`young`
+- 角色：owner
+
+本次操作：
+
+- 联网查找房地产相关公共图库图片素材。
+- 选取 Unsplash 中的外立面、社区、客厅、厨房、卧室、卫浴、餐厅等 12 条示意素材。
+- 写入该商家的 `source_items` 素材库。
+- 每条素材均标记：
+  - `materialLibrary = true`
+  - `materialUsageType = image_asset`
+  - `retrievalTargets = ["article_image_asset"]`
+  - `materialCategory = stock_real_estate_reference`
+  - `notRealProjectPhoto = true`
+
+验证结果：
+
+- 尝试入库：12 条。
+- 新增入库：12 条。
+- 抽样查询：12 条均命中 `article_image_asset`。
+- URL host：`images.unsplash.com`。
+
+使用边界：
+
+- 这些素材是公共图库示意素材，不是真实项目照片。
+- 可以用于链路测试、示意配图、Dify 图片输入验证。
+- 对外发布真实楼盘内容前，应优先替换为商家自己的项目实拍、户型图、样板间、周边配套等素材。
+
+## 2026-05-14 主链路目标补充
+
+用户确认的完整主链路目标是：
+
+```text
+成员管理 / 邀请码生成
+-> 成员加入团队
+-> 上传图片素材和视频素材
+-> 用生成好的内容日历调用 Dify
+-> 为各个成员生成未来一周图文内容包和视频脚本
+-> 成员端看到自己的未来一周内容
+-> 成员按分镜上传素材
+-> AI 剪辑成片
+-> 成员端 / 我的内容能看到结果
+```
+
+这条目标已补充到：
+
+- `docs/架构规范/2026-05-12-内容日历批量生成与Dify过渡架构决策.md`
+- `docs/progress/总架构流程进度图.html`
+
 ## 当前状态
 
 代码位于独立 worktree：

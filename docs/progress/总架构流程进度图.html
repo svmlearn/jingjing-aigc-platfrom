@@ -422,15 +422,15 @@
 
       <aside class="panel status-board">
         <div class="metric">
-          <strong>21</strong>
+          <strong>23</strong>
           <span>当前追踪节点</span>
         </div>
         <div class="metric">
-          <strong>11</strong>
+          <strong>12</strong>
           <span>已标亮节点</span>
         </div>
         <div class="metric">
-          <strong>7</strong>
+          <strong>8</strong>
           <span>黄色待验收节点</span>
         </div>
         <div class="metric">
@@ -461,6 +461,11 @@
             <strong>中介成员端入口</strong>
             <small>成员可通过邀请码进入项目介绍、内容日历、我的内容。</small>
             <span class="tag">已实现</span>
+          </div>
+          <div class="node partial">
+            <strong>成员管理 / 邀请码生成</strong>
+            <small>成员加入能力已有基础表和接受入口；owner 侧成员管理、邀请码生成与列表还要补 UI 和验收。</small>
+            <span class="tag">待补齐</span>
           </div>
         </article>
 
@@ -568,8 +573,13 @@
             </div>
             <div class="node partial">
               <strong>图片素材入参</strong>
-              <small>app 已按 article_image_asset 检索并传给 Dify；本地素材为空，待上传项目图后验证。</small>
-              <span class="tag">待真实素材</span>
+              <small>app 已按 article_image_asset 检索并传给 Dify；已种入示意素材，待真实 Dify 带图回归。</small>
+              <span class="tag">待回归</span>
+            </div>
+            <div class="node done">
+              <strong>房地产图片素材种子</strong>
+              <small>已给 ywangyangw1 对应商家写入 12 条 Unsplash 房地产示意图片素材。</small>
+              <span class="tag">已入库</span>
             </div>
             <div class="node pending">
               <strong>图片多模态检索</strong>
@@ -687,6 +697,14 @@
         <div class="event">
           <time>2026-05-14</time>
           <p>确认本地图片素材库为空，图片渲染代码已接好，但真实图片链路待上传项目图片素材后验收。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-14</time>
+          <p>给 ywangyangw1 对应商家 young 写入 12 条房地产公共图库示意图片素材，检索目标为 article_image_asset。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-14</time>
+          <p>补充完整主链路目标：成员管理和邀请码、图片/视频素材入库、Dify 生成各成员一周内容、成员上传素材、AI 剪辑成片。</p>
         </div>
       </div>
     </section>
