@@ -1,0 +1,486 @@
+{
+  "success": true,
+  "case_name": "case01_full_with_compliance_risk",
+  "case_path": "docs/探索/2026-05-11-用dify来测试链路/testcases/case01_full_with_compliance_risk.json",
+  "elapsed_time": 635.5364370346069,
+  "workflow_run_id": "17cd5c18-a68e-4d6e-ab85-01887a8b1cae",
+  "task_id": "1fd24641-9c4e-4e99-9b46-00afff8b2fa2",
+  "workflow_status": "succeeded",
+  "stream_error": null,
+  "raw_response": {
+    "id": "17cd5c18-a68e-4d6e-ab85-01887a8b1cae",
+    "workflow_id": "0c855ebd-3644-41a2-bd9d-0cc26fe7a74f",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"status\": \"passed\", \"article\": {\"title\": \"最近带看小户型的客户，突然又多了起来\", \"coverCopy\": \"小户型，最近看的人又多了\", \"images\": [{\"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"cover\"}, {\"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"body\"}], \"copyText\": \"最近带看小户型的客户，突然又多了起来\\n\\n说实话，我也以为小户型没人看了。但这周带了三组客户，都是奔着70来平的面积来的。\\n\\n他们不是不想买大的，是预算就卡在这里。现在新房总价高，回头一看，这种成熟社区的小户型反而实在。\\n\\n这个社区住了快3万人，楼下商铺都是开着的。生活需求真实存在，不是画饼。\\n\\n别看面积不大，层高有4米。进去感觉不压抑，还带个商务大堂，空间感比想象中好。\\n\\n总结一下，最近看小户型的客户，主要看中这几点：\\n1. 总价门槛确实友好\\n2. 社区成熟，配套是现成的\\n3. 近地铁，通勤方便\\n4. 空间设计不局促\\n\\n如果你也是预算优先的刚需，想看看这种成熟社区的小户型，可以私信我发你户型图。\\n\\n#深圳买房 #小户型 #刚需买房 #低总价 #成熟社区 #深圳房产 #买房攻略 #看房日记\"}, \"video\": {\"storyOutline\": \"以反常识提问开场，快速解释刚需客户为何重新关注小户型（成熟社区、低总价）。空间动线从社区外景（展示规模与商业配套）切入，经过楼栋大堂（感受层高与空间感），进入室内客厅（展示空间使用），最后在阳台或窗前结束（暗示生活便利性）。叙事线跟随空间体验走，让观众代入看房路径。\", \"estimatedDuration\": \"1分30秒\", \"bgm\": \"选用节奏轻快、略带生活感的背景音乐，营造轻松自在的社区氛围，音乐情绪从略带好奇转向舒适、安稳。\", \"toneOfVoice\": \"亲切实在的本地中介口吻，像跟朋友聊天，轻松而不push，避免营销腔。\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:03\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"反常识开场\", \"requiresUserUpload\": true, \"purpose\": \"用反常识提问快速抓住观众注意力，建立亲切中介人设，引出话题。\", \"taskDescription\": \"中介在售楼处或样板间门口，面对镜头说出开场白，表情自然带点好奇。\", \"visualDescription\": \"中介（男性/女性）站在一个光线明亮的室内门框边（如样板间门口或售楼处背景墙前），面对镜头，表情轻松自然，略带微笑，像准备和朋友分享一个发现。背景有虚化的室内环境（如墙面、绿植），构图将人放在画面右侧三分之一处，左侧留出空间感。\", \"voiceover\": \"都说小户型没人看了？\", \"subtitle\": \"都说小户型没人看了？\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"横屏\", \"composition\": \"三分法构图，人在画面右侧\"}, \"filmingGuide\": {\"method\": \"手机横屏自拍\", \"location\": \"售楼处背景墙前或样板间门口\", \"posture\": \"站着，身体微侧，不要正对镜头\", \"tips\": [\"手机横屏拍，画质调到1080p以上。\", \"找光线好的位置，脸上不要有阴影，可以站在门框边利用自然光。\", \"语速放慢，像跟朋友聊天，不要背稿。\", \"开头和结尾各多录2秒，方便剪辑。\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0:03-0:06\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区人气展示\", \"requiresUserUpload\": false, \"purpose\": \"展示项目作为成熟大社区的规模与人气，为‘刚需客户回头’提供视觉依据。\", \"taskDescription\": \"快速展示社区外景、商业街人流或社区入口的活力场景。\", \"visualDescription\": \"社区正门或商业街航拍俯视镜头，缓缓下降，能看到清晰的小区大门、整洁的道路、两侧的绿化和右侧一排正在营业的商铺（如便利店、餐饮店），街上有零星的行人和车辆，展现真实的生活气息。\", \"voiceover\": \"\", \"subtitle\": \"最近问的人还真不少。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"缓慢下降\", \"orientation\": \"横屏\", \"composition\": \"对称构图，突出社区入口和商业街\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"小区大门 航拍 商业街 人流 生活气息 真实经营\"}, {\"sceneNo\": 3, \"timeRange\": \"0:06-0:10\", \"durationSec\": 4, \"sceneType\": \"口播\", \"title\": \"解释原因\", \"requiresUserUpload\": true, \"purpose\": \"承接上一画面，用亲切口吻解释刚需客户重新关注小户型的原因（成熟社区、低总价）。\", \"taskDescription\": \"中介继续在同一个场景（保持穿着一致）进行解释性口播。\", \"visualDescription\": \"中介保持与镜头1相似的构图和位置，身体姿态更放松，配合手势进行解释（如用手比划‘转了一圈’的动作）。背景保持虚化一致，确保与镜头1的连贯性。\", \"voiceover\": \"我跟你讲，最近问的人还真不少。说实话，刚需客户转了一圈发现，成熟大社区里，总价友好的选择其实不多。\", \"subtitle\": \"我跟你讲，最近问的人还真不少。说实话，刚需客户转了一圈发现，成熟大社区里，总价友好的选择其实不多。\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"横屏\", \"composition\": \"三分法构图，人在画面右侧\"}, \"filmingGuide\": {\"method\": \"手机横屏自拍\", \"location\": \"售楼处背景墙前或样板间门口（与镜头1一致）\", \"posture\": \"站着，身体微侧，配合自然手势\", \"tips\": [\"保持与第一个口播镜头相同的穿着和背景，建议一次拍完所有口播段落。\", \"语速可以比开场稍快一点，但保持自然。\", \"说到‘转了一圈’时，可以用手配合画个圈，增加表现力。\"]}, \"editGuide\": {\"transition\": \"声音先入画面后跟\", \"pacing\": \"正常\", \"minUsableSeconds\": 4}, \"assetQuery\": \"\"}, {\"sceneNo\": 4, \"timeRange\": \"0:10-0:13\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"大社区规模\", \"requiresUserUpload\": false, \"purpose\": \"视觉化呈现‘约80万方大社区’的规模感，增强可信度。\", \"taskDescription\": \"展示项目整体楼群、绿化或社区中心广场的广阔场景。\", \"visualDescription\": \"无人机从社区中心广场或大片绿化带上空平飞掠过，镜头前方是整齐排列的多栋高层住宅楼，楼间距开阔，下方是中央景观带和步行道，阳光照射下显得社区规模宏大、环境宜居。\", \"voiceover\": \"\", \"subtitle\": \"这个盘，八十多万方的大社区。\", \"shotLanguage\": {\"framing\": \"大远景\", \"cameraMovement\": \"平飞掠过\", \"orientation\": \"横屏\", \"composition\": \"引导线构图，利用道路或绿化带引导视线至远方楼群\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"住宅小区 航拍 楼群 绿化 中央景观 规模宏大\"}, {\"sceneNo\": 5, \"timeRange\": \"0:13-0:16\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"楼下商业实景\", \"requiresUserUpload\": false, \"purpose\": \"展示‘楼下商业都是真实在经营的’，体现生活便利性。\", \"taskDescription\": \"展示社区底商店铺营业中的近景镜头。\", \"visualDescription\": \"镜头以低角度平视一家社区底商（如生鲜超市或咖啡馆）的店面，招牌清晰，玻璃窗内可见货品陈列或顾客身影，店门口有行人走过，阳光洒在店招上，呈现真实、有烟火气的经营场景。\", \"voiceover\": \"\", \"subtitle\": \"楼下商业都是真实在经营的。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定\", \"orientation\": \"横屏\", \"composition\": \"框架构图，利用店铺门框作为前景\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"社区底商 生鲜超市 咖啡馆 营业中 招牌 行人 烟火气\"}, {\"sceneNo\": 6, \"timeRange\": \"0:16-0:20\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"商务大堂空间感\", \"requiresUserUpload\": false, \"purpose\": \"展示‘层高约4米，带有商务大堂’带来的空间舒适度。\", \"taskDescription\": \"展示楼栋入户大堂或商务大堂内部开阔、明亮的空间。\", \"visualDescription\": \"镜头从大堂入口向内部缓慢推进，高挑的吊顶（约4米层高）、明亮的光线（可能是自然光或灯光）、简洁的装饰墙面和地面映入眼帘，可能有一两个居民或工作人员的背影走过，凸显空间的通透与舒适感。\", \"voiceover\": \"你看这个层高，还有这个商务大堂，空间感是不是舒服很多？\", \"subtitle\": \"你看这个层高，还有这个商务大堂。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"缓慢推进\", \"orientation\": \"横屏\", \"composition\": \"对称构图，突出大堂的纵深感和高挑空间\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"住宅大堂 高层高 商务大堂 空间感 通透 明亮 推进镜头\"}, {\"sceneNo\": 7, \"timeRange\": \"0:20-0:24\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"小户型客厅展示\", \"requiresUserUpload\": false, \"purpose\": \"具体展示‘70来平户型’的空间使用效果，让观众有代入感。\", \"taskDescription\": \"展示小户型样板间客厅的布局和采光。\", \"visualDescription\": \"镜头从样板间客厅的阳台门向内拍摄，阳光从左侧的落地窗洒入，照亮了整个客厅区域。可以看到紧凑但功能齐全的布局：双人沙发、小茶几、电视柜，以及通往餐厅和厨房的动线。镜头缓慢横移，展示空间的整体感和利用率。\", \"voiceover\": \"\", \"subtitle\": \"空间感是不是舒服很多？\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"横移\", \"orientation\": \"横屏\", \"composition\": \"利用阳台门框作为前景，形成画框构图，突出空间纵深感\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 小户型 落地窗 阳光 通透 空间布局 横移镜头\"}, {\"sceneNo\": 8, \"timeRange\": \"0:24-0:27\", \"durationSec\": 3, \"sceneType\": \"文字卡\", \"title\": \"总价门槛展示\", \"requiresUserUpload\": false, \"purpose\": \"清晰、简洁地突出‘总价门槛相对友好’这一核心优势，便于观众记忆。\", \"taskDescription\": \"纯文字画面，突出显示总价友好的信息。\", \"visualDescription\": \"简洁的深色或浅色背景上，居中显示一行白色或深色的大号字体：‘70来平户型 总价门槛相对友好’。文字清晰无衬线，无其他装饰元素。\", \"voiceover\": \"\", \"subtitle\": \"七十来平的户型，总价门槛相对友好。\", \"shotLanguage\": {\"framing\": \"特写\", \"cameraMovement\": \"固定\", \"orientation\": \"竖屏（适配手机）\", \"composition\": \"居中构图\"}, \"filmingGuide\": {\"method\": \"剪辑生成文字卡\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 9, \"timeRange\": \"0:27-0:30\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"交通便利展示\", \"requiresUserUpload\": false, \"purpose\": \"展示‘靠近地铁，通勤便利’的交通优势。\", \"taskDescription\": \"展示项目附近地铁站出口或沿线街景。\", \"visualDescription\": \"镜头从地铁站出口（标志清晰可见）向外拍摄，站口人流有序进出，背景是整洁的城市街道和远处的住宅楼群，可能是傍晚时分，天空有暖色调，暗示下班通勤的便利性。\", \"voiceover\": \"通勤也方便，靠近地铁。\", \"subtitle\": \"通勤也方便，靠近地铁。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定\", \"orientation\": \"横屏\", \"composition\": \"将地铁站标志放在画面一侧，利用街道形成引导线\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"地铁站出口 通勤 人流 城市街道 住宅楼 傍晚\"}, {\"sceneNo\": 10, \"timeRange\": \"0:30-0:35\", \"durationSec\": 5, \"sceneType\": \"口播\", \"title\": \"总结与轻CTA\", \"requiresUserUpload\": true, \"purpose\": \"总结项目适合的人群，并以朋友间轻松询问的方式结尾，完成轻CTA。\", \"taskDescription\": \"中介在同一个场景进行总结性口播，并发出看房邀请。\", \"visualDescription\": \"中介保持与之前口播一致的构图和背景，表情更加诚恳、放松，双手可能自然下垂或微微摊开，做出邀请的姿态，眼神直视镜头，与观众建立最后的情感连接。\", \"voiceover\": \"说实话，这种盘适合预算优先，又想住得舒服点的朋友。有没有兴趣实地看看？\", \"subtitle\": \"说实话，这种盘适合预算优先，又想住得舒服点的朋友。有没有兴趣实地看看？\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"横屏\", \"composition\": \"三分法构图，人在画面右侧\"}, \"filmingGuide\": {\"method\": \"手机横屏自拍\", \"location\": \"售楼处背景墙前或样板间门口（与镜头1、3一致）\", \"posture\": \"站着，身体放松，表情诚恳\", \"tips\": [\"确保穿着、背景与前面所有口播镜头完全一致。\", \"说到‘有没有兴趣’时，可以微微点头或做出邀请手势。\", \"结尾微笑保持2秒，给剪辑留足空间。\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"minUsableSeconds\": 4}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": [\"合规敏感表述\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 634.130818,
+    "total_tokens": 45565,
+    "total_steps": 17,
+    "created_by": {
+      "id": "5c14df3e-5efb-4799-a1d7-b339d9564526",
+      "user": "v31_poll_case01_full_with_compliance_risk_1778669915"
+    },
+    "created_at": 1778669916,
+    "finished_at": 1778670551,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "status": "passed",
+    "article": {
+      "title": "最近带看小户型的客户，突然又多了起来",
+      "coverCopy": "小户型，最近看的人又多了",
+      "images": [
+        {
+          "cosPath": "https://example.com/facade.jpg",
+          "role": "cover"
+        },
+        {
+          "cosPath": "https://example.com/living-room.jpg",
+          "role": "body"
+        }
+      ],
+      "copyText": "最近带看小户型的客户，突然又多了起来\n\n说实话，我也以为小户型没人看了。但这周带了三组客户，都是奔着70来平的面积来的。\n\n他们不是不想买大的，是预算就卡在这里。现在新房总价高，回头一看，这种成熟社区的小户型反而实在。\n\n这个社区住了快3万人，楼下商铺都是开着的。生活需求真实存在，不是画饼。\n\n别看面积不大，层高有4米。进去感觉不压抑，还带个商务大堂，空间感比想象中好。\n\n总结一下，最近看小户型的客户，主要看中这几点：\n1. 总价门槛确实友好\n2. 社区成熟，配套是现成的\n3. 近地铁，通勤方便\n4. 空间设计不局促\n\n如果你也是预算优先的刚需，想看看这种成熟社区的小户型，可以私信我发你户型图。\n\n#深圳买房 #小户型 #刚需买房 #低总价 #成熟社区 #深圳房产 #买房攻略 #看房日记"
+    },
+    "video": {
+      "storyOutline": "以反常识提问开场，快速解释刚需客户为何重新关注小户型（成熟社区、低总价）。空间动线从社区外景（展示规模与商业配套）切入，经过楼栋大堂（感受层高与空间感），进入室内客厅（展示空间使用），最后在阳台或窗前结束（暗示生活便利性）。叙事线跟随空间体验走，让观众代入看房路径。",
+      "estimatedDuration": "1分30秒",
+      "bgm": "选用节奏轻快、略带生活感的背景音乐，营造轻松自在的社区氛围，音乐情绪从略带好奇转向舒适、安稳。",
+      "toneOfVoice": "亲切实在的本地中介口吻，像跟朋友聊天，轻松而不push，避免营销腔。",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "0:00-0:03",
+          "durationSec": 3,
+          "sceneType": "口播",
+          "title": "反常识开场",
+          "requiresUserUpload": true,
+          "purpose": "用反常识提问快速抓住观众注意力，建立亲切中介人设，引出话题。",
+          "taskDescription": "中介在售楼处或样板间门口，面对镜头说出开场白，表情自然带点好奇。",
+          "visualDescription": "中介（男性/女性）站在一个光线明亮的室内门框边（如样板间门口或售楼处背景墙前），面对镜头，表情轻松自然，略带微笑，像准备和朋友分享一个发现。背景有虚化的室内环境（如墙面、绿植），构图将人放在画面右侧三分之一处，左侧留出空间感。",
+          "voiceover": "都说小户型没人看了？",
+          "subtitle": "都说小户型没人看了？",
+          "shotLanguage": {
+            "framing": "中近景",
+            "cameraMovement": "固定",
+            "orientation": "横屏",
+            "composition": "三分法构图，人在画面右侧"
+          },
+          "filmingGuide": {
+            "method": "手机横屏自拍",
+            "location": "售楼处背景墙前或样板间门口",
+            "posture": "站着，身体微侧，不要正对镜头",
+            "tips": [
+              "手机横屏拍，画质调到1080p以上。",
+              "找光线好的位置，脸上不要有阴影，可以站在门框边利用自然光。",
+              "语速放慢，像跟朋友聊天，不要背稿。",
+              "开头和结尾各多录2秒，方便剪辑。"
+            ]
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "正常",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": ""
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "0:03-0:06",
+          "durationSec": 3,
+          "sceneType": "素材",
+          "title": "社区人气展示",
+          "requiresUserUpload": false,
+          "purpose": "展示项目作为成熟大社区的规模与人气，为‘刚需客户回头’提供视觉依据。",
+          "taskDescription": "快速展示社区外景、商业街人流或社区入口的活力场景。",
+          "visualDescription": "社区正门或商业街航拍俯视镜头，缓缓下降，能看到清晰的小区大门、整洁的道路、两侧的绿化和右侧一排正在营业的商铺（如便利店、餐饮店），街上有零星的行人和车辆，展现真实的生活气息。",
+          "voiceover": "",
+          "subtitle": "最近问的人还真不少。",
+          "shotLanguage": {
+            "framing": "全景",
+            "cameraMovement": "缓慢下降",
+            "orientation": "横屏",
+            "composition": "对称构图，突出社区入口和商业街"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 2
+          },
+          "assetQuery": "小区大门 航拍 商业街 人流 生活气息 真实经营"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "0:06-0:10",
+          "durationSec": 4,
+          "sceneType": "口播",
+          "title": "解释原因",
+          "requiresUserUpload": true,
+          "purpose": "承接上一画面，用亲切口吻解释刚需客户重新关注小户型的原因（成熟社区、低总价）。",
+          "taskDescription": "中介继续在同一个场景（保持穿着一致）进行解释性口播。",
+          "visualDescription": "中介保持与镜头1相似的构图和位置，身体姿态更放松，配合手势进行解释（如用手比划‘转了一圈’的动作）。背景保持虚化一致，确保与镜头1的连贯性。",
+          "voiceover": "我跟你讲，最近问的人还真不少。说实话，刚需客户转了一圈发现，成熟大社区里，总价友好的选择其实不多。",
+          "subtitle": "我跟你讲，最近问的人还真不少。说实话，刚需客户转了一圈发现，成熟大社区里，总价友好的选择其实不多。",
+          "shotLanguage": {
+            "framing": "中近景",
+            "cameraMovement": "固定",
+            "orientation": "横屏",
+            "composition": "三分法构图，人在画面右侧"
+          },
+          "filmingGuide": {
+            "method": "手机横屏自拍",
+            "location": "售楼处背景墙前或样板间门口（与镜头1一致）",
+            "posture": "站着，身体微侧，配合自然手势",
+            "tips": [
+              "保持与第一个口播镜头相同的穿着和背景，建议一次拍完所有口播段落。",
+              "语速可以比开场稍快一点，但保持自然。",
+              "说到‘转了一圈’时，可以用手配合画个圈，增加表现力。"
+            ]
+          },
+          "editGuide": {
+            "transition": "声音先入画面后跟",
+            "pacing": "正常",
+            "minUsableSeconds": 4
+          },
+          "assetQuery": ""
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "0:10-0:13",
+          "durationSec": 3,
+          "sceneType": "素材",
+          "title": "大社区规模",
+          "requiresUserUpload": false,
+          "purpose": "视觉化呈现‘约80万方大社区’的规模感，增强可信度。",
+          "taskDescription": "展示项目整体楼群、绿化或社区中心广场的广阔场景。",
+          "visualDescription": "无人机从社区中心广场或大片绿化带上空平飞掠过，镜头前方是整齐排列的多栋高层住宅楼，楼间距开阔，下方是中央景观带和步行道，阳光照射下显得社区规模宏大、环境宜居。",
+          "voiceover": "",
+          "subtitle": "这个盘，八十多万方的大社区。",
+          "shotLanguage": {
+            "framing": "大远景",
+            "cameraMovement": "平飞掠过",
+            "orientation": "横屏",
+            "composition": "引导线构图，利用道路或绿化带引导视线至远方楼群"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 2
+          },
+          "assetQuery": "住宅小区 航拍 楼群 绿化 中央景观 规模宏大"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "0:13-0:16",
+          "durationSec": 3,
+          "sceneType": "素材",
+          "title": "楼下商业实景",
+          "requiresUserUpload": false,
+          "purpose": "展示‘楼下商业都是真实在经营的’，体现生活便利性。",
+          "taskDescription": "展示社区底商店铺营业中的近景镜头。",
+          "visualDescription": "镜头以低角度平视一家社区底商（如生鲜超市或咖啡馆）的店面，招牌清晰，玻璃窗内可见货品陈列或顾客身影，店门口有行人走过，阳光洒在店招上，呈现真实、有烟火气的经营场景。",
+          "voiceover": "",
+          "subtitle": "楼下商业都是真实在经营的。",
+          "shotLanguage": {
+            "framing": "中景",
+            "cameraMovement": "固定",
+            "orientation": "横屏",
+            "composition": "框架构图，利用店铺门框作为前景"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 2
+          },
+          "assetQuery": "社区底商 生鲜超市 咖啡馆 营业中 招牌 行人 烟火气"
+        },
+        {
+          "sceneNo": 6,
+          "timeRange": "0:16-0:20",
+          "durationSec": 4,
+          "sceneType": "素材",
+          "title": "商务大堂空间感",
+          "requiresUserUpload": false,
+          "purpose": "展示‘层高约4米，带有商务大堂’带来的空间舒适度。",
+          "taskDescription": "展示楼栋入户大堂或商务大堂内部开阔、明亮的空间。",
+          "visualDescription": "镜头从大堂入口向内部缓慢推进，高挑的吊顶（约4米层高）、明亮的光线（可能是自然光或灯光）、简洁的装饰墙面和地面映入眼帘，可能有一两个居民或工作人员的背影走过，凸显空间的通透与舒适感。",
+          "voiceover": "你看这个层高，还有这个商务大堂，空间感是不是舒服很多？",
+          "subtitle": "你看这个层高，还有这个商务大堂。",
+          "shotLanguage": {
+            "framing": "全景",
+            "cameraMovement": "缓慢推进",
+            "orientation": "横屏",
+            "composition": "对称构图，突出大堂的纵深感和高挑空间"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "正常",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": "住宅大堂 高层高 商务大堂 空间感 通透 明亮 推进镜头"
+        },
+        {
+          "sceneNo": 7,
+          "timeRange": "0:20-0:24",
+          "durationSec": 4,
+          "sceneType": "素材",
+          "title": "小户型客厅展示",
+          "requiresUserUpload": false,
+          "purpose": "具体展示‘70来平户型’的空间使用效果，让观众有代入感。",
+          "taskDescription": "展示小户型样板间客厅的布局和采光。",
+          "visualDescription": "镜头从样板间客厅的阳台门向内拍摄，阳光从左侧的落地窗洒入，照亮了整个客厅区域。可以看到紧凑但功能齐全的布局：双人沙发、小茶几、电视柜，以及通往餐厅和厨房的动线。镜头缓慢横移，展示空间的整体感和利用率。",
+          "voiceover": "",
+          "subtitle": "空间感是不是舒服很多？",
+          "shotLanguage": {
+            "framing": "全景",
+            "cameraMovement": "横移",
+            "orientation": "横屏",
+            "composition": "利用阳台门框作为前景，形成画框构图，突出空间纵深感"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "正常",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": "样板间 客厅 小户型 落地窗 阳光 通透 空间布局 横移镜头"
+        },
+        {
+          "sceneNo": 8,
+          "timeRange": "0:24-0:27",
+          "durationSec": 3,
+          "sceneType": "文字卡",
+          "title": "总价门槛展示",
+          "requiresUserUpload": false,
+          "purpose": "清晰、简洁地突出‘总价门槛相对友好’这一核心优势，便于观众记忆。",
+          "taskDescription": "纯文字画面，突出显示总价友好的信息。",
+          "visualDescription": "简洁的深色或浅色背景上，居中显示一行白色或深色的大号字体：‘70来平户型 总价门槛相对友好’。文字清晰无衬线，无其他装饰元素。",
+          "voiceover": "",
+          "subtitle": "七十来平的户型，总价门槛相对友好。",
+          "shotLanguage": {
+            "framing": "特写",
+            "cameraMovement": "固定",
+            "orientation": "竖屏（适配手机）",
+            "composition": "居中构图"
+          },
+          "filmingGuide": {
+            "method": "剪辑生成文字卡",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "渐变过渡",
+            "pacing": "正常",
+            "minUsableSeconds": 3
+          },
+          "assetQuery": ""
+        },
+        {
+          "sceneNo": 9,
+          "timeRange": "0:27-0:30",
+          "durationSec": 3,
+          "sceneType": "素材",
+          "title": "交通便利展示",
+          "requiresUserUpload": false,
+          "purpose": "展示‘靠近地铁，通勤便利’的交通优势。",
+          "taskDescription": "展示项目附近地铁站出口或沿线街景。",
+          "visualDescription": "镜头从地铁站出口（标志清晰可见）向外拍摄，站口人流有序进出，背景是整洁的城市街道和远处的住宅楼群，可能是傍晚时分，天空有暖色调，暗示下班通勤的便利性。",
+          "voiceover": "通勤也方便，靠近地铁。",
+          "subtitle": "通勤也方便，靠近地铁。",
+          "shotLanguage": {
+            "framing": "中景",
+            "cameraMovement": "固定",
+            "orientation": "横屏",
+            "composition": "将地铁站标志放在画面一侧，利用街道形成引导线"
+          },
+          "filmingGuide": {
+            "method": "使用团队素材或项目实拍素材",
+            "location": "根据现场条件选择",
+            "posture": "不需要出镜",
+            "tips": []
+          },
+          "editGuide": {
+            "transition": "直接切",
+            "pacing": "快",
+            "minUsableSeconds": 2
+          },
+          "assetQuery": "地铁站出口 通勤 人流 城市街道 住宅楼 傍晚"
+        },
+        {
+          "sceneNo": 10,
+          "timeRange": "0:30-0:35",
+          "durationSec": 5,
+          "sceneType": "口播",
+          "title": "总结与轻CTA",
+          "requiresUserUpload": true,
+          "purpose": "总结项目适合的人群，并以朋友间轻松询问的方式结尾，完成轻CTA。",
+          "taskDescription": "中介在同一个场景进行总结性口播，并发出看房邀请。",
+          "visualDescription": "中介保持与之前口播一致的构图和背景，表情更加诚恳、放松，双手可能自然下垂或微微摊开，做出邀请的姿态，眼神直视镜头，与观众建立最后的情感连接。",
+          "voiceover": "说实话，这种盘适合预算优先，又想住得舒服点的朋友。有没有兴趣实地看看？",
+          "subtitle": "说实话，这种盘适合预算优先，又想住得舒服点的朋友。有没有兴趣实地看看？",
+          "shotLanguage": {
+            "framing": "中近景",
+            "cameraMovement": "固定",
+            "orientation": "横屏",
+            "composition": "三分法构图，人在画面右侧"
+          },
+          "filmingGuide": {
+            "method": "手机横屏自拍",
+            "location": "售楼处背景墙前或样板间门口（与镜头1、3一致）",
+            "posture": "站着，身体放松，表情诚恳",
+            "tips": [
+              "确保穿着、背景与前面所有口播镜头完全一致。",
+              "说到‘有没有兴趣’时，可以微微点头或做出邀请手势。",
+              "结尾微笑保持2秒，给剪辑留足空间。"
+            ]
+          },
+          "editGuide": {
+            "transition": "渐变过渡",
+            "pacing": "慢",
+            "minUsableSeconds": 4
+          },
+          "assetQuery": ""
+        }
+      ]
+    },
+    "quality": {
+      "riskTerms": [
+        "合规敏感表述"
+      ]
+    }
+  },
+  "final_text": "{\"status\": \"passed\", \"article\": {\"title\": \"最近带看小户型的客户，突然又多了起来\", \"coverCopy\": \"小户型，最近看的人又多了\", \"images\": [{\"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"cover\"}, {\"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"body\"}], \"copyText\": \"最近带看小户型的客户，突然又多了起来\\n\\n说实话，我也以为小户型没人看了。但这周带了三组客户，都是奔着70来平的面积来的。\\n\\n他们不是不想买大的，是预算就卡在这里。现在新房总价高，回头一看，这种成熟社区的小户型反而实在。\\n\\n这个社区住了快3万人，楼下商铺都是开着的。生活需求真实存在，不是画饼。\\n\\n别看面积不大，层高有4米。进去感觉不压抑，还带个商务大堂，空间感比想象中好。\\n\\n总结一下，最近看小户型的客户，主要看中这几点：\\n1. 总价门槛确实友好\\n2. 社区成熟，配套是现成的\\n3. 近地铁，通勤方便\\n4. 空间设计不局促\\n\\n如果你也是预算优先的刚需，想看看这种成熟社区的小户型，可以私信我发你户型图。\\n\\n#深圳买房 #小户型 #刚需买房 #低总价 #成熟社区 #深圳房产 #买房攻略 #看房日记\"}, \"video\": {\"storyOutline\": \"以反常识提问开场，快速解释刚需客户为何重新关注小户型（成熟社区、低总价）。空间动线从社区外景（展示规模与商业配套）切入，经过楼栋大堂（感受层高与空间感），进入室内客厅（展示空间使用），最后在阳台或窗前结束（暗示生活便利性）。叙事线跟随空间体验走，让观众代入看房路径。\", \"estimatedDuration\": \"1分30秒\", \"bgm\": \"选用节奏轻快、略带生活感的背景音乐，营造轻松自在的社区氛围，音乐情绪从略带好奇转向舒适、安稳。\", \"toneOfVoice\": \"亲切实在的本地中介口吻，像跟朋友聊天，轻松而不push，避免营销腔。\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:03\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"反常识开场\", \"requiresUserUpload\": true, \"purpose\": \"用反常识提问快速抓住观众注意力，建立亲切中介人设，引出话题。\", \"taskDescription\": \"中介在售楼处或样板间门口，面对镜头说出开场白，表情自然带点好奇。\", \"visualDescription\": \"中介（男性/女性）站在一个光线明亮的室内门框边（如样板间门口或售楼处背景墙前），面对镜头，表情轻松自然，略带微笑，像准备和朋友分享一个发现。背景有虚化的室内环境（如墙面、绿植），构图将人放在画面右侧三分之一处，左侧留出空间感。\", \"voiceover\": \"都说小户型没人看了？\", \"subtitle\": \"都说小户型没人看了？\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"横屏\", \"composition\": \"三分法构图，人在画面右侧\"}, \"filmingGuide\": {\"method\": \"手机横屏自拍\", \"location\": \"售楼处背景墙前或样板间门口\", \"posture\": \"站着，身体微侧，不要正对镜头\", \"tips\": [\"手机横屏拍，画质调到1080p以上。\", \"找光线好的位置，脸上不要有阴影，可以站在门框边利用自然光。\", \"语速放慢，像跟朋友聊天，不要背稿。\", \"开头和结尾各多录2秒，方便剪辑。\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0:03-0:06\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区人气展示\", \"requiresUserUpload\": false, \"purpose\": \"展示项目作为成熟大社区的规模与人气，为‘刚需客户回头’提供视觉依据。\", \"taskDescription\": \"快速展示社区外景、商业街人流或社区入口的活力场景。\", \"visualDescription\": \"社区正门或商业街航拍俯视镜头，缓缓下降，能看到清晰的小区大门、整洁的道路、两侧的绿化和右侧一排正在营业的商铺（如便利店、餐饮店），街上有零星的行人和车辆，展现真实的生活气息。\", \"voiceover\": \"\", \"subtitle\": \"最近问的人还真不少。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"缓慢下降\", \"orientation\": \"横屏\", \"composition\": \"对称构图，突出社区入口和商业街\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"小区大门 航拍 商业街 人流 生活气息 真实经营\"}, {\"sceneNo\": 3, \"timeRange\": \"0:06-0:10\", \"durationSec\": 4, \"sceneType\": \"口播\", \"title\": \"解释原因\", \"requiresUserUpload\": true, \"purpose\": \"承接上一画面，用亲切口吻解释刚需客户重新关注小户型的原因（成熟社区、低总价）。\", \"taskDescription\": \"中介继续在同一个场景（保持穿着一致）进行解释性口播。\", \"visualDescription\": \"中介保持与镜头1相似的构图和位置，身体姿态更放松，配合手势进行解释（如用手比划‘转了一圈’的动作）。背景保持虚化一致，确保与镜头1的连贯性。\", \"voiceover\": \"我跟你讲，最近问的人还真不少。说实话，刚需客户转了一圈发现，成熟大社区里，总价友好的选择其实不多。\", \"subtitle\": \"我跟你讲，最近问的人还真不少。说实话，刚需客户转了一圈发现，成熟大社区里，总价友好的选择其实不多。\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"横屏\", \"composition\": \"三分法构图，人在画面右侧\"}, \"filmingGuide\": {\"method\": \"手机横屏自拍\", \"location\": \"售楼处背景墙前或样板间门口（与镜头1一致）\", \"posture\": \"站着，身体微侧，配合自然手势\", \"tips\": [\"保持与第一个口播镜头相同的穿着和背景，建议一次拍完所有口播段落。\", \"语速可以比开场稍快一点，但保持自然。\", \"说到‘转了一圈’时，可以用手配合画个圈，增加表现力。\"]}, \"editGuide\": {\"transition\": \"声音先入画面后跟\", \"pacing\": \"正常\", \"minUsableSeconds\": 4}, \"assetQuery\": \"\"}, {\"sceneNo\": 4, \"timeRange\": \"0:10-0:13\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"大社区规模\", \"requiresUserUpload\": false, \"purpose\": \"视觉化呈现‘约80万方大社区’的规模感，增强可信度。\", \"taskDescription\": \"展示项目整体楼群、绿化或社区中心广场的广阔场景。\", \"visualDescription\": \"无人机从社区中心广场或大片绿化带上空平飞掠过，镜头前方是整齐排列的多栋高层住宅楼，楼间距开阔，下方是中央景观带和步行道，阳光照射下显得社区规模宏大、环境宜居。\", \"voiceover\": \"\", \"subtitle\": \"这个盘，八十多万方的大社区。\", \"shotLanguage\": {\"framing\": \"大远景\", \"cameraMovement\": \"平飞掠过\", \"orientation\": \"横屏\", \"composition\": \"引导线构图，利用道路或绿化带引导视线至远方楼群\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"住宅小区 航拍 楼群 绿化 中央景观 规模宏大\"}, {\"sceneNo\": 5, \"timeRange\": \"0:13-0:16\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"楼下商业实景\", \"requiresUserUpload\": false, \"purpose\": \"展示‘楼下商业都是真实在经营的’，体现生活便利性。\", \"taskDescription\": \"展示社区底商店铺营业中的近景镜头。\", \"visualDescription\": \"镜头以低角度平视一家社区底商（如生鲜超市或咖啡馆）的店面，招牌清晰，玻璃窗内可见货品陈列或顾客身影，店门口有行人走过，阳光洒在店招上，呈现真实、有烟火气的经营场景。\", \"voiceover\": \"\", \"subtitle\": \"楼下商业都是真实在经营的。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定\", \"orientation\": \"横屏\", \"composition\": \"框架构图，利用店铺门框作为前景\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"社区底商 生鲜超市 咖啡馆 营业中 招牌 行人 烟火气\"}, {\"sceneNo\": 6, \"timeRange\": \"0:16-0:20\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"商务大堂空间感\", \"requiresUserUpload\": false, \"purpose\": \"展示‘层高约4米，带有商务大堂’带来的空间舒适度。\", \"taskDescription\": \"展示楼栋入户大堂或商务大堂内部开阔、明亮的空间。\", \"visualDescription\": \"镜头从大堂入口向内部缓慢推进，高挑的吊顶（约4米层高）、明亮的光线（可能是自然光或灯光）、简洁的装饰墙面和地面映入眼帘，可能有一两个居民或工作人员的背影走过，凸显空间的通透与舒适感。\", \"voiceover\": \"你看这个层高，还有这个商务大堂，空间感是不是舒服很多？\", \"subtitle\": \"你看这个层高，还有这个商务大堂。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"缓慢推进\", \"orientation\": \"横屏\", \"composition\": \"对称构图，突出大堂的纵深感和高挑空间\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"住宅大堂 高层高 商务大堂 空间感 通透 明亮 推进镜头\"}, {\"sceneNo\": 7, \"timeRange\": \"0:20-0:24\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"小户型客厅展示\", \"requiresUserUpload\": false, \"purpose\": \"具体展示‘70来平户型’的空间使用效果，让观众有代入感。\", \"taskDescription\": \"展示小户型样板间客厅的布局和采光。\", \"visualDescription\": \"镜头从样板间客厅的阳台门向内拍摄，阳光从左侧的落地窗洒入，照亮了整个客厅区域。可以看到紧凑但功能齐全的布局：双人沙发、小茶几、电视柜，以及通往餐厅和厨房的动线。镜头缓慢横移，展示空间的整体感和利用率。\", \"voiceover\": \"\", \"subtitle\": \"空间感是不是舒服很多？\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"横移\", \"orientation\": \"横屏\", \"composition\": \"利用阳台门框作为前景，形成画框构图，突出空间纵深感\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 小户型 落地窗 阳光 通透 空间布局 横移镜头\"}, {\"sceneNo\": 8, \"timeRange\": \"0:24-0:27\", \"durationSec\": 3, \"sceneType\": \"文字卡\", \"title\": \"总价门槛展示\", \"requiresUserUpload\": false, \"purpose\": \"清晰、简洁地突出‘总价门槛相对友好’这一核心优势，便于观众记忆。\", \"taskDescription\": \"纯文字画面，突出显示总价友好的信息。\", \"visualDescription\": \"简洁的深色或浅色背景上，居中显示一行白色或深色的大号字体：‘70来平户型 总价门槛相对友好’。文字清晰无衬线，无其他装饰元素。\", \"voiceover\": \"\", \"subtitle\": \"七十来平的户型，总价门槛相对友好。\", \"shotLanguage\": {\"framing\": \"特写\", \"cameraMovement\": \"固定\", \"orientation\": \"竖屏（适配手机）\", \"composition\": \"居中构图\"}, \"filmingGuide\": {\"method\": \"剪辑生成文字卡\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 9, \"timeRange\": \"0:27-0:30\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"交通便利展示\", \"requiresUserUpload\": false, \"purpose\": \"展示‘靠近地铁，通勤便利’的交通优势。\", \"taskDescription\": \"展示项目附近地铁站出口或沿线街景。\", \"visualDescription\": \"镜头从地铁站出口（标志清晰可见）向外拍摄，站口人流有序进出，背景是整洁的城市街道和远处的住宅楼群，可能是傍晚时分，天空有暖色调，暗示下班通勤的便利性。\", \"voiceover\": \"通勤也方便，靠近地铁。\", \"subtitle\": \"通勤也方便，靠近地铁。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定\", \"orientation\": \"横屏\", \"composition\": \"将地铁站标志放在画面一侧，利用街道形成引导线\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"地铁站出口 通勤 人流 城市街道 住宅楼 傍晚\"}, {\"sceneNo\": 10, \"timeRange\": \"0:30-0:35\", \"durationSec\": 5, \"sceneType\": \"口播\", \"title\": \"总结与轻CTA\", \"requiresUserUpload\": true, \"purpose\": \"总结项目适合的人群，并以朋友间轻松询问的方式结尾，完成轻CTA。\", \"taskDescription\": \"中介在同一个场景进行总结性口播，并发出看房邀请。\", \"visualDescription\": \"中介保持与之前口播一致的构图和背景，表情更加诚恳、放松，双手可能自然下垂或微微摊开，做出邀请的姿态，眼神直视镜头，与观众建立最后的情感连接。\", \"voiceover\": \"说实话，这种盘适合预算优先，又想住得舒服点的朋友。有没有兴趣实地看看？\", \"subtitle\": \"说实话，这种盘适合预算优先，又想住得舒服点的朋友。有没有兴趣实地看看？\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"横屏\", \"composition\": \"三分法构图，人在画面右侧\"}, \"filmingGuide\": {\"method\": \"手机横屏自拍\", \"location\": \"售楼处背景墙前或样板间门口（与镜头1、3一致）\", \"posture\": \"站着，身体放松，表情诚恳\", \"tips\": [\"确保穿着、背景与前面所有口播镜头完全一致。\", \"说到‘有没有兴趣’时，可以微微点头或做出邀请手势。\", \"结尾微笑保持2秒，给剪辑留足空间。\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"慢\", \"minUsableSeconds\": 4}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": [\"合规敏感表述\"]}}",
+  "parse_error": null,
+  "evaluation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "top_level_only_status_article_video_quality",
+        "passed": true,
+        "detail": "['article', 'quality', 'status', 'video']"
+      },
+      {
+        "name": "removed_fields_absent",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_title_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_cover_copy_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_copy_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_copy_text_has_hashtag",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_images_is_list",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "article_images_shape",
+        "passed": true,
+        "detail": "bad_count=0"
+      },
+      {
+        "name": "video_storyOutline_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_estimatedDuration_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_bgm_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_toneOfVoice_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scenes_nonempty_list",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scene_required_fields_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "video_scene_types_ok",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "requires_user_upload_has_true",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_only_risk_terms",
+        "passed": true,
+        "detail": "['riskTerms']"
+      },
+      {
+        "name": "quality_risk_terms_array",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms_in_final_json",
+        "passed": true,
+        "detail": ""
+      }
+    ]
+  }
+}

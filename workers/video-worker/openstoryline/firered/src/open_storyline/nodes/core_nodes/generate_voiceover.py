@@ -40,6 +40,7 @@ class GenerateVoiceoverNode(BaseNode):
         "bytedance_bigtts": "_tts_bytedance_bigtts_sync",
         "minimax": "_tts_minimax_sync",
         "302": "_tts_302_sync",
+        "pixelle_clone": "_tts_pixelle_clone_sync",
     }
 
     _DEFAULT_PROVIDER = "bytedance"
@@ -49,12 +50,14 @@ class GenerateVoiceoverNode(BaseNode):
         "bytedance": ("uid", "appid", "access_token"),
         "bytedance_bigtts": ("appid", "access_key", "resource_id", "speaker"),
         "minimax": ("api_key",),
+        "pixelle_clone": ("ref_audio",),
     }
     _PROVIDER_OPTIONAL_KEYS: Dict[str, tuple[str, ...]] = {
         "302": ("base_url",),
         "bytedance": ("base_url", "cluster"),
         "bytedance_bigtts": ("base_url", "uid", "label"),
         "minimax": ("base_url",),
+        "pixelle_clone": ("base_url", "api_key", "external_voice_id"),
     }
     _PROVIDER_SUCCESS_CODES = {None, 0, 200, 3000, 20000000}
 
@@ -398,6 +401,8 @@ class GenerateVoiceoverNode(BaseNode):
             return self._resolve_302_env_secret(key)
         if provider_name == "minimax":
             return self._resolve_minimax_env_secret(key)
+        if provider_name == "pixelle_clone":
+            return os.getenv(f"TTS_PIXELLE_CLONE_{str(key).strip().upper()}")
         return None
 
     def _sanitize_params_by_schema(self, params: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str, Any]:
@@ -939,4 +944,68 @@ class GenerateVoiceoverNode(BaseNode):
         resp = requests.post(api_url, headers=headers, json=body, timeout=120)
         if not resp.ok:
             raise RuntimeError(f"302 tts http {resp.status_code}: {resp.text}")
+        wav_path.write_bytes(resp.content)
+
+    def _tts_pixelle_clone_sync(
+        self,
+        *,
+        text: str,
+        wav_path: Path,
+        secrets: Dict[str, Any],
+        tts_params: Dict[str, Any],
+        provider_cfg: Dict[str, Any],
+    ) -> None:
+        ref_audio = Path(str(secrets.get("ref_audio") or "").strip())
+        if not ref_audio.is_file():
+            raise ValueError("pixelle_clone requires a readable ref_audio file")
+
+        base_url = str(secrets.get("base_url") or "").strip().rstrip("/")
+        api_key = str(secrets.get("api_key") or "").strip()
+        if not base_url:
+            raise ValueError("pixelle_clone missing base_url")
+
+        headers = {"Accept": "audio/wav"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        data = {
+            "text": text,
+            "external_voice_id": secrets.get("external_voice_id") or "",
+            "speed": str(tts_params.get("speed", provider_cfg.get("speed", 1.0))),
+            "format": str(tts_params.get("format", provider_cfg.get("format", "wav"))),
+        }
+        with ref_audio.open("rb") as audio_file:
+            files = {
+                "ref_audio": (
+                    ref_audio.name,
+                    audio_file,
+                    "audio/wav",
+                )
+            }
+            resp = requests.post(
+                f"{base_url}/tts/clone",
+                headers=headers,
+                data=data,
+                files=files,
+                timeout=180,
+            )
+
+        if not resp.ok:
+            raise RuntimeError(f"pixelle_clone tts http {resp.status_code}: {resp.text}")
+
+        content_type = resp.headers.get("content-type", "")
+        if "application/json" in content_type:
+            payload = self._safe_json(resp)
+            audio_url = self._extract_first_value(payload, ("audio_url", "url", "download_url"))
+            audio_b64 = self._extract_first_value(payload, ("audio", "audio_base64", "data"))
+            if isinstance(audio_url, str) and audio_url.startswith("http"):
+                audio_resp = requests.get(audio_url, timeout=120)
+                audio_resp.raise_for_status()
+                wav_path.write_bytes(audio_resp.content)
+                return
+            if isinstance(audio_b64, str) and audio_b64:
+                wav_path.write_bytes(base64.b64decode(audio_b64))
+                return
+            raise RuntimeError(f"pixelle_clone tts returned JSON without audio: {payload}")
+
         wav_path.write_bytes(resp.content)

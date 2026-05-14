@@ -34,9 +34,13 @@ export async function createMediaUploadIntentForUser(input: {
     throw new ApiError(
       400,
       "MEDIA_UPLOAD_OWNER_UNSUPPORTED",
-      "Direct browser uploads only support source items and content drafts.",
+      "Direct browser uploads do not support content variants.",
     );
   }
+  assertOwnerAssetTypeSupported({
+    ownerType: input.request.ownerType,
+    assetType: input.request.assetType,
+  });
 
   assertUploadSizeWithinLimit(input.request.sizeBytes);
 
@@ -96,9 +100,13 @@ export async function completeMediaUploadForUser(input: {
     throw new ApiError(
       400,
       "MEDIA_COMPLETE_OWNER_UNSUPPORTED",
-      "Direct browser uploads only support source items and content drafts.",
+      "Direct browser uploads do not support content variants.",
     );
   }
+  assertOwnerAssetTypeSupported({
+    ownerType: input.request.ownerType,
+    assetType: input.request.assetType,
+  });
 
   assertSupportedMediaStorageProvider(input.request.storageProvider);
   const cosConfig = getCosConfig();
@@ -172,4 +180,28 @@ export async function completeMediaUploadForUser(input: {
     etag: input.request.etag,
     sortOrder: input.request.sortOrder,
   });
+}
+
+function assertOwnerAssetTypeSupported(input: {
+  ownerType: MediaUploadIntentRequest["ownerType"];
+  assetType: MediaCompleteRequest["assetType"];
+}) {
+  if (input.ownerType === "voice_profile") {
+    if (input.assetType !== "audio") {
+      throw new ApiError(
+        400,
+        "MEDIA_ASSET_TYPE_UNSUPPORTED",
+        "Voice profiles only support audio reference assets.",
+      );
+    }
+    return;
+  }
+
+  if (input.assetType === "audio") {
+    throw new ApiError(
+      400,
+      "MEDIA_ASSET_TYPE_UNSUPPORTED",
+      "Audio uploads are only supported for voice profiles.",
+    );
+  }
 }

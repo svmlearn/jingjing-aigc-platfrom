@@ -1,0 +1,2365 @@
+app:
+  description: V3.0：在 V2.0 视频节点拆分基础上，继续拆分图文内容包为标题封面、正文配图、图文包编译。
+  icon: 📅
+  icon_background: '#FFEAD5'
+  icon_type: emoji
+  mode: workflow
+  name: 内容日历生成图文与视频脚本 POC V3.0
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.15@725407927b04e236212083d20e92830d60fa944e42cd357ef6902c160414f6f1
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/openai:0.4.0@beafb5a726eda839a1839f61a0456ae7e068c98624c53f59b07be9a71fbf72da
+    version: null
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 50
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        sourceType: start
+        targetType: llm
+      id: start-source-task_understanding-target
+      source: start
+      sourceHandle: source
+      target: task_understanding
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: knowledge-retrieval
+      id: task_understanding-source-kb_project_knowledge-target
+      source: task_understanding
+      sourceHandle: source
+      target: kb_project_knowledge
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: kb_project_knowledge-source-creative_strategy-target
+      source: kb_project_knowledge
+      sourceHandle: source
+      target: creative_strategy
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: llm
+      id: creative_strategy-source-title_cover-target
+      source: creative_strategy
+      sourceHandle: source
+      target: title_cover
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: llm
+      id: creative_strategy-source-video_narrative-target
+      source: creative_strategy
+      sourceHandle: source
+      target: video_narrative
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: llm
+      id: title_cover-source-article_body-target
+      source: title_cover
+      sourceHandle: source
+      target: article_body
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: code
+      id: article_body-source-article_compiler-target
+      source: article_body
+      sourceHandle: source
+      target: article_compiler
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: llm
+      id: video_narrative-source-scene_breakdown-target
+      source: video_narrative
+      sourceHandle: source
+      target: scene_breakdown
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: code
+      id: scene_breakdown-source-delivery_compiler-target
+      source: scene_breakdown
+      sourceHandle: source
+      target: delivery_compiler
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: code
+        targetType: code
+      id: delivery_compiler-source-quality_reviewer-target
+      source: delivery_compiler
+      sourceHandle: source
+      target: quality_reviewer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: code
+        targetType: code
+      id: article_compiler-source-quality_reviewer-target
+      source: article_compiler
+      sourceHandle: source
+      target: quality_reviewer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: if-else
+      id: quality_reviewer-source-if_else_needs_rewrite-target
+      source: quality_reviewer
+      sourceHandle: source
+      target: if_else_needs_rewrite
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: if_else_needs_rewrite-source-content_risk_rewriter-target
+      source: if_else_needs_rewrite
+      sourceHandle: needs_rewrite
+      target: content_risk_rewriter
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: variable-aggregator
+      id: if_else_needs_rewrite-source-article_package_aggregator-target
+      source: if_else_needs_rewrite
+      sourceHandle: 'false'
+      target: article_package_aggregator
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: variable-aggregator
+      id: content_risk_rewriter-source-article_package_aggregator-target
+      source: content_risk_rewriter
+      sourceHandle: source
+      target: article_package_aggregator
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: variable-aggregator
+        targetType: variable-aggregator
+      id: article_package_aggregator-source-video_script_aggregator-target
+      source: article_package_aggregator
+      sourceHandle: source
+      target: video_script_aggregator
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: variable-aggregator
+        targetType: code
+      id: video_script_aggregator-source-final_compiler-target
+      source: video_script_aggregator
+      sourceHandle: source
+      target: final_compiler
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: code
+        targetType: end
+      id: final_compiler-source-end-target
+      source: final_compiler
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: 输入内容日历任务、爆款内容摘要、图片素材摘要，以及可选的手工知识文本兜底。
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - label: 内容日历任务 JSON
+          max_length: 6000
+          options: []
+          required: true
+          type: paragraph
+          variable: calendar_task_json
+        - label: 爆款内容参考 JSON
+          max_length: 12000
+          options: []
+          required: false
+          type: paragraph
+          variable: viral_references_json
+        - label: 图片素材 JSON
+          max_length: 12000
+          options: []
+          required: false
+          type: paragraph
+          variable: image_assets_json
+        - label: 手工知识文本兜底
+          max_length: 12000
+          options: []
+          required: false
+          type: paragraph
+          variable: fallback_knowledge_text
+        - label: 额外要求
+          max_length: 2000
+          options: []
+          required: false
+          type: paragraph
+          variable: extra_requirement
+      height: 273
+      id: start
+      position:
+        x: 0
+        y: 0
+      positionAbsolute:
+        x: 0
+        y: 0
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 把内容日历任务转成检索 query 和生成约束。
+        model:
+          completion_params:
+            temperature: 0.2
+            thinking: true
+            top_p: 0.8
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: task-understanding-system
+          role: system
+          text: '你是房地产内容生产工作流中的“任务理解节点”。
+
+            你只负责把输入的内容日历任务解析为可检索、可生成的结构化任务，不写正文、不写脚本。
+
+
+            硬约束：
+
+            1. 只能基于输入内容解析，不要编造项目事实。
+
+            2. 输出必须是严格 JSON，不要 Markdown，不要解释。
+
+            3. 所有字段都要保留；未知则填空字符串、空数组或 null。
+
+            4. copySearchQuery、scriptSearchQuery、imageSearchQuery 不能为空；必须把主题、客群、卖点、场景词组合成中文检索句。
+
+            5. 如果输入出现租金回报、收益、升值、投资、满租、租金区间、低位价格、价格错位等词，只能把它们归类放入 riskConstraints，不要当成可直接宣传的卖点。
+
+            6. riskConstraints 只能输出类别标签，例如“收益承诺类”“出租确定性类”“价格趋势类”“投资属性类”，不要复述输入里的原始风险词。
+
+            7. copySearchQuery、scriptSearchQuery、imageSearchQuery 不要包含上述风险词；改用“预算友好、成熟配套、空间使用、生活便利、项目实景”等安全检索词。
+
+            '
+        - id: task-understanding-user
+          role: user
+          text: '内容日历任务：
+
+            {{#start.calendar_task_json#}}
+
+
+            额外要求：
+
+            {{#start.extra_requirement#}}
+
+
+            请输出 JSON：
+
+
+            '
+        reasoning_format: separated
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              audiencePain:
+                type: string
+              contentGoal:
+                type: string
+              contentType:
+                type: string
+              copySearchQuery:
+                type: string
+              coreTopic:
+                type: string
+              extraRequirement:
+                type: string
+              imageSearchQuery:
+                type: string
+              platforms:
+                items:
+                  type: string
+                type: array
+              riskConstraints:
+                items:
+                  type: string
+                type: array
+              scriptSearchQuery:
+                type: string
+              sellingPointsNeeded:
+                items:
+                  type: string
+                type: array
+              targetAudience:
+                type: string
+              videoAssetQueryHints:
+                items:
+                  type: string
+                type: array
+            required:
+            - coreTopic
+            - contentType
+            - platforms
+            - contentGoal
+            - targetAudience
+            - audiencePain
+            - sellingPointsNeeded
+            - riskConstraints
+            - copySearchQuery
+            - scriptSearchQuery
+            - imageSearchQuery
+            - videoAssetQueryHints
+            - extraRequirement
+            type: object
+        structured_output_enabled: true
+        title: 任务理解
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 132
+      id: task_understanding
+      position:
+        x: 342
+        y: 116
+      positionAbsolute:
+        x: 342
+        y: 116
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        dataset_ids:
+        - Lsx0A/WC6cJdW37y74WHBiw37YLYPU0h/5S1Iu5Ge5NI3oTJmsZi8KRDN3mA99dM
+        desc: 使用任务理解完整 JSON 文本检索，避免 nested structured_output 子字段在弱输入场景下缺失。
+        multiple_retrieval_config:
+          reranking_enable: false
+          reranking_mode: weighted_score
+          reranking_model:
+            model: ''
+            provider: ''
+          score_threshold: null
+          top_k: 6
+          weights:
+            keyword_setting:
+              keyword_weight: 0
+            vector_setting:
+              embedding_model_name: text-embedding-3-large
+              embedding_provider_name: langgenius/openai/openai
+              vector_weight: 1
+            weight_type: customized
+        query_attachment_selector: []
+        query_variable_selector:
+        - task_understanding
+        - text
+        retrieval_mode: multiple
+        selected: false
+        single_retrieval_config:
+          model:
+            completion_params: {}
+            mode: chat
+            name: gpt-4o-mini
+            provider: langgenius/openai/openai
+        title: txt 知识库检索
+        type: knowledge-retrieval
+      height: 150
+      id: kb_project_knowledge
+      position:
+        x: 684
+        y: 129
+      positionAbsolute:
+        x: 684
+        y: 129
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 汇总知识库、爆款结构和图片素材，先定创作策略。
+        model:
+          completion_params:
+            temperature: 0.25
+            thinking: true
+            top_p: 0.85
+          mode: chat
+          name: deepseek-v4-pro
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: creative-strategy-system
+          role: system
+          text: '你是房地产内容生成 workflow 的“创作策略规划节点”。
+
+            你的任务是决定怎么写、用什么事实、借鉴什么爆款结构、配什么图片、视频需要什么镜头。
+
+
+            硬约束：
+
+            1. 不直接输出最终图文正文或完整视频脚本。
+
+            2. 项目事实只能来自知识库结果、手工知识兜底和输入任务。
+
+            3. 爆款内容只能借鉴结构、hook、节奏、CTA，不得复制正文。
+
+            4. 图片素材只能用于图文配图建议，不要当作视频剪辑素材。
+
+            5. 输出必须是严格 JSON，并符合结构化输出 schema。
+
+            5.1 videoPlan 只做视频方向规划，不输出完整视频脚本、上传清单或素材清单。
+
+            5.2 禁止输出图文内容包字段：titles、selectedTitle、coverCopy、body、hashtags、cta、imageMatches、imageBriefIfMissing、copyReadyText。
+
+            6. 风险词词典：投资回报率高、收益稳定、租金回报高、稳赚、保值增值、满租、租金区间、租金回报、投资属性、资产回报、低位价格、价格错位、收租、贴月供、租出去、保租、保回报、确定兑现、运营成熟验证。
+
+            7. 输出 JSON 的任何字符串字段都不能出现风险词词典中的原词，包括 mustUseFacts、articlePlan、videoPlan、trace、qualityGateHints。
+
+            8. 禁止把风险词对应内容写入 mustUseFacts；只能改写成安全事实，例如“已有商业配套和真实经营场景可观察”“当前总价门槛相对友好，需结合预算判断”“空间用途较灵活，具体使用以实际需求和官方口径为准”。
+
+            9. qualityGateHints.complianceRisks 只能输出类别标签，例如“收益承诺类”“出租确定性类”“价格趋势类”，不要复述风险词原文。
+
+            10. 如果知识库没有给出明确项目名、区域、户型、配套名称，则必须在 degradationNotices 写入“项目事实不足”，并让后续内容保持泛化但克制。
+
+            11. 最终输出前必须逐字检查 JSON：如果任何字符串仍含风险词词典中的原词，必须先替换为安全表述再输出。
+
+            12. 不要规划“市场正在发生变化、市场回暖、需求回升、越来越受欢迎、机会来了、实现居住梦想”等宏观判断；除非输入明确给出数据。可改成“最近有客户重新问起”“适合先结合预算和用途看一下”。
+
+            '
+        - id: creative-strategy-user
+          role: user
+          text: '任务理解结果：
+
+            {{#task_understanding.text#}}
+
+
+            Dify 知识库检索结果：
+
+            {{#kb_project_knowledge.result#}}
+
+
+            手工知识文本兜底：
+
+            {{#start.fallback_knowledge_text#}}
+
+
+            爆款内容参考 JSON：
+
+            {{#start.viral_references_json#}}
+
+
+            图片素材 JSON：
+
+            {{#start.image_assets_json#}}
+
+
+            请输出 JSON：
+
+            '
+        reasoning_format: separated
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              articlePlan:
+                additionalProperties: false
+                properties:
+                  bodyStructure:
+                    items:
+                      type: string
+                    type: array
+                  coverCopyDirection:
+                    type: string
+                  imagePlan:
+                    items:
+                      type: string
+                    type: array
+                  titleDirection:
+                    type: string
+                required:
+                - titleDirection
+                - coverCopyDirection
+                - bodyStructure
+                - imagePlan
+                type: object
+              chosenAngle:
+                type: string
+              degradationNotices:
+                items:
+                  type: string
+                type: array
+              mustAvoidClaims:
+                items:
+                  type: string
+                type: array
+              mustUseFacts:
+                items:
+                  type: string
+                type: array
+              narrativeArc:
+                items:
+                  type: string
+                type: array
+              qualityGateHints:
+                additionalProperties: false
+                properties:
+                  complianceRisks:
+                    items:
+                      type: string
+                    type: array
+                  factWeakness:
+                    type: string
+                  mustReviewBeforePublish:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - factWeakness
+                - complianceRisks
+                - mustReviewBeforePublish
+                type: object
+              tone:
+                type: string
+              trace:
+                additionalProperties: false
+                properties:
+                  usedImageSummary:
+                    items:
+                      type: string
+                    type: array
+                  usedKnowledgeSummary:
+                    items:
+                      type: string
+                    type: array
+                  usedViralSummary:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - usedKnowledgeSummary
+                - usedViralSummary
+                - usedImageSummary
+                type: object
+              videoPlan:
+                additionalProperties: false
+                properties:
+                  assetQueryHints:
+                    items:
+                      type: string
+                    type: array
+                  estimatedDuration:
+                    type: string
+                  scenePlan:
+                    items:
+                      type: string
+                    type: array
+                  storyOutline:
+                    type: string
+                required:
+                - storyOutline
+                - estimatedDuration
+                - scenePlan
+                - assetQueryHints
+                type: object
+              viralPatternUsed:
+                additionalProperties: false
+                properties:
+                  ctaTactics:
+                    items:
+                      type: string
+                    type: array
+                  hookTactics:
+                    items:
+                      type: string
+                    type: array
+                  patternName:
+                    type: string
+                  reason:
+                    type: string
+                  titleTactics:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - patternName
+                - reason
+                - titleTactics
+                - hookTactics
+                - ctaTactics
+                type: object
+            required:
+            - chosenAngle
+            - narrativeArc
+            - tone
+            - mustUseFacts
+            - mustAvoidClaims
+            - viralPatternUsed
+            - articlePlan
+            - videoPlan
+            - degradationNotices
+            - trace
+            - qualityGateHints
+            type: object
+        structured_output_enabled: true
+        title: 创作策略规划
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 132
+      id: creative_strategy
+      position:
+        x: 1026
+        y: 163
+      positionAbsolute:
+        x: 1026
+        y: 163
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 标题与封面策略节点，只负责点击理由、标题包装和封面大字。
+        model:
+          completion_params:
+            temperature: 0.7
+            top_p: 0.9
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: title-cover-system
+          role: system
+          text: '你是小红书/抖音的标题和封面策划师。你的任务是为一篇房产图文内容设计标题和封面文案。
+
+
+            你只管"怎么让人点进来"。不要写正文、CTA 或 hashtags。
+
+
+            ## 核心认知
+
+
+            封面和标题是内容的广告。正文是内容的产品。你现在做的是广告。
+
+
+            好的封面+标题+开头，影响了一篇内容 80% 的流量。
+
+
+            ## 标题设计
+
+
+            标题不是展开你的选题，而是包装你的选题。
+
+
+            - 选题 = 你要讲什么（例：某楼盘小户型的性价比）
+
+            - 标题 = 为什么要看你讲（例：「深圳刚需看了 20 个盘，最后下手这个 89 方的」）
+
+
+            标题公式候选（从高到低选择）：
+
+            1. ⭐⭐⭐⭐⭐ 晒结果 + 悬念：先展示结果，留好奇（"带看量突然涨了，我问了原因"）
+
+            2. ⭐⭐⭐⭐ 数字冲击：用具体数字开场（"89 方做到三房两卫"）
+
+            3. ⭐⭐⭐⭐ 反差/反常识：打破认知（"都说小户型没人看了？"）
+
+            4. ⭐⭐⭐ 痛点共鸣：说出焦虑（"预算 300 万在深圳还能买什么"）
+
+            5. ⭐⭐⭐ 异常现象：指出反常规的事实（"这个片区挂牌量降了，带看量反而涨了"）
+
+            6. ⭐⭐⭐ 社会认同：用群体行为制造信任（"15 组客户来看，8 组冲着同一个户型"）
+
+
+            标题禁忌：
+
+            - 不要开头就给答案（错：「这个盘好在总价低」）
+
+            - 不要自问自答（错：「你知道什么叫性价比吗？」）
+
+            - 不要用 emoji 堆砌
+
+            - 不要用网红腔（「绝绝子」「YYDS」「宝藏」「神器」「吐血整理」等）
+
+            - 不要超过 20 个字（小红书标题硬限制）
+
+            - 必须口播友好，能直接念出来
+
+
+            ## 封面文案设计
+
+
+            封面文案 ≠ 标题。封面文案是图片上的大字，标题是图片下方的文字。
+
+            封面文案本质是 slogan：紧扣卖点、简洁有力、一眼看懂。
+
+
+            - 封面文字必须抄爆款格式结构
+
+            - 比标题更短更冲击：8-15 个字
+
+            - 和标题讲同一个 hook，但角度或措辞必须不同
+
+
+            封面风格：
+
+            - 大字报型：纯文字，适合观点/数据冲击
+
+            - 实拍+文字型：楼盘图上叠文字，适合展示型
+
+            - 截图型：对话/数据截图，适合社会证明
+
+
+            ## 输出要求
+
+
+            - titles 输出 3 个备选，每个标注公式和理由
+
+            - coverCopyOptions 输出 2 个方案，标注风格
+
+            - 选出最佳标题和最佳封面文案
+
+
+            ## 硬约束
+
+
+            1. 不要出现风险词：投资回报率高、租金回报高、收益稳定、稳赚、保值增值、闭眼买、错过后悔、满租、确定兑现。
+
+            2. 如果项目事实不足，标题用观察/体验角度，不编造数据。
+
+            3. 输出必须是严格 JSON。'
+        - id: title-cover-user
+          role: user
+          text: '## 任务
+
+            {{#start.calendar_task_json#}}
+
+
+            ## 创作策略 JSON
+
+            请从下面 JSON 中读取 articlePlan、chosenAngle、mustUseFacts、mustAvoidClaims、viralPatternUsed。
+
+            {{#creative_strategy.text#}}'
+        reasoning_format: separated
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              coverCopyOptions:
+                items:
+                  additionalProperties: false
+                  properties:
+                    style:
+                      type: string
+                    text:
+                      type: string
+                  required:
+                  - text
+                  - style
+                  type: object
+                type: array
+              hookAngle:
+                type: string
+              selectedCoverCopy:
+                type: string
+              selectedTitle:
+                type: string
+              selectedTitleReason:
+                type: string
+              titles:
+                items:
+                  additionalProperties: false
+                  properties:
+                    formula:
+                      type: string
+                    text:
+                      type: string
+                    whyThisFormula:
+                      type: string
+                  required:
+                  - text
+                  - formula
+                  - whyThisFormula
+                  type: object
+                type: array
+            required:
+            - titles
+            - selectedTitle
+            - selectedTitleReason
+            - coverCopyOptions
+            - selectedCoverCopy
+            - hookAngle
+            type: object
+        structured_output_enabled: true
+        title: 标题与封面策略
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 132
+      id: title_cover
+      position:
+        x: 1388
+        y: 84.82857142857145
+      positionAbsolute:
+        x: 1388
+        y: 84.82857142857145
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 正文与配图编排节点，基于标题封面策略生成卡片式正文块和配图策略。
+        model:
+          completion_params:
+            temperature: 0.35
+            top_p: 0.9
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: article-body-system
+          role: system
+          text: '你是小红书/抖音的图文内容创作者。你的任务是写正文并编排配图。
+
+
+            标题和封面已经定好了（见输入），你只管写好正文。正文是产品，标题是广告，广告打好了，现在交付产品。
+
+
+            ## 开头：承接标题承诺
+
+
+            正文第一段必须兑现标题的承诺，不要重复标题，要推进信息。
+
+
+            ## 结构：卡片式信息块
+
+
+            小红书图文是卡片式阅读。每个信息块 = 一个核心信息点 + 配图。
+
+
+            信息块类型：
+
+            - 数据块：关键数据 + 简短解读
+
+            - 体验块：场景描述，让人代入
+
+            - 对比块：和竞品/过去做对比
+
+            - 证据块：社会证明（带看量、客户反馈）
+
+            - 清单块：多个要点的精炼列表
+
+            - CTA块：轻收尾
+
+
+            通常 4-6 个信息块。
+
+
+            根据选题选择图文结构：
+
+            - 清单式：要点多、适合收藏（blocks 并列）
+
+            - 对比式：有竞品或时间差异（blocks 两两对照）
+
+            - 问题解答式：针对特定痛点（先问后答递进）
+
+            - 故事线式：有真实经历（blocks 时间递进）
+
+
+            ## 文字风格
+
+
+            - 像真实中介发的朋友圈/笔记
+
+            - 短句为主，每句不超过 20 字
+
+            - 每段不超过 80 个中文字
+
+            - 不要用"近年来""市场背景""优势明显"等空话
+
+            - 不要用"哦""赶紧""马上"等营销腔
+
+            - 可以有口语感："说实话""你别看面积小""我跟你讲"
+
+
+            ## 文字洁癖
+
+
+            以下一律删除：
+
+            - AI 味：「震撼」「颠覆」「引领」「赋能」「打造」
+
+            - 空洞排比句
+
+            - 「请你记住」「真相是」等祈使句
+
+            - emoji 堆砌（全篇最多 3 个）
+
+            - 自封词：「干货」「硬核」「宝藏」
+
+
+            ## 配图策略
+
+
+            每张图要回答"给读者看什么信息"。图片选择优先级：实拍 > 户型图 > 效果图 > 区位图。
+
+
+            - 有匹配素材时输出 imageMatch（assetId, title, usage）
+
+            - 没有合适素材时输出 imageBrief（需要什么图的描述）
+
+            - CTA 块可以不配图
+
+
+            ## CTA 设计
+
+
+            像朋友推荐完说的最后一句话，不制造焦虑、不催促。
+
+
+            CTA 方式（根据内容选择）：
+
+            - 私信引导：「感兴趣私信我，发你户型图」
+
+            - 开放性问题：「你觉得这个面积段怎么样？」（提升评论率）
+
+            - 求助式互动：「想了解的扣 1，一个个回」（降低互动门槛）
+
+            - 投票式互动：「89方 vs 110方，你选哪个？」（制造站队）
+
+
+            ## hashtags 设计
+
+
+            5-8 个标签，混搭：2 个大流量 + 2 个精准 + 2 个长尾。
+
+
+            ## 硬约束
+
+
+            1. 不要出现风险词。
+
+            2. 项目事实不足时保持克制，不编造。
+
+            3. 输出必须是严格 JSON。
+
+            4. 不要输出 titles、selectedTitle、coverCopy（节点①已输出）。
+
+            5. 不要输出 copyReadyText（由 Code 节点拼接）。'
+        - id: article-body-user
+          role: user
+          text: '## 标题与封面策略
+
+            {{#title_cover.text#}}
+
+
+            ## 创作策略 JSON
+
+            请从下面 JSON 中读取 articlePlan、mustUseFacts、mustAvoidClaims、tone。
+
+            {{#creative_strategy.text#}}
+
+
+            ## 图片素材 JSON
+
+            {{#start.image_assets_json#}}'
+        reasoning_format: separated
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              contentBlocks:
+                items:
+                  additionalProperties: false
+                  properties:
+                    blockNo:
+                      type: number
+                    blockType:
+                      type: string
+                    imageBrief:
+                      type: string
+                    imageMatch:
+                      additionalProperties: false
+                      properties:
+                        assetId:
+                          type: string
+                        title:
+                          type: string
+                        usage:
+                          type: string
+                      required:
+                      - assetId
+                      - title
+                      - usage
+                      type: object
+                    text:
+                      type: string
+                  required:
+                  - blockNo
+                  - blockType
+                  - text
+                  type: object
+                type: array
+              cta:
+                type: string
+              hashtags:
+                items:
+                  type: string
+                type: array
+              imageBriefsIfMissing:
+                items:
+                  type: string
+                type: array
+              riskNotes:
+                items:
+                  type: string
+                type: array
+            required:
+            - contentBlocks
+            - cta
+            - hashtags
+            - imageBriefsIfMissing
+            - riskNotes
+            type: object
+        structured_output_enabled: true
+        title: 正文与配图编排
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 132
+      id: article_body
+      position:
+        x: 1730
+        y: 105.40000000000003
+      positionAbsolute:
+        x: 1730
+        y: 105.40000000000003
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\nimport re\n\ndef strip_think(text):\n    if not isinstance(text,\
+          \ str):\n        return text\n    if \"</think>\" in text:\n        text\
+          \ = text.rsplit(\"</think>\", 1)[-1]\n    text = re.sub(r\"(?is)<think>.*?</think>\"\
+          , \"\", text)\n    return text.strip()\n\ndef clean_json(value):\n    text\
+          \ = strip_think((value or \"\").strip())\n    if text.startswith(\"```\"\
+          ):\n        text = re.sub(r\"^```(?:json)?\\s*\", \"\", text)\n        text\
+          \ = re.sub(r\"\\s*```$\", \"\", text)\n    return text\n\ndef parse_obj(value):\n\
+          \    if isinstance(value, dict):\n        return value\n    if not isinstance(value,\
+          \ str):\n        return {}\n    text = clean_json(value)\n    for candidate\
+          \ in [text] + [text[index:].strip() for index, char in enumerate(text) if\
+          \ char == \"{\"]:\n        try:\n            parsed = json.loads(clean_json(candidate))\n\
+          \            return parsed if isinstance(parsed, dict) else {}\n       \
+          \ except Exception:\n            continue\n    return {}\n\ndef as_list(value):\n\
+          \    return value if isinstance(value, list) else []\n\ndef main(title_cover:\
+          \ str, article_body: str) -> dict:\n    \"\"\"\n    从节点①②的输出中编译图文内容包。\n\
+          \    职责：拼接、提取、格式化。不做任何创作。\n    \"\"\"\n    tc = parse_obj(title_cover)\n\
+          \    body = parse_obj(article_body)\n\n    blocks = as_list(body.get(\"\
+          contentBlocks\"))\n    hashtags = as_list(body.get(\"hashtags\"))\n    cta\
+          \ = body.get(\"cta\", \"\")\n\n    # === 拼接纯文本 body ===\n    body_text =\
+          \ \"\\n\\n\".join([str(b.get(\"text\", \"\")).strip() for b in blocks if\
+          \ isinstance(b, dict) and str(b.get(\"text\", \"\")).strip()])\n\n    #\
+          \ === 拼接 copyReadyText ===\n    hashtag_str = \" \".join(hashtags)\n   \
+          \ copy_parts = [tc.get(\"selectedTitle\", \"\"), \"\", body_text]\n    if\
+          \ hashtag_str:\n        copy_parts.extend([\"\", hashtag_str])\n    copy_ready_text\
+          \ = \"\\n\".join(copy_parts)\n\n    # === 提取配图信息 ===\n    image_matches\
+          \ = []\n    image_briefs = []\n    for b in blocks:\n        if not isinstance(b,\
+          \ dict):\n            continue\n        image_match = b.get(\"imageMatch\"\
+          )\n        if isinstance(image_match, dict):\n            image_matches.append({\n\
+          \                \"blockNo\": b.get(\"blockNo\", \"\"),\n              \
+          \  \"assetId\": image_match.get(\"assetId\", \"\"),\n                \"\
+          title\": image_match.get(\"title\", \"\"),\n                \"usage\": image_match.get(\"\
+          usage\", \"\")\n            })\n        if b.get(\"imageBrief\"):\n    \
+          \        image_briefs.append(str(b.get(\"imageBrief\", \"\")))\n\n    title_items\
+          \ = as_list(tc.get(\"titles\"))\n    title_texts = [item.get(\"text\", \"\
+          \") for item in title_items if isinstance(item, dict) and item.get(\"text\"\
+          )]\n\n    # === 合并输出（兼容现有 articlePackage 格式）===\n    return {\n        \"\
+          result\": json.dumps({\n            \"articlePackage\": {\n            \
+          \    \"titles\": title_texts,\n                \"selectedTitle\": tc.get(\"\
+          selectedTitle\", \"\"),\n                \"coverCopy\": tc.get(\"selectedCoverCopy\"\
+          , \"\"),\n                \"body\": body_text,\n                \"contentBlocks\"\
+          : blocks,\n                \"hashtags\": hashtags,\n                \"cta\"\
+          : cta,\n                \"imageMatches\": image_matches,\n             \
+          \   \"imageBriefIfMissing\": \"; \".join(image_briefs) if image_briefs else\
+          \ \"\",\n                \"riskNotes\": as_list(body.get(\"riskNotes\")),\n\
+          \                \"copyReadyText\": copy_ready_text\n            },\n  \
+          \          \"titleStrategy\": {\n                \"titles\": title_items,\n\
+          \                \"selectedTitleReason\": tc.get(\"selectedTitleReason\"\
+          , \"\"),\n                \"coverCopyOptions\": as_list(tc.get(\"coverCopyOptions\"\
+          )),\n                \"hookAngle\": tc.get(\"hookAngle\", \"\")\n      \
+          \      }\n        }, ensure_ascii=False)\n    }\n"
+        code_language: python3
+        desc: 确定性编译图文内容包，拼接 body/copyReadyText 并提取配图策略。
+        outputs:
+          result:
+            children: null
+            type: string
+        selected: false
+        title: 图文包编译
+        type: code
+        variables:
+        - value_selector:
+          - title_cover
+          - text
+          variable: title_cover
+        - value_selector:
+          - article_body
+          - text
+          variable: article_body
+      height: 112
+      id: article_compiler
+      position:
+        x: 2072
+        y: 137.40000000000003
+      positionAbsolute:
+        x: 2072
+        y: 137.40000000000003
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 设计短视频叙事结构，只负责故事、钩子、节奏和口播梗概。
+        model:
+          completion_params:
+            temperature: 0.7
+            top_p: 0.9
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: video-narrative-system
+          role: system
+          text: '你是短视频叙事策划师。你的任务是为一条房产短视频设计叙事结构。
+
+
+            你只管"讲什么故事、用什么节奏打动人"。不要拆具体镜头，不要写完整文案。
+
+
+            ## 钩子设计（最重要）
+
+
+            开头是内容的试用装。不能假设观众看了标题或封面。前 3 秒必须独立建立吸引力。
+
+
+            钩子公式：话题（讲什么）+ Hook（为什么要看）+ 可信度（为什么信你）
+
+            示例：「我去年涨粉 200 万，靠的就是搞清楚选题和标题的区别」
+
+
+            素材优先级（从高到低选择 hook 素材）：
+
+            1. ⭐⭐⭐⭐⭐ 晒结果 + 反转：先展示成绩，再制造好奇（"最近这个盘小户型带看量反而涨了，很多人问我为什么"）
+
+            2. ⭐⭐⭐⭐ 数据冲击：用大数字或对比数字开场（"89方做到三房两卫"）
+
+            3. ⭐⭐⭐⭐ 反差/转变：认知反差制造好奇（"都说小户型没人看了？"）
+
+            4. ⭐⭐⭐ 痛点 + 悬念：说出焦虑，留住答案（"深圳刚需看了 20 个盘没下手的，问题可能出在这"）
+
+
+            钩子禁忌：
+
+            - 不要开头就给答案（错：「这个盘好在总价低」→ 对：「为什么这个盘最近突然火了」）
+
+            - 不要自问自答（错：「你知道什么叫性价比吗？」）
+
+            - 必须口播友好，能直接念出来，不要书面语
+
+
+            ## 叙事弧线
+
+
+            全片要有情绪起伏。常见弧线：
+
+            - 好奇 → 认同 → 心动 → 行动（标准种草）
+
+            - 痛点 → 共鸣 → 解法 → 行动（解决问题型）
+
+            - 反常识 → 解释 → 证据 → 行动（认知刷新型）
+
+
+            根据主题选择合适的弧线，不要千篇一律。
+
+
+            ## 空间动线（房产视频特有）
+
+
+            房产视频的叙事线 = 空间动线。好的房产视频不是展示一个个孤立房间，而是展示空间之间的关系——"从这里走进去是什么""从这扇窗看出去是什么"。
+
+
+            设计 storyOutline 时，要规划一条观众能代入的空间路径，例如：
+
+            - 小区入口 → 园林通道 → 楼栋大堂 → 室内客厅 → 卧室 → 阳台望出去
+
+            - 或者：周边街道 → 商业配套 → 小区入口 → 样板间
+
+
+            这条动线走顺了，观众自然代入"住进去"的感觉。不要随机跳跃场景。
+
+
+            ## 口播稿梗概
+
+
+            写一段完整的口播稿梗概（不是最终稿，是给下游节点的方向）。要求：
+
+            - 像真实中介跟朋友聊天，不像广告公司写的
+
+            - 短句为主，每句不超过 20 字
+
+            - 不要用"近年来""随着市场""实现梦想"这类空话
+
+            - 不要用"哦""赶紧""马上抢"这类营销腔
+
+            - 可以有口语感："说实话""你猜怎么着""我跟你讲"
+
+
+            ## 硬约束
+
+
+            1. 不要出现风险词：投资回报率高、租金回报高、收益稳定、保值增值、稳赚、满租、确定兑现。
+
+            2. 如果项目事实不足，保持克制，不编造具体数据。用"可以实地看看""建议结合预算了解"替代。
+
+            3. 输出必须是严格 JSON。'
+        - id: video-narrative-user
+          role: user
+          text: '## 任务
+
+            {{#start.calendar_task_json#}}
+
+
+            ## 创作策略 JSON
+
+            请从下面 JSON 中读取 videoPlan、mustUseFacts、mustAvoidClaims。
+
+            {{#creative_strategy.text#}}'
+        reasoning_format: separated
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              bgmDirection:
+                type: string
+              estimatedDuration:
+                type: string
+              hook:
+                additionalProperties: false
+                properties:
+                  openingLine:
+                    type: string
+                  strategy:
+                    type: string
+                required:
+                - strategy
+                - openingLine
+                type: object
+              narrativeArc:
+                items:
+                  type: string
+                type: array
+              storyOutline:
+                type: string
+              toneOfVoice:
+                type: string
+              voiceoverDraft:
+                type: string
+            required:
+            - hook
+            - narrativeArc
+            - storyOutline
+            - estimatedDuration
+            - bgmDirection
+            - toneOfVoice
+            - voiceoverDraft
+            type: object
+        structured_output_enabled: true
+        title: 视频叙事结构
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 132
+      id: video_narrative
+      position:
+        x: 1388
+        y: 295.4
+      positionAbsolute:
+        x: 1388
+        y: 295.4
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 把叙事结构拆成逐镜头分镜，并标注素材检索与口播拍摄指导。
+        model:
+          completion_params:
+            temperature: 0.4
+            top_p: 0.85
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: scene-breakdown-system
+          role: system
+          text: '你是短视频分镜编排师。你的任务是把视频叙事结构拆成可执行的逐镜头脚本。
+
+
+            背景：中介只拍口播部分（手机自拍），其他画面从专业视频素材库选取，最后由 worker 自动剪辑。
+
+
+            ## 镜头类型
+
+
+            每个镜头必须标注 sceneType，只有三种：
+
+            - 口播：中介对着镜头说话，需要本人拍摄
+
+            - 素材：从视频素材库检索，专业摄影团队拍好的
+
+            - 文字卡：纯文字/数据展示画面
+
+
+            ## 画面描述原则
+
+
+            画面描述是这个脚本最核心的字段。标准：让 10 个人看完文字后，脑海中形成的画面基本一致。
+
+
+            好的描述（具体、可执行）：
+
+            - 「小区正门航拍，镜头从高处缓缓下降，能看到大门、两侧绿化和右侧商业街」
+
+            - 「样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域」
+
+            - 「中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘」
+
+
+            差的描述（抽象、无法执行）：
+
+            - ❌ 「展示项目整体面貌」
+
+            - ❌ 「体现生活便利性」
+
+            - ❌ 「营造温馨居家氛围」
+
+
+            自检：每条 visualDescription 写完后检查是否覆盖了以下至少三项：
+
+            - WHO：画面中有谁/什么主体
+
+            - WHAT：在做什么/什么状态
+
+            - WHERE：在什么场景/位置
+
+            - WHEN：什么光线/时段（如"阳光洒进来""傍晚亮灯"）
+
+            - HOW：什么视角/氛围（如"从高处俯瞰""从门框望进去"）
+
+
+            ## 字幕文案原则
+
+
+            字幕不是画面描述的重复，是观众在手机上看到的文案。要求：
+
+            - 像人说话，不像广告词
+
+            - 一句话一个信息点，不要塞太多
+
+            - 可以有口语化表达：「真的绝了」「这个我服」
+
+            - 不要写「震撼」「惊艳」「颠覆」这类空洞感叹词
+
+            - 不要用 emoji
+
+
+            ## 素材检索关键词（assetQuery）
+
+
+            assetQuery 是给视频素材库搜索用的。要求：
+
+            - 用空格分隔的中文关键词组合
+
+            - 包含：场景 + 特征 + 视角，如「样板间 客厅 落地窗 阳光 通透」
+
+            - 不要写句子，只写关键词
+
+
+            ## 口播拍摄指导（filmingGuide）
+
+
+            仅 sceneType=口播 时输出。给中介大白话指导：
+
+            - location：在哪拍（售楼处/样板间/小区门口）
+
+            - posture：什么姿态（站着/边走边说/坐着）
+
+            - props：需要准备什么（工牌/户型图/沙盘）
+
+            - tips：2-3 条实操提示，像同事提醒的话
+
+
+            tips 候选池（根据场景选用，不要每次全写）：
+
+            - 构图类：「不要站在房间正中央，站在角落或门框边，画面更有纵深感」「可以利用门框当天然画框，人在门框里说话，背景是房间」
+
+            - 拍摄类：「手机横屏拍，画质调到 1080p 以上」「找光线好的位置，脸上不要有阴影」「开头和结尾各多录 2 秒，方便剪辑」
+
+            - 表达类：「语速放慢，像跟朋友聊天」「拍两遍，选自然的那条」「不要背稿，看一眼要点然后用自己的话说」
+
+
+            一致性要求：如果一个视频有多段口播（比如开头一段、结尾一段），中介的穿着和整体形象要保持一致，建议一次拍完所有口播段落。
+
+
+            ## 节奏控制
+
+
+            全片节奏要有快慢交替：
+
+            - 素材展示画面：快切（pacing=快，每个 1-3 秒），制造丰富感
+
+            - 口播段落：正常或慢（pacing=正常/慢，5-10 秒），留足表达时间
+
+            - 文字卡：正常（pacing=正常，3-5 秒），确保能读完
+
+            - 不能全片一个节奏，快慢交替才有观感
+
+
+            ## 转场
+
+
+            只用三种，通俗表达：
+
+            - 直接切：大多数情况用这个
+
+            - 渐变过渡：情绪转换时用（如从素材展示切到口播总结）
+
+            - 声音先入画面后跟：口播声音先出来，画面还停在上一个素材上，再切到口播画面
+
+
+            ## 字段条件出现规则
+
+
+            不要输出无意义的空字段：
+
+            - 口播镜头：输出 voiceover + filmingGuide，不输出 assetQuery / subtitle / fallbackVisual
+
+            - 素材镜头：输出 subtitle + assetQuery + fallbackVisual，voiceover 仅在有画外音时输出
+
+            - 文字卡：输出 subtitle，不输出 assetQuery / voiceover / filmingGuide / fallbackVisual
+
+
+            ## 硬约束
+
+
+            1. 第一个镜头必须承接叙事结构中的钩子，3 秒内抓注意力。
+
+            2. 不要出现风险词。
+
+            3. 输出必须是严格 JSON，顶层只有 scenes 数组和 riskNotes 数组。
+
+            4. 不要输出 summary、requiredUploads、optionalTeamVideoAssets 等汇总字段（由 Code 节点计算）。'
+        - id: scene-breakdown-user
+          role: user
+          text: '## 视频叙事结构
+
+            {{#video_narrative.text#}}
+
+
+            ## 创作策略 JSON
+
+            请从下面 JSON 中读取 mustUseFacts。
+
+            {{#creative_strategy.text#}}
+
+
+            ## 可用图片素材（仅供参考画面，不是视频素材）
+
+            {{#start.image_assets_json#}}'
+        reasoning_format: separated
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              riskNotes:
+                items:
+                  type: string
+                type: array
+              scenes:
+                items:
+                  additionalProperties: false
+                  properties:
+                    assetQuery:
+                      type: string
+                    emotionalBeat:
+                      type: string
+                    fallbackVisual:
+                      type: string
+                    filmingGuide:
+                      additionalProperties: false
+                      properties:
+                        location:
+                          type: string
+                        posture:
+                          type: string
+                        props:
+                          items:
+                            type: string
+                          type: array
+                        tips:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - location
+                      - posture
+                      - props
+                      - tips
+                      type: object
+                    pacing:
+                      type: string
+                    sceneNo:
+                      type: number
+                    sceneType:
+                      type: string
+                    subtitle:
+                      type: string
+                    timeRange:
+                      type: string
+                    transition:
+                      type: string
+                    visualDescription:
+                      type: string
+                    voiceover:
+                      type: string
+                  required:
+                  - sceneNo
+                  - timeRange
+                  - sceneType
+                  - emotionalBeat
+                  - visualDescription
+                  - transition
+                  - pacing
+                  type: object
+                type: array
+            required:
+            - scenes
+            - riskNotes
+            type: object
+        structured_output_enabled: true
+        title: 分镜与素材策略
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 132
+      id: scene_breakdown
+      position:
+        x: 1730
+        y: 317.4
+      positionAbsolute:
+        x: 1730
+        y: 317.4
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\nimport re\n\ndef strip_think(text):\n    if not isinstance(text,\
+          \ str):\n        return text\n    if \"</think>\" in text:\n        text\
+          \ = text.rsplit(\"</think>\", 1)[-1]\n    text = re.sub(r\"(?is)<think>.*?</think>\"\
+          , \"\", text)\n    return text.strip()\n\ndef clean_json(value):\n    text\
+          \ = strip_think((value or \"\").strip())\n    if text.startswith(\"```\"\
+          ):\n        text = re.sub(r\"^```(?:json)?\\s*\", \"\", text)\n        text\
+          \ = re.sub(r\"\\s*```$\", \"\", text)\n    return text\n\ndef parse_obj(value):\n\
+          \    if isinstance(value, dict):\n        return value\n    if not isinstance(value,\
+          \ str):\n        return {}\n\n    text = clean_json(value)\n    for candidate\
+          \ in [text] + [text[index:].strip() for index, char in enumerate(text) if\
+          \ char == \"{\"]:\n        try:\n            parsed = json.loads(clean_json(candidate))\n\
+          \            return parsed if isinstance(parsed, dict) else {}\n       \
+          \ except Exception:\n            continue\n    return {}\n\ndef as_list(value):\n\
+          \    return value if isinstance(value, list) else []\n\ndef main(video_narrative:\
+          \ str, scene_breakdown: str) -> dict:\n    \"\"\"\n    从节点 video_narrative\
+          \ 与 scene_breakdown 的输出中编译交付物。\n    职责：推导、拆分、整理。不做任何创作。\n    \"\"\"\n  \
+          \  narrative = parse_obj(video_narrative)\n    breakdown = parse_obj(scene_breakdown)\n\
+          \    scenes = as_list(breakdown.get(\"scenes\"))\n    risk_notes = as_list(breakdown.get(\"\
+          riskNotes\"))\n\n    filming_scenes = [s for s in scenes if isinstance(s,\
+          \ dict) and s.get(\"sceneType\") == \"口播\"]\n    asset_scenes = [s for s\
+          \ in scenes if isinstance(s, dict) and s.get(\"sceneType\") == \"素材\"]\n\
+          \n    member_delivery = {\"tasks\": []}\n    for index, scene in enumerate(filming_scenes):\n\
+          \        guide = scene.get(\"filmingGuide\") if isinstance(scene.get(\"\
+          filmingGuide\"), dict) else {}\n        member_delivery[\"tasks\"].append({\n\
+          \            \"taskNo\": index + 1,\n            \"sceneNo\": scene.get(\"\
+          sceneNo\", index + 1),\n            \"script\": scene.get(\"voiceover\"\
+          , \"\"),\n            \"location\": guide.get(\"location\", \"\"),\n   \
+          \         \"posture\": guide.get(\"posture\", \"\"),\n            \"props\"\
+          : as_list(guide.get(\"props\")),\n            \"tips\": as_list(guide.get(\"\
+          tips\")),\n        })\n\n    worker_delivery = {\n        \"storyOutline\"\
+          : narrative.get(\"storyOutline\", \"\"),\n        \"bgm\": narrative.get(\"\
+          bgmDirection\", \"\"),\n        \"toneOfVoice\": narrative.get(\"toneOfVoice\"\
+          , \"\"),\n        \"estimatedDuration\": narrative.get(\"estimatedDuration\"\
+          , \"\"),\n        \"scenes\": scenes,\n        \"teamAssetQueries\": [\n\
+          \            scene.get(\"assetQuery\", \"\")\n            for scene in asset_scenes\n\
+          \            if str(scene.get(\"assetQuery\") or \"\").strip()\n       \
+          \ ],\n    }\n\n    output = {\n        \"videoScript\": {\n            \"\
+          narrative\": narrative,\n            \"scenes\": scenes,\n            \"\
+          riskNotes\": risk_notes,\n        },\n        \"memberDelivery\": member_delivery,\n\
+          \        \"workerDelivery\": worker_delivery,\n    }\n    return {\"result\"\
+          : json.dumps(output, ensure_ascii=False)}\n"
+        code_language: python3
+        desc: 确定性编译视频脚本、成员拍摄任务和 worker 剪辑指令。
+        outputs:
+          result:
+            children: null
+            type: string
+        selected: false
+        title: 视频交付物编译
+        type: code
+        variables:
+        - value_selector:
+          - video_narrative
+          - text
+          variable: video_narrative
+        - value_selector:
+          - scene_breakdown
+          - text
+          variable: scene_breakdown
+      height: 96
+      id: delivery_compiler
+      position:
+        x: 2072
+        y: 357.4
+      positionAbsolute:
+        x: 2072
+        y: 357.4
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\nimport re\n\nRISK_TERMS = [\n    \"投资回报率高\", \"租金回报高\"\
+          , \"收益稳定\", \"稳赚\", \"保值增值\", \"闭眼买\", \"错过后悔\",\n    \"满租\", \"租金区间\",\
+          \ \"租金回报\", \"低位价格\", \"价格错位\", \"确定兑现\", \"运营成熟验证\",\n    \"收租\", \"贴月供\"\
+          , \"租出去\", \"保租\", \"保回报\"\n]\n\ndef clean_json(value):\n    text = (value\
+          \ or \"\").strip()\n    if text.startswith(\"```\"):\n        text = re.sub(r\"\
+          ^```(?:json)?\\s*\", \"\", text)\n        text = re.sub(r\"\\s*```$\", \"\
+          \", text)\n    return text\n\ndef parse_obj(value):\n    if isinstance(value,\
+          \ dict):\n        return value\n    if not isinstance(value, str):\n   \
+          \     return {}\n\n    text = clean_json(value)\n    if \"</think>\" in\
+          \ text:\n        text = text.rsplit(\"</think>\", 1)[-1].strip()\n\n   \
+          \ for candidate in [text] + [text[index:].strip() for index, char in enumerate(text)\
+          \ if char == \"{\"]:\n        try:\n            parsed = json.loads(clean_json(candidate))\n\
+          \            return parsed if isinstance(parsed, dict) else {}\n       \
+          \ except Exception:\n            continue\n    return {}\n\ndef parse_list(value):\n\
+          \    if isinstance(value, list):\n        return value\n    if isinstance(value,\
+          \ str):\n        try:\n            parsed = json.loads(value or \"[]\")\n\
+          \            return parsed if isinstance(parsed, list) else []\n       \
+          \ except Exception:\n            return []\n    return []\n\ndef as_list(value):\n\
+          \    return value if isinstance(value, list) else []\n\ndef non_empty(value):\n\
+          \    if isinstance(value, list):\n        return len(value) > 0\n    return\
+          \ bool(str(value or \"\").strip())\n\ndef extract_article_bundle(value):\n\
+          \    obj = parse_obj(value)\n    if isinstance(obj.get(\"articlePackage\"\
+          ), dict):\n        return obj.get(\"articlePackage\", {}), obj.get(\"titleStrategy\"\
+          , {}) if isinstance(obj.get(\"titleStrategy\"), dict) else {}\n    return\
+          \ obj, {}\n\ndef extract_video_delivery(value):\n    obj = parse_obj(value)\n\
+          \    if isinstance(obj.get(\"videoScript\"), dict):\n        return obj\n\
+          \    if isinstance(obj.get(\"scenes\"), list) or isinstance(obj.get(\"narrative\"\
+          ), dict):\n        return {\"videoScript\": obj}\n    return {\"videoScript\"\
+          : {}}\n\ndef main(article_json, video_json, image_assets_json: str, fallback_knowledge_text:\
+          \ str) -> dict:\n    article, title_strategy = extract_article_bundle(article_json)\n\
+          \    video_delivery = extract_video_delivery(video_json)\n    video = video_delivery.get(\"\
+          videoScript\") if isinstance(video_delivery.get(\"videoScript\"), dict)\
+          \ else {}\n    narrative = video.get(\"narrative\") if isinstance(video.get(\"\
+          narrative\"), dict) else {}\n    scenes = as_list(video.get(\"scenes\"))\n\
+          \    image_assets = parse_list(image_assets_json)\n\n    public_text = json.dumps({\n\
+          \        \"articlePackage\": article,\n        \"videoDelivery\": video_delivery,\n\
+          \    }, ensure_ascii=False)\n    risk_hits = [term for term in RISK_TERMS\
+          \ if term in public_text]\n    needs_rewrite = bool(risk_hits)\n\n    scores\
+          \ = {\n        \"factAccuracy\": 8,\n        \"projectFit\": 8,\n      \
+          \  \"viralStructure\": 8,\n        \"platformTone\": 8,\n        \"materialFit\"\
+          : 8,\n        \"compliance\": 9,\n    }\n    problems = []\n    revision_suggestions\
+          \ = []\n    red_flags = []\n    missing_inputs = []\n\n    if risk_hits:\n\
+          \        scores[\"compliance\"] = 4\n        problems.append(\"公开成稿存在风险承诺类或价格趋势类表述\"\
+          )\n        red_flags.append(\"命中风险词：\" + \"、\".join(risk_hits))\n\n    copy_ready\
+          \ = str(article.get(\"copyReadyText\") or \"\").strip()\n    if not copy_ready:\n\
+          \        scores[\"platformTone\"] = min(scores[\"platformTone\"], 6)\n \
+          \       problems.append(\"copyReadyText 为空，不能直接复制发布\")\n\n    titles = article.get(\"\
+          titles\")\n    if not isinstance(titles, list) or not titles:\n        scores[\"\
+          platformTone\"] = min(scores[\"platformTone\"], 6)\n        problems.append(\"\
+          titles 为空\")\n    else:\n        if len(titles) < 2:\n            scores[\"\
+          viralStructure\"] = min(scores[\"viralStructure\"], 6)\n            problems.append(\"\
+          标题备选不足 2 个\")\n        selected_title = str(article.get(\"selectedTitle\"\
+          ) or \"\")\n        if len(selected_title) > 20:\n            scores[\"\
+          viralStructure\"] = min(scores[\"viralStructure\"], 6)\n            problems.append(\"\
+          selectedTitle 超过 20 字限制\")\n\n    if title_strategy and not str(title_strategy.get(\"\
+          selectedTitleReason\") or \"\").strip():\n        scores[\"viralStructure\"\
+          ] = min(scores[\"viralStructure\"], 6)\n        problems.append(\"缺少标题选择理由\"\
+          )\n\n    hashtags = article.get(\"hashtags\")\n    if not isinstance(hashtags,\
+          \ list) or not hashtags:\n        scores[\"platformTone\"] = min(scores[\"\
+          platformTone\"], 6)\n        problems.append(\"hashtags 为空\")\n    elif\
+          \ len(hashtags) < 5:\n        scores[\"platformTone\"] = min(scores[\"platformTone\"\
+          ], 6)\n        problems.append(\"hashtags 少于 5 个\")\n\n    blocks = as_list(article.get(\"\
+          contentBlocks\"))\n    if len(blocks) < 3:\n        scores[\"platformTone\"\
+          ] = min(scores[\"platformTone\"], 6)\n        problems.append(\"正文信息块不足\
+          \ 3 个\")\n    if blocks and not any(isinstance(block, dict) and block.get(\"\
+          blockType\") == \"CTA块\" for block in blocks):\n        scores[\"platformTone\"\
+          ] = min(scores[\"platformTone\"], 6)\n        problems.append(\"缺少 CTA 块\"\
+          )\n    for block in blocks:\n        if not isinstance(block, dict):\n \
+          \           scores[\"platformTone\"] = min(scores[\"platformTone\"], 6)\n\
+          \            problems.append(\"正文信息块存在非对象项\")\n            continue\n  \
+          \      if not str(block.get(\"text\") or \"\").strip():\n            scores[\"\
+          platformTone\"] = min(scores[\"platformTone\"], 6)\n            problems.append(f\"\
+          Block {block.get('blockNo', '?')} 缺少正文\")\n        has_image = bool(block.get(\"\
+          imageMatch\") or block.get(\"imageBrief\"))\n        if block.get(\"blockType\"\
+          ) != \"CTA块\" and not has_image:\n            scores[\"materialFit\"] =\
+          \ min(scores[\"materialFit\"], 6)\n            problems.append(f\"Block\
+          \ {block.get('blockNo', '?')} 缺少配图策略\")\n\n    weak_knowledge = \"只有很少资料\"\
+          \ in str(fallback_knowledge_text or \"\")\n    if weak_knowledge:\n    \
+          \    scores[\"factAccuracy\"] = min(scores[\"factAccuracy\"], 5)\n     \
+          \   problems.append(\"项目知识不足，成稿仅适合内部预览\")\n        missing_inputs.append(\"\
+          更完整的项目事实\")\n\n    if not image_assets:\n        scores[\"materialFit\"\
+          ] = min(scores[\"materialFit\"], 6)\n        problems.append(\"缺少可用图片素材\"\
+          )\n        missing_inputs.append(\"图文图片素材\")\n\n    hook = narrative.get(\"\
+          hook\") if isinstance(narrative.get(\"hook\"), dict) else {}\n    if not\
+          \ str(hook.get(\"openingLine\") or \"\").strip():\n        scores[\"viralStructure\"\
+          ] = min(scores[\"viralStructure\"], 6)\n        problems.append(\"视频叙事缺少前\
+          \ 3 秒钩子 openingLine\")\n\n    narrative_arc = as_list(narrative.get(\"narrativeArc\"\
+          ))\n    if len(narrative_arc) < 3:\n        scores[\"viralStructure\"] =\
+          \ min(scores[\"viralStructure\"], 6)\n        problems.append(\"视频叙事弧线少于\
+          \ 3 个节拍\")\n\n    if not str(narrative.get(\"bgmDirection\") or \"\").strip():\n\
+          \        scores[\"materialFit\"] = min(scores[\"materialFit\"], 6)\n   \
+          \     problems.append(\"视频叙事缺少 bgmDirection\")\n\n    if not scenes:\n \
+          \       scores[\"materialFit\"] = min(scores[\"materialFit\"], 5)\n    \
+          \    problems.append(\"视频镜头脚本为空\")\n\n    for index, scene in enumerate(scenes):\n\
+          \        if not isinstance(scene, dict):\n            scores[\"materialFit\"\
+          ] = min(scores[\"materialFit\"], 5)\n            problems.append(f\"第 {index\
+          \ + 1} 个视频场景不是对象\")\n            continue\n\n        scene_no = scene.get(\"\
+          sceneNo\", index + 1)\n        scene_type = scene.get(\"sceneType\")\n \
+          \       if scene_type not in [\"口播\", \"素材\", \"文字卡\"]:\n            scores[\"\
+          materialFit\"] = min(scores[\"materialFit\"], 5)\n            problems.append(f\"\
+          场景 {scene_no} sceneType 非法或缺失\")\n            continue\n\n        if scene_type\
+          \ != \"文字卡\" and not str(scene.get(\"visualDescription\") or \"\").strip():\n\
+          \            scores[\"materialFit\"] = min(scores[\"materialFit\"], 6)\n\
+          \            problems.append(f\"场景 {scene_no} 缺少具体 visualDescription\")\n\
+          \n        if scene_type == \"口播\":\n            guide = scene.get(\"filmingGuide\"\
+          )\n            if not isinstance(guide, dict):\n                scores[\"\
+          materialFit\"] = min(scores[\"materialFit\"], 5)\n                problems.append(f\"\
+          口播场景 {scene_no} 缺少 filmingGuide\")\n            else:\n                if\
+          \ not str(guide.get(\"location\") or \"\").strip():\n                  \
+          \  scores[\"materialFit\"] = min(scores[\"materialFit\"], 6)\n         \
+          \           problems.append(f\"口播场景 {scene_no} 缺少拍摄地点\")\n             \
+          \   if not as_list(guide.get(\"tips\")):\n                    scores[\"\
+          materialFit\"] = min(scores[\"materialFit\"], 6)\n                    problems.append(f\"\
+          口播场景 {scene_no} 缺少实操 tips\")\n            if not str(scene.get(\"voiceover\"\
+          ) or \"\").strip():\n                scores[\"materialFit\"] = min(scores[\"\
+          materialFit\"], 5)\n                problems.append(f\"口播场景 {scene_no} 缺少\
+          \ voiceover 台词\")\n\n        if scene_type == \"素材\":\n            if not\
+          \ str(scene.get(\"assetQuery\") or \"\").strip():\n                scores[\"\
+          materialFit\"] = min(scores[\"materialFit\"], 5)\n                problems.append(f\"\
+          素材场景 {scene_no} 缺少 assetQuery\")\n            if not str(scene.get(\"fallbackVisual\"\
+          ) or \"\").strip():\n                scores[\"materialFit\"] = min(scores[\"\
+          materialFit\"], 6)\n                problems.append(f\"素材场景 {scene_no} 缺少\
+          \ fallbackVisual\")\n\n        if scene_type == \"文字卡\" and not str(scene.get(\"\
+          subtitle\") or \"\").strip():\n            scores[\"materialFit\"] = min(scores[\"\
+          materialFit\"], 5)\n            problems.append(f\"文字卡场景 {scene_no} 缺少 subtitle\"\
+          )\n\n    member_tasks = as_list((video_delivery.get(\"memberDelivery\")\
+          \ or {}).get(\"tasks\") if isinstance(video_delivery.get(\"memberDelivery\"\
+          ), dict) else [])\n    filming_scene_count = len([scene for scene in scenes\
+          \ if isinstance(scene, dict) and scene.get(\"sceneType\") == \"口播\"])\n\
+          \    if filming_scene_count and len(member_tasks) != filming_scene_count:\n\
+          \        scores[\"materialFit\"] = min(scores[\"materialFit\"], 6)\n   \
+          \     problems.append(\"memberDelivery.tasks 与口播场景数量不一致\")\n\n    worker\
+          \ = video_delivery.get(\"workerDelivery\") if isinstance(video_delivery.get(\"\
+          workerDelivery\"), dict) else {}\n    asset_scene_count = len([scene for\
+          \ scene in scenes if isinstance(scene, dict) and scene.get(\"sceneType\"\
+          ) == \"素材\"])\n    if asset_scene_count and not non_empty(worker.get(\"\
+          teamAssetQueries\")):\n        scores[\"materialFit\"] = min(scores[\"materialFit\"\
+          ], 6)\n        problems.append(\"存在素材场景，但 workerDelivery.teamAssetQueries\
+          \ 为空\")\n\n    passed = all(value >= 7 for value in scores.values()) and\
+          \ not red_flags and not missing_inputs and not problems\n\n    out = {\n\
+          \        \"scores\": scores,\n        \"pass\": passed,\n        \"needsRewrite\"\
+          : needs_rewrite,\n        \"riskTerms\": risk_hits,\n        \"problems\"\
+          : problems,\n        \"revisionSuggestions\": revision_suggestions,\n  \
+          \      \"redFlags\": red_flags,\n        \"missingInputs\": missing_inputs,\n\
+          \    }\n    return {\n        \"text\": json.dumps(out, ensure_ascii=False),\n\
+          \        \"needs_rewrite\": \"true\" if needs_rewrite else \"false\",\n\
+          \        \"risk_terms\": \"、\".join(risk_hits),\n    }\n"
+        code_language: python3
+        desc: 规则化质量评审，检查标题策略、卡片式正文、配图策略和视频交付物完整性。
+        outputs:
+          needs_rewrite:
+            children: null
+            type: string
+          risk_terms:
+            children: null
+            type: string
+          text:
+            children: null
+            type: string
+        selected: false
+        title: 质量评审
+        type: code
+        variables:
+        - value_selector:
+          - article_compiler
+          - result
+          variable: article_json
+        - value_selector:
+          - delivery_compiler
+          - result
+          variable: video_json
+        - value_selector:
+          - start
+          - image_assets_json
+          variable: image_assets_json
+        - value_selector:
+          - start
+          - fallback_knowledge_text
+          variable: fallback_knowledge_text
+      height: 112
+      id: quality_reviewer
+      position:
+        x: 2434
+        y: 260.73333333333335
+      positionAbsolute:
+        x: 2434
+        y: 260.73333333333335
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: needs_rewrite
+          conditions:
+          - comparison_operator: is
+            id: condition-needs-rewrite
+            value: 'true'
+            variable_selector:
+            - quality_reviewer
+            - needs_rewrite
+          id: needs_rewrite
+          logical_operator: and
+        desc: 质量门禁命中风险词时进入改写；未命中时直接使用原始结构化输出。
+        logical_operator: and
+        selected: false
+        title: 是否需要违规改写
+        type: if-else
+      height: 192
+      id: if_else_needs_rewrite
+      position:
+        x: 2776
+        y: 239.4
+      positionAbsolute:
+        x: 2776
+        y: 239.4
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 只改 Validator 命中的公开成稿风险词，输出同结构 JSON。
+        model:
+          completion_params:
+            temperature: 0.1
+            top_p: 0.7
+          mode: chat
+          name: deepseek-v4-pro
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: content-risk-rewriter-system
+          role: system
+          text: '你是房地产内容合规改写节点。
+
+
+            你的任务不是重新创作，而是对 Validator 命中的风险词做最小改写。
+
+
+            硬约束：
+
+            1. 只修改 risk_terms 命中的词及其所在句子的公开成稿表达。
+
+            2. 不新增项目事实，不新增价格、租金、回报、兑现、学区、户口、规划等承诺。
+
+            3. 不改变 JSON schema，不删除字段，不新增字段。
+
+            4. 不删除 assetId、imageMatches、contentBlocks、blockNo、sceneNo、timeRange、sceneType、assetQuery、filmingGuide、titleStrategy、memberDelivery、workerDelivery
+            等结构字段。
+
+            5. 不重写未命中的内容，不改变原本的选题角度、口吻和 CTA 强度。
+
+            6. 改写后，任何字符串字段都不能再出现 risk_terms 中的原词。
+
+            7. riskNotes 可以为空数组；如果保留，只能写“已处理收益承诺类表述”等风险类别，禁止复述、引用或列举 risk_terms 中的任何原词。
+
+            8. 禁止使用“如 XXX”“例如 XXX”“已过滤风险词：XXX”这类会复述风险词的句式。
+
+            9. 禁止输出 suggestion、repairInstructions、repairTrace 或解释性文字。
+
+            10. 只输出严格 JSON，顶层必须只有 articlePackage、titleStrategy、videoScript、memberDelivery、workerDelivery。
+
+
+            可改写字段：
+
+            articlePackage.titles、selectedTitle、coverCopy、body、contentBlocks[].text、hashtags、cta、copyReadyText、riskNotes；
+
+            titleStrategy.titles[].text、titleStrategy.coverCopyOptions[].text、titleStrategy.hookAngle；
+
+            videoScript.narrative、videoScript.scenes[].visualDescription、videoScript.scenes[].voiceover、videoScript.scenes[].subtitle、videoScript.scenes[].assetQuery、videoScript.scenes[].fallbackVisual、videoScript.riskNotes；
+
+            memberDelivery.tasks[].script、memberDelivery.tasks[].tips；
+
+            workerDelivery.storyOutline、workerDelivery.bgm、workerDelivery.toneOfVoice、workerDelivery.scenes、workerDelivery.teamAssetQueries。
+
+
+            注意：如果改写了 articlePackage.contentBlocks[].text，需要同步更新 articlePackage.body
+            和 articlePackage.copyReadyText，保持三者一致。
+
+            '
+        - id: content-risk-rewriter-user
+          role: user
+          text: "风险词：\n{{#quality_reviewer.risk_terms#}}\n\n质量评审：\n{{#quality_reviewer.text#}}\n\
+            \n原始图文内容包：\n{{#article_compiler.result#}}\n\n原始视频交付物：\n{{#delivery_compiler.result#}}\n\
+            \n请只做最小合规改写，并输出：\n{\n  \"articlePackage\": {},\n  \"titleStrategy\": {},\n\
+            \  \"videoScript\": {},\n  \"memberDelivery\": {},\n  \"workerDelivery\"\
+            : {}\n}\n"
+        reasoning_format: separated
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              articlePackage:
+                additionalProperties: true
+                type: object
+              memberDelivery:
+                additionalProperties: true
+                type: object
+              titleStrategy:
+                additionalProperties: true
+                type: object
+              videoScript:
+                additionalProperties: true
+                type: object
+              workerDelivery:
+                additionalProperties: true
+                type: object
+            required:
+            - articlePackage
+            - titleStrategy
+            - videoScript
+            - memberDelivery
+            - workerDelivery
+            type: object
+        structured_output_enabled: true
+        title: 违规内容改写 LLM
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 132
+      id: content_risk_rewriter
+      position:
+        x: 3138
+        y: 249.8
+      positionAbsolute:
+        x: 3138
+        y: 249.8
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        output_type: string
+        selected: false
+        title: 图文内容包候选聚合器
+        type: variable-aggregator
+        variables:
+        - - content_risk_rewriter
+          - text
+        - - article_compiler
+          - result
+      height: 135
+      id: article_package_aggregator
+      position:
+        x: 3500
+        y: 317.29999999999995
+      positionAbsolute:
+        x: 3500
+        y: 317.29999999999995
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        output_type: string
+        selected: false
+        title: 视频脚本候选聚合器
+        type: variable-aggregator
+        variables:
+        - - content_risk_rewriter
+          - text
+        - - delivery_compiler
+          - result
+      height: 135
+      id: video_script_aggregator
+      position:
+        x: 3842
+        y: 339.79999999999995
+      positionAbsolute:
+        x: 3842
+        y: 339.79999999999995
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\nimport re\n\nRISK_TERMS = [\n    \"投资回报率高\", \"租金回报高\"\
+          , \"收益稳定\", \"稳赚\", \"保值增值\", \"闭眼买\", \"错过后悔\",\n    \"满租\", \"租金区间\",\
+          \ \"租金回报\", \"投资属性\", \"资产回报\", \"低位价格\", \"价格错位\",\n    \"收租\", \"贴月供\"\
+          , \"租出去\", \"保租\", \"保回报\", \"确定兑现\", \"运营成熟验证\"\n]\n\nINTERNAL_RISK_LIST_KEYS\
+          \ = {\n    \"riskTerms\",\n    \"mustAvoidClaims\",\n    \"mustReviewBeforePublish\"\
+          \n}\n\nRISK_NOTE_KEYS = {\"riskNotes\"}\n\ndef strip_think(text):\n    if\
+          \ not isinstance(text, str):\n        return text\n    if \"</think>\" in\
+          \ text:\n        text = text.rsplit(\"</think>\", 1)[-1]\n    text = re.sub(r\"\
+          (?is)<think>.*?</think>\", \"\", text)\n    return text.strip()\n\ndef clean_json(value):\n\
+          \    text = strip_think((value or \"\").strip())\n    if text.startswith(\"\
+          ```\"):\n        text = re.sub(r\"^```(?:json)?\\s*\", \"\", text)\n   \
+          \     text = re.sub(r\"\\s*```$\", \"\", text)\n    return text\n\ndef parse_obj(value):\n\
+          \    if isinstance(value, dict):\n        return value\n    if not isinstance(value,\
+          \ str):\n        return {}\n\n    text = clean_json(value)\n    if \"</think>\"\
+          \ in text:\n        text = text.rsplit(\"</think>\", 1)[-1].strip()\n\n\
+          \    for candidate in [text] + [text[index:].strip() for index, char in\
+          \ enumerate(text) if char == \"{\"]:\n        try:\n            parsed =\
+          \ json.loads(clean_json(candidate))\n            return parsed if isinstance(parsed,\
+          \ dict) else {}\n        except Exception:\n            continue\n    return\
+          \ {}\n\ndef as_list(value):\n    return value if isinstance(value, list)\
+          \ else []\n\ndef contains_risk(value):\n    text = str(value or \"\")\n\
+          \    return any(term in text for term in RISK_TERMS)\n\ndef scrub_risk_text(text):\n\
+          \    text = strip_think(str(text or \"\"))\n    for term in sorted(RISK_TERMS,\
+          \ key=len, reverse=True):\n        text = text.replace(term, \"合规敏感表述\"\
+          )\n    text = re.sub(r\"(合规敏感表述[、,，/\\s]*){2,}\", \"合规敏感表述\", text)\n  \
+          \  text = text.replace(\"如合规敏感表述等\", \"相关表述\")\n    text = text.replace(\"\
+          例如合规敏感表述\", \"相关表述\")\n    text = text.replace(\"已过滤风险词：合规敏感表述\", \"已处理合规风险表述\"\
+          )\n    return text.strip()\n\ndef sanitize_public_output(value, key=\"\"\
+          ):\n    if isinstance(value, dict):\n        cleaned = {}\n        for child_key,\
+          \ child_value in value.items():\n            if child_key in INTERNAL_RISK_LIST_KEYS:\n\
+          \                cleaned[child_key] = []\n            elif child_key in\
+          \ RISK_NOTE_KEYS:\n                cleaned[child_key] = []\n           \
+          \ else:\n                cleaned[child_key] = sanitize_public_output(child_value,\
+          \ child_key)\n        return cleaned\n\n    if isinstance(value, list):\n\
+          \        cleaned = []\n        for item in value:\n            if key in\
+          \ INTERNAL_RISK_LIST_KEYS or key in RISK_NOTE_KEYS:\n                if\
+          \ contains_risk(item):\n                    continue\n            cleaned.append(sanitize_public_output(item,\
+          \ key))\n        return cleaned\n\n    if isinstance(value, str):\n    \
+          \    if contains_risk(value) or \"<think>\" in value or \"</think>\" in\
+          \ value:\n            return scrub_risk_text(value)\n        return value\n\
+          \n    return value\n\ndef is_article_package(value):\n    return isinstance(value,\
+          \ dict) and (\n        \"copyReadyText\" in value or \"body\" in value or\
+          \ \"selectedTitle\" in value or \"contentBlocks\" in value\n    )\n\ndef\
+          \ is_video_script(value):\n    return isinstance(value, dict) and (\n  \
+          \      isinstance(value.get(\"scenes\"), list) or isinstance(value.get(\"\
+          narrative\"), dict) or \"storyOutline\" in value\n    )\n\ndef extract_article_bundle(value):\n\
+          \    obj = parse_obj(value)\n    if is_article_package(obj.get(\"articlePackage\"\
+          )):\n        return obj.get(\"articlePackage\", {}), obj.get(\"titleStrategy\"\
+          , {}) if isinstance(obj.get(\"titleStrategy\"), dict) else {}\n    if is_article_package(obj):\n\
+          \        return obj, {}\n    return {}, {}\n\ndef extract_video_delivery(value):\n\
+          \    obj = parse_obj(value)\n    if is_video_script(obj.get(\"videoScript\"\
+          )):\n        return {\n            \"videoScript\": obj.get(\"videoScript\"\
+          , {}),\n            \"memberDelivery\": obj.get(\"memberDelivery\", {}),\n\
+          \            \"workerDelivery\": obj.get(\"workerDelivery\", {}),\n    \
+          \    }\n    if is_video_script(obj):\n        return {\n            \"videoScript\"\
+          : obj,\n            \"memberDelivery\": {},\n            \"workerDelivery\"\
+          : {},\n        }\n    return {\n        \"videoScript\": {},\n        \"\
+          memberDelivery\": {},\n        \"workerDelivery\": {},\n    }\n\ndef compact_image_refs(article):\n\
+          \    refs = []\n    for item in as_list(article.get(\"imageMatches\")):\n\
+          \        if not isinstance(item, dict):\n            continue\n        refs.append({\n\
+          \            \"assetId\": item.get(\"assetId\", \"\"),\n            \"title\"\
+          : item.get(\"title\", \"\")\n        })\n    return refs\n\ndef normalize_quality(quality):\n\
+          \    if not quality:\n        return {\n            \"scores\": {},\n  \
+          \          \"pass\": False,\n            \"problems\": [\"质量评审无法解析\"],\n\
+          \            \"revisionSuggestions\": [],\n            \"redFlags\": [],\n\
+          \            \"missingInputs\": [],\n            \"needsRewrite\": False,\n\
+          \            \"riskTerms\": []\n        }\n\n    quality.setdefault(\"scores\"\
+          , {})\n    quality.setdefault(\"problems\", [])\n    quality.setdefault(\"\
+          revisionSuggestions\", [])\n    quality.setdefault(\"redFlags\", [])\n \
+          \   quality.setdefault(\"missingInputs\", [])\n    quality.setdefault(\"\
+          needsRewrite\", False)\n    quality.setdefault(\"riskTerms\", [])\n    return\
+          \ quality\n\ndef mark_repair_if_needed(quality):\n    if not quality.get(\"\
+          needsRewrite\"):\n        return quality\n\n    quality[\"preRepairPass\"\
+          ] = quality.get(\"pass\", False)\n    quality[\"autoRewritten\"] = True\n\
+          \    quality[\"repairPolicy\"] = \"validator_risk_terms_minimal_rewrite\"\
+          \n\n    scores = quality.get(\"scores\") or {}\n    scores[\"compliance\"\
+          ] = max(float(scores.get(\"compliance\", 0) or 0), 8)\n    quality[\"scores\"\
+          ] = scores\n\n    risk_problem_keywords = [\"风险承诺\", \"价格趋势\", \"命中风险词\"\
+          ]\n    quality[\"problems\"] = [\n        item for item in as_list(quality.get(\"\
+          problems\"))\n        if not any(keyword in str(item) for keyword in risk_problem_keywords)\n\
+          \    ]\n    quality[\"redFlags\"] = [\n        item for item in as_list(quality.get(\"\
+          redFlags\"))\n        if \"命中风险词\" not in str(item)\n    ]\n    quality[\"\
+          revisionSuggestions\"] = [\n        item for item in as_list(quality.get(\"\
+          revisionSuggestions\"))\n        if not any(keyword in str(item) for keyword\
+          \ in risk_problem_keywords)\n    ]\n    quality[\"pass\"] = (\n        all(float(value\
+          \ or 0) >= 7 for value in scores.values())\n        and not quality[\"problems\"\
+          ]\n        and not quality[\"redFlags\"]\n        and not as_list(quality.get(\"\
+          missingInputs\"))\n    )\n    return quality\n\ndef main(article_package,\
+          \ video_script, quality_review_text: str, task_understanding_text: str,\
+          \ creative_strategy_text: str) -> dict:\n    article, title_strategy = extract_article_bundle(article_package)\n\
+          \    video_delivery = extract_video_delivery(video_script)\n    task_understanding\
+          \ = parse_obj(task_understanding_text)\n    creative_strategy = parse_obj(creative_strategy_text)\n\
+          \    quality = normalize_quality(parse_obj(quality_review_text))\n\n   \
+          \ degradation_notices = []\n    if not parse_obj(quality_review_text):\n\
+          \        degradation_notices.append(\"质量评审无法解析\")\n\n    strategy_notices\
+          \ = creative_strategy.get(\"degradationNotices\")\n    if isinstance(strategy_notices,\
+          \ list):\n        degradation_notices.extend(strategy_notices)\n\n    quality\
+          \ = mark_repair_if_needed(quality)\n    if quality.get(\"autoRewritten\"\
+          ):\n        degradation_notices.append(\"已根据质量门禁命中风险词进行自动改写\")\n\n    used_viral\
+          \ = creative_strategy.get(\"usedViralRefs\")\n    if not used_viral:\n \
+          \       pattern = creative_strategy.get(\"viralPatternUsed\")\n        used_viral\
+          \ = [pattern] if isinstance(pattern, dict) else []\n\n    result = {\n \
+          \       \"workflowVersion\": \"content_calendar_generation_poc_v3_article_video_split\"\
+          ,\n        \"articlePackage\": article,\n        \"titleStrategy\": title_strategy,\n\
+          \        \"videoScript\": video_delivery.get(\"videoScript\", {}),\n   \
+          \     \"memberDelivery\": video_delivery.get(\"memberDelivery\", {}),\n\
+          \        \"workerDelivery\": video_delivery.get(\"workerDelivery\", {}),\n\
+          \        \"qualityReview\": quality,\n        \"trace\": {\n           \
+          \ \"taskUnderstanding\": task_understanding,\n            \"creativeStrategy\"\
+          : creative_strategy,\n            \"usedKnowledgeRefs\": creative_strategy.get(\"\
+          mustUseFacts\") or creative_strategy.get(\"usedKnowledgeRefs\") or [],\n\
+          \            \"usedViralRefs\": used_viral,\n            \"usedImageAssets\"\
+          : compact_image_refs(article),\n            \"degradationNotices\": degradation_notices\n\
+          \        },\n        \"saveHints\": {\n            \"contentDraftInputSnapshotKeys\"\
+          : [\n                \"source\",\n                \"teamCalendarTask\",\n\
+          \                \"knowledgeRefs\",\n                \"viralRefs\",\n  \
+          \              \"imageAssetRefs\",\n                \"qualityReview\"\n\
+          \            ]\n        }\n    }\n    result = sanitize_public_output(result)\n\
+          \    return {\"final_result_json\": json.dumps(result, ensure_ascii=False)}\n"
+        code_language: python3
+        desc: 确定性最终聚合，输出图文包、标题策略、视频脚本、成员拍摄任务和 worker 剪辑指令。
+        outputs:
+          final_result_json:
+            children: null
+            type: string
+        selected: false
+        title: 最终结果编译
+        type: code
+        variables:
+        - value_selector:
+          - article_package_aggregator
+          - output
+          variable: article_package
+        - value_selector:
+          - video_script_aggregator
+          - output
+          variable: video_script
+        - value_selector:
+          - quality_reviewer
+          - text
+          variable: quality_review_text
+        - value_selector:
+          - task_understanding
+          - text
+          variable: task_understanding_text
+        - value_selector:
+          - creative_strategy
+          - text
+          variable: creative_strategy_text
+      height: 112
+      id: final_compiler
+      position:
+        x: 4184
+        y: 373.79999999999995
+      positionAbsolute:
+        x: 4184
+        y: 373.79999999999995
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - final_compiler
+          - final_result_json
+          variable: final_result_json
+        selected: false
+        title: 输出
+        type: end
+      height: 88
+      id: end
+      position:
+        x: 4526
+        y: 404.4666666666667
+      positionAbsolute:
+        x: 4526
+        y: 404.4666666666667
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    viewport:
+      x: -1106.8574601390028
+      y: 37.95148283694661
+      zoom: 0.6874977166843738
+  rag_pipeline_variables: []

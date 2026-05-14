@@ -1,0 +1,721 @@
+{
+  "start": {
+    "event": "node_finished",
+    "title": "开始",
+    "node_type": "start",
+    "status": "succeeded",
+    "outputs": {
+      "calendar_task_json": "{\"taskId\":\"task_20260511_001\",\"theme\":\"小户型回归\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"刚需客户\",\"summary\":\"低总价上车、成熟配套、租金回报\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-11\"}",
+      "viral_references_json": "[{\"id\":\"viral_001\",\"platform\":\"xiaohongshu\",\"title\":\"很多人以为小户型没人看了，其实刚需又开始回头看\",\"structure\":[\"反常识开头\",\"解释变化\",\"落到真实选择\",\"轻CTA\"],\"hook\":\"很多人以为小户型过时了\",\"ctaStyle\":\"想看户型和总价，可以私信\"}]",
+      "image_assets_json": "[{\"assetId\":\"img_001\",\"title\":\"项目外立面\",\"url\":\"https://example.com/facade.jpg\",\"tags\":[\"项目外立面\",\"小区入口\",\"封面\"],\"description\":\"适合承接项目可信度和封面展示\"},{\"assetId\":\"img_002\",\"title\":\"样板间客厅\",\"url\":\"https://example.com/living-room.jpg\",\"tags\":[\"样板间\",\"客厅\",\"空间感\"],\"description\":\"适合讲居住体验\"}]",
+      "fallback_knowledge_text": "项目资料：80万方大社区，约1万户、3万人口，社区内有成熟消费与服务需求。产品有4米层高、商务大堂，70平、200平、250平可对应不同用途。风险资料：历史资料里提到满租、租金区间、低位价格，但这些只能作为内部判断，不能用于对外承诺或营销表达。",
+      "extra_requirement": "口吻更像本地中介，CTA轻一点，不要制造焦虑。"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "task_understanding": {
+    "event": "node_finished",
+    "title": "任务理解",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"contentType\":\"article_and_video\",\"coreTopic\":\"小户型回归\",\"extraRequirement\":\"口吻更像本地中介，CTA轻一点，不要制造焦虑。\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"riskConstraints\":[\"收益承诺类\"],\"sellingPointsNeeded\":[\"低总价上车\",\"成熟配套\"],\"targetAudience\":\"刚需客户\",\"audiencePain\":\"预算有限，需寻找性价比高的居住选择。\",\"contentGoal\":\"种草\",\"copySearchQuery\":\"小户型回归 刚需客户 低总价上车 成熟配套\",\"imageSearchQuery\":\"小户型实景 成熟社区 配套设施 生活便利\",\"scriptSearchQuery\":\"小户型回归 预算友好 成熟配套 空间使用 生活便利\",\"videoAssetQueryHints\":[\"小户型实景展示\",\"社区配套设施\",\"生活便利场景\"]}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 567,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.002835",
+        "completion_tokens": 198,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.00297",
+        "total_tokens": 765,
+        "total_price": "0.005805",
+        "currency": "USD",
+        "latency": 10.579,
+        "time_to_first_token": 10.387,
+        "time_to_generate": 0.192
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "contentType": "article_and_video",
+        "coreTopic": "小户型回归",
+        "extraRequirement": "口吻更像本地中介，CTA轻一点，不要制造焦虑。",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "riskConstraints": [
+          "收益承诺类"
+        ],
+        "sellingPointsNeeded": [
+          "低总价上车",
+          "成熟配套"
+        ],
+        "targetAudience": "刚需客户",
+        "audiencePain": "预算有限，需寻找性价比高的居住选择。",
+        "contentGoal": "种草",
+        "copySearchQuery": "小户型回归 刚需客户 低总价上车 成熟配套",
+        "imageSearchQuery": "小户型实景 成熟社区 配套设施 生活便利",
+        "scriptSearchQuery": "小户型回归 预算友好 成熟配套 空间使用 生活便利",
+        "videoAssetQueryHints": [
+          "小户型实景展示",
+          "社区配套设施",
+          "生活便利场景"
+        ]
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 765,
+      "total_price": "0.005805",
+      "currency": "USD"
+    }
+  },
+  "kb_project_knowledge": {
+    "event": "node_finished",
+    "title": "txt 知识库检索",
+    "node_type": "knowledge-retrieval",
+    "status": "succeeded",
+    "outputs": {
+      "result": [
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "e8e7bc39-d941-4c4b-8a80-59405fba3143",
+            "document_name": "核心对话提取.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "5e3de425-b7cf-4819-8596-ff0d6ba3eb24",
+            "retriever_from": "workflow",
+            "score": 0.6105312,
+            "child_chunks": [],
+            "segment_hit_count": 24,
+            "segment_word_count": 110,
+            "segment_position": 49,
+            "segment_index_node_hash": "37bee2b890c3065e1ffbd1e484ab022e83564bded6f73a3ec700a1083bc19512",
+            "doc_metadata": null,
+            "position": 1
+          },
+          "title": "核心对话提取.txt",
+          "files": null,
+          "content": "- `类住宅舒适路`\n - 核心卖点：70平、4米层高、地铁便利、总价显著低于住宅。\n - 适合人群：预算有限但追求空间舒适度、通勤便利、品质感的客户。\n - 注意：表达上要合规，强调舒适使用场景，不要乱打住宅替代承诺。",
+          "summary": null
+        },
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "e8e7bc39-d941-4c4b-8a80-59405fba3143",
+            "document_name": "核心对话提取.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "67c410da-7a2f-4c3b-b578-5be34f3cacc2",
+            "retriever_from": "workflow",
+            "score": 0.5930612,
+            "child_chunks": [],
+            "segment_hit_count": 32,
+            "segment_word_count": 298,
+            "segment_position": 33,
+            "segment_index_node_hash": "76ca015696f2e88d1f452cf28ef4aa00a08f0f35b5614f8ee383f46a00fc111e",
+            "doc_metadata": null,
+            "position": 2
+          },
+          "title": "核心对话提取.txt",
+          "files": null,
+          "content": "- `社区经济托底`：80万方大社区，约1万户、3万人口，楼下就是现成消费与服务需求，不是PPT里的未来人口。\n- `成熟运营验证`：底商、二期商办已经有满租和实际租金区间，这意味着“能不能租出去”不是想象题，而是证据题。\n- `舒适度型产品`：4米层高、商务大堂、品质感强，它不是靠搭板赠送拼功能，而是靠空间舒适度和场景质感取胜。\n- `一套资产，多种用途`：70平、200平、250平不是一个逻辑。它们分别对应类居住、公寓收租、自用办公、会所接待、分租贴月供。\n- `价格与成熟度错位`：同板块成熟配套、地铁、运营、竞品价格锚都在，但你卖的是最后一期、成熟兑现后的低位价格带，这种错位很稀缺。",
+          "summary": null
+        },
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "e8e7bc39-d941-4c4b-8a80-59405fba3143",
+            "document_name": "核心对话提取.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "4a735114-c38b-4cf6-9f3f-16d61965a413",
+            "retriever_from": "workflow",
+            "score": 0.5505198,
+            "child_chunks": [],
+            "segment_hit_count": 7,
+            "segment_word_count": 111,
+            "segment_position": 18,
+            "segment_index_node_hash": "42a5b3559df93210208da8df939afe9ed5af981b958b9d3594e4a723ed961d6e",
+            "doc_metadata": null,
+            "position": 3
+          },
+          "title": "核心对话提取.txt",
+          "files": null,
+          "content": "更适合的线上入口**\n- 不要主打“私信领优惠”\n- 更适合主打：\n - `把预算、家庭结构、工作通勤发我，我先告诉你这盘值不值得看。`\n - `不急着买也可以，先把判断逻辑弄清。`\n - `你先别交定金，先看这3件事。`",
+          "summary": null
+        }
+      ]
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 0,
+      "total_price": "0.0",
+      "currency": "USD"
+    }
+  },
+  "creative_strategy": {
+    "event": "node_finished",
+    "title": "创作策略规划",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"chosenAngle\":\"小户型的灵活性与社区成熟配套\",\"narrativeArc\":[\"开篇引入小户型回归的趋势\",\"介绍项目的核心特点，如4米层高和成熟社区配套\",\"结合目标用户的实际需求，展示适配性\",\"结尾轻松引导用户进一步了解\"],\"mustUseFacts\":[\"项目位于一个80万方的大社区，拥有约1万户、3万人口的成熟社区环境。\",\"社区内已有实际消费与服务需求，配套设施成熟。\",\"产品设计包括4米层高和商务大堂，适合多种用途。\"],\"mustAvoidClaims\":[\"任何形式的收益承诺或价格趋势预测\",\"关于出租确定性的明确承诺\"],\"articlePlan\":{\"titleDirection\":\"小户型的多样化选择与社区成熟配套\",\"coverCopyDirection\":\"通过展示项目的实际环境和样板间，吸引目标用户关注\",\"bodyStructure\":[\"引入小户型的回归趋势\",\"描述项目的核心特点和适配性\",\"结合目标用户的需求，展示项目的优势\",\"轻松引导用户进一步了解\"],\"imagePlan\":[\"项目外立面和社区环境\",\"样板间展示，突出空间感\",\"社区内的配套设施和生活场景\"]},\"videoPlan\":{\"storyOutline\":\"通过真实场景展示小户型的灵活性和社区成熟配套，结合目标用户需求，轻松引导进一步了解。\",\"scenePlan\":[\"开篇展示社区环境和外立面\",\"样板间的空间感和设计细节\",\"社区内的配套设施和生活场景\",\"结尾轻松引导用户进一步了解\"],\"estimatedDuration\":\"1-2分钟\",\"assetQueryHints\":[\"小户型实景展示\",\"社区配套设施\",\"生活便利场景\"]},\"viralPatternUsed\":{\"patternName\":\"反常识开头+真实场景展示\",\"hookTactics\":[\"反常识开头\",\"结合用户需求的真实场景\"],\"titleTactics\":[\"突出小户型的回归趋势\",\"强调社区成熟配套\"],\"ctaTactics\":[\"轻松引导用户进一步了解\",\"鼓励用户私信咨询\"]},\"tone\":\"轻松、专业且贴近用户需求\",\"trace\":{\"usedKnowledgeSummary\":[\"项目位于一个80万方的大社区，拥有约1万户、3万人口的成熟社区环境。\",\"社区内已有实际消费与服务需求，配套设施成熟。\",\"产品设计包括4米层高和商务大堂，适合多种用途。\"],\"usedImageSummary\":[\"项目外立面和社区环境\",\"样板间展示，突出空间感\",\"社区内的配套设施和生活场景\"],\"usedViralSummary\":[\"反常识开头+真实场景展示\"]},\"qualityGateHints\":{\"complianceRisks\":[\"收益承诺类\"],\"factWeakness\":\"项目的具体位置和价格信息未明确，需要避免误导性表述。\",\"mustReviewBeforePublish\":[\"确保内容表述符合合规要求\",\"避免使用风险词汇\"]},\"degradationNotices\":[\"项目事实不足\"],\"tone\":\"轻松、专业且贴近用户需求\"}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 2679,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.013395",
+        "completion_tokens": 676,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.01014",
+        "total_tokens": 3355,
+        "total_price": "0.023535",
+        "currency": "USD",
+        "latency": 19.521,
+        "time_to_first_token": 18.87,
+        "time_to_generate": 0.652
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "chosenAngle": "小户型的灵活性与社区成熟配套",
+        "narrativeArc": [
+          "开篇引入小户型回归的趋势",
+          "介绍项目的核心特点，如4米层高和成熟社区配套",
+          "结合目标用户的实际需求，展示适配性",
+          "结尾轻松引导用户进一步了解"
+        ],
+        "mustUseFacts": [
+          "项目位于一个80万方的大社区，拥有约1万户、3万人口的成熟社区环境。",
+          "社区内已有实际消费与服务需求，配套设施成熟。",
+          "产品设计包括4米层高和商务大堂，适合多种用途。"
+        ],
+        "mustAvoidClaims": [
+          "任何形式的收益承诺或价格趋势预测",
+          "关于出租确定性的明确承诺"
+        ],
+        "articlePlan": {
+          "titleDirection": "小户型的多样化选择与社区成熟配套",
+          "coverCopyDirection": "通过展示项目的实际环境和样板间，吸引目标用户关注",
+          "bodyStructure": [
+            "引入小户型的回归趋势",
+            "描述项目的核心特点和适配性",
+            "结合目标用户的需求，展示项目的优势",
+            "轻松引导用户进一步了解"
+          ],
+          "imagePlan": [
+            "项目外立面和社区环境",
+            "样板间展示，突出空间感",
+            "社区内的配套设施和生活场景"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "通过真实场景展示小户型的灵活性和社区成熟配套，结合目标用户需求，轻松引导进一步了解。",
+          "scenePlan": [
+            "开篇展示社区环境和外立面",
+            "样板间的空间感和设计细节",
+            "社区内的配套设施和生活场景",
+            "结尾轻松引导用户进一步了解"
+          ],
+          "estimatedDuration": "1-2分钟",
+          "assetQueryHints": [
+            "小户型实景展示",
+            "社区配套设施",
+            "生活便利场景"
+          ]
+        },
+        "viralPatternUsed": {
+          "patternName": "反常识开头+真实场景展示",
+          "hookTactics": [
+            "反常识开头",
+            "结合用户需求的真实场景"
+          ],
+          "titleTactics": [
+            "突出小户型的回归趋势",
+            "强调社区成熟配套"
+          ],
+          "ctaTactics": [
+            "轻松引导用户进一步了解",
+            "鼓励用户私信咨询"
+          ]
+        },
+        "tone": "轻松、专业且贴近用户需求",
+        "trace": {
+          "usedKnowledgeSummary": [
+            "项目位于一个80万方的大社区，拥有约1万户、3万人口的成熟社区环境。",
+            "社区内已有实际消费与服务需求，配套设施成熟。",
+            "产品设计包括4米层高和商务大堂，适合多种用途。"
+          ],
+          "usedImageSummary": [
+            "项目外立面和社区环境",
+            "样板间展示，突出空间感",
+            "社区内的配套设施和生活场景"
+          ],
+          "usedViralSummary": [
+            "反常识开头+真实场景展示"
+          ]
+        },
+        "qualityGateHints": {
+          "complianceRisks": [
+            "收益承诺类"
+          ],
+          "factWeakness": "项目的具体位置和价格信息未明确，需要避免误导性表述。",
+          "mustReviewBeforePublish": [
+            "确保内容表述符合合规要求",
+            "避免使用风险词汇"
+          ]
+        },
+        "degradationNotices": [
+          "项目事实不足"
+        ]
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 3355,
+      "total_price": "0.023535",
+      "currency": "USD"
+    }
+  },
+  "title_cover": {
+    "event": "node_finished",
+    "title": "标题与封面策略",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"titles\":[{\"text\":\"小户型真的回来了？成熟社区配套成亮点\",\"formula\":\"反常识开头\",\"whyThisFormula\":\"开篇以反常识的角度吸引用户注意，同时引出社区配套的核心卖点，激发兴趣点。\"},{\"text\":\"4米层高的小户型，空间感不输大宅\",\"formula\":\"数字冲击\",\"whyThisFormula\":\"用具体数字呈现产品特色，吸引用户对小户型的设计亮点产生好奇。\"},{\"text\":\"成熟社区里的小户型选择，灵活又实用\",\"formula\":\"社会认同\",\"whyThisFormula\":\"强调社区成熟配套和产品适配性，增加目标用户的信任感和吸引力。\"}],\"coverCopyOptions\":[{\"text\":\"4米层高小户型，灵活空间新选择\",\"style\":\"大字报型\"},{\"text\":\"成熟社区，住户1万+，生活配套齐全\",\"style\":\"实拍+文字型\"}],\"selectedTitle\":\"小户型真的回来了？成熟社区配套成亮点\",\"selectedTitleReason\":\"这个标题用反常识的方式引起兴趣，结合社区成熟配套强调项目的吸引力，与目标用户需求紧密贴合。\",\"selectedCoverCopy\":\"4米层高小户型，灵活空间新选择\",\"hookAngle\":\"结合用户对小户型灵活性的关注点，突出社区配套成熟的卖点，吸引刚需客户关注。\"}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 1714,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.00857",
+        "completion_tokens": 325,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.004875",
+        "total_tokens": 2039,
+        "total_price": "0.013445",
+        "currency": "USD",
+        "latency": 8.405,
+        "time_to_first_token": 8.085,
+        "time_to_generate": 0.32
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "titles": [
+          {
+            "text": "小户型真的回来了？成熟社区配套成亮点",
+            "formula": "反常识开头",
+            "whyThisFormula": "开篇以反常识的角度吸引用户注意，同时引出社区配套的核心卖点，激发兴趣点。"
+          },
+          {
+            "text": "4米层高的小户型，空间感不输大宅",
+            "formula": "数字冲击",
+            "whyThisFormula": "用具体数字呈现产品特色，吸引用户对小户型的设计亮点产生好奇。"
+          },
+          {
+            "text": "成熟社区里的小户型选择，灵活又实用",
+            "formula": "社会认同",
+            "whyThisFormula": "强调社区成熟配套和产品适配性，增加目标用户的信任感和吸引力。"
+          }
+        ],
+        "coverCopyOptions": [
+          {
+            "text": "4米层高小户型，灵活空间新选择",
+            "style": "大字报型"
+          },
+          {
+            "text": "成熟社区，住户1万+，生活配套齐全",
+            "style": "实拍+文字型"
+          }
+        ],
+        "selectedTitle": "小户型真的回来了？成熟社区配套成亮点",
+        "selectedTitleReason": "这个标题用反常识的方式引起兴趣，结合社区成熟配套强调项目的吸引力，与目标用户需求紧密贴合。",
+        "selectedCoverCopy": "4米层高小户型，灵活空间新选择",
+        "hookAngle": "结合用户对小户型灵活性的关注点，突出社区配套成熟的卖点，吸引刚需客户关注。"
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 2039,
+      "total_price": "0.013445",
+      "currency": "USD"
+    }
+  },
+  "video_narrative": {
+    "event": "node_finished",
+    "title": "视频叙事结构",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"hook\":{\"openingLine\":\"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\",\"strategy\":\"反常识开头引发关注\"},\"narrativeArc\":[\"开篇引入小户型回归的趋势，强调其空间灵活性和实用性。\",\"展示项目的独特设计特点，如4米层高和商务大堂。\",\"介绍社区成熟配套及实际生活便利性。\",\"结合目标用户需求，轻松引导进一步了解。\"],\"storyOutline\":\"从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。\",\"voiceoverDraft\":\"\\\"说实话，这个项目真是让我眼前一亮。它位于一个成熟的大社区，不仅配套齐全，而且这个小户型还有4米层高设计，特别适合多种用途。你可以看到，样板间里每一寸空间都被巧妙地利用，既有生活舒适感，又兼具灵活实用性。而且，社区内的商业配套和服务设施都已经很成熟，生活起来非常便利。对于刚需客户来说，实地看看会更直观。\\\"\",\"estimatedDuration\":\"90秒\",\"toneOfVoice\":\"轻松、贴近生活，专业中带有亲切感\",\"bgmDirection\":\"轻快舒适的背景音乐，适合日常生活场景\"}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 1761,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.008805",
+        "completion_tokens": 332,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.00498",
+        "total_tokens": 2093,
+        "total_price": "0.013785",
+        "currency": "USD",
+        "latency": 9.356,
+        "time_to_first_token": 9.068,
+        "time_to_generate": 0.288
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "hook": {
+          "openingLine": "\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\"",
+          "strategy": "反常识开头引发关注"
+        },
+        "narrativeArc": [
+          "开篇引入小户型回归的趋势，强调其空间灵活性和实用性。",
+          "展示项目的独特设计特点，如4米层高和商务大堂。",
+          "介绍社区成熟配套及实际生活便利性。",
+          "结合目标用户需求，轻松引导进一步了解。"
+        ],
+        "storyOutline": "从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。",
+        "voiceoverDraft": "\"说实话，这个项目真是让我眼前一亮。它位于一个成熟的大社区，不仅配套齐全，而且这个小户型还有4米层高设计，特别适合多种用途。你可以看到，样板间里每一寸空间都被巧妙地利用，既有生活舒适感，又兼具灵活实用性。而且，社区内的商业配套和服务设施都已经很成熟，生活起来非常便利。对于刚需客户来说，实地看看会更直观。\"",
+        "estimatedDuration": "90秒",
+        "toneOfVoice": "轻松、贴近生活，专业中带有亲切感",
+        "bgmDirection": "轻快舒适的背景音乐，适合日常生活场景"
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 2093,
+      "total_price": "0.013785",
+      "currency": "USD"
+    }
+  },
+  "article_body": {
+    "event": "node_finished",
+    "title": "正文与配图编排",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"contentBlocks\":[{\"blockNo\":1,\"blockType\":\"数据块\",\"text\":\"项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\",\"imageMatch\":{\"assetId\":\"img_001\",\"title\":\"项目外立面\",\"usage\":\"展示社区规模与成熟度\",\"cosPath\":\"https://example.com/facade.jpg\",\"role\":\"展示社区环境\"}},{\"blockNo\":2,\"blockType\":\"体验块\",\"text\":\"4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\",\"imageMatch\":{\"assetId\":\"img_002\",\"title\":\"样板间客厅\",\"usage\":\"展示空间感与设计亮点\",\"cosPath\":\"https://example.com/living-room.jpg\",\"role\":\"样板间展示\"}},{\"blockNo\":3,\"blockType\":\"清单块\",\"text\":\"社区配套设施包括：\\n- 超市、餐饮等商业配套\\n- 健身房、游泳池等休闲设施\\n- 幼儿园、诊所等生活服务\",\"imageBrief\":\"社区内的配套设施和生活场景照片\"},{\"blockNo\":4,\"blockType\":\"对比块\",\"text\":\"与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\",\"imageBrief\":\"样板间对比传统小户型的空间设计\"}],\"cta\":\"对小户型感兴趣？私信我，发你更多细节！\",\"hashtags\":[\"小户型\",\"成熟社区\",\"灵活空间\",\"社区配套\",\"居住体验\",\"样板间\"],\"imageBriefsIfMissing\":[\"社区内的配套设施和生活场景照片\",\"样板间对比传统小户型的空间设计\"],\"riskNotes\":[\"避免提及价格或收益承诺\",\"避免对出租确定性进行明确表述\"]}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 2102,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.01051",
+        "completion_tokens": 418,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.00627",
+        "total_tokens": 2520,
+        "total_price": "0.01678",
+        "currency": "USD",
+        "latency": 12.974,
+        "time_to_first_token": 12.643,
+        "time_to_generate": 0.331
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "contentBlocks": [
+          {
+            "blockNo": 1,
+            "blockType": "数据块",
+            "text": "项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。",
+            "imageMatch": {
+              "assetId": "img_001",
+              "title": "项目外立面",
+              "usage": "展示社区规模与成熟度",
+              "cosPath": "https://example.com/facade.jpg",
+              "role": "展示社区环境"
+            }
+          },
+          {
+            "blockNo": 2,
+            "blockType": "体验块",
+            "text": "4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。",
+            "imageMatch": {
+              "assetId": "img_002",
+              "title": "样板间客厅",
+              "usage": "展示空间感与设计亮点",
+              "cosPath": "https://example.com/living-room.jpg",
+              "role": "样板间展示"
+            }
+          },
+          {
+            "blockNo": 3,
+            "blockType": "清单块",
+            "text": "社区配套设施包括：\n- 超市、餐饮等商业配套\n- 健身房、游泳池等休闲设施\n- 幼儿园、诊所等生活服务",
+            "imageBrief": "社区内的配套设施和生活场景照片"
+          },
+          {
+            "blockNo": 4,
+            "blockType": "对比块",
+            "text": "与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。",
+            "imageBrief": "样板间对比传统小户型的空间设计"
+          }
+        ],
+        "cta": "对小户型感兴趣？私信我，发你更多细节！",
+        "hashtags": [
+          "小户型",
+          "成熟社区",
+          "灵活空间",
+          "社区配套",
+          "居住体验",
+          "样板间"
+        ],
+        "imageBriefsIfMissing": [
+          "社区内的配套设施和生活场景照片",
+          "样板间对比传统小户型的空间设计"
+        ],
+        "riskNotes": [
+          "避免提及价格或收益承诺",
+          "避免对出租确定性进行明确表述"
+        ]
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 2520,
+      "total_price": "0.01678",
+      "currency": "USD"
+    }
+  },
+  "scene_breakdown": {
+    "event": "node_finished",
+    "title": "分镜与素材策略",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"scenes\":[{\"sceneNo\":1,\"sceneType\":\"口播\",\"title\":\"引入小户型回归趋势\",\"purpose\":\"吸引观众注意，介绍项目亮点\",\"taskDescription\":\"通过口播引入小户型的独特设计特点\",\"visualDescription\":\"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\",\"voiceover\":\"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\",\"filmingGuide\":{\"location\":\"售楼处沙盘区域\",\"posture\":\"站着面对镜头\",\"method\":\"手机自拍\",\"tips\":[\"找光线好的位置，脸上不要有阴影\",\"语速放慢，像跟朋友聊天\",\"开头和结尾各多录 2 秒，方便剪辑\"]},\"editGuide\":{\"pacing\":\"正常\",\"transition\":\"直接切\",\"minUsableSeconds\":5}},{\"sceneNo\":2,\"sceneType\":\"素材\",\"title\":\"展示社区环境\",\"purpose\":\"呈现社区成熟配套的整体氛围\",\"taskDescription\":\"通过素材展示社区的外立面和环境\",\"visualDescription\":\"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\",\"subtitle\":\"项目位于一个80万方的大社区，环境成熟宜居\",\"assetQuery\":\"社区 外立面 航拍 绿化\",\"editGuide\":{\"pacing\":\"快\",\"transition\":\"直接切\",\"minUsableSeconds\":3}},{\"sceneNo\":3,\"sceneType\":\"素材\",\"title\":\"样板间空间展示\",\"purpose\":\"突出小户型的空间设计特点\",\"taskDescription\":\"通过素材展示样板间的设计与空间感\",\"visualDescription\":\"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\",\"subtitle\":\"4米层高设计，空间灵活多样\",\"assetQuery\":\"样板间 客厅 落地窗 阳光 通透\",\"editGuide\":{\"pacing\":\"快\",\"transition\":\"直接切\",\"minUsableSeconds\":3}},{\"sceneNo\":4,\"sceneType\":\"素材\",\"title\":\"社区配套设施展示\",\"purpose\":\"展现社区内的成熟配套设施\",\"taskDescription\":\"通过素材展示社区内的生活便利性\",\"visualDescription\":\"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\",\"subtitle\":\"社区内配套设施齐全，生活便利\",\"assetQuery\":\"社区 商业街 商铺 人群\",\"editGuide\":{\"pacing\":\"快\",\"transition\":\"直接切\",\"minUsableSeconds\":3}},{\"sceneNo\":5,\"sceneType\":\"口播\",\"title\":\"总结与引导\",\"purpose\":\"总结项目特点并引导观众进一步了解\",\"taskDescription\":\"通过口播总结项目特点并轻松引导观众\",\"visualDescription\":\"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\",\"voiceover\":\"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\",\"filmingGuide\":{\"location\":\"样板间客厅区域\",\"posture\":\"站在门框边\",\"method\":\"手机自拍\",\"tips\":[\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\",\"拍两遍，选自然的那条\",\"开头和结尾各多录 2 秒，方便剪辑\"]},\"editGuide\":{\"pacing\":\"正常\",\"transition\":\"渐变过渡\",\"minUsableSeconds\":5}}],\"riskNotes\":[\"避免任何形式的收益承诺或价格趋势预测。\",\"确保描述内容真实，避免误导性表述。\"]}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 2698,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.01349",
+        "completion_tokens": 815,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.012225",
+        "total_tokens": 3513,
+        "total_price": "0.025715",
+        "currency": "USD",
+        "latency": 15.948,
+        "time_to_first_token": 14.503,
+        "time_to_generate": 1.445
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "scenes": [
+          {
+            "sceneNo": 1,
+            "sceneType": "口播",
+            "title": "引入小户型回归趋势",
+            "purpose": "吸引观众注意，介绍项目亮点",
+            "taskDescription": "通过口播引入小户型的独特设计特点",
+            "visualDescription": "中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘",
+            "voiceover": "\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\"",
+            "filmingGuide": {
+              "location": "售楼处沙盘区域",
+              "posture": "站着面对镜头",
+              "method": "手机自拍",
+              "tips": [
+                "找光线好的位置，脸上不要有阴影",
+                "语速放慢，像跟朋友聊天",
+                "开头和结尾各多录 2 秒，方便剪辑"
+              ]
+            },
+            "editGuide": {
+              "pacing": "正常",
+              "transition": "直接切",
+              "minUsableSeconds": 5
+            }
+          },
+          {
+            "sceneNo": 2,
+            "sceneType": "素材",
+            "title": "展示社区环境",
+            "purpose": "呈现社区成熟配套的整体氛围",
+            "taskDescription": "通过素材展示社区的外立面和环境",
+            "visualDescription": "社区外立面航拍，镜头缓缓移动，展示入口和周围绿化",
+            "subtitle": "项目位于一个80万方的大社区，环境成熟宜居",
+            "assetQuery": "社区 外立面 航拍 绿化",
+            "editGuide": {
+              "pacing": "快",
+              "transition": "直接切",
+              "minUsableSeconds": 3
+            }
+          },
+          {
+            "sceneNo": 3,
+            "sceneType": "素材",
+            "title": "样板间空间展示",
+            "purpose": "突出小户型的空间设计特点",
+            "taskDescription": "通过素材展示样板间的设计与空间感",
+            "visualDescription": "样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域",
+            "subtitle": "4米层高设计，空间灵活多样",
+            "assetQuery": "样板间 客厅 落地窗 阳光 通透",
+            "editGuide": {
+              "pacing": "快",
+              "transition": "直接切",
+              "minUsableSeconds": 3
+            }
+          },
+          {
+            "sceneNo": 4,
+            "sceneType": "素材",
+            "title": "社区配套设施展示",
+            "purpose": "展现社区内的成熟配套设施",
+            "taskDescription": "通过素材展示社区内的生活便利性",
+            "visualDescription": "社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹",
+            "subtitle": "社区内配套设施齐全，生活便利",
+            "assetQuery": "社区 商业街 商铺 人群",
+            "editGuide": {
+              "pacing": "快",
+              "transition": "直接切",
+              "minUsableSeconds": 3
+            }
+          },
+          {
+            "sceneNo": 5,
+            "sceneType": "口播",
+            "title": "总结与引导",
+            "purpose": "总结项目特点并引导观众进一步了解",
+            "taskDescription": "通过口播总结项目特点并轻松引导观众",
+            "visualDescription": "中介站在样板间客厅，面对镜头自然说话，背景是客厅布置",
+            "voiceover": "\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\"",
+            "filmingGuide": {
+              "location": "样板间客厅区域",
+              "posture": "站在门框边",
+              "method": "手机自拍",
+              "tips": [
+                "不要站在房间正中央，站在角落或门框边，画面更有纵深感",
+                "拍两遍，选自然的那条",
+                "开头和结尾各多录 2 秒，方便剪辑"
+              ]
+            },
+            "editGuide": {
+              "pacing": "正常",
+              "transition": "渐变过渡",
+              "minUsableSeconds": 5
+            }
+          }
+        ],
+        "riskNotes": [
+          "避免任何形式的收益承诺或价格趋势预测。",
+          "确保描述内容真实，避免误导性表述。"
+        ]
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 3513,
+      "total_price": "0.025715",
+      "currency": "USD"
+    }
+  },
+  "article_compiler": {
+    "event": "node_finished",
+    "title": "图文包编译",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "result": "{\"articlePackage\": {\"titles\": [\"小户型真的回来了？成熟社区配套成亮点\", \"4米层高的小户型，空间感不输大宅\", \"成熟社区里的小户型选择，灵活又实用\"], \"selectedTitle\": \"小户型真的回来了？成熟社区配套成亮点\", \"coverCopy\": \"4米层高小户型，灵活空间新选择\", \"body\": \"项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\\n\\n4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\\n\\n社区配套设施包括：\\n- 超市、餐饮等商业配套\\n- 健身房、游泳池等休闲设施\\n- 幼儿园、诊所等生活服务\\n\\n与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\", \"contentBlocks\": [{\"blockNo\": 1, \"blockType\": \"数据块\", \"text\": \"项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\", \"imageMatch\": {\"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"展示社区规模与成熟度\", \"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"展示社区环境\"}}, {\"blockNo\": 2, \"blockType\": \"体验块\", \"text\": \"4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\", \"imageMatch\": {\"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间感与设计亮点\", \"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"样板间展示\"}}, {\"blockNo\": 3, \"blockType\": \"清单块\", \"text\": \"社区配套设施包括：\\n- 超市、餐饮等商业配套\\n- 健身房、游泳池等休闲设施\\n- 幼儿园、诊所等生活服务\", \"imageBrief\": \"社区内的配套设施和生活场景照片\"}, {\"blockNo\": 4, \"blockType\": \"对比块\", \"text\": \"与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\", \"imageBrief\": \"样板间对比传统小户型的空间设计\"}], \"hashtags\": [\"#小户型\", \"#成熟社区\", \"#灵活空间\", \"#社区配套\", \"#居住体验\", \"#样板间\"], \"cta\": \"对小户型感兴趣？私信我，发你更多细节！\", \"imageMatches\": [{\"blockNo\": 1, \"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"展示社区规模与成熟度\", \"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"展示社区环境\"}, {\"blockNo\": 2, \"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间感与设计亮点\", \"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"样板间展示\"}], \"imageBriefIfMissing\": \"社区内的配套设施和生活场景照片; 样板间对比传统小户型的空间设计\", \"riskNotes\": [\"避免提及价格或收益承诺\", \"避免对出租确定性进行明确表述\"], \"copyReadyText\": \"小户型真的回来了？成熟社区配套成亮点\\n\\n项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\\n\\n4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\\n\\n社区配套设施包括：\\n- 超市、餐饮等商业配套\\n- 健身房、游泳池等休闲设施\\n- 幼儿园、诊所等生活服务\\n\\n与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\\n\\n#小户型 #成熟社区 #灵活空间 #社区配套 #居住体验 #样板间\"}, \"titleStrategy\": {\"titles\": [{\"text\": \"小户型真的回来了？成熟社区配套成亮点\", \"formula\": \"反常识开头\", \"whyThisFormula\": \"开篇以反常识的角度吸引用户注意，同时引出社区配套的核心卖点，激发兴趣点。\"}, {\"text\": \"4米层高的小户型，空间感不输大宅\", \"formula\": \"数字冲击\", \"whyThisFormula\": \"用具体数字呈现产品特色，吸引用户对小户型的设计亮点产生好奇。\"}, {\"text\": \"成熟社区里的小户型选择，灵活又实用\", \"formula\": \"社会认同\", \"whyThisFormula\": \"强调社区成熟配套和产品适配性，增加目标用户的信任感和吸引力。\"}], \"selectedTitleReason\": \"这个标题用反常识的方式引起兴趣，结合社区成熟配套强调项目的吸引力，与目标用户需求紧密贴合。\", \"coverCopyOptions\": [{\"text\": \"4米层高小户型，灵活空间新选择\", \"style\": \"大字报型\"}, {\"text\": \"成熟社区，住户1万+，生活配套齐全\", \"style\": \"实拍+文字型\"}], \"hookAngle\": \"结合用户对小户型灵活性的关注点，突出社区配套成熟的卖点，吸引刚需客户关注。\"}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "delivery_compiler": {
+    "event": "node_finished",
+    "title": "视频交付物编译",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "result": "{\"videoScript\": {\"narrative\": {\"hook\": {\"openingLine\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"strategy\": \"反常识开头引发关注\"}, \"narrativeArc\": [\"开篇引入小户型回归的趋势，强调其空间灵活性和实用性。\", \"展示项目的独特设计特点，如4米层高和商务大堂。\", \"介绍社区成熟配套及实际生活便利性。\", \"结合目标用户需求，轻松引导进一步了解。\"], \"storyOutline\": \"从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。\", \"voiceoverDraft\": \"\\\"说实话，这个项目真是让我眼前一亮。它位于一个成熟的大社区，不仅配套齐全，而且这个小户型还有4米层高设计，特别适合多种用途。你可以看到，样板间里每一寸空间都被巧妙地利用，既有生活舒适感，又兼具灵活实用性。而且，社区内的商业配套和服务设施都已经很成熟，生活起来非常便利。对于刚需客户来说，实地看看会更直观。\\\"\", \"estimatedDuration\": \"90秒\", \"toneOfVoice\": \"轻松、贴近生活，专业中带有亲切感\", \"bgmDirection\": \"轻快舒适的背景音乐，适合日常生活场景\"}, \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"引入小户型回归趋势\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意，介绍项目亮点\", \"taskDescription\": \"通过口播引入小户型的独特设计特点\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\", \"voiceover\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"subtitle\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"售楼处沙盘区域\", \"posture\": \"站着面对镜头\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示社区环境\", \"requiresUserUpload\": false, \"purpose\": \"呈现社区成熟配套的整体氛围\", \"taskDescription\": \"通过素材展示社区的外立面和环境\", \"visualDescription\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\", \"voiceover\": \"\", \"subtitle\": \"项目位于一个80万方的大社区，环境成熟宜居\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 外立面 航拍 绿化\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"样板间空间展示\", \"requiresUserUpload\": false, \"purpose\": \"突出小户型的空间设计特点\", \"taskDescription\": \"通过素材展示样板间的设计与空间感\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\", \"voiceover\": \"\", \"subtitle\": \"4米层高设计，空间灵活多样\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区配套设施展示\", \"requiresUserUpload\": false, \"purpose\": \"展现社区内的成熟配套设施\", \"taskDescription\": \"通过素材展示社区内的生活便利性\", \"visualDescription\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\", \"voiceover\": \"\", \"subtitle\": \"社区内配套设施齐全，生活便利\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 商铺 人群\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"总结与引导\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众进一步了解\", \"taskDescription\": \"通过口播总结项目特点并轻松引导观众\", \"visualDescription\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\", \"voiceover\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"subtitle\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅区域\", \"posture\": \"站在门框边\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}], \"riskNotes\": [\"避免任何形式的收益承诺或价格趋势预测。\", \"确保描述内容真实，避免误导性表述。\"]}, \"memberDelivery\": {\"tasks\": [{\"taskNo\": 1, \"sceneNo\": 1, \"script\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"location\": \"售楼处沙盘区域\", \"posture\": \"站着面对镜头\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, {\"taskNo\": 2, \"sceneNo\": 5, \"script\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"location\": \"样板间客厅区域\", \"posture\": \"站在门框边\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}]}, \"workerDelivery\": {\"storyOutline\": \"从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。\", \"bgm\": \"轻快舒适的背景音乐，适合日常生活场景\", \"toneOfVoice\": \"轻松、贴近生活，专业中带有亲切感\", \"estimatedDuration\": \"90秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"引入小户型回归趋势\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意，介绍项目亮点\", \"taskDescription\": \"通过口播引入小户型的独特设计特点\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\", \"voiceover\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"subtitle\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"售楼处沙盘区域\", \"posture\": \"站着面对镜头\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示社区环境\", \"requiresUserUpload\": false, \"purpose\": \"呈现社区成熟配套的整体氛围\", \"taskDescription\": \"通过素材展示社区的外立面和环境\", \"visualDescription\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\", \"voiceover\": \"\", \"subtitle\": \"项目位于一个80万方的大社区，环境成熟宜居\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 外立面 航拍 绿化\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"样板间空间展示\", \"requiresUserUpload\": false, \"purpose\": \"突出小户型的空间设计特点\", \"taskDescription\": \"通过素材展示样板间的设计与空间感\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\", \"voiceover\": \"\", \"subtitle\": \"4米层高设计，空间灵活多样\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区配套设施展示\", \"requiresUserUpload\": false, \"purpose\": \"展现社区内的成熟配套设施\", \"taskDescription\": \"通过素材展示社区内的生活便利性\", \"visualDescription\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\", \"voiceover\": \"\", \"subtitle\": \"社区内配套设施齐全，生活便利\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 商铺 人群\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"总结与引导\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众进一步了解\", \"taskDescription\": \"通过口播总结项目特点并轻松引导观众\", \"visualDescription\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\", \"voiceover\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"subtitle\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅区域\", \"posture\": \"站在门框边\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}], \"teamAssetQueries\": [\"社区 外立面 航拍 绿化\", \"样板间 客厅 落地窗 阳光 通透\", \"社区 商业街 商铺 人群\"]}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "quality_reviewer": {
+    "event": "node_finished",
+    "title": "质量评审",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "needs_rewrite": "false",
+      "risk_terms": "",
+      "text": "{\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 6, \"materialFit\": 8, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"缺少 CTA 块\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": []}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "if_else_needs_rewrite": {
+    "event": "node_finished",
+    "title": "是否需要违规改写",
+    "node_type": "if-else",
+    "status": "succeeded",
+    "outputs": {
+      "result": false,
+      "selected_case_id": "false"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "article_package_aggregator": {
+    "event": "node_finished",
+    "title": "图文内容包候选聚合器",
+    "node_type": "variable-aggregator",
+    "status": "succeeded",
+    "outputs": {
+      "output": "{\"articlePackage\": {\"titles\": [\"小户型真的回来了？成熟社区配套成亮点\", \"4米层高的小户型，空间感不输大宅\", \"成熟社区里的小户型选择，灵活又实用\"], \"selectedTitle\": \"小户型真的回来了？成熟社区配套成亮点\", \"coverCopy\": \"4米层高小户型，灵活空间新选择\", \"body\": \"项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\\n\\n4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\\n\\n社区配套设施包括：\\n- 超市、餐饮等商业配套\\n- 健身房、游泳池等休闲设施\\n- 幼儿园、诊所等生活服务\\n\\n与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\", \"contentBlocks\": [{\"blockNo\": 1, \"blockType\": \"数据块\", \"text\": \"项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\", \"imageMatch\": {\"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"展示社区规模与成熟度\", \"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"展示社区环境\"}}, {\"blockNo\": 2, \"blockType\": \"体验块\", \"text\": \"4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\", \"imageMatch\": {\"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间感与设计亮点\", \"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"样板间展示\"}}, {\"blockNo\": 3, \"blockType\": \"清单块\", \"text\": \"社区配套设施包括：\\n- 超市、餐饮等商业配套\\n- 健身房、游泳池等休闲设施\\n- 幼儿园、诊所等生活服务\", \"imageBrief\": \"社区内的配套设施和生活场景照片\"}, {\"blockNo\": 4, \"blockType\": \"对比块\", \"text\": \"与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\", \"imageBrief\": \"样板间对比传统小户型的空间设计\"}], \"hashtags\": [\"#小户型\", \"#成熟社区\", \"#灵活空间\", \"#社区配套\", \"#居住体验\", \"#样板间\"], \"cta\": \"对小户型感兴趣？私信我，发你更多细节！\", \"imageMatches\": [{\"blockNo\": 1, \"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"展示社区规模与成熟度\", \"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"展示社区环境\"}, {\"blockNo\": 2, \"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间感与设计亮点\", \"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"样板间展示\"}], \"imageBriefIfMissing\": \"社区内的配套设施和生活场景照片; 样板间对比传统小户型的空间设计\", \"riskNotes\": [\"避免提及价格或收益承诺\", \"避免对出租确定性进行明确表述\"], \"copyReadyText\": \"小户型真的回来了？成熟社区配套成亮点\\n\\n项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\\n\\n4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\\n\\n社区配套设施包括：\\n- 超市、餐饮等商业配套\\n- 健身房、游泳池等休闲设施\\n- 幼儿园、诊所等生活服务\\n\\n与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\\n\\n#小户型 #成熟社区 #灵活空间 #社区配套 #居住体验 #样板间\"}, \"titleStrategy\": {\"titles\": [{\"text\": \"小户型真的回来了？成熟社区配套成亮点\", \"formula\": \"反常识开头\", \"whyThisFormula\": \"开篇以反常识的角度吸引用户注意，同时引出社区配套的核心卖点，激发兴趣点。\"}, {\"text\": \"4米层高的小户型，空间感不输大宅\", \"formula\": \"数字冲击\", \"whyThisFormula\": \"用具体数字呈现产品特色，吸引用户对小户型的设计亮点产生好奇。\"}, {\"text\": \"成熟社区里的小户型选择，灵活又实用\", \"formula\": \"社会认同\", \"whyThisFormula\": \"强调社区成熟配套和产品适配性，增加目标用户的信任感和吸引力。\"}], \"selectedTitleReason\": \"这个标题用反常识的方式引起兴趣，结合社区成熟配套强调项目的吸引力，与目标用户需求紧密贴合。\", \"coverCopyOptions\": [{\"text\": \"4米层高小户型，灵活空间新选择\", \"style\": \"大字报型\"}, {\"text\": \"成熟社区，住户1万+，生活配套齐全\", \"style\": \"实拍+文字型\"}], \"hookAngle\": \"结合用户对小户型灵活性的关注点，突出社区配套成熟的卖点，吸引刚需客户关注。\"}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "video_script_aggregator": {
+    "event": "node_finished",
+    "title": "视频脚本候选聚合器",
+    "node_type": "variable-aggregator",
+    "status": "succeeded",
+    "outputs": {
+      "output": "{\"videoScript\": {\"narrative\": {\"hook\": {\"openingLine\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"strategy\": \"反常识开头引发关注\"}, \"narrativeArc\": [\"开篇引入小户型回归的趋势，强调其空间灵活性和实用性。\", \"展示项目的独特设计特点，如4米层高和商务大堂。\", \"介绍社区成熟配套及实际生活便利性。\", \"结合目标用户需求，轻松引导进一步了解。\"], \"storyOutline\": \"从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。\", \"voiceoverDraft\": \"\\\"说实话，这个项目真是让我眼前一亮。它位于一个成熟的大社区，不仅配套齐全，而且这个小户型还有4米层高设计，特别适合多种用途。你可以看到，样板间里每一寸空间都被巧妙地利用，既有生活舒适感，又兼具灵活实用性。而且，社区内的商业配套和服务设施都已经很成熟，生活起来非常便利。对于刚需客户来说，实地看看会更直观。\\\"\", \"estimatedDuration\": \"90秒\", \"toneOfVoice\": \"轻松、贴近生活，专业中带有亲切感\", \"bgmDirection\": \"轻快舒适的背景音乐，适合日常生活场景\"}, \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"引入小户型回归趋势\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意，介绍项目亮点\", \"taskDescription\": \"通过口播引入小户型的独特设计特点\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\", \"voiceover\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"subtitle\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"售楼处沙盘区域\", \"posture\": \"站着面对镜头\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示社区环境\", \"requiresUserUpload\": false, \"purpose\": \"呈现社区成熟配套的整体氛围\", \"taskDescription\": \"通过素材展示社区的外立面和环境\", \"visualDescription\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\", \"voiceover\": \"\", \"subtitle\": \"项目位于一个80万方的大社区，环境成熟宜居\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 外立面 航拍 绿化\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"样板间空间展示\", \"requiresUserUpload\": false, \"purpose\": \"突出小户型的空间设计特点\", \"taskDescription\": \"通过素材展示样板间的设计与空间感\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\", \"voiceover\": \"\", \"subtitle\": \"4米层高设计，空间灵活多样\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区配套设施展示\", \"requiresUserUpload\": false, \"purpose\": \"展现社区内的成熟配套设施\", \"taskDescription\": \"通过素材展示社区内的生活便利性\", \"visualDescription\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\", \"voiceover\": \"\", \"subtitle\": \"社区内配套设施齐全，生活便利\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 商铺 人群\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"总结与引导\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众进一步了解\", \"taskDescription\": \"通过口播总结项目特点并轻松引导观众\", \"visualDescription\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\", \"voiceover\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"subtitle\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅区域\", \"posture\": \"站在门框边\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}], \"riskNotes\": [\"避免任何形式的收益承诺或价格趋势预测。\", \"确保描述内容真实，避免误导性表述。\"]}, \"memberDelivery\": {\"tasks\": [{\"taskNo\": 1, \"sceneNo\": 1, \"script\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"location\": \"售楼处沙盘区域\", \"posture\": \"站着面对镜头\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, {\"taskNo\": 2, \"sceneNo\": 5, \"script\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"location\": \"样板间客厅区域\", \"posture\": \"站在门框边\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}]}, \"workerDelivery\": {\"storyOutline\": \"从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。\", \"bgm\": \"轻快舒适的背景音乐，适合日常生活场景\", \"toneOfVoice\": \"轻松、贴近生活，专业中带有亲切感\", \"estimatedDuration\": \"90秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"引入小户型回归趋势\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意，介绍项目亮点\", \"taskDescription\": \"通过口播引入小户型的独特设计特点\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\", \"voiceover\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"subtitle\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"售楼处沙盘区域\", \"posture\": \"站着面对镜头\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示社区环境\", \"requiresUserUpload\": false, \"purpose\": \"呈现社区成熟配套的整体氛围\", \"taskDescription\": \"通过素材展示社区的外立面和环境\", \"visualDescription\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\", \"voiceover\": \"\", \"subtitle\": \"项目位于一个80万方的大社区，环境成熟宜居\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 外立面 航拍 绿化\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"样板间空间展示\", \"requiresUserUpload\": false, \"purpose\": \"突出小户型的空间设计特点\", \"taskDescription\": \"通过素材展示样板间的设计与空间感\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\", \"voiceover\": \"\", \"subtitle\": \"4米层高设计，空间灵活多样\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区配套设施展示\", \"requiresUserUpload\": false, \"purpose\": \"展现社区内的成熟配套设施\", \"taskDescription\": \"通过素材展示社区内的生活便利性\", \"visualDescription\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\", \"voiceover\": \"\", \"subtitle\": \"社区内配套设施齐全，生活便利\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 商铺 人群\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"总结与引导\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众进一步了解\", \"taskDescription\": \"通过口播总结项目特点并轻松引导观众\", \"visualDescription\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\", \"voiceover\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"subtitle\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅区域\", \"posture\": \"站在门框边\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}], \"teamAssetQueries\": [\"社区 外立面 航拍 绿化\", \"样板间 客厅 落地窗 阳光 通透\", \"社区 商业街 商铺 人群\"]}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "final_compiler": {
+    "event": "node_finished",
+    "title": "最终结果编译",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"status\": \"needs_review\", \"article\": {\"title\": \"小户型真的回来了？成熟社区配套成亮点\", \"coverCopy\": \"4米层高小户型，灵活空间新选择\", \"images\": [{\"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"展示社区环境\"}, {\"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"样板间展示\"}], \"copyText\": \"小户型真的回来了？成熟社区配套成亮点\\n\\n项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\\n\\n4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\\n\\n社区配套设施包括：\\n- 超市、餐饮等商业配套\\n- 健身房、游泳池等休闲设施\\n- 幼儿园、诊所等生活服务\\n\\n与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\\n\\n#小户型 #成熟社区 #灵活空间 #社区配套 #居住体验 #样板间\"}, \"video\": {\"storyOutline\": \"从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。\", \"estimatedDuration\": \"90秒\", \"bgm\": \"轻快舒适的背景音乐，适合日常生活场景\", \"toneOfVoice\": \"轻松、贴近生活，专业中带有亲切感\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"引入小户型回归趋势\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意，介绍项目亮点\", \"taskDescription\": \"通过口播引入小户型的独特设计特点\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\", \"voiceover\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"subtitle\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"售楼处沙盘区域\", \"posture\": \"站着面对镜头\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示社区环境\", \"requiresUserUpload\": false, \"purpose\": \"呈现社区成熟配套的整体氛围\", \"taskDescription\": \"通过素材展示社区的外立面和环境\", \"visualDescription\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\", \"voiceover\": \"\", \"subtitle\": \"项目位于一个80万方的大社区，环境成熟宜居\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 外立面 航拍 绿化\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"样板间空间展示\", \"requiresUserUpload\": false, \"purpose\": \"突出小户型的空间设计特点\", \"taskDescription\": \"通过素材展示样板间的设计与空间感\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\", \"voiceover\": \"\", \"subtitle\": \"4米层高设计，空间灵活多样\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区配套设施展示\", \"requiresUserUpload\": false, \"purpose\": \"展现社区内的成熟配套设施\", \"taskDescription\": \"通过素材展示社区内的生活便利性\", \"visualDescription\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\", \"voiceover\": \"\", \"subtitle\": \"社区内配套设施齐全，生活便利\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 商铺 人群\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"总结与引导\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众进一步了解\", \"taskDescription\": \"通过口播总结项目特点并轻松引导观众\", \"visualDescription\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\", \"voiceover\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"subtitle\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅区域\", \"posture\": \"站在门框边\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": []}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "end": {
+    "event": "node_finished",
+    "title": "输出",
+    "node_type": "end",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"status\": \"needs_review\", \"article\": {\"title\": \"小户型真的回来了？成熟社区配套成亮点\", \"coverCopy\": \"4米层高小户型，灵活空间新选择\", \"images\": [{\"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"展示社区环境\"}, {\"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"样板间展示\"}], \"copyText\": \"小户型真的回来了？成熟社区配套成亮点\\n\\n项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。\\n\\n4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。\\n\\n社区配套设施包括：\\n- 超市、餐饮等商业配套\\n- 健身房、游泳池等休闲设施\\n- 幼儿园、诊所等生活服务\\n\\n与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。\\n\\n#小户型 #成熟社区 #灵活空间 #社区配套 #居住体验 #样板间\"}, \"video\": {\"storyOutline\": \"从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。\", \"estimatedDuration\": \"90秒\", \"bgm\": \"轻快舒适的背景音乐，适合日常生活场景\", \"toneOfVoice\": \"轻松、贴近生活，专业中带有亲切感\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"引入小户型回归趋势\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意，介绍项目亮点\", \"taskDescription\": \"通过口播引入小户型的独特设计特点\", \"visualDescription\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\", \"voiceover\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"subtitle\": \"\\\"你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"售楼处沙盘区域\", \"posture\": \"站着面对镜头\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"展示社区环境\", \"requiresUserUpload\": false, \"purpose\": \"呈现社区成熟配套的整体氛围\", \"taskDescription\": \"通过素材展示社区的外立面和环境\", \"visualDescription\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\", \"voiceover\": \"\", \"subtitle\": \"项目位于一个80万方的大社区，环境成熟宜居\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区外立面航拍，镜头缓缓移动，展示入口和周围绿化\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 外立面 航拍 绿化\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"样板间空间展示\", \"requiresUserUpload\": false, \"purpose\": \"突出小户型的空间设计特点\", \"taskDescription\": \"通过素材展示样板间的设计与空间感\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\", \"voiceover\": \"\", \"subtitle\": \"4米层高设计，空间灵活多样\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区配套设施展示\", \"requiresUserUpload\": false, \"purpose\": \"展现社区内的成熟配套设施\", \"taskDescription\": \"通过素材展示社区内的生活便利性\", \"visualDescription\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\", \"voiceover\": \"\", \"subtitle\": \"社区内配套设施齐全，生活便利\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 商铺 人群\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"总结与引导\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众进一步了解\", \"taskDescription\": \"通过口播总结项目特点并轻松引导观众\", \"visualDescription\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\", \"voiceover\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"subtitle\": \"\\\"这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。\\\"\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅，面对镜头自然说话，背景是客厅布置\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅区域\", \"posture\": \"站在门框边\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": []}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  }
+}

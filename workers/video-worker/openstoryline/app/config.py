@@ -29,6 +29,8 @@ class Settings:
     tts_bytedance_bigtts_access_key: str = ""
     tts_bytedance_bigtts_resource_id: str = ""
     tts_bytedance_bigtts_speaker: str = ""
+    tts_pixelle_clone_base_url: str = ""
+    tts_pixelle_clone_api_key: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -104,6 +106,14 @@ class Settings:
             ).strip(),
             tts_bytedance_bigtts_speaker=os.getenv(
                 "TTS_BYTEDANCE_BIGTTS_SPEAKER",
+                "",
+            ).strip(),
+            tts_pixelle_clone_base_url=os.getenv(
+                "TTS_PIXELLE_CLONE_BASE_URL",
+                "",
+            ).strip(),
+            tts_pixelle_clone_api_key=os.getenv(
+                "TTS_PIXELLE_CLONE_API_KEY",
                 "",
             ).strip(),
         )

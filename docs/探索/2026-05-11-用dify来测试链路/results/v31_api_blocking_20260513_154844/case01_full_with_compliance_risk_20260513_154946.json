@@ -1,0 +1,7 @@
+{
+  "case_name": "case01_full_with_compliance_risk",
+  "case_path": "docs/探索/2026-05-11-用dify来测试链路/testcases/case01_full_with_compliance_risk.json",
+  "success": false,
+  "elapsed_time": 61.85739016532898,
+  "error": "HTTP 504: <!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 8]>    <html class=\"no-js ie8 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if gt IE 8]><!--> <html class=\"no-js\" lang=\"en-US\"> <!--<![endif]-->\n<head>\n\n<title>dify.ai | 504: Gateway time-out</title>\n<meta charset=\"UTF-8\" />\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n<meta http-equiv=\"X-UA-Compatible\" content=\"IE=Edge\" />\n<meta name=\"robots\" content=\"noindex, nofollow\" />\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\n<link rel=\"stylesheet\" id=\"cf_styles-css\" href=\"/cdn-cgi/styles/main.css\" />\n</head>\n<body>\n<div id=\"cf-wrapper\">\n    <div id=\"cf-error-details\" class=\"p-0\">\n        <header class=\"mx-auto pt-10 lg:pt-6 lg:px-8 w-240 lg:w-full mb-8\">\n            <h1 class=\"inline-block sm:block sm:mb-2 font-light text-60 lg:text-4xl text-black-dark leading-tight mr-2\">\n   "
+}

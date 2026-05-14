@@ -1,0 +1,113 @@
+{
+  "start": {
+    "node_type": "start",
+    "title": "开始",
+    "started_at": 1778563545,
+    "status": "succeeded",
+    "inputs": {
+      "calendar_task_json": "{\"taskId\":\"task_20260511_002\",\"theme\":\"成熟配套怎么讲\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"信任建立\",\"targetAudience\":\"首次看房客户\",\"summary\":\"用生活便利度解释为什么先了解这个项目\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-12\"}",
+      "viral_references_json": "[{\"id\":\"viral_002\",\"platform\":\"xiaohongshu\",\"title\":\"买房别只看户型，楼下生活半径更关键\",\"structure\":[\"提醒误区\",\"讲生活场景\",\"列看房要点\",\"轻CTA\"],\"hook\":\"很多人第一次看房只盯户型图\",\"ctaStyle\":\"想要看生活半径清单可以问我\"}]",
+      "image_assets_json": "[]",
+      "fallback_knowledge_text": "项目资料：社区体量大，楼下消费和服务设施较成熟。适合从日常通勤、买菜、吃饭、看房动线等生活场景解释，不做收益承诺。",
+      "extra_requirement": "语气真实一点，像发给老客户看的内容。",
+      "sys.files": [],
+      "sys.user_id": "content_calendar_test_case02_no_images_1778563543",
+      "sys.app_id": "700e63ec-7c42-48fe-803f-c3873c889d07",
+      "sys.workflow_id": "9d1dee4c-a686-4cca-a886-55c42da4cbfa",
+      "sys.workflow_run_id": "ce63e73d-d8b0-4728-8b64-6522b36af545",
+      "sys.timestamp": 1778563544
+    },
+    "outputs": {
+      "calendar_task_json": "{\"taskId\":\"task_20260511_002\",\"theme\":\"成熟配套怎么讲\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"信任建立\",\"targetAudience\":\"首次看房客户\",\"summary\":\"用生活便利度解释为什么先了解这个项目\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-12\"}",
+      "viral_references_json": "[{\"id\":\"viral_002\",\"platform\":\"xiaohongshu\",\"title\":\"买房别只看户型，楼下生活半径更关键\",\"structure\":[\"提醒误区\",\"讲生活场景\",\"列看房要点\",\"轻CTA\"],\"hook\":\"很多人第一次看房只盯户型图\",\"ctaStyle\":\"想要看生活半径清单可以问我\"}]",
+      "image_assets_json": "[]",
+      "fallback_knowledge_text": "项目资料：社区体量大，楼下消费和服务设施较成熟。适合从日常通勤、买菜、吃饭、看房动线等生活场景解释，不做收益承诺。",
+      "extra_requirement": "语气真实一点，像发给老客户看的内容。",
+      "sys.files": [],
+      "sys.user_id": "content_calendar_test_case02_no_images_1778563543",
+      "sys.app_id": "700e63ec-7c42-48fe-803f-c3873c889d07",
+      "sys.workflow_id": "9d1dee4c-a686-4cca-a886-55c42da4cbfa",
+      "sys.workflow_run_id": "ce63e73d-d8b0-4728-8b64-6522b36af545",
+      "sys.timestamp": 1778563544
+    },
+    "finished_at": 1778563545,
+    "error": null,
+    "execution_metadata": null
+  },
+  "task_understanding": {
+    "node_type": "llm",
+    "title": "任务理解",
+    "started_at": 1778563545,
+    "status": "succeeded",
+    "inputs": {},
+    "outputs": {
+      "text": "<think>\n我们解析任务：核心主题=成熟配套怎么讲，内容类型=article_and_video，平台=小红书和抖音，目标=信任建立，受众=首次看房客户，摘要=用生活便利度解释为什么先了解这个项目。额外要求：语气真实，像发给老客户看的内容。\n\n需要填充所有字段：\n- coreTopic: \"成熟配套怎么讲\"\n- contentType: \"article_and_video\"\n- platforms: [\"xiaohongshu\",\"douyin\"]\n- contentGoal: \"信任建立\"\n- targetAudience: \"首次看房客户\"\n- audiencePain: 首次看房客户常见痛点：对项目不熟悉、担心生活不便、不知道配套是否真实成熟。可写：\"首次看房客户对项目周边配套不熟悉，担心生活不便，难以建立信任感。\"\n- sellingPointsNeeded: 需要卖点，从主题“成熟配套”和摘要“生活便利度”得出。可写：[\"周边商业成熟\", \"交通便利\", \"教育资源丰富\", \"医疗配套完善\", \"生活便利度高\"]\n- riskConstraints: 输入中没有提到租金回报等风险词，所以空数组 []\n- copySearchQuery: 必须结合主题、客群、卖点、场景词。主题：成熟配套；客群：首次看房客户；卖点：生活便利、成熟配套；场景：真实看房、周边实拍。可写：\"首次看房 了解 项目 成熟配套 生活便利度 真实体验 周边实景\"\n- scriptSearchQuery: 类似，但用于视频脚本搜索。可写：\"首次看房 vlog 项目周边 配套 生活设施 实拍\"\n- imageSearchQuery: 图片搜索。可写：\"项目周边 商业街 学校 医院 交通站 实景\"\n- videoAssetQueryHints: 视频素材线索，可以是具体场景。可写：[\"社区周边街拍\", \"购物中心外景\", \"学校门口\", \"地铁站口\", \"生活便利场景\"]\n- extraRequirement: \"语气真实一点，像发给老客户看的内容。\"\n\n注意：所有字段都要有。按照schema要求，类型要匹配。audiencePain写字符串，sellingPointsNeeded数组，riskConstraints数组，等等。\n</think>{\n  \"coreTopic\": \"成熟配套怎么讲\",\n  \"contentType\": \"article_and_video\",\n  \"platforms\": [\"xiaohongshu\", \"douyin\"],\n  \"contentGoal\": \"信任建立\",\n  \"targetAudience\": \"首次看房客户\",\n  \"audiencePain\": \"首次看房客户对项目周边配套不熟悉，担心生活不便，难以建立信任感。\",\n  \"sellingPointsNeeded\": [\"周边商业成熟\", \"交通便利\", \"教育资源丰富\", \"医疗配套完善\", \"生活便利度高\"],\n  \"riskConstraints\": [],\n  \"copySearchQuery\": \"首次看房 了解 项目 成熟配套 生活便利度 真实体验 周边实景\",\n  \"scriptSearchQuery\": \"首次看房 vlog 项目周边 配套 生活设施 实拍\",\n  \"imageSearchQuery\": \"项目周边 商业街 学校 医院 交通站 实景\",\n  \"videoAssetQueryHints\": [\"社区周边街拍\", \"购物中心外景\", \"学校门口\", \"地铁站口\", \"生活便利场景\"],\n  \"extraRequirement\": \"语气真实一点，像发给老客户看的内容。\"\n}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 801,
+        "prompt_unit_price": "1",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.000801",
+        "completion_tokens": 729,
+        "completion_unit_price": "2",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.001458",
+        "total_tokens": 1530,
+        "total_price": "0.002259",
+        "currency": "RMB",
+        "latency": 10.596,
+        "time_to_first_token": 0.955,
+        "time_to_generate": 9.64
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "coreTopic": "成熟配套怎么讲",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "信任建立",
+        "targetAudience": "首次看房客户",
+        "audiencePain": "首次看房客户对项目周边配套不熟悉，担心生活不便，难以建立信任感。",
+        "sellingPointsNeeded": [
+          "周边商业成熟",
+          "交通便利",
+          "教育资源丰富",
+          "医疗配套完善",
+          "生活便利度高"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "首次看房 了解 项目 成熟配套 生活便利度 真实体验 周边实景",
+        "scriptSearchQuery": "首次看房 vlog 项目周边 配套 生活设施 实拍",
+        "imageSearchQuery": "项目周边 商业街 学校 医院 交通站 实景",
+        "videoAssetQueryHints": [
+          "社区周边街拍",
+          "购物中心外景",
+          "学校门口",
+          "地铁站口",
+          "生活便利场景"
+        ],
+        "extraRequirement": "语气真实一点，像发给老客户看的内容。"
+      }
+    },
+    "finished_at": 1778563545,
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 1530,
+      "total_price": "0.002259",
+      "currency": "RMB"
+    }
+  },
+  "kb_project_knowledge": {
+    "node_type": "knowledge-retrieval",
+    "title": "txt 知识库检索",
+    "started_at": 1778563556,
+    "status": "failed",
+    "inputs": {},
+    "outputs": {},
+    "finished_at": 1778563556,
+    "error": "Query variable is not string type.",
+    "execution_metadata": null
+  }
+}

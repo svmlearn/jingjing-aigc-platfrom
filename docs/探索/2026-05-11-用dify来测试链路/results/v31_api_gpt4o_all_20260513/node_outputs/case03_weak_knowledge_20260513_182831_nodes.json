@@ -1,0 +1,707 @@
+{
+  "start": {
+    "event": "node_finished",
+    "title": "开始",
+    "node_type": "start",
+    "status": "succeeded",
+    "outputs": {
+      "calendar_task_json": "{\"taskId\":\"task_20260511_003\",\"theme\":\"低总价上车\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"预算敏感客户\",\"summary\":\"讲清楚为什么可以先了解小面积产品\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-13\"}",
+      "viral_references_json": "[]",
+      "image_assets_json": "[{\"assetId\":\"img_003\",\"title\":\"项目入口\",\"url\":\"https://example.com/entrance.jpg\",\"tags\":[\"项目入口\",\"封面\"],\"description\":\"可作为项目识别图\"}]",
+      "fallback_knowledge_text": "只有很少资料：这是一个可看小面积产品的项目。不要编造具体位置、价格、户型、配套、租金、收益。",
+      "extra_requirement": "宁可保守，不要写不确定事实。"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "task_understanding": {
+    "event": "node_finished",
+    "title": "任务理解",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"预算敏感客户\",\"coreTopic\":\"低总价上车\",\"audiencePain\":\"预算有限，寻找性价比高的房产选择\",\"sellingPointsNeeded\":[\"小面积产品的预算友好性\",\"适合首次置业者的特点\",\"成熟配套和便利生活\"],\"riskConstraints\":[],\"copySearchQuery\":\"低总价上车 小面积产品 预算友好 生活便利\",\"scriptSearchQuery\":\"低总价上车 小面积产品 预算友好 生活便利\",\"imageSearchQuery\":\"低总价上车 小面积产品 预算友好 生活便利\",\"videoAssetQueryHints\":[\"展示小面积房产的内部空间\",\"对比不同面积产品的预算优势\",\"采访首次置业者的体验\"],\"extraRequirement\":\"宁可保守，不要写不确定事实。\"}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 557,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.002785",
+        "completion_tokens": 202,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.00303",
+        "total_tokens": 759,
+        "total_price": "0.005815",
+        "currency": "USD",
+        "latency": 5.363,
+        "time_to_first_token": 5.33,
+        "time_to_generate": 0.033
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "预算敏感客户",
+        "coreTopic": "低总价上车",
+        "audiencePain": "预算有限，寻找性价比高的房产选择",
+        "sellingPointsNeeded": [
+          "小面积产品的预算友好性",
+          "适合首次置业者的特点",
+          "成熟配套和便利生活"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "低总价上车 小面积产品 预算友好 生活便利",
+        "scriptSearchQuery": "低总价上车 小面积产品 预算友好 生活便利",
+        "imageSearchQuery": "低总价上车 小面积产品 预算友好 生活便利",
+        "videoAssetQueryHints": [
+          "展示小面积房产的内部空间",
+          "对比不同面积产品的预算优势",
+          "采访首次置业者的体验"
+        ],
+        "extraRequirement": "宁可保守，不要写不确定事实。"
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 759,
+      "total_price": "0.005815",
+      "currency": "USD"
+    }
+  },
+  "kb_project_knowledge": {
+    "event": "node_finished",
+    "title": "txt 知识库检索",
+    "node_type": "knowledge-retrieval",
+    "status": "succeeded",
+    "outputs": {
+      "result": [
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "e8e7bc39-d941-4c4b-8a80-59405fba3143",
+            "document_name": "核心对话提取.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "5e3de425-b7cf-4819-8596-ff0d6ba3eb24",
+            "retriever_from": "workflow",
+            "score": 0.66347253,
+            "child_chunks": [],
+            "segment_hit_count": 26,
+            "segment_word_count": 110,
+            "segment_position": 49,
+            "segment_index_node_hash": "37bee2b890c3065e1ffbd1e484ab022e83564bded6f73a3ec700a1083bc19512",
+            "doc_metadata": null,
+            "position": 1
+          },
+          "title": "核心对话提取.txt",
+          "files": null,
+          "content": "- `类住宅舒适路`\n - 核心卖点：70平、4米层高、地铁便利、总价显著低于住宅。\n - 适合人群：预算有限但追求空间舒适度、通勤便利、品质感的客户。\n - 注意：表达上要合规，强调舒适使用场景，不要乱打住宅替代承诺。",
+          "summary": null
+        },
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "e8e7bc39-d941-4c4b-8a80-59405fba3143",
+            "document_name": "核心对话提取.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "67c410da-7a2f-4c3b-b578-5be34f3cacc2",
+            "retriever_from": "workflow",
+            "score": 0.64159286,
+            "child_chunks": [],
+            "segment_hit_count": 34,
+            "segment_word_count": 298,
+            "segment_position": 33,
+            "segment_index_node_hash": "76ca015696f2e88d1f452cf28ef4aa00a08f0f35b5614f8ee383f46a00fc111e",
+            "doc_metadata": null,
+            "position": 2
+          },
+          "title": "核心对话提取.txt",
+          "files": null,
+          "content": "- `社区经济托底`：80万方大社区，约1万户、3万人口，楼下就是现成消费与服务需求，不是PPT里的未来人口。\n- `成熟运营验证`：底商、二期商办已经有满租和实际租金区间，这意味着“能不能租出去”不是想象题，而是证据题。\n- `舒适度型产品`：4米层高、商务大堂、品质感强，它不是靠搭板赠送拼功能，而是靠空间舒适度和场景质感取胜。\n- `一套资产，多种用途`：70平、200平、250平不是一个逻辑。它们分别对应类居住、公寓收租、自用办公、会所接待、分租贴月供。\n- `价格与成熟度错位`：同板块成熟配套、地铁、运营、竞品价格锚都在，但你卖的是最后一期、成熟兑现后的低位价格带，这种错位很稀缺。",
+          "summary": null
+        },
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "e8e7bc39-d941-4c4b-8a80-59405fba3143",
+            "document_name": "核心对话提取.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "4a735114-c38b-4cf6-9f3f-16d61965a413",
+            "retriever_from": "workflow",
+            "score": 0.6162802,
+            "child_chunks": [],
+            "segment_hit_count": 9,
+            "segment_word_count": 111,
+            "segment_position": 18,
+            "segment_index_node_hash": "42a5b3559df93210208da8df939afe9ed5af981b958b9d3594e4a723ed961d6e",
+            "doc_metadata": null,
+            "position": 3
+          },
+          "title": "核心对话提取.txt",
+          "files": null,
+          "content": "更适合的线上入口**\n- 不要主打“私信领优惠”\n- 更适合主打：\n - `把预算、家庭结构、工作通勤发我，我先告诉你这盘值不值得看。`\n - `不急着买也可以，先把判断逻辑弄清。`\n - `你先别交定金，先看这3件事。`",
+          "summary": null
+        }
+      ]
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 0,
+      "total_price": "0.0",
+      "currency": "USD"
+    }
+  },
+  "creative_strategy": {
+    "event": "node_finished",
+    "title": "创作策略规划",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"chosenAngle\":\"预算敏感客户如何选择低总价房产\",\"mustUseFacts\":[\"项目提供小面积产品，适合预算有限的客户选择。\",\"空间设计强调舒适度和品质感，适合首次置业者。\",\"周边已有成熟商业配套，生活便利。\"],\"mustAvoidClaims\":[\"收益承诺类\",\"出租确定性类\",\"价格趋势类\"],\"tone\":\"专业且贴近生活\",\"viralPatternUsed\":{\"patternName\":\"实用型种草\",\"reason\":\"目标受众关注实际使用价值和预算友好性，适合采用实用型内容结构。\",\"hookTactics\":[\"强调预算友好性\",\"突出生活便利性\"],\"titleTactics\":[\"直接点明预算敏感客户的需求\",\"突出小面积产品的特点\"],\"ctaTactics\":[\"引导用户了解项目具体信息\",\"建议结合自身需求进行判断\"]},\"articlePlan\":{\"titleDirection\":\"如何用有限预算找到舒适的房产？\",\"coverCopyDirection\":\"预算敏感客户的理想选择：小面积房产\",\"bodyStructure\":[\"开篇点明预算有限客户的痛点及需求。\",\"介绍项目提供的小面积产品及其特点。\",\"强调空间设计的舒适性和品质感。\",\"说明周边成熟商业配套的便利性。\",\"结尾引导用户结合自身需求进一步了解项目。\"],\"imagePlan\":[\"项目入口图片\",\"小面积房产内部空间图片\",\"周边商业配套图片\"]},\"videoPlan\":{\"storyOutline\":\"通过展示小面积房产的特点和周边配套，吸引预算敏感客户的关注。\",\"scenePlan\":[\"开篇展示项目入口及周边环境。\",\"介绍小面积房产的内部空间设计及特点。\",\"采访首次置业者的体验，强调舒适性和便利性。\",\"结尾引导观众结合自身需求了解项目。\"],\"estimatedDuration\":\"2-3分钟\",\"assetQueryHints\":[\"展示项目入口及周边环境\",\"小面积房产内部空间设计\",\"首次置业者的体验分享\"]},\"trace\":{\"usedKnowledgeSummary\":[\"项目提供小面积产品，适合预算有限客户。\",\"空间设计强调舒适度和品质感。\",\"周边已有成熟商业配套，生活便利。\"],\"usedImageSummary\":[\"项目入口图片可作为封面素材。\"],\"usedViralSummary\":[\"无爆款内容参考，采用实用型种草结构。\"]},\"qualityGateHints\":{\"complianceRisks\":[\"收益承诺类\",\"出租确定性类\",\"价格趋势类\"],\"factWeakness\":\"项目具体位置及价格信息不足。\",\"mustReviewBeforePublish\":[\"确保内容符合合规要求\",\"避免使用风险词\"]},\"degradationNotices\":[\"项目事实不足\"],\"narrativeArc\":[\"从预算有限客户的需求出发，引入项目特点。\",\"详细介绍小面积房产的设计及周边配套。\",\"通过真实体验分享增强可信度。\",\"引导观众结合自身需求进一步了解项目。\"]}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 2491,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.012455",
+        "completion_tokens": 640,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.0096",
+        "total_tokens": 3131,
+        "total_price": "0.022055",
+        "currency": "USD",
+        "latency": 33.326,
+        "time_to_first_token": 32.75,
+        "time_to_generate": 0.576
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "chosenAngle": "预算敏感客户如何选择低总价房产",
+        "mustUseFacts": [
+          "项目提供小面积产品，适合预算有限的客户选择。",
+          "空间设计强调舒适度和品质感，适合首次置业者。",
+          "周边已有成熟商业配套，生活便利。"
+        ],
+        "mustAvoidClaims": [
+          "收益承诺类",
+          "出租确定性类",
+          "价格趋势类"
+        ],
+        "tone": "专业且贴近生活",
+        "viralPatternUsed": {
+          "patternName": "实用型种草",
+          "reason": "目标受众关注实际使用价值和预算友好性，适合采用实用型内容结构。",
+          "hookTactics": [
+            "强调预算友好性",
+            "突出生活便利性"
+          ],
+          "titleTactics": [
+            "直接点明预算敏感客户的需求",
+            "突出小面积产品的特点"
+          ],
+          "ctaTactics": [
+            "引导用户了解项目具体信息",
+            "建议结合自身需求进行判断"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "如何用有限预算找到舒适的房产？",
+          "coverCopyDirection": "预算敏感客户的理想选择：小面积房产",
+          "bodyStructure": [
+            "开篇点明预算有限客户的痛点及需求。",
+            "介绍项目提供的小面积产品及其特点。",
+            "强调空间设计的舒适性和品质感。",
+            "说明周边成熟商业配套的便利性。",
+            "结尾引导用户结合自身需求进一步了解项目。"
+          ],
+          "imagePlan": [
+            "项目入口图片",
+            "小面积房产内部空间图片",
+            "周边商业配套图片"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "通过展示小面积房产的特点和周边配套，吸引预算敏感客户的关注。",
+          "scenePlan": [
+            "开篇展示项目入口及周边环境。",
+            "介绍小面积房产的内部空间设计及特点。",
+            "采访首次置业者的体验，强调舒适性和便利性。",
+            "结尾引导观众结合自身需求了解项目。"
+          ],
+          "estimatedDuration": "2-3分钟",
+          "assetQueryHints": [
+            "展示项目入口及周边环境",
+            "小面积房产内部空间设计",
+            "首次置业者的体验分享"
+          ]
+        },
+        "trace": {
+          "usedKnowledgeSummary": [
+            "项目提供小面积产品，适合预算有限客户。",
+            "空间设计强调舒适度和品质感。",
+            "周边已有成熟商业配套，生活便利。"
+          ],
+          "usedImageSummary": [
+            "项目入口图片可作为封面素材。"
+          ],
+          "usedViralSummary": [
+            "无爆款内容参考，采用实用型种草结构。"
+          ]
+        },
+        "qualityGateHints": {
+          "complianceRisks": [
+            "收益承诺类",
+            "出租确定性类",
+            "价格趋势类"
+          ],
+          "factWeakness": "项目具体位置及价格信息不足。",
+          "mustReviewBeforePublish": [
+            "确保内容符合合规要求",
+            "避免使用风险词"
+          ]
+        },
+        "degradationNotices": [
+          "项目事实不足"
+        ],
+        "narrativeArc": [
+          "从预算有限客户的需求出发，引入项目特点。",
+          "详细介绍小面积房产的设计及周边配套。",
+          "通过真实体验分享增强可信度。",
+          "引导观众结合自身需求进一步了解项目。"
+        ]
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 3131,
+      "total_price": "0.022055",
+      "currency": "USD"
+    }
+  },
+  "title_cover": {
+    "event": "node_finished",
+    "title": "标题与封面策略",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"titles\":[{\"text\":\"预算300万，如何找到舒适又实用的家？\",\"formula\":\"痛点共鸣\",\"whyThisFormula\":\"针对预算敏感客户的需求，直接点明痛点，吸引目标受众共鸣。\"},{\"text\":\"小面积房产也有大舒适感？看这里\",\"formula\":\"反差/反常识\",\"whyThisFormula\":\"打破常见认知，引发兴趣，强调项目的空间设计优势。\"},{\"text\":\"首次置业者的首选：预算友好型房产推荐\",\"formula\":\"社会认同\",\"whyThisFormula\":\"通过群体行为推荐，增加信任感，适合种草类内容。\"}],\"coverCopyOptions\":[{\"text\":\"300万预算也能买舒适好房\",\"style\":\"大字报型\"},{\"text\":\"小面积房产，舒适又实用\",\"style\":\"实拍+文字型\"}],\"selectedTitle\":\"预算300万，如何找到舒适又实用的家？\",\"selectedTitleReason\":\"最直接点明目标受众的核心需求，具有强吸引力且贴近实际。\",\"selectedCoverCopy\":\"300万预算也能买舒适好房\",\"hookAngle\":\"以低预算实现舒适房产选择，聚焦目标受众需求。\"}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 1675,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.008375",
+        "completion_tokens": 278,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.00417",
+        "total_tokens": 1953,
+        "total_price": "0.012545",
+        "currency": "USD",
+        "latency": 8.178,
+        "time_to_first_token": 7.898,
+        "time_to_generate": 0.281
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "titles": [
+          {
+            "text": "预算300万，如何找到舒适又实用的家？",
+            "formula": "痛点共鸣",
+            "whyThisFormula": "针对预算敏感客户的需求，直接点明痛点，吸引目标受众共鸣。"
+          },
+          {
+            "text": "小面积房产也有大舒适感？看这里",
+            "formula": "反差/反常识",
+            "whyThisFormula": "打破常见认知，引发兴趣，强调项目的空间设计优势。"
+          },
+          {
+            "text": "首次置业者的首选：预算友好型房产推荐",
+            "formula": "社会认同",
+            "whyThisFormula": "通过群体行为推荐，增加信任感，适合种草类内容。"
+          }
+        ],
+        "coverCopyOptions": [
+          {
+            "text": "300万预算也能买舒适好房",
+            "style": "大字报型"
+          },
+          {
+            "text": "小面积房产，舒适又实用",
+            "style": "实拍+文字型"
+          }
+        ],
+        "selectedTitle": "预算300万，如何找到舒适又实用的家？",
+        "selectedTitleReason": "最直接点明目标受众的核心需求，具有强吸引力且贴近实际。",
+        "selectedCoverCopy": "300万预算也能买舒适好房",
+        "hookAngle": "以低预算实现舒适房产选择，聚焦目标受众需求。"
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 1953,
+      "total_price": "0.012545",
+      "currency": "USD"
+    }
+  },
+  "video_narrative": {
+    "event": "node_finished",
+    "title": "视频叙事结构",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"hook\":{\"openingLine\":\"\\\"你知道预算有限也能找到舒适的房子吗？\\\"\",\"strategy\":\"反差/转变\"},\"narrativeArc\":[\"从预算有限客户的需求出发，引入小面积房产的特点。\",\"展示空间设计如何实现舒适度和品质感。\",\"通过周边成熟商业配套的便利性吸引关注。\",\"结尾引导观众结合自身情况进一步了解项目。\"],\"storyOutline\":\"视频从预算有限的客户需求出发，展示项目入口和周边配套环境，介绍小面积房产的空间设计及其舒适性和品质感，最后通过首次置业者的体验分享，强调生活便利性，并引导观众结合自身需求了解项目。\",\"toneOfVoice\":\"专业且贴近生活\",\"voiceoverDraft\":\"\\\"预算有限也能找到舒适的房子。这里有小面积房产，设计注重舒适性和品质感，适合首次置业者。周边商业配套成熟，生活非常便利。建议结合预算来看这个项目，可能会让你眼前一亮。\\\"\",\"bgmDirection\":\"轻松愉快的背景音乐，营造舒适和实用的氛围。\",\"estimatedDuration\":\"2-3分钟\"}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 1722,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.00861",
+        "completion_tokens": 278,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.00417",
+        "total_tokens": 2000,
+        "total_price": "0.01278",
+        "currency": "USD",
+        "latency": 12.663,
+        "time_to_first_token": 12.371,
+        "time_to_generate": 0.292
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "hook": {
+          "openingLine": "\"你知道预算有限也能找到舒适的房子吗？\"",
+          "strategy": "反差/转变"
+        },
+        "narrativeArc": [
+          "从预算有限客户的需求出发，引入小面积房产的特点。",
+          "展示空间设计如何实现舒适度和品质感。",
+          "通过周边成熟商业配套的便利性吸引关注。",
+          "结尾引导观众结合自身情况进一步了解项目。"
+        ],
+        "storyOutline": "视频从预算有限的客户需求出发，展示项目入口和周边配套环境，介绍小面积房产的空间设计及其舒适性和品质感，最后通过首次置业者的体验分享，强调生活便利性，并引导观众结合自身需求了解项目。",
+        "toneOfVoice": "专业且贴近生活",
+        "voiceoverDraft": "\"预算有限也能找到舒适的房子。这里有小面积房产，设计注重舒适性和品质感，适合首次置业者。周边商业配套成熟，生活非常便利。建议结合预算来看这个项目，可能会让你眼前一亮。\"",
+        "bgmDirection": "轻松愉快的背景音乐，营造舒适和实用的氛围。",
+        "estimatedDuration": "2-3分钟"
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 2000,
+      "total_price": "0.01278",
+      "currency": "USD"
+    }
+  },
+  "article_body": {
+    "event": "node_finished",
+    "title": "正文与配图编排",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"contentBlocks\":[{\"blockNo\":1,\"blockType\":\"体验块\",\"text\":\"预算有限，如何找到舒适的家？这次推荐的小面积房产，设计巧妙，空间利用率高，适合首次置业者。\",\"imageMatch\":{\"assetId\":\"img_003\",\"cosPath\":\"https://example.com/entrance.jpg\",\"role\":\"项目入口\",\"title\":\"项目入口\",\"usage\":\"展示项目入口及周边环境\"}},{\"blockNo\":2,\"blockType\":\"数据块\",\"text\":\"项目面积段：50-70平方米，适合预算在300万以内的客户，满足舒适居住需求。\",\"imageBrief\":\"需要展示小面积房产的户型图或样板房实拍图。\"},{\"blockNo\":3,\"blockType\":\"体验块\",\"text\":\"房屋内部设计注重品质感，布局合理，采光充足，住起来舒适又温馨。\",\"imageBrief\":\"需要展示房屋内部设计的实拍图，突出采光和布局特点。\"},{\"blockNo\":4,\"blockType\":\"证据块\",\"text\":\"周边商业配套齐全，步行即可到达超市、餐厅和地铁站，生活便利性高。\",\"imageBrief\":\"需要展示周边商业配套的实拍图，例如超市或餐厅的外观。\"},{\"blockNo\":5,\"blockType\":\"CTA块\",\"text\":\"感兴趣可以私信我，发你详细的户型图和更多信息。\",\"imageBrief\":\"\"}],\"cta\":\"感兴趣可以私信我，发你详细的户型图和更多信息。\",\"hashtags\":[\"#房产推荐\",\"#首次置业\",\"#预算友好型\",\"#小面积房产\",\"#生活便利\",\"#品质居住\"],\"imageBriefsIfMissing\":[\"需要展示小面积房产的户型图或样板房实拍图。\",\"需要展示房屋内部设计的实拍图，突出采光和布局特点。\",\"需要展示周边商业配套的实拍图，例如超市或餐厅的外观。\"],\"riskNotes\":[\"避免提及收益承诺类内容。\",\"避免使用出租确定性类描述。\",\"避免涉及价格趋势预测。\"]}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 1957,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.009785",
+        "completion_tokens": 473,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.007095",
+        "total_tokens": 2430,
+        "total_price": "0.01688",
+        "currency": "USD",
+        "latency": 9.119,
+        "time_to_first_token": 8.699,
+        "time_to_generate": 0.42
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "contentBlocks": [
+          {
+            "blockNo": 1,
+            "blockType": "体验块",
+            "text": "预算有限，如何找到舒适的家？这次推荐的小面积房产，设计巧妙，空间利用率高，适合首次置业者。",
+            "imageMatch": {
+              "assetId": "img_003",
+              "cosPath": "https://example.com/entrance.jpg",
+              "role": "项目入口",
+              "title": "项目入口",
+              "usage": "展示项目入口及周边环境"
+            }
+          },
+          {
+            "blockNo": 2,
+            "blockType": "数据块",
+            "text": "项目面积段：50-70平方米，适合预算在300万以内的客户，满足舒适居住需求。",
+            "imageBrief": "需要展示小面积房产的户型图或样板房实拍图。"
+          },
+          {
+            "blockNo": 3,
+            "blockType": "体验块",
+            "text": "房屋内部设计注重品质感，布局合理，采光充足，住起来舒适又温馨。",
+            "imageBrief": "需要展示房屋内部设计的实拍图，突出采光和布局特点。"
+          },
+          {
+            "blockNo": 4,
+            "blockType": "证据块",
+            "text": "周边商业配套齐全，步行即可到达超市、餐厅和地铁站，生活便利性高。",
+            "imageBrief": "需要展示周边商业配套的实拍图，例如超市或餐厅的外观。"
+          },
+          {
+            "blockNo": 5,
+            "blockType": "CTA块",
+            "text": "感兴趣可以私信我，发你详细的户型图和更多信息。",
+            "imageBrief": ""
+          }
+        ],
+        "cta": "感兴趣可以私信我，发你详细的户型图和更多信息。",
+        "hashtags": [
+          "#房产推荐",
+          "#首次置业",
+          "#预算友好型",
+          "#小面积房产",
+          "#生活便利",
+          "#品质居住"
+        ],
+        "imageBriefsIfMissing": [
+          "需要展示小面积房产的户型图或样板房实拍图。",
+          "需要展示房屋内部设计的实拍图，突出采光和布局特点。",
+          "需要展示周边商业配套的实拍图，例如超市或餐厅的外观。"
+        ],
+        "riskNotes": [
+          "避免提及收益承诺类内容。",
+          "避免使用出租确定性类描述。",
+          "避免涉及价格趋势预测。"
+        ]
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 2430,
+      "total_price": "0.01688",
+      "currency": "USD"
+    }
+  },
+  "scene_breakdown": {
+    "event": "node_finished",
+    "title": "分镜与素材策略",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\"scenes\":[{\"sceneNo\":1,\"sceneType\":\"口播\",\"purpose\":\"吸引观众注意并引入预算有限客户的需求。\",\"visualDescription\":\"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\",\"voiceover\":\"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\",\"filmingGuide\":{\"location\":\"售楼处门口\",\"posture\":\"站着\",\"tips\":[\"找光线好的位置，脸上不要有阴影\",\"语速放慢，像跟朋友聊天\",\"开头和结尾各多录 2 秒，方便剪辑\"]},\"editGuide\":{\"pacing\":\"正常\",\"transition\":\"直接切\"}},{\"sceneNo\":2,\"sceneType\":\"素材\",\"purpose\":\"展示项目入口及周边环境，吸引预算敏感客户。\",\"visualDescription\":\"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\",\"subtitle\":\"项目入口宽敞，周边环境绿化良好，生活便利。\",\"assetQuery\":\"项目入口 航拍 周边环境 商业街\",\"editGuide\":{\"pacing\":\"快\",\"transition\":\"直接切\"}},{\"sceneNo\":3,\"sceneType\":\"素材\",\"purpose\":\"介绍小面积房产的内部空间设计及特点。\",\"visualDescription\":\"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\",\"subtitle\":\"小面积房产设计注重舒适性和品质感。\",\"assetQuery\":\"样板间 客厅 落地窗 阳光 通透\",\"editGuide\":{\"pacing\":\"快\",\"transition\":\"直接切\"}},{\"sceneNo\":4,\"sceneType\":\"素材\",\"purpose\":\"通过周边商业配套的展示，强调生活便利性。\",\"visualDescription\":\"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\",\"subtitle\":\"周边商业配套成熟，生活非常便利。\",\"assetQuery\":\"社区 商业街 行人 白天\",\"editGuide\":{\"pacing\":\"快\",\"transition\":\"直接切\"}},{\"sceneNo\":5,\"sceneType\":\"口播\",\"purpose\":\"总结项目特点并引导观众结合自身需求进一步了解。\",\"visualDescription\":\"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\",\"voiceover\":\"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\",\"filmingGuide\":{\"location\":\"样板间客厅\",\"posture\":\"站着\",\"tips\":[\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\",\"拍两遍，选自然的那条\",\"开头和结尾各多录 2 秒，方便剪辑\"]},\"editGuide\":{\"pacing\":\"正常\",\"transition\":\"渐变过渡\"}}],\"riskNotes\":[\"避免提及任何收益承诺或价格趋势相关内容。\"]}",
+      "reasoning_content": "",
+      "usage": {
+        "prompt_tokens": 2546,
+        "prompt_unit_price": "5",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.01273",
+        "completion_tokens": 702,
+        "completion_unit_price": "15",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.01053",
+        "total_tokens": 3248,
+        "total_price": "0.02326",
+        "currency": "USD",
+        "latency": 16.188,
+        "time_to_first_token": 15.505,
+        "time_to_generate": 0.683
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "scenes": [
+          {
+            "sceneNo": 1,
+            "sceneType": "口播",
+            "purpose": "吸引观众注意并引入预算有限客户的需求。",
+            "visualDescription": "中介站在售楼处门口，背景是项目入口，直视镜头自然说话。",
+            "voiceover": "你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。",
+            "filmingGuide": {
+              "location": "售楼处门口",
+              "posture": "站着",
+              "tips": [
+                "找光线好的位置，脸上不要有阴影",
+                "语速放慢，像跟朋友聊天",
+                "开头和结尾各多录 2 秒，方便剪辑"
+              ]
+            },
+            "editGuide": {
+              "pacing": "正常",
+              "transition": "直接切"
+            }
+          },
+          {
+            "sceneNo": 2,
+            "sceneType": "素材",
+            "purpose": "展示项目入口及周边环境，吸引预算敏感客户。",
+            "visualDescription": "项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。",
+            "subtitle": "项目入口宽敞，周边环境绿化良好，生活便利。",
+            "assetQuery": "项目入口 航拍 周边环境 商业街",
+            "editGuide": {
+              "pacing": "快",
+              "transition": "直接切"
+            }
+          },
+          {
+            "sceneNo": 3,
+            "sceneType": "素材",
+            "purpose": "介绍小面积房产的内部空间设计及特点。",
+            "visualDescription": "样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。",
+            "subtitle": "小面积房产设计注重舒适性和品质感。",
+            "assetQuery": "样板间 客厅 落地窗 阳光 通透",
+            "editGuide": {
+              "pacing": "快",
+              "transition": "直接切"
+            }
+          },
+          {
+            "sceneNo": 4,
+            "sceneType": "素材",
+            "purpose": "通过周边商业配套的展示，强调生活便利性。",
+            "visualDescription": "社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。",
+            "subtitle": "周边商业配套成熟，生活非常便利。",
+            "assetQuery": "社区 商业街 行人 白天",
+            "editGuide": {
+              "pacing": "快",
+              "transition": "直接切"
+            }
+          },
+          {
+            "sceneNo": 5,
+            "sceneType": "口播",
+            "purpose": "总结项目特点并引导观众结合自身需求进一步了解。",
+            "visualDescription": "中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。",
+            "voiceover": "这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。",
+            "filmingGuide": {
+              "location": "样板间客厅",
+              "posture": "站着",
+              "tips": [
+                "不要站在房间正中央，站在角落或门框边，画面更有纵深感",
+                "拍两遍，选自然的那条",
+                "开头和结尾各多录 2 秒，方便剪辑"
+              ]
+            },
+            "editGuide": {
+              "pacing": "正常",
+              "transition": "渐变过渡"
+            }
+          }
+        ],
+        "riskNotes": [
+          "避免提及任何收益承诺或价格趋势相关内容。"
+        ]
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 3248,
+      "total_price": "0.02326",
+      "currency": "USD"
+    }
+  },
+  "article_compiler": {
+    "event": "node_finished",
+    "title": "图文包编译",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "result": "{\"articlePackage\": {\"titles\": [\"预算300万，如何找到舒适又实用的家？\", \"小面积房产也有大舒适感？看这里\", \"首次置业者的首选：预算友好型房产推荐\"], \"selectedTitle\": \"预算300万，如何找到舒适又实用的家？\", \"coverCopy\": \"300万预算也能买舒适好房\", \"body\": \"预算有限，如何找到舒适的家？这次推荐的小面积房产，设计巧妙，空间利用率高，适合首次置业者。\\n\\n项目面积段：50-70平方米，适合预算在300万以内的客户，满足舒适居住需求。\\n\\n房屋内部设计注重品质感，布局合理，采光充足，住起来舒适又温馨。\\n\\n周边商业配套齐全，步行即可到达超市、餐厅和地铁站，生活便利性高。\\n\\n感兴趣可以私信我，发你详细的户型图和更多信息。\", \"contentBlocks\": [{\"blockNo\": 1, \"blockType\": \"体验块\", \"text\": \"预算有限，如何找到舒适的家？这次推荐的小面积房产，设计巧妙，空间利用率高，适合首次置业者。\", \"imageMatch\": {\"assetId\": \"img_003\", \"cosPath\": \"https://example.com/entrance.jpg\", \"role\": \"项目入口\", \"title\": \"项目入口\", \"usage\": \"展示项目入口及周边环境\"}}, {\"blockNo\": 2, \"blockType\": \"数据块\", \"text\": \"项目面积段：50-70平方米，适合预算在300万以内的客户，满足舒适居住需求。\", \"imageBrief\": \"需要展示小面积房产的户型图或样板房实拍图。\"}, {\"blockNo\": 3, \"blockType\": \"体验块\", \"text\": \"房屋内部设计注重品质感，布局合理，采光充足，住起来舒适又温馨。\", \"imageBrief\": \"需要展示房屋内部设计的实拍图，突出采光和布局特点。\"}, {\"blockNo\": 4, \"blockType\": \"证据块\", \"text\": \"周边商业配套齐全，步行即可到达超市、餐厅和地铁站，生活便利性高。\", \"imageBrief\": \"需要展示周边商业配套的实拍图，例如超市或餐厅的外观。\"}, {\"blockNo\": 5, \"blockType\": \"CTA块\", \"text\": \"感兴趣可以私信我，发你详细的户型图和更多信息。\", \"imageBrief\": \"\"}], \"hashtags\": [\"#房产推荐\", \"#首次置业\", \"#预算友好型\", \"#小面积房产\", \"#生活便利\", \"#品质居住\"], \"cta\": \"感兴趣可以私信我，发你详细的户型图和更多信息。\", \"imageMatches\": [{\"blockNo\": 1, \"assetId\": \"img_003\", \"title\": \"项目入口\", \"usage\": \"展示项目入口及周边环境\", \"cosPath\": \"https://example.com/entrance.jpg\", \"role\": \"项目入口\"}], \"imageBriefIfMissing\": \"需要展示小面积房产的户型图或样板房实拍图。; 需要展示房屋内部设计的实拍图，突出采光和布局特点。; 需要展示周边商业配套的实拍图，例如超市或餐厅的外观。\", \"riskNotes\": [\"避免提及收益承诺类内容。\", \"避免使用出租确定性类描述。\", \"避免涉及价格趋势预测。\"], \"copyReadyText\": \"预算300万，如何找到舒适又实用的家？\\n\\n预算有限，如何找到舒适的家？这次推荐的小面积房产，设计巧妙，空间利用率高，适合首次置业者。\\n\\n项目面积段：50-70平方米，适合预算在300万以内的客户，满足舒适居住需求。\\n\\n房屋内部设计注重品质感，布局合理，采光充足，住起来舒适又温馨。\\n\\n周边商业配套齐全，步行即可到达超市、餐厅和地铁站，生活便利性高。\\n\\n感兴趣可以私信我，发你详细的户型图和更多信息。\\n\\n#房产推荐 #首次置业 #预算友好型 #小面积房产 #生活便利 #品质居住\"}, \"titleStrategy\": {\"titles\": [{\"text\": \"预算300万，如何找到舒适又实用的家？\", \"formula\": \"痛点共鸣\", \"whyThisFormula\": \"针对预算敏感客户的需求，直接点明痛点，吸引目标受众共鸣。\"}, {\"text\": \"小面积房产也有大舒适感？看这里\", \"formula\": \"反差/反常识\", \"whyThisFormula\": \"打破常见认知，引发兴趣，强调项目的空间设计优势。\"}, {\"text\": \"首次置业者的首选：预算友好型房产推荐\", \"formula\": \"社会认同\", \"whyThisFormula\": \"通过群体行为推荐，增加信任感，适合种草类内容。\"}], \"selectedTitleReason\": \"最直接点明目标受众的核心需求，具有强吸引力且贴近实际。\", \"coverCopyOptions\": [{\"text\": \"300万预算也能买舒适好房\", \"style\": \"大字报型\"}, {\"text\": \"小面积房产，舒适又实用\", \"style\": \"实拍+文字型\"}], \"hookAngle\": \"以低预算实现舒适房产选择，聚焦目标受众需求。\"}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "delivery_compiler": {
+    "event": "node_finished",
+    "title": "视频交付物编译",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "result": "{\"videoScript\": {\"narrative\": {\"hook\": {\"openingLine\": \"\\\"你知道预算有限也能找到舒适的房子吗？\\\"\", \"strategy\": \"反差/转变\"}, \"narrativeArc\": [\"从预算有限客户的需求出发，引入小面积房产的特点。\", \"展示空间设计如何实现舒适度和品质感。\", \"通过周边成熟商业配套的便利性吸引关注。\", \"结尾引导观众结合自身情况进一步了解项目。\"], \"storyOutline\": \"视频从预算有限的客户需求出发，展示项目入口和周边配套环境，介绍小面积房产的空间设计及其舒适性和品质感，最后通过首次置业者的体验分享，强调生活便利性，并引导观众结合自身需求了解项目。\", \"toneOfVoice\": \"专业且贴近生活\", \"voiceoverDraft\": \"\\\"预算有限也能找到舒适的房子。这里有小面积房产，设计注重舒适性和品质感，适合首次置业者。周边商业配套成熟，生活非常便利。建议结合预算来看这个项目，可能会让你眼前一亮。\\\"\", \"bgmDirection\": \"轻松愉快的背景音乐，营造舒适和实用的氛围。\", \"estimatedDuration\": \"2-3分钟\"}, \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 1\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意并引入预算有限客户的需求。\", \"taskDescription\": \"镜头 1\", \"visualDescription\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\", \"voiceover\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"subtitle\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"售楼处门口\", \"posture\": \"站着\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 2\", \"requiresUserUpload\": false, \"purpose\": \"展示项目入口及周边环境，吸引预算敏感客户。\", \"taskDescription\": \"镜头 2\", \"visualDescription\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\", \"voiceover\": \"\", \"subtitle\": \"项目入口宽敞，周边环境绿化良好，生活便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"项目入口 航拍 周边环境 商业街\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 3\", \"requiresUserUpload\": false, \"purpose\": \"介绍小面积房产的内部空间设计及特点。\", \"taskDescription\": \"镜头 3\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\", \"voiceover\": \"\", \"subtitle\": \"小面积房产设计注重舒适性和品质感。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 4\", \"requiresUserUpload\": false, \"purpose\": \"通过周边商业配套的展示，强调生活便利性。\", \"taskDescription\": \"镜头 4\", \"visualDescription\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\", \"voiceover\": \"\", \"subtitle\": \"周边商业配套成熟，生活非常便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 行人 白天\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 5\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众结合自身需求进一步了解。\", \"taskDescription\": \"镜头 5\", \"visualDescription\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\", \"voiceover\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"subtitle\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"样板间客厅\", \"posture\": \"站着\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}], \"riskNotes\": [\"避免提及任何收益承诺或价格趋势相关内容。\"]}, \"memberDelivery\": {\"tasks\": [{\"taskNo\": 1, \"sceneNo\": 1, \"script\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"location\": \"售楼处门口\", \"posture\": \"站着\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, {\"taskNo\": 2, \"sceneNo\": 5, \"script\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"location\": \"样板间客厅\", \"posture\": \"站着\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}]}, \"workerDelivery\": {\"storyOutline\": \"视频从预算有限的客户需求出发，展示项目入口和周边配套环境，介绍小面积房产的空间设计及其舒适性和品质感，最后通过首次置业者的体验分享，强调生活便利性，并引导观众结合自身需求了解项目。\", \"bgm\": \"轻松愉快的背景音乐，营造舒适和实用的氛围。\", \"toneOfVoice\": \"专业且贴近生活\", \"estimatedDuration\": \"2-3分钟\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 1\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意并引入预算有限客户的需求。\", \"taskDescription\": \"镜头 1\", \"visualDescription\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\", \"voiceover\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"subtitle\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"售楼处门口\", \"posture\": \"站着\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 2\", \"requiresUserUpload\": false, \"purpose\": \"展示项目入口及周边环境，吸引预算敏感客户。\", \"taskDescription\": \"镜头 2\", \"visualDescription\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\", \"voiceover\": \"\", \"subtitle\": \"项目入口宽敞，周边环境绿化良好，生活便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"项目入口 航拍 周边环境 商业街\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 3\", \"requiresUserUpload\": false, \"purpose\": \"介绍小面积房产的内部空间设计及特点。\", \"taskDescription\": \"镜头 3\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\", \"voiceover\": \"\", \"subtitle\": \"小面积房产设计注重舒适性和品质感。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 4\", \"requiresUserUpload\": false, \"purpose\": \"通过周边商业配套的展示，强调生活便利性。\", \"taskDescription\": \"镜头 4\", \"visualDescription\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\", \"voiceover\": \"\", \"subtitle\": \"周边商业配套成熟，生活非常便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 行人 白天\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 5\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众结合自身需求进一步了解。\", \"taskDescription\": \"镜头 5\", \"visualDescription\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\", \"voiceover\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"subtitle\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"样板间客厅\", \"posture\": \"站着\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}], \"teamAssetQueries\": [\"项目入口 航拍 周边环境 商业街\", \"样板间 客厅 落地窗 阳光 通透\", \"社区 商业街 行人 白天\"]}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "quality_reviewer": {
+    "event": "node_finished",
+    "title": "质量评审",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "needs_rewrite": "false",
+      "risk_terms": "",
+      "text": "{\"scores\": {\"factAccuracy\": 5, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"项目知识不足，成稿仅适合内部预览\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"更完整的项目事实\"]}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "if_else_needs_rewrite": {
+    "event": "node_finished",
+    "title": "是否需要违规改写",
+    "node_type": "if-else",
+    "status": "succeeded",
+    "outputs": {
+      "result": false,
+      "selected_case_id": "false"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "article_package_aggregator": {
+    "event": "node_finished",
+    "title": "图文内容包候选聚合器",
+    "node_type": "variable-aggregator",
+    "status": "succeeded",
+    "outputs": {
+      "output": "{\"articlePackage\": {\"titles\": [\"预算300万，如何找到舒适又实用的家？\", \"小面积房产也有大舒适感？看这里\", \"首次置业者的首选：预算友好型房产推荐\"], \"selectedTitle\": \"预算300万，如何找到舒适又实用的家？\", \"coverCopy\": \"300万预算也能买舒适好房\", \"body\": \"预算有限，如何找到舒适的家？这次推荐的小面积房产，设计巧妙，空间利用率高，适合首次置业者。\\n\\n项目面积段：50-70平方米，适合预算在300万以内的客户，满足舒适居住需求。\\n\\n房屋内部设计注重品质感，布局合理，采光充足，住起来舒适又温馨。\\n\\n周边商业配套齐全，步行即可到达超市、餐厅和地铁站，生活便利性高。\\n\\n感兴趣可以私信我，发你详细的户型图和更多信息。\", \"contentBlocks\": [{\"blockNo\": 1, \"blockType\": \"体验块\", \"text\": \"预算有限，如何找到舒适的家？这次推荐的小面积房产，设计巧妙，空间利用率高，适合首次置业者。\", \"imageMatch\": {\"assetId\": \"img_003\", \"cosPath\": \"https://example.com/entrance.jpg\", \"role\": \"项目入口\", \"title\": \"项目入口\", \"usage\": \"展示项目入口及周边环境\"}}, {\"blockNo\": 2, \"blockType\": \"数据块\", \"text\": \"项目面积段：50-70平方米，适合预算在300万以内的客户，满足舒适居住需求。\", \"imageBrief\": \"需要展示小面积房产的户型图或样板房实拍图。\"}, {\"blockNo\": 3, \"blockType\": \"体验块\", \"text\": \"房屋内部设计注重品质感，布局合理，采光充足，住起来舒适又温馨。\", \"imageBrief\": \"需要展示房屋内部设计的实拍图，突出采光和布局特点。\"}, {\"blockNo\": 4, \"blockType\": \"证据块\", \"text\": \"周边商业配套齐全，步行即可到达超市、餐厅和地铁站，生活便利性高。\", \"imageBrief\": \"需要展示周边商业配套的实拍图，例如超市或餐厅的外观。\"}, {\"blockNo\": 5, \"blockType\": \"CTA块\", \"text\": \"感兴趣可以私信我，发你详细的户型图和更多信息。\", \"imageBrief\": \"\"}], \"hashtags\": [\"#房产推荐\", \"#首次置业\", \"#预算友好型\", \"#小面积房产\", \"#生活便利\", \"#品质居住\"], \"cta\": \"感兴趣可以私信我，发你详细的户型图和更多信息。\", \"imageMatches\": [{\"blockNo\": 1, \"assetId\": \"img_003\", \"title\": \"项目入口\", \"usage\": \"展示项目入口及周边环境\", \"cosPath\": \"https://example.com/entrance.jpg\", \"role\": \"项目入口\"}], \"imageBriefIfMissing\": \"需要展示小面积房产的户型图或样板房实拍图。; 需要展示房屋内部设计的实拍图，突出采光和布局特点。; 需要展示周边商业配套的实拍图，例如超市或餐厅的外观。\", \"riskNotes\": [\"避免提及收益承诺类内容。\", \"避免使用出租确定性类描述。\", \"避免涉及价格趋势预测。\"], \"copyReadyText\": \"预算300万，如何找到舒适又实用的家？\\n\\n预算有限，如何找到舒适的家？这次推荐的小面积房产，设计巧妙，空间利用率高，适合首次置业者。\\n\\n项目面积段：50-70平方米，适合预算在300万以内的客户，满足舒适居住需求。\\n\\n房屋内部设计注重品质感，布局合理，采光充足，住起来舒适又温馨。\\n\\n周边商业配套齐全，步行即可到达超市、餐厅和地铁站，生活便利性高。\\n\\n感兴趣可以私信我，发你详细的户型图和更多信息。\\n\\n#房产推荐 #首次置业 #预算友好型 #小面积房产 #生活便利 #品质居住\"}, \"titleStrategy\": {\"titles\": [{\"text\": \"预算300万，如何找到舒适又实用的家？\", \"formula\": \"痛点共鸣\", \"whyThisFormula\": \"针对预算敏感客户的需求，直接点明痛点，吸引目标受众共鸣。\"}, {\"text\": \"小面积房产也有大舒适感？看这里\", \"formula\": \"反差/反常识\", \"whyThisFormula\": \"打破常见认知，引发兴趣，强调项目的空间设计优势。\"}, {\"text\": \"首次置业者的首选：预算友好型房产推荐\", \"formula\": \"社会认同\", \"whyThisFormula\": \"通过群体行为推荐，增加信任感，适合种草类内容。\"}], \"selectedTitleReason\": \"最直接点明目标受众的核心需求，具有强吸引力且贴近实际。\", \"coverCopyOptions\": [{\"text\": \"300万预算也能买舒适好房\", \"style\": \"大字报型\"}, {\"text\": \"小面积房产，舒适又实用\", \"style\": \"实拍+文字型\"}], \"hookAngle\": \"以低预算实现舒适房产选择，聚焦目标受众需求。\"}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "video_script_aggregator": {
+    "event": "node_finished",
+    "title": "视频脚本候选聚合器",
+    "node_type": "variable-aggregator",
+    "status": "succeeded",
+    "outputs": {
+      "output": "{\"videoScript\": {\"narrative\": {\"hook\": {\"openingLine\": \"\\\"你知道预算有限也能找到舒适的房子吗？\\\"\", \"strategy\": \"反差/转变\"}, \"narrativeArc\": [\"从预算有限客户的需求出发，引入小面积房产的特点。\", \"展示空间设计如何实现舒适度和品质感。\", \"通过周边成熟商业配套的便利性吸引关注。\", \"结尾引导观众结合自身情况进一步了解项目。\"], \"storyOutline\": \"视频从预算有限的客户需求出发，展示项目入口和周边配套环境，介绍小面积房产的空间设计及其舒适性和品质感，最后通过首次置业者的体验分享，强调生活便利性，并引导观众结合自身需求了解项目。\", \"toneOfVoice\": \"专业且贴近生活\", \"voiceoverDraft\": \"\\\"预算有限也能找到舒适的房子。这里有小面积房产，设计注重舒适性和品质感，适合首次置业者。周边商业配套成熟，生活非常便利。建议结合预算来看这个项目，可能会让你眼前一亮。\\\"\", \"bgmDirection\": \"轻松愉快的背景音乐，营造舒适和实用的氛围。\", \"estimatedDuration\": \"2-3分钟\"}, \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 1\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意并引入预算有限客户的需求。\", \"taskDescription\": \"镜头 1\", \"visualDescription\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\", \"voiceover\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"subtitle\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"售楼处门口\", \"posture\": \"站着\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 2\", \"requiresUserUpload\": false, \"purpose\": \"展示项目入口及周边环境，吸引预算敏感客户。\", \"taskDescription\": \"镜头 2\", \"visualDescription\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\", \"voiceover\": \"\", \"subtitle\": \"项目入口宽敞，周边环境绿化良好，生活便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"项目入口 航拍 周边环境 商业街\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 3\", \"requiresUserUpload\": false, \"purpose\": \"介绍小面积房产的内部空间设计及特点。\", \"taskDescription\": \"镜头 3\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\", \"voiceover\": \"\", \"subtitle\": \"小面积房产设计注重舒适性和品质感。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 4\", \"requiresUserUpload\": false, \"purpose\": \"通过周边商业配套的展示，强调生活便利性。\", \"taskDescription\": \"镜头 4\", \"visualDescription\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\", \"voiceover\": \"\", \"subtitle\": \"周边商业配套成熟，生活非常便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 行人 白天\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 5\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众结合自身需求进一步了解。\", \"taskDescription\": \"镜头 5\", \"visualDescription\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\", \"voiceover\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"subtitle\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"样板间客厅\", \"posture\": \"站着\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}], \"riskNotes\": [\"避免提及任何收益承诺或价格趋势相关内容。\"]}, \"memberDelivery\": {\"tasks\": [{\"taskNo\": 1, \"sceneNo\": 1, \"script\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"location\": \"售楼处门口\", \"posture\": \"站着\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, {\"taskNo\": 2, \"sceneNo\": 5, \"script\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"location\": \"样板间客厅\", \"posture\": \"站着\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}]}, \"workerDelivery\": {\"storyOutline\": \"视频从预算有限的客户需求出发，展示项目入口和周边配套环境，介绍小面积房产的空间设计及其舒适性和品质感，最后通过首次置业者的体验分享，强调生活便利性，并引导观众结合自身需求了解项目。\", \"bgm\": \"轻松愉快的背景音乐，营造舒适和实用的氛围。\", \"toneOfVoice\": \"专业且贴近生活\", \"estimatedDuration\": \"2-3分钟\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 1\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意并引入预算有限客户的需求。\", \"taskDescription\": \"镜头 1\", \"visualDescription\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\", \"voiceover\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"subtitle\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"售楼处门口\", \"posture\": \"站着\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 2\", \"requiresUserUpload\": false, \"purpose\": \"展示项目入口及周边环境，吸引预算敏感客户。\", \"taskDescription\": \"镜头 2\", \"visualDescription\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\", \"voiceover\": \"\", \"subtitle\": \"项目入口宽敞，周边环境绿化良好，生活便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"项目入口 航拍 周边环境 商业街\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 3\", \"requiresUserUpload\": false, \"purpose\": \"介绍小面积房产的内部空间设计及特点。\", \"taskDescription\": \"镜头 3\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\", \"voiceover\": \"\", \"subtitle\": \"小面积房产设计注重舒适性和品质感。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 4\", \"requiresUserUpload\": false, \"purpose\": \"通过周边商业配套的展示，强调生活便利性。\", \"taskDescription\": \"镜头 4\", \"visualDescription\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\", \"voiceover\": \"\", \"subtitle\": \"周边商业配套成熟，生活非常便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 行人 白天\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 5\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众结合自身需求进一步了解。\", \"taskDescription\": \"镜头 5\", \"visualDescription\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\", \"voiceover\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"subtitle\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"样板间客厅\", \"posture\": \"站着\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}], \"teamAssetQueries\": [\"项目入口 航拍 周边环境 商业街\", \"样板间 客厅 落地窗 阳光 通透\", \"社区 商业街 行人 白天\"]}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "final_compiler": {
+    "event": "node_finished",
+    "title": "最终结果编译",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"status\": \"needs_review\", \"article\": {\"title\": \"预算300万，如何找到舒适又实用的家？\", \"coverCopy\": \"300万预算也能买舒适好房\", \"images\": [{\"cosPath\": \"https://example.com/entrance.jpg\", \"role\": \"项目入口\"}], \"copyText\": \"预算300万，如何找到舒适又实用的家？\\n\\n预算有限，如何找到舒适的家？这次推荐的小面积房产，设计巧妙，空间利用率高，适合首次置业者。\\n\\n项目面积段：50-70平方米，适合预算在300万以内的客户，满足舒适居住需求。\\n\\n房屋内部设计注重品质感，布局合理，采光充足，住起来舒适又温馨。\\n\\n周边商业配套齐全，步行即可到达超市、餐厅和地铁站，生活便利性高。\\n\\n感兴趣可以私信我，发你详细的户型图和更多信息。\\n\\n#房产推荐 #首次置业 #预算友好型 #小面积房产 #生活便利 #品质居住\"}, \"video\": {\"storyOutline\": \"视频从预算有限的客户需求出发，展示项目入口和周边配套环境，介绍小面积房产的空间设计及其舒适性和品质感，最后通过首次置业者的体验分享，强调生活便利性，并引导观众结合自身需求了解项目。\", \"estimatedDuration\": \"2-3分钟\", \"bgm\": \"轻松愉快的背景音乐，营造舒适和实用的氛围。\", \"toneOfVoice\": \"专业且贴近生活\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 1\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意并引入预算有限客户的需求。\", \"taskDescription\": \"镜头 1\", \"visualDescription\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\", \"voiceover\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"subtitle\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"售楼处门口\", \"posture\": \"站着\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 2\", \"requiresUserUpload\": false, \"purpose\": \"展示项目入口及周边环境，吸引预算敏感客户。\", \"taskDescription\": \"镜头 2\", \"visualDescription\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\", \"voiceover\": \"\", \"subtitle\": \"项目入口宽敞，周边环境绿化良好，生活便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"项目入口 航拍 周边环境 商业街\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 3\", \"requiresUserUpload\": false, \"purpose\": \"介绍小面积房产的内部空间设计及特点。\", \"taskDescription\": \"镜头 3\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\", \"voiceover\": \"\", \"subtitle\": \"小面积房产设计注重舒适性和品质感。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 4\", \"requiresUserUpload\": false, \"purpose\": \"通过周边商业配套的展示，强调生活便利性。\", \"taskDescription\": \"镜头 4\", \"visualDescription\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\", \"voiceover\": \"\", \"subtitle\": \"周边商业配套成熟，生活非常便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 行人 白天\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 5\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众结合自身需求进一步了解。\", \"taskDescription\": \"镜头 5\", \"visualDescription\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\", \"voiceover\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"subtitle\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"样板间客厅\", \"posture\": \"站着\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": []}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "end": {
+    "event": "node_finished",
+    "title": "输出",
+    "node_type": "end",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"status\": \"needs_review\", \"article\": {\"title\": \"预算300万，如何找到舒适又实用的家？\", \"coverCopy\": \"300万预算也能买舒适好房\", \"images\": [{\"cosPath\": \"https://example.com/entrance.jpg\", \"role\": \"项目入口\"}], \"copyText\": \"预算300万，如何找到舒适又实用的家？\\n\\n预算有限，如何找到舒适的家？这次推荐的小面积房产，设计巧妙，空间利用率高，适合首次置业者。\\n\\n项目面积段：50-70平方米，适合预算在300万以内的客户，满足舒适居住需求。\\n\\n房屋内部设计注重品质感，布局合理，采光充足，住起来舒适又温馨。\\n\\n周边商业配套齐全，步行即可到达超市、餐厅和地铁站，生活便利性高。\\n\\n感兴趣可以私信我，发你详细的户型图和更多信息。\\n\\n#房产推荐 #首次置业 #预算友好型 #小面积房产 #生活便利 #品质居住\"}, \"video\": {\"storyOutline\": \"视频从预算有限的客户需求出发，展示项目入口和周边配套环境，介绍小面积房产的空间设计及其舒适性和品质感，最后通过首次置业者的体验分享，强调生活便利性，并引导观众结合自身需求了解项目。\", \"estimatedDuration\": \"2-3分钟\", \"bgm\": \"轻松愉快的背景音乐，营造舒适和实用的氛围。\", \"toneOfVoice\": \"专业且贴近生活\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 1\", \"requiresUserUpload\": true, \"purpose\": \"吸引观众注意并引入预算有限客户的需求。\", \"taskDescription\": \"镜头 1\", \"visualDescription\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\", \"voiceover\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"subtitle\": \"你知道预算有限也能找到舒适的房子吗？今天我们来看看一个适合首次置业者的小面积房产。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在售楼处门口，背景是项目入口，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"售楼处门口\", \"posture\": \"站着\", \"tips\": [\"找光线好的位置，脸上不要有阴影\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 2\", \"requiresUserUpload\": false, \"purpose\": \"展示项目入口及周边环境，吸引预算敏感客户。\", \"taskDescription\": \"镜头 2\", \"visualDescription\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\", \"voiceover\": \"\", \"subtitle\": \"项目入口宽敞，周边环境绿化良好，生活便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"项目正门航拍，镜头从高处缓缓下降，展示大门、两侧绿化和右侧商业街。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"项目入口 航拍 周边环境 商业街\"}, {\"sceneNo\": 3, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 3\", \"requiresUserUpload\": false, \"purpose\": \"介绍小面积房产的内部空间设计及特点。\", \"taskDescription\": \"镜头 3\", \"visualDescription\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\", \"voiceover\": \"\", \"subtitle\": \"小面积房产设计注重舒适性和品质感。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"样板间 客厅 落地窗 阳光 通透\"}, {\"sceneNo\": 4, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"镜头 4\", \"requiresUserUpload\": false, \"purpose\": \"通过周边商业配套的展示，强调生活便利性。\", \"taskDescription\": \"镜头 4\", \"visualDescription\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\", \"voiceover\": \"\", \"subtitle\": \"周边商业配套成熟，生活非常便利。\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"稳定推进或平移\", \"orientation\": \"横屏\", \"composition\": \"社区周边商业街的白天场景，行人穿梭，店铺招牌清晰可见。\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 3}, \"assetQuery\": \"社区 商业街 行人 白天\"}, {\"sceneNo\": 5, \"timeRange\": \"0-3s\", \"durationSec\": 3, \"sceneType\": \"口播\", \"title\": \"镜头 5\", \"requiresUserUpload\": true, \"purpose\": \"总结项目特点并引导观众结合自身需求进一步了解。\", \"taskDescription\": \"镜头 5\", \"visualDescription\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\", \"voiceover\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"subtitle\": \"这个项目的小面积房产设计舒适，周边生活配套齐全，非常适合预算有限的首次置业者。建议结合自身需求来看这个项目，可能会让你眼前一亮。\", \"shotLanguage\": {\"framing\": \"中景\", \"cameraMovement\": \"固定镜头\", \"orientation\": \"横屏\", \"composition\": \"中介站在样板间客厅内，背景是整洁的室内布置，直视镜头自然说话。\"}, \"filmingGuide\": {\"method\": \"手机横屏，半身自拍口播\", \"location\": \"样板间客厅\", \"posture\": \"站着\", \"tips\": [\"不要站在房间正中央，站在角落或门框边，画面更有纵深感\", \"拍两遍，选自然的那条\", \"开头和结尾各多录 2 秒，方便剪辑\"]}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"\"}]}, \"quality\": {\"riskTerms\": []}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  }
+}

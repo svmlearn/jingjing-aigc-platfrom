@@ -1,0 +1,294 @@
+{
+  "case_name": "case02_no_images",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "run_index": 1,
+  "timestamp": "20260512_142905_018434",
+  "elapsed_time": 231.12782192230225,
+  "success": true,
+  "workflow_run_id": "3a187c7c-ff54-44ca-9164-b394dd1b31ff",
+  "error": null,
+  "raw_response": {
+    "id": "3a187c7c-ff54-44ca-9164-b394dd1b31ff",
+    "workflow_id": "e4f8d2b4-8d5a-49e8-bf85-f2526c369b77",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"给老客户提个醒：看房别光盯户型图\", \"这套房为什么适合先看生活半径？\", \"下班买菜顺路吗？看房该关心的真实问题\"], \"selectedTitle\": \"给老客户提个醒：看房别光盯户型图\", \"coverCopy\": \"买房不止看户型，更要看楼下生活半径。走一遍日常动线，比想象更实际。\", \"body\": \"很多客户第一次看房，习惯拿户型图比来比去。\\n\\n但真正住进去舒不舒服，楼下走一圈才知道。\\n\\n早上买早餐方不方便？\\n下班顺路能买到新鲜菜？\\n周末附近有没有能逛的地方？\\n\\n这些才是日子里的重点。\\n\\n我整理了一份生活圈清单，想了解再发消息就行。\", \"hashtags\": [\"#看房技巧\", \"#真实生活场景\", \"#预算友好\", \"#中介日常\"], \"cta\": \"清单我整好了，需要的话发消息。\", \"imageMatches\": [], \"imageBriefIfMissing\": \"一张社区周边生活场景实拍图：早晨有人在早餐店买包子，自然光，街头感强，避免摆拍痕迹。\", \"riskNotes\": [\"避免使用任何投资收益承诺词汇\", \"不提及具体价格、租金\", \"仅展示已有公共配套，不预测未来设施\"], \"copyReadyText\": \"给老客户提个醒：看房别光盯户型图\\n\\n很多客户第一次看房，习惯拿户型图比来比去。\\n\\n但真正住进去舒不舒服，楼下走一圈才知道。\\n\\n早上买早餐方不方便？\\n下班顺路能买到新鲜菜？\\n周末附近有没有能逛的地方？\\n\\n这些才是日子里的重点。\\n\\n我整理了一份生活圈清单，想了解再发消息就行。\\n\\n#看房技巧 #真实生活场景 #预算友好 #中介日常\\n\\n清单我整好了，需要的话发消息。\"}, \"videoScript\": {\"storyOutline\": \"从‘买房先看楼下生活半径’切入，带老客户视角走一遍日常动线：早上买早餐方便吗？下班买菜顺路吗？周末附近有地方逛吗？强调真实体验，避开户型图上的想象。\", \"estimatedDuration\": \"60秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"00:00-00:08\", \"visualGoal\": \"用文字动画提醒老客户避免只看户型图\", \"voiceover\": \"给老客户提个醒，看房别光盯着户型图，楼下生活半径更重要。\", \"subtitle\": \"买房别迷户型图\", \"shotRequirement\": \"纯文字动画或简单图形，突出标题\", \"assetQuery\": \"片头文字动画 提醒 看房误区\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"editor_asset\", \"fallbackVisual\": \"手机拍摄的户型图照片上叠加文字\"}, {\"sceneNo\": 2, \"timeRange\": \"00:08-00:18\", \"visualGoal\": \"展示社区大门外真实街景，走向早餐店\", \"voiceover\": \"早上出门能不能顺手买份早饭？这是住得舒服的第一步。\", \"subtitle\": \"从小区到早餐店，步行实测\", \"shotRequirement\": \"手持稳定器跟拍，从小区大门走出，镜头转向街角早餐店，自然光，展示真实环境\", \"assetQuery\": \"小区入口 街景 早餐店 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"其他社区门口的早餐摊位实拍\"}, {\"sceneNo\": 3, \"timeRange\": \"00:18-00:28\", \"visualGoal\": \"展示周边生鲜超市的丰富度和便利性\", \"voiceover\": \"下班顺路买个菜，新鲜不贵，这就是生活。\", \"subtitle\": \"逛一圈周边生鲜超市\", \"shotRequirement\": \"在超市内手持拍摄，快速扫过蔬果价格牌，展示品种和鲜度，避免拍到具体价格标签特写\", \"assetQuery\": \"社区周边生鲜超市 果蔬 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"菜市场内景实拍\"}, {\"sceneNo\": 4, \"timeRange\": \"00:28-00:38\", \"visualGoal\": \"测试到最近地铁口的步行时间，证明通勤方便\", \"voiceover\": \"走到地铁站，也就两三分钟，通勤无压力。\", \"subtitle\": \"步行到地铁口，计时显示\", \"shotRequirement\": \"主观视角从社区门口走到地铁站口，手机秒表计时，显示数字，避免显示具体距离\", \"assetQuery\": \"地铁站口 步行路线 社区通勤\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"导航地图显示路线叠加计时动画\"}, {\"sceneNo\": 5, \"timeRange\": \"00:38-00:50\", \"visualGoal\": \"呈现社区傍晚生活氛围，老人小孩轻松自在\", \"voiceover\": \"傍晚楼下遛弯，老人下棋，孩子玩耍，这才是家的感觉。\", \"subtitle\": \"社区傍晚生活实况\", \"shotRequirement\": \"固定或缓缓摇过社区公共空间，老人下棋、儿童玩耍等场景，避免特写人脸，保持氛围感\", \"assetQuery\": \"社区生活氛围 傍晚 居民活动\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"其他小区傍晚活动实拍\"}, {\"sceneNo\": 6, \"timeRange\": \"00:50-01:00\", \"visualGoal\": \"真人出镜引导老客户索取清单，增加互动\", \"voiceover\": \"我整理了看房生活圈清单，想要的话，发消息给我。\", \"subtitle\": \"私信我，获取看房生活圈清单\", \"shotRequirement\": \"镜头前真人自然微笑，手指向屏幕下方，加联系方式浮层，背景为社区实景或虚拟背景\", \"assetQuery\": \"真人出镜 口播 CTA 发消息\", \"uploadRequired\": true, \"uploadReason\": \"需要成员本人出镜引导互动，建立信任\", \"assetSourceHint\": \"self_shoot\", \"fallbackVisual\": \"仅显示联系方式浮层加语音\"}], \"requiredUploads\": [\"镜头前真人自然微笑，手指向屏幕下方，加联系方式浮层，背景为社区实景或虚拟背景\"], \"optionalTeamVideoAssets\": [\"小区入口 街景 早餐店 实拍\", \"社区周边生鲜超市 果蔬 实拍\", \"地铁站口 步行路线 社区通勤\", \"社区生活氛围 傍晚 居民活动\"], \"shootingTips\": [\"全程手持稳定器或手机，自然光，第一人称视角增强代入感，避免摆拍，环境音保留。\"], \"riskNotes\": [\"涉及项目信息时避免具体价格、租金和投资回报；仅展示公共配套和生活便利；所有价格信息需注明‘具体以实际为准’。\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 6, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"缺少可用图片素材\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"图文图片素材\"]}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"成熟配套\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"信任建立\", \"targetAudience\": \"首次看房客户\", \"audiencePain\": \"对区域不熟悉，担心生活配套不完善\", \"sellingPointsNeeded\": [\"生活便利度\", \"商业配套\", \"教育配套\", \"交通配套\"], \"riskConstraints\": [], \"copySearchQuery\": \"成熟配套 首次看房 生活便利 真实体验\", \"scriptSearchQuery\": \"成熟配套 生活便利 信任 客户反馈\", \"imageSearchQuery\": \"成熟配套 项目实景 生活场景\", \"videoAssetQueryHints\": [\"社区实景\", \"周边商业\", \"交通状况\", \"日常生活\"], \"extraRequirement\": \"语气真实一点，像发给老客户看的内容\"}, \"creativeStrategy\": {\"storyOutline\": \"从‘买房先看楼下生活半径’切入，带老客户视角走一遍日常动线：早上买早餐方便吗？下班买菜顺路吗？周末附近有地方逛吗？强调真实体验，避开户型图上的想象。\", \"estimatedDuration\": \"60秒\", \"scenes\": [\"片头文字‘买房别迷户型图’，加画外音‘给老客户提个醒’\", \"镜头从小区大门出来，走向街角早餐店，自然光拍摄\", \"手持镜头逛周边生鲜超市，展示蔬果和价格\", \"步行到最近地铁口，手表计时2-3分钟\", \"傍晚社区老人遛弯，小朋友玩耍，体现生活氛围\", \"结尾对着镜头说‘清单我整好了，要看发消息’，加联系方式浮层\"], \"requiredUploads\": [\"小区正门及周边街景广角视频\", \"早餐店/便利店/水果店实拍\", \"地铁站口步行路线演示\", \"傍晚社区生活场景片段\"], \"optionalTeamVideoAssets\": [\"经纪人简短口播（不出镜配音）\", \"户型图动态标注生活圈半径\"], \"shootingTips\": \"全程手持稳定器或手机，自然光，第一人称视角增强代入感，避免摆拍，环境音保留。\", \"riskNotes\": \"涉及项目信息时避免具体价格、租金和投资回报；仅展示公共配套和生活便利；所有价格信息需注明‘具体以实际为准’。\"}, \"usedKnowledgeRefs\": [], \"usedViralRefs\": [], \"usedImageAssets\": [], \"degradationNotices\": []}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 226.464151,
+    "total_tokens": 17675,
+    "total_steps": 12,
+    "created_by": {
+      "id": "fc9aa900-e017-4198-b203-8d95dae82825",
+      "user": "content_calendar_test_case02_no_images_1778567345"
+    },
+    "created_at": 1778567348,
+    "finished_at": 1778567575,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "titles": [
+        "给老客户提个醒：看房别光盯户型图",
+        "这套房为什么适合先看生活半径？",
+        "下班买菜顺路吗？看房该关心的真实问题"
+      ],
+      "selectedTitle": "给老客户提个醒：看房别光盯户型图",
+      "coverCopy": "买房不止看户型，更要看楼下生活半径。走一遍日常动线，比想象更实际。",
+      "body": "很多客户第一次看房，习惯拿户型图比来比去。\n\n但真正住进去舒不舒服，楼下走一圈才知道。\n\n早上买早餐方不方便？\n下班顺路能买到新鲜菜？\n周末附近有没有能逛的地方？\n\n这些才是日子里的重点。\n\n我整理了一份生活圈清单，想了解再发消息就行。",
+      "hashtags": [
+        "#看房技巧",
+        "#真实生活场景",
+        "#预算友好",
+        "#中介日常"
+      ],
+      "cta": "清单我整好了，需要的话发消息。",
+      "imageMatches": [],
+      "imageBriefIfMissing": "一张社区周边生活场景实拍图：早晨有人在早餐店买包子，自然光，街头感强，避免摆拍痕迹。",
+      "riskNotes": [
+        "避免使用任何投资收益承诺词汇",
+        "不提及具体价格、租金",
+        "仅展示已有公共配套，不预测未来设施"
+      ],
+      "copyReadyText": "给老客户提个醒：看房别光盯户型图\n\n很多客户第一次看房，习惯拿户型图比来比去。\n\n但真正住进去舒不舒服，楼下走一圈才知道。\n\n早上买早餐方不方便？\n下班顺路能买到新鲜菜？\n周末附近有没有能逛的地方？\n\n这些才是日子里的重点。\n\n我整理了一份生活圈清单，想了解再发消息就行。\n\n#看房技巧 #真实生活场景 #预算友好 #中介日常\n\n清单我整好了，需要的话发消息。"
+    },
+    "videoScript": {
+      "storyOutline": "从‘买房先看楼下生活半径’切入，带老客户视角走一遍日常动线：早上买早餐方便吗？下班买菜顺路吗？周末附近有地方逛吗？强调真实体验，避开户型图上的想象。",
+      "estimatedDuration": "60秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "00:00-00:08",
+          "visualGoal": "用文字动画提醒老客户避免只看户型图",
+          "voiceover": "给老客户提个醒，看房别光盯着户型图，楼下生活半径更重要。",
+          "subtitle": "买房别迷户型图",
+          "shotRequirement": "纯文字动画或简单图形，突出标题",
+          "assetQuery": "片头文字动画 提醒 看房误区",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "editor_asset",
+          "fallbackVisual": "手机拍摄的户型图照片上叠加文字"
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "00:08-00:18",
+          "visualGoal": "展示社区大门外真实街景，走向早餐店",
+          "voiceover": "早上出门能不能顺手买份早饭？这是住得舒服的第一步。",
+          "subtitle": "从小区到早餐店，步行实测",
+          "shotRequirement": "手持稳定器跟拍，从小区大门走出，镜头转向街角早餐店，自然光，展示真实环境",
+          "assetQuery": "小区入口 街景 早餐店 实拍",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "其他社区门口的早餐摊位实拍"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "00:18-00:28",
+          "visualGoal": "展示周边生鲜超市的丰富度和便利性",
+          "voiceover": "下班顺路买个菜，新鲜不贵，这就是生活。",
+          "subtitle": "逛一圈周边生鲜超市",
+          "shotRequirement": "在超市内手持拍摄，快速扫过蔬果价格牌，展示品种和鲜度，避免拍到具体价格标签特写",
+          "assetQuery": "社区周边生鲜超市 果蔬 实拍",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "菜市场内景实拍"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "00:28-00:38",
+          "visualGoal": "测试到最近地铁口的步行时间，证明通勤方便",
+          "voiceover": "走到地铁站，也就两三分钟，通勤无压力。",
+          "subtitle": "步行到地铁口，计时显示",
+          "shotRequirement": "主观视角从社区门口走到地铁站口，手机秒表计时，显示数字，避免显示具体距离",
+          "assetQuery": "地铁站口 步行路线 社区通勤",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "导航地图显示路线叠加计时动画"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "00:38-00:50",
+          "visualGoal": "呈现社区傍晚生活氛围，老人小孩轻松自在",
+          "voiceover": "傍晚楼下遛弯，老人下棋，孩子玩耍，这才是家的感觉。",
+          "subtitle": "社区傍晚生活实况",
+          "shotRequirement": "固定或缓缓摇过社区公共空间，老人下棋、儿童玩耍等场景，避免特写人脸，保持氛围感",
+          "assetQuery": "社区生活氛围 傍晚 居民活动",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "其他小区傍晚活动实拍"
+        },
+        {
+          "sceneNo": 6,
+          "timeRange": "00:50-01:00",
+          "visualGoal": "真人出镜引导老客户索取清单，增加互动",
+          "voiceover": "我整理了看房生活圈清单，想要的话，发消息给我。",
+          "subtitle": "私信我，获取看房生活圈清单",
+          "shotRequirement": "镜头前真人自然微笑，手指向屏幕下方，加联系方式浮层，背景为社区实景或虚拟背景",
+          "assetQuery": "真人出镜 口播 CTA 发消息",
+          "uploadRequired": true,
+          "uploadReason": "需要成员本人出镜引导互动，建立信任",
+          "assetSourceHint": "self_shoot",
+          "fallbackVisual": "仅显示联系方式浮层加语音"
+        }
+      ],
+      "requiredUploads": [
+        "镜头前真人自然微笑，手指向屏幕下方，加联系方式浮层，背景为社区实景或虚拟背景"
+      ],
+      "optionalTeamVideoAssets": [
+        "小区入口 街景 早餐店 实拍",
+        "社区周边生鲜超市 果蔬 实拍",
+        "地铁站口 步行路线 社区通勤",
+        "社区生活氛围 傍晚 居民活动"
+      ],
+      "shootingTips": [
+        "全程手持稳定器或手机，自然光，第一人称视角增强代入感，避免摆拍，环境音保留。"
+      ],
+      "riskNotes": [
+        "涉及项目信息时避免具体价格、租金和投资回报；仅展示公共配套和生活便利；所有价格信息需注明‘具体以实际为准’。"
+      ]
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 8,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 8,
+        "materialFit": 6,
+        "compliance": 9
+      },
+      "pass": false,
+      "needsRewrite": false,
+      "riskTerms": [],
+      "problems": [
+        "缺少可用图片素材"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": [
+        "图文图片素材"
+      ]
+    },
+    "trace": {
+      "taskUnderstanding": {
+        "coreTopic": "成熟配套",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "信任建立",
+        "targetAudience": "首次看房客户",
+        "audiencePain": "对区域不熟悉，担心生活配套不完善",
+        "sellingPointsNeeded": [
+          "生活便利度",
+          "商业配套",
+          "教育配套",
+          "交通配套"
+        ],
+        "riskConstraints": [],
+        "copySearchQuery": "成熟配套 首次看房 生活便利 真实体验",
+        "scriptSearchQuery": "成熟配套 生活便利 信任 客户反馈",
+        "imageSearchQuery": "成熟配套 项目实景 生活场景",
+        "videoAssetQueryHints": [
+          "社区实景",
+          "周边商业",
+          "交通状况",
+          "日常生活"
+        ],
+        "extraRequirement": "语气真实一点，像发给老客户看的内容"
+      },
+      "creativeStrategy": {
+        "storyOutline": "从‘买房先看楼下生活半径’切入，带老客户视角走一遍日常动线：早上买早餐方便吗？下班买菜顺路吗？周末附近有地方逛吗？强调真实体验，避开户型图上的想象。",
+        "estimatedDuration": "60秒",
+        "scenes": [
+          "片头文字‘买房别迷户型图’，加画外音‘给老客户提个醒’",
+          "镜头从小区大门出来，走向街角早餐店，自然光拍摄",
+          "手持镜头逛周边生鲜超市，展示蔬果和价格",
+          "步行到最近地铁口，手表计时2-3分钟",
+          "傍晚社区老人遛弯，小朋友玩耍，体现生活氛围",
+          "结尾对着镜头说‘清单我整好了，要看发消息’，加联系方式浮层"
+        ],
+        "requiredUploads": [
+          "小区正门及周边街景广角视频",
+          "早餐店/便利店/水果店实拍",
+          "地铁站口步行路线演示",
+          "傍晚社区生活场景片段"
+        ],
+        "optionalTeamVideoAssets": [
+          "经纪人简短口播（不出镜配音）",
+          "户型图动态标注生活圈半径"
+        ],
+        "shootingTips": "全程手持稳定器或手机，自然光，第一人称视角增强代入感，避免摆拍，环境音保留。",
+        "riskNotes": "涉及项目信息时避免具体价格、租金和投资回报；仅展示公共配套和生活便利；所有价格信息需注明‘具体以实际为准’。"
+      },
+      "usedKnowledgeRefs": [],
+      "usedViralRefs": [],
+      "usedImageAssets": [],
+      "degradationNotices": []
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"titles\": [\"给老客户提个醒：看房别光盯户型图\", \"这套房为什么适合先看生活半径？\", \"下班买菜顺路吗？看房该关心的真实问题\"], \"selectedTitle\": \"给老客户提个醒：看房别光盯户型图\", \"coverCopy\": \"买房不止看户型，更要看楼下生活半径。走一遍日常动线，比想象更实际。\", \"body\": \"很多客户第一次看房，习惯拿户型图比来比去。\\n\\n但真正住进去舒不舒服，楼下走一圈才知道。\\n\\n早上买早餐方不方便？\\n下班顺路能买到新鲜菜？\\n周末附近有没有能逛的地方？\\n\\n这些才是日子里的重点。\\n\\n我整理了一份生活圈清单，想了解再发消息就行。\", \"hashtags\": [\"#看房技巧\", \"#真实生活场景\", \"#预算友好\", \"#中介日常\"], \"cta\": \"清单我整好了，需要的话发消息。\", \"imageMatches\": [], \"imageBriefIfMissing\": \"一张社区周边生活场景实拍图：早晨有人在早餐店买包子，自然光，街头感强，避免摆拍痕迹。\", \"riskNotes\": [\"避免使用任何投资收益承诺词汇\", \"不提及具体价格、租金\", \"仅展示已有公共配套，不预测未来设施\"], \"copyReadyText\": \"给老客户提个醒：看房别光盯户型图\\n\\n很多客户第一次看房，习惯拿户型图比来比去。\\n\\n但真正住进去舒不舒服，楼下走一圈才知道。\\n\\n早上买早餐方不方便？\\n下班顺路能买到新鲜菜？\\n周末附近有没有能逛的地方？\\n\\n这些才是日子里的重点。\\n\\n我整理了一份生活圈清单，想了解再发消息就行。\\n\\n#看房技巧 #真实生活场景 #预算友好 #中介日常\\n\\n清单我整好了，需要的话发消息。\"}, \"videoScript\": {\"storyOutline\": \"从‘买房先看楼下生活半径’切入，带老客户视角走一遍日常动线：早上买早餐方便吗？下班买菜顺路吗？周末附近有地方逛吗？强调真实体验，避开户型图上的想象。\", \"estimatedDuration\": \"60秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"00:00-00:08\", \"visualGoal\": \"用文字动画提醒老客户避免只看户型图\", \"voiceover\": \"给老客户提个醒，看房别光盯着户型图，楼下生活半径更重要。\", \"subtitle\": \"买房别迷户型图\", \"shotRequirement\": \"纯文字动画或简单图形，突出标题\", \"assetQuery\": \"片头文字动画 提醒 看房误区\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"editor_asset\", \"fallbackVisual\": \"手机拍摄的户型图照片上叠加文字\"}, {\"sceneNo\": 2, \"timeRange\": \"00:08-00:18\", \"visualGoal\": \"展示社区大门外真实街景，走向早餐店\", \"voiceover\": \"早上出门能不能顺手买份早饭？这是住得舒服的第一步。\", \"subtitle\": \"从小区到早餐店，步行实测\", \"shotRequirement\": \"手持稳定器跟拍，从小区大门走出，镜头转向街角早餐店，自然光，展示真实环境\", \"assetQuery\": \"小区入口 街景 早餐店 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"其他社区门口的早餐摊位实拍\"}, {\"sceneNo\": 3, \"timeRange\": \"00:18-00:28\", \"visualGoal\": \"展示周边生鲜超市的丰富度和便利性\", \"voiceover\": \"下班顺路买个菜，新鲜不贵，这就是生活。\", \"subtitle\": \"逛一圈周边生鲜超市\", \"shotRequirement\": \"在超市内手持拍摄，快速扫过蔬果价格牌，展示品种和鲜度，避免拍到具体价格标签特写\", \"assetQuery\": \"社区周边生鲜超市 果蔬 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"菜市场内景实拍\"}, {\"sceneNo\": 4, \"timeRange\": \"00:28-00:38\", \"visualGoal\": \"测试到最近地铁口的步行时间，证明通勤方便\", \"voiceover\": \"走到地铁站，也就两三分钟，通勤无压力。\", \"subtitle\": \"步行到地铁口，计时显示\", \"shotRequirement\": \"主观视角从社区门口走到地铁站口，手机秒表计时，显示数字，避免显示具体距离\", \"assetQuery\": \"地铁站口 步行路线 社区通勤\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"导航地图显示路线叠加计时动画\"}, {\"sceneNo\": 5, \"timeRange\": \"00:38-00:50\", \"visualGoal\": \"呈现社区傍晚生活氛围，老人小孩轻松自在\", \"voiceover\": \"傍晚楼下遛弯，老人下棋，孩子玩耍，这才是家的感觉。\", \"subtitle\": \"社区傍晚生活实况\", \"shotRequirement\": \"固定或缓缓摇过社区公共空间，老人下棋、儿童玩耍等场景，避免特写人脸，保持氛围感\", \"assetQuery\": \"社区生活氛围 傍晚 居民活动\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"其他小区傍晚活动实拍\"}, {\"sceneNo\": 6, \"timeRange\": \"00:50-01:00\", \"visualGoal\": \"真人出镜引导老客户索取清单，增加互动\", \"voiceover\": \"我整理了看房生活圈清单，想要的话，发消息给我。\", \"subtitle\": \"私信我，获取看房生活圈清单\", \"shotRequirement\": \"镜头前真人自然微笑，手指向屏幕下方，加联系方式浮层，背景为社区实景或虚拟背景\", \"assetQuery\": \"真人出镜 口播 CTA 发消息\", \"uploadRequired\": true, \"uploadReason\": \"需要成员本人出镜引导互动，建立信任\", \"assetSourceHint\": \"self_shoot\", \"fallbackVisual\": \"仅显示联系方式浮层加语音\"}], \"requiredUploads\": [\"镜头前真人自然微笑，手指向屏幕下方，加联系方式浮层，背景为社区实景或虚拟背景\"], \"optionalTeamVideoAssets\": [\"小区入口 街景 早餐店 实拍\", \"社区周边生鲜超市 果蔬 实拍\", \"地铁站口 步行路线 社区通勤\", \"社区生活氛围 傍晚 居民活动\"], \"shootingTips\": [\"全程手持稳定器或手机，自然光，第一人称视角增强代入感，避免摆拍，环境音保留。\"], \"riskNotes\": [\"涉及项目信息时避免具体价格、租金和投资回报；仅展示公共配套和生活便利；所有价格信息需注明‘具体以实际为准’。\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 6, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"缺少可用图片素材\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"图文图片素材\"]}, \"trace\": {\"taskUnderstanding\": {\"coreTopic\": \"成熟配套\", \"contentType\": \"article_and_video\", \"platforms\": [\"xiaohongshu\", \"douyin\"], \"contentGoal\": \"信任建立\", \"targetAudience\": \"首次看房客户\", \"audiencePain\": \"对区域不熟悉，担心生活配套不完善\", \"sellingPointsNeeded\": [\"生活便利度\", \"商业配套\", \"教育配套\", \"交通配套\"], \"riskConstraints\": [], \"copySearchQuery\": \"成熟配套 首次看房 生活便利 真实体验\", \"scriptSearchQuery\": \"成熟配套 生活便利 信任 客户反馈\", \"imageSearchQuery\": \"成熟配套 项目实景 生活场景\", \"videoAssetQueryHints\": [\"社区实景\", \"周边商业\", \"交通状况\", \"日常生活\"], \"extraRequirement\": \"语气真实一点，像发给老客户看的内容\"}, \"creativeStrategy\": {\"storyOutline\": \"从‘买房先看楼下生活半径’切入，带老客户视角走一遍日常动线：早上买早餐方便吗？下班买菜顺路吗？周末附近有地方逛吗？强调真实体验，避开户型图上的想象。\", \"estimatedDuration\": \"60秒\", \"scenes\": [\"片头文字‘买房别迷户型图’，加画外音‘给老客户提个醒’\", \"镜头从小区大门出来，走向街角早餐店，自然光拍摄\", \"手持镜头逛周边生鲜超市，展示蔬果和价格\", \"步行到最近地铁口，手表计时2-3分钟\", \"傍晚社区老人遛弯，小朋友玩耍，体现生活氛围\", \"结尾对着镜头说‘清单我整好了，要看发消息’，加联系方式浮层\"], \"requiredUploads\": [\"小区正门及周边街景广角视频\", \"早餐店/便利店/水果店实拍\", \"地铁站口步行路线演示\", \"傍晚社区生活场景片段\"], \"optionalTeamVideoAssets\": [\"经纪人简短口播（不出镜配音）\", \"户型图动态标注生活圈半径\"], \"shootingTips\": \"全程手持稳定器或手机，自然光，第一人称视角增强代入感，避免摆拍，环境音保留。\", \"riskNotes\": \"涉及项目信息时避免具体价格、租金和投资回报；仅展示公共配套和生活便利；所有价格信息需注明‘具体以实际为准’。\"}, \"usedKnowledgeRefs\": [], \"usedViralRefs\": [], \"usedImageAssets\": [], \"degradationNotices\": []}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

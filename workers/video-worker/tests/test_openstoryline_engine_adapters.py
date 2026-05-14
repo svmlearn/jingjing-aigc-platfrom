@@ -500,6 +500,67 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertIn("generate_voiceover", payload["prompt"])
             self.assertIn("select_bgm", payload["prompt"])
 
+    def test_fire_red_clone_voiceover_uses_pixelle_clone_not_runninghub(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            tts_pixelle_clone_base_url="https://pixelle.example",
+            tts_pixelle_clone_api_key="pixelle-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {"engine": "fire_red-openstoryline"},
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                    production_config={
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                            "clone_enabled": True,
+                            "voice_profile_id": "profile-1",
+                            "ref_audio_asset_id": "asset-1",
+                            "ref_audio": str(Path(tmp) / "ref.wav"),
+                        },
+                    },
+                )
+            )
+
+            tts = post.call_args.kwargs["json"]["service_config"]["tts"]
+            self.assertEqual("pixelle_clone", tts["provider"])
+            self.assertNotEqual("runninghub", tts["provider"])
+            self.assertEqual(str(Path(tmp) / "ref.wav"), tts["ref_audio"])
+            self.assertEqual(str(Path(tmp) / "ref.wav"), tts["pixelle_clone"]["ref_audio"])
+            self.assertEqual("pixelle-secret", tts["pixelle_clone"]["api_key"])
+
     def test_fire_red_stream_proxies_progress_and_maps_final_result(self):
         settings = Settings(
             host="127.0.0.1",

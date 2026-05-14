@@ -1,0 +1,764 @@
+app:
+  description: 内容日历 + txt 知识库 + 爆款内容 + 图片素材，生成图文内容包和视频镜头脚本的质量验证工作流。
+  icon: "\U0001F4C5"
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: 内容日历生成图文与视频脚本 POC
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.1.5
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      image:
+        enabled: false
+      number_limits: 3
+      transfer_methods:
+      - local_file
+      - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        sourceType: start
+        targetType: llm
+      id: start-source-task_understanding-target
+      source: start
+      sourceHandle: source
+      target: task_understanding
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: knowledge-retrieval
+      id: task_understanding-source-kb_project_knowledge-target
+      source: task_understanding
+      sourceHandle: source
+      target: kb_project_knowledge
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: kb_project_knowledge-source-creative_strategy-target
+      source: kb_project_knowledge
+      sourceHandle: source
+      target: creative_strategy
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: llm
+      id: creative_strategy-source-article_generator-target
+      source: creative_strategy
+      sourceHandle: source
+      target: article_generator
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: llm
+      id: article_generator-source-video_script_generator-target
+      source: article_generator
+      sourceHandle: source
+      target: video_script_generator
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: llm
+      id: video_script_generator-source-quality_reviewer-target
+      source: video_script_generator
+      sourceHandle: source
+      target: quality_reviewer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: llm
+      id: quality_reviewer-source-final_compiler-target
+      source: quality_reviewer
+      sourceHandle: source
+      target: final_compiler
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: end
+      id: final_compiler-source-end-target
+      source: final_compiler
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: 输入内容日历任务、爆款内容摘要、图片素材摘要，以及可选的手工知识文本兜底。
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - label: 内容日历任务 JSON
+          max_length: 6000
+          options: []
+          required: true
+          type: paragraph
+          variable: calendar_task_json
+        - label: 爆款内容参考 JSON
+          max_length: 12000
+          options: []
+          required: false
+          type: paragraph
+          variable: viral_references_json
+        - label: 图片素材 JSON
+          max_length: 12000
+          options: []
+          required: false
+          type: paragraph
+          variable: image_assets_json
+        - label: 手工知识文本兜底
+          max_length: 12000
+          options: []
+          required: false
+          type: paragraph
+          variable: fallback_knowledge_text
+        - label: 额外要求
+          max_length: 2000
+          options: []
+          required: false
+          type: paragraph
+          variable: extra_requirement
+      height: 168
+      id: start
+      position:
+        x: 80
+        y: 260
+      positionAbsolute:
+        x: 80
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 把内容日历任务转成检索 query 和生成约束。
+        model:
+          completion_params:
+            temperature: 0.2
+            top_p: 0.8
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: task-understanding-system
+          role: system
+          text: |
+            你是房地产内容生产工作流中的“任务理解节点”。
+            你只负责把输入的内容日历任务解析为可检索、可生成的结构化任务，不写正文、不写脚本。
+
+            硬约束：
+            1. 只能基于输入内容解析，不要编造项目事实。
+            2. 输出必须是严格 JSON，不要 Markdown，不要解释。
+            3. 所有字段都要保留；未知则填空字符串、空数组或 null。
+            4. copySearchQuery、scriptSearchQuery、imageSearchQuery 不能为空；必须把主题、客群、卖点、场景词组合成中文检索句。
+            5. 如果输入出现租金回报、收益、升值、投资等词，只能把它们放入 riskConstraints，不要当成可直接宣传的卖点。
+        - id: task-understanding-user
+          role: user
+          text: |
+            内容日历任务：
+            {{#start.calendar_task_json#}}
+
+            额外要求：
+            {{#start.extra_requirement#}}
+
+            请输出 JSON：
+            {
+              "coreTopic": "",
+              "contentType": "article_and_video",
+              "platforms": ["xiaohongshu", "douyin"],
+              "contentGoal": "",
+              "targetAudience": "",
+              "audiencePain": "",
+              "sellingPointsNeeded": [],
+              "riskConstraints": [],
+              "copySearchQuery": "",
+              "scriptSearchQuery": "",
+              "imageSearchQuery": "",
+              "videoAssetQueryHints": [],
+              "extraRequirement": ""
+            }
+        selected: false
+        title: 任务理解
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 98
+      id: task_understanding
+      position:
+        x: 380
+        y: 260
+      positionAbsolute:
+        x: 380
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        dataset_ids: []
+        desc: 导入后在 Dify UI 里绑定 txt/md 项目知识库。dataset_ids 留空是为了跨环境导入。
+        multiple_retrieval_config:
+          reranking_enable: false
+          reranking_mode: reranking_model
+          reranking_model:
+            model: ''
+            provider: ''
+          score_threshold: null
+          top_k: 6
+        query_variable_selector:
+        - task_understanding
+        - text
+        retrieval_mode: multiple
+        selected: false
+        single_retrieval_config:
+          model:
+            completion_params: {}
+            mode: chat
+            name: gpt-4o-mini
+            provider: langgenius/openai/openai
+        title: txt 知识库检索
+        type: knowledge-retrieval
+      height: 92
+      id: kb_project_knowledge
+      position:
+        x: 680
+        y: 260
+      positionAbsolute:
+        x: 680
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 汇总知识库、爆款结构和图片素材，先定创作策略。
+        model:
+          completion_params:
+            temperature: 0.25
+            top_p: 0.85
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: creative-strategy-system
+          role: system
+          text: |
+            你是房地产内容生成 workflow 的“创作策略规划节点”。
+            你的任务是决定怎么写、用什么事实、借鉴什么爆款结构、配什么图片、视频需要什么镜头。
+
+            硬约束：
+            1. 不直接输出最终图文正文或完整视频脚本。
+            2. 项目事实只能来自知识库结果、手工知识兜底和输入任务。
+            3. 爆款内容只能借鉴结构、hook、节奏、CTA，不得复制正文。
+            4. 图片素材只能用于图文配图建议，不要当作视频剪辑素材。
+            5. 输出必须是严格 JSON。
+            6. 禁止把“投资回报率高、收益稳定、租金回报高、稳赚、保值增值、满租、租金区间、租金回报、投资属性、资产回报、低位价格、价格错位”写入 mustUseFacts。
+            7. 如果知识库没有给出明确项目名、区域、户型、配套名称，则必须在 degradationNotices 写入“项目事实不足”，并让后续内容保持泛化但克制。
+            8. 如果知识库里出现“满租、租金区间、租金回报、低位价格、价格错位”等内容，只能放入 qualityGateHints.complianceRisks，不得进入 articlePlan 或 videoPlan。
+        - id: creative-strategy-user
+          role: user
+          text: |
+            任务理解结果：
+            {{#task_understanding.text#}}
+
+            Dify 知识库检索结果：
+            {{#kb_project_knowledge.result#}}
+
+            手工知识文本兜底：
+            {{#start.fallback_knowledge_text#}}
+
+            爆款内容参考 JSON：
+            {{#start.viral_references_json#}}
+
+            图片素材 JSON：
+            {{#start.image_assets_json#}}
+
+            请输出 JSON：
+            {
+              "chosenAngle": "",
+              "narrativeArc": [],
+              "tone": "本地中介、真实、克制、不夸张",
+              "mustUseFacts": [],
+              "mustAvoidClaims": [],
+              "viralPatternUsed": {
+                "patternName": "",
+                "reason": "",
+                "titleTactics": [],
+                "hookTactics": [],
+                "ctaTactics": []
+              },
+              "articlePlan": {
+                "titleDirection": "",
+                "coverCopyDirection": "",
+                "bodyStructure": [],
+                "imagePlan": []
+              },
+              "videoPlan": {
+                "storyOutline": "",
+                "estimatedDuration": "35-45秒",
+                "scenePlan": [],
+                "requiredUploads": [],
+                "assetQueryHints": []
+              },
+              "degradationNotices": [],
+              "trace": {
+                "usedKnowledgeSummary": [],
+                "usedViralSummary": [],
+                "usedImageSummary": []
+              },
+              "qualityGateHints": {
+                "factWeakness": "",
+                "complianceRisks": [],
+                "mustReviewBeforePublish": []
+              }
+            }
+        selected: false
+        title: 创作策略规划
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 98
+      id: creative_strategy
+      position:
+        x: 980
+        y: 260
+      positionAbsolute:
+        x: 980
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 生成小红书/朋友圈可用的图文内容包。
+        model:
+          completion_params:
+            temperature: 0.55
+            top_p: 0.9
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: article-generator-system
+          role: system
+          text: |
+            你是房地产销售内容的图文内容包生成节点。
+            你要基于创作策略生成可直接测试质量的图文内容包。
+
+            硬约束：
+            1. 不许承诺升值、收益、稳赚、保租、保回报。
+            2. 不要复制爆款原文。
+            3. 语气要像真实本地中介，不要像广告公司硬广。
+            4. 图片只能从输入图片素材中选择；没有合适图片时输出 imageBriefIfMissing。
+            5. 输出必须是严格 JSON。
+            6. 禁止使用“投资回报率高、租金回报高、收益稳定、稳赚、保值增值、闭眼买、错过后悔、满租、租金区间、租金回报、低位价格、价格错位、确定兑现、运营成熟验证”等表达。
+            7. 如果缺少具体项目事实，不要写“近年来、市场背景、优势愈加明显”这类空泛段落；要用“适合先了解/可以重点看/需要结合预算判断”这类克制表达。
+            8. 正文必须像销售本人发的笔记：短段落、少套话、少概念，每段不超过 80 个中文字。
+            9. CTA 要轻，不要“哦”“赶紧”“马上”等营销腔。
+            10. 如果创作策略里有 complianceRisks 或 mustAvoidClaims，正文和 CTA 必须完全避开这些风险主题。
+            11. copyReadyText 必须是可直接复制发布的完整文本，至少包含 selectedTitle、body、hashtags、cta。
+        - id: article-generator-user
+          role: user
+          text: |
+            创作策略：
+            {{#creative_strategy.text#}}
+
+            图片素材 JSON：
+            {{#start.image_assets_json#}}
+
+            请输出 JSON：
+            {
+              "titles": [],
+              "selectedTitle": "",
+              "coverCopy": "",
+              "body": "",
+              "hashtags": [],
+              "cta": "",
+              "imageMatches": [
+                {
+                  "assetId": "",
+                  "title": "",
+                  "usage": "",
+                  "reason": ""
+                }
+              ],
+              "imageBriefIfMissing": "",
+              "riskNotes": [],
+              "copyReadyText": ""
+            }
+        selected: false
+        title: 图文内容包生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 98
+      id: article_generator
+      position:
+        x: 1280
+        y: 260
+      positionAbsolute:
+        x: 1280
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 生成可拍摄、可后续检索视频素材的镜头脚本。
+        model:
+          completion_params:
+            temperature: 0.5
+            top_p: 0.9
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: video-script-generator-system
+          role: system
+          text: |
+            你是房地产短视频镜头脚本生成节点。
+            你要输出可拍摄、可执行、后续可用于 AI 剪辑素材匹配的镜头脚本。
+
+            硬约束：
+            1. 不要声称已经剪辑完成。
+            2. 不要把图片素材当成可剪辑视频片段。
+            3. 爆款内容只作为 hook 和节奏参考，不能当作项目视频素材。
+            4. 每个 scene 必须有 visualGoal、shotRequirement、assetQuery、uploadRequired、uploadReason、assetSourceHint。
+            5. 输出必须是严格 JSON。
+            6. uploadRequired 只在成员必须自拍/补拍时为 true，例如真人口播、结尾 CTA、个人现场说明。
+            7. 项目外立面、样板间、周边配套这类团队素材可补的镜头，uploadRequired 应为 false，assetSourceHint 写 team_video_asset。
+            8. 禁止在口播中使用“投资回报率高、租金回报高、收益稳定、稳赚、保值增值、满租、租金区间、租金回报、低位价格、价格错位、确定兑现、运营成熟验证”等风险表达。
+            9. assetQuery 不能为空；必须是可用于视频素材检索的中文关键词，例如“项目外立面 远景 小区入口”。
+            10. requiredUploads 必须列出所有 uploadRequired=true 的镜头；optionalTeamVideoAssets 必须列出所有 assetSourceHint=team_video_asset 的镜头需求。
+            11. 如果某个镜头只需要团队素材，uploadRequired=false，uploadReason 为空字符串。
+        - id: video-script-generator-user
+          role: user
+          text: |
+            创作策略：
+            {{#creative_strategy.text#}}
+
+            图文内容包可借鉴的表达：
+            {{#article_generator.text#}}
+
+            请输出 JSON：
+            {
+              "storyOutline": "",
+              "estimatedDuration": "35-45秒",
+              "scenes": [
+                {
+                  "sceneNo": 1,
+                  "timeRange": "",
+                  "visualGoal": "",
+                  "voiceover": "",
+                  "subtitle": "",
+                  "shotRequirement": "",
+                  "assetQuery": "",
+                  "uploadRequired": true,
+                  "uploadReason": "",
+                  "assetSourceHint": "member_upload | team_video_asset | either",
+                  "fallbackVisual": ""
+                }
+              ],
+              "requiredUploads": [],
+              "optionalTeamVideoAssets": [],
+              "shootingTips": [],
+              "riskNotes": []
+            }
+        selected: false
+        title: 视频镜头脚本生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 98
+      id: video_script_generator
+      position:
+        x: 1580
+        y: 260
+      positionAbsolute:
+        x: 1580
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 质量评审，只打分和指出问题。
+        model:
+          completion_params:
+            temperature: 0.1
+            top_p: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: quality-reviewer-system
+          role: system
+          text: |
+            你是内容生成质量评审节点。
+            你只做质量评审，不重写内容。
+
+            评分口径：
+            所有分数必须是 0-10 的整数，0 最差，10 最好。
+            factAccuracy: 是否避免编造项目事实。
+            projectFit: 是否贴合项目/销售场景。
+            viralStructure: 是否借鉴了爆款结构而非复制。
+            platformTone: 是否像小红书/短视频平台真人表达。
+            materialFit: 图片和镜头需求是否匹配。
+            compliance: 是否规避风险承诺和敏感表达。
+
+            pass 规则：
+            1. 六个分数必须全部 >= 7 才能 pass=true。
+            2. 只要出现收益、升值、投资回报率高、租金回报高、稳赚、保值增值等风险承诺，compliance <= 4 且 pass=false。
+            3. 如果项目事实不足但正文写得很确定，factAccuracy <= 5 且 pass=false。
+            4. 如果所有分数都是 0 或 1，pass 必须是 false。
+            5. 发现问题必须写入 problems 或 redFlags，不允许空数组糊弄通过。
+            6. 如果任一 video scene 的 assetQuery 为空，materialFit <= 5 且 pass=false。
+            7. 如果存在 uploadRequired=true 的 scene，但 requiredUploads 为空，materialFit <= 5 且 pass=false。
+            8. 如果存在 assetSourceHint=team_video_asset 的 scene，但 optionalTeamVideoAssets 为空，materialFit <= 6 且 pass=false。
+            9. 如果 articlePackage.copyReadyText 为空，platformTone <= 6 且 pass=false。
+
+            输出必须是严格 JSON。
+        - id: quality-reviewer-user
+          role: user
+          text: |
+            任务理解：
+            {{#task_understanding.text#}}
+
+            创作策略：
+            {{#creative_strategy.text#}}
+
+            图文内容包：
+            {{#article_generator.text#}}
+
+            视频镜头脚本：
+            {{#video_script_generator.text#}}
+
+            请输出 JSON：
+            {
+              "scores": {
+                "factAccuracy": 0,
+                "projectFit": 0,
+                "viralStructure": 0,
+                "platformTone": 0,
+                "materialFit": 0,
+                "compliance": 0
+              },
+              "pass": false,
+              "problems": [],
+              "revisionSuggestions": [],
+              "redFlags": [],
+              "missingInputs": []
+            }
+        selected: false
+        title: 质量评审
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 98
+      id: quality_reviewer
+      position:
+        x: 1880
+        y: 260
+      positionAbsolute:
+        x: 1880
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 汇总最终可保存 JSON，供 API 或人工验收。
+        model:
+          completion_params:
+            temperature: 0.1
+            top_p: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: final-compiler-system
+          role: system
+          text: |
+            你是最终结果编译节点。
+            你要把上游结果整理成一个可保存、可供 Supabase input_snapshot 留痕的 JSON。
+            不要新增创作内容，只整理、对齐字段。
+            输出必须是严格 JSON。
+        - id: final-compiler-user
+          role: user
+          text: |
+            任务理解：
+            {{#task_understanding.text#}}
+
+            创作策略：
+            {{#creative_strategy.text#}}
+
+            图文内容包：
+            {{#article_generator.text#}}
+
+            视频镜头脚本：
+            {{#video_script_generator.text#}}
+
+            质量评审：
+            {{#quality_reviewer.text#}}
+
+            编译规则：
+            1. 只整理上游结果，不要重写正文和脚本。
+            2. qualityReview.pass 必须完全采用质量评审节点输出，不要自行改成 true。
+            3. 如果质量评审无法解析，qualityReview.pass=false，并在 trace.degradationNotices 写入“质量评审无法解析”。
+            4. 最终只输出一个 JSON 对象，不要输出多个代码块。
+
+            请输出 JSON：
+            {
+              "workflowVersion": "content_calendar_generation_poc_v1",
+              "articlePackage": {},
+              "videoScript": {},
+              "qualityReview": {},
+              "trace": {
+                "taskUnderstanding": {},
+                "creativeStrategy": {},
+                "usedKnowledgeRefs": [],
+                "usedViralRefs": [],
+                "usedImageAssets": [],
+                "degradationNotices": []
+              },
+              "saveHints": {
+                "contentDraftInputSnapshotKeys": [
+                  "source",
+                  "teamCalendarTask",
+                  "knowledgeRefs",
+                  "viralRefs",
+                  "imageAssetRefs",
+                  "qualityReview"
+                ]
+              }
+            }
+        selected: false
+        title: 最终结果编译
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 98
+      id: final_compiler
+      position:
+        x: 2180
+        y: 260
+      positionAbsolute:
+        x: 2180
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - final_compiler
+          - text
+          variable: final_result_json
+        selected: false
+        title: 输出
+        type: end
+      height: 134
+      id: end
+      position:
+        x: 2480
+        y: 260
+      positionAbsolute:
+        x: 2480
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.7

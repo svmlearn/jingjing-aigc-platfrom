@@ -1,0 +1,23 @@
+{
+  "test_time": "2026-05-12 16:18:14",
+  "base_url": "https://api.dify.ai/v1",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "runs": 1,
+  "save_nodes": true,
+  "cases": [
+    {
+      "case_name": "case02_no_images",
+      "runs": [
+        {
+          "run_index": 1,
+          "success": true,
+          "elapsed_time": 443.81038093566895,
+          "output_file": "case02_no_images_run1_20260512_161814_955327.json",
+          "node_output_file": "case02_no_images_run1_20260512_161814_955327_nodes.json",
+          "evaluation_passed": true,
+          "parse_errors": []
+        }
+      ]
+    }
+  ]
+}

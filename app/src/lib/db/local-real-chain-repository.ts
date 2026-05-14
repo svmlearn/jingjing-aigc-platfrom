@@ -236,6 +236,14 @@ export async function assertLocalRealChainMediaOwner(input: {
     return null;
   }
 
+  if (input.ownerType === "voice_profile") {
+    return {
+      ownerType: input.ownerType,
+      ownerId: input.ownerId,
+      merchantId: getLocalRealChainMerchantId(),
+    };
+  }
+
   const table =
     input.ownerType === "source_item"
       ? "source_items"

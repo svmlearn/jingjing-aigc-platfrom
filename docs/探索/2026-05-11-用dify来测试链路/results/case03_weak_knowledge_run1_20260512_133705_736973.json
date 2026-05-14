@@ -1,0 +1,223 @@
+{
+  "case_name": "case03_weak_knowledge",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case03_weak_knowledge.json",
+  "run_index": 1,
+  "timestamp": "20260512_133705_736973",
+  "elapsed_time": 325.22814106941223,
+  "success": true,
+  "workflow_run_id": "ebcdfc46-b1da-420b-8aa1-5721c2724d56",
+  "error": null,
+  "raw_response": {
+    "id": "ebcdfc46-b1da-420b-8aa1-5721c2724d56",
+    "workflow_id": "aef5b7b8-381a-40f9-838e-e39eb75624a1",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"assetId\": \"img_003\", \"title\": \"项目入口\", \"url\": \"...\", \"tags\": [\"项目入口\", \"封面\"], \"description\": \"可作为项目识别图\"}, \"videoScript\": {\"estimatedDuration\": \"45秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"00:00-00:05\", \"visualGoal\": \"用真人出镜直接抛出核心冲突，抓住注意力\", \"voiceover\": \"预算不多就只能住得差吗？今天带你看个不一样的。\", \"subtitle\": \"预算有限，就只能将就？\", \"shotRequirement\": \"真人口播，半身景，画面简洁，眼神直视镜头，背景可虚化\", \"assetQuery\": \"真人主播口播开场\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜录制口播内容，体现个人说服力\", \"assetSourceHint\": \"\", \"fallbackVisual\": \"静态封面图配合文字动画\"}, {\"sceneNo\": 2, \"timeRange\": \"00:05-00:10\", \"visualGoal\": \"展示项目社区入口或外立面，建立第一印象\", \"voiceover\": \"别急着下定论，先看看这个社区入口，是不是有点超出预期？\", \"subtitle\": \"社区入口实景\", \"shotRequirement\": \"固定镜头或缓慢推拉，展示小区大门、标识、绿化等\", \"assetQuery\": \"项目小区入口 外立面 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"使用 img_003 静态图片做缓慢缩放\"}, {\"sceneNo\": 3, \"timeRange\": \"00:10-00:20\", \"visualGoal\": \"展示内部空间感和层高，强调舒适度\", \"voiceover\": \"进来看看，这个层高是不是让你有点惊喜？做个工作室或者小爱巢，绰绰有余。\", \"subtitle\": \"约4米层高，空间不压抑\", \"shotRequirement\": \"室内镜头，仰拍或平移展示层高，可加入人物参照物\", \"assetQuery\": \"室内空间 层高 4米 实拍 展示\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"室内示意图或动效展示层高数字\"}, {\"sceneNo\": 4, \"timeRange\": \"00:20-00:30\", \"visualGoal\": \"展示周边配套和地铁便利性\", \"voiceover\": \"而且，楼下的便利和地铁都在步行范围内，生活根本不用慌。\", \"subtitle\": \"楼下商业满足日常，地铁通勤便利\", \"shotRequirement\": \"周边商业街景或地铁站镜头，穿插社区内活动场景\", \"assetQuery\": \"社区周边商业 地铁站 步行可到\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"地图标注+通用配套图标\"}, {\"sceneNo\": 5, \"timeRange\": \"00:30-00:45\", \"visualGoal\": \"真人出镜引导线下看房，强调不报价策略\", \"voiceover\": \"是不是有点心动了？不过我得提醒你，这里只适合亲自来看看。想知道更多吗？私信我，咱们线下见。\", \"subtitle\": \"想了解？私信预约线下看房\", \"shotRequirement\": \"真人半身或全景出镜，手势引导关注或私信\", \"assetQuery\": \"真人出镜 CTA 引导私信\", \"uploadRequired\": true, \"uploadReason\": \"需要真人录制结尾引导，增加信任感\", \"assetSourceHint\": \"\", \"fallbackVisual\": \"文字弹幕引导+头像\"}], \"requiredUploads\": [\"真人口播，半身景，画面简洁，眼神直视镜头，背景可虚化\", \"真人半身或全景出镜，手势引导关注或私信\"], \"optionalTeamVideoAssets\": [\"项目小区入口 外立面 实拍\", \"室内空间 层高 4米 实拍 展示\", \"社区周边商业 地铁站 步行可到\"], \"shootingTips\": [\"使用自然光增加空间感，避免过度调色\", \"口播时语速适中，保持亲切感\", \"拍摄内部空间时，加入人物做参照物突出层高\", \"保持镜头运动平稳，多用固定或缓慢推拉\"], \"riskNotes\": [\"避免提及具体租金、收益承诺\", \"空间用途描述不构成住宅属性承诺\", \"总价描述仅做友好提示，不构成报价\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 5, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 6, \"materialFit\": 8, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"copyReadyText 为空，不能直接复制发布\", \"titles 为空\", \"hashtags 为空\", \"项目知识不足，成稿仅适合内部预览\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"更完整的项目事实\"]}, \"trace\": {\"taskUnderstanding\": {}, \"creativeStrategy\": {}, \"usedKnowledgeRefs\": [], \"usedViralRefs\": [], \"usedImageAssets\": [], \"degradationNotices\": []}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}"
+    },
+    "error": null,
+    "elapsed_time": 321.649315,
+    "total_tokens": 23045,
+    "total_steps": 12,
+    "created_by": {
+      "id": "9006f203-921f-405e-8cf2-687c7037b60a",
+      "user": "content_calendar_test_case03_weak_knowledge_1778564225"
+    },
+    "created_at": 1778564228,
+    "finished_at": 1778564549,
+    "exceptions_count": 0,
+    "files": []
+  },
+  "final_json": {
+    "workflowVersion": "content_calendar_generation_poc_v1",
+    "articlePackage": {
+      "assetId": "img_003",
+      "title": "项目入口",
+      "url": "...",
+      "tags": [
+        "项目入口",
+        "封面"
+      ],
+      "description": "可作为项目识别图"
+    },
+    "videoScript": {
+      "estimatedDuration": "45秒",
+      "scenes": [
+        {
+          "sceneNo": 1,
+          "timeRange": "00:00-00:05",
+          "visualGoal": "用真人出镜直接抛出核心冲突，抓住注意力",
+          "voiceover": "预算不多就只能住得差吗？今天带你看个不一样的。",
+          "subtitle": "预算有限，就只能将就？",
+          "shotRequirement": "真人口播，半身景，画面简洁，眼神直视镜头，背景可虚化",
+          "assetQuery": "真人主播口播开场",
+          "uploadRequired": true,
+          "uploadReason": "需要真人出镜录制口播内容，体现个人说服力",
+          "assetSourceHint": "",
+          "fallbackVisual": "静态封面图配合文字动画"
+        },
+        {
+          "sceneNo": 2,
+          "timeRange": "00:05-00:10",
+          "visualGoal": "展示项目社区入口或外立面，建立第一印象",
+          "voiceover": "别急着下定论，先看看这个社区入口，是不是有点超出预期？",
+          "subtitle": "社区入口实景",
+          "shotRequirement": "固定镜头或缓慢推拉，展示小区大门、标识、绿化等",
+          "assetQuery": "项目小区入口 外立面 实拍",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "使用 img_003 静态图片做缓慢缩放"
+        },
+        {
+          "sceneNo": 3,
+          "timeRange": "00:10-00:20",
+          "visualGoal": "展示内部空间感和层高，强调舒适度",
+          "voiceover": "进来看看，这个层高是不是让你有点惊喜？做个工作室或者小爱巢，绰绰有余。",
+          "subtitle": "约4米层高，空间不压抑",
+          "shotRequirement": "室内镜头，仰拍或平移展示层高，可加入人物参照物",
+          "assetQuery": "室内空间 层高 4米 实拍 展示",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "室内示意图或动效展示层高数字"
+        },
+        {
+          "sceneNo": 4,
+          "timeRange": "00:20-00:30",
+          "visualGoal": "展示周边配套和地铁便利性",
+          "voiceover": "而且，楼下的便利和地铁都在步行范围内，生活根本不用慌。",
+          "subtitle": "楼下商业满足日常，地铁通勤便利",
+          "shotRequirement": "周边商业街景或地铁站镜头，穿插社区内活动场景",
+          "assetQuery": "社区周边商业 地铁站 步行可到",
+          "uploadRequired": false,
+          "uploadReason": "",
+          "assetSourceHint": "team_video_asset",
+          "fallbackVisual": "地图标注+通用配套图标"
+        },
+        {
+          "sceneNo": 5,
+          "timeRange": "00:30-00:45",
+          "visualGoal": "真人出镜引导线下看房，强调不报价策略",
+          "voiceover": "是不是有点心动了？不过我得提醒你，这里只适合亲自来看看。想知道更多吗？私信我，咱们线下见。",
+          "subtitle": "想了解？私信预约线下看房",
+          "shotRequirement": "真人半身或全景出镜，手势引导关注或私信",
+          "assetQuery": "真人出镜 CTA 引导私信",
+          "uploadRequired": true,
+          "uploadReason": "需要真人录制结尾引导，增加信任感",
+          "assetSourceHint": "",
+          "fallbackVisual": "文字弹幕引导+头像"
+        }
+      ],
+      "requiredUploads": [
+        "真人口播，半身景，画面简洁，眼神直视镜头，背景可虚化",
+        "真人半身或全景出镜，手势引导关注或私信"
+      ],
+      "optionalTeamVideoAssets": [
+        "项目小区入口 外立面 实拍",
+        "室内空间 层高 4米 实拍 展示",
+        "社区周边商业 地铁站 步行可到"
+      ],
+      "shootingTips": [
+        "使用自然光增加空间感，避免过度调色",
+        "口播时语速适中，保持亲切感",
+        "拍摄内部空间时，加入人物做参照物突出层高",
+        "保持镜头运动平稳，多用固定或缓慢推拉"
+      ],
+      "riskNotes": [
+        "避免提及具体租金、收益承诺",
+        "空间用途描述不构成住宅属性承诺",
+        "总价描述仅做友好提示，不构成报价"
+      ]
+    },
+    "qualityReview": {
+      "scores": {
+        "factAccuracy": 5,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 6,
+        "materialFit": 8,
+        "compliance": 9
+      },
+      "pass": false,
+      "needsRewrite": false,
+      "riskTerms": [],
+      "problems": [
+        "copyReadyText 为空，不能直接复制发布",
+        "titles 为空",
+        "hashtags 为空",
+        "项目知识不足，成稿仅适合内部预览"
+      ],
+      "revisionSuggestions": [],
+      "redFlags": [],
+      "missingInputs": [
+        "更完整的项目事实"
+      ]
+    },
+    "trace": {
+      "taskUnderstanding": {},
+      "creativeStrategy": {},
+      "usedKnowledgeRefs": [],
+      "usedViralRefs": [],
+      "usedImageAssets": [],
+      "degradationNotices": []
+    },
+    "saveHints": {
+      "contentDraftInputSnapshotKeys": [
+        "source",
+        "teamCalendarTask",
+        "knowledgeRefs",
+        "viralRefs",
+        "imageAssetRefs",
+        "qualityReview"
+      ]
+    }
+  },
+  "final_text": "{\"workflowVersion\": \"content_calendar_generation_poc_v1\", \"articlePackage\": {\"assetId\": \"img_003\", \"title\": \"项目入口\", \"url\": \"...\", \"tags\": [\"项目入口\", \"封面\"], \"description\": \"可作为项目识别图\"}, \"videoScript\": {\"estimatedDuration\": \"45秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"00:00-00:05\", \"visualGoal\": \"用真人出镜直接抛出核心冲突，抓住注意力\", \"voiceover\": \"预算不多就只能住得差吗？今天带你看个不一样的。\", \"subtitle\": \"预算有限，就只能将就？\", \"shotRequirement\": \"真人口播，半身景，画面简洁，眼神直视镜头，背景可虚化\", \"assetQuery\": \"真人主播口播开场\", \"uploadRequired\": true, \"uploadReason\": \"需要真人出镜录制口播内容，体现个人说服力\", \"assetSourceHint\": \"\", \"fallbackVisual\": \"静态封面图配合文字动画\"}, {\"sceneNo\": 2, \"timeRange\": \"00:05-00:10\", \"visualGoal\": \"展示项目社区入口或外立面，建立第一印象\", \"voiceover\": \"别急着下定论，先看看这个社区入口，是不是有点超出预期？\", \"subtitle\": \"社区入口实景\", \"shotRequirement\": \"固定镜头或缓慢推拉，展示小区大门、标识、绿化等\", \"assetQuery\": \"项目小区入口 外立面 实拍\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"使用 img_003 静态图片做缓慢缩放\"}, {\"sceneNo\": 3, \"timeRange\": \"00:10-00:20\", \"visualGoal\": \"展示内部空间感和层高，强调舒适度\", \"voiceover\": \"进来看看，这个层高是不是让你有点惊喜？做个工作室或者小爱巢，绰绰有余。\", \"subtitle\": \"约4米层高，空间不压抑\", \"shotRequirement\": \"室内镜头，仰拍或平移展示层高，可加入人物参照物\", \"assetQuery\": \"室内空间 层高 4米 实拍 展示\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"室内示意图或动效展示层高数字\"}, {\"sceneNo\": 4, \"timeRange\": \"00:20-00:30\", \"visualGoal\": \"展示周边配套和地铁便利性\", \"voiceover\": \"而且，楼下的便利和地铁都在步行范围内，生活根本不用慌。\", \"subtitle\": \"楼下商业满足日常，地铁通勤便利\", \"shotRequirement\": \"周边商业街景或地铁站镜头，穿插社区内活动场景\", \"assetQuery\": \"社区周边商业 地铁站 步行可到\", \"uploadRequired\": false, \"uploadReason\": \"\", \"assetSourceHint\": \"team_video_asset\", \"fallbackVisual\": \"地图标注+通用配套图标\"}, {\"sceneNo\": 5, \"timeRange\": \"00:30-00:45\", \"visualGoal\": \"真人出镜引导线下看房，强调不报价策略\", \"voiceover\": \"是不是有点心动了？不过我得提醒你，这里只适合亲自来看看。想知道更多吗？私信我，咱们线下见。\", \"subtitle\": \"想了解？私信预约线下看房\", \"shotRequirement\": \"真人半身或全景出镜，手势引导关注或私信\", \"assetQuery\": \"真人出镜 CTA 引导私信\", \"uploadRequired\": true, \"uploadReason\": \"需要真人录制结尾引导，增加信任感\", \"assetSourceHint\": \"\", \"fallbackVisual\": \"文字弹幕引导+头像\"}], \"requiredUploads\": [\"真人口播，半身景，画面简洁，眼神直视镜头，背景可虚化\", \"真人半身或全景出镜，手势引导关注或私信\"], \"optionalTeamVideoAssets\": [\"项目小区入口 外立面 实拍\", \"室内空间 层高 4米 实拍 展示\", \"社区周边商业 地铁站 步行可到\"], \"shootingTips\": [\"使用自然光增加空间感，避免过度调色\", \"口播时语速适中，保持亲切感\", \"拍摄内部空间时，加入人物做参照物突出层高\", \"保持镜头运动平稳，多用固定或缓慢推拉\"], \"riskNotes\": [\"避免提及具体租金、收益承诺\", \"空间用途描述不构成住宅属性承诺\", \"总价描述仅做友好提示，不构成报价\"]}, \"qualityReview\": {\"scores\": {\"factAccuracy\": 5, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 6, \"materialFit\": 8, \"compliance\": 9}, \"pass\": false, \"needsRewrite\": false, \"riskTerms\": [], \"problems\": [\"copyReadyText 为空，不能直接复制发布\", \"titles 为空\", \"hashtags 为空\", \"项目知识不足，成稿仅适合内部预览\"], \"revisionSuggestions\": [], \"redFlags\": [], \"missingInputs\": [\"更完整的项目事实\"]}, \"trace\": {\"taskUnderstanding\": {}, \"creativeStrategy\": {}, \"usedKnowledgeRefs\": [], \"usedViralRefs\": [], \"usedImageAssets\": [], \"degradationNotices\": []}, \"saveHints\": {\"contentDraftInputSnapshotKeys\": [\"source\", \"teamCalendarTask\", \"knowledgeRefs\", \"viralRefs\", \"imageAssetRefs\", \"qualityReview\"]}}",
+  "parse_errors": [],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "no_risk_terms",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "copy_ready_text_present",
+        "passed": false,
+        "detail": ""
+      },
+      {
+        "name": "scene_asset_query_present",
+        "passed": true,
+        "detail": "empty scenes: "
+      },
+      {
+        "name": "required_uploads_present_when_needed",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "optional_team_video_assets_present",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "quality_pass_matches_expected",
+        "passed": true,
+        "detail": "actual=False"
+      },
+      {
+        "name": "quality_scores_meet_minimum",
+        "passed": true,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

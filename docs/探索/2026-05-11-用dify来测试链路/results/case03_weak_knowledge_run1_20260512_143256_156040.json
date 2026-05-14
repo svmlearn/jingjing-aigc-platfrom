@@ -1,0 +1,44 @@
+{
+  "case_name": "case03_weak_knowledge",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case03_weak_knowledge.json",
+  "run_index": 1,
+  "timestamp": "20260512_143256_156040",
+  "elapsed_time": 72.67094397544861,
+  "success": true,
+  "workflow_run_id": "dc0148e3-8fa1-43d4-8289-2731a58bc1e7",
+  "error": null,
+  "raw_response": {
+    "id": "dc0148e3-8fa1-43d4-8289-2731a58bc1e7",
+    "workflow_id": "e4f8d2b4-8d5a-49e8-bf85-f2526c369b77",
+    "status": "failed",
+    "outputs": {},
+    "error": "req_id: f0a14f3f51 PluginInvokeError: {\"args\":{\"description\":\"[models] Error: API request failed with status code 500: {\\\"error\\\":{\\\"message\\\":\\\"Internal Server Error\\\",\\\"type\\\":\\\"internal_error\\\",\\\"param\\\":null,\\\"code\\\":\\\"internal_error\\\"}}\"},\"error_type\":\"InvokeError\",\"message\":\"[models] Error: API request failed with status code 500: {\\\"error\\\":{\\\"message\\\":\\\"Internal Server Error\\\",\\\"type\\\":\\\"internal_error\\\",\\\"param\\\":null,\\\"code\\\":\\\"internal_error\\\"}}\"}",
+    "elapsed_time": 65.876761,
+    "total_tokens": 1411,
+    "total_steps": 4,
+    "created_by": {
+      "id": "7bfa1478-5922-4441-895f-4c8078a43ee4",
+      "user": "content_calendar_test_case03_weak_knowledge_1778567576"
+    },
+    "created_at": 1778567581,
+    "finished_at": 1778567647,
+    "exceptions_count": 1,
+    "files": []
+  },
+  "final_json": null,
+  "final_text": "",
+  "parse_errors": [
+    "missing final output text"
+  ],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": false,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

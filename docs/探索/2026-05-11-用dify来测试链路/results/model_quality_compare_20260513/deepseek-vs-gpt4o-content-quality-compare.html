@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DeepSeek vs GPT-4o 内容质量对比</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --ink: #182033;
+      --muted: #697386;
+      --line: #dfe4ec;
+      --deep: #155b68;
+      --gpt: #674719;
+      --card: #ffffff;
+      --soft-deep: #e8f5f5;
+      --soft-gpt: #fff3df;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.55; }
+    header { padding: 32px 40px 20px; background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+    header h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: 0; }
+    header p { margin: 0; color: var(--muted); max-width: 1100px; }
+    nav { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+    nav a { color: var(--ink); text-decoration: none; border: 1px solid var(--line); background: #fff; padding: 7px 12px; border-radius: 8px; font-size: 14px; }
+    main { padding: 24px 28px 44px; }
+    .note { background: #fff; border: 1px solid var(--line); border-left: 5px solid #3b82f6; padding: 14px 16px; margin: 0 0 22px; border-radius: 8px; color: #344054; }
+    .case { margin-bottom: 38px; overflow-x: auto; padding-bottom: 8px; }
+    .case-title { margin: 0 0 14px; }
+    .case-title h2 { margin: 0 0 4px; font-size: 22px; }
+    .case-title p { margin: 0; color: var(--muted); }
+    .compare-grid { display: grid; grid-template-columns: minmax(640px, 1fr) minmax(640px, 1fr); gap: 18px; align-items: start; min-width: 1320px; }
+    .column { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .column.deepseek { border-top: 5px solid var(--deep); }
+    .column.gpt4o { border-top: 5px solid var(--gpt); }
+    .column-head { padding: 16px 16px 12px; border-bottom: 1px solid var(--line); background: #fbfcfe; }
+    .column h2 { margin: 0 0 12px; font-size: 20px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .metrics div { border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: #fff; min-height: 60px; }
+    .metrics span { display: block; color: var(--muted); font-size: 12px; }
+    .metrics b { display: block; margin-top: 3px; font-size: 14px; word-break: break-word; }
+    .block { padding: 16px; border-bottom: 1px solid var(--line); }
+    .block:last-child { border-bottom: 0; }
+    .block h3 { margin: 0 0 12px; font-size: 18px; }
+    .field { margin: 0 0 10px; }
+    .field label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 3px; }
+    .title-text { font-size: 18px; font-weight: 700; }
+    .copy { white-space: pre-wrap; background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; padding: 14px; font-size: 15px; }
+    .pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pill { display: inline-block; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 4px 9px; font-size: 12px; color: #344054; max-width: 100%; overflow-wrap: anywhere; }
+    .scene { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 10px 0; background: #fff; }
+    .scene h4 { margin: 8px 0 8px; font-size: 16px; }
+    .scene p { margin: 6px 0; }
+    .scene-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+    .scene-head b { color: var(--ink); }
+    .scene-head em { font-style: normal; border-radius: 999px; padding: 2px 7px; }
+    .scene-head .upload { background: #fee2e2; color: #991b1b; }
+    .scene-head .asset { background: #e0f2fe; color: #075985; }
+    dl { margin: 10px 0 0; display: grid; gap: 6px; }
+    dl div { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 8px; }
+    dt { color: var(--muted); }
+    dd { margin: 0; overflow-wrap: anywhere; }
+    .muted { color: var(--muted); }
+    @media (max-width: 1100px) {
+      header { position: static; padding: 24px 18px; }
+      main { padding: 18px; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>DeepSeek / 原模型链路 vs GPT-4o 全链路内容质量对比</h1>
+    <p>基于同一批 Dify 输入与最终 JSON 输出生成。页面只用于人工阅读比较图文文案、视频脚本和镜头任务，不包含 API key。生成时间：2026-05-13 18:42:34</p>
+    <nav>
+      <a href="#case01">case01 资料完整 + 风险输入</a>
+      <a href="#case02">case02 无图片素材</a>
+    </nav>
+  </header>
+  <main>
+    <div class="note">说明：case03 弱知识场景中 DeepSeek / 原模型链路本轮卡在 LLM 节点，没有同版本完整输出；因此本页只做 case01、case02 的同输入对比。</div>
+    
+      <section class="case" id="case01">
+        <div class="case-title">
+          <h2>case01：资料完整 + 合规风险输入</h2>
+          <p>同一条“小户型回归”内容日历任务，含图片素材和租金/价格风险表达。</p>
+        </div>
+        <div class="compare-grid">
+          
+      <div class="column deepseek">
+        <div class="column-head">
+          <h2>DeepSeek / 原模型链路</h2>
+          
+      <div class="metrics">
+        <div><span>模型</span><b>DeepSeek / 原模型链路</b></div>
+        <div><span>耗时</span><b>379.10s</b></div>
+        <div><span>工作流</span><b>succeeded</b></div>
+        <div><span>状态</span><b>passed</b></div>
+        <div><span>图片</span><b>2</b></div>
+        <div><span>镜头</span><b>5</b></div>
+        <div><span>上传镜头</span><b>1, 4</b></div>
+      </div>
+    
+        </div>
+        
+      <section class="block">
+        <h3>图文内容</h3>
+        <div class="field"><label>标题</label><div class="title-text">很多人以为小户型过时了？其实……</div></div>
+        <div class="field"><label>封面文案</label><div>小户型过气？刚需正在回头</div></div>
+        <div class="field"><label>图片</label><div class="pills"><span class="pill">cover: https://example.com/facade.jpg</span><span class="pill">body: https://example.com/living-room.jpg</span></div></div>
+        <div class="copy">很多人以为小户型过时了？其实……
+
+你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。
+
+什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。
+
+这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。
+
+别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。
+
+有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。
+
+#小户型 #刚需买房 #买房攻略 #社区配套 #层高4米 #预算有限</div>
+      </section>
+    
+        
+      <section class="block">
+        <h3>视频脚本</h3>
+        <div class="field"><label>故事大纲</label><div>以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。</div></div>
+        <div class="field"><label>预计时长</label><div>30-45秒</div></div>
+        <div class="field"><label>BGM</label><div>轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感</div></div>
+        <div class="field"><label>口吻</label><div>亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。</div></div>
+        <div class="scenes">
+      <article class="scene">
+        <div class="scene-head">
+          <span>#1 · 0:00-0:05 · 5s</span>
+          <b>口播</b>
+          <em class="upload">需上传</em>
+        </div>
+        <h4>钩子提问</h4>
+        <p><strong>任务：</strong>中介在样板间客厅面对镜头，自然抛出问题</p>
+        <p><strong>画面：</strong>中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线</p>
+        <p><strong>口播/旁白：</strong>你是不是也觉得小户型没人看了？</p>
+        <p><strong>字幕：</strong>你是不是也觉得小户型没人看了？</p>
+        <dl>
+          <div><dt>拍法</dt><dd>手机自拍</dd></div>
+          <div><dt>地点</dt><dd>样板间客厅</dd></div>
+          <div><dt>姿态</dt><dd>站着，面对镜头</dd></div>
+          <div><dt>提示</dt><dd>手机横屏拍摄，画质1080p以上；语速放慢，像跟朋友聊天；开头和结尾各多录2秒</dd></div>
+          <div><dt>镜头语言</dt><dd>中近景 / 固定 / 平视</dd></div>
+          <div><dt>构图</dt><dd>人物居中，背景可见客厅</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 正常 / 最短 5s</dd></div>
+          <div><dt>素材词</dt><dd></dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#2 · 0:05-0:08 · 3s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>社区底商实景</h4>
+        <p><strong>任务：</strong>从素材库选取社区底商实拍镜头</p>
+        <p><strong>画面：</strong>社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮</p>
+        <p><strong>口播/旁白：</strong><span class="muted">空</span></p>
+        <p><strong>字幕：</strong>楼下底商都在营业，日常买菜喝咖啡不出小区</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>全景 / 缓慢平移 / 平视</dd></div>
+          <div><dt>构图</dt><dd>街道纵深，商铺在两侧</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 快 / 最短 2s</dd></div>
+          <div><dt>素材词</dt><dd>社区底商 餐饮 超市 行人 生活气息 实拍</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#3 · 0:08-0:11 · 3s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>层高展示</h4>
+        <p><strong>任务：</strong>从素材库选取样板间客厅镜头，强调层高</p>
+        <p><strong>画面：</strong>样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔</p>
+        <p><strong>口播/旁白：</strong><span class="muted">空</span></p>
+        <p><strong>字幕：</strong>层高4米，进来感觉特别通透</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>广角全景 / 固定 / 仰拍或平视</dd></div>
+          <div><dt>构图</dt><dd>突出纵向空间，家具尺度适中</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 快 / 最短 2s</dd></div>
+          <div><dt>素材词</dt><dd>样板间 客厅 层高 4米 通透 阳光</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#4 · 0:11-0:21 · 10s</span>
+          <b>口播</b>
+          <em class="upload">需上传</em>
+        </div>
+        <h4>核心价值阐述</h4>
+        <p><strong>任务：</strong>中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词</p>
+        <p><strong>画面：</strong>中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切</p>
+        <p><strong>口播/旁白：</strong>其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。</p>
+        <p><strong>字幕：</strong>其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。</p>
+        <dl>
+          <div><dt>拍法</dt><dd>手机自拍</dd></div>
+          <div><dt>地点</dt><dd>样板间客厅</dd></div>
+          <div><dt>姿态</dt><dd>站着，面对镜头</dd></div>
+          <div><dt>提示</dt><dd>保持和第一段相同的穿着和形象；语速放慢，像跟朋友分享；拍两遍，选自然的一条</dd></div>
+          <div><dt>镜头语言</dt><dd>中近景 / 固定 / 平视</dd></div>
+          <div><dt>构图</dt><dd>人物居中，背景可见客厅</dd></div>
+          <div><dt>剪辑</dt><dd>声音先入 / 正常 / 最短 8s</dd></div>
+          <div><dt>素材词</dt><dd></dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#5 · 0:21-0:25 · 4s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>结尾引导</h4>
+        <p><strong>任务：</strong>从素材库选取项目外立面或品牌标识镜头</p>
+        <p><strong>画面：</strong>项目外立面实景，现代建筑，天空明亮，下方有小区入口</p>
+        <p><strong>口播/旁白：</strong><span class="muted">空</span></p>
+        <p><strong>字幕：</strong>想看户型？私信我</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>远景或中景 / 固定 / 仰拍</dd></div>
+          <div><dt>构图</dt><dd>建筑居中，展现整体外观</dd></div>
+          <div><dt>剪辑</dt><dd>渐变过渡 / 正常 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd>项目外立面 小区入口 实景 现代建筑</dd></div>
+        </dl>
+      </article>
+    </div>
+      </section>
+    
+      </div>
+    
+          
+      <div class="column gpt4o">
+        <div class="column-head">
+          <h2>GPT-4o 全链路</h2>
+          
+      <div class="metrics">
+        <div><span>模型</span><b>GPT-4o 全链路</b></div>
+        <div><span>耗时</span><b>62.73s</b></div>
+        <div><span>工作流</span><b>succeeded</b></div>
+        <div><span>状态</span><b>needs_review</b></div>
+        <div><span>图片</span><b>2</b></div>
+        <div><span>镜头</span><b>5</b></div>
+        <div><span>上传镜头</span><b>1, 5</b></div>
+      </div>
+    
+        </div>
+        
+      <section class="block">
+        <h3>图文内容</h3>
+        <div class="field"><label>标题</label><div class="title-text">小户型真的回来了？成熟社区配套成亮点</div></div>
+        <div class="field"><label>封面文案</label><div>4米层高小户型，灵活空间新选择</div></div>
+        <div class="field"><label>图片</label><div class="pills"><span class="pill">展示社区环境: https://example.com/facade.jpg</span><span class="pill">样板间展示: https://example.com/living-room.jpg</span></div></div>
+        <div class="copy">小户型真的回来了？成熟社区配套成亮点
+
+项目位于一个80万方的大社区，已有约1万户、3万人口入住，生活氛围浓厚。
+
+4米层高的小户型，客厅挑高设计，空间感十足，适合多种生活方式。
+
+社区配套设施包括：
+- 超市、餐饮等商业配套
+- 健身房、游泳池等休闲设施
+- 幼儿园、诊所等生活服务
+
+与传统小户型相比，4米层高设计更灵活，既能满足居住需求，也适合办公或投资用途。
+
+#小户型 #成熟社区 #灵活空间 #社区配套 #居住体验 #样板间</div>
+      </section>
+    
+        
+      <section class="block">
+        <h3>视频脚本</h3>
+        <div class="field"><label>故事大纲</label><div>从社区外立面和环境切入，逐步展示小区配套，再进入样板间细节，最后通过真实生活场景呼应目标用户需求，完成种草。</div></div>
+        <div class="field"><label>预计时长</label><div>90秒</div></div>
+        <div class="field"><label>BGM</label><div>轻快舒适的背景音乐，适合日常生活场景</div></div>
+        <div class="field"><label>口吻</label><div>轻松、贴近生活，专业中带有亲切感</div></div>
+        <div class="scenes">
+      <article class="scene">
+        <div class="scene-head">
+          <span>#1 · 0-3s · 3s</span>
+          <b>口播</b>
+          <em class="upload">需上传</em>
+        </div>
+        <h4>引入小户型回归趋势</h4>
+        <p><strong>任务：</strong>通过口播引入小户型的独特设计特点</p>
+        <p><strong>画面：</strong>中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘</p>
+        <p><strong>口播/旁白：</strong>&quot;你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。&quot;</p>
+        <p><strong>字幕：</strong>&quot;你知道吗？这个小户型居然有4米层高，空间灵活到超乎想象。&quot;</p>
+        <dl>
+          <div><dt>拍法</dt><dd>手机自拍</dd></div>
+          <div><dt>地点</dt><dd>售楼处沙盘区域</dd></div>
+          <div><dt>姿态</dt><dd>站着面对镜头</dd></div>
+          <div><dt>提示</dt><dd>找光线好的位置，脸上不要有阴影；语速放慢，像跟朋友聊天；开头和结尾各多录 2 秒，方便剪辑</dd></div>
+          <div><dt>镜头语言</dt><dd>中景 / 固定镜头 / 横屏</dd></div>
+          <div><dt>构图</dt><dd>中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 正常 / 最短 5s</dd></div>
+          <div><dt>素材词</dt><dd></dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#2 · 0-3s · 3s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>展示社区环境</h4>
+        <p><strong>任务：</strong>通过素材展示社区的外立面和环境</p>
+        <p><strong>画面：</strong>社区外立面航拍，镜头缓缓移动，展示入口和周围绿化</p>
+        <p><strong>口播/旁白：</strong><span class="muted">空</span></p>
+        <p><strong>字幕：</strong>项目位于一个80万方的大社区，环境成熟宜居</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>全景 / 稳定推进或平移 / 横屏</dd></div>
+          <div><dt>构图</dt><dd>社区外立面航拍，镜头缓缓移动，展示入口和周围绿化</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 快 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd>社区 外立面 航拍 绿化</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#3 · 0-3s · 3s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>样板间空间展示</h4>
+        <p><strong>任务：</strong>通过素材展示样板间的设计与空间感</p>
+        <p><strong>画面：</strong>样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域</p>
+        <p><strong>口播/旁白：</strong><span class="muted">空</span></p>
+        <p><strong>字幕：</strong>4米层高设计，空间灵活多样</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>全景 / 稳定推进或平移 / 横屏</dd></div>
+          <div><dt>构图</dt><dd>样板间客厅全景，阳光从左侧落地窗洒进来，能看到沙发、茶几和餐厅区域</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 快 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd>样板间 客厅 落地窗 阳光 通透</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#4 · 0-3s · 3s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>社区配套设施展示</h4>
+        <p><strong>任务：</strong>通过素材展示社区内的生活便利性</p>
+        <p><strong>画面：</strong>社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹</p>
+        <p><strong>口播/旁白：</strong><span class="muted">空</span></p>
+        <p><strong>字幕：</strong>社区内配套设施齐全，生活便利</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>全景 / 稳定推进或平移 / 横屏</dd></div>
+          <div><dt>构图</dt><dd>社区内商业街区，行人穿梭，商铺门面整洁，氛围热闹</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 快 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd>社区 商业街 商铺 人群</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#5 · 0-3s · 3s</span>
+          <b>口播</b>
+          <em class="upload">需上传</em>
+        </div>
+        <h4>总结与引导</h4>
+        <p><strong>任务：</strong>通过口播总结项目特点并轻松引导观众</p>
+        <p><strong>画面：</strong>中介站在样板间客厅，面对镜头自然说话，背景是客厅布置</p>
+        <p><strong>口播/旁白：</strong>&quot;这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。&quot;</p>
+        <p><strong>字幕：</strong>&quot;这个项目不仅设计独特，而且配套成熟，非常适合刚需客户。实地看看会更直观。&quot;</p>
+        <dl>
+          <div><dt>拍法</dt><dd>手机自拍</dd></div>
+          <div><dt>地点</dt><dd>样板间客厅区域</dd></div>
+          <div><dt>姿态</dt><dd>站在门框边</dd></div>
+          <div><dt>提示</dt><dd>不要站在房间正中央，站在角落或门框边，画面更有纵深感；拍两遍，选自然的那条；开头和结尾各多录 2 秒，方便剪辑</dd></div>
+          <div><dt>镜头语言</dt><dd>中景 / 固定镜头 / 横屏</dd></div>
+          <div><dt>构图</dt><dd>中介站在样板间客厅，面对镜头自然说话，背景是客厅布置</dd></div>
+          <div><dt>剪辑</dt><dd>渐变过渡 / 正常 / 最短 5s</dd></div>
+          <div><dt>素材词</dt><dd></dd></div>
+        </dl>
+      </article>
+    </div>
+      </section>
+    
+      </div>
+    
+        </div>
+      </section>
+    
+      <section class="case" id="case02">
+        <div class="case-title">
+          <h2>case02：无图片素材</h2>
+          <p>同一条“成熟配套怎么讲”任务，无图片素材，验证缺图时文案和脚本是否仍可交付。</p>
+        </div>
+        <div class="compare-grid">
+          
+      <div class="column deepseek">
+        <div class="column-head">
+          <h2>DeepSeek / 原模型链路</h2>
+          
+      <div class="metrics">
+        <div><span>模型</span><b>DeepSeek / 原模型链路</b></div>
+        <div><span>耗时</span><b>449.60s</b></div>
+        <div><span>工作流</span><b>succeeded</b></div>
+        <div><span>状态</span><b>needs_review</b></div>
+        <div><span>图片</span><b>0</b></div>
+        <div><span>镜头</span><b>7</b></div>
+        <div><span>上传镜头</span><b>1, 7</b></div>
+      </div>
+    
+        </div>
+        
+      <section class="block">
+        <h3>图文内容</h3>
+        <div class="field"><label>标题</label><div class="title-text">买房先看楼下：生活圈比户型更重要</div></div>
+        <div class="field"><label>封面文案</label><div>楼下生活圈，比户型更值得看</div></div>
+        <div class="field"><label>图片</label><div class="pills"><span class="muted">无图片输出</span></div></div>
+        <div class="copy">买房先看楼下：生活圈比户型更重要
+
+第一次看房，别只盯着户型图。下楼走一圈，才是真正的考验。很多人花了很长时间选户型，结果住进去发现，买个菜要走20分钟。我今天带你看看，什么叫真实生活半径。
+
+从地铁站出来，步行大约5分钟就到社区门口。一路沿街都是商铺，早上有包子铺、晚上有水果店，烟火气很足。
+
+楼下底商已经开了不少。便利店、药店、干洗店，日常需要的基本都有。不用开车，下楼就能解决。
+
+大堂空间挑高约4米，装修简洁大方。虽然是商用属性，但品质感不输住宅。朋友来了也体面。
+
+看配套到底怎么看？别信规划图，就看两点：一是现在有没有人用，二是走路方不方便。这里周边配套基本都兑现了，所见即所得。
+
+如果你也在看房，想了解怎么评估生活配套，可以私信我，我发你一份细项清单参考。
+
+#买房经验 #看房技巧 #生活配套 #首次买房 #买房攻略 #社区配套 #买房避坑 #看房日记</div>
+      </section>
+    
+        
+      <section class="block">
+        <h3>视频脚本</h3>
+        <div class="field"><label>故事大纲</label><div>以一个首次看房客户的视角，从项目外部进入社区，沿途展现真实的生活便利，然后进入大堂和样板间，强调生活动线比户型图更值得关注。</div></div>
+        <div class="field"><label>预计时长</label><div>约45秒</div></div>
+        <div class="field"><label>BGM</label><div>开篇轻快带悬念，中段温馨生活感，结尾积极明朗</div></div>
+        <div class="field"><label>口吻</label><div>真实分享，如同和老客户提醒</div></div>
+        <div class="scenes">
+      <article class="scene">
+        <div class="scene-head">
+          <span>#1 · 0:00-0:10 · 10s</span>
+          <b>口播</b>
+          <em class="upload">需上传</em>
+        </div>
+        <h4>误区提醒：只盯户型图的误区</h4>
+        <p><strong>任务：</strong>中介在售楼处沙盘旁面对镜头自然说话，背景有沙盘和项目效果图</p>
+        <p><strong>画面：</strong>中介站在售楼处沙盘旁，面对镜头自然说话，背景是沙盘和项目效果图；光线明亮，脸部无阴影</p>
+        <p><strong>口播/旁白：</strong>很多人第一次看房只盯户型图，但住进去后才发现生活动线有多重要。你每天走的路、楼下的早餐店、便利店——这些才是决定生活质量的关键。</p>
+        <p><strong>字幕：</strong>很多人第一次看房只盯户型图，但住进去后才发现生活动线有多重要。你每天走的路、楼下的早餐店、便利店——这些才是决定生活质量的关键。</p>
+        <dl>
+          <div><dt>拍法</dt><dd>自拍</dd></div>
+          <div><dt>地点</dt><dd>售楼处沙盘区</dd></div>
+          <div><dt>姿态</dt><dd>站立面对镜头</dd></div>
+          <div><dt>提示</dt><dd>手机横屏拍摄，画质1080p以上；确保脸部光线均匀，避免阴影；开头多录2秒方便剪辑</dd></div>
+          <div><dt>镜头语言</dt><dd>中景 / 固定 / 水平</dd></div>
+          <div><dt>构图</dt><dd>中介居中偏左，背景有沙盘</dd></div>
+          <div><dt>剪辑</dt><dd>渐变过渡 / 正常 / 最短 5s</dd></div>
+          <div><dt>素材词</dt><dd></dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#2 · 0:10-0:14 · 4s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>从地铁站走向社区</h4>
+        <p><strong>任务：</strong>使用地铁站出口到社区步行的航拍或跟随镜头素材，展现沿途商铺和街道活力</p>
+        <p><strong>画面：</strong>地铁站出口航拍，镜头从高处下降跟随一个人走向社区方向，沿途可见沿街商铺、早餐店、便利店，阳光充足，街道干净整洁</p>
+        <p><strong>口播/旁白：</strong>今天我们就从地铁站走到社区，帮你感受真实的生活半径。</p>
+        <p><strong>字幕：</strong>从地铁站走到社区，感受真实生活半径</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>全景航拍转中景跟随 / 下降跟随 / 水平</dd></div>
+          <div><dt>构图</dt><dd>人物在画面中心偏下，街道引导线</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 快 / 最短 2s</dd></div>
+          <div><dt>素材词</dt><dd>地铁站 出口 行人 步行 社区 沿街商铺 活力</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#3 · 0:14-0:18 · 4s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>楼下底商已运营</h4>
+        <p><strong>任务：</strong>展示社区底商已有商家经营，如早餐店、便利店、咖啡店等</p>
+        <p><strong>画面：</strong>社区底商外景，镜头平缓扫过一排店铺，有醒目的招牌和正在营业的商家，有人在店内消费，早晨阳光柔和</p>
+        <p><strong>口播/旁白：</strong>你看，底商已经有很多店在营业了，买杯咖啡、吃个早饭都很方便。</p>
+        <p><strong>字幕：</strong>底商已运营，买咖啡吃早饭都很方便</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>中景平移 / 平移 / 水平</dd></div>
+          <div><dt>构图</dt><dd>店铺居中，招牌清晰</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 快 / 最短 2s</dd></div>
+          <div><dt>素材词</dt><dd>社区底商 店铺 营业 早餐店 便利店 咖啡店 实景</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#4 · 0:18-0:22 · 4s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>品质大堂和电梯厅</h4>
+        <p><strong>任务：</strong>展示社区大堂和公共区域的实景素材，强调层高和质感</p>
+        <p><strong>画面：</strong>大堂室内全景，镜头从门口推进，展示4米层高、石材地面、现代简约装修，商务大堂风格，有休息区，灯光明亮</p>
+        <p><strong>口播/旁白：</strong>再进到大堂，层高4米，很有品质感。</p>
+        <p><strong>字幕：</strong>大堂层高4米，品质感十足</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>全景推近 / 推进 / 水平</dd></div>
+          <div><dt>构图</dt><dd>大堂中心为视觉焦点，对称构图</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 快 / 最短 2s</dd></div>
+          <div><dt>素材词</dt><dd>大堂 层高 4米 商务风格 品质 室内 现代</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#5 · 0:22-0:26 · 4s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>样板间窗外视野</h4>
+        <p><strong>任务：</strong>使用样板间内拍摄的素材，重点展示窗外视野或室内通透感</p>
+        <p><strong>画面：</strong>站在样板间窗边，镜头从室内向窗外拍摄，透过窗户看到社区景观或远处城市天际线，室内空间宽敞，自然光充足</p>
+        <p><strong>口播/旁白：</strong>最后进样板间，站在窗边看看视野。</p>
+        <p><strong>字幕：</strong>站在窗边，感受开阔视野</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>中景定镜 / 固定 / 水平</dd></div>
+          <div><dt>构图</dt><dd>窗户占据画面中心，室内的部分空间为前景</dd></div>
+          <div><dt>剪辑</dt><dd>渐变过渡 / 正常 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd>样板间 窗户 视野 城市景观 室内 光线 通透</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#6 · 0:26-0:30 · 4s</span>
+          <b>文字卡</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>社区数据展示</h4>
+        <p><strong>任务：</strong>展示文字卡片，内容为社区体量和配套现状</p>
+        <p><strong>画面：</strong>纯文字黑色背景或半透明渐变，白色字体，居中显示：约80万方生活大城 1万户、3万人口 配套已呈现</p>
+        <p><strong>口播/旁白：</strong><span class="muted">空</span></p>
+        <p><strong>字幕：</strong>约80万方生活大城 1万户、3万人口 配套已呈现</p>
+        <dl>
+          <div><dt>拍法</dt><dd>剪辑生成文字卡</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>全屏 / 固定 / 水平</dd></div>
+          <div><dt>构图</dt><dd>文字居中</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 正常 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd></dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#7 · 0:30-0:40 · 10s</span>
+          <b>口播</b>
+          <em class="upload">需上传</em>
+        </div>
+        <h4>轻CTA：提供生活半径清单</h4>
+        <p><strong>任务：</strong>中介再次面对镜头，自然引出提供清单，保持与场景1相同穿着和背景</p>
+        <p><strong>画面：</strong>中介站在同一位置（售楼处沙盘旁），面对镜头自然说话，表情真诚</p>
+        <p><strong>口播/旁白：</strong>如果你也在担心配套，可以找我拿一份生活半径清单，提前了解周边有什么。</p>
+        <p><strong>字幕：</strong>如果你也在担心配套，可以找我拿一份生活半径清单，提前了解周边有什么。</p>
+        <dl>
+          <div><dt>拍法</dt><dd>自拍</dd></div>
+          <div><dt>地点</dt><dd>建议与场景1同一位置（售楼处）</dd></div>
+          <div><dt>姿态</dt><dd>站立面对镜头</dd></div>
+          <div><dt>提示</dt><dd>保持与开头相同的穿着和发型；语速放慢，像跟朋友聊天；句尾停顿1秒再结束</dd></div>
+          <div><dt>镜头语言</dt><dd>中近景 / 固定 / 水平</dd></div>
+          <div><dt>构图</dt><dd>中介居中，面部表情清晰</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 正常 / 最短 5s</dd></div>
+          <div><dt>素材词</dt><dd></dd></div>
+        </dl>
+      </article>
+    </div>
+      </section>
+    
+      </div>
+    
+          
+      <div class="column gpt4o">
+        <div class="column-head">
+          <h2>GPT-4o 全链路</h2>
+          
+      <div class="metrics">
+        <div><span>模型</span><b>GPT-4o 全链路</b></div>
+        <div><span>耗时</span><b>55.56s</b></div>
+        <div><span>工作流</span><b>succeeded</b></div>
+        <div><span>状态</span><b>needs_review</b></div>
+        <div><span>图片</span><b>0</b></div>
+        <div><span>镜头</span><b>6</b></div>
+        <div><span>上传镜头</span><b>1, 5</b></div>
+      </div>
+    
+        </div>
+        
+      <section class="block">
+        <h3>图文内容</h3>
+        <div class="field"><label>标题</label><div class="title-text">住在这里是什么体验？我带你看小区周边的生活便利</div></div>
+        <div class="field"><label>封面文案</label><div>生活便利度，选房关键</div></div>
+        <div class="field"><label>图片</label><div class="pills"><span class="muted">无图片输出</span></div></div>
+        <div class="copy">住在这里是什么体验？我带你看小区周边的生活便利
+
+早晨出门，楼下就是便利店和早餐铺，买一杯豆浆就能轻松开启一天。
+
+小区周边步行5分钟内有超市、药店和银行，日常需求一站解决。
+
+晚上散步时，社区内有休闲广场，孩子们玩耍，大人们聊天，氛围很温馨。
+
+一位业主表示：“这里生活很方便，买菜、吃饭都不用走远。”
+
+生活便利的关键点：1. 配套设施齐全；2. 步行可达；3. 社区氛围好。
+
+#生活便利 #社区配套 #首次购房 #居住体验 #买房攻略 #社区氛围 #生活场景</div>
+      </section>
+    
+        
+      <section class="block">
+        <h3>视频脚本</h3>
+        <div class="field"><label>故事大纲</label><div>开场通过首次购房者的疑问引入话题，强调生活便利度的重要性。随后展示项目周边的成熟配套设施，如商店、餐饮、交通等，结合真实客户的体验分享，建立信任。最后总结如何通过观察生活便利度选择适合的房产，提出建议。</div></div>
+        <div class="field"><label>预计时长</label><div>2-3分钟</div></div>
+        <div class="field"><label>BGM</label><div>轻快、温馨，适合展现生活场景</div></div>
+        <div class="field"><label>口吻</label><div>真实可信，贴近生活</div></div>
+        <div class="scenes">
+      <article class="scene">
+        <div class="scene-head">
+          <span>#1 · 0-3s · 6s</span>
+          <b>口播</b>
+          <em class="upload">需上传</em>
+        </div>
+        <h4>引入话题</h4>
+        <p><strong>任务：</strong>引入话题</p>
+        <p><strong>画面：</strong>中介站在售楼处门口，面对镜头自然说话，背景是售楼处和周边环境</p>
+        <p><strong>口播/旁白：</strong>买房时，生活便利度究竟有多重要？很多首次购房者忽略了这个关键点。</p>
+        <p><strong>字幕：</strong>买房时，生活便利度究竟有多重要？很多首次购房者忽略了这个关键点。</p>
+        <dl>
+          <div><dt>拍法</dt><dd>手机横屏，半身自拍口播</dd></div>
+          <div><dt>地点</dt><dd>售楼处门口</dd></div>
+          <div><dt>姿态</dt><dd>站着</dd></div>
+          <div><dt>提示</dt><dd>找光线好的位置，脸上不要有阴影；语速放慢，像跟朋友聊天；开头和结尾各多录 2 秒，方便剪辑</dd></div>
+          <div><dt>镜头语言</dt><dd>中景 / 固定镜头 / 横屏</dd></div>
+          <div><dt>构图</dt><dd>中介站在售楼处门口，面对镜头自然说话，背景是售楼处和周边环境</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 正常 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd></dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#2 · 0-3s · 3s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>展示生活便利设施</h4>
+        <p><strong>任务：</strong>展示生活便利设施</p>
+        <p><strong>画面：</strong>超市入口的外景，顾客推着购物车进出，周围环境干净整洁</p>
+        <p><strong>口播/旁白：</strong><span class="muted">空</span></p>
+        <p><strong>字幕：</strong>楼下就是超市，买东西特别方便</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>全景 / 稳定推进或平移 / 横屏</dd></div>
+          <div><dt>构图</dt><dd>超市入口的外景，顾客推着购物车进出，周围环境干净整洁</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 快 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd>超市入口 顾客推购物车 干净整洁</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#3 · 0-3s · 3s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>展示交通便利</h4>
+        <p><strong>任务：</strong>展示交通便利</p>
+        <p><strong>画面：</strong>公交站台的全景，几位乘客正在等车，背景是绿化带和行驶的车辆</p>
+        <p><strong>口播/旁白：</strong><span class="muted">空</span></p>
+        <p><strong>字幕：</strong>步行五分钟到公交站，出行很方便</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>全景 / 稳定推进或平移 / 横屏</dd></div>
+          <div><dt>构图</dt><dd>公交站台的全景，几位乘客正在等车，背景是绿化带和行驶的车辆</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 快 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd>公交站台 乘客等车 绿化带</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#4 · 0-3s · 3s</span>
+          <b>素材</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>展示休闲设施</h4>
+        <p><strong>任务：</strong>展示休闲设施</p>
+        <p><strong>画面：</strong>社区公园一角，家长带着孩子在草坪上玩耍，阳光明媚</p>
+        <p><strong>口播/旁白：</strong><span class="muted">空</span></p>
+        <p><strong>字幕：</strong>周末还能带孩子去附近的公园玩</p>
+        <dl>
+          <div><dt>拍法</dt><dd>使用团队素材或项目实拍素材</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>全景 / 稳定推进或平移 / 横屏</dd></div>
+          <div><dt>构图</dt><dd>社区公园一角，家长带着孩子在草坪上玩耍，阳光明媚</dd></div>
+          <div><dt>剪辑</dt><dd>直接切 / 快 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd>社区公园 家长 孩子 草坪 阳光</dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#5 · 0-3s · 8s</span>
+          <b>口播</b>
+          <em class="upload">需上传</em>
+        </div>
+        <h4>客户体验分享</h4>
+        <p><strong>任务：</strong>客户体验分享</p>
+        <p><strong>画面：</strong>中介站在样板间客厅，面对镜头自然说话，背景是布置整洁的客厅</p>
+        <p><strong>口播/旁白：</strong>一个客户告诉我，她选这里就是为了方便工作和生活。买房不仅是选一个房子，也是选一个生活方式。</p>
+        <p><strong>字幕：</strong>一个客户告诉我，她选这里就是为了方便工作和生活。买房不仅是选一个房子，也是选一个生活方式。</p>
+        <dl>
+          <div><dt>拍法</dt><dd>手机横屏，半身自拍口播</dd></div>
+          <div><dt>地点</dt><dd>样板间客厅</dd></div>
+          <div><dt>姿态</dt><dd>站着</dd></div>
+          <div><dt>提示</dt><dd>不要站在房间正中央，站在角落或门框边，画面更有纵深感；拍两遍，选自然的那条；开头和结尾各多录 2 秒，方便剪辑</dd></div>
+          <div><dt>镜头语言</dt><dd>中景 / 固定镜头 / 横屏</dd></div>
+          <div><dt>构图</dt><dd>中介站在样板间客厅，面对镜头自然说话，背景是布置整洁的客厅</dd></div>
+          <div><dt>剪辑</dt><dd>声音先入画面后跟 / 正常 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd></dd></div>
+        </dl>
+      </article>
+    
+      <article class="scene">
+        <div class="scene-head">
+          <span>#6 · 0-3s · 5s</span>
+          <b>文字卡</b>
+          <em class="asset">素材/系统</em>
+        </div>
+        <h4>总结与建议</h4>
+        <p><strong>任务：</strong>总结与建议</p>
+        <p><strong>画面：</strong>纯文字画面，白底黑字，简洁明了</p>
+        <p><strong>口播/旁白：</strong><span class="muted">空</span></p>
+        <p><strong>字幕：</strong>买房时，别忘了观察生活便利度，选一个适合你的生活方式。</p>
+        <dl>
+          <div><dt>拍法</dt><dd>剪辑生成文字卡</dd></div>
+          <div><dt>地点</dt><dd>根据现场条件选择</dd></div>
+          <div><dt>姿态</dt><dd>不需要出镜</dd></div>
+          <div><dt>提示</dt><dd></dd></div>
+          <div><dt>镜头语言</dt><dd>全景 / 稳定推进或平移 / 横屏</dd></div>
+          <div><dt>构图</dt><dd>纯文字画面，白底黑字，简洁明了</dd></div>
+          <div><dt>剪辑</dt><dd>渐变过渡 / 正常 / 最短 3s</dd></div>
+          <div><dt>素材词</dt><dd></dd></div>
+        </dl>
+      </article>
+    </div>
+      </section>
+    
+      </div>
+    
+        </div>
+      </section>
+    
+  </main>
+</body>
+</html>

@@ -1,0 +1,44 @@
+{
+  "case_name": "case02_no_images",
+  "case_path": "/Users/wy/Desktop/静境/静境4.0/小红书抖音矩阵获客平台/docs/探索/2026-05-11-用dify来测试链路/testcases/case02_no_images.json",
+  "run_index": 1,
+  "timestamp": "20260512_132543_214099",
+  "elapsed_time": 14.162858963012695,
+  "success": true,
+  "workflow_run_id": "ce63e73d-d8b0-4728-8b64-6522b36af545",
+  "error": null,
+  "raw_response": {
+    "id": "ce63e73d-d8b0-4728-8b64-6522b36af545",
+    "workflow_id": "9d1dee4c-a686-4cca-a886-55c42da4cbfa",
+    "status": "failed",
+    "outputs": {},
+    "error": "Query variable is not string type.",
+    "elapsed_time": 10.705675,
+    "total_tokens": 1530,
+    "total_steps": 3,
+    "created_by": {
+      "id": "f5aa29fe-9dd6-4f67-ad9e-d33cbc56a56a",
+      "user": "content_calendar_test_case02_no_images_1778563543"
+    },
+    "created_at": 1778563545,
+    "finished_at": 1778563556,
+    "exceptions_count": 1,
+    "files": []
+  },
+  "final_json": null,
+  "final_text": "",
+  "parse_errors": [
+    "missing final output text"
+  ],
+  "evaluation": {
+    "passed": false,
+    "checks": [
+      {
+        "name": "final_json_parseable",
+        "passed": false,
+        "detail": ""
+      }
+    ],
+    "risk_terms": []
+  }
+}

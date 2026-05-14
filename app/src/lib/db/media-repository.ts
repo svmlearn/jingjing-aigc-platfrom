@@ -47,6 +47,12 @@ type ContentVariantOwnerRow = {
   variant_type: ContentVariantDto["variantType"];
 };
 
+type VoiceProfileOwnerRow = {
+  id: string;
+  merchant_id: string;
+  created_by_user_id: string;
+};
+
 export type MediaOwnerContext = {
   ownerType: MediaOwnerType;
   ownerId: string;
@@ -78,7 +84,14 @@ export async function assertMediaOwnerAccess(input: {
   ownerId: string;
 }): Promise<MediaOwnerContext> {
   if (!isSupabaseAdminConfigured()) {
-    const owner = getLocalDemoMediaOwnerContext(input);
+    const owner =
+      input.ownerType === "voice_profile"
+        ? null
+        : getLocalDemoMediaOwnerContext({
+            merchantId: input.merchantId,
+            ownerType: input.ownerType,
+            ownerId: input.ownerId,
+          });
 
     if (owner) {
       if (input.createdByUserId && owner.createdByUserId !== input.createdByUserId) {
@@ -92,6 +105,15 @@ export async function assertMediaOwnerAccess(input: {
         ownerType: input.ownerType,
         ownerId: input.ownerId,
         merchantId: input.merchantId,
+      };
+    }
+
+    if (input.ownerType === "voice_profile") {
+      return {
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        merchantId: input.merchantId,
+        createdByUserId: input.createdByUserId ?? null,
       };
     }
 
@@ -144,6 +166,41 @@ export async function assertMediaOwnerAccess(input: {
       merchantId: draft.merchant_id,
       createdByUserId: draft.created_by_user_id ?? null,
       draftId: draft.id,
+    };
+  }
+
+  if (input.ownerType === "voice_profile") {
+    let profileQuery = supabase
+      .from("voice_profiles")
+      .select("id, merchant_id, created_by_user_id")
+      .eq("id", input.ownerId)
+      .eq("merchant_id", input.merchantId);
+
+    if (input.createdByUserId) {
+      profileQuery = profileQuery.eq("created_by_user_id", input.createdByUserId);
+    }
+
+    const { data, error } = await profileQuery.maybeSingle();
+
+    if (error) {
+      throw new ApiError(500, "MEDIA_OWNER_LOOKUP_FAILED", error.message);
+    }
+
+    if (!data) {
+      return {
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        merchantId: input.merchantId,
+        createdByUserId: input.createdByUserId ?? null,
+      };
+    }
+
+    const profile = data as unknown as VoiceProfileOwnerRow;
+    return {
+      ownerType: input.ownerType,
+      ownerId: profile.id,
+      merchantId: profile.merchant_id,
+      createdByUserId: profile.created_by_user_id,
     };
   }
 

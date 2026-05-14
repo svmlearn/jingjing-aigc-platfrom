@@ -1,0 +1,71 @@
+{
+  "test_time": "2026-05-12 21:19:20",
+  "base_url": "https://api.dify.ai/v1",
+  "cases": [
+    {
+      "case_name": "case02_v3_no_images",
+      "output_file": "docs/探索/2026-05-11-用dify来测试链路/results/v3_manual/case02_v3_no_images_20260512_212941.json",
+      "success": true,
+      "stage": "workflow",
+      "elapsed": 621.4250528812408,
+      "workflow_run_id": "0e8b3ee9-b147-472c-aeaf-3f9a1655dc3d",
+      "parse_ok": true,
+      "error": null,
+      "quality_pass": false,
+      "scores": {
+        "factAccuracy": 8,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 8,
+        "materialFit": 6,
+        "compliance": 9
+      },
+      "problems": [
+        "缺少可用图片素材"
+      ],
+      "missingInputs": [
+        "图文图片素材"
+      ],
+      "article_blocks": 5,
+      "titleStrategy_present": true,
+      "video_scenes_count": 15,
+      "scenes_missing_visualDescription": []
+    },
+    {
+      "case_name": "case03_v3_weak_knowledge",
+      "output_file": "docs/探索/2026-05-11-用dify来测试链路/results/v3_manual/case03_v3_weak_knowledge_20260512_214144.json",
+      "success": true,
+      "stage": "workflow",
+      "elapsed": 722.5798280239105,
+      "workflow_run_id": "ab08d4fb-9462-449f-930f-c4f55b0fd878",
+      "parse_ok": true,
+      "error": null,
+      "quality_pass": false,
+      "scores": {
+        "factAccuracy": 5,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 8,
+        "materialFit": 6,
+        "compliance": 8
+      },
+      "problems": [
+        "项目知识不足，成稿仅适合内部预览",
+        "场景 1 缺少具体 visualDescription",
+        "场景 5 缺少具体 visualDescription",
+        "场景 8 缺少具体 visualDescription"
+      ],
+      "missingInputs": [
+        "更完整的项目事实"
+      ],
+      "article_blocks": 6,
+      "titleStrategy_present": true,
+      "video_scenes_count": 10,
+      "scenes_missing_visualDescription": [
+        1,
+        5,
+        8
+      ]
+    }
+  ]
+}

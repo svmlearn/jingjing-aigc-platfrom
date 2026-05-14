@@ -1,0 +1,1350 @@
+{
+  "start": {
+    "event": "node_finished",
+    "title": "开始",
+    "node_type": "start",
+    "status": "succeeded",
+    "outputs": {
+      "calendar_task_json": "{\"taskId\":\"task_20260511_001\",\"theme\":\"小户型回归\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"刚需客户\",\"summary\":\"低总价上车、成熟配套、租金回报\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-11\"}",
+      "viral_references_json": "[{\"id\":\"viral_001\",\"platform\":\"xiaohongshu\",\"title\":\"很多人以为小户型没人看了，其实刚需又开始回头看\",\"structure\":[\"反常识开头\",\"解释变化\",\"落到真实选择\",\"轻CTA\"],\"hook\":\"很多人以为小户型过时了\",\"ctaStyle\":\"想看户型和总价，可以私信\"}]",
+      "image_assets_json": "[{\"assetId\":\"img_001\",\"title\":\"项目外立面\",\"url\":\"https://example.com/facade.jpg\",\"tags\":[\"项目外立面\",\"小区入口\",\"封面\"],\"description\":\"适合承接项目可信度和封面展示\"},{\"assetId\":\"img_002\",\"title\":\"样板间客厅\",\"url\":\"https://example.com/living-room.jpg\",\"tags\":[\"样板间\",\"客厅\",\"空间感\"],\"description\":\"适合讲居住体验\"}]",
+      "fallback_knowledge_text": "项目资料：80万方大社区，约1万户、3万人口，社区内有成熟消费与服务需求。产品有4米层高、商务大堂，70平、200平、250平可对应不同用途。风险资料：历史资料里提到满租、租金区间、低位价格，但这些只能作为内部判断，不能用于对外承诺或营销表达。",
+      "extra_requirement": "口吻更像本地中介，CTA轻一点，不要制造焦虑。",
+      "sys.files": [],
+      "sys.user_id": "v31_poll_case01_full_with_compliance_risk_1778662578",
+      "sys.app_id": "41cd49f3-8135-4520-b69e-c74cb821034b",
+      "sys.workflow_id": "7bf2619e-6097-469e-b469-4d4929bfb4ba",
+      "sys.workflow_run_id": "a34e484a-e83a-4f71-bb40-40003336518f",
+      "sys.timestamp": 1778662579
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "task_understanding": {
+    "event": "node_finished",
+    "title": "任务理解",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\n  \"coreTopic\": \"小户型回归\",\n  \"contentType\": \"article_and_video\",\n  \"platforms\": [\"xiaohongshu\", \"douyin\"],\n  \"contentGoal\": \"种草\",\n  \"targetAudience\": \"刚需客户\",\n  \"audiencePain\": \"预算有限，希望找到配套成熟的低总价房源\",\n  \"sellingPointsNeeded\": [\"低总价上车\", \"成熟配套\"],\n  \"riskConstraints\": [\"收益承诺类\"],\n  \"copySearchQuery\": \"小户型回归 刚需 低总价 成熟配套 首套房 预算友好\",\n  \"scriptSearchQuery\": \"小户型回归 刚需 低总价上车 成熟配套 视频素材\",\n  \"imageSearchQuery\": \"小户型 实景图 低总价 成熟配套 购房\",\n  \"videoAssetQueryHints\": [\"小户型样板间视频\", \"周边配套实拍\", \"购房者看房场景\"],\n  \"extraRequirement\": \"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"\n}",
+      "reasoning_content": "我们根据输入的内容日历任务解析字段。\n\n- coreTopic: \"小户型回归\"\n- contentType: \"article_and_video\"（注意是字符串，不是数组）\n- platforms: [\"xiaohongshu\", \"douyin\"]\n- contentGoal: \"种草\"\n- targetAudience: \"刚需客户\"\n- audiencePain: 未明确给出，但可推理：刚需客户的痛点可能是预算有限、担心首付高、担心房子太小不够用等。但硬约束说只能基于输入内容解析，不要编造。输入中summary有\"低总价上车、成熟配套、租金回报\"，其中\"租金回报\"属于风险词（第5条），但audiencePain应基于总结中合理推断。然而约束1：不要编造项目事实。我们可以从summary提炼：低总价上车、成熟配套这些是卖点，但audiencePain通常是客户痛点，比如\"预算有限但想买房\"、\"担心配套不成熟\"等。但输入没有明确说pain，只能根据常见刚需痛点合理推测？但约束说\"只能基于输入内容解析\"，所以如果输入没有明确pain，则填空字符串？但字段是required，所以必须填。这里我们只能从输入中推断，但最好写为\"预算有限，希望低总价上车\"之类的，但注意不要编造。实际上输入里\"低总价上车\"和\"成熟配套\"是summary中的，可以作为audiencePain的反映：客户有预算限制，希望配套成熟。但\"租金回报\"是风险词，不能放这里。所以我们写\"预算有限，希望找到配套成熟的低总价房源\"。\n\n- audiencePain: \"预算有限，希望找到配套成熟的低总价房源\"\n- sellingPointsNeeded: 输入中summary有\"低总价上车、成熟配套\"，但\"租金回报\"不能作为卖点。所以卖点为：[\"低总价上车\", \"成熟配套\"]。注意：卖点数组。\n- riskConstraints: 输入中\"租金回报\"属于收益承诺类风险，应输出类别标签。所以riskConstraints: [\"收益承诺类\"]。\n- copySearchQuery: 不能为空，需要组合主题、客群、卖点、场景词，且不包含风险词。主题：小户型回归；客群：刚需客户；卖点：低总价上车、成熟配套；场景词：可以加\"小户型\"\"首套房\"\"预算友好\"等。构造中文检索句，例如：\"小户型回归 刚需 低总价 成熟配套 首套房 预算友好\"\n- scriptSearchQuery: 类似，可参考copySearchQuery，但更偏向视频脚本检索。例如：\"小户型回归 刚需 低总价上车 成熟配套 视频素材\"\n- imageSearchQuery: 图片检索，例如：\"小户型 实景图 低总价 成熟配套 购房\"\n- videoAssetQueryHints: 视频素材查询提示，数组。例如：[\"小户型样板间视频\", \"周边配套实拍\", \"购房者看房场景\"]。注意不要包含风险词。\n- extraRequirement: 从额外要求提取：\"口吻更像本地中介，CTA轻一点，不要制造焦虑。\" 所以extraRequirement: \"口吻更像本地中介，CTA轻一点，不要制造焦虑。\"\n\n注意：所有字段必须存在，unknown则空字符串/数组/null。但这里都有值。\n\n输出JSON。",
+      "usage": {
+        "prompt_tokens": 801,
+        "prompt_unit_price": "1",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.000801",
+        "completion_tokens": 950,
+        "completion_unit_price": "2",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.0019",
+        "total_tokens": 1751,
+        "total_price": "0.002701",
+        "currency": "RMB",
+        "latency": 11.215,
+        "time_to_first_token": 1.074,
+        "time_to_generate": 10.141
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "coreTopic": "小户型回归",
+        "contentType": "article_and_video",
+        "platforms": [
+          "xiaohongshu",
+          "douyin"
+        ],
+        "contentGoal": "种草",
+        "targetAudience": "刚需客户",
+        "audiencePain": "预算有限，希望找到配套成熟的低总价房源",
+        "sellingPointsNeeded": [
+          "低总价上车",
+          "成熟配套"
+        ],
+        "riskConstraints": [
+          "收益承诺类"
+        ],
+        "copySearchQuery": "小户型回归 刚需 低总价 成熟配套 首套房 预算友好",
+        "scriptSearchQuery": "小户型回归 刚需 低总价上车 成熟配套 视频素材",
+        "imageSearchQuery": "小户型 实景图 低总价 成熟配套 购房",
+        "videoAssetQueryHints": [
+          "小户型样板间视频",
+          "周边配套实拍",
+          "购房者看房场景"
+        ],
+        "extraRequirement": "口吻更像本地中介，CTA轻一点，不要制造焦虑。"
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 1751,
+      "total_price": "0.002701",
+      "currency": "RMB"
+    }
+  },
+  "kb_project_knowledge": {
+    "event": "node_finished",
+    "title": "txt 知识库检索",
+    "node_type": "knowledge-retrieval",
+    "status": "succeeded",
+    "outputs": {
+      "result": [
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "e8e7bc39-d941-4c4b-8a80-59405fba3143",
+            "document_name": "核心对话提取.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "5e3de425-b7cf-4819-8596-ff0d6ba3eb24",
+            "retriever_from": "workflow",
+            "score": 0.5669916,
+            "child_chunks": [],
+            "segment_hit_count": 23,
+            "segment_word_count": 110,
+            "segment_position": 49,
+            "segment_index_node_hash": "37bee2b890c3065e1ffbd1e484ab022e83564bded6f73a3ec700a1083bc19512",
+            "doc_metadata": null,
+            "position": 1
+          },
+          "title": "核心对话提取.txt",
+          "files": null,
+          "content": "- `类住宅舒适路`\n - 核心卖点：70平、4米层高、地铁便利、总价显著低于住宅。\n - 适合人群：预算有限但追求空间舒适度、通勤便利、品质感的客户。\n - 注意：表达上要合规，强调舒适使用场景，不要乱打住宅替代承诺。",
+          "summary": null
+        },
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "e8e7bc39-d941-4c4b-8a80-59405fba3143",
+            "document_name": "核心对话提取.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "67c410da-7a2f-4c3b-b578-5be34f3cacc2",
+            "retriever_from": "workflow",
+            "score": 0.56201905,
+            "child_chunks": [],
+            "segment_hit_count": 29,
+            "segment_word_count": 298,
+            "segment_position": 33,
+            "segment_index_node_hash": "76ca015696f2e88d1f452cf28ef4aa00a08f0f35b5614f8ee383f46a00fc111e",
+            "doc_metadata": null,
+            "position": 2
+          },
+          "title": "核心对话提取.txt",
+          "files": null,
+          "content": "- `社区经济托底`：80万方大社区，约1万户、3万人口，楼下就是现成消费与服务需求，不是PPT里的未来人口。\n- `成熟运营验证`：底商、二期商办已经有满租和实际租金区间，这意味着“能不能租出去”不是想象题，而是证据题。\n- `舒适度型产品`：4米层高、商务大堂、品质感强，它不是靠搭板赠送拼功能，而是靠空间舒适度和场景质感取胜。\n- `一套资产，多种用途`：70平、200平、250平不是一个逻辑。它们分别对应类居住、公寓收租、自用办公、会所接待、分租贴月供。\n- `价格与成熟度错位`：同板块成熟配套、地铁、运营、竞品价格锚都在，但你卖的是最后一期、成熟兑现后的低位价格带，这种错位很稀缺。",
+          "summary": null
+        },
+        {
+          "metadata": {
+            "_source": "knowledge",
+            "dataset_id": "e0bde78b-792d-4182-a2c6-d716877ee997",
+            "dataset_name": "20260509_1.txt...",
+            "document_id": "d3d01826-841d-4b55-b719-db6c798f234e",
+            "document_name": "20260509_2.txt",
+            "data_source_type": "upload_file",
+            "segment_id": "f63785ca-36e5-498c-bdef-ae6df63033ad",
+            "retriever_from": "workflow",
+            "score": 0.5559691,
+            "child_chunks": [],
+            "segment_hit_count": 34,
+            "segment_word_count": 997,
+            "segment_position": 2,
+            "segment_index_node_hash": "b5c96a2bcd048ea3f5cf911b1dae3eb7d6b2b83584a237b8dd13f672f4552b03",
+            "doc_metadata": null,
+            "position": 3
+          },
+          "title": "20260509_2.txt",
+          "files": null,
+          "content": "内容是这样子的，我在想你知道第一阶段应该怎么刺破市场吗？0\n ~1的这个阶段应该是说光明星河天地市场关注度已久的小面积的，什么高回报率的户型，不是已经卖完了吗？早\n 都卖完，去年就卖完了吗？那个小户型的现在来了，就是中介都在等，你要知道现在他们郭峰你要多跟郭峰沟通，\n 郭峰他们现在对外已经这么多的中介都在蠢蠢欲动的原因是因为久违了的小户型终于要来了，就这个是非常好的一\n 个契机，我们的第一波就起这个东西。因为以前小户型在卖的过程中卖的非常好，因为它投资回报率高嘛，五六十\n 万一套嘛，上车很容易嘛，在光明没有可选嘛，然后又是可以做成内住嘛，租金又好，然后因为大户型呢你总价太\n 高了嘛，300万400万小户型，五六十万六七十万，很多银行人都买了，那么就这些是非常好刺破市场的。大\n 家要来了，这个时候起几波话题给他，不停的这段时间就炒这个就炒小户型，怎么好卖怎么炒就先卖好卖的嘛，对\n 不对？我觉得这个话题是我们给，所以呢每天的话题应该宋学辉来梳理，\n李熔 > 是我觉得不冲突，就一开始要有个起点，然后呢给业务员很容易去发，他不用私房这边对然后做起来了，然后再慢\n 慢的你们的\n徐宁 > 团队就应该做成傻瓜式的东西给到我。对业务员就宋旭辉刚刚讲的就是不要让业务员自己去搞，包括刘备说的也是\n李熔 > 拍一些素材给你，我们还奖励业务员呢。对真的是还素材头一条，然后就像积分嘛，就像抖音一样嘛，你发一条我\n 给你一毛钱，\n冼子恩 > 两毛，因为不一定需要很专业的说的，真的我们\n徐宁 > 其实这是你的传统文化。\n辉哥 > 我们就是策划，因为像我们做项目的时候，你开发商发了一些做好的视频，做得好呢你不用去让业务员他就是中介\n ，他只是主动愿意发，对你做的不好的你给他说给你发一条。100块钱他不发的，他就会影响自己的账号的，对\n 。所以内容是很重要，如果哪怕说我觉得刚才说的，如果只是说搜集到一个文字的一个文案，那个没有任何意义，\n 那个没有人就是进行朋友圈嘛。就这个朋友圈发个图片配个文字就完事了。但是如果是能做成一种视频，但是有些\n 业务员他不愿意出镜，如果我们能做成一种就是背景图，就是比如说光明整体配套，但是ai形成一个文字的口播\n ，上面有些字打出来，就是短短的十几秒一个加上一个配乐，有些人愿意看\n徐宁 > 唉那会不会有一个问题我们就所有的中介出来的内容是一样的。\n李熔 > 没错。",
+          "summary": null
+        }
+      ]
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 0,
+      "total_price": "0.0",
+      "currency": "USD"
+    }
+  },
+  "creative_strategy": {
+    "event": "node_finished",
+    "title": "创作策略规划",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\n  \"chosenAngle\": \"小户型重新进入刚需购房者视野，核心吸引力在于总价门槛友好且社区配套已现成，而非投资属性。\",\n  \"narrativeArc\": [\n    \"很多人以为小户型已经没人关注了\",\n    \"但预算有限的刚需其实又开始回头看，因为配套成熟的低门槛选择在减少\",\n    \"这个80万方大社区生活图景已经落地，底商运营和日常消费需求肉眼可见\",\n    \"4米层高的舒适感比想象中更能提升居住体验，不一定非要盯着大面积\",\n    \"有兴趣可以私信了解具体户型布置和看房方式\"\n  ],\n  \"tone\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\",\n  \"mustUseFacts\": [\n    \"80万方大社区，约3万人口规模，已形成内部生活循环\",\n    \"社区底商有多家商户稳定经营，日常消费需求真实可见\",\n    \"层高达到4米，空间舒适感较强\",\n    \"70平左右的户型总价门槛相对友好，适合首要考虑预算的客户\"\n  ],\n  \"mustAvoidClaims\": [\n    \"承诺租金收益稳定\",\n    \"暗示或明示投资回报率可观\",\n    \"使用‘满租’‘租金区间’等内部运营数据作营销承诺\",\n    \"暗示价格即将上涨或抄底时机\",\n    \"承诺可轻松出租或保租保回报\",\n    \"将类住宅产品描述为住宅的完全替代品\"\n  ],\n  \"viralPatternUsed\": {\n    \"patternName\": \"反常识观察切入\",\n    \"reason\": \"打破‘小户型过时’的固有印象，重新吸引预算敏感的刚需客户，并用社区实景建立信任，而非制造焦虑。\",\n    \"titleTactics\": [\n      \"制造认知反差：很多人以为...其实...\",\n      \"使用提问句式引发好奇心\"\n    ],\n    \"hookTactics\": [\n      \"以问题开场：你是不是也觉得小户型没人看了？\",\n      \"直接点出受众误解，拉近距离\"\n    ],\n    \"ctaTactics\": [\n      \"私信获取更多户型和看房信息\",\n      \"不做紧迫逼单，引导自愿了解\",\n      \"强调‘先看看合不合适’的轻松态度\"\n    ]\n  },\n  \"articlePlan\": {\n    \"titleDirection\": \"关注度悄悄回升的小户型，其实更适合在预算里追求成熟配套的首套刚需。\",\n    \"coverCopyDirection\": \"配套现成，总价友好，小户型到底是“过气”还是“真香”？\",\n    \"bodyStructure\": [\n      \"打破刻板印象：现在还有人看小户型吗？\",\n      \"谁在重新关注：预算有限，但不想等配套的购房者\",\n      \"这个社区的底气：80万方生活圈已落地，底商真实运营中\",\n      \"空间感受解密：4米层高带来的舒适度超出预期\",\n      \"动态了解：私信获取户型图或预约实地感受\"\n    ],\n    \"imagePlan\": [\n      \"项目外立面实景，用于封面和建立社区可信度\",\n      \"样板间客厅实景，突出空间舒适感和层高优势\",\n      \"社区底商或街景实拍，展示生活配套已兑现\"\n    ]\n  },\n  \"videoPlan\": {\n    \"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenePlan\": [\n      \"开场：中介站在小区入口或样板间内，面向镜头抛出问题\",\n      \"快速切换：社区底商实拍、行人消费镜头，配合字幕“楼下就是日常所需”\",\n      \"空间展示：站于4米层高客厅，横向走动体现通透感\",\n      \"窗外镜头：望向小区绿化或外部道路，强调生活便利\",\n      \"结尾画面：定格项目外立面或品牌标识，叠加轻CTA文字“想看户型？私信我”\"\n    ],\n    \"assetQueryHints\": [\n      \"小户型样板间实拍素材（含层高展示）\",\n      \"社区底商、超市、餐饮店铺外部实拍\",\n      \"小区入口和周边道路环境镜头\",\n      \"中介带看者自然交谈的片段\"\n    ]\n  },\n  \"degradationNotices\": [\n    \"项目事实不足，未提供具体项目名称和区域位置，内容基于泛化的80万方大社区、4米层高、70平户型等特征描述，避免出现具体总价数字和案名。\"\n  ],\n  \"trace\": {\n    \"usedKnowledgeSummary\": [\n      \"80万方大社区，约3万人口，内部消费与服务需求真实\",\n      \"4米层高，商务大堂，70平户型可作类居住用途\",\n      \"底商已有商家稳定经营，生活配套不需等待\"\n    ],\n    \"usedViralSummary\": [\n      \"爆款结构：反常识开头→解释变化→落到真实选择→轻CTA\",\n      \"标题策略：使用‘很多人以为...其实...’制造反差\",\n      \"CTA方式：私下回复获取信息，避免公开催促\"\n    ],\n    \"usedImageSummary\": [\n      \"项目外立面实景图，适合封面和建立信任感\",\n      \"样板间客厅实景图，适合展示空间舒适度\"\n    ]\n  },\n  \"qualityGateHints\": {\n    \"factWeakness\": \"项目名称和区域位置不明，无法进行精准对比；总价范围未提供，只能描述为‘门槛相对友好’；具体配套商户名称未知。\",\n    \"complianceRisks\": [\n      \"收益承诺类\",\n      \"出租确定性类\"\n    ],\n    \"mustReviewBeforePublish\": [\n      \"核实所有关于价格、租金、收益的表述是否已完全剔除承诺意味\",\n      \"检查是否误用了‘满租’‘租金区间’‘低位价格’等内部判断数据\",\n      \"确认未暗示投资属性或资产回报\",\n      \"待补充项目案名和区域后，再考虑加入精细化总价和配套对比\"\n    ]\n  }\n}",
+      "reasoning_content": "我们被要求输出JSON，需要根据输入生成创作策略。首先需要理解所有输入。\n\n输入包括：\n- 任务理解结果：核心主题“小户型回归”，目标平台小红书和抖音，目标受众刚需客户，内容目标种草，需要低总价上车和成熟配套卖点，风险约束“收益承诺类”，等等。\n- Dify知识库结果：有两条知识，提到类住宅舒适路、70平、4米层高、地铁便利、总价低、社区经济托底等。但注意风险词词典：投资回报率高、收益稳定、租金回报高、稳赚、保值增值、满租、租金区间、租金回报、投资属性、资产回报、低位价格、价格错位、收租、贴月供、租出去、保租、保回报、确定兑现、运营成熟验证。知识库里出现了“满租和实际租金区间”“低位价格带”等风险词，不能直接使用，必须改写。\n- 手工知识文本：80万方大社区，1万户，3万人口，4米层高，商务大堂，70/200/250平用途。风险资料提到满租、租金区间、低位价格，只能内部判断，不能用于对外营销。\n- 爆款内容参考：有一个小红书爆款，结构、hook、cta风格。\n- 图片素材：两张图，项目外立面和样板间客厅。\n\n我们需要输出严格JSON，按照schema要求：包含chosenAngle, narrativeArc, tone, mustUseFacts, mustAvoidClaims, viralPatternUsed, articlePlan, videoPlan, degradationNotices, trace, qualityGateHints。\n\n注意约束：\n5.1 videoPlan只做方向规划，不输出完整视频脚本。\n5.2 禁止输出图文内容包字段。\n6. 风险词词典，字符串不能出现原词。\n7. 禁止把风险词对应内容写入mustUseFacts，只能改写成安全事实。\n8. qualityGateHints.complianceRisks只能输出类别标签。\n9. 如果知识库没有明确项目名、区域等，需在degradationNotices写入“项目事实不足”。但我们这里有项目资料，但没有具体项目名吗？知识库提到的“光明星河天地”可能是项目名，但出现在知识库对话中，是内部对话，未确认是否可作为项目名。安全起见，我们可以写“项目事实不足”因为任务理解未明确项目，但知识库有提及，可谨慎使用“光明星河天地”？不过任务要求中并未给出项目名，可能需泛化。degradationNotices如果项目名不明确，可以写“项目事实不足”，但知识库提到了“光明星河天地”，可视为有项目名，但手工知识没有项目名。我们可保守，在degradationNotices写“项目事实不足”，但又不完全忽略，因为我们需要用一些事实。权衡：知识库明确出现“光明星河天地”，但那是对话内容，不是我们自己的项目信息，是否属于可用的项目名？手工知识没有，所以可能不能乱用。考虑到输出应该保证合规，可以写degradationNotices包含“项目事实不足”，并让后续内容泛化但克制。我们可以用“某80万方大社区”这样的表述。\n\n先规划各个部分：\n\n1. chosenAngle: 选择一个角度。根据爆款参考和任务，可以用“小户型回归，刚需重新关注”角度。但需要结合项目。我们可选：强调小户型低总价和成熟配套，而非投资。例如“总价友好，配套现成，小户型更适合首套刚需的选择”。\n\n2. narrativeArc: 叙事弧，是一个字符串数组。参考爆款结构的4步：反常识开头、解释变化、落到真实选择、轻CTA。我们可以稍作调整，形成叙事弧：[“很多人以为小户型已经没人看了”,”但其实预算有限的刚需又开始关注”,”选择这里：配套已经运营，无需等待”,”生活舒适度比户型大小更重要”]。注意不包含风险词。\n\n3. tone: 根据输入“口吻更像本地中介，CTA轻一点，不要制造焦虑”。所以tone可以是“亲切本地中介口语化，轻松不紧迫”。\n\n4. mustUseFacts: 必须使用的事实，从知识库和手工知识，改写安全表述。可使用：80万方大社区约3万人口，商业配套已运营，4米层高，70平户型总价门槛友好，社区有真实消费需求。避免直接说“满租”等。改写：“社区底商已有商家稳定经营，生活需求楼下解决”“当前总价相对友好，结合预算可比较”。具体列表：[\"80万方大社区，约3万人口规模\",\"底商已有多家商户稳定经营，日常消费需求真实可见\",\"4米层高，空间舒适感较强\",\"70平左右户型总价门槛相对较低\"]。不能写“低总价上车”作为事实，需改写为“总价门槛友好”。还要注意：第7条禁止在mustUseFacts中出现风险词原词。所以“低总价”可能不算风险词？风险词词典没有“低总价”，但有“低位价格”，类似。我们改写为“总价门槛相对友好”安全。\n\n5. mustAvoidClaims: 必须避免的声明列表。根据风险词词典和任务风险约束。例如：[\"承诺租金收益稳定\",\"暗示投资回报率高\",\"使用满租等运营数据做营销承诺\",\"暗示价格将上涨\",\"承诺保租保回报\"]。\n\n6. viralPatternUsed: 借鉴爆款模式。我们从爆款参考中提取patternName：“反常识观察切入”，reason：适合打破认为小户型过时的认知，吸引预算敏感刚需。titleTactics：借鉴标题策略，如“很多人以为...其实...”。hookTactics：开头用反常识 hook，如“你是不是也觉得现在没人看小户型了？”但实际生成时要用在规划里。ctaTactics：轻CTA，如“想了解具体户型和总价，可以私信”。所以viralPatternUsed对象：\n   patternName: \"反常识观察切入\"\n   reason: \"打破‘小户型过时’的固有印象，重新吸引预算有限的刚需客户，用真实数据建立信任。\"\n   titleTactics: [\"制造认知反差\", \"使用‘很多人以为...其实...’句式\"]\n   hookTactics: [\"以问题开场引发共鸣\", \"直接点出受众误解\"]\n   ctaTactics: [\"私信获取更多信息\", \"不做紧迫逼单\", \"轻踩刹车式引导\"]\n\n7. articlePlan: 图文计划。包含titleDirection, coverCopyDirection, bodyStructure, imagePlan。\n   titleDirection: 参考爆款标题方向，例如“好多人以为小户型没人要了，但刚需又悄悄看回来”。但要用安全表述，不提投资。例如：“关注度回升的小户型，其实更适合首套刚需”。\n   coverCopyDirection: 封面文案方向，例如：“配套现成，总价友好，小户型值不值得看？”\n   bodyStructure: 正文结构数组，根据叙事弧和爆款结构。例如：\n     - “打破误解：现在小户型还有人看吗？”\n     - “谁在关注：预算有限，但是不想等配套的购房者”\n     - “这个项目的不同：80万方大社区，生活图景已呈现”\n     - “感受空间：4米层高带来的舒适感”\n     - “详细了解方式：私信或预约看房”\n   注意不要写具体价格和投资属性。\n   imagePlan: 图片计划，给出可用的图片描述方向。我们有两张图片，可以建议用哪类图。例如：\n     - “项目外立面实景，展现社区信誉度和成熟感”\n     - “样板间客厅实景，体现空间舒适度”\n   也可以扩展：需要“周边商业配套实拍图”等。因为图片素材只有两个，但我们可以建议补充。\n\n8. videoPlan: 视频方向规划。包含storyOutline, estimatedDuration, scenePlan, assetQueryHints。\n   storyOutline: 类似用讲述方式展示小户型回归，比如“从一个疑问开始：小户型还有人看吗？带看实景感受配套，展示空间，轻CTA”。\n   estimatedDuration: 估计时长，短视频约30-45秒。\n   scenePlan: 场景规划数组，例如：\n     - “开场镜头：中介在小区门口或样板间，提出疑问”\n     - “配套实拍：社区底商、街景，快速剪辑”\n     - “空间展示：4米层高的样板间，走动感受”\n     - “结尾画面：项目外立面或logo，加文字引导私信”\n   assetQueryHints: 需要查询的视频素材提示，来自输入中的videoAssetQueryHints和我们补充。例如：[\"小户型样板间实拍素材\",\"社区底商和外部配套实景\",\"小区入口和中介看房镜头\"]。\n\n9. degradationNotices: 降解通知。由于项目名不明确，我们可能写“项目事实不足”，但我们已经使用了泛化的“某80万方大社区”。可以写：“项目具体名称未提供，区域位置模糊，所有事实均基于社区规模和产品特点进行泛化描述，未使用具体项目名、总价数字、租金数据等承诺性信息。” 所以degradationNotices: [\"项目事实不足，未提供具体项目名称和区域位置，内容基于泛化社区特征描述\"]。\n\n10. trace: 溯源信息。记录使用了哪些知识库摘要、爆款摘要、图片摘要。\n    usedKnowledgeSummary：从知识库和手工知识摘要提取关键点，不能有风险词。例如：[\"80万方大社区、3万人口规模、底商运营成熟\",\"4米层高、商务大堂、70平户型\",\"社区消费需求真实可见\"]. 每个字符串简短。\n    usedViralSummary：爆款内容参考的摘要：[\"爆款结构：反常识开头->解释变化->落到真实选择->轻CTA\",\"标题策略：很多人以为...其实...\",\"CTA用私信获取信息\"]。\n    usedImageSummary：图片素材摘要：[\"项目外立面图片，用于封面和可信度\",\"样板间客厅图片，用于展示居住体验\"]。\n\n11. qualityGateHints: 质量门提示。包含factWeakness, complianceRisks, mustReviewBeforePublish。\n    factWeakness：事实薄弱点，比如“项目名不详，总价未明，无法做精确对比”。\n    complianceRisks：合规风险类别，只能是类别标签。任务说了风险约束“收益承诺类”，所以写\"收益承诺类\"。还可以加上“出租确定性类”（因为知识库有租金信息，不能承诺）。所以：[\"收益承诺类\", \"出租确定性类\"]。\n    mustReviewBeforePublish：发布前必须审查的内容，例如：[\"所有关于价格、租金、收益的表述必须确保无任何承诺意味\",\"检查是否使用了‘满租’、‘租金区间’等内部数据\",\"确保没有暗示投资回报和资产升值\",\"确认项目名称和区域准确性后，再补充具体总价范围\"]。\n\n现在整合成JSON。确保所有字符串不包含风险词。风险词检查：不要出现“投资回报率高、收益稳定、租金回报高、稳赚、保值增值、满租、租金区间、租金回报、投资属性、资产回报、低位价格、价格错位、收租、贴月供、租出去、保租、保回报、确定兑现、运营成熟验证”。知识库中“成熟运营验证”也在风险词中，所以要避免直说。我们用了“底商已有多家商户稳定经营”，没说“成熟运营验证”。OK。\n\n输出JSON只包含这个对象，不要其他文本。",
+      "usage": {
+        "prompt_tokens": 3606,
+        "prompt_unit_price": "12",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.043272",
+        "completion_tokens": 3843,
+        "completion_unit_price": "24",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.092232",
+        "total_tokens": 7449,
+        "total_price": "0.135504",
+        "currency": "RMB",
+        "latency": 121.583,
+        "time_to_first_token": 2.201,
+        "time_to_generate": 119.382
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "chosenAngle": "小户型重新进入刚需购房者视野，核心吸引力在于总价门槛友好且社区配套已现成，而非投资属性。",
+        "narrativeArc": [
+          "很多人以为小户型已经没人关注了",
+          "但预算有限的刚需其实又开始回头看，因为配套成熟的低门槛选择在减少",
+          "这个80万方大社区生活图景已经落地，底商运营和日常消费需求肉眼可见",
+          "4米层高的舒适感比想象中更能提升居住体验，不一定非要盯着大面积",
+          "有兴趣可以私信了解具体户型布置和看房方式"
+        ],
+        "tone": "亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。",
+        "mustUseFacts": [
+          "80万方大社区，约3万人口规模，已形成内部生活循环",
+          "社区底商有多家商户稳定经营，日常消费需求真实可见",
+          "层高达到4米，空间舒适感较强",
+          "70平左右的户型总价门槛相对友好，适合首要考虑预算的客户"
+        ],
+        "mustAvoidClaims": [
+          "承诺租金收益稳定",
+          "暗示或明示投资回报率可观",
+          "使用‘满租’‘租金区间’等内部运营数据作营销承诺",
+          "暗示价格即将上涨或抄底时机",
+          "承诺可轻松出租或保租保回报",
+          "将类住宅产品描述为住宅的完全替代品"
+        ],
+        "viralPatternUsed": {
+          "patternName": "反常识观察切入",
+          "reason": "打破‘小户型过时’的固有印象，重新吸引预算敏感的刚需客户，并用社区实景建立信任，而非制造焦虑。",
+          "titleTactics": [
+            "制造认知反差：很多人以为...其实...",
+            "使用提问句式引发好奇心"
+          ],
+          "hookTactics": [
+            "以问题开场：你是不是也觉得小户型没人看了？",
+            "直接点出受众误解，拉近距离"
+          ],
+          "ctaTactics": [
+            "私信获取更多户型和看房信息",
+            "不做紧迫逼单，引导自愿了解",
+            "强调‘先看看合不合适’的轻松态度"
+          ]
+        },
+        "articlePlan": {
+          "titleDirection": "关注度悄悄回升的小户型，其实更适合在预算里追求成熟配套的首套刚需。",
+          "coverCopyDirection": "配套现成，总价友好，小户型到底是“过气”还是“真香”？",
+          "bodyStructure": [
+            "打破刻板印象：现在还有人看小户型吗？",
+            "谁在重新关注：预算有限，但不想等配套的购房者",
+            "这个社区的底气：80万方生活圈已落地，底商真实运营中",
+            "空间感受解密：4米层高带来的舒适度超出预期",
+            "动态了解：私信获取户型图或预约实地感受"
+          ],
+          "imagePlan": [
+            "项目外立面实景，用于封面和建立社区可信度",
+            "样板间客厅实景，突出空间舒适感和层高优势",
+            "社区底商或街景实拍，展示生活配套已兑现"
+          ]
+        },
+        "videoPlan": {
+          "storyOutline": "以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。",
+          "estimatedDuration": "30-45秒",
+          "scenePlan": [
+            "开场：中介站在小区入口或样板间内，面向镜头抛出问题",
+            "快速切换：社区底商实拍、行人消费镜头，配合字幕“楼下就是日常所需”",
+            "空间展示：站于4米层高客厅，横向走动体现通透感",
+            "窗外镜头：望向小区绿化或外部道路，强调生活便利",
+            "结尾画面：定格项目外立面或品牌标识，叠加轻CTA文字“想看户型？私信我”"
+          ],
+          "assetQueryHints": [
+            "小户型样板间实拍素材（含层高展示）",
+            "社区底商、超市、餐饮店铺外部实拍",
+            "小区入口和周边道路环境镜头",
+            "中介带看者自然交谈的片段"
+          ]
+        },
+        "degradationNotices": [
+          "项目事实不足，未提供具体项目名称和区域位置，内容基于泛化的80万方大社区、4米层高、70平户型等特征描述，避免出现具体总价数字和案名。"
+        ],
+        "trace": {
+          "usedKnowledgeSummary": [
+            "80万方大社区，约3万人口，内部消费与服务需求真实",
+            "4米层高，商务大堂，70平户型可作类居住用途",
+            "底商已有商家稳定经营，生活配套不需等待"
+          ],
+          "usedViralSummary": [
+            "爆款结构：反常识开头→解释变化→落到真实选择→轻CTA",
+            "标题策略：使用‘很多人以为...其实...’制造反差",
+            "CTA方式：私下回复获取信息，避免公开催促"
+          ],
+          "usedImageSummary": [
+            "项目外立面实景图，适合封面和建立信任感",
+            "样板间客厅实景图，适合展示空间舒适度"
+          ]
+        },
+        "qualityGateHints": {
+          "factWeakness": "项目名称和区域位置不明，无法进行精准对比；总价范围未提供，只能描述为‘门槛相对友好’；具体配套商户名称未知。",
+          "complianceRisks": [
+            "收益承诺类",
+            "出租确定性类"
+          ],
+          "mustReviewBeforePublish": [
+            "核实所有关于价格、租金、收益的表述是否已完全剔除承诺意味",
+            "检查是否误用了‘满租’‘租金区间’‘低位价格’等内部判断数据",
+            "确认未暗示投资属性或资产回报",
+            "待补充项目案名和区域后，再考虑加入精细化总价和配套对比"
+          ]
+        }
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 7449,
+      "total_price": "0.135504",
+      "currency": "RMB"
+    }
+  },
+  "title_cover": {
+    "event": "node_finished",
+    "title": "标题与封面策略",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\n  \"titles\": [\n    {\n      \"text\": \"很多人以为小户型过时了？其实……\",\n      \"formula\": \"反差/反常识\",\n      \"whyThisFormula\": \"打破'小户型已过气'的常见印象，吸引预算有限但想要成熟配套的刚需注意力。\"\n    },\n    {\n      \"text\": \"80万方大社区，70平总价友好\",\n      \"formula\": \"数字冲击\",\n      \"whyThisFormula\": \"用具体数字（80万方、70平）直观传递规模和门槛优势，一眼抓住刚需客户。\"\n    },\n    {\n      \"text\": \"看了20个盘，最后发现小户型才是真香\",\n      \"formula\": \"晒结果+悬念\",\n      \"whyThisFormula\": \"以购房者比较后的选择结果制造好奇，促使点击了解为什么小户型胜出。\"\n    }\n  ],\n  \"selectedTitle\": \"很多人以为小户型过时了？其实……\",\n  \"selectedTitleReason\": \"该标题采用反差式提问，能有效打破用户固有认知，引发好奇，且口播友好。\",\n  \"coverCopyOptions\": [\n    {\n      \"text\": \"小户型过气？刚需正在回头\",\n      \"style\": \"大字报型\"\n    },\n    {\n      \"text\": \"70平4米层高，配套已现成\",\n      \"style\": \"实拍+文字型\"\n    }\n  ],\n  \"selectedCoverCopy\": \"小户型过气？刚需正在回头\",\n  \"hookAngle\": \"反常识观察切入\"\n}",
+      "reasoning_content": "我们根据任务和策略，设计3个标题（含公式和理由）和2个封面文案（含风格），然后选出最佳标题和封面文案。\n\n注意：必须避免风险词，遵守输出JSON格式。\n\n先构思标题：\n\n1. 用“反常识观察切入”的模式：「很多人以为小户型过时了？其实……」\n   公式：反差/反常识\n   理由：打破固有印象，吸引刚需注意。\n\n2. 用“数字冲击”：「80万方大社区，70平总价友好」\n   公式：数字冲击\n   理由：直接用事实和数据抓住眼球。\n\n3. 用“晒结果+悬念”：「看了20个盘，最后发现小户型才是真香」\n   公式：晒结果+悬念\n   理由：展示行为结果，引发好奇。\n\n封面文案（比标题更短更冲击，与标题不同角度）：\n\n1. 大字报型：「小户型过气？刚需正在回头」\n2. 实拍+文字型：「70平4米层高，配套已现成」\n\n注意：封面文案不能和标题完全一样。\n\n最终输出JSON。",
+      "usage": {
+        "prompt_tokens": 2542,
+        "prompt_unit_price": "1",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.002542",
+        "completion_tokens": 576,
+        "completion_unit_price": "2",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.001152",
+        "total_tokens": 3118,
+        "total_price": "0.003694",
+        "currency": "RMB",
+        "latency": 7.394,
+        "time_to_first_token": 1.36,
+        "time_to_generate": 6.034
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "titles": [
+          {
+            "text": "很多人以为小户型过时了？其实……",
+            "formula": "反差/反常识",
+            "whyThisFormula": "打破'小户型已过气'的常见印象，吸引预算有限但想要成熟配套的刚需注意力。"
+          },
+          {
+            "text": "80万方大社区，70平总价友好",
+            "formula": "数字冲击",
+            "whyThisFormula": "用具体数字（80万方、70平）直观传递规模和门槛优势，一眼抓住刚需客户。"
+          },
+          {
+            "text": "看了20个盘，最后发现小户型才是真香",
+            "formula": "晒结果+悬念",
+            "whyThisFormula": "以购房者比较后的选择结果制造好奇，促使点击了解为什么小户型胜出。"
+          }
+        ],
+        "selectedTitle": "很多人以为小户型过时了？其实……",
+        "selectedTitleReason": "该标题采用反差式提问，能有效打破用户固有认知，引发好奇，且口播友好。",
+        "coverCopyOptions": [
+          {
+            "text": "小户型过气？刚需正在回头",
+            "style": "大字报型"
+          },
+          {
+            "text": "70平4米层高，配套已现成",
+            "style": "实拍+文字型"
+          }
+        ],
+        "selectedCoverCopy": "小户型过气？刚需正在回头",
+        "hookAngle": "反常识观察切入"
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 3118,
+      "total_price": "0.003694",
+      "currency": "RMB"
+    }
+  },
+  "video_narrative": {
+    "event": "node_finished",
+    "title": "视频叙事结构",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\n  \"hook\": {\n    \"openingLine\": \"你是不是也觉得小户型没人看了？\",\n    \"strategy\": \"反常识观察切入\"\n  },\n  \"narrativeArc\": [\n    \"很多人以为小户型已经没人关注了\",\n    \"但预算有限的刚需其实又开始回头看，因为配套成熟的低门槛选择在减少\",\n    \"这个80万方大社区生活图景已经落地，底商运营和日常消费需求肉眼可见\",\n    \"4米层高的舒适感比想象中更能提升居住体验，不一定非要盯着大面积\",\n    \"有兴趣可以私信了解具体户型布置和看房方式\"\n  ],\n  \"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\",\n  \"estimatedDuration\": \"30-45秒\",\n  \"bgmDirection\": \"轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感\",\n  \"toneOfVoice\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\",\n  \"voiceoverDraft\": \"你是不是也觉得小户型没人看了？我跟你讲，其实很多预算有限的刚需又回头看这个80万方的大社区了。楼下底商都在营业，日常买菜喝咖啡不出小区。层高4米，进来感觉特别通透。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\"\n}",
+      "reasoning_content": "我们根据任务要求，需要输出一个JSON对象，满足给定的schema。schema要求有七个字段：hook, narrativeArc, storyOutline, estimatedDuration, bgmDirection, toneOfVoice, voiceoverDraft。注意约束：不能输出boolean，用string；数字用number类型。但schema中除了estimatedDuration是string，其他都是string或array或object。我们需要从提供的创作策略JSON中提取信息并构造。\n\n注意：任务中给了一个\"task\"和\"创作策略JSON\"，我们需要根据这些信息生成短视频叙事结构。注意不要输出额外字段，只输出schema指定的字段。\n\n让我们逐一分析：\n\n1. hook: 是一个对象，包含openingLine和strategy。从viralPatternUsed中的hookTactics可以提取出openingLine（比如\"你是不是也觉得小户型没人看了？\"）和strategy（比如\"反常识观察切入\"）。但需要结合mustUseFacts和内容。更精确地，从videoPlan中的storyOutline开头部分可以得出openingLine。hook的strategy应该来自viralPatternUsed的patternName。我们可以设计hook对象如下：\n\n    strategy: \"反常识观察切入\"\n    openingLine: \"你是不是也觉得小户型没人看了？\"\n\n2. narrativeArc: 是一个字符串数组。从给定的narrativeArc字段（注意：在创作策略JSON中有一个\"narrativeArc\"数组，但它是数组，不是schema中的\"narrativeArc\"？schema中narrativeArc是array of string。我们可以直接使用这个数组作为narrativeArc的值。\n\n    给定的narrativeArc: [\"很多人以为小户型已经没人关注了\",\"但预算有限的刚需其实又开始回头看，因为配套成熟的低门槛选择在减少\",\"这个80万方大社区生活图景已经落地，底商运营和日常消费需求肉眼可见\",\"4米层高的舒适感比想象中更能提升居住体验，不一定非要盯着大面积\",\"有兴趣可以私信了解具体户型布置和看房方式\"] 注意最后一句有私信，但可以保留。\n\n3. storyOutline: 从videoPlan的storyOutline字段中提取：\"以中介口吻提问\"是不是觉得小户型没人看了\"开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\"\n\n4. estimatedDuration: 从videoPlan的estimatedDuration: \"30-45秒\"\n\n5. bgmDirection: 这个字段需要根据内容推断。通常bgm方向可以是音乐风格。我们可以根据tone（亲切的本地中介口语化表达，语气轻松不紧迫）来设计bgm。例如：\"轻松愉快的背景音乐，节奏感适中，不抢话。在底商展示部分加入生活化音效如街边谈话声、咖啡机声等。\" 或者简单写\"轻松、生活化BGM\"。\n\n6. toneOfVoice: 直接使用给定的tone：\"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\"\n\n7. voiceoverDraft: 需要写一段完整的口播稿梗概，要求像真实中介跟朋友聊天，短句为主。结合storyOutline和给出的材料，我们可以写一个梗概。注意不要出现风险词，且要包含mustUseFacts中的信息。我们写一个示例：\n\n    \"你是不是也觉得小户型没人看了？我跟你讲，其实很多预算有限的刚需又重新回头看这个80万方的大社区了。楼下底商都在营业，日常买个菜喝个咖啡，都不用出小区。而且这个户型层高有4米，进来感觉特别通透，不压抑。70平左右，总价门槛相对友好，适合想先用低成本上车、配套又不用等的朋友。感兴趣可以私信我，发你户型图或者约个时间实地感受一下。\"\n\n注意：不能有投资回报等风险词。这里没有出现。注意控制在20字左右每句，但梗概可以稍长。我们保持自然。\n\n现在构建JSON对象。\n\n注意：所有字段必须按schema顺序？不一定，但最好按schema顺序。\n\n输出只有JSON，不要有其他文字。",
+      "usage": {
+        "prompt_tokens": 2530,
+        "prompt_unit_price": "1",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.00253",
+        "completion_tokens": 1231,
+        "completion_unit_price": "2",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.002462",
+        "total_tokens": 3761,
+        "total_price": "0.004992",
+        "currency": "RMB",
+        "latency": 14.058,
+        "time_to_first_token": 1.162,
+        "time_to_generate": 12.896
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "hook": {
+          "openingLine": "你是不是也觉得小户型没人看了？",
+          "strategy": "反常识观察切入"
+        },
+        "narrativeArc": [
+          "很多人以为小户型已经没人关注了",
+          "但预算有限的刚需其实又开始回头看，因为配套成熟的低门槛选择在减少",
+          "这个80万方大社区生活图景已经落地，底商运营和日常消费需求肉眼可见",
+          "4米层高的舒适感比想象中更能提升居住体验，不一定非要盯着大面积",
+          "有兴趣可以私信了解具体户型布置和看房方式"
+        ],
+        "storyOutline": "以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。",
+        "estimatedDuration": "30-45秒",
+        "bgmDirection": "轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感",
+        "toneOfVoice": "亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。",
+        "voiceoverDraft": "你是不是也觉得小户型没人看了？我跟你讲，其实很多预算有限的刚需又回头看这个80万方的大社区了。楼下底商都在营业，日常买菜喝咖啡不出小区。层高4米，进来感觉特别通透。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。"
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 3761,
+      "total_price": "0.004992",
+      "currency": "RMB"
+    }
+  },
+  "article_body": {
+    "event": "node_finished",
+    "title": "正文与配图编排",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\n  \"contentBlocks\": [\n    {\n      \"blockNo\": 1,\n      \"blockType\": \"体验块\",\n      \"text\": \"你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\",\n      \"imageMatch\": {\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"封面展示，建立项目可信度\"\n      }\n    },\n    {\n      \"blockNo\": 2,\n      \"blockType\": \"证据块\",\n      \"text\": \"什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\",\n      \"imageBrief\": \"社区底商或街景实拍，展示生活配套已兑现\"\n    },\n    {\n      \"blockNo\": 3,\n      \"blockType\": \"数据块\",\n      \"text\": \"这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\",\n      \"imageBrief\": \"小区内部绿化或社区环境实拍，展现居住氛围\"\n    },\n    {\n      \"blockNo\": 4,\n      \"blockType\": \"体验块\",\n      \"text\": \"别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\",\n      \"imageMatch\": {\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间舒适度和层高优势\"\n      }\n    },\n    {\n      \"blockNo\": 5,\n      \"blockType\": \"CTA块\",\n      \"text\": \"有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\"\n    }\n  ],\n  \"cta\": \"感兴趣私信我，发你户型图看看\",\n  \"hashtags\": [\n    \"#小户型\",\n    \"#刚需买房\",\n    \"#买房攻略\",\n    \"#社区配套\",\n    \"#层高4米\",\n    \"#预算有限\"\n  ],\n  \"imageBriefsIfMissing\": [\n    \"社区底商或街景实拍，展示生活配套已兑现\",\n    \"小区内部绿化或社区环境实拍，展现居住氛围\"\n  ],\n  \"riskNotes\": [\n    \"未提供项目具体名称和区域，避免具体总价和投资回报表述\",\n    \"配图中避免出现租金承诺或收益暗示信息\",\n    \"不得使用‘满租’‘租金区间’等内部判断数据\"\n  ]\n}",
+      "reasoning_content": "我们根据输入信息生成正文。标题已选定：\"很多人以为小户型过时了？其实……\"。封面已定：\"小户型过气？刚需正在回头\"。创作策略中的角度：小户型重新进入刚需视野，核心吸引力是总价门槛友好且配套已现成。需要遵守mustAvoidClaims，避免投资回报承诺等。tone是亲切的中介口语化表达。正文结构：打破刻板印象→谁在关注→社区底气→空间感受→动态了解。配图策略：已有两个素材：img_001外立面，img_002样板间客厅。需要更多配图：社区底商实拍，以及可能需要的其他。生成内容时注意：不要AI味，短句，每段不超过80字，最多3个emoji。CTA设计：私信获取户型图或预约看房。hashtags：5-8个，混搭。风险词避免。\n\n输出JSON格式，必须包含：contentBlocks（数组），cta（字符串），hashtags（数组），imageBriefsIfMissing（数组），riskNotes（数组）。注意：contentBlocks中每个block需要blockNo、blockType、text，并可选的imageMatch或imageBrief。imageMatch需提供assetId、title、usage。imageBriefsIfMissing是如果缺少配图时描述需要什么图。riskNotes是风险提示。\n\n根据已有素材，我们可以使用img_001和img_002。还需要社区底商照片，但未提供，所以需要imageBrief描述。另外可能还需要其他图，比如4米层高展示、社区环境等。\n\n写出正文：\n\nblock1: 打破刻板印象。text: 你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。配图：项目外立面（img_001），usage: 建立项目可信度。\n\nblock2: 谁在关注。text: 什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。配图：需要社区底商实拍，没有素材所以imageBrief: \"社区底商或街景实拍，展示生活配套已兑现\"\n\nblock3: 社区底气。text: 这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。配图：再次使用外立面或社区环境？但已有外立面，或许可以重复使用？但最好不同。没有其他素材，可以再用img_001？或者用样板间？这里应该是社区实景。imageBrief: \"小区内部绿化或社区环境实拍\"\n\n或者我们可以将block3和block2合并？为了满足4-6个block，我们设计5个block。\n\nblock4: 空间感受。text: 别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。配图：样板间客厅（img_002），usage: 展示空间舒适度和层高优势。\n\nblock5: 动态了解。text: 有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。配图：不需要，或者可以不放。\n\n另外，可能会加一个block作为对比？可以加一个对比块：小户型 vs 大户型？但策略中没有强调对比，而是突出小户型重新被关注。所以清单式或问题解答式。选用问题解答式：先问后答递进。\n\n已经满足。contentBlocks顺序。\n\n注意：每段不超过80个中文字。上面写的text都较短，ok。\n\ncta: \"感兴趣私信我，发你户型图看看\"\n\nhashtags: 比如 #小户型 #刚需买房 #买房攻略 #社区配套 #层高4米 #预算有限 等。注意避免敏感词。数量5-8个。\n\nimageBriefsIfMissing: 数组，列出需要配图的描述。比如\"社区底商或街景实拍\"和\"小区内部绿化或社区环境实拍\"。注意不要重复已有的。\n\nriskNotes: 根据mustAvoidClaims，需要提醒不要有收益承诺。可以写：\"注意：未提供项目具体名称和区域，避免具体总价和投资回报表述；配图中避免出现租金承诺信息。\"\n\n输出JSON。注意类型：blockNo是number，blockType是string，text是string。imageMatch对象的assetId、title、usage都是string。hashtags数组元素string。imageBriefsIfMissing数组元素string。riskNotes数组元素string。\n\n现在生成。",
+      "usage": {
+        "prompt_tokens": 2986,
+        "prompt_unit_price": "1",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.002986",
+        "completion_tokens": 1555,
+        "completion_unit_price": "2",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.00311",
+        "total_tokens": 4541,
+        "total_price": "0.006096",
+        "currency": "RMB",
+        "latency": 17.023,
+        "time_to_first_token": 0.98,
+        "time_to_generate": 16.043
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "contentBlocks": [
+          {
+            "blockNo": 1,
+            "blockType": "体验块",
+            "text": "你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。",
+            "imageMatch": {
+              "assetId": "img_001",
+              "title": "项目外立面",
+              "usage": "封面展示，建立项目可信度"
+            }
+          },
+          {
+            "blockNo": 2,
+            "blockType": "证据块",
+            "text": "什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。",
+            "imageBrief": "社区底商或街景实拍，展示生活配套已兑现"
+          },
+          {
+            "blockNo": 3,
+            "blockType": "数据块",
+            "text": "这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。",
+            "imageBrief": "小区内部绿化或社区环境实拍，展现居住氛围"
+          },
+          {
+            "blockNo": 4,
+            "blockType": "体验块",
+            "text": "别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。",
+            "imageMatch": {
+              "assetId": "img_002",
+              "title": "样板间客厅",
+              "usage": "展示空间舒适度和层高优势"
+            }
+          },
+          {
+            "blockNo": 5,
+            "blockType": "CTA块",
+            "text": "有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。"
+          }
+        ],
+        "cta": "感兴趣私信我，发你户型图看看",
+        "hashtags": [
+          "#小户型",
+          "#刚需买房",
+          "#买房攻略",
+          "#社区配套",
+          "#层高4米",
+          "#预算有限"
+        ],
+        "imageBriefsIfMissing": [
+          "社区底商或街景实拍，展示生活配套已兑现",
+          "小区内部绿化或社区环境实拍，展现居住氛围"
+        ],
+        "riskNotes": [
+          "未提供项目具体名称和区域，避免具体总价和投资回报表述",
+          "配图中避免出现租金承诺或收益暗示信息",
+          "不得使用‘满租’‘租金区间’等内部判断数据"
+        ]
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 4541,
+      "total_price": "0.006096",
+      "currency": "RMB"
+    }
+  },
+  "scene_breakdown": {
+    "event": "node_finished",
+    "title": "分镜与素材策略",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\n  \"scenes\": [\n    {\n      \"sceneNo\": 1,\n      \"timeRange\": \"0:00-0:05\",\n      \"durationSec\": 5,\n      \"sceneType\": \"口播\",\n      \"title\": \"钩子提问\",\n      \"requiresUserUpload\": true,\n      \"purpose\": \"开场制造认知反差，吸引注意力\",\n      \"taskDescription\": \"中介在样板间客厅面对镜头，自然抛出问题\",\n      \"visualDescription\": \"中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线\",\n      \"voiceover\": \"你是不是也觉得小户型没人看了？\",\n      \"subtitle\": \"\",\n      \"shotLanguage\": {\n        \"framing\": \"中近景\",\n        \"cameraMovement\": \"固定\",\n        \"orientation\": \"平视\",\n        \"composition\": \"人物居中，背景可见客厅\"\n      },\n      \"filmingGuide\": {\n        \"method\": \"手机自拍\",\n        \"location\": \"样板间客厅\",\n        \"posture\": \"站着，面对镜头\",\n        \"tips\": [\n          \"手机横屏拍摄，画质1080p以上\",\n          \"语速放慢，像跟朋友聊天\",\n          \"开头和结尾各多录2秒\"\n        ]\n      },\n      \"editGuide\": {\n        \"transition\": \"直接切\",\n        \"pacing\": \"正常\",\n        \"minUsableSeconds\": 5\n      },\n      \"assetQuery\": \"\"\n    },\n    {\n      \"sceneNo\": 2,\n      \"timeRange\": \"0:05-0:08\",\n      \"durationSec\": 3,\n      \"sceneType\": \"素材\",\n      \"title\": \"社区底商实景\",\n      \"requiresUserUpload\": false,\n      \"purpose\": \"展示生活配套已成熟\",\n      \"taskDescription\": \"从素材库选取社区底商实拍镜头\",\n      \"visualDescription\": \"社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮\",\n      \"voiceover\": \"\",\n      \"subtitle\": \"楼下底商都在营业，日常买菜喝咖啡不出小区\",\n      \"shotLanguage\": {\n        \"framing\": \"全景\",\n        \"cameraMovement\": \"缓慢平移\",\n        \"orientation\": \"平视\",\n        \"composition\": \"街道纵深，商铺在两侧\"\n      },\n      \"filmingGuide\": {\n        \"method\": \"\",\n        \"location\": \"\",\n        \"posture\": \"\",\n        \"tips\": []\n      },\n      \"editGuide\": {\n        \"transition\": \"直接切\",\n        \"pacing\": \"快\",\n        \"minUsableSeconds\": 2\n      },\n      \"assetQuery\": \"社区底商 餐饮 超市 行人 生活气息 实拍\"\n    },\n    {\n      \"sceneNo\": 3,\n      \"timeRange\": \"0:08-0:11\",\n      \"durationSec\": 3,\n      \"sceneType\": \"素材\",\n      \"title\": \"层高展示\",\n      \"requiresUserUpload\": false,\n      \"purpose\": \"突出4米层高的空间舒适感\",\n      \"taskDescription\": \"从素材库选取样板间客厅镜头，强调层高\",\n      \"visualDescription\": \"样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔\",\n      \"voiceover\": \"\",\n      \"subtitle\": \"层高4米，进来感觉特别通透\",\n      \"shotLanguage\": {\n        \"framing\": \"广角全景\",\n        \"cameraMovement\": \"固定\",\n        \"orientation\": \"仰拍或平视\",\n        \"composition\": \"突出纵向空间，家具尺度适中\"\n      },\n      \"filmingGuide\": {\n        \"method\": \"\",\n        \"location\": \"\",\n        \"posture\": \"\",\n        \"tips\": []\n      },\n      \"editGuide\": {\n        \"transition\": \"直接切\",\n        \"pacing\": \"快\",\n        \"minUsableSeconds\": 2\n      },\n      \"assetQuery\": \"样板间 客厅 层高 4米 通透 阳光\"\n    },\n    {\n      \"sceneNo\": 4,\n      \"timeRange\": \"0:11-0:21\",\n      \"durationSec\": 10,\n      \"sceneType\": \"口播\",\n      \"title\": \"核心价值阐述\",\n      \"requiresUserUpload\": true,\n      \"purpose\": \"解释小户型重新受关注的原因，并引导私信\",\n      \"taskDescription\": \"中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词\",\n      \"visualDescription\": \"中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切\",\n      \"voiceover\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n      \"subtitle\": \"\",\n      \"shotLanguage\": {\n        \"framing\": \"中近景\",\n        \"cameraMovement\": \"固定\",\n        \"orientation\": \"平视\",\n        \"composition\": \"人物居中，背景可见客厅\"\n      },\n      \"filmingGuide\": {\n        \"method\": \"手机自拍\",\n        \"location\": \"样板间客厅\",\n        \"posture\": \"站着，面对镜头\",\n        \"tips\": [\n          \"保持和第一段相同的穿着和形象\",\n          \"语速放慢，像跟朋友分享\",\n          \"拍两遍，选自然的一条\"\n        ]\n      },\n      \"editGuide\": {\n        \"transition\": \"声音先入\",\n        \"pacing\": \"正常\",\n        \"minUsableSeconds\": 8\n      },\n      \"assetQuery\": \"\"\n    },\n    {\n      \"sceneNo\": 5,\n      \"timeRange\": \"0:21-0:25\",\n      \"durationSec\": 4,\n      \"sceneType\": \"素材\",\n      \"title\": \"结尾引导\",\n      \"requiresUserUpload\": false,\n      \"purpose\": \"最终引导观众行动\",\n      \"taskDescription\": \"从素材库选取项目外立面或品牌标识镜头\",\n      \"visualDescription\": \"项目外立面实景，现代建筑，天空明亮，下方有小区入口\",\n      \"voiceover\": \"\",\n      \"subtitle\": \"想看户型？私信我\",\n      \"shotLanguage\": {\n        \"framing\": \"远景或中景\",\n        \"cameraMovement\": \"固定\",\n        \"orientation\": \"仰拍\",\n        \"composition\": \"建筑居中，展现整体外观\"\n      },\n      \"filmingGuide\": {\n        \"method\": \"\",\n        \"location\": \"\",\n        \"posture\": \"\",\n        \"tips\": []\n      },\n      \"editGuide\": {\n        \"transition\": \"渐变过渡\",\n        \"pacing\": \"正常\",\n        \"minUsableSeconds\": 3\n      },\n      \"assetQuery\": \"项目外立面 小区入口 实景 现代建筑\"\n    }\n  ],\n  \"riskNotes\": [\n    \"所有关于价格、租金、收益的表述已剔除承诺意味，避免使用具体数字。\",\n    \"未使用暗示投资回报或价格变动的词汇。\"\n  ]\n}",
+      "reasoning_content": "我们根据视频叙事结构、创作策略和可用素材来生成脚本。首先确定场景数量：从叙事结构看，需要5-6个场景。第一个钩子，然后是社区底商、层高展示、窗外镜头、结尾引导。注意节奏快慢交替。\n\n场景1：口播，钩子。中介在小区入口（？）但口播建议在样板间或售楼处。根据videoPlan，开场在中介站在小区入口或样板间内。我们选样板间客厅，因为后续展示层高也在样板间。但第一个场景是口播，需要本人拍摄。时间大约5秒。场景类型：口播。voiceover：你是不是也觉得小户型没人看了？副标题也可以加在口播上？但口播不输出subtitle，所以voiceover就是这句。\n\n场景2：素材，社区底商实拍。快切，1-3秒。subtitle: \"楼下就是日常所需\"，assetQuery: \"社区底商 餐饮 超市 行人 生活气息\"\n\n场景3：素材，样板间客厅展示层高。可能需要中介走入？但素材是从素材库选，所以不需要中介出现。直接展示客厅，突出层高。subtitle: \"4米层高，进来就感觉通透\"。assetQuery: \"样板间 客厅 层高 通透 阳光\"\n\n场景4：口播？或者素材？视频计划中有“窗外镜头：望向小区绿化或外部道路，强调生活便利”。可以是素材。或者口播中介补充说明。但根据叙事，这里需要中介说话。我们可以在场景2、3之后用一个口播中介补充说明“其实很多预算有限的刚需又回头看这个80万方的大社区了”。但注意节奏：素材展示要快切，口播要正常慢。所以我们可以在场景3素材之后接一个口播中介在样板间或小区入口，继续说明。但为了避免重复中介出现位置，我们让中介在口播中一直不变。建议将所有口播放在第一个和最后一个，中间为素材。但观察voiceoverDraft较长，可以拆分。第一个钩子口播后，紧接着素材展示社区底商和层高，然后口播中介解释原因和引导私信。这样合理。\n\n场景5可能为文字卡？视频计划没有文字卡，但可以考虑一个简约文字卡显示“70平左右”等。但避免过多文字卡。我们根据voiceoverDraft： \"你是不是也觉得小户型没人看了？我跟你讲，其实很多预算有限的刚需又回头看这个80万方的大社区了。楼下底商都在营业，日常买菜喝咖啡不出小区。层高4米，进来感觉特别通透。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\"\n\n我们将其拆解为：\n- 场景1 (口播): \"你是不是也觉得小户型没人看了？\" \n- 场景2 (素材): 社区底商，配合字幕 \"楼下底商都在营业，日常买菜喝咖啡不出小区\" (但subtitle应该简练)\n- 场景3 (素材): 样板间客厅层高，配合字幕 \"层高4米，进来感觉特别通透\"\n- 场景4 (口播): \"我跟你讲，其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\"\n\n但场景4口播内容较多，可能需要多秒。可以慢速。另外，根据视频计划，最后是结尾画面定格项目外立面或品牌标识，叠加轻CTA文字。所以我们可以加一个场景5：素材项目外立面，subtitle \"想看户型？私信我\"。\n\n现在确定场景数量为5个。检查节奏：场景1口播（正常5秒），场景2素材快切（2秒），场景3素材快切（2秒），场景4口播（正常5秒），场景5素材（正常3秒）。有快慢交替。\n\n再检查是否包含风险词：无。\n\n注意硬约束：第一个镜头必须承接钩子，3秒内抓注意力。场景1口播就是钩子。\n\n输出JSON时，每个场景需要包含所有必填字段。注意字段条件出现规则：口播镜头输出voiceover+filmingGuide，不输出assetQuery/subtitle。素材镜头输出subtitle+assetQuery，voiceover仅在有画外音时输出（这里素材没有voiceover）。文字卡不出现。但也可能需要一个文字卡？我们全部为口播和素材。\n\n另外，需要riskNotes，根据创作策略，需要添加风险提示，比如“避免使用具体价格数字”，“承诺收益”等。但这里我们创建riskNotes数组，包含两条：1. 所有涉及价格的表述已避免承诺性说法；2. 未使用暗示投资回报的词语。\n\n现在开始编写JSON。\n\n注意filmingGuide对于口播：第一个口播位置：样板间客厅？因为后续展示层高也在样板间，所以中介在样板间口播可以保持一致性。但第一个口播是钩子，中介在样板间客厅面对镜头说。filmingGuide: location: \"样板间客厅\"; posture: \"站着，面对镜头\"; props: \"无\"; tips: [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头结尾各多录2秒\"]。\n\n第二个口播（场景4）也在样板间客厅（中介穿着一致），因此拍摄指导相同。注意视频要求口播穿着一致，建议一次拍完，所以拍摄指导一致。\n\n对于素材场景：\n场景2：社区底商。assetQuery: \"社区底商 餐饮 超市 行人 生活气息 实拍\"。subtitle: \"楼下底商都在营业，日常买菜喝咖啡不出小区\"（根据voiceoverDraft）。但注意subtitle应该简练，这个长度OK。\n\n场景3：样板间客厅层高。assetQuery: \"样板间 客厅 层高 4米 通透 阳光\"。subtitle: \"层高4米，进来感觉特别通透\"\n\n场景5：项目外立面。assetQuery: \"项目外立面 小区入口 实景 现代建筑\"。subtitle: \"想看户型？私信我\"\n\n注意所有素材场景不需要voiceover，也不输出filmingGuide。\n\n持续时间：估算总时长。场景1口播5秒，场景2素材2秒，场景3素材2秒，场景4口播8秒（因为内容较多），场景5素材3秒，总20秒。但估计需要30-45秒，可以适当延长。我们设置场景1:5秒，场景2:3秒，场景3:3秒，场景4:10秒，场景5:4秒，共25秒，接近30秒。也可以再加一个场景，但5个够了。如果觉得不够长，可以调整每个场景时长。按需设置。\n\n另外，需要设置editGuide的transition和pacing。场景1到场景2：从口播切到素材，可以用直接切。场景2到3：直接切。场景3到4：从素材切到口播，可以用声音先入画面后跟（口播声音先出来，画面还在上一个素材上）？或者直接切。我们统一直接切。但为了多样性，场景3到4可以使用声音先入：在场景3最后0.5秒开始播放场景4的口播声音，然后切到场景4。这样感觉更自然。同样，场景4到5也可以直接切或渐变过渡。我们用一个渐变过渡从口播到结尾素材？可选项。我们设置：场景1->2: 直接切；2->3: 直接切；3->4: 声音先入；4->5: 直接切。pacing：口播场景pacing=\"正常\"，素材场景pacing=\"快\"。对于素材场景，minUsableSeconds设置1秒或2秒。口播场景minUsableSeconds设置5秒或8秒（根据实际时长）。注意：minUsableSeconds是最小可用秒数，用于剪辑时截取。口播场景需要保证至少能取到足够长度，所以minUsableSeconds应该等于durationSec或略小。但按规则，我们直接设durationSec为预计长度，minUsableSeconds为可用的最小长度，比如口播5秒时长，minUsableSeconds可以设3秒，但更准确的是设与durationSec相同或略小。为简单，我们设等于durationSec。\n\n每个场景还需sceneNo从1开始，timeRange格式：\"0:00-0:05\"等，但用户可能不关心，我们可以用占位符如\"0:00-0:05\"。由于不确定最终时间，我们根据durationSec累计计算。例如场景1 5秒，timeRange \"0:00-0:05\"; 场景2 3秒，timeRange \"0:05-0:08\"等。我们计算一下。\n\n场景1 durationSec=5, timeRange=\"0:00-0:05\"\n场景2 durationSec=3, timeRange=\"0:05-0:08\"\n场景3 durationSec=3, timeRange=\"0:08-0:11\"\n场景4 durationSec=10, timeRange=\"0:11-0:21\"\n场景5 durationSec=4, timeRange=\"0:21-0:25\"\n\n总25秒，符合30秒左右。\n\n最后riskNotes: 根据创作策略中的complianceRisks和mustReviewBeforePublish，我们写两条：1. \"所有关于价格、租金、收益的表述已剔除承诺意味，避免使用具体数字。\" 2. \"未使用暗示投资回报或价格变动的词汇。\"\n\n注意不要输出summary等字段。\n\n现在输出JSON。",
+      "usage": {
+        "prompt_tokens": 3589,
+        "prompt_unit_price": "1",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.003589",
+        "completion_tokens": 3617,
+        "completion_unit_price": "2",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.007234",
+        "total_tokens": 7206,
+        "total_price": "0.010823",
+        "currency": "RMB",
+        "latency": 35.413,
+        "time_to_first_token": 0.875,
+        "time_to_generate": 34.538
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "scenes": [
+          {
+            "sceneNo": 1,
+            "timeRange": "0:00-0:05",
+            "durationSec": 5,
+            "sceneType": "口播",
+            "title": "钩子提问",
+            "requiresUserUpload": true,
+            "purpose": "开场制造认知反差，吸引注意力",
+            "taskDescription": "中介在样板间客厅面对镜头，自然抛出问题",
+            "visualDescription": "中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线",
+            "voiceover": "你是不是也觉得小户型没人看了？",
+            "subtitle": "",
+            "shotLanguage": {
+              "framing": "中近景",
+              "cameraMovement": "固定",
+              "orientation": "平视",
+              "composition": "人物居中，背景可见客厅"
+            },
+            "filmingGuide": {
+              "method": "手机自拍",
+              "location": "样板间客厅",
+              "posture": "站着，面对镜头",
+              "tips": [
+                "手机横屏拍摄，画质1080p以上",
+                "语速放慢，像跟朋友聊天",
+                "开头和结尾各多录2秒"
+              ]
+            },
+            "editGuide": {
+              "transition": "直接切",
+              "pacing": "正常",
+              "minUsableSeconds": 5
+            },
+            "assetQuery": ""
+          },
+          {
+            "sceneNo": 2,
+            "timeRange": "0:05-0:08",
+            "durationSec": 3,
+            "sceneType": "素材",
+            "title": "社区底商实景",
+            "requiresUserUpload": false,
+            "purpose": "展示生活配套已成熟",
+            "taskDescription": "从素材库选取社区底商实拍镜头",
+            "visualDescription": "社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮",
+            "voiceover": "",
+            "subtitle": "楼下底商都在营业，日常买菜喝咖啡不出小区",
+            "shotLanguage": {
+              "framing": "全景",
+              "cameraMovement": "缓慢平移",
+              "orientation": "平视",
+              "composition": "街道纵深，商铺在两侧"
+            },
+            "filmingGuide": {
+              "method": "",
+              "location": "",
+              "posture": "",
+              "tips": []
+            },
+            "editGuide": {
+              "transition": "直接切",
+              "pacing": "快",
+              "minUsableSeconds": 2
+            },
+            "assetQuery": "社区底商 餐饮 超市 行人 生活气息 实拍"
+          },
+          {
+            "sceneNo": 3,
+            "timeRange": "0:08-0:11",
+            "durationSec": 3,
+            "sceneType": "素材",
+            "title": "层高展示",
+            "requiresUserUpload": false,
+            "purpose": "突出4米层高的空间舒适感",
+            "taskDescription": "从素材库选取样板间客厅镜头，强调层高",
+            "visualDescription": "样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔",
+            "voiceover": "",
+            "subtitle": "层高4米，进来感觉特别通透",
+            "shotLanguage": {
+              "framing": "广角全景",
+              "cameraMovement": "固定",
+              "orientation": "仰拍或平视",
+              "composition": "突出纵向空间，家具尺度适中"
+            },
+            "filmingGuide": {
+              "method": "",
+              "location": "",
+              "posture": "",
+              "tips": []
+            },
+            "editGuide": {
+              "transition": "直接切",
+              "pacing": "快",
+              "minUsableSeconds": 2
+            },
+            "assetQuery": "样板间 客厅 层高 4米 通透 阳光"
+          },
+          {
+            "sceneNo": 4,
+            "timeRange": "0:11-0:21",
+            "durationSec": 10,
+            "sceneType": "口播",
+            "title": "核心价值阐述",
+            "requiresUserUpload": true,
+            "purpose": "解释小户型重新受关注的原因，并引导私信",
+            "taskDescription": "中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词",
+            "visualDescription": "中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切",
+            "voiceover": "其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。",
+            "subtitle": "",
+            "shotLanguage": {
+              "framing": "中近景",
+              "cameraMovement": "固定",
+              "orientation": "平视",
+              "composition": "人物居中，背景可见客厅"
+            },
+            "filmingGuide": {
+              "method": "手机自拍",
+              "location": "样板间客厅",
+              "posture": "站着，面对镜头",
+              "tips": [
+                "保持和第一段相同的穿着和形象",
+                "语速放慢，像跟朋友分享",
+                "拍两遍，选自然的一条"
+              ]
+            },
+            "editGuide": {
+              "transition": "声音先入",
+              "pacing": "正常",
+              "minUsableSeconds": 8
+            },
+            "assetQuery": ""
+          },
+          {
+            "sceneNo": 5,
+            "timeRange": "0:21-0:25",
+            "durationSec": 4,
+            "sceneType": "素材",
+            "title": "结尾引导",
+            "requiresUserUpload": false,
+            "purpose": "最终引导观众行动",
+            "taskDescription": "从素材库选取项目外立面或品牌标识镜头",
+            "visualDescription": "项目外立面实景，现代建筑，天空明亮，下方有小区入口",
+            "voiceover": "",
+            "subtitle": "想看户型？私信我",
+            "shotLanguage": {
+              "framing": "远景或中景",
+              "cameraMovement": "固定",
+              "orientation": "仰拍",
+              "composition": "建筑居中，展现整体外观"
+            },
+            "filmingGuide": {
+              "method": "",
+              "location": "",
+              "posture": "",
+              "tips": []
+            },
+            "editGuide": {
+              "transition": "渐变过渡",
+              "pacing": "正常",
+              "minUsableSeconds": 3
+            },
+            "assetQuery": "项目外立面 小区入口 实景 现代建筑"
+          }
+        ],
+        "riskNotes": [
+          "所有关于价格、租金、收益的表述已剔除承诺意味，避免使用具体数字。",
+          "未使用暗示投资回报或价格变动的词汇。"
+        ]
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 7206,
+      "total_price": "0.010823",
+      "currency": "RMB"
+    }
+  },
+  "article_compiler": {
+    "event": "node_finished",
+    "title": "图文包编译",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "result": "{\"articlePackage\": {\"titles\": [\"很多人以为小户型过时了？其实……\", \"80万方大社区，70平总价友好\", \"看了20个盘，最后发现小户型才是真香\"], \"selectedTitle\": \"很多人以为小户型过时了？其实……\", \"coverCopy\": \"小户型过气？刚需正在回头\", \"body\": \"你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\\n\\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\\n\\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\\n\\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\\n\\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\", \"contentBlocks\": [{\"blockNo\": 1, \"blockType\": \"体验块\", \"text\": \"你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\", \"imageMatch\": {\"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"封面展示，建立项目可信度\"}}, {\"blockNo\": 2, \"blockType\": \"证据块\", \"text\": \"什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\", \"imageBrief\": \"社区底商或街景实拍，展示生活配套已兑现\"}, {\"blockNo\": 3, \"blockType\": \"数据块\", \"text\": \"这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\", \"imageBrief\": \"小区内部绿化或社区环境实拍，展现居住氛围\"}, {\"blockNo\": 4, \"blockType\": \"体验块\", \"text\": \"别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\", \"imageMatch\": {\"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间舒适度和层高优势\"}}, {\"blockNo\": 5, \"blockType\": \"CTA块\", \"text\": \"有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\"}], \"hashtags\": [\"#小户型\", \"#刚需买房\", \"#买房攻略\", \"#社区配套\", \"#层高4米\", \"#预算有限\"], \"cta\": \"感兴趣私信我，发你户型图看看\", \"imageMatches\": [{\"blockNo\": 1, \"assetId\": \"img_001\", \"title\": \"项目外立面\", \"usage\": \"封面展示，建立项目可信度\", \"cosPath\": \"\", \"role\": \"cover\"}, {\"blockNo\": 4, \"assetId\": \"img_002\", \"title\": \"样板间客厅\", \"usage\": \"展示空间舒适度和层高优势\", \"cosPath\": \"\", \"role\": \"body\"}], \"imageBriefIfMissing\": \"社区底商或街景实拍，展示生活配套已兑现; 小区内部绿化或社区环境实拍，展现居住氛围\", \"riskNotes\": [\"未提供项目具体名称和区域，避免具体总价和投资回报表述\", \"配图中避免出现租金承诺或收益暗示信息\", \"不得使用‘满租’‘租金区间’等内部判断数据\"], \"copyReadyText\": \"很多人以为小户型过时了？其实……\\n\\n你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\\n\\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\\n\\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\\n\\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\\n\\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\\n\\n#小户型 #刚需买房 #买房攻略 #社区配套 #层高4米 #预算有限\"}, \"titleStrategy\": {\"titles\": [{\"text\": \"很多人以为小户型过时了？其实……\", \"formula\": \"反差/反常识\", \"whyThisFormula\": \"打破'小户型已过气'的常见印象，吸引预算有限但想要成熟配套的刚需注意力。\"}, {\"text\": \"80万方大社区，70平总价友好\", \"formula\": \"数字冲击\", \"whyThisFormula\": \"用具体数字（80万方、70平）直观传递规模和门槛优势，一眼抓住刚需客户。\"}, {\"text\": \"看了20个盘，最后发现小户型才是真香\", \"formula\": \"晒结果+悬念\", \"whyThisFormula\": \"以购房者比较后的选择结果制造好奇，促使点击了解为什么小户型胜出。\"}], \"selectedTitleReason\": \"该标题采用反差式提问，能有效打破用户固有认知，引发好奇，且口播友好。\", \"coverCopyOptions\": [{\"text\": \"小户型过气？刚需正在回头\", \"style\": \"大字报型\"}, {\"text\": \"70平4米层高，配套已现成\", \"style\": \"实拍+文字型\"}], \"hookAngle\": \"反常识观察切入\"}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "delivery_compiler": {
+    "event": "node_finished",
+    "title": "视频交付物编译",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "result": "{\"videoScript\": {\"narrative\": {\"hook\": {\"openingLine\": \"你是不是也觉得小户型没人看了？\", \"strategy\": \"反常识观察切入\"}, \"narrativeArc\": [\"很多人以为小户型已经没人关注了\", \"但预算有限的刚需其实又开始回头看，因为配套成熟的低门槛选择在减少\", \"这个80万方大社区生活图景已经落地，底商运营和日常消费需求肉眼可见\", \"4米层高的舒适感比想象中更能提升居住体验，不一定非要盯着大面积\", \"有兴趣可以私信了解具体户型布置和看房方式\"], \"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\", \"estimatedDuration\": \"30-45秒\", \"bgmDirection\": \"轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感\", \"toneOfVoice\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\", \"voiceoverDraft\": \"你是不是也觉得小户型没人看了？我跟你讲，其实很多预算有限的刚需又回头看这个80万方的大社区了。楼下底商都在营业，日常买菜喝咖啡不出小区。层高4米，进来感觉特别通透。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\"}, \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:05\", \"durationSec\": 5, \"sceneType\": \"口播\", \"title\": \"钩子提问\", \"requiresUserUpload\": true, \"purpose\": \"开场制造认知反差，吸引注意力\", \"taskDescription\": \"中介在样板间客厅面对镜头，自然抛出问题\", \"visualDescription\": \"中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线\", \"voiceover\": \"你是不是也觉得小户型没人看了？\", \"subtitle\": \"你是不是也觉得小户型没人看了？\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"平视\", \"composition\": \"人物居中，背景可见客厅\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅\", \"posture\": \"站着，面对镜头\", \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0:05-0:08\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区底商实景\", \"requiresUserUpload\": false, \"purpose\": \"展示生活配套已成熟\", \"taskDescription\": \"从素材库选取社区底商实拍镜头\", \"visualDescription\": \"社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮\", \"voiceover\": \"\", \"subtitle\": \"楼下底商都在营业，日常买菜喝咖啡不出小区\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"缓慢平移\", \"orientation\": \"平视\", \"composition\": \"街道纵深，商铺在两侧\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"社区底商 餐饮 超市 行人 生活气息 实拍\"}, {\"sceneNo\": 3, \"timeRange\": \"0:08-0:11\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"层高展示\", \"requiresUserUpload\": false, \"purpose\": \"突出4米层高的空间舒适感\", \"taskDescription\": \"从素材库选取样板间客厅镜头，强调层高\", \"visualDescription\": \"样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔\", \"voiceover\": \"\", \"subtitle\": \"层高4米，进来感觉特别通透\", \"shotLanguage\": {\"framing\": \"广角全景\", \"cameraMovement\": \"固定\", \"orientation\": \"仰拍或平视\", \"composition\": \"突出纵向空间，家具尺度适中\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"样板间 客厅 层高 4米 通透 阳光\"}, {\"sceneNo\": 4, \"timeRange\": \"0:11-0:21\", \"durationSec\": 10, \"sceneType\": \"口播\", \"title\": \"核心价值阐述\", \"requiresUserUpload\": true, \"purpose\": \"解释小户型重新受关注的原因，并引导私信\", \"taskDescription\": \"中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词\", \"visualDescription\": \"中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切\", \"voiceover\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\", \"subtitle\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"平视\", \"composition\": \"人物居中，背景可见客厅\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅\", \"posture\": \"站着，面对镜头\", \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]}, \"editGuide\": {\"transition\": \"声音先入\", \"pacing\": \"正常\", \"minUsableSeconds\": 8}, \"assetQuery\": \"\"}, {\"sceneNo\": 5, \"timeRange\": \"0:21-0:25\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"结尾引导\", \"requiresUserUpload\": false, \"purpose\": \"最终引导观众行动\", \"taskDescription\": \"从素材库选取项目外立面或品牌标识镜头\", \"visualDescription\": \"项目外立面实景，现代建筑，天空明亮，下方有小区入口\", \"voiceover\": \"\", \"subtitle\": \"想看户型？私信我\", \"shotLanguage\": {\"framing\": \"远景或中景\", \"cameraMovement\": \"固定\", \"orientation\": \"仰拍\", \"composition\": \"建筑居中，展现整体外观\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"项目外立面 小区入口 实景 现代建筑\"}], \"riskNotes\": [\"所有关于价格、租金、收益的表述已剔除承诺意味，避免使用具体数字。\", \"未使用暗示投资回报或价格变动的词汇。\"]}, \"memberDelivery\": {\"tasks\": [{\"taskNo\": 1, \"sceneNo\": 1, \"script\": \"你是不是也觉得小户型没人看了？\", \"location\": \"样板间客厅\", \"posture\": \"站着，面对镜头\", \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]}, {\"taskNo\": 2, \"sceneNo\": 4, \"script\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\", \"location\": \"样板间客厅\", \"posture\": \"站着，面对镜头\", \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]}]}, \"workerDelivery\": {\"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\", \"bgm\": \"轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感\", \"toneOfVoice\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\", \"estimatedDuration\": \"30-45秒\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:05\", \"durationSec\": 5, \"sceneType\": \"口播\", \"title\": \"钩子提问\", \"requiresUserUpload\": true, \"purpose\": \"开场制造认知反差，吸引注意力\", \"taskDescription\": \"中介在样板间客厅面对镜头，自然抛出问题\", \"visualDescription\": \"中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线\", \"voiceover\": \"你是不是也觉得小户型没人看了？\", \"subtitle\": \"你是不是也觉得小户型没人看了？\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"平视\", \"composition\": \"人物居中，背景可见客厅\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅\", \"posture\": \"站着，面对镜头\", \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0:05-0:08\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区底商实景\", \"requiresUserUpload\": false, \"purpose\": \"展示生活配套已成熟\", \"taskDescription\": \"从素材库选取社区底商实拍镜头\", \"visualDescription\": \"社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮\", \"voiceover\": \"\", \"subtitle\": \"楼下底商都在营业，日常买菜喝咖啡不出小区\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"缓慢平移\", \"orientation\": \"平视\", \"composition\": \"街道纵深，商铺在两侧\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"社区底商 餐饮 超市 行人 生活气息 实拍\"}, {\"sceneNo\": 3, \"timeRange\": \"0:08-0:11\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"层高展示\", \"requiresUserUpload\": false, \"purpose\": \"突出4米层高的空间舒适感\", \"taskDescription\": \"从素材库选取样板间客厅镜头，强调层高\", \"visualDescription\": \"样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔\", \"voiceover\": \"\", \"subtitle\": \"层高4米，进来感觉特别通透\", \"shotLanguage\": {\"framing\": \"广角全景\", \"cameraMovement\": \"固定\", \"orientation\": \"仰拍或平视\", \"composition\": \"突出纵向空间，家具尺度适中\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"样板间 客厅 层高 4米 通透 阳光\"}, {\"sceneNo\": 4, \"timeRange\": \"0:11-0:21\", \"durationSec\": 10, \"sceneType\": \"口播\", \"title\": \"核心价值阐述\", \"requiresUserUpload\": true, \"purpose\": \"解释小户型重新受关注的原因，并引导私信\", \"taskDescription\": \"中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词\", \"visualDescription\": \"中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切\", \"voiceover\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\", \"subtitle\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"平视\", \"composition\": \"人物居中，背景可见客厅\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅\", \"posture\": \"站着，面对镜头\", \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]}, \"editGuide\": {\"transition\": \"声音先入\", \"pacing\": \"正常\", \"minUsableSeconds\": 8}, \"assetQuery\": \"\"}, {\"sceneNo\": 5, \"timeRange\": \"0:21-0:25\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"结尾引导\", \"requiresUserUpload\": false, \"purpose\": \"最终引导观众行动\", \"taskDescription\": \"从素材库选取项目外立面或品牌标识镜头\", \"visualDescription\": \"项目外立面实景，现代建筑，天空明亮，下方有小区入口\", \"voiceover\": \"\", \"subtitle\": \"想看户型？私信我\", \"shotLanguage\": {\"framing\": \"远景或中景\", \"cameraMovement\": \"固定\", \"orientation\": \"仰拍\", \"composition\": \"建筑居中，展现整体外观\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"项目外立面 小区入口 实景 现代建筑\"}], \"teamAssetQueries\": [\"社区底商 餐饮 超市 行人 生活气息 实拍\", \"样板间 客厅 层高 4米 通透 阳光\", \"项目外立面 小区入口 实景 现代建筑\"]}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "quality_reviewer": {
+    "event": "node_finished",
+    "title": "质量评审",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "needs_rewrite": "true",
+      "risk_terms": "满租、租金区间",
+      "text": "{\"scores\": {\"factAccuracy\": 8, \"projectFit\": 8, \"viralStructure\": 8, \"platformTone\": 8, \"materialFit\": 8, \"compliance\": 4}, \"pass\": false, \"needsRewrite\": true, \"riskTerms\": [\"满租\", \"租金区间\"], \"problems\": [\"公开成稿存在风险承诺类或价格趋势类表述\"], \"revisionSuggestions\": [], \"redFlags\": [\"命中风险词：满租、租金区间\"], \"missingInputs\": []}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "if_else_needs_rewrite": {
+    "event": "node_finished",
+    "title": "是否需要违规改写",
+    "node_type": "if-else",
+    "status": "succeeded",
+    "outputs": {
+      "result": true,
+      "selected_case_id": "needs_rewrite"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "content_risk_rewriter": {
+    "event": "node_finished",
+    "title": "违规内容改写 LLM",
+    "node_type": "llm",
+    "status": "succeeded",
+    "outputs": {
+      "text": "{\n  \"articlePackage\": {\n    \"titles\": [\"很多人以为小户型过时了？其实……\", \"80万方大社区，70平总价友好\", \"看了20个盘，最后发现小户型才是真香\"],\n    \"selectedTitle\": \"很多人以为小户型过时了？其实……\",\n    \"coverCopy\": \"小户型过气？刚需正在回头\",\n    \"body\": \"你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\\n\\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\\n\\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\\n\\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\\n\\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\",\n    \"contentBlocks\": [\n      {\n        \"blockNo\": 1,\n        \"blockType\": \"体验块\",\n        \"text\": \"你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\",\n        \"imageMatch\": {\n          \"assetId\": \"img_001\",\n          \"title\": \"项目外立面\",\n          \"usage\": \"封面展示，建立项目可信度\"\n        }\n      },\n      {\n        \"blockNo\": 2,\n        \"blockType\": \"证据块\",\n        \"text\": \"什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\",\n        \"imageBrief\": \"社区底商或街景实拍，展示生活配套已兑现\"\n      },\n      {\n        \"blockNo\": 3,\n        \"blockType\": \"数据块\",\n        \"text\": \"这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\",\n        \"imageBrief\": \"小区内部绿化或社区环境实拍，展现居住氛围\"\n      },\n      {\n        \"blockNo\": 4,\n        \"blockType\": \"体验块\",\n        \"text\": \"别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\",\n        \"imageMatch\": {\n          \"assetId\": \"img_002\",\n          \"title\": \"样板间客厅\",\n          \"usage\": \"展示空间舒适度和层高优势\"\n        }\n      },\n      {\n        \"blockNo\": 5,\n        \"blockType\": \"CTA块\",\n        \"text\": \"有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\"\n      }\n    ],\n    \"hashtags\": [\"#小户型\", \"#刚需买房\", \"#买房攻略\", \"#社区配套\", \"#层高4米\", \"#预算有限\"],\n    \"cta\": \"感兴趣私信我，发你户型图看看\",\n    \"imageMatches\": [\n      {\n        \"blockNo\": 1,\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"封面展示，建立项目可信度\",\n        \"cosPath\": \"\",\n        \"role\": \"cover\"\n      },\n      {\n        \"blockNo\": 4,\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间舒适度和层高优势\",\n        \"cosPath\": \"\",\n        \"role\": \"body\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"社区底商或街景实拍，展示生活配套已兑现; 小区内部绿化或社区环境实拍，展现居住氛围\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"很多人以为小户型过时了？其实……\\n\\n你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\\n\\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\\n\\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\\n\\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\\n\\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\\n\\n#小户型 #刚需买房 #买房攻略 #社区配套 #层高4米 #预算有限\"\n  },\n  \"titleStrategy\": {\n    \"titles\": [\n      {\n        \"text\": \"很多人以为小户型过时了？其实……\",\n        \"formula\": \"反差/反常识\",\n        \"whyThisFormula\": \"打破'小户型已过气'的常见印象，吸引预算有限但想要成熟配套的刚需注意力。\"\n      },\n      {\n        \"text\": \"80万方大社区，70平总价友好\",\n        \"formula\": \"数字冲击\",\n        \"whyThisFormula\": \"用具体数字（80万方、70平）直观传递规模和门槛优势，一眼抓住刚需客户。\"\n      },\n      {\n        \"text\": \"看了20个盘，最后发现小户型才是真香\",\n        \"formula\": \"晒结果+悬念\",\n        \"whyThisFormula\": \"以购房者比较后的选择结果制造好奇，促使点击了解为什么小户型胜出。\"\n      }\n    ],\n    \"selectedTitleReason\": \"该标题采用反差式提问，能有效打破用户固有认知，引发好奇，且口播友好。\",\n    \"coverCopyOptions\": [\n      {\n        \"text\": \"小户型过气？刚需正在回头\",\n        \"style\": \"大字报型\"\n      },\n      {\n        \"text\": \"70平4米层高，配套已现成\",\n        \"style\": \"实拍+文字型\"\n      }\n    ],\n    \"hookAngle\": \"反常识观察切入\"\n  },\n  \"videoScript\": {\n    \"narrative\": {\n      \"hook\": {\n        \"openingLine\": \"你是不是也觉得小户型没人看了？\",\n        \"strategy\": \"反常识观察切入\"\n      },\n      \"narrativeArc\": [\n        \"很多人以为小户型已经没人关注了\",\n        \"但预算有限的刚需其实又开始回头看，因为配套成熟的低门槛选择在减少\",\n        \"这个80万方大社区生活图景已经落地，底商运营和日常消费需求肉眼可见\",\n        \"4米层高的舒适感比想象中更能提升居住体验，不一定非要盯着大面积\",\n        \"有兴趣可以私信了解具体户型布置和看房方式\"\n      ],\n      \"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\",\n      \"estimatedDuration\": \"30-45秒\",\n      \"bgmDirection\": \"轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感\",\n      \"toneOfVoice\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\",\n      \"voiceoverDraft\": \"你是不是也觉得小户型没人看了？我跟你讲，其实很多预算有限的刚需又回头看这个80万方的大社区了。楼下底商都在营业，日常买菜喝咖啡不出小区。层高4米，进来感觉特别通透。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\"\n    },\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0:00-0:05\",\n        \"durationSec\": 5,\n        \"sceneType\": \"口播\",\n        \"title\": \"钩子提问\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"开场制造认知反差，吸引注意力\",\n        \"taskDescription\": \"中介在样板间客厅面对镜头，自然抛出问题\",\n        \"visualDescription\": \"中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线\",\n        \"voiceover\": \"你是不是也觉得小户型没人看了？\",\n        \"subtitle\": \"你是不是也觉得小户型没人看了？\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 5\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"0:05-0:08\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"社区底商实景\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"展示生活配套已成熟\",\n        \"taskDescription\": \"从素材库选取社区底商实拍镜头\",\n        \"visualDescription\": \"社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"楼下底商都在营业，日常买菜喝咖啡不出小区\",\n        \"shotLanguage\": {\n          \"framing\": \"全景\",\n          \"cameraMovement\": \"缓慢平移\",\n          \"orientation\": \"平视\",\n          \"composition\": \"街道纵深，商铺在两侧\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"社区底商 餐饮 超市 行人 生活气息 实拍\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"0:08-0:11\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"层高展示\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"突出4米层高的空间舒适感\",\n        \"taskDescription\": \"从素材库选取样板间客厅镜头，强调层高\",\n        \"visualDescription\": \"样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"层高4米，进来感觉特别通透\",\n        \"shotLanguage\": {\n          \"framing\": \"广角全景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍或平视\",\n          \"composition\": \"突出纵向空间，家具尺度适中\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"样板间 客厅 层高 4米 通透 阳光\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"0:11-0:21\",\n        \"durationSec\": 10,\n        \"sceneType\": \"口播\",\n        \"title\": \"核心价值阐述\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"解释小户型重新受关注的原因，并引导私信\",\n        \"taskDescription\": \"中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词\",\n        \"visualDescription\": \"中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切\",\n        \"voiceover\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"subtitle\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"声音先入\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 8\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"0:21-0:25\",\n        \"durationSec\": 4,\n        \"sceneType\": \"素材\",\n        \"title\": \"结尾引导\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"最终引导观众行动\",\n        \"taskDescription\": \"从素材库选取项目外立面或品牌标识镜头\",\n        \"visualDescription\": \"项目外立面实景，现代建筑，天空明亮，下方有小区入口\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"想看户型？私信我\",\n        \"shotLanguage\": {\n          \"framing\": \"远景或中景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍\",\n          \"composition\": \"建筑居中，展现整体外观\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"渐变过渡\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 3\n        },\n        \"assetQuery\": \"项目外立面 小区入口 实景 现代建筑\"\n      }\n    ],\n    \"riskNotes\": []\n  },\n  \"memberDelivery\": {\n    \"tasks\": [\n      {\n        \"taskNo\": 1,\n        \"sceneNo\": 1,\n        \"script\": \"你是不是也觉得小户型没人看了？\",\n        \"location\": \"样板间客厅\",\n        \"posture\": \"站着，面对镜头\",\n        \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]\n      },\n      {\n        \"taskNo\": 2,\n        \"sceneNo\": 4,\n        \"script\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"location\": \"样板间客厅\",\n        \"posture\": \"站着，面对镜头\",\n        \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]\n      }\n    ]\n  },\n  \"workerDelivery\": {\n    \"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\",\n    \"bgm\": \"轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感\",\n    \"toneOfVoice\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0:00-0:05\",\n        \"durationSec\": 5,\n        \"sceneType\": \"口播\",\n        \"title\": \"钩子提问\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"开场制造认知反差，吸引注意力\",\n        \"taskDescription\": \"中介在样板间客厅面对镜头，自然抛出问题\",\n        \"visualDescription\": \"中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线\",\n        \"voiceover\": \"你是不是也觉得小户型没人看了？\",\n        \"subtitle\": \"你是不是也觉得小户型没人看了？\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 5\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"0:05-0:08\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"社区底商实景\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"展示生活配套已成熟\",\n        \"taskDescription\": \"从素材库选取社区底商实拍镜头\",\n        \"visualDescription\": \"社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"楼下底商都在营业，日常买菜喝咖啡不出小区\",\n        \"shotLanguage\": {\n          \"framing\": \"全景\",\n          \"cameraMovement\": \"缓慢平移\",\n          \"orientation\": \"平视\",\n          \"composition\": \"街道纵深，商铺在两侧\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"社区底商 餐饮 超市 行人 生活气息 实拍\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"0:08-0:11\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"层高展示\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"突出4米层高的空间舒适感\",\n        \"taskDescription\": \"从素材库选取样板间客厅镜头，强调层高\",\n        \"visualDescription\": \"样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"层高4米，进来感觉特别通透\",\n        \"shotLanguage\": {\n          \"framing\": \"广角全景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍或平视\",\n          \"composition\": \"突出纵向空间，家具尺度适中\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"样板间 客厅 层高 4米 通透 阳光\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"0:11-0:21\",\n        \"durationSec\": 10,\n        \"sceneType\": \"口播\",\n        \"title\": \"核心价值阐述\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"解释小户型重新受关注的原因，并引导私信\",\n        \"taskDescription\": \"中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词\",\n        \"visualDescription\": \"中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切\",\n        \"voiceover\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"subtitle\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"声音先入\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 8\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"0:21-0:25\",\n        \"durationSec\": 4,\n        \"sceneType\": \"素材\",\n        \"title\": \"结尾引导\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"最终引导观众行动\",\n        \"taskDescription\": \"从素材库选取项目外立面或品牌标识镜头\",\n        \"visualDescription\": \"项目外立面实景，现代建筑，天空明亮，下方有小区入口\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"想看户型？私信我\",\n        \"shotLanguage\": {\n          \"framing\": \"远景或中景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍\",\n          \"composition\": \"建筑居中，展现整体外观\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"渐变过渡\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 3\n        },\n        \"assetQuery\": \"项目外立面 小区入口 实景 现代建筑\"\n      }\n    ],\n    \"teamAssetQueries\": [\n      \"社区底商 餐饮 超市 行人 生活气息 实拍\",\n      \"样板间 客厅 层高 4米 通透 阳光\",\n      \"项目外立面 小区入口 实景 现代建筑\"\n    ]\n  }\n}",
+      "reasoning_content": "我们被要求只做最小改写，移除风险词“满租”和“租金区间”。检查原始内容，发现这两个词并没有直接出现在任何文本字段中！风险词列表是质量评审给出的，但可能它们是隐含的。检查所有字段：articlePackage.body、contentBlocks、titles、coverCopy等；videoScript.narrative.voiceoverDraft、scenes.voiceover、subtitle等；memberDelivery.tasks.script等。都没有出现“满租”或“租金区间”。所以，似乎没有需要修改的文本。但合规要求“改写后，任何字符串字段都不能再出现 risk_terms 中的原词”，目前就没有，所以我们可以直接原样返回？但注意 riskNotes 字段中有提到“未使用‘满租’‘租金区间’等内部判断数据”，这直接引用了风险词，违反了规则6：“riskNotes 可以为空数组；如果保留，只能写“已处理收益承诺类表述”等风险类别，禁止复述、引用或列举 risk_terms 中的任何原词。” 所以必须修改 riskNotes 字段。\n\n具体地：\n- articlePackage.riskNotes: [\"未提供项目具体名称和区域，避免具体总价和投资回报表述\", \"配图中避免出现租金承诺或收益暗示信息\", \"不得使用‘满租’‘租金区间’等内部判断数据\"] -> 包含风险词“满租”和“租金区间”，需要改写。可以改为空数组，或者改为“已处理收益承诺类表述”。但规则要求“riskNotes 可以为空数组；如果保留，只能写“已处理收益承诺类表述”等风险类别”。所以我们可以将其改为空数组，或者仅保留“已处理收益承诺类表述”之类的。注意原 riskNotes 还有别的条目，但那些条目不包含风险词，但规则并未禁止保留它们，但规则7说“只能写“已处理收益承诺类表述”等风险类别”，这可能意味着 riskNotes 应该只包含关于处理风险类别的简短说明，而不是原来的具体说明。但规则也允许为空数组。为了安全，我们可以把 riskNotes 设置为空数组，或者将原来的条目改为不含风险词的概括。但是原来的第一条“未提供项目具体名称和区域，避免具体总价和投资回报表述”不包含风险词，但可能属于内部提示，不是公开内容？riskNotes 可能是给审核者看的注释。规则说“riskNotes 可以为空数组；如果保留，只能写“已处理收益承诺类表述”等风险类别”，意味着如果保留，就只能写风险类别，不要具体细节。所以我们把三个条目合并为一个概括性的：“已处理收益承诺类表述”。这是允许的。但不能复述原词。\n\n另外，videoScript.riskNotes 也类似：[\"所有关于价格、租金、收益的表述已剔除承诺意味，避免使用具体数字。\", \"未使用暗示投资回报或价格变动的词汇。\"] 没有直接出现“满租”或“租金区间”，但提到了“租金”，可能被视为风险词？风险词是“满租”和“租金区间”，不是“租金”。但“租金”是否属于应避免？规则只要求不能再出现 risk_terms 中的原词，即“满租”和“租金区间”。这两个条目都没有这两个词，所以可以不修改。但规则7同样适用于 videoScript.riskNotes：它说“riskNotes 可以为空数组；如果保留，只能写“已处理收益承诺类表述”等风险类别，禁止复述、引用或列举 risk_terms 中的任何原词。” 目前没有复述原词，但可能会有风险类别？可以保留，但可能也建议改为更概括的。为了一致性，我们也可以把 videoScript.riskNotes 改成空数组或“已处理收益承诺类表述”。但规则没说必须修改未命中的内容。所以可以保留。然而，为了确保完全合规，且 riskNotes 中的“租金”可能被误认为风险，但这不是完全匹配“租金区间”，所以可以不处理。但安全起见，改成空数组。\n\n另外，检查是否还有其他地方隐含了风险词？比如 articlePackage.copyReadyText 中有没有？没有。body 中有没有？没有。所以只需要处理 riskNotes。\n\n此外，规则说“如果改写了 articlePackage.contentBlocks[].text，需要同步更新 articlePackage.body 和 articlePackage.copyReadyText，保持三者一致。” 我们没有改内容，所以不需要。\n\n因此，最终输出只需将 articlePackage.riskNotes 改为空数组或“已处理收益承诺类表述”。同样处理 videoScript.riskNotes。\n\n决定将 articlePackage.riskNotes 设为空数组，videoScript.riskNotes 也设为空数组，以避免任何可能的复述。原始其他内容保持不变。\n\n注意：JSON 输出必须只包含五个顶层字段。原样复制其他字段。",
+      "usage": {
+        "prompt_tokens": 5854,
+        "prompt_unit_price": "12",
+        "prompt_price_unit": "0.000001",
+        "prompt_price": "0.070248",
+        "completion_tokens": 6394,
+        "completion_unit_price": "24",
+        "completion_price_unit": "0.000001",
+        "completion_price": "0.153456",
+        "total_tokens": 12248,
+        "total_price": "0.223704",
+        "currency": "RMB",
+        "latency": 187.422,
+        "time_to_first_token": 2.308,
+        "time_to_generate": 185.113
+      },
+      "finish_reason": "stop",
+      "structured_output": {
+        "articlePackage": {
+          "titles": [
+            "很多人以为小户型过时了？其实……",
+            "80万方大社区，70平总价友好",
+            "看了20个盘，最后发现小户型才是真香"
+          ],
+          "selectedTitle": "很多人以为小户型过时了？其实……",
+          "coverCopy": "小户型过气？刚需正在回头",
+          "body": "你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\n\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\n\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\n\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\n\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。",
+          "contentBlocks": [
+            {
+              "blockNo": 1,
+              "blockType": "体验块",
+              "text": "你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。",
+              "imageMatch": {
+                "assetId": "img_001",
+                "title": "项目外立面",
+                "usage": "封面展示，建立项目可信度"
+              }
+            },
+            {
+              "blockNo": 2,
+              "blockType": "证据块",
+              "text": "什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。",
+              "imageBrief": "社区底商或街景实拍，展示生活配套已兑现"
+            },
+            {
+              "blockNo": 3,
+              "blockType": "数据块",
+              "text": "这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。",
+              "imageBrief": "小区内部绿化或社区环境实拍，展现居住氛围"
+            },
+            {
+              "blockNo": 4,
+              "blockType": "体验块",
+              "text": "别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。",
+              "imageMatch": {
+                "assetId": "img_002",
+                "title": "样板间客厅",
+                "usage": "展示空间舒适度和层高优势"
+              }
+            },
+            {
+              "blockNo": 5,
+              "blockType": "CTA块",
+              "text": "有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。"
+            }
+          ],
+          "hashtags": [
+            "#小户型",
+            "#刚需买房",
+            "#买房攻略",
+            "#社区配套",
+            "#层高4米",
+            "#预算有限"
+          ],
+          "cta": "感兴趣私信我，发你户型图看看",
+          "imageMatches": [
+            {
+              "blockNo": 1,
+              "assetId": "img_001",
+              "title": "项目外立面",
+              "usage": "封面展示，建立项目可信度",
+              "cosPath": "",
+              "role": "cover"
+            },
+            {
+              "blockNo": 4,
+              "assetId": "img_002",
+              "title": "样板间客厅",
+              "usage": "展示空间舒适度和层高优势",
+              "cosPath": "",
+              "role": "body"
+            }
+          ],
+          "imageBriefIfMissing": "社区底商或街景实拍，展示生活配套已兑现; 小区内部绿化或社区环境实拍，展现居住氛围",
+          "riskNotes": [],
+          "copyReadyText": "很多人以为小户型过时了？其实……\n\n你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\n\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\n\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\n\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\n\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\n\n#小户型 #刚需买房 #买房攻略 #社区配套 #层高4米 #预算有限"
+        },
+        "titleStrategy": {
+          "titles": [
+            {
+              "text": "很多人以为小户型过时了？其实……",
+              "formula": "反差/反常识",
+              "whyThisFormula": "打破'小户型已过气'的常见印象，吸引预算有限但想要成熟配套的刚需注意力。"
+            },
+            {
+              "text": "80万方大社区，70平总价友好",
+              "formula": "数字冲击",
+              "whyThisFormula": "用具体数字（80万方、70平）直观传递规模和门槛优势，一眼抓住刚需客户。"
+            },
+            {
+              "text": "看了20个盘，最后发现小户型才是真香",
+              "formula": "晒结果+悬念",
+              "whyThisFormula": "以购房者比较后的选择结果制造好奇，促使点击了解为什么小户型胜出。"
+            }
+          ],
+          "selectedTitleReason": "该标题采用反差式提问，能有效打破用户固有认知，引发好奇，且口播友好。",
+          "coverCopyOptions": [
+            {
+              "text": "小户型过气？刚需正在回头",
+              "style": "大字报型"
+            },
+            {
+              "text": "70平4米层高，配套已现成",
+              "style": "实拍+文字型"
+            }
+          ],
+          "hookAngle": "反常识观察切入"
+        },
+        "videoScript": {
+          "narrative": {
+            "hook": {
+              "openingLine": "你是不是也觉得小户型没人看了？",
+              "strategy": "反常识观察切入"
+            },
+            "narrativeArc": [
+              "很多人以为小户型已经没人关注了",
+              "但预算有限的刚需其实又开始回头看，因为配套成熟的低门槛选择在减少",
+              "这个80万方大社区生活图景已经落地，底商运营和日常消费需求肉眼可见",
+              "4米层高的舒适感比想象中更能提升居住体验，不一定非要盯着大面积",
+              "有兴趣可以私信了解具体户型布置和看房方式"
+            ],
+            "storyOutline": "以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。",
+            "estimatedDuration": "30-45秒",
+            "bgmDirection": "轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感",
+            "toneOfVoice": "亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。",
+            "voiceoverDraft": "你是不是也觉得小户型没人看了？我跟你讲，其实很多预算有限的刚需又回头看这个80万方的大社区了。楼下底商都在营业，日常买菜喝咖啡不出小区。层高4米，进来感觉特别通透。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。"
+          },
+          "scenes": [
+            {
+              "sceneNo": 1,
+              "timeRange": "0:00-0:05",
+              "durationSec": 5,
+              "sceneType": "口播",
+              "title": "钩子提问",
+              "requiresUserUpload": true,
+              "purpose": "开场制造认知反差，吸引注意力",
+              "taskDescription": "中介在样板间客厅面对镜头，自然抛出问题",
+              "visualDescription": "中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线",
+              "voiceover": "你是不是也觉得小户型没人看了？",
+              "subtitle": "你是不是也觉得小户型没人看了？",
+              "shotLanguage": {
+                "framing": "中近景",
+                "cameraMovement": "固定",
+                "orientation": "平视",
+                "composition": "人物居中，背景可见客厅"
+              },
+              "filmingGuide": {
+                "method": "手机自拍",
+                "location": "样板间客厅",
+                "posture": "站着，面对镜头",
+                "tips": [
+                  "手机横屏拍摄，画质1080p以上",
+                  "语速放慢，像跟朋友聊天",
+                  "开头和结尾各多录2秒"
+                ]
+              },
+              "editGuide": {
+                "transition": "直接切",
+                "pacing": "正常",
+                "minUsableSeconds": 5
+              },
+              "assetQuery": ""
+            },
+            {
+              "sceneNo": 2,
+              "timeRange": "0:05-0:08",
+              "durationSec": 3,
+              "sceneType": "素材",
+              "title": "社区底商实景",
+              "requiresUserUpload": false,
+              "purpose": "展示生活配套已成熟",
+              "taskDescription": "从素材库选取社区底商实拍镜头",
+              "visualDescription": "社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮",
+              "voiceover": "",
+              "subtitle": "楼下底商都在营业，日常买菜喝咖啡不出小区",
+              "shotLanguage": {
+                "framing": "全景",
+                "cameraMovement": "缓慢平移",
+                "orientation": "平视",
+                "composition": "街道纵深，商铺在两侧"
+              },
+              "filmingGuide": {
+                "method": "使用团队素材或项目实拍素材",
+                "location": "根据现场条件选择",
+                "posture": "不需要出镜",
+                "tips": []
+              },
+              "editGuide": {
+                "transition": "直接切",
+                "pacing": "快",
+                "minUsableSeconds": 2
+              },
+              "assetQuery": "社区底商 餐饮 超市 行人 生活气息 实拍"
+            },
+            {
+              "sceneNo": 3,
+              "timeRange": "0:08-0:11",
+              "durationSec": 3,
+              "sceneType": "素材",
+              "title": "层高展示",
+              "requiresUserUpload": false,
+              "purpose": "突出4米层高的空间舒适感",
+              "taskDescription": "从素材库选取样板间客厅镜头，强调层高",
+              "visualDescription": "样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔",
+              "voiceover": "",
+              "subtitle": "层高4米，进来感觉特别通透",
+              "shotLanguage": {
+                "framing": "广角全景",
+                "cameraMovement": "固定",
+                "orientation": "仰拍或平视",
+                "composition": "突出纵向空间，家具尺度适中"
+              },
+              "filmingGuide": {
+                "method": "使用团队素材或项目实拍素材",
+                "location": "根据现场条件选择",
+                "posture": "不需要出镜",
+                "tips": []
+              },
+              "editGuide": {
+                "transition": "直接切",
+                "pacing": "快",
+                "minUsableSeconds": 2
+              },
+              "assetQuery": "样板间 客厅 层高 4米 通透 阳光"
+            },
+            {
+              "sceneNo": 4,
+              "timeRange": "0:11-0:21",
+              "durationSec": 10,
+              "sceneType": "口播",
+              "title": "核心价值阐述",
+              "requiresUserUpload": true,
+              "purpose": "解释小户型重新受关注的原因，并引导私信",
+              "taskDescription": "中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词",
+              "visualDescription": "中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切",
+              "voiceover": "其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。",
+              "subtitle": "其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。",
+              "shotLanguage": {
+                "framing": "中近景",
+                "cameraMovement": "固定",
+                "orientation": "平视",
+                "composition": "人物居中，背景可见客厅"
+              },
+              "filmingGuide": {
+                "method": "手机自拍",
+                "location": "样板间客厅",
+                "posture": "站着，面对镜头",
+                "tips": [
+                  "保持和第一段相同的穿着和形象",
+                  "语速放慢，像跟朋友分享",
+                  "拍两遍，选自然的一条"
+                ]
+              },
+              "editGuide": {
+                "transition": "声音先入",
+                "pacing": "正常",
+                "minUsableSeconds": 8
+              },
+              "assetQuery": ""
+            },
+            {
+              "sceneNo": 5,
+              "timeRange": "0:21-0:25",
+              "durationSec": 4,
+              "sceneType": "素材",
+              "title": "结尾引导",
+              "requiresUserUpload": false,
+              "purpose": "最终引导观众行动",
+              "taskDescription": "从素材库选取项目外立面或品牌标识镜头",
+              "visualDescription": "项目外立面实景，现代建筑，天空明亮，下方有小区入口",
+              "voiceover": "",
+              "subtitle": "想看户型？私信我",
+              "shotLanguage": {
+                "framing": "远景或中景",
+                "cameraMovement": "固定",
+                "orientation": "仰拍",
+                "composition": "建筑居中，展现整体外观"
+              },
+              "filmingGuide": {
+                "method": "使用团队素材或项目实拍素材",
+                "location": "根据现场条件选择",
+                "posture": "不需要出镜",
+                "tips": []
+              },
+              "editGuide": {
+                "transition": "渐变过渡",
+                "pacing": "正常",
+                "minUsableSeconds": 3
+              },
+              "assetQuery": "项目外立面 小区入口 实景 现代建筑"
+            }
+          ],
+          "riskNotes": []
+        },
+        "memberDelivery": {
+          "tasks": [
+            {
+              "taskNo": 1,
+              "sceneNo": 1,
+              "script": "你是不是也觉得小户型没人看了？",
+              "location": "样板间客厅",
+              "posture": "站着，面对镜头",
+              "tips": [
+                "手机横屏拍摄，画质1080p以上",
+                "语速放慢，像跟朋友聊天",
+                "开头和结尾各多录2秒"
+              ]
+            },
+            {
+              "taskNo": 2,
+              "sceneNo": 4,
+              "script": "其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。",
+              "location": "样板间客厅",
+              "posture": "站着，面对镜头",
+              "tips": [
+                "保持和第一段相同的穿着和形象",
+                "语速放慢，像跟朋友分享",
+                "拍两遍，选自然的一条"
+              ]
+            }
+          ]
+        },
+        "workerDelivery": {
+          "storyOutline": "以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。",
+          "bgm": "轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感",
+          "toneOfVoice": "亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。",
+          "estimatedDuration": "30-45秒",
+          "scenes": [
+            {
+              "sceneNo": 1,
+              "timeRange": "0:00-0:05",
+              "durationSec": 5,
+              "sceneType": "口播",
+              "title": "钩子提问",
+              "requiresUserUpload": true,
+              "purpose": "开场制造认知反差，吸引注意力",
+              "taskDescription": "中介在样板间客厅面对镜头，自然抛出问题",
+              "visualDescription": "中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线",
+              "voiceover": "你是不是也觉得小户型没人看了？",
+              "subtitle": "你是不是也觉得小户型没人看了？",
+              "shotLanguage": {
+                "framing": "中近景",
+                "cameraMovement": "固定",
+                "orientation": "平视",
+                "composition": "人物居中，背景可见客厅"
+              },
+              "filmingGuide": {
+                "method": "手机自拍",
+                "location": "样板间客厅",
+                "posture": "站着，面对镜头",
+                "tips": [
+                  "手机横屏拍摄，画质1080p以上",
+                  "语速放慢，像跟朋友聊天",
+                  "开头和结尾各多录2秒"
+                ]
+              },
+              "editGuide": {
+                "transition": "直接切",
+                "pacing": "正常",
+                "minUsableSeconds": 5
+              },
+              "assetQuery": ""
+            },
+            {
+              "sceneNo": 2,
+              "timeRange": "0:05-0:08",
+              "durationSec": 3,
+              "sceneType": "素材",
+              "title": "社区底商实景",
+              "requiresUserUpload": false,
+              "purpose": "展示生活配套已成熟",
+              "taskDescription": "从素材库选取社区底商实拍镜头",
+              "visualDescription": "社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮",
+              "voiceover": "",
+              "subtitle": "楼下底商都在营业，日常买菜喝咖啡不出小区",
+              "shotLanguage": {
+                "framing": "全景",
+                "cameraMovement": "缓慢平移",
+                "orientation": "平视",
+                "composition": "街道纵深，商铺在两侧"
+              },
+              "filmingGuide": {
+                "method": "使用团队素材或项目实拍素材",
+                "location": "根据现场条件选择",
+                "posture": "不需要出镜",
+                "tips": []
+              },
+              "editGuide": {
+                "transition": "直接切",
+                "pacing": "快",
+                "minUsableSeconds": 2
+              },
+              "assetQuery": "社区底商 餐饮 超市 行人 生活气息 实拍"
+            },
+            {
+              "sceneNo": 3,
+              "timeRange": "0:08-0:11",
+              "durationSec": 3,
+              "sceneType": "素材",
+              "title": "层高展示",
+              "requiresUserUpload": false,
+              "purpose": "突出4米层高的空间舒适感",
+              "taskDescription": "从素材库选取样板间客厅镜头，强调层高",
+              "visualDescription": "样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔",
+              "voiceover": "",
+              "subtitle": "层高4米，进来感觉特别通透",
+              "shotLanguage": {
+                "framing": "广角全景",
+                "cameraMovement": "固定",
+                "orientation": "仰拍或平视",
+                "composition": "突出纵向空间，家具尺度适中"
+              },
+              "filmingGuide": {
+                "method": "使用团队素材或项目实拍素材",
+                "location": "根据现场条件选择",
+                "posture": "不需要出镜",
+                "tips": []
+              },
+              "editGuide": {
+                "transition": "直接切",
+                "pacing": "快",
+                "minUsableSeconds": 2
+              },
+              "assetQuery": "样板间 客厅 层高 4米 通透 阳光"
+            },
+            {
+              "sceneNo": 4,
+              "timeRange": "0:11-0:21",
+              "durationSec": 10,
+              "sceneType": "口播",
+              "title": "核心价值阐述",
+              "requiresUserUpload": true,
+              "purpose": "解释小户型重新受关注的原因，并引导私信",
+              "taskDescription": "中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词",
+              "visualDescription": "中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切",
+              "voiceover": "其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。",
+              "subtitle": "其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。",
+              "shotLanguage": {
+                "framing": "中近景",
+                "cameraMovement": "固定",
+                "orientation": "平视",
+                "composition": "人物居中，背景可见客厅"
+              },
+              "filmingGuide": {
+                "method": "手机自拍",
+                "location": "样板间客厅",
+                "posture": "站着，面对镜头",
+                "tips": [
+                  "保持和第一段相同的穿着和形象",
+                  "语速放慢，像跟朋友分享",
+                  "拍两遍，选自然的一条"
+                ]
+              },
+              "editGuide": {
+                "transition": "声音先入",
+                "pacing": "正常",
+                "minUsableSeconds": 8
+              },
+              "assetQuery": ""
+            },
+            {
+              "sceneNo": 5,
+              "timeRange": "0:21-0:25",
+              "durationSec": 4,
+              "sceneType": "素材",
+              "title": "结尾引导",
+              "requiresUserUpload": false,
+              "purpose": "最终引导观众行动",
+              "taskDescription": "从素材库选取项目外立面或品牌标识镜头",
+              "visualDescription": "项目外立面实景，现代建筑，天空明亮，下方有小区入口",
+              "voiceover": "",
+              "subtitle": "想看户型？私信我",
+              "shotLanguage": {
+                "framing": "远景或中景",
+                "cameraMovement": "固定",
+                "orientation": "仰拍",
+                "composition": "建筑居中，展现整体外观"
+              },
+              "filmingGuide": {
+                "method": "使用团队素材或项目实拍素材",
+                "location": "根据现场条件选择",
+                "posture": "不需要出镜",
+                "tips": []
+              },
+              "editGuide": {
+                "transition": "渐变过渡",
+                "pacing": "正常",
+                "minUsableSeconds": 3
+              },
+              "assetQuery": "项目外立面 小区入口 实景 现代建筑"
+            }
+          ],
+          "teamAssetQueries": [
+            "社区底商 餐饮 超市 行人 生活气息 实拍",
+            "样板间 客厅 层高 4米 通透 阳光",
+            "项目外立面 小区入口 实景 现代建筑"
+          ]
+        }
+      }
+    },
+    "error": null,
+    "execution_metadata": {
+      "total_tokens": 12248,
+      "total_price": "0.223704",
+      "currency": "RMB"
+    }
+  },
+  "article_package_aggregator": {
+    "event": "node_finished",
+    "title": "图文内容包候选聚合器",
+    "node_type": "variable-aggregator",
+    "status": "succeeded",
+    "outputs": {
+      "output": "{\n  \"articlePackage\": {\n    \"titles\": [\"很多人以为小户型过时了？其实……\", \"80万方大社区，70平总价友好\", \"看了20个盘，最后发现小户型才是真香\"],\n    \"selectedTitle\": \"很多人以为小户型过时了？其实……\",\n    \"coverCopy\": \"小户型过气？刚需正在回头\",\n    \"body\": \"你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\\n\\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\\n\\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\\n\\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\\n\\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\",\n    \"contentBlocks\": [\n      {\n        \"blockNo\": 1,\n        \"blockType\": \"体验块\",\n        \"text\": \"你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\",\n        \"imageMatch\": {\n          \"assetId\": \"img_001\",\n          \"title\": \"项目外立面\",\n          \"usage\": \"封面展示，建立项目可信度\"\n        }\n      },\n      {\n        \"blockNo\": 2,\n        \"blockType\": \"证据块\",\n        \"text\": \"什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\",\n        \"imageBrief\": \"社区底商或街景实拍，展示生活配套已兑现\"\n      },\n      {\n        \"blockNo\": 3,\n        \"blockType\": \"数据块\",\n        \"text\": \"这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\",\n        \"imageBrief\": \"小区内部绿化或社区环境实拍，展现居住氛围\"\n      },\n      {\n        \"blockNo\": 4,\n        \"blockType\": \"体验块\",\n        \"text\": \"别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\",\n        \"imageMatch\": {\n          \"assetId\": \"img_002\",\n          \"title\": \"样板间客厅\",\n          \"usage\": \"展示空间舒适度和层高优势\"\n        }\n      },\n      {\n        \"blockNo\": 5,\n        \"blockType\": \"CTA块\",\n        \"text\": \"有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\"\n      }\n    ],\n    \"hashtags\": [\"#小户型\", \"#刚需买房\", \"#买房攻略\", \"#社区配套\", \"#层高4米\", \"#预算有限\"],\n    \"cta\": \"感兴趣私信我，发你户型图看看\",\n    \"imageMatches\": [\n      {\n        \"blockNo\": 1,\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"封面展示，建立项目可信度\",\n        \"cosPath\": \"\",\n        \"role\": \"cover\"\n      },\n      {\n        \"blockNo\": 4,\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间舒适度和层高优势\",\n        \"cosPath\": \"\",\n        \"role\": \"body\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"社区底商或街景实拍，展示生活配套已兑现; 小区内部绿化或社区环境实拍，展现居住氛围\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"很多人以为小户型过时了？其实……\\n\\n你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\\n\\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\\n\\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\\n\\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\\n\\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\\n\\n#小户型 #刚需买房 #买房攻略 #社区配套 #层高4米 #预算有限\"\n  },\n  \"titleStrategy\": {\n    \"titles\": [\n      {\n        \"text\": \"很多人以为小户型过时了？其实……\",\n        \"formula\": \"反差/反常识\",\n        \"whyThisFormula\": \"打破'小户型已过气'的常见印象，吸引预算有限但想要成熟配套的刚需注意力。\"\n      },\n      {\n        \"text\": \"80万方大社区，70平总价友好\",\n        \"formula\": \"数字冲击\",\n        \"whyThisFormula\": \"用具体数字（80万方、70平）直观传递规模和门槛优势，一眼抓住刚需客户。\"\n      },\n      {\n        \"text\": \"看了20个盘，最后发现小户型才是真香\",\n        \"formula\": \"晒结果+悬念\",\n        \"whyThisFormula\": \"以购房者比较后的选择结果制造好奇，促使点击了解为什么小户型胜出。\"\n      }\n    ],\n    \"selectedTitleReason\": \"该标题采用反差式提问，能有效打破用户固有认知，引发好奇，且口播友好。\",\n    \"coverCopyOptions\": [\n      {\n        \"text\": \"小户型过气？刚需正在回头\",\n        \"style\": \"大字报型\"\n      },\n      {\n        \"text\": \"70平4米层高，配套已现成\",\n        \"style\": \"实拍+文字型\"\n      }\n    ],\n    \"hookAngle\": \"反常识观察切入\"\n  },\n  \"videoScript\": {\n    \"narrative\": {\n      \"hook\": {\n        \"openingLine\": \"你是不是也觉得小户型没人看了？\",\n        \"strategy\": \"反常识观察切入\"\n      },\n      \"narrativeArc\": [\n        \"很多人以为小户型已经没人关注了\",\n        \"但预算有限的刚需其实又开始回头看，因为配套成熟的低门槛选择在减少\",\n        \"这个80万方大社区生活图景已经落地，底商运营和日常消费需求肉眼可见\",\n        \"4米层高的舒适感比想象中更能提升居住体验，不一定非要盯着大面积\",\n        \"有兴趣可以私信了解具体户型布置和看房方式\"\n      ],\n      \"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\",\n      \"estimatedDuration\": \"30-45秒\",\n      \"bgmDirection\": \"轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感\",\n      \"toneOfVoice\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\",\n      \"voiceoverDraft\": \"你是不是也觉得小户型没人看了？我跟你讲，其实很多预算有限的刚需又回头看这个80万方的大社区了。楼下底商都在营业，日常买菜喝咖啡不出小区。层高4米，进来感觉特别通透。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\"\n    },\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0:00-0:05\",\n        \"durationSec\": 5,\n        \"sceneType\": \"口播\",\n        \"title\": \"钩子提问\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"开场制造认知反差，吸引注意力\",\n        \"taskDescription\": \"中介在样板间客厅面对镜头，自然抛出问题\",\n        \"visualDescription\": \"中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线\",\n        \"voiceover\": \"你是不是也觉得小户型没人看了？\",\n        \"subtitle\": \"你是不是也觉得小户型没人看了？\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 5\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"0:05-0:08\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"社区底商实景\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"展示生活配套已成熟\",\n        \"taskDescription\": \"从素材库选取社区底商实拍镜头\",\n        \"visualDescription\": \"社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"楼下底商都在营业，日常买菜喝咖啡不出小区\",\n        \"shotLanguage\": {\n          \"framing\": \"全景\",\n          \"cameraMovement\": \"缓慢平移\",\n          \"orientation\": \"平视\",\n          \"composition\": \"街道纵深，商铺在两侧\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"社区底商 餐饮 超市 行人 生活气息 实拍\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"0:08-0:11\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"层高展示\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"突出4米层高的空间舒适感\",\n        \"taskDescription\": \"从素材库选取样板间客厅镜头，强调层高\",\n        \"visualDescription\": \"样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"层高4米，进来感觉特别通透\",\n        \"shotLanguage\": {\n          \"framing\": \"广角全景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍或平视\",\n          \"composition\": \"突出纵向空间，家具尺度适中\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"样板间 客厅 层高 4米 通透 阳光\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"0:11-0:21\",\n        \"durationSec\": 10,\n        \"sceneType\": \"口播\",\n        \"title\": \"核心价值阐述\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"解释小户型重新受关注的原因，并引导私信\",\n        \"taskDescription\": \"中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词\",\n        \"visualDescription\": \"中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切\",\n        \"voiceover\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"subtitle\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"声音先入\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 8\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"0:21-0:25\",\n        \"durationSec\": 4,\n        \"sceneType\": \"素材\",\n        \"title\": \"结尾引导\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"最终引导观众行动\",\n        \"taskDescription\": \"从素材库选取项目外立面或品牌标识镜头\",\n        \"visualDescription\": \"项目外立面实景，现代建筑，天空明亮，下方有小区入口\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"想看户型？私信我\",\n        \"shotLanguage\": {\n          \"framing\": \"远景或中景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍\",\n          \"composition\": \"建筑居中，展现整体外观\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"渐变过渡\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 3\n        },\n        \"assetQuery\": \"项目外立面 小区入口 实景 现代建筑\"\n      }\n    ],\n    \"riskNotes\": []\n  },\n  \"memberDelivery\": {\n    \"tasks\": [\n      {\n        \"taskNo\": 1,\n        \"sceneNo\": 1,\n        \"script\": \"你是不是也觉得小户型没人看了？\",\n        \"location\": \"样板间客厅\",\n        \"posture\": \"站着，面对镜头\",\n        \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]\n      },\n      {\n        \"taskNo\": 2,\n        \"sceneNo\": 4,\n        \"script\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"location\": \"样板间客厅\",\n        \"posture\": \"站着，面对镜头\",\n        \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]\n      }\n    ]\n  },\n  \"workerDelivery\": {\n    \"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\",\n    \"bgm\": \"轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感\",\n    \"toneOfVoice\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0:00-0:05\",\n        \"durationSec\": 5,\n        \"sceneType\": \"口播\",\n        \"title\": \"钩子提问\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"开场制造认知反差，吸引注意力\",\n        \"taskDescription\": \"中介在样板间客厅面对镜头，自然抛出问题\",\n        \"visualDescription\": \"中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线\",\n        \"voiceover\": \"你是不是也觉得小户型没人看了？\",\n        \"subtitle\": \"你是不是也觉得小户型没人看了？\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 5\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"0:05-0:08\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"社区底商实景\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"展示生活配套已成熟\",\n        \"taskDescription\": \"从素材库选取社区底商实拍镜头\",\n        \"visualDescription\": \"社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"楼下底商都在营业，日常买菜喝咖啡不出小区\",\n        \"shotLanguage\": {\n          \"framing\": \"全景\",\n          \"cameraMovement\": \"缓慢平移\",\n          \"orientation\": \"平视\",\n          \"composition\": \"街道纵深，商铺在两侧\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"社区底商 餐饮 超市 行人 生活气息 实拍\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"0:08-0:11\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"层高展示\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"突出4米层高的空间舒适感\",\n        \"taskDescription\": \"从素材库选取样板间客厅镜头，强调层高\",\n        \"visualDescription\": \"样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"层高4米，进来感觉特别通透\",\n        \"shotLanguage\": {\n          \"framing\": \"广角全景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍或平视\",\n          \"composition\": \"突出纵向空间，家具尺度适中\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"样板间 客厅 层高 4米 通透 阳光\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"0:11-0:21\",\n        \"durationSec\": 10,\n        \"sceneType\": \"口播\",\n        \"title\": \"核心价值阐述\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"解释小户型重新受关注的原因，并引导私信\",\n        \"taskDescription\": \"中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词\",\n        \"visualDescription\": \"中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切\",\n        \"voiceover\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"subtitle\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"声音先入\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 8\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"0:21-0:25\",\n        \"durationSec\": 4,\n        \"sceneType\": \"素材\",\n        \"title\": \"结尾引导\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"最终引导观众行动\",\n        \"taskDescription\": \"从素材库选取项目外立面或品牌标识镜头\",\n        \"visualDescription\": \"项目外立面实景，现代建筑，天空明亮，下方有小区入口\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"想看户型？私信我\",\n        \"shotLanguage\": {\n          \"framing\": \"远景或中景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍\",\n          \"composition\": \"建筑居中，展现整体外观\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"渐变过渡\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 3\n        },\n        \"assetQuery\": \"项目外立面 小区入口 实景 现代建筑\"\n      }\n    ],\n    \"teamAssetQueries\": [\n      \"社区底商 餐饮 超市 行人 生活气息 实拍\",\n      \"样板间 客厅 层高 4米 通透 阳光\",\n      \"项目外立面 小区入口 实景 现代建筑\"\n    ]\n  }\n}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "video_script_aggregator": {
+    "event": "node_finished",
+    "title": "视频脚本候选聚合器",
+    "node_type": "variable-aggregator",
+    "status": "succeeded",
+    "outputs": {
+      "output": "{\n  \"articlePackage\": {\n    \"titles\": [\"很多人以为小户型过时了？其实……\", \"80万方大社区，70平总价友好\", \"看了20个盘，最后发现小户型才是真香\"],\n    \"selectedTitle\": \"很多人以为小户型过时了？其实……\",\n    \"coverCopy\": \"小户型过气？刚需正在回头\",\n    \"body\": \"你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\\n\\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\\n\\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\\n\\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\\n\\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\",\n    \"contentBlocks\": [\n      {\n        \"blockNo\": 1,\n        \"blockType\": \"体验块\",\n        \"text\": \"你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\",\n        \"imageMatch\": {\n          \"assetId\": \"img_001\",\n          \"title\": \"项目外立面\",\n          \"usage\": \"封面展示，建立项目可信度\"\n        }\n      },\n      {\n        \"blockNo\": 2,\n        \"blockType\": \"证据块\",\n        \"text\": \"什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\",\n        \"imageBrief\": \"社区底商或街景实拍，展示生活配套已兑现\"\n      },\n      {\n        \"blockNo\": 3,\n        \"blockType\": \"数据块\",\n        \"text\": \"这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\",\n        \"imageBrief\": \"小区内部绿化或社区环境实拍，展现居住氛围\"\n      },\n      {\n        \"blockNo\": 4,\n        \"blockType\": \"体验块\",\n        \"text\": \"别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\",\n        \"imageMatch\": {\n          \"assetId\": \"img_002\",\n          \"title\": \"样板间客厅\",\n          \"usage\": \"展示空间舒适度和层高优势\"\n        }\n      },\n      {\n        \"blockNo\": 5,\n        \"blockType\": \"CTA块\",\n        \"text\": \"有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\"\n      }\n    ],\n    \"hashtags\": [\"#小户型\", \"#刚需买房\", \"#买房攻略\", \"#社区配套\", \"#层高4米\", \"#预算有限\"],\n    \"cta\": \"感兴趣私信我，发你户型图看看\",\n    \"imageMatches\": [\n      {\n        \"blockNo\": 1,\n        \"assetId\": \"img_001\",\n        \"title\": \"项目外立面\",\n        \"usage\": \"封面展示，建立项目可信度\",\n        \"cosPath\": \"\",\n        \"role\": \"cover\"\n      },\n      {\n        \"blockNo\": 4,\n        \"assetId\": \"img_002\",\n        \"title\": \"样板间客厅\",\n        \"usage\": \"展示空间舒适度和层高优势\",\n        \"cosPath\": \"\",\n        \"role\": \"body\"\n      }\n    ],\n    \"imageBriefIfMissing\": \"社区底商或街景实拍，展示生活配套已兑现; 小区内部绿化或社区环境实拍，展现居住氛围\",\n    \"riskNotes\": [],\n    \"copyReadyText\": \"很多人以为小户型过时了？其实……\\n\\n你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\\n\\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\\n\\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\\n\\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\\n\\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\\n\\n#小户型 #刚需买房 #买房攻略 #社区配套 #层高4米 #预算有限\"\n  },\n  \"titleStrategy\": {\n    \"titles\": [\n      {\n        \"text\": \"很多人以为小户型过时了？其实……\",\n        \"formula\": \"反差/反常识\",\n        \"whyThisFormula\": \"打破'小户型已过气'的常见印象，吸引预算有限但想要成熟配套的刚需注意力。\"\n      },\n      {\n        \"text\": \"80万方大社区，70平总价友好\",\n        \"formula\": \"数字冲击\",\n        \"whyThisFormula\": \"用具体数字（80万方、70平）直观传递规模和门槛优势，一眼抓住刚需客户。\"\n      },\n      {\n        \"text\": \"看了20个盘，最后发现小户型才是真香\",\n        \"formula\": \"晒结果+悬念\",\n        \"whyThisFormula\": \"以购房者比较后的选择结果制造好奇，促使点击了解为什么小户型胜出。\"\n      }\n    ],\n    \"selectedTitleReason\": \"该标题采用反差式提问，能有效打破用户固有认知，引发好奇，且口播友好。\",\n    \"coverCopyOptions\": [\n      {\n        \"text\": \"小户型过气？刚需正在回头\",\n        \"style\": \"大字报型\"\n      },\n      {\n        \"text\": \"70平4米层高，配套已现成\",\n        \"style\": \"实拍+文字型\"\n      }\n    ],\n    \"hookAngle\": \"反常识观察切入\"\n  },\n  \"videoScript\": {\n    \"narrative\": {\n      \"hook\": {\n        \"openingLine\": \"你是不是也觉得小户型没人看了？\",\n        \"strategy\": \"反常识观察切入\"\n      },\n      \"narrativeArc\": [\n        \"很多人以为小户型已经没人关注了\",\n        \"但预算有限的刚需其实又开始回头看，因为配套成熟的低门槛选择在减少\",\n        \"这个80万方大社区生活图景已经落地，底商运营和日常消费需求肉眼可见\",\n        \"4米层高的舒适感比想象中更能提升居住体验，不一定非要盯着大面积\",\n        \"有兴趣可以私信了解具体户型布置和看房方式\"\n      ],\n      \"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\",\n      \"estimatedDuration\": \"30-45秒\",\n      \"bgmDirection\": \"轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感\",\n      \"toneOfVoice\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\",\n      \"voiceoverDraft\": \"你是不是也觉得小户型没人看了？我跟你讲，其实很多预算有限的刚需又回头看这个80万方的大社区了。楼下底商都在营业，日常买菜喝咖啡不出小区。层高4米，进来感觉特别通透。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\"\n    },\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0:00-0:05\",\n        \"durationSec\": 5,\n        \"sceneType\": \"口播\",\n        \"title\": \"钩子提问\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"开场制造认知反差，吸引注意力\",\n        \"taskDescription\": \"中介在样板间客厅面对镜头，自然抛出问题\",\n        \"visualDescription\": \"中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线\",\n        \"voiceover\": \"你是不是也觉得小户型没人看了？\",\n        \"subtitle\": \"你是不是也觉得小户型没人看了？\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 5\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"0:05-0:08\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"社区底商实景\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"展示生活配套已成熟\",\n        \"taskDescription\": \"从素材库选取社区底商实拍镜头\",\n        \"visualDescription\": \"社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"楼下底商都在营业，日常买菜喝咖啡不出小区\",\n        \"shotLanguage\": {\n          \"framing\": \"全景\",\n          \"cameraMovement\": \"缓慢平移\",\n          \"orientation\": \"平视\",\n          \"composition\": \"街道纵深，商铺在两侧\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"社区底商 餐饮 超市 行人 生活气息 实拍\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"0:08-0:11\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"层高展示\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"突出4米层高的空间舒适感\",\n        \"taskDescription\": \"从素材库选取样板间客厅镜头，强调层高\",\n        \"visualDescription\": \"样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"层高4米，进来感觉特别通透\",\n        \"shotLanguage\": {\n          \"framing\": \"广角全景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍或平视\",\n          \"composition\": \"突出纵向空间，家具尺度适中\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"样板间 客厅 层高 4米 通透 阳光\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"0:11-0:21\",\n        \"durationSec\": 10,\n        \"sceneType\": \"口播\",\n        \"title\": \"核心价值阐述\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"解释小户型重新受关注的原因，并引导私信\",\n        \"taskDescription\": \"中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词\",\n        \"visualDescription\": \"中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切\",\n        \"voiceover\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"subtitle\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"声音先入\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 8\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"0:21-0:25\",\n        \"durationSec\": 4,\n        \"sceneType\": \"素材\",\n        \"title\": \"结尾引导\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"最终引导观众行动\",\n        \"taskDescription\": \"从素材库选取项目外立面或品牌标识镜头\",\n        \"visualDescription\": \"项目外立面实景，现代建筑，天空明亮，下方有小区入口\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"想看户型？私信我\",\n        \"shotLanguage\": {\n          \"framing\": \"远景或中景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍\",\n          \"composition\": \"建筑居中，展现整体外观\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"渐变过渡\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 3\n        },\n        \"assetQuery\": \"项目外立面 小区入口 实景 现代建筑\"\n      }\n    ],\n    \"riskNotes\": []\n  },\n  \"memberDelivery\": {\n    \"tasks\": [\n      {\n        \"taskNo\": 1,\n        \"sceneNo\": 1,\n        \"script\": \"你是不是也觉得小户型没人看了？\",\n        \"location\": \"样板间客厅\",\n        \"posture\": \"站着，面对镜头\",\n        \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]\n      },\n      {\n        \"taskNo\": 2,\n        \"sceneNo\": 4,\n        \"script\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"location\": \"样板间客厅\",\n        \"posture\": \"站着，面对镜头\",\n        \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]\n      }\n    ]\n  },\n  \"workerDelivery\": {\n    \"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\",\n    \"bgm\": \"轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感\",\n    \"toneOfVoice\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\",\n    \"estimatedDuration\": \"30-45秒\",\n    \"scenes\": [\n      {\n        \"sceneNo\": 1,\n        \"timeRange\": \"0:00-0:05\",\n        \"durationSec\": 5,\n        \"sceneType\": \"口播\",\n        \"title\": \"钩子提问\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"开场制造认知反差，吸引注意力\",\n        \"taskDescription\": \"中介在样板间客厅面对镜头，自然抛出问题\",\n        \"visualDescription\": \"中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线\",\n        \"voiceover\": \"你是不是也觉得小户型没人看了？\",\n        \"subtitle\": \"你是不是也觉得小户型没人看了？\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 5\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 2,\n        \"timeRange\": \"0:05-0:08\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"社区底商实景\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"展示生活配套已成熟\",\n        \"taskDescription\": \"从素材库选取社区底商实拍镜头\",\n        \"visualDescription\": \"社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"楼下底商都在营业，日常买菜喝咖啡不出小区\",\n        \"shotLanguage\": {\n          \"framing\": \"全景\",\n          \"cameraMovement\": \"缓慢平移\",\n          \"orientation\": \"平视\",\n          \"composition\": \"街道纵深，商铺在两侧\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"社区底商 餐饮 超市 行人 生活气息 实拍\"\n      },\n      {\n        \"sceneNo\": 3,\n        \"timeRange\": \"0:08-0:11\",\n        \"durationSec\": 3,\n        \"sceneType\": \"素材\",\n        \"title\": \"层高展示\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"突出4米层高的空间舒适感\",\n        \"taskDescription\": \"从素材库选取样板间客厅镜头，强调层高\",\n        \"visualDescription\": \"样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"层高4米，进来感觉特别通透\",\n        \"shotLanguage\": {\n          \"framing\": \"广角全景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍或平视\",\n          \"composition\": \"突出纵向空间，家具尺度适中\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"直接切\",\n          \"pacing\": \"快\",\n          \"minUsableSeconds\": 2\n        },\n        \"assetQuery\": \"样板间 客厅 层高 4米 通透 阳光\"\n      },\n      {\n        \"sceneNo\": 4,\n        \"timeRange\": \"0:11-0:21\",\n        \"durationSec\": 10,\n        \"sceneType\": \"口播\",\n        \"title\": \"核心价值阐述\",\n        \"requiresUserUpload\": true,\n        \"purpose\": \"解释小户型重新受关注的原因，并引导私信\",\n        \"taskDescription\": \"中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词\",\n        \"visualDescription\": \"中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切\",\n        \"voiceover\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"subtitle\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\",\n        \"shotLanguage\": {\n          \"framing\": \"中近景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"平视\",\n          \"composition\": \"人物居中，背景可见客厅\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"手机自拍\",\n          \"location\": \"样板间客厅\",\n          \"posture\": \"站着，面对镜头\",\n          \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]\n        },\n        \"editGuide\": {\n          \"transition\": \"声音先入\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 8\n        },\n        \"assetQuery\": \"\"\n      },\n      {\n        \"sceneNo\": 5,\n        \"timeRange\": \"0:21-0:25\",\n        \"durationSec\": 4,\n        \"sceneType\": \"素材\",\n        \"title\": \"结尾引导\",\n        \"requiresUserUpload\": false,\n        \"purpose\": \"最终引导观众行动\",\n        \"taskDescription\": \"从素材库选取项目外立面或品牌标识镜头\",\n        \"visualDescription\": \"项目外立面实景，现代建筑，天空明亮，下方有小区入口\",\n        \"voiceover\": \"\",\n        \"subtitle\": \"想看户型？私信我\",\n        \"shotLanguage\": {\n          \"framing\": \"远景或中景\",\n          \"cameraMovement\": \"固定\",\n          \"orientation\": \"仰拍\",\n          \"composition\": \"建筑居中，展现整体外观\"\n        },\n        \"filmingGuide\": {\n          \"method\": \"使用团队素材或项目实拍素材\",\n          \"location\": \"根据现场条件选择\",\n          \"posture\": \"不需要出镜\",\n          \"tips\": []\n        },\n        \"editGuide\": {\n          \"transition\": \"渐变过渡\",\n          \"pacing\": \"正常\",\n          \"minUsableSeconds\": 3\n        },\n        \"assetQuery\": \"项目外立面 小区入口 实景 现代建筑\"\n      }\n    ],\n    \"teamAssetQueries\": [\n      \"社区底商 餐饮 超市 行人 生活气息 实拍\",\n      \"样板间 客厅 层高 4米 通透 阳光\",\n      \"项目外立面 小区入口 实景 现代建筑\"\n    ]\n  }\n}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "final_compiler": {
+    "event": "node_finished",
+    "title": "最终结果编译",
+    "node_type": "code",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"status\": \"passed\", \"article\": {\"title\": \"很多人以为小户型过时了？其实……\", \"coverCopy\": \"小户型过气？刚需正在回头\", \"images\": [{\"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"cover\"}, {\"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"body\"}], \"copyText\": \"很多人以为小户型过时了？其实……\\n\\n你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\\n\\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\\n\\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\\n\\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\\n\\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\\n\\n#小户型 #刚需买房 #买房攻略 #社区配套 #层高4米 #预算有限\"}, \"video\": {\"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\", \"estimatedDuration\": \"30-45秒\", \"bgm\": \"轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感\", \"toneOfVoice\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:05\", \"durationSec\": 5, \"sceneType\": \"口播\", \"title\": \"钩子提问\", \"requiresUserUpload\": true, \"purpose\": \"开场制造认知反差，吸引注意力\", \"taskDescription\": \"中介在样板间客厅面对镜头，自然抛出问题\", \"visualDescription\": \"中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线\", \"voiceover\": \"你是不是也觉得小户型没人看了？\", \"subtitle\": \"你是不是也觉得小户型没人看了？\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"平视\", \"composition\": \"人物居中，背景可见客厅\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅\", \"posture\": \"站着，面对镜头\", \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0:05-0:08\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区底商实景\", \"requiresUserUpload\": false, \"purpose\": \"展示生活配套已成熟\", \"taskDescription\": \"从素材库选取社区底商实拍镜头\", \"visualDescription\": \"社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮\", \"voiceover\": \"\", \"subtitle\": \"楼下底商都在营业，日常买菜喝咖啡不出小区\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"缓慢平移\", \"orientation\": \"平视\", \"composition\": \"街道纵深，商铺在两侧\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"社区底商 餐饮 超市 行人 生活气息 实拍\"}, {\"sceneNo\": 3, \"timeRange\": \"0:08-0:11\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"层高展示\", \"requiresUserUpload\": false, \"purpose\": \"突出4米层高的空间舒适感\", \"taskDescription\": \"从素材库选取样板间客厅镜头，强调层高\", \"visualDescription\": \"样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔\", \"voiceover\": \"\", \"subtitle\": \"层高4米，进来感觉特别通透\", \"shotLanguage\": {\"framing\": \"广角全景\", \"cameraMovement\": \"固定\", \"orientation\": \"仰拍或平视\", \"composition\": \"突出纵向空间，家具尺度适中\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"样板间 客厅 层高 4米 通透 阳光\"}, {\"sceneNo\": 4, \"timeRange\": \"0:11-0:21\", \"durationSec\": 10, \"sceneType\": \"口播\", \"title\": \"核心价值阐述\", \"requiresUserUpload\": true, \"purpose\": \"解释小户型重新受关注的原因，并引导私信\", \"taskDescription\": \"中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词\", \"visualDescription\": \"中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切\", \"voiceover\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\", \"subtitle\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"平视\", \"composition\": \"人物居中，背景可见客厅\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅\", \"posture\": \"站着，面对镜头\", \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]}, \"editGuide\": {\"transition\": \"声音先入\", \"pacing\": \"正常\", \"minUsableSeconds\": 8}, \"assetQuery\": \"\"}, {\"sceneNo\": 5, \"timeRange\": \"0:21-0:25\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"结尾引导\", \"requiresUserUpload\": false, \"purpose\": \"最终引导观众行动\", \"taskDescription\": \"从素材库选取项目外立面或品牌标识镜头\", \"visualDescription\": \"项目外立面实景，现代建筑，天空明亮，下方有小区入口\", \"voiceover\": \"\", \"subtitle\": \"想看户型？私信我\", \"shotLanguage\": {\"framing\": \"远景或中景\", \"cameraMovement\": \"固定\", \"orientation\": \"仰拍\", \"composition\": \"建筑居中，展现整体外观\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"项目外立面 小区入口 实景 现代建筑\"}]}, \"quality\": {\"riskTerms\": [\"合规敏感表述\", \"合规敏感表述\"]}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  },
+  "end": {
+    "event": "node_finished",
+    "title": "输出",
+    "node_type": "end",
+    "status": "succeeded",
+    "outputs": {
+      "final_result_json": "{\"status\": \"passed\", \"article\": {\"title\": \"很多人以为小户型过时了？其实……\", \"coverCopy\": \"小户型过气？刚需正在回头\", \"images\": [{\"cosPath\": \"https://example.com/facade.jpg\", \"role\": \"cover\"}, {\"cosPath\": \"https://example.com/living-room.jpg\", \"role\": \"body\"}], \"copyText\": \"很多人以为小户型过时了？其实……\\n\\n你是不是也觉得小户型没人看了？其实最近好多预算有限又不想等配套的刚需，回头在看小户型。\\n\\n什么人看？预算卡得紧，但又想配套现成的。不画饼，楼下就有底商在营业，日常买菜吃饭不用等。\\n\\n这个盘80万方的体量，住约3万人。配套不是图纸上的，是已经落地的。底商开了一段时间，客流真的看得见。\\n\\n别以为小户型就憋屈。这盘4米层高，进去感觉比很多普通住宅敞亮。面积虽小，但层高补回来了。\\n\\n有兴趣的私信我，发你具体的户型图和看房安排。先看看合不合适，不强推。\\n\\n#小户型 #刚需买房 #买房攻略 #社区配套 #层高4米 #预算有限\"}, \"video\": {\"storyOutline\": \"以中介口吻提问“是不是觉得小户型没人看了”开场，随即用镜头带看一个配套成熟的超大社区，展示楼下商业实景和4米层高空间，结尾自然引导私信了解，整体节奏轻快不催促。\", \"estimatedDuration\": \"30-45秒\", \"bgm\": \"轻松愉快的生活化BGM，节奏轻快不抢话，底商镜头辅以环境音增强真实感\", \"toneOfVoice\": \"亲切的本地中介口语化表达，语气轻松不紧迫，像是朋友在分享一个被忽略的好选择。\", \"scenes\": [{\"sceneNo\": 1, \"timeRange\": \"0:00-0:05\", \"durationSec\": 5, \"sceneType\": \"口播\", \"title\": \"钩子提问\", \"requiresUserUpload\": true, \"purpose\": \"开场制造认知反差，吸引注意力\", \"taskDescription\": \"中介在样板间客厅面对镜头，自然抛出问题\", \"visualDescription\": \"中介站在样板间客厅中央，面向镜头，背景是沙发和落地窗，自然光线\", \"voiceover\": \"你是不是也觉得小户型没人看了？\", \"subtitle\": \"你是不是也觉得小户型没人看了？\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"平视\", \"composition\": \"人物居中，背景可见客厅\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅\", \"posture\": \"站着，面对镜头\", \"tips\": [\"手机横屏拍摄，画质1080p以上\", \"语速放慢，像跟朋友聊天\", \"开头和结尾各多录2秒\"]}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"正常\", \"minUsableSeconds\": 5}, \"assetQuery\": \"\"}, {\"sceneNo\": 2, \"timeRange\": \"0:05-0:08\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"社区底商实景\", \"requiresUserUpload\": false, \"purpose\": \"展示生活配套已成熟\", \"taskDescription\": \"从素材库选取社区底商实拍镜头\", \"visualDescription\": \"社区底商街景，有餐饮店、超市门面，行人路过或购物，光线明亮\", \"voiceover\": \"\", \"subtitle\": \"楼下底商都在营业，日常买菜喝咖啡不出小区\", \"shotLanguage\": {\"framing\": \"全景\", \"cameraMovement\": \"缓慢平移\", \"orientation\": \"平视\", \"composition\": \"街道纵深，商铺在两侧\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"社区底商 餐饮 超市 行人 生活气息 实拍\"}, {\"sceneNo\": 3, \"timeRange\": \"0:08-0:11\", \"durationSec\": 3, \"sceneType\": \"素材\", \"title\": \"层高展示\", \"requiresUserUpload\": false, \"purpose\": \"突出4米层高的空间舒适感\", \"taskDescription\": \"从素材库选取样板间客厅镜头，强调层高\", \"visualDescription\": \"样板间客厅全景，天花板高挑，阳光从窗户洒入，空间开阔\", \"voiceover\": \"\", \"subtitle\": \"层高4米，进来感觉特别通透\", \"shotLanguage\": {\"framing\": \"广角全景\", \"cameraMovement\": \"固定\", \"orientation\": \"仰拍或平视\", \"composition\": \"突出纵向空间，家具尺度适中\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"直接切\", \"pacing\": \"快\", \"minUsableSeconds\": 2}, \"assetQuery\": \"样板间 客厅 层高 4米 通透 阳光\"}, {\"sceneNo\": 4, \"timeRange\": \"0:11-0:21\", \"durationSec\": 10, \"sceneType\": \"口播\", \"title\": \"核心价值阐述\", \"requiresUserUpload\": true, \"purpose\": \"解释小户型重新受关注的原因，并引导私信\", \"taskDescription\": \"中介在样板间客厅，延续第一段口播的穿着和姿态，继续说台词\", \"visualDescription\": \"中介站在样板间客厅，自然面对镜头，语速平缓，表情亲切\", \"voiceover\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\", \"subtitle\": \"其实很多预算有限的刚需又回头看这个80万方的大社区了。70平左右，总价门槛友好，适合想低成本上车、配套现成的朋友。感兴趣私信我，发你户型图或者约时间实地感受。\", \"shotLanguage\": {\"framing\": \"中近景\", \"cameraMovement\": \"固定\", \"orientation\": \"平视\", \"composition\": \"人物居中，背景可见客厅\"}, \"filmingGuide\": {\"method\": \"手机自拍\", \"location\": \"样板间客厅\", \"posture\": \"站着，面对镜头\", \"tips\": [\"保持和第一段相同的穿着和形象\", \"语速放慢，像跟朋友分享\", \"拍两遍，选自然的一条\"]}, \"editGuide\": {\"transition\": \"声音先入\", \"pacing\": \"正常\", \"minUsableSeconds\": 8}, \"assetQuery\": \"\"}, {\"sceneNo\": 5, \"timeRange\": \"0:21-0:25\", \"durationSec\": 4, \"sceneType\": \"素材\", \"title\": \"结尾引导\", \"requiresUserUpload\": false, \"purpose\": \"最终引导观众行动\", \"taskDescription\": \"从素材库选取项目外立面或品牌标识镜头\", \"visualDescription\": \"项目外立面实景，现代建筑，天空明亮，下方有小区入口\", \"voiceover\": \"\", \"subtitle\": \"想看户型？私信我\", \"shotLanguage\": {\"framing\": \"远景或中景\", \"cameraMovement\": \"固定\", \"orientation\": \"仰拍\", \"composition\": \"建筑居中，展现整体外观\"}, \"filmingGuide\": {\"method\": \"使用团队素材或项目实拍素材\", \"location\": \"根据现场条件选择\", \"posture\": \"不需要出镜\", \"tips\": []}, \"editGuide\": {\"transition\": \"渐变过渡\", \"pacing\": \"正常\", \"minUsableSeconds\": 3}, \"assetQuery\": \"项目外立面 小区入口 实景 现代建筑\"}]}, \"quality\": {\"riskTerms\": [\"合规敏感表述\", \"合规敏感表述\"]}}"
+    },
+    "error": null,
+    "execution_metadata": null
+  }
+}

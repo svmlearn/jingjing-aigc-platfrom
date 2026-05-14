@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "name": "资料完整但包含租金/价格风险表达",
+    "purpose": "验证生成节点是否主动避开风险词，质量评审是否能拦截残留风险"
+  },
+  "inputs": {
+    "calendar_task_json": "{\"taskId\":\"task_20260511_001\",\"theme\":\"小户型回归\",\"contentType\":\"article_and_video\",\"platforms\":[\"xiaohongshu\",\"douyin\"],\"contentGoal\":\"种草\",\"targetAudience\":\"刚需客户\",\"summary\":\"低总价上车、成熟配套、租金回报\",\"teamCalendarSource\":\"团队本周内容日历\",\"date\":\"2026-05-11\"}",
+    "viral_references_json": "[{\"id\":\"viral_001\",\"platform\":\"xiaohongshu\",\"title\":\"很多人以为小户型没人看了，其实刚需又开始回头看\",\"structure\":[\"反常识开头\",\"解释变化\",\"落到真实选择\",\"轻CTA\"],\"hook\":\"很多人以为小户型过时了\",\"ctaStyle\":\"想看户型和总价，可以私信\"}]",
+    "image_assets_json": "[{\"assetId\":\"img_001\",\"title\":\"项目外立面\",\"url\":\"https://example.com/facade.jpg\",\"tags\":[\"项目外立面\",\"小区入口\",\"封面\"],\"description\":\"适合承接项目可信度和封面展示\"},{\"assetId\":\"img_002\",\"title\":\"样板间客厅\",\"url\":\"https://example.com/living-room.jpg\",\"tags\":[\"样板间\",\"客厅\",\"空间感\"],\"description\":\"适合讲居住体验\"}]",
+    "fallback_knowledge_text": "项目资料：80万方大社区，约1万户、3万人口，社区内有成熟消费与服务需求。产品有4米层高、商务大堂，70平、200平、250平可对应不同用途。风险资料：历史资料里提到满租、租金区间、低位价格，但这些只能作为内部判断，不能用于对外承诺或营销表达。",
+    "extra_requirement": "口吻更像本地中介，CTA轻一点，不要制造焦虑。"
+  },
+  "expected": {
+    "quality_pass": true,
+    "min_scores": {
+      "compliance": 7,
+      "materialFit": 7,
+      "platformTone": 7
+    }
+  }
+}

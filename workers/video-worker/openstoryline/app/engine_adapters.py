@@ -394,8 +394,13 @@ def _build_fire_red_service_config(
     )
     if clone_enabled:
         tts_config = {
-            "provider": "runninghub",
-            "runninghub": {},
+            "provider": "pixelle_clone",
+            "pixelle_clone": _compact_dict(
+                {
+                    "base_url": settings.tts_pixelle_clone_base_url,
+                    "api_key": settings.tts_pixelle_clone_api_key,
+                }
+            ),
             "clone_enabled": True,
         }
         ref_audio = str(
@@ -403,13 +408,14 @@ def _build_fire_red_service_config(
         ).strip()
         if ref_audio:
             tts_config["ref_audio"] = ref_audio
-        runninghub_api_key = str(
-            voiceover.get("runninghub_api_key")
-            or voiceover.get("runninghubApiKey")
+            tts_config["pixelle_clone"]["ref_audio"] = ref_audio
+        external_voice_id = str(
+            voiceover.get("external_voice_id")
+            or voiceover.get("externalVoiceId")
             or ""
         ).strip()
-        if runninghub_api_key:
-            tts_config["runninghub_api_key"] = runninghub_api_key
+        if external_voice_id:
+            tts_config["pixelle_clone"]["external_voice_id"] = external_voice_id
         return {"tts": tts_config}
 
     if provider == "minimax":

@@ -1,0 +1,375 @@
+{
+  "test_time": "2026-05-12 21:46:57",
+  "base_url": "https://api.dify.ai/v1",
+  "cases": [
+    {
+      "case_name": "case01_v3_full_with_compliance_risk_flash",
+      "output_file": "docs/探索/2026-05-11-用dify来测试链路/results/v3_flash_manual/case01_v3_full_with_compliance_risk_flash_20260512_215237.json",
+      "success": true,
+      "stage": "workflow",
+      "elapsed": 300.59797620773315,
+      "workflow_run_id": "3fcf5e69-eff9-45df-a6c8-effde230ef00",
+      "parse_ok": true,
+      "error": null,
+      "quality_pass": true,
+      "scores": {
+        "factAccuracy": 8,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 8,
+        "materialFit": 8,
+        "compliance": 8
+      },
+      "problems": [],
+      "missingInputs": [],
+      "risk_hits": [],
+      "article_blocks": 5,
+      "titleStrategy_present": true,
+      "video_scenes_count": 8,
+      "scenes_missing_visualDescription": [],
+      "node_summary": [
+        {
+          "node_id": "start",
+          "title": "开始",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "task_understanding",
+          "title": "任务理解",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 1593
+        },
+        {
+          "node_id": "kb_project_knowledge",
+          "title": "txt 知识库检索",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 0
+        },
+        {
+          "node_id": "creative_strategy",
+          "title": "创作策略规划",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 7451
+        },
+        {
+          "node_id": "video_narrative",
+          "title": "视频叙事结构",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 1912
+        },
+        {
+          "node_id": "scene_breakdown",
+          "title": "分镜与素材策略",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 5000
+        },
+        {
+          "node_id": "delivery_compiler",
+          "title": "视频交付物编译",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "title_cover",
+          "title": "标题与封面策略",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 5124
+        },
+        {
+          "node_id": "article_body",
+          "title": "正文与配图编排",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 7795
+        },
+        {
+          "node_id": "article_compiler",
+          "title": "图文包编译",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "quality_reviewer",
+          "title": "质量评审",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "if_else_needs_rewrite",
+          "title": "是否需要违规改写",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "content_risk_rewriter",
+          "title": "违规内容改写 LLM",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 10202
+        },
+        {
+          "node_id": "article_package_aggregator",
+          "title": "图文内容包候选聚合器",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "video_script_aggregator",
+          "title": "视频脚本候选聚合器",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "final_compiler",
+          "title": "最终结果编译",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "end",
+          "title": "输出",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        }
+      ]
+    },
+    {
+      "case_name": "case02_v3_no_images_flash",
+      "output_file": "docs/探索/2026-05-11-用dify来测试链路/results/v3_flash_manual/case02_v3_no_images_flash_20260512_215604.json",
+      "success": true,
+      "stage": "workflow",
+      "elapsed": 207.03595280647278,
+      "workflow_run_id": "21b93616-9c26-4ef4-adb1-0f5868380ccd",
+      "parse_ok": true,
+      "error": null,
+      "quality_pass": false,
+      "scores": {
+        "factAccuracy": 8,
+        "projectFit": 8,
+        "viralStructure": 8,
+        "platformTone": 8,
+        "materialFit": 6,
+        "compliance": 9
+      },
+      "problems": [
+        "缺少可用图片素材"
+      ],
+      "missingInputs": [
+        "图文图片素材"
+      ],
+      "risk_hits": [],
+      "article_blocks": 6,
+      "titleStrategy_present": true,
+      "video_scenes_count": 6,
+      "scenes_missing_visualDescription": [],
+      "node_summary": [
+        {
+          "node_id": "start",
+          "title": "开始",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "task_understanding",
+          "title": "任务理解",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 1549
+        },
+        {
+          "node_id": "kb_project_knowledge",
+          "title": "txt 知识库检索",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 0
+        },
+        {
+          "node_id": "creative_strategy",
+          "title": "创作策略规划",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 6651
+        },
+        {
+          "node_id": "title_cover",
+          "title": "标题与封面策略",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 2048
+        },
+        {
+          "node_id": "video_narrative",
+          "title": "视频叙事结构",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 2031
+        },
+        {
+          "node_id": "article_body",
+          "title": "正文与配图编排",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 4796
+        },
+        {
+          "node_id": "article_compiler",
+          "title": "图文包编译",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "scene_breakdown",
+          "title": "分镜与素材策略",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 6854
+        },
+        {
+          "node_id": "delivery_compiler",
+          "title": "视频交付物编译",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "quality_reviewer",
+          "title": "质量评审",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "if_else_needs_rewrite",
+          "title": "是否需要违规改写",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "article_package_aggregator",
+          "title": "图文内容包候选聚合器",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "video_script_aggregator",
+          "title": "视频脚本候选聚合器",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "final_compiler",
+          "title": "最终结果编译",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "end",
+          "title": "输出",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        }
+      ]
+    },
+    {
+      "case_name": "case03_v3_weak_knowledge_flash",
+      "output_file": "docs/探索/2026-05-11-用dify来测试链路/results/v3_flash_manual/case03_v3_weak_knowledge_flash_20260512_215927.json",
+      "success": true,
+      "stage": "workflow",
+      "elapsed": 20.251077890396118,
+      "workflow_run_id": "0a816aa2-fb90-4e5a-8842-22ef9823dd8b",
+      "parse_ok": false,
+      "error": null,
+      "quality_pass": null,
+      "scores": null,
+      "problems": null,
+      "missingInputs": null,
+      "risk_hits": [],
+      "article_blocks": 0,
+      "titleStrategy_present": false,
+      "video_scenes_count": 0,
+      "scenes_missing_visualDescription": [],
+      "node_summary": [
+        {
+          "node_id": "start",
+          "title": "开始",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": null
+        },
+        {
+          "node_id": "task_understanding",
+          "title": "任务理解",
+          "status": "succeeded",
+          "error": null,
+          "elapsed_time": null,
+          "total_tokens": 1907
+        },
+        {
+          "node_id": "kb_project_knowledge",
+          "title": "txt 知识库检索",
+          "status": "failed",
+          "error": "Query variable is not string type.",
+          "elapsed_time": null,
+          "total_tokens": null
+        }
+      ]
+    }
+  ]
+}
