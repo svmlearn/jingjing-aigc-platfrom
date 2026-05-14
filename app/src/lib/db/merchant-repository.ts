@@ -8,6 +8,7 @@ import type {
   MerchantPlan,
   MerchantProfileDto,
   MerchantProfileInput,
+  MerchantTeamMemberDto,
   MerchantTeamRole,
   MerchantWorkspaceDto,
 } from "@/contracts/merchant";
@@ -323,6 +324,32 @@ async function getActiveMerchantTeamMemberByUserId(
   }
 
   return (data as unknown as MerchantTeamMemberRow | null) ?? null;
+}
+
+export async function listActiveMerchantTeamMembersByMerchant(
+  merchantId: string,
+): Promise<MerchantTeamMemberDto[]> {
+  if (!isSupabaseAdminConfigured()) {
+    return [];
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_team_members")
+    .select(merchantTeamMemberSelect)
+    .eq("merchant_id", merchantId)
+    .eq("status", "active")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    if (isMissingRelationError(error.message)) {
+      return [];
+    }
+
+    throw new ApiError(500, "MERCHANT_TEAM_MEMBER_LIST_FAILED", error.message);
+  }
+
+  return ((data ?? []) as unknown as MerchantTeamMemberRow[]).map(mapMerchantTeamMember);
 }
 
 async function ensureMerchantOwnerMembership(input: {
@@ -646,6 +673,20 @@ function mapInviteRedemptionError(message: string): ApiError {
   }
 
   return new ApiError(500, "INVITATION_CODE_REDEEM_FAILED", message);
+}
+
+function mapMerchantTeamMember(row: MerchantTeamMemberRow): MerchantTeamMemberDto {
+  return {
+    id: row.id,
+    merchantId: row.merchant_id,
+    userId: row.user_id,
+    role: row.role,
+    status: row.status,
+    displayName: row.display_name,
+    invitedByUserId: row.invited_by_user_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 function isMissingRelationError(message: string) {

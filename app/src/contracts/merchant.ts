@@ -36,6 +36,18 @@ export type MerchantProfileDto = {
 
 export type MerchantTeamRole = "owner" | "member";
 
+export type MerchantTeamMemberDto = {
+  id: string;
+  merchantId: string;
+  userId: string;
+  role: MerchantTeamRole;
+  status: "active" | "disabled";
+  displayName?: string | null;
+  invitedByUserId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type MerchantWorkspaceDto = {
   merchantProfile: MerchantProfileDto;
   role: MerchantTeamRole;

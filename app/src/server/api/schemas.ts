@@ -234,6 +234,17 @@ export const dailyContentTasksQuerySchema = z.object({
     .nullish(),
 });
 
+export const createContentGenerationBatchSchema = z.object({
+  date: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish(),
+  days: z.number().int().min(1).max(7).optional(),
+  memberScope: z.enum(["self", "active_members"]).optional(),
+  extraRequirement: z.string().trim().max(1000).nullish(),
+});
+
 export const platformAdminBootstrapSchema = z.object({
   setupSecret: z.string().trim().min(1).max(200),
   email: z.email().max(254),
