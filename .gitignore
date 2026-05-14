@@ -39,6 +39,7 @@ app/supabase/.temp/
 # Temporary files
 tmp/
 temp/
+.tmp/
 .cache/
 .worktrees/
 

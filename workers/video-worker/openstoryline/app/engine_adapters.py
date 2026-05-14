@@ -387,6 +387,31 @@ def _build_fire_red_service_config(
         return {}
 
     provider = str(voiceover.get("provider") or settings.tts_provider).strip()
+    clone_enabled = _as_bool(
+        voiceover.get("clone_enabled")
+        or voiceover.get("cloneEnabled")
+        or provider in {"pixelle_clone", "pixelle_runninghub_clone"}
+    )
+    if clone_enabled:
+        tts_config = {
+            "provider": "runninghub",
+            "runninghub": {},
+            "clone_enabled": True,
+        }
+        ref_audio = str(
+            voiceover.get("ref_audio") or voiceover.get("refAudio") or ""
+        ).strip()
+        if ref_audio:
+            tts_config["ref_audio"] = ref_audio
+        runninghub_api_key = str(
+            voiceover.get("runninghub_api_key")
+            or voiceover.get("runninghubApiKey")
+            or ""
+        ).strip()
+        if runninghub_api_key:
+            tts_config["runninghub_api_key"] = runninghub_api_key
+        return {"tts": tts_config}
+
     if provider == "minimax":
         provider_config = _compact_dict(
             {
@@ -420,6 +445,14 @@ def _build_fire_red_service_config(
             provider: provider_config,
         }
     }
+
+
+def _as_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+    return bool(value)
 
 
 def _build_fire_red_prompt(
