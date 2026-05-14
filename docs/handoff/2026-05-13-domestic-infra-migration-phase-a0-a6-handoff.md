@@ -44,6 +44,9 @@
 - completion audit 已写入：`docs/progress/2026-05-13-domestic-migration-completion-audit.md`
 - phase1 e2e pending 模板已写入：`docs/progress/2026-05-13-domestic-migration-phase1-e2e-verification.md`
 - 真实资源 runbook 已写入：`docs/handoff/2026-05-13-domestic-phase1-real-resource-runbook.md`
+- 国内单机部署样例已写入：`deploy/domestic/`
+- 资源到位前 readiness checklist 已写入：`docs/handoff/2026-05-14-domestic-resource-readiness-checklist.md`
+- A0-A9 真实进度和 Supabase/Vercel 依赖审计已写入：`docs/progress/2026-05-14-domestic-resource-independent-hardening.md`
 - 补齐 `POST /api/content/video-scripts/test-draft`，让视频工作台的“视频链路测试”按钮可在 PostgreSQL 模式下真实创建 `source_items` / `content_drafts` / `content_variants`。
 - test draft route 在 production 下需要显式配置 `VIDEO_CHAIN_TEST_ENTRYPOINT_ENABLED=1`；默认不对正式生产打开。
 
@@ -93,6 +96,7 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 - 已检查 `app/.env*`、`workers/video-worker/.env*` 和当前进程环境，未发现真实国内 PostgreSQL / COS / worker key。
 - 用户确认本机权限已开后，已再次检查 worktree 环境：仍只有 example env 文件，当前进程环境也没有真实 PostgreSQL / COS / worker / test-entrypoint 变量。
 - 已在正确 worktree 执行 `python3 .codex/skills/long-task-gate/scripts/check.py --skip-verifier`，最新时间 `2026-05-13T23:26:10+08:00`，仍只失败在 `phase1_e2e_verification_doc_contains_pass_markers`，符合“真实 e2e 证据未完成”的预期。
+- 已运行 `bash deploy/domestic/scripts/verify-templates.sh`，部署模板存在性、PM2 配置语法和禁止 completion marker 检查通过。
 
 未验证：
 
@@ -116,6 +120,8 @@ node app/scripts/create-domestic-password-hash.mjs test-password | wc -c
 ## 下一步建议
 
 恢复工作时，优先按 `docs/handoff/2026-05-13-domestic-phase1-real-resource-runbook.md` 继续。
+
+资源购买完成但还没跑 e2e 前，先按 `docs/handoff/2026-05-14-domestic-resource-readiness-checklist.md` 填参数、装配置、跑 preflight。单机部署样例在 `deploy/domestic/`。
 
 1. 准备可用 PostgreSQL，执行：
 

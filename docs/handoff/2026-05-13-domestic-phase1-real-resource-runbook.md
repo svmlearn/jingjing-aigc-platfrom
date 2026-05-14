@@ -4,6 +4,13 @@
 
 This runbook is for first-phase domestic IP verification only.
 
+Before using it, install the resource-independent single-server materials from:
+
+```text
+deploy/domestic/
+docs/handoff/2026-05-14-domestic-resource-readiness-checklist.md
+```
+
 Do:
 
 - run the app on a domestic server IP
@@ -96,6 +103,16 @@ curl -sS -i "http://<domestic-ip>:<port>/api/health"
 
 Record the redacted response in the e2e verification doc.
 
+If using the provided single-server samples, install:
+
+```bash
+sudo cp deploy/domestic/nginx/jingjing-domestic.conf /etc/nginx/conf.d/
+sudo cp deploy/domestic/systemd/jingjing-app.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now jingjing-app
+sudo nginx -t && sudo systemctl reload nginx
+```
+
 ## 5. COS browser upload prerequisites
 
 Before mobile testing, verify COS browser upload policy manually in Tencent Cloud:
@@ -161,6 +178,14 @@ Create host directories:
 
 ```bash
 sudo mkdir -p /srv/jingjing-video-worker/{tmp,models,outputs,firered/.storyline,firered/resource,firered/outputs}
+```
+
+If using the provided single-server samples:
+
+```bash
+sudo cp deploy/domestic/systemd/jingjing-worker-compose.service /etc/systemd/system/
+ln -sf /etc/jingjing/worker.env workers/video-worker/.env
+sudo systemctl daemon-reload
 ```
 
 Validate compose before starting services:
@@ -237,6 +262,8 @@ If a worker must be restarted:
 ```bash
 cd workers/video-worker
 docker compose restart video-worker
+# or, if installed through the phase1 systemd sample:
+sudo systemctl restart jingjing-worker-compose
 ```
 
 If the test must be abandoned:

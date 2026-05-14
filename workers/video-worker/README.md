@@ -268,7 +268,7 @@ Only requested `desiredOutputs` are uploaded and written back; for example,
 3. Make sure the host directories exist on the worker machine:
 
 ```bash
-sudo mkdir -p /srv/jingjing-video-worker/{tmp,models,outputs}
+sudo mkdir -p /srv/jingjing-video-worker/{tmp,models,outputs,firered/.storyline,firered/resource,firered/outputs}
 ```
 
 4. Start the local skeleton stack:
@@ -281,18 +281,20 @@ This local command uses `.env.example`, which explicitly sets
 `OPENSTORYLINE_ENGINE_ADAPTER=skeleton`. Server rendering should use
 `firered.env.example` and `docker-compose.firered.yml` instead.
 
-To verify real staging dependencies without printing secrets, run:
+To verify real database and COS dependencies without printing secrets, run:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path -LiteralPath '.').Path
-python -m worker.app.real_io_smoke
+python -m worker.app.real_io_smoke --env-file .env
 ```
 
-The smoke requires `SUPABASE_DB_URL`, `COS_SECRET_ID`, `COS_SECRET_KEY`,
-`COS_BUCKET`, and `COS_REGION`. It performs a read-only database check for
-`video_edit_jobs` and `asset_objects`, then uploads, downloads, verifies, and
-deletes one small object under `worker-real-smoke/` in Tencent COS. Missing
-environment variables are reported by name only; secret values are never echoed.
+The smoke prefers `WORKER_DATABASE_URL` and `WORKER_COS_*`. `SUPABASE_DB_URL`
+and shared `COS_*` remain compatibility fallbacks. It performs a read-only
+database check for `video_edit_jobs` and `asset_objects`, enforces
+`WORKER_MAX_CONCURRENCY=1` for domestic phase1, then uploads, downloads,
+verifies, and deletes one small object under `worker-real-smoke/` in Tencent
+COS. Missing environment variables are reported by name only; secret values are
+never echoed.
 
 ## Current scope
 
