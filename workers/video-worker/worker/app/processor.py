@@ -7,7 +7,11 @@ from typing import Any
 from .config import Settings
 from .cos_client import TencentCosClient
 from .db import VideoJobRepository
-from .directive import DirectiveValidationError, build_production_directive
+from .directive import (
+    DirectiveValidationError,
+    ProductionDirective,
+    build_production_directive,
+)
 from .models import EngineRunResult, InputAssetContractError, UploadedAsset, VideoJob
 from .openstoryline_client import OpenStorylineClient
 
@@ -30,6 +34,17 @@ class InputDownloadError(RuntimeError):
     def __init__(self, storage_key: str, original_error: Exception) -> None:
         self.storage_key = storage_key
         super().__init__(f"failed to download input asset {storage_key}: {original_error}")
+
+
+class VoiceProfileReferenceError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_code: str = "voice_profile_reference_invalid",
+    ) -> None:
+        self.failure_code = failure_code
+        super().__init__(message)
 
 
 class EngineRunError(RuntimeError):
@@ -310,6 +325,33 @@ def _openstoryline_result_payload(
     }
 
 
+def _voiceover_artifacts_summary(
+    raw_response: dict[str, Any],
+    production_config: dict[str, Any],
+) -> dict[str, Any]:
+    voiceover_config = _nested_dict(production_config, "voiceover")
+    openstoryline = _openstoryline_result_payload(raw_response, production_config)
+    voiceover = _dict_or_empty(openstoryline.get("voiceover"))
+    segments = voiceover.get("voiceover")
+    if not isinstance(segments, list):
+        segments = []
+    total_duration_ms = 0
+    for segment in segments:
+        if isinstance(segment, dict) and isinstance(segment.get("duration"), int | float):
+            total_duration_ms += int(segment["duration"])
+
+    return {
+        "provider": voiceover_config.get("provider"),
+        "mode": voiceover_config.get("mode", "system"),
+        "clone_enabled": bool(voiceover_config.get("clone_enabled")),
+        "voice_profile_id": voiceover_config.get("voice_profile_id"),
+        "ref_audio_asset_id": voiceover_config.get("ref_audio_asset_id"),
+        "segment_count": len(segments),
+        "total_duration_ms": total_duration_ms,
+        "error_summary": None,
+    }
+
+
 class JobProcessor:
     def __init__(
         self,
@@ -351,6 +393,53 @@ class JobProcessor:
                 }
             )
         return downloaded_assets
+
+    def _prepare_voice_profile_reference(
+        self,
+        production_config: dict[str, Any],
+        input_dir: Path,
+    ) -> dict[str, Any]:
+        voiceover = _nested_dict(production_config, "voiceover")
+        if voiceover.get("mode") != "voice_profile":
+            return production_config
+        ref_audio_asset = _nested_dict(voiceover, "ref_audio_asset", "refAudioAsset")
+        storage_key = str(
+            ref_audio_asset.get("storage_key") or ref_audio_asset.get("storageKey") or ""
+        ).strip()
+        if not storage_key:
+            raise VoiceProfileReferenceError(
+                "voice_profile voiceover requires ref_audio_asset.storage_key"
+            )
+        bucket_name = str(
+            ref_audio_asset.get("bucket_name") or ref_audio_asset.get("bucketName") or ""
+        ).strip()
+        storage_provider = str(
+            ref_audio_asset.get("storage_provider")
+            or ref_audio_asset.get("storageProvider")
+            or "tencent_cos"
+        ).strip()
+        if storage_provider != "tencent_cos":
+            raise VoiceProfileReferenceError(
+                "voice_profile reference audio must use tencent_cos"
+            )
+
+        local_path = input_dir / "voice_profile_ref_audio" / Path(storage_key).name
+        try:
+            self._cos_client.download_file(
+                storage_key=storage_key,
+                destination=local_path,
+                bucket_name=bucket_name or None,
+            )
+        except Exception as exc:
+            raise InputDownloadError(storage_key, exc) from exc
+
+        return {
+            **production_config,
+            "voiceover": {
+                **voiceover,
+                "ref_audio": str(local_path),
+            },
+        }
 
     def _upload_outputs(
         self,
@@ -501,10 +590,32 @@ class JobProcessor:
         run_result: EngineRunResult | None = None
         try:
             input_assets = self._download_inputs(job, input_dir)
+            directive_production_config = self._prepare_voice_profile_reference(
+                directive.production_config,
+                input_dir,
+            )
+            if directive_production_config is not directive.production_config:
+                directive = ProductionDirective(
+                    job_id=directive.job_id,
+                    execution_mode=directive.execution_mode,
+                    script_text=directive.script_text,
+                    script_locked=directive.script_locked,
+                    target_platform=directive.target_platform,
+                    aspect_ratio=directive.aspect_ratio,
+                    desired_outputs=directive.desired_outputs,
+                    locked_fields=directive.locked_fields,
+                    source=directive.source,
+                    material_context=directive.material_context,
+                    production_config=directive_production_config,
+                )
             log_payload["steps"].append(
                 {
                     "stage": "downloading_inputs",
                     "inputs_downloaded": len(input_assets),
+                    "voice_profile_ref_audio_prepared": (
+                        directive.production_config.get("voiceover", {}).get("mode")
+                        == "voice_profile"
+                    ),
                 }
             )
             self._repository.update_stage(
@@ -687,6 +798,10 @@ class JobProcessor:
                         run_result.raw_response,
                         directive.production_config,
                     ),
+                    "voiceover_artifacts": _voiceover_artifacts_summary(
+                        run_result.raw_response,
+                        directive.production_config,
+                    ),
                     "engine_response": run_result.raw_response,
                 },
                 log_payload=log_payload,
@@ -762,6 +877,29 @@ class JobProcessor:
                 status="failed_retryable",
             )
             raise
+        except VoiceProfileReferenceError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "voice_profile_reference",
+                    "status": "failed",
+                    "failure_code": exc.failure_code,
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="voice_profile_reference_failed",
+                failure_reason=f"{exc.failure_code}: {exc}",
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key="voiceover",
+                        production_config=directive.production_config,
+                    ),
+                },
+                status="failed_manual",
+            )
+            return
         except EngineRunError as exc:
             failed_module_key = _openstoryline_failure_module_key(exc)
             log_payload["steps"].append(

@@ -7,7 +7,8 @@ from .models import VideoJob
 
 
 ALLOWED_DESIRED_OUTPUTS = frozenset({"final_video", "cover", "subtitles"})
-ALLOWED_VOICEOVER_PROVIDERS = frozenset({"bytedance_bigtts", "minimax", "302"})
+ALLOWED_VOICEOVER_PROVIDERS = frozenset({"bytedance_bigtts", "minimax", "302", "pixelle_clone"})
+ALLOWED_VOICEOVER_MODES = frozenset({"system", "voice_profile"})
 ALLOWED_SUBTITLE_STYLES = frozenset({"platform_default", "bold_caption"})
 ALLOWED_BGM_FILTER_KEYS = frozenset({"mood", "scene", "genre", "lang", "id"})
 
@@ -132,9 +133,16 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
     subtitles = _dict_value(payload, "subtitles")
     render = _dict_value(payload, "render")
 
-    provider = _string_value(voiceover, "provider") or "bytedance_bigtts"
+    mode = _string_value(voiceover, "mode") or "system"
+    if mode not in ALLOWED_VOICEOVER_MODES:
+        _raise_invalid_production_config("unsupported voiceover mode")
+    provider = _string_value(voiceover, "provider") or (
+        "pixelle_clone" if mode == "voice_profile" else "bytedance_bigtts"
+    )
     if provider not in ALLOWED_VOICEOVER_PROVIDERS:
         _raise_invalid_production_config("unsupported voiceover provider")
+    if mode == "voice_profile" and provider != "pixelle_clone":
+        _raise_invalid_production_config("voice_profile voiceover must use pixelle_clone provider")
 
     subtitle_style = _string_value(subtitles, "style") or "platform_default"
     if subtitle_style not in ALLOWED_SUBTITLE_STYLES:
@@ -146,6 +154,7 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
 
     normalized_voiceover: dict[str, Any] = {
         "enabled": _optional_bool_value(voiceover, "enabled", default=True),
+        "mode": mode,
         "provider": provider,
         "volume": _optional_number_value(
             voiceover,
@@ -158,6 +167,25 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
     voice_style = _string_value(voiceover, "voiceStyle", "voice_style")
     if voice_style:
         normalized_voiceover["voice_style"] = voice_style
+    speaker = _string_value(voiceover, "speaker")
+    if speaker and mode == "system":
+        normalized_voiceover["speaker"] = speaker
+    if mode == "voice_profile":
+        voice_profile_id = _string_value(voiceover, "voiceProfileId", "voice_profile_id")
+        ref_audio_asset_id = _string_value(voiceover, "refAudioAssetId", "ref_audio_asset_id")
+        if not voice_profile_id or not ref_audio_asset_id:
+            _raise_invalid_production_config(
+                "voice_profile voiceover requires voiceProfileId and refAudioAssetId"
+            )
+        normalized_voiceover["clone_enabled"] = True
+        normalized_voiceover["voice_profile_id"] = voice_profile_id
+        normalized_voiceover["ref_audio_asset_id"] = ref_audio_asset_id
+        ref_audio_asset = _dict_value(voiceover, "refAudioAsset", "ref_audio_asset")
+        if ref_audio_asset:
+            normalized_voiceover["ref_audio_asset"] = ref_audio_asset
+        voice_profile = _dict_value(voiceover, "voiceProfile", "voice_profile")
+        if voice_profile:
+            normalized_voiceover["voice_profile"] = voice_profile
     speed = _optional_number_value(
         voiceover,
         "speed",

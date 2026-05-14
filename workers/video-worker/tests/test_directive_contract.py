@@ -195,6 +195,46 @@ class DirectiveContractTests(unittest.TestCase):
         self.assertEqual(0.35, directive.production_config["bgm"]["volume"])
         self.assertTrue(directive.production_config["render"]["include_original_audio"])
 
+    def test_directive_normalizes_voice_profile_voiceover(self):
+        job = make_job(
+            {
+                "executionMode": "staging_worker",
+                "script": {
+                    "text": "locked script",
+                    "locked": True,
+                },
+                "productionConfig": {
+                    "voiceover": {
+                        "enabled": True,
+                        "mode": "voice_profile",
+                        "voiceProfileId": "profile-1",
+                        "refAudioAssetId": "asset-1",
+                        "refAudioAsset": {
+                            "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                            "bucket_name": "bucket",
+                            "storage_provider": "tencent_cos",
+                        },
+                    },
+                },
+                "productionDirective": {
+                    "targetPlatform": "douyin",
+                    "desiredOutputs": ["final_video"],
+                },
+            }
+        )
+
+        directive = build_production_directive(job)
+
+        self.assertEqual("voice_profile", directive.production_config["voiceover"]["mode"])
+        self.assertEqual("pixelle_clone", directive.production_config["voiceover"]["provider"])
+        self.assertTrue(directive.production_config["voiceover"]["clone_enabled"])
+        self.assertEqual("profile-1", directive.production_config["voiceover"]["voice_profile_id"])
+        self.assertEqual("asset-1", directive.production_config["voiceover"]["ref_audio_asset_id"])
+        self.assertEqual(
+            "voice-profiles/merchant/profile/ref.wav",
+            directive.production_config["voiceover"]["ref_audio_asset"]["storage_key"],
+        )
+
     def test_directive_rejects_unsupported_voiceover_provider(self):
         job = make_job(
             {

@@ -255,6 +255,55 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
         self.assertEqual([], cos_client.downloads)
 
+    def test_voice_profile_reference_audio_is_downloaded_and_summarized(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            engine_client = FakeOpenStorylineClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                engine_client,
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "productionConfig": {
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                            "voiceProfileId": "profile-1",
+                            "refAudioAssetId": "asset-1",
+                            "refAudioAsset": {
+                                "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                "bucket_name": "voice-bucket",
+                                "storage_provider": "tencent_cos",
+                            },
+                        }
+                    },
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.failed)
+        self.assertEqual(
+            "voice-profiles/merchant/profile/ref.wav",
+            cos_client.downloads[0]["storage_key"],
+        )
+        self.assertEqual("voice-bucket", cos_client.downloads[0]["bucket_name"])
+        self.assertEqual(
+            "voice_profile",
+            repository.succeeded["result_payload"]["voiceover_artifacts"]["mode"],
+        )
+        self.assertEqual(
+            "profile-1",
+            repository.succeeded["result_payload"]["voiceover_artifacts"]["voice_profile_id"],
+        )
+
     def test_falsey_non_list_input_assets_marks_failed_manual_without_download(self):
         for input_assets in ("", 0, False):
             with self.subTest(input_assets=input_assets):

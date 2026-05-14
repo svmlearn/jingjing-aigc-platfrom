@@ -53,7 +53,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     lockedFields: ["script", "cta", "target_user", "claims"],
   });
   assert.deepEqual(payload.productionConfig, {
-    voiceover: { enabled: true, provider: "bytedance_bigtts", volume: 2 },
+    voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
     subtitles: { enabled: true, style: "platform_default" },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
@@ -97,7 +97,7 @@ test("buildVideoEditJobInputPayload adds default production config", () => {
   });
 
   assert.deepEqual(payload.productionConfig, {
-    voiceover: { enabled: true, provider: "bytedance_bigtts", volume: 2 },
+    voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
     subtitles: { enabled: true, style: "platform_default" },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
@@ -131,6 +131,7 @@ test("buildVideoEditJobInputPayload normalizes production config overrides", () 
   assert.deepEqual(payload.productionConfig, {
     voiceover: {
       enabled: true,
+      mode: "system",
       provider: "minimax",
       voiceStyle: "warm_consultant",
       speed: 1.1,
@@ -150,6 +151,33 @@ test("buildVideoEditJobInputPayload normalizes production config overrides", () 
       includeOriginalAudio: true,
     },
   });
+});
+
+test("buildVideoEditJobInputPayload normalizes cloned voice profile config", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [],
+    productionConfig: {
+      voiceover: {
+        enabled: true,
+        mode: "voice_profile",
+        voiceProfileId: "11111111-1111-4111-8111-111111111111",
+        refAudioAssetId: "22222222-2222-4222-8222-222222222222",
+        includeOriginalAudio: true,
+      },
+    },
+  });
+
+  assert.deepEqual(payload.productionConfig.voiceover, {
+    enabled: true,
+    mode: "voice_profile",
+    voiceProfileId: "11111111-1111-4111-8111-111111111111",
+    refAudioAssetId: "22222222-2222-4222-8222-222222222222",
+    volume: 2,
+  });
+  assert.equal(payload.productionConfig.render.includeOriginalAudio, true);
 });
 
 test("buildVideoEditJobInputPayload rejects invalid production config provider", () => {

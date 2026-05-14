@@ -325,9 +325,9 @@ export const platformSettingsUpdateSchema = z.object({
   knowledgeRuntime: knowledgeRuntimeSchema.optional(),
 });
 
-const mediaOwnerTypeSchema = z.enum(["source_item", "content_draft", "content_variant"]);
+const mediaOwnerTypeSchema = z.enum(["source_item", "content_draft", "content_variant", "voice_profile"]);
 
-const mediaAssetTypeSchema = z.enum(["image", "video", "cover", "subtitle"]);
+const mediaAssetTypeSchema = z.enum(["image", "video", "cover", "subtitle", "audio"]);
 
 const videoEditJobStatusSchema = z.enum([
   "pending",
@@ -343,7 +343,7 @@ const videoEditJobStatusSchema = z.enum([
 export const mediaUploadIntentSchema = z.object({
   ownerType: mediaOwnerTypeSchema,
   ownerId: z.uuid(),
-  assetType: z.enum(["image", "video"]),
+  assetType: z.enum(["image", "video", "audio"]),
   fileName: z.string().trim().min(1).max(255),
   mimeType: z.string().trim().min(1).max(200),
   sizeBytes: z.number().int().positive().max(1024 * 1024 * 1024),
@@ -378,8 +378,13 @@ const productionConfigSchema = z
     voiceover: z
       .object({
         enabled: z.boolean().optional(),
+        mode: z.enum(["system", "voice_profile"]).optional(),
         provider: z.enum(["bytedance_bigtts", "minimax", "302"]).optional(),
+        speaker: z.string().trim().max(120).nullish(),
         voiceStyle: z.string().trim().max(120).nullish(),
+        voiceProfileId: z.uuid().optional(),
+        refAudioAssetId: z.uuid().optional(),
+        includeOriginalAudio: z.boolean().optional(),
         speed: z.number().min(0.5).max(2).nullish(),
         volume: z.number().min(0).max(3).nullish(),
       })
@@ -419,6 +424,13 @@ export const createVideoEditJobSchema = z.object({
   inputPayload: z.never().optional(),
   productionConfig: productionConfigSchema.nullish(),
   sourceJobId: z.uuid().nullish(),
+}).strict();
+
+export const createVoiceProfileSchema = z.object({
+  id: z.uuid().optional(),
+  displayName: z.string().trim().min(1).max(80),
+  refAudioAssetId: z.uuid(),
+  authorizationAccepted: z.literal(true),
 }).strict();
 
 export const listVideoEditJobsQuerySchema = z.object({

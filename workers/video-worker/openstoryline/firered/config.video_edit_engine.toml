@@ -128,6 +128,11 @@ api_key = "${TTS_MINIMAX_API_KEY:-}"
 
 
 # ============= AI 转场生成 / AI transition generation ===================
+[generate_voiceover.providers.pixelle_clone]
+base_url = "${TTS_PIXELLE_CLONE_BASE_URL:-}"
+api_key = "${TTS_PIXELLE_CLONE_API_KEY:-}"
+ref_audio = ""
+
 [generate_ai_transition]
 
 [generate_ai_transition.providers.dashscope] # 阿里通义万相 / Alibaba’s Tongyi Wanxiang (Wan) video model
