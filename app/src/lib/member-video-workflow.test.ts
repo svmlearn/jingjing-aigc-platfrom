@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  getMemberVideoDownloadUrl,
   getMemberVideoResultUrl,
   summarizeMemberVideoEditState,
 } from "./member-video-workflow.ts";
@@ -61,6 +62,7 @@ test("member video workflow returns preview and download URL after succeeded job
       },
       {
         assetType: "video",
+        signedDownloadUrl: "https://example.com/member-video-download.mp4",
         signedPreviewUrl: "https://example.com/member-video.mp4",
       },
     ],
@@ -71,7 +73,9 @@ test("member video workflow returns preview and download URL after succeeded job
   });
 
   assert.equal(getMemberVideoResultUrl(job), "https://example.com/member-video.mp4");
+  assert.equal(getMemberVideoDownloadUrl(job), "https://example.com/member-video-download.mp4");
   assert.equal(state.stage, "succeeded");
   assert.equal(state.canPreviewDownload, true);
   assert.equal(state.previewUrl, "https://example.com/member-video.mp4");
+  assert.equal(state.downloadUrl, "https://example.com/member-video-download.mp4");
 });

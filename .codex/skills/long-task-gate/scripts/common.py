@@ -22,20 +22,26 @@ def run_process(args: list[str], cwd: Path | None = None, check: bool = True) ->
     process = subprocess.run(
         args,
         cwd=str(cwd) if cwd else None,
-        text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
     )
+    stdout = process.stdout.decode("utf-8", errors="replace").strip()
+    stderr = process.stderr.decode("utf-8", errors="replace").strip()
     if check and process.returncode != 0:
-        message = process.stderr.strip() or process.stdout.strip() or f"{args[0]} failed"
+        message = stderr or stdout or f"{args[0]} failed"
         raise LongTaskError(message)
-    return process.stdout.strip()
+    return stdout
 
 
 def repo_root(cwd: Path | None = None) -> Path:
     try:
-        return Path(run_process(["git", "rev-parse", "--show-toplevel"], cwd=cwd)).resolve()
+        return Path(
+            run_process(
+                ["git", "-c", "core.quotepath=false", "rev-parse", "--show-toplevel"],
+                cwd=cwd,
+            )
+        ).resolve()
     except LongTaskError:
         return (cwd or Path.cwd()).resolve()
 
@@ -71,7 +77,7 @@ def ensure_state(root: Path) -> None:
 
 def read_json(path: Path) -> dict[str, Any]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(path.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as exc:
         raise LongTaskError(f"Invalid JSON: {path}") from exc
     if not isinstance(value, dict):

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { ContentVariantDto } from "@/contracts/draft";
+import type { MediaAssetDto } from "@/contracts/media";
 import type {
   CreateVideoEditJobRequest,
   PublicVideoEditJobDto,
@@ -29,7 +30,7 @@ import {
   retryVideoEditJob,
 } from "@/lib/db/video-edit-job-repository";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin";
-import { createCosSignedPreviewUrl } from "@/server/api/cos";
+import { createCosSignedReadUrl } from "@/server/api/cos";
 import {
   assertVoiceProfileAccess,
   assertVoiceProfileAudioAsset,
@@ -169,6 +170,7 @@ export async function getVideoEditJobResultAssetRedirectUrlForUser(input: {
   userId: string;
   jobId: string;
   assetId: string;
+  disposition?: "inline" | "attachment";
 }): Promise<string> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const job = await getVideoEditJobById({
@@ -202,9 +204,11 @@ export async function getVideoEditJobResultAssetRedirectUrlForUser(input: {
   }
 
   if (asset.storageProvider === "tencent_cos") {
-    return createCosSignedPreviewUrl({
+    return createCosSignedReadUrl({
       bucketName: asset.bucketName,
       storageKey: asset.storageKey,
+      responseContentDisposition: input.disposition ?? "inline",
+      responseContentType: getPreviewContentType(asset),
     });
   }
 
@@ -277,16 +281,46 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
         ...asset,
         signedPreviewUrl:
           asset.storageProvider === "tencent_cos"
-            ? buildStableVideoResultAssetUrl(job.id, asset.id)
+            ? buildStableVideoResultAssetUrl(job.id, asset.id, "inline")
             : null,
+        signedDownloadUrl:
+          asset.storageProvider === "tencent_cos"
+            ? buildStableVideoResultAssetUrl(job.id, asset.id, "attachment")
+            : asset.signedDownloadUrl ?? asset.signedPreviewUrl ?? asset.originUrl ?? null,
       })),
       ...payloadResultAssets,
     ],
   };
 }
 
-function buildStableVideoResultAssetUrl(jobId: string, assetId: string) {
-  return `/api/video-edit-jobs/${encodeURIComponent(jobId)}/result/${encodeURIComponent(assetId)}`;
+function buildStableVideoResultAssetUrl(
+  jobId: string,
+  assetId: string,
+  disposition: "inline" | "attachment",
+) {
+  return `/api/video-edit-jobs/${encodeURIComponent(jobId)}/result/${encodeURIComponent(
+    assetId,
+  )}?disposition=${disposition}`;
+}
+
+function getPreviewContentType(asset: MediaAssetDto) {
+  if (asset.mimeType) {
+    return asset.mimeType;
+  }
+
+  if (asset.assetType === "video") {
+    return "video/mp4";
+  }
+
+  if (asset.assetType === "cover" || asset.assetType === "image") {
+    return "image/jpeg";
+  }
+
+  if (asset.assetType === "subtitle") {
+    return "text/plain; charset=utf-8";
+  }
+
+  return null;
 }
 
 async function buildServerManagedInputPayload(input: {

@@ -2,7 +2,7 @@
 
 ## 摘要
 
-COS 负责存大文件，数据库负责记录对象归属和状态。前端只拿临时上传凭证，不拿永久密钥；下载给 60 天有效 URL，优先走服务端下载 token URL，再由服务端校验后 302 到 COS 或流式转发。
+COS 负责存大文件，数据库负责记录对象归属和状态。前端只拿临时上传凭证，不拿永久密钥；OpenStoryline / Pexels-compatible / 素材库外部预览给 60 天有效下载入口，优先走服务端下载 token URL，再由服务端校验后 302 到 COS 或流式转发。平台内登录态成片预览可走 app route 短期重签。
 
 ## 依据
 
@@ -29,8 +29,10 @@ COS 上传最容易出问题的点，不是“传不上去”，而是“传上�
 - 客户端传入的 `filename`、`mimeType`、`storageKey` 只作为请求素材，最终 key、owner、bucket 由服务端确认。
 - `Content-Type` 和扩展名不能作为最终安全判断；complete 后必须读取对象头部或交给 worker 做真实类型探测。
 - COS 写入成功和 DB 写入成功不是同一个事务；所有流程必须允许“对象已存在但 DB 失败”和“DB 已存在但对象缺失”两种修复。
-- 下载地址默认不作为永久事实落库；落库的是 `storage_provider + bucket + key`，访问时签发 60 天有效下载 URL。
+- 下载地址默认不作为永久事实落库；落库的是 `storage_provider + bucket + key`，访问时签发业务入口 URL。
 - 60 天下载不能由前端临时密钥签出；COS 文档中临时 key 会限制预签名 URL 实际有效期。可选方案是服务端用受限永久密钥生成 60 天 COS URL，或返回平台下载 URL：`/api/private-media/download/{download_token}`，token 60 天过期，请求时服务端重新签 COS 或代理下载。
+- 平台内成片结果预览可以使用登录态保护的稳定 app route，例如 `/api/video-edit-jobs/{jobId}/result/{assetId}?disposition=inline`。这个 app route 每次请求时重新签短期 COS URL，不等同于给外部系统的 60 天裸 COS URL；用于下载时应提供独立 `?disposition=attachment` 入口。
+- `COS_READ_URL_TTL_SECONDS` 可作为“内部 COS 重签跳转”的短 TTL；只有当响应直接交给 OpenStoryline、Pexels-compatible 接口或不依赖登录态的素材预览时，业务入口本身才必须满足 60 天可访问。
 
 ## 工作边界
 
@@ -109,6 +111,7 @@ quarantined
 - 跨商家或跨用户请求不得返回下载 URL。
 - 素材被 `archived`、`quarantined`、`missing_object` 后，即使 60 天 URL 未到期，也必须在服务端下载入口拦截。
 - 若直接签 COS 60 天 URL，签发用永久密钥只能留在服务端，且 CAM 权限必须限制为目标 bucket 的读对象能力。
+- 平台内成片结果必须区分预览和下载：`signedPreviewUrl` 应走 `inline` 行为并能被 `<video>` 直接播放；`signedDownloadUrl` 应走 `attachment` 行为，由用户点击下载按钮触发。
 
 ## 检查功能
 

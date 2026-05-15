@@ -9,6 +9,10 @@ import type {
   VoiceProfileStatus,
 } from "@/contracts/voice";
 import type { MediaAssetDto } from "@/contracts/media";
+import {
+  VoiceProfileRuleError,
+  replaceCurrentVoiceProfile,
+} from "@/lib/voice-profile-state-machine";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -90,6 +94,10 @@ export async function listVoiceProfiles(input: {
   return attachVoiceProfileAssets(profiles);
 }
 
+export function resetLocalVoiceProfileStoreForTests() {
+  localVoiceProfileStore.voiceProfiles.clear();
+}
+
 export async function createVoiceProfile(input: {
   merchantId: string;
   createdByUserId: string;
@@ -114,40 +122,38 @@ export async function createVoiceProfile(input: {
 
   if (!isSupabaseAdminConfigured()) {
     const now = new Date().toISOString();
-    const profile: VoiceProfileDto = {
+    const replacement = runLocalVoiceProfileReplacement({
       id,
       merchantId: input.merchantId,
       createdByUserId: input.createdByUserId,
-      displayName: input.request.displayName.trim(),
-      status: "ready",
-      provider: "pixelle_clone",
-      externalVoiceId: null,
-      externalModelId: null,
+      displayName: input.request.displayName,
       refAudioAssetId: input.request.refAudioAssetId,
-      authorizationAcceptedAt: now,
-      createdAt: now,
-      updatedAt: null,
+      now,
+    });
+    if (!replacement.currentProfile) {
+      throw new ApiError(500, "VOICE_PROFILE_CREATE_FAILED", "Create voice profile failed.");
+    }
+
+    localVoiceProfileStore.voiceProfiles.set(replacement.currentProfile.id, {
+      ...replacement.currentProfile,
+      refAudioAsset,
+    });
+
+    return {
+      ...replacement.currentProfile,
       refAudioAsset,
     };
-    localVoiceProfileStore.voiceProfiles.set(profile.id, profile);
-    return profile;
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("voice_profiles")
-    .insert({
-      id,
-      merchant_id: input.merchantId,
-      created_by_user_id: input.createdByUserId,
-      display_name: input.request.displayName.trim(),
-      status: "ready",
-      provider: "pixelle_clone",
-      ref_audio_asset_id: input.request.refAudioAssetId,
-      authorization_accepted_at: new Date().toISOString(),
-    })
-    .select(voiceProfileSelect)
-    .single();
+  const { data, error } = await supabase.rpc("replace_current_voice_profile", {
+    p_profile_id: id,
+    p_merchant_id: input.merchantId,
+    p_created_by_user_id: input.createdByUserId,
+    p_display_name: input.request.displayName.trim(),
+    p_ref_audio_asset_id: input.request.refAudioAssetId,
+    p_provider: "pixelle_clone",
+  }).single();
 
   if (error || !data) {
     throw new ApiError(500, "VOICE_PROFILE_CREATE_FAILED", error?.message ?? "Create voice profile failed.");
@@ -157,6 +163,44 @@ export async function createVoiceProfile(input: {
     ...mapVoiceProfile(data as unknown as VoiceProfileRow),
     refAudioAsset,
   };
+}
+
+function runLocalVoiceProfileReplacement(input: {
+  id: string;
+  merchantId: string;
+  createdByUserId: string;
+  displayName: string;
+  refAudioAssetId: string;
+  now: string;
+}) {
+  try {
+    const replacement = replaceCurrentVoiceProfile({
+      profiles: Array.from(localVoiceProfileStore.voiceProfiles.values()),
+      candidate: {
+        id: input.id,
+        merchantId: input.merchantId,
+        createdByUserId: input.createdByUserId,
+        displayName: input.displayName,
+        refAudioAssetId: input.refAudioAssetId,
+        authorizationAcceptedAt: input.now,
+      },
+      providerResult: { ok: true },
+      now: input.now,
+    });
+
+    localVoiceProfileStore.voiceProfiles.clear();
+    for (const profile of replacement.profiles) {
+      localVoiceProfileStore.voiceProfiles.set(profile.id, profile);
+    }
+
+    return replacement;
+  } catch (error) {
+    if (error instanceof VoiceProfileRuleError && error.code === "VOICE_PROFILE_ID_CONFLICT") {
+      throw new ApiError(409, error.code, error.message);
+    }
+
+    throw error;
+  }
 }
 
 export async function assertVoiceProfileAccess(input: {

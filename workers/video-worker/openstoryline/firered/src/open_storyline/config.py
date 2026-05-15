@@ -185,6 +185,7 @@ class SkillsConfig(ConfigBaseModel):
 
 class PexelsConfig(ConfigBaseModel):
     pexels_api_key: str = ""
+    pexels_base_url: str = ""
 
 class SplitShotsConfig(ConfigBaseModel):
     transnet_weights: Path = Field(..., description="Path to transnet_v2 weights")

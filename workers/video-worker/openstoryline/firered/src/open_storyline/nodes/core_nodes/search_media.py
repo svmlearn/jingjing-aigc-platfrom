@@ -32,6 +32,9 @@ MAX_RETRIES = 3
 RETRY_INITIAL_DELAY = 1.0
 RETRY_MAX_DELAY = 10.0
 RETRY_BACKOFF_FACTOR = 2.0
+OFFICIAL_PEXELS_VIDEO_SEARCH_URL = "https://api.pexels.com/videos/search"
+OFFICIAL_PEXELS_PHOTO_SEARCH_URL = "https://api.pexels.com/v1/search"
+PRIVATE_PEXELS_BASE_URL_ENV_NAMES = ("PRIVATE_PEXELS_BASE_URL", "PEXELS_BASE_URL")
 
 @NODE_REGISTRY.register()
 class SearchMediaNode(BaseNode):
@@ -50,7 +53,11 @@ class SearchMediaNode(BaseNode):
         return {}
 
     async def process(self, node_state: NodeState, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        pexels_api_key = inputs.get("pexels_api_key", "")
+        pexels_api_key = str(inputs.get("pexels_api_key", "") or "").strip()
+        pexels_base_url = _resolve_pexels_base_url(
+            str(inputs.get("pexels_base_url", "") or "").strip(),
+            getattr(getattr(self.server_cfg, "search_media", None), "pexels_base_url", ""),
+        )
         video_saved_paths = []
         image_saved_paths = []
 
@@ -59,6 +66,8 @@ class SearchMediaNode(BaseNode):
         if not pexels_api_key or pexels_api_key == "":
             pexels_api_key = os.getenv("PEXELS_API_KEY")
         if not pexels_api_key or pexels_api_key == "":
+            pexels_api_key = ""
+        if not pexels_api_key and not pexels_base_url:
             node_state.node_summary.info_for_llm("If the user has not entered their Pexels API key, please remind them to enter it in the sidebar of the webpage.")
             raise RuntimeError("Pexels api key not detected. If you use your own pexels key, please fill in the api key in the sidebar or config.toml")
 
@@ -75,6 +84,7 @@ class SearchMediaNode(BaseNode):
         if video_number > 0:
             video_preview_urls, video_saved_paths = get_video_media_from_pexels(
                 pexels_api_key=pexels_api_key,
+                pexels_base_url=pexels_base_url,
                 query=search_keyword,
                 media_dir=media_dir,
                 video_number=video_number,
@@ -87,6 +97,7 @@ class SearchMediaNode(BaseNode):
         if photo_number > 0:
             image_preview_urls, image_saved_paths = get_photo_media_from_pexels(
                 pexels_api_key=pexels_api_key,
+                pexels_base_url=pexels_base_url,
                 query=search_keyword,
                 media_dir=media_dir,
                 photo_number=photo_number,
@@ -118,9 +129,15 @@ def download_video(url: str, out_path: Path) -> None:
             logger.error(f"Download video failed due to non-network error: {e}")
             raise
 
-def search_videos(pexels_api_key: str, query: str, per_page, page) -> dict[str, Any]:
-    url = "https://api.pexels.com/videos/search"
-    headers = {"Authorization": pexels_api_key}
+def search_videos(
+        pexels_api_key: str,
+        query: str,
+        per_page,
+        page,
+        pexels_base_url: str = "",
+    ) -> dict[str, Any]:
+    url = _pexels_search_url(pexels_base_url, media_type="video")
+    headers = _pexels_headers(pexels_api_key)
     params = {"query": query, "per_page": per_page, "page": page}
 
     for attempt in range(MAX_RETRIES):
@@ -195,6 +212,7 @@ def filter_videos(
 
 def get_video_media_from_pexels(
         pexels_api_key: str,
+        pexels_base_url: str,
         query: str,
         media_dir: Path,
         video_number: int,
@@ -215,6 +233,7 @@ def get_video_media_from_pexels(
     while len(collected) < video_number:
         raw_videos = search_videos(
             pexels_api_key=pexels_api_key,
+            pexels_base_url=pexels_base_url,
             query=query,
             per_page=DEFAULT_RESULT_NUMBER_PER_PAGE,
             page=page,
@@ -317,9 +336,15 @@ def download_photo(url: str, out_path: Path) -> None:
             logger.error(f"Download photo failed due to non-network error: {e}")
             raise
 
-def search_photos(pexels_api_key: str, query: str, per_page, page) -> dict[str, Any]:
-    url = "https://api.pexels.com/v1/search"
-    headers = {"Authorization": pexels_api_key}
+def search_photos(
+        pexels_api_key: str,
+        query: str,
+        per_page,
+        page,
+        pexels_base_url: str = "",
+    ) -> dict[str, Any]:
+    url = _pexels_search_url(pexels_base_url, media_type="photo")
+    headers = _pexels_headers(pexels_api_key)
     params = {"query": query, "per_page": per_page, "page": page}
 
     for attempt in range(MAX_RETRIES):
@@ -392,6 +417,7 @@ def filter_photos(
 
 def get_photo_media_from_pexels(
         pexels_api_key: str,
+        pexels_base_url: str,
         query: str,
         media_dir: Path,
         photo_number: int,
@@ -410,6 +436,7 @@ def get_photo_media_from_pexels(
     while len(collected) < photo_number:
         raw_photos = search_photos(
             pexels_api_key=pexels_api_key,
+            pexels_base_url=pexels_base_url,
             query=query,
             per_page=DEFAULT_RESULT_NUMBER_PER_PAGE,
             page=page,
@@ -438,3 +465,46 @@ def get_photo_media_from_pexels(
         image_save_paths.append({"path": str(out_path)})
 
     return collected, image_save_paths
+
+
+def _resolve_pexels_base_url(*candidates: str) -> str:
+    for candidate in candidates:
+        normalized = _normalize_base_url(candidate)
+        if normalized:
+            return normalized
+    for env_name in PRIVATE_PEXELS_BASE_URL_ENV_NAMES:
+        normalized = _normalize_base_url(os.getenv(env_name, ""))
+        if normalized:
+            return normalized
+    return ""
+
+
+def _normalize_base_url(value: str | None) -> str:
+    normalized = str(value or "").strip()
+    return normalized.rstrip("/") if normalized else ""
+
+
+def _pexels_headers(pexels_api_key: str) -> dict[str, str]:
+    key = str(pexels_api_key or "").strip()
+    return {"Authorization": key} if key else {}
+
+
+def _pexels_search_url(pexels_base_url: str, *, media_type: str) -> str:
+    base_url = _normalize_base_url(pexels_base_url)
+    if not base_url:
+        if media_type == "video":
+            return OFFICIAL_PEXELS_VIDEO_SEARCH_URL
+        return OFFICIAL_PEXELS_PHOTO_SEARCH_URL
+
+    if media_type == "video":
+        if base_url.endswith("/videos/search"):
+            return base_url
+        if base_url.endswith("/v1/search"):
+            return base_url[: -len("/v1/search")] + "/videos/search"
+        return f"{base_url}/videos/search"
+
+    if base_url.endswith("/v1/search"):
+        return base_url
+    if base_url.endswith("/videos/search"):
+        return base_url[: -len("/videos/search")] + "/v1/search"
+    return f"{base_url}/v1/search"

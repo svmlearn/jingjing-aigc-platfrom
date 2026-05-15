@@ -268,13 +268,15 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
             if mode not in ("default", "custom"):
                 mode = "default"
             api_key = _s(p.get("api_key") or p.get("pexels_api_key") or p.get("pexels_api_key"))
-            pexels_cfg = {"mode": mode, "api_key": api_key}
+            base_url = _s(p.get("base_url") or p.get("pexels_base_url") or p.get("private_base_url"))
+            pexels_cfg = {"mode": mode, "api_key": api_key, "base_url": base_url}
         else:
             mode = _s(search_media.get("mode") or search_media.get("pexels_mode") or search_media.get("pexels_mode")).lower()
             if mode not in ("default", "custom"):
                 mode = "default"
             api_key = _s(search_media.get("pexels_api_key") or search_media.get("pexels_api_key"))
-            pexels_cfg = {"mode": mode, "api_key": api_key}
+            base_url = _s(search_media.get("base_url") or search_media.get("pexels_base_url") or search_media.get("private_base_url"))
+            pexels_cfg = {"mode": mode, "api_key": api_key, "base_url": base_url}
 
     return custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, pexels_cfg, None
 
@@ -1341,6 +1343,7 @@ class ChatSession:
 
         self.pexels_key_mode: str = "default"   # "default" | "custom"
         self.pexels_custom_key: str = ""
+        self.pexels_base_url: str = ""
 
         self._media_seq_inited = False
         self._media_seq_next = 1
@@ -1582,6 +1585,7 @@ class ChatSession:
             "pending_media_ids": [str(x) for x in (self.pending_media_ids or [])],
             "lc_messages_serialized": self._serialize_lc_messages(),
             "pexels_key_mode": self.pexels_key_mode,
+            "pexels_base_url": self.pexels_base_url,
             "sent_media_total": int(getattr(self, "sent_media_total", 0) or 0),
             # Primary boundary: never persist raw API keys for configs.
             "custom_llm_config": self._sanitize_custom_model_cfg_for_state(self.custom_llm_config),
@@ -1772,6 +1776,7 @@ class ChatSession:
         if sess.pexels_key_mode not in ("default", "custom"):
             sess.pexels_key_mode = "default"
         sess.pexels_custom_key = ""
+        sess.pexels_base_url = _s(data.get("pexels_base_url"))
 
         llm_cfg = data.get("custom_llm_config")
         sess.custom_llm_config = llm_cfg if isinstance(llm_cfg, dict) else None
@@ -1807,7 +1812,7 @@ class ChatSession:
                 missing.append("custom_vlm")
 
         if (self.pexels_key_mode or "").lower() == "custom":
-            if _is_missing(self.pexels_custom_key):
+            if _is_missing(self.pexels_custom_key) and _is_missing(self.pexels_base_url):
                 missing.append("pexels_custom")
 
         tts_cfg = self.tts_config if isinstance(self.tts_config, dict) else {}
@@ -1929,12 +1934,14 @@ class ChatSession:
         # ---- pexels ----
         if isinstance(pexels, dict) and pexels:
             mode = _s(pexels.get("mode")).lower()
-            if mode == "custom":
+            self.pexels_base_url = _s(pexels.get("base_url") or pexels.get("pexels_base_url"))
+            if mode == "custom" or self.pexels_base_url:
                 self.pexels_key_mode = "custom"
                 self.pexels_custom_key = _s(pexels.get("api_key"))
             else:
                 self.pexels_key_mode = "default"
                 self.pexels_custom_key = ""
+                self.pexels_base_url = ""
 
         return True, None
 
@@ -2003,6 +2010,7 @@ class ChatSession:
                 tts_config=(self.tts_config or None),
                 ai_transition_config=(self.ai_transition_config or None),
                 pexels_api_key=None,
+                pexels_base_url=None,
                 lang=self.lang,
             )
         else:
@@ -2020,6 +2028,8 @@ class ChatSession:
             pexels_api_key = _get_default_pexels_api_key(self.cfg)  # from config.toml
 
         self.client_context.pexels_api_key = (pexels_api_key or None)
+        pexels_base_url = self.pexels_base_url or _get_default_pexels_base_url(self.cfg)
+        self.client_context.pexels_base_url = (pexels_base_url or None)
 
     # ---- DTO / public mapping ----
     def public_media(self, meta: MediaMeta) -> Dict[str, Any]:
@@ -2544,6 +2554,14 @@ def _get_default_pexels_api_key(cfg: Settings) -> str:
             return pexels_api_key
         else:
             return ""
+    except Exception:
+        return ""
+
+def _get_default_pexels_base_url(cfg: Settings) -> str:
+    try:
+        search_media = getattr(cfg, "search_media", None)
+        pexels_base_url = _s(getattr(search_media, "pexels_base_url", None) if search_media else None)
+        return pexels_base_url.rstrip("/") if pexels_base_url else ""
     except Exception:
         return ""
 

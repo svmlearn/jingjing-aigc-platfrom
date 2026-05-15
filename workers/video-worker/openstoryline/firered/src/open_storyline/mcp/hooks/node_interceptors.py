@@ -571,8 +571,9 @@ class ToolInterceptor:
     @staticmethod
     async def inject_pexels_api_key(request: MCPToolCallRequest, handler):
         """
-        Interceptor: Injects runtime.context.pexels_api_key into request.args before invoking media search tools.
-        - If pexels_api_key is empty/None: do nothing (tool will fall back to env var internally).
+        Interceptor: Injects runtime.context Pexels config into request.args before invoking media search tools.
+        - If pexels_api_key is empty/None: do nothing (tool will fall back to config/env internally).
+        - If pexels_base_url is set, search_media can use a private Pexels-compatible endpoint.
         """
         try:
             tool_name = str(getattr(request, "name", "") or "")
@@ -586,6 +587,10 @@ class ToolInterceptor:
 
                 if key:
                     args["pexels_api_key"] = key
+                base_url = getattr(ctx, "pexels_base_url", None) if ctx else None
+                base_url = str(base_url or "").strip()
+                if base_url:
+                    args["pexels_base_url"] = base_url
 
         except Exception as e:
             logger.warning(f"Failed to inject pexels API key: {e}")
