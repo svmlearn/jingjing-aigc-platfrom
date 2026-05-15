@@ -182,6 +182,19 @@ export const memberInvitationAcceptSchema = z.object({
   displayName: z.string().trim().max(80).nullish(),
 });
 
+export const createMemberInvitationCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(4)
+    .max(80)
+    .regex(/^[a-zA-Z0-9][a-zA-Z0-9-]*$/, "Only letters, numbers and dashes are allowed.")
+    .optional(),
+  maxRedemptions: z.number().int().min(1).max(100).optional(),
+  expiresAt: z.iso.datetime().nullish(),
+  note: z.string().trim().max(200).nullish(),
+});
+
 export const createInvitationCodeSchema = z.object({
   code: z.string().trim().min(4).max(80).optional(),
   maxRedemptions: z.number().int().min(1).max(50).optional(),
@@ -232,6 +245,17 @@ export const dailyContentTasksQuerySchema = z.object({
     .trim()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullish(),
+});
+
+export const createContentGenerationBatchSchema = z.object({
+  date: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish(),
+  days: z.number().int().min(1).max(7).optional(),
+  memberScope: z.enum(["self", "active_members"]).optional(),
+  extraRequirement: z.string().trim().max(1000).nullish(),
 });
 
 export const platformAdminBootstrapSchema = z.object({

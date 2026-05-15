@@ -8,11 +8,15 @@ import type {
   MerchantPlan,
   MerchantProfileDto,
   MerchantProfileInput,
+  MerchantTeamInvitationCodeDto,
+  MerchantTeamManagementDto,
+  MerchantTeamMemberDto,
   MerchantTeamRole,
   MerchantWorkspaceDto,
 } from "@/contracts/merchant";
 import {
   getLocalDemoMerchantProfile,
+  localDemoUserId,
   resolveLocalDemoWorkspaceIdentity,
   updateLocalDemoMerchantProfile,
 } from "@/lib/demo/local-demo-runtime";
@@ -122,6 +126,9 @@ const merchantTeamInvitationCodeSelect = [
   "created_at",
   "updated_at",
 ].join(", ");
+
+const localDemoTeamMembers = new Map<string, MerchantTeamMemberDto>();
+const localDemoTeamInvitationCodes = new Map<string, MerchantTeamInvitationCodeDto>();
 
 export async function createInvitationCode(input: {
   code?: string;
@@ -325,6 +332,140 @@ async function getActiveMerchantTeamMemberByUserId(
   return (data as unknown as MerchantTeamMemberRow | null) ?? null;
 }
 
+export async function listActiveMerchantTeamMembersByMerchant(
+  merchantId: string,
+): Promise<MerchantTeamMemberDto[]> {
+  if (!isSupabaseAdminConfigured()) {
+    return listLocalDemoTeamMembers(merchantId);
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_team_members")
+    .select(merchantTeamMemberSelect)
+    .eq("merchant_id", merchantId)
+    .eq("status", "active")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    if (isMissingRelationError(error.message)) {
+      return [];
+    }
+
+    throw new ApiError(500, "MERCHANT_TEAM_MEMBER_LIST_FAILED", error.message);
+  }
+
+  return ((data ?? []) as unknown as MerchantTeamMemberRow[]).map(mapMerchantTeamMember);
+}
+
+export async function getMerchantTeamManagementForOwner(
+  ownerUserId: string,
+): Promise<MerchantTeamManagementDto> {
+  const workspace = await getOperationalMerchantWorkspaceByUserId(ownerUserId);
+  assertMerchantTeamOwner(workspace);
+
+  if (!isSupabaseAdminConfigured()) {
+    const merchantId = workspace.merchantProfile.id;
+
+    return {
+      workspace,
+      members: listLocalDemoTeamMembers(merchantId, workspace),
+      invitationCodes: listLocalDemoTeamInvitationCodes(merchantId),
+    };
+  }
+
+  const merchantId = workspace.merchantProfile.id;
+
+  return {
+    workspace,
+    members: await listActiveMerchantTeamMembersByMerchant(merchantId),
+    invitationCodes: await listMerchantTeamInvitationCodesByMerchant(merchantId),
+  };
+}
+
+export async function createMemberInvitationCodeForOwner(input: {
+  ownerUserId: string;
+  code?: string;
+  maxRedemptions?: number;
+  expiresAt?: string | null;
+  note?: string | null;
+}): Promise<MerchantTeamInvitationCodeDto> {
+  const workspace = await getOperationalMerchantWorkspaceByUserId(input.ownerUserId);
+  assertMerchantTeamOwner(workspace);
+
+  const code = normalizeMemberInvitationCode(input.code ?? generateMemberInvitationCode());
+
+  if (!isSupabaseAdminConfigured()) {
+    return createLocalDemoTeamInvitationCode({
+      merchantId: workspace.merchantProfile.id,
+      createdByUserId: input.ownerUserId,
+      code,
+      maxRedemptions: input.maxRedemptions,
+      expiresAt: input.expiresAt,
+      note: input.note,
+    });
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_team_invitation_codes")
+    .insert({
+      merchant_id: workspace.merchantProfile.id,
+      code,
+      max_redemptions: input.maxRedemptions ?? 20,
+      expires_at: input.expiresAt ?? null,
+      note: input.note ?? null,
+      created_by_user_id: input.ownerUserId,
+    })
+    .select(merchantTeamInvitationCodeSelect)
+    .single();
+
+  if (error) {
+    if (isMissingMemberInvitationCodesRelationError(error.message)) {
+      throw new ApiError(
+        500,
+        "MEMBER_INVITATION_CODES_NOT_READY",
+        "Member invitation table is not migrated yet.",
+      );
+    }
+
+    if (error.code === "23505") {
+      throw new ApiError(
+        409,
+        "MEMBER_INVITATION_CODE_EXISTS",
+        "Member invitation code already exists.",
+      );
+    }
+
+    throw new ApiError(500, "MEMBER_INVITATION_CODE_CREATE_FAILED", error.message);
+  }
+
+  return mapMerchantTeamInvitationCode(data as unknown as MerchantTeamInvitationCodeRow);
+}
+
+async function listMerchantTeamInvitationCodesByMerchant(
+  merchantId: string,
+): Promise<MerchantTeamInvitationCodeDto[]> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_team_invitation_codes")
+    .select(merchantTeamInvitationCodeSelect)
+    .eq("merchant_id", merchantId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (isMissingMemberInvitationCodesRelationError(error.message)) {
+      return [];
+    }
+
+    throw new ApiError(500, "MEMBER_INVITATION_CODE_LIST_FAILED", error.message);
+  }
+
+  return ((data ?? []) as unknown as MerchantTeamInvitationCodeRow[]).map(
+    mapMerchantTeamInvitationCode,
+  );
+}
+
 async function ensureMerchantOwnerMembership(input: {
   merchantId: string;
   userId: string;
@@ -416,7 +557,11 @@ export async function acceptMemberInvitationCode(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const workspace = await getMerchantWorkspaceByUserId(input.userId);
+    const workspace = acceptLocalDemoMemberInvitationCode({
+      code: normalizedCode,
+      userId: input.userId,
+      displayName: input.displayName,
+    });
 
     return {
       ...workspace,
@@ -648,6 +793,207 @@ function mapInviteRedemptionError(message: string): ApiError {
   return new ApiError(500, "INVITATION_CODE_REDEEM_FAILED", message);
 }
 
+function mapMerchantTeamMember(row: MerchantTeamMemberRow): MerchantTeamMemberDto {
+  return {
+    id: row.id,
+    merchantId: row.merchant_id,
+    userId: row.user_id,
+    role: row.role,
+    status: row.status,
+    displayName: row.display_name,
+    invitedByUserId: row.invited_by_user_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapMerchantTeamInvitationCode(
+  row: MerchantTeamInvitationCodeRow,
+): MerchantTeamInvitationCodeDto {
+  return {
+    id: row.id,
+    merchantId: row.merchant_id,
+    code: row.code,
+    status: row.status,
+    maxRedemptions: row.max_redemptions,
+    redemptionCount: row.redemption_count,
+    expiresAt: row.expires_at,
+    note: row.note,
+    createdByUserId: row.created_by_user_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function assertMerchantTeamOwner(workspace: Pick<MerchantWorkspaceDto, "role">) {
+  if (workspace.role !== "owner") {
+    throw new ApiError(
+      403,
+      "MERCHANT_TEAM_OWNER_REQUIRED",
+      "Only the merchant owner can manage team members.",
+    );
+  }
+}
+
+function listLocalDemoTeamMembers(
+  merchantId: string,
+  workspace?: MerchantWorkspaceDto,
+): MerchantTeamMemberDto[] {
+  if (workspace) {
+    ensureLocalDemoOwnerMember(workspace);
+  }
+
+  return Array.from(localDemoTeamMembers.values())
+    .filter((member) => member.merchantId === merchantId && member.status === "active")
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+}
+
+function listLocalDemoTeamInvitationCodes(merchantId: string) {
+  return Array.from(localDemoTeamInvitationCodes.values())
+    .filter((invitation) => invitation.merchantId === merchantId)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+function ensureLocalDemoOwnerMember(workspace: MerchantWorkspaceDto) {
+  const userId = workspace.merchantProfile.ownerUserId ?? localDemoUserId;
+  const merchantId = workspace.merchantProfile.id;
+  const key = buildLocalDemoTeamMemberKey(merchantId, userId);
+  const now = new Date().toISOString();
+
+  if (!localDemoTeamMembers.has(key)) {
+    localDemoTeamMembers.set(key, {
+      id: `local-team-member-${merchantId}-owner`,
+      merchantId,
+      userId,
+      role: "owner",
+      status: "active",
+      displayName: workspace.merchantProfile.name,
+      invitedByUserId: null,
+      createdAt: workspace.merchantProfile.createdAt ?? now,
+      updatedAt: now,
+    });
+  }
+}
+
+function createLocalDemoTeamInvitationCode(input: {
+  merchantId: string;
+  createdByUserId: string;
+  code: string;
+  maxRedemptions?: number;
+  expiresAt?: string | null;
+  note?: string | null;
+}): MerchantTeamInvitationCodeDto {
+  if (localDemoTeamInvitationCodes.has(input.code)) {
+    throw new ApiError(
+      409,
+      "MEMBER_INVITATION_CODE_EXISTS",
+      "Member invitation code already exists.",
+    );
+  }
+
+  const now = new Date().toISOString();
+  const invitationCode: MerchantTeamInvitationCodeDto = {
+    id: `local-team-invitation-${input.code}`,
+    merchantId: input.merchantId,
+    code: input.code,
+    status: "active",
+    maxRedemptions: input.maxRedemptions ?? 20,
+    redemptionCount: 0,
+    expiresAt: input.expiresAt ?? null,
+    note: input.note ?? null,
+    createdByUserId: input.createdByUserId,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  localDemoTeamInvitationCodes.set(invitationCode.code, invitationCode);
+
+  return invitationCode;
+}
+
+function acceptLocalDemoMemberInvitationCode(input: {
+  code: string;
+  userId: string;
+  displayName?: string | null;
+}): MerchantWorkspaceDto {
+  let invitation = localDemoTeamInvitationCodes.get(input.code);
+
+  if (!invitation) {
+    const identity = resolveLocalDemoWorkspaceIdentity(input.userId);
+    invitation = createLocalDemoTeamInvitationCode({
+      merchantId: identity.merchantId,
+      createdByUserId: identity.ownerUserId,
+      code: input.code,
+      maxRedemptions: 100,
+      note: "Local demo fallback code",
+    });
+  }
+
+  assertLocalDemoInvitationUsable(invitation);
+
+  const now = new Date().toISOString();
+  const memberKey = buildLocalDemoTeamMemberKey(invitation.merchantId, input.userId);
+  const member: MerchantTeamMemberDto = {
+    id: `local-team-member-${invitation.merchantId}-${input.userId}`,
+    merchantId: invitation.merchantId,
+    userId: input.userId,
+    role: "member",
+    status: "active",
+    displayName: input.displayName ?? input.userId,
+    invitedByUserId: invitation.createdByUserId,
+    createdAt: localDemoTeamMembers.get(memberKey)?.createdAt ?? now,
+    updatedAt: now,
+  };
+
+  localDemoTeamMembers.set(memberKey, member);
+  localDemoTeamInvitationCodes.set(invitation.code, {
+    ...invitation,
+    redemptionCount: invitation.redemptionCount + 1,
+    updatedAt: now,
+  });
+
+  const profile = getLocalDemoMerchantProfile(
+    invitation.createdByUserId ?? localDemoUserId,
+    invitation.merchantId,
+  );
+
+  return {
+    merchantProfile: profile,
+    role: "member",
+    membershipId: member.id,
+  };
+}
+
+function assertLocalDemoInvitationUsable(invitation: MerchantTeamInvitationCodeDto) {
+  if (invitation.status !== "active") {
+    throw new ApiError(
+      409,
+      "MEMBER_INVITATION_CODE_UNAVAILABLE",
+      "Member invitation code is unavailable.",
+    );
+  }
+
+  if (invitation.expiresAt && new Date(invitation.expiresAt).getTime() < Date.now()) {
+    throw new ApiError(
+      410,
+      "MEMBER_INVITATION_CODE_EXPIRED",
+      "Member invitation code has expired.",
+    );
+  }
+
+  if (invitation.redemptionCount >= invitation.maxRedemptions) {
+    throw new ApiError(
+      409,
+      "MEMBER_INVITATION_CODE_UNAVAILABLE",
+      "Member invitation code has been fully redeemed.",
+    );
+  }
+}
+
+function buildLocalDemoTeamMemberKey(merchantId: string, userId: string) {
+  return `${merchantId}:${userId}`;
+}
+
 function isMissingRelationError(message: string) {
   return message.includes("merchant_team_members") && message.includes("does not exist");
 }
@@ -682,6 +1028,10 @@ function assertMemberInvitationUsable(
 
 function generateInvitationCode() {
   return `JJ-${randomBytes(6).toString("hex").toUpperCase()}`;
+}
+
+function generateMemberInvitationCode() {
+  return `TEAM-${randomBytes(5).toString("hex").toUpperCase()}`;
 }
 
 function toStringArray(value: unknown): string[] {

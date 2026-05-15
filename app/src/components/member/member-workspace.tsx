@@ -256,6 +256,7 @@ export function MemberCalendarPage() {
           eyebrow="今日图文"
           title={today.articleTask.title}
           summary={today.articleTask.summary}
+          status={today.articleTask.generationStatus}
           action="查看图文"
         />
         <DailyTaskLink
@@ -264,6 +265,7 @@ export function MemberCalendarPage() {
           eyebrow="今日视频"
           title={today.videoTask.title}
           summary={today.videoTask.summary}
+          status={today.videoTask.generationStatus}
           action="查看脚本"
         />
       </div>
@@ -278,7 +280,10 @@ export function MemberCalendarPage() {
             <div key={task.id} className="px-4 py-3">
               <p className="text-xs text-black/45">{task.taskDate}</p>
               <p className="mt-1 text-sm font-medium leading-6">{task.theme}</p>
-              <p className="mt-1 text-xs leading-5 text-black/50">{task.articleTask.title}</p>
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <p className="min-w-0 text-xs leading-5 text-black/50">{task.articleTask.title}</p>
+                <GenerationStatusPill status={task.articleTask.generationStatus} />
+              </div>
             </div>
           ))}
         </div>
@@ -454,6 +459,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
 
   const script = task.videoTask.generatedVideoScript ?? buildVideoScriptFallback(task);
   const selectedFileCount = Object.values(selectedFiles).filter(Boolean).length;
+  const requiredSceneCount = script.scenes.filter((scene) => scene.required).length;
   const editState = summarizeMemberVideoEditState({
     uploadedFileCount: selectedFileCount,
     job,
@@ -478,7 +484,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
       (entry): entry is [string, File] => Boolean(entry[1]),
     );
 
-    if (!uploadEntries.length) {
+    if (requiredSceneCount > 0 && !uploadEntries.length) {
       setActionError("请先至少上传一段手机素材，再发起 AI 剪辑。");
       return;
     }
@@ -598,26 +604,36 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
                 <p>拍法：{scene.camera}</p>
                 <p>提示：{scene.shootingGuide}</p>
               </div>
-              <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-black/20 bg-[#f7f4ea] px-3 py-3 text-sm">
-                <span className="min-w-0 truncate">
-                  {selectedFiles[scene.id]?.name ?? scene.materialSlot}
-                </span>
-                <span className="inline-flex items-center gap-1 text-[#1f6f68]">
-                  <Upload className="size-4" aria-hidden="true" />
-                  上传
-                </span>
-                <input
-                  type="file"
-                  accept="video/*,image/*"
-                  className="sr-only"
-                  onChange={(event) => {
-                    setSelectedFiles((current) => ({
-                      ...current,
-                      [scene.id]: event.target.files?.[0] ?? null,
-                    }));
-                  }}
-                />
-              </label>
+              {scene.required ? (
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-black/20 bg-[#f7f4ea] px-3 py-3 text-sm">
+                  <span className="min-w-0 truncate">
+                    {selectedFiles[scene.id]?.name ?? scene.materialSlot}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[#1f6f68]">
+                    <Upload className="size-4" aria-hidden="true" />
+                    上传
+                  </span>
+                  <input
+                    type="file"
+                    accept="video/*,image/*"
+                    className="sr-only"
+                    onChange={(event) => {
+                      setSelectedFiles((current) => ({
+                        ...current,
+                        [scene.id]: event.target.files?.[0] ?? null,
+                      }));
+                    }}
+                  />
+                </label>
+              ) : (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-[#f7f4ea] px-3 py-3 text-sm">
+                  <span className="min-w-0 truncate">{scene.materialSlot}</span>
+                  <span className="inline-flex items-center gap-1 text-[#1f6f68]">
+                    <Check className="size-4" aria-hidden="true" />
+                    团队素材
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -628,7 +644,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           <div>
             <p className="text-sm font-semibold">AI 剪辑</p>
             <p className="mt-1 text-xs text-black/50">
-              已选择 {selectedFileCount} 段素材，预计成片 {script.targetDurationSeconds}s。
+              已选择 {selectedFileCount} 段素材，需成员上传 {requiredSceneCount} 段，预计成片 {script.targetDurationSeconds}s。
             </p>
           </div>
           <button
@@ -988,6 +1004,7 @@ function DailyTaskLink({
   eyebrow,
   title,
   summary,
+  status,
   action,
 }: {
   href: string;
@@ -995,6 +1012,7 @@ function DailyTaskLink({
   eyebrow: string;
   title: string;
   summary: string;
+  status?: DailyContentTaskDto["articleTask"]["generationStatus"];
   action: string;
 }) {
   return (
@@ -1004,11 +1022,46 @@ function DailyTaskLink({
           {icon}
           {eyebrow}
         </div>
-        <span className="text-xs text-black/45">{action}</span>
+        <div className="flex items-center gap-2">
+          <GenerationStatusPill status={status} />
+          <span className="text-xs text-black/45">{action}</span>
+        </div>
       </div>
       <h2 className="mt-3 text-base font-semibold leading-7">{title}</h2>
       <p className="mt-2 text-sm leading-6 text-black/58">{summary}</p>
     </Link>
+  );
+}
+
+function GenerationStatusPill({
+  status,
+}: {
+  status?: DailyContentTaskDto["articleTask"]["generationStatus"];
+}) {
+  if (!status || status === "not_started") {
+    return null;
+  }
+
+  const labelMap: Record<NonNullable<typeof status>, string> = {
+    pending: "队列中",
+    running: "生成中",
+    succeeded: "已生成",
+    failed: "失败",
+  };
+
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-lg px-2 py-1 text-[11px]",
+        status === "failed"
+          ? "bg-red-50 text-red-700"
+          : status === "succeeded"
+            ? "bg-[#e6f1ee] text-[#1f6f68]"
+            : "bg-[#ece8dc] text-black/55",
+      )}
+    >
+      {labelMap[status]}
+    </span>
   );
 }
 
