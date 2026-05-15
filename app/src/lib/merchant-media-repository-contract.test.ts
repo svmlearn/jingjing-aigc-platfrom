@@ -40,7 +40,7 @@ test("merchant media repository lists assets and clips only with explicit mercha
   assert.equal(await repository.getReadyClipByMerchant({ merchantId: "merchant-a", clipId: "clip-b" }), null);
 });
 
-test("merchant media repository keeps asset upload and V1 clip upserts idempotent", async () => {
+test("merchant media repository keeps asset upload and clip upserts idempotent", async () => {
   const repository = new InMemoryMerchantMediaRepository();
   const firstAsset = await repository.upsertAsset({
     asset: assetA,
@@ -104,7 +104,34 @@ test("merchant media repository rejects member temporary material and voice reco
   );
 });
 
-test("merchant media repository rejects non-V1 clip shapes", async () => {
+test("merchant media repository accepts merchant segment clips", async () => {
+  const repository = new InMemoryMerchantMediaRepository();
+  await repository.upsertAsset({
+    asset: assetA,
+    idempotencyKey: "cos-etag-a",
+  });
+
+  await repository.upsertReadyClip({
+    merchantId: "merchant-a",
+    assetId: assetA.id,
+    clip: {
+      ...clipA,
+      id: "clip-window",
+      clipIndex: 1,
+      clipType: "segment",
+      startTimeSeconds: 5,
+      endTimeSeconds: 10,
+      durationSeconds: 5,
+      cosKey: "merchant-media/merchant-a/clips/asset-a/clip-window.mp4",
+    },
+  });
+
+  assert.deepEqual((await repository.listReadyClipsByMerchant({ merchantId: "merchant-a" })).map((clip) => clip.id), [
+    "clip-window",
+  ]);
+});
+
+test("merchant media repository rejects invalid clip shapes", async () => {
   const repository = new InMemoryMerchantMediaRepository();
   await repository.upsertAsset({
     asset: assetA,
@@ -118,10 +145,8 @@ test("merchant media repository rejects non-V1 clip shapes", async () => {
         assetId: assetA.id,
         clip: {
           ...clipA,
-          id: "clip-window",
-          clipIndex: 1,
-          startTimeSeconds: 5,
-          endTimeSeconds: 10,
+          id: "clip-bad",
+          clipIndex: -1,
         },
       }),
     (error) =>

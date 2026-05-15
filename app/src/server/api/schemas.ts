@@ -182,6 +182,19 @@ export const memberInvitationAcceptSchema = z.object({
   displayName: z.string().trim().max(80).nullish(),
 });
 
+export const createMemberInvitationCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(4)
+    .max(80)
+    .regex(/^[a-zA-Z0-9][a-zA-Z0-9-]*$/, "Only letters, numbers and dashes are allowed.")
+    .optional(),
+  maxRedemptions: z.number().int().min(1).max(100).optional(),
+  expiresAt: z.iso.datetime().nullish(),
+  note: z.string().trim().max(200).nullish(),
+});
+
 export const createInvitationCodeSchema = z.object({
   code: z.string().trim().min(4).max(80).optional(),
   maxRedemptions: z.number().int().min(1).max(50).optional(),
@@ -232,6 +245,17 @@ export const dailyContentTasksQuerySchema = z.object({
     .trim()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullish(),
+});
+
+export const createContentGenerationBatchSchema = z.object({
+  date: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish(),
+  days: z.number().int().min(1).max(7).optional(),
+  memberScope: z.enum(["self", "active_members"]).optional(),
+  extraRequirement: z.string().trim().max(1000).nullish(),
 });
 
 export const platformAdminBootstrapSchema = z.object({
@@ -362,6 +386,56 @@ export const mediaCompleteSchema = z.object({
   originUrl: z.url().max(2000).nullish(),
   sortOrder: z.number().int().min(0).max(9999).optional(),
 });
+
+const merchantMediaManifestTagSchema = z.string().trim().min(1).max(80);
+
+const merchantMediaManifestClipSchema = z
+  .object({
+    id: z.uuid().optional(),
+    clipIndex: z.number().int().min(0).max(9999),
+    mediaType: z.enum(["image", "video"]).optional(),
+    clipType: z.enum(["full_video", "segment", "image"]),
+    startTimeSeconds: z.number().min(0).nullish(),
+    endTimeSeconds: z.number().positive().nullish(),
+    durationSeconds: z.number().positive().nullish(),
+    bucketName: z.string().trim().min(1).max(120).optional(),
+    cosKey: z.string().trim().min(1).max(1000),
+    thumbCosKey: z.string().trim().min(1).max(1000).nullish(),
+    mimeType: z.string().trim().min(1).max(200).optional(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    orientation: z.enum(["portrait", "landscape"]).optional(),
+    description: z.string().trim().min(1).max(1000),
+    tags: z.array(merchantMediaManifestTagSchema).min(3).max(50),
+    industryTags: z.array(merchantMediaManifestTagSchema).max(30).optional(),
+    sceneTags: z.array(merchantMediaManifestTagSchema).max(30).optional(),
+    shotTags: z.array(merchantMediaManifestTagSchema).max(30).optional(),
+    peopleTags: z.array(merchantMediaManifestTagSchema).max(30).optional(),
+    qualityTags: z.array(merchantMediaManifestTagSchema).max(30).optional(),
+    tagConfidence: z.number().min(0).max(1).nullish(),
+    tagSource: z.enum(["fixture", "mock", "manual", "vision_model"]).optional(),
+  })
+  .strict();
+
+export const merchantMediaManifestSchema = z
+  .object({
+    draftId: z.uuid().nullish(),
+    asset: z
+      .object({
+        id: z.uuid().optional(),
+        mediaType: z.enum(["image", "video"]),
+        source: z.enum(["merchant_upload", "merchant_confirmed"]).optional(),
+        bucketName: z.string().trim().min(1).max(120).optional(),
+        sourceCosKey: z.string().trim().min(1).max(1000),
+        originalFilename: z.string().trim().max(255).nullish(),
+        mimeType: z.string().trim().max(200).nullish(),
+        fileSizeBytes: z.number().int().nonnegative().max(1024 * 1024 * 1024 * 20).nullish(),
+        idempotencyKey: z.string().trim().max(300).optional(),
+      })
+      .strict(),
+    clips: z.array(merchantMediaManifestClipSchema).min(1).max(200),
+  })
+  .strict();
 
 const productionConfigFilterSchema = z
   .object({

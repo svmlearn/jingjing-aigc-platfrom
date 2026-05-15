@@ -13,6 +13,7 @@ import {
   isLocalRealChainEnabled,
   listLocalRealChainAssetObjectsByOwner,
 } from "@/lib/db/local-real-chain-repository";
+import { getPrivateMediaRepository } from "@/lib/db/merchant-media-repository";
 import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
 import {
   getMaterialLibraryItemById,
@@ -72,11 +73,16 @@ export async function createVideoEditJobForUser(input: {
     return toPublicVideoEditJob(inFlightJob);
   }
 
-  const inputPayload = await buildServerManagedInputPayload({
+  const executableVariant = await ensureVideoScriptApprovedForJob({
     userId: input.userId,
     merchantId: variant.merchantId,
-    draftId: variant.draftId,
     variant,
+  });
+  const inputPayload = await buildServerManagedInputPayload({
+    userId: input.userId,
+    merchantId: executableVariant.merchantId,
+    draftId: executableVariant.draftId,
+    variant: executableVariant,
     productionConfig: input.request.productionConfig ?? null,
   });
   const runtimePayload = {
@@ -89,10 +95,10 @@ export async function createVideoEditJobForUser(input: {
   };
 
   const job = await createVideoEditJob({
-    merchantId: variant.merchantId,
+    merchantId: executableVariant.merchantId,
     createdByUserId: input.userId,
-    draftId: variant.draftId,
-    contentVariantId: variant.contentVariantId,
+    draftId: executableVariant.draftId,
+    contentVariantId: executableVariant.contentVariantId,
     triggerSource: input.request.sourceJobId ? "regenerate" : "manual",
     instructionText: input.request.instructionText,
     inputPayload: input.request.sourceJobId
@@ -134,6 +140,50 @@ export async function approveVideoScriptVariantForUser(input: {
     createdByUserId: input.userId,
     contentVariantId: input.contentVariantId,
   });
+}
+
+async function ensureVideoScriptApprovedForJob(input: {
+  userId: string;
+  merchantId: string;
+  variant: VideoJobPayloadVariant & {
+    merchantId: string;
+    createdByUserId?: string | null;
+    variantType?: ContentVariantDto["variantType"];
+    title?: string | null;
+    hashtags?: string[];
+    ctaText?: string | null;
+  };
+}) {
+  if (!input.variant.scriptText?.trim()) {
+    throw new ApiError(
+      409,
+      "VIDEO_SCRIPT_TEXT_REQUIRED",
+      "视频脚本缺少正文，无法创建 AI 剪辑任务。",
+    );
+  }
+
+  if (input.variant.reviewStatus === "approved") {
+    return input.variant;
+  }
+
+  const approvedVariant = await approveContentVariant({
+    merchantId: input.merchantId,
+    createdByUserId: input.userId,
+    contentVariantId: input.variant.contentVariantId,
+  });
+
+  return {
+    ...input.variant,
+    title: approvedVariant.title,
+    scriptText: approvedVariant.scriptText ?? input.variant.scriptText,
+    hashtags: approvedVariant.hashtags,
+    ctaText: approvedVariant.ctaText,
+    productionScenes:
+      approvedVariant.productionScenes && approvedVariant.productionScenes.length > 0
+        ? approvedVariant.productionScenes
+        : input.variant.productionScenes,
+    reviewStatus: approvedVariant.reviewStatus,
+  };
 }
 
 export async function listVideoEditJobsForUser(input: {
@@ -331,21 +381,26 @@ async function buildServerManagedInputPayload(input: {
   productionConfig: CreateVideoEditJobRequest["productionConfig"];
 }) {
   if (!isSupabaseAdminConfigured()) {
-    const assets = isLocalRealChainEnabled()
-      ? await listLocalRealChainAssetObjectsByOwner({
-          ownerType: "content_draft",
-          ownerId: input.draftId,
-        })
-      : await listAssetObjectsByOwner({
-          ownerType: "content_draft",
-          ownerId: input.draftId,
-        });
+    const [assets, merchantMediaClips] = await Promise.all([
+      isLocalRealChainEnabled()
+        ? listLocalRealChainAssetObjectsByOwner({
+            ownerType: "content_draft",
+            ownerId: input.draftId,
+          })
+        : listAssetObjectsByOwner({
+            ownerType: "content_draft",
+            ownerId: input.draftId,
+          }),
+      getPrivateMediaRepository().listClipsByMerchant({ merchantId: input.merchantId }),
+    ]);
 
     const payload = buildVideoEditJobPayloadOrThrow({
       draftId: input.draftId,
       variant: input.variant,
       materialReferences: [],
       assets,
+      merchantMediaClips,
+      requireUserTalkingHead: true,
       productionConfig: input.productionConfig,
     });
     return attachVoiceProfileReference({
@@ -355,7 +410,7 @@ async function buildServerManagedInputPayload(input: {
     });
   }
 
-  const [assets, materialReferences] = await Promise.all([
+  const [assets, materialReferences, merchantMediaClips] = await Promise.all([
     listAssetObjectsByOwner({
       ownerType: "content_draft",
       ownerId: input.draftId,
@@ -365,6 +420,7 @@ async function buildServerManagedInputPayload(input: {
       draftId: input.draftId,
       targetWorkbench: "video",
     }),
+    getPrivateMediaRepository().listClipsByMerchant({ merchantId: input.merchantId }),
   ]);
 
   const videoEditMaterialReferences = await filterVideoEditMaterialReferences({
@@ -380,6 +436,8 @@ async function buildServerManagedInputPayload(input: {
       materialItemId: reference.materialItemId,
     })),
     assets,
+    merchantMediaClips,
+    requireUserTalkingHead: true,
     productionConfig: input.productionConfig,
   });
   return attachVoiceProfileReference({

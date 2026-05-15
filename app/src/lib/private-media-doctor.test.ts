@@ -10,10 +10,10 @@ import type { VoiceProfileStateRecord } from "./voice-profile-state-machine.ts";
 
 const now = "2026-05-15T00:00:00.000Z";
 
-test("private media doctor passes a clean V1 full_video and one current voice profile", () => {
+test("private media doctor passes clean full_video/segment clips and one current voice profile", () => {
   const issues = runPrivateMediaDoctor({
     assets: [asset],
-    clips: [clip],
+    clips: [clip, segmentClip],
     voiceProfiles: [voiceProfile("voice-a")],
     maxAutoReadyVideoDurationSeconds: 180,
   });
@@ -52,14 +52,14 @@ test("private media doctor detects wrong sources and ready assets without ready 
   ]);
 });
 
-test("private media doctor detects V1 slice and media readiness violations", () => {
+test("private media doctor detects slice and media readiness violations", () => {
   const issues = runPrivateMediaDoctor({
     assets: [asset],
     clips: [
       {
         ...clip,
         id: "clip-window",
-        clipIndex: 1,
+        clipIndex: -1,
         startTimeSeconds: 5,
         endTimeSeconds: 10,
       },
@@ -85,7 +85,6 @@ test("private media doctor detects V1 slice and media readiness violations", () 
   });
 
   assertIssueCodes(issues, [
-    "slice_policy_violation",
     "slice_policy_violation",
     "slice_boundary_violation",
     "low_confidence_ready_clip",
@@ -196,6 +195,18 @@ const clip: PrivateMediaClipRecord = {
   thumbCosKey: "merchant-media/merchant-a/thumbs/asset-a/clip-1.jpg",
   mimeType: "video/mp4",
   createdAt: now,
+};
+
+const segmentClip: PrivateMediaClipRecord = {
+  ...clip,
+  id: "clip-segment",
+  clipIndex: 1,
+  clipType: "segment",
+  startTimeSeconds: 3,
+  endTimeSeconds: 7,
+  durationSeconds: 4,
+  cosKey: "merchant-media/merchant-a/clips/asset-a/clip-segment.mp4",
+  thumbCosKey: "merchant-media/merchant-a/thumbs/asset-a/clip-segment.jpg",
 };
 
 function voiceProfile(

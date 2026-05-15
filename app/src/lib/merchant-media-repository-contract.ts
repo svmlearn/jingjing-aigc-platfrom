@@ -65,16 +65,20 @@ export class InMemoryMerchantMediaRepository implements MerchantMediaRepository 
         "Only ready clips can be inserted into the ready clip repository.",
       );
     }
-    if (input.clip.clipIndex !== 0) {
+    if (input.clip.clipIndex == null || !Number.isInteger(input.clip.clipIndex) || input.clip.clipIndex < 0) {
       throw new MerchantMediaRepositoryContractError(
         "MERCHANT_MEDIA_CLIP_INDEX_INVALID",
-        "V1 ready clips must use clip_index = 0.",
+        "Ready clips must use a non-negative integer clip_index.",
       );
     }
-    if (input.clip.mediaType === "video" && input.clip.clipType !== "full_video") {
+    if (
+      input.clip.mediaType === "video" &&
+      input.clip.clipType !== "full_video" &&
+      input.clip.clipType !== "segment"
+    ) {
       throw new MerchantMediaRepositoryContractError(
         "MERCHANT_MEDIA_CLIP_TYPE_INVALID",
-        "V1 video clips must use clip_type = full_video.",
+        "Video clips must use clip_type = full_video or segment.",
       );
     }
     if (input.clip.mediaType === "image" && input.clip.clipType !== "image") {

@@ -83,9 +83,6 @@ function checkMerchantAssets(
     if (asset.status === "ready" && readyClips.length === 0) {
       issues.push(issue("merchant_asset_without_ready_clip", asset.id, "Ready asset must have at least one ready clip."));
     }
-    if (readyClips.length > 1) {
-      issues.push(issue("slice_policy_violation", asset.id, "V1 slice policy allows only one ready clip per asset."));
-    }
   }
 
   return issues;
@@ -125,15 +122,26 @@ function checkMerchantClips(input: {
     if ((clip.tagConfidence ?? 1) < minConfidence) {
       issues.push(issue("low_confidence_ready_clip", clip.id, "Low-confidence tags cannot stay ready."));
     }
-    if (clip.clipIndex !== 0) {
-      issues.push(issue("slice_policy_violation", clip.id, "V1 ready clip must use clip_index = 0."));
+    if (clip.clipIndex == null || !Number.isInteger(clip.clipIndex) || clip.clipIndex < 0) {
+      issues.push(issue("slice_policy_violation", clip.id, "Ready clip must use a non-negative integer clip_index."));
     }
     if (clip.mediaType === "video") {
-      if (clip.clipType !== "full_video") {
-        issues.push(issue("slice_policy_violation", clip.id, "V1 video ready clip must use clip_type = full_video."));
+      if (clip.clipType !== "full_video" && clip.clipType !== "segment") {
+        issues.push(issue("slice_policy_violation", clip.id, "Video ready clip must use clip_type = full_video or segment."));
       }
-      if (clip.startTimeSeconds !== 0 || clip.endTimeSeconds !== clip.durationSeconds) {
-        issues.push(issue("slice_boundary_violation", clip.id, "V1 full_video boundaries must cover the full duration."));
+      if (clip.clipType === "full_video" && (clip.startTimeSeconds !== 0 || clip.endTimeSeconds !== clip.durationSeconds)) {
+        issues.push(issue("slice_boundary_violation", clip.id, "full_video boundaries must cover the full duration."));
+      }
+      if (
+        clip.clipType === "segment" &&
+        (
+          !Number.isFinite(clip.startTimeSeconds ?? NaN) ||
+          !Number.isFinite(clip.endTimeSeconds ?? NaN) ||
+          (clip.startTimeSeconds ?? -1) < 0 ||
+          (clip.endTimeSeconds ?? 0) <= (clip.startTimeSeconds ?? 0)
+        )
+      ) {
+        issues.push(issue("slice_boundary_violation", clip.id, "segment boundaries must be a positive time window."));
       }
       if (
         typeof input.maxAutoReadyVideoDurationSeconds === "number" &&
