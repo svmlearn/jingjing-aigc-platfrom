@@ -171,6 +171,74 @@ export async function getDailyContentTaskById(input: {
   return mapDailyContentTask(data as unknown as DailyContentTaskRow);
 }
 
+export async function updateDailyContentTaskGeneratedContent(input: {
+  merchantId: string;
+  userId: string;
+  taskId: string;
+  articleTaskPatch?: Partial<DailyContentTaskItemDto>;
+  videoTaskPatch?: Partial<DailyContentTaskItemDto>;
+  status?: DailyTaskStatus;
+}): Promise<DailyContentTaskDto> {
+  const current = await getDailyContentTaskById({
+    merchantId: input.merchantId,
+    userId: input.userId,
+    taskId: input.taskId,
+  });
+  const nextArticleTask = {
+    ...current.articleTask,
+    ...input.articleTaskPatch,
+  };
+  const nextVideoTask = {
+    ...current.videoTask,
+    ...input.videoTaskPatch,
+  };
+
+  if (!isSupabaseAdminConfigured()) {
+    const updated: DailyContentTaskDto = {
+      ...current,
+      articleTask: nextArticleTask,
+      videoTask: nextVideoTask,
+      status: input.status ?? current.status,
+      updatedAt: new Date().toISOString(),
+    };
+
+    demoDailyTasks.set(
+      buildDemoKey({
+        merchantId: input.merchantId,
+        userId: input.userId,
+        taskDate: current.taskDate,
+      }),
+      updated,
+    );
+
+    return updated;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("daily_content_tasks")
+    .update({
+      article_task: nextArticleTask,
+      video_task: nextVideoTask,
+      status: input.status ?? current.status,
+    })
+    .eq("id", input.taskId)
+    .eq("merchant_id", input.merchantId)
+    .eq("user_id", input.userId)
+    .select(dailyContentTaskSelect)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(
+      500,
+      "DAILY_CONTENT_TASK_UPDATE_FAILED",
+      error?.message ?? "Update failed.",
+    );
+  }
+
+  return mapDailyContentTask(data as unknown as DailyContentTaskRow);
+}
+
 function mapDailyContentTask(row: DailyContentTaskRow): DailyContentTaskDto {
   return {
     id: row.id,
@@ -204,6 +272,10 @@ function toTaskItem(value: unknown, fallbackKind: "article" | "video"): DailyCon
       : [],
     generatedArticle: toArticlePackage(record.generatedArticle),
     generatedVideoScript: toVideoScriptPackage(record.generatedVideoScript),
+    generationStatus: toGenerationStatus(record.generationStatus),
+    generationJobId: readNullableString(record.generationJobId),
+    contentDraftId: readNullableString(record.contentDraftId),
+    contentVariantId: readNullableString(record.contentVariantId),
   };
 }
 
@@ -311,6 +383,16 @@ function toStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
     : [];
+}
+
+function toGenerationStatus(value: unknown): DailyContentTaskItemDto["generationStatus"] {
+  return value === "not_started" ||
+    value === "pending" ||
+    value === "running" ||
+    value === "succeeded" ||
+    value === "failed"
+    ? value
+    : null;
 }
 
 function buildDemoKey(input: { merchantId: string; userId: string; taskDate: string }) {
