@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -39,11 +40,14 @@ def run_command_gate(root: Path, run_dir: Path, gate: dict[str, Any]) -> dict[st
         return {"id": gate_id, "type": "command", "status": "failed", "reason": "Missing command."}
 
     log_path = run_dir / f"{gate_id}.log"
+    shell_command = command_runner(command)
     try:
         process = subprocess.run(
-            ["/bin/bash", "-lc", command],
+            shell_command,
             cwd=str(root),
             text=True,
+            encoding="utf-8",
+            errors="replace",
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             timeout=timeout,
@@ -58,9 +62,21 @@ def run_command_gate(root: Path, run_dir: Path, gate: dict[str, Any]) -> dict[st
             "type": "command",
             "status": status,
             "command": command,
+            "runner": shell_command[0],
             "exitCode": process.returncode,
             "log": relative_to_root(root, log_path),
             "outputTail": truncate(output[-4000:]),
+        }
+    except OSError as exc:
+        log_path.write_text(str(exc), encoding="utf-8")
+        return {
+            "id": gate_id,
+            "type": "command",
+            "status": "failed",
+            "command": command,
+            "reason": str(exc),
+            "log": relative_to_root(root, log_path),
+            "outputTail": str(exc),
         }
     except subprocess.TimeoutExpired as exc:
         output = (exc.stdout or "") if isinstance(exc.stdout, str) else ""
@@ -74,6 +90,19 @@ def run_command_gate(root: Path, run_dir: Path, gate: dict[str, Any]) -> dict[st
             "log": relative_to_root(root, log_path),
             "outputTail": truncate(output[-4000:]),
         }
+
+
+def command_runner(command: str) -> list[str]:
+    if os.name == "nt":
+        powershell = shutil.which("powershell") or shutil.which("pwsh")
+        if powershell:
+            return [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command]
+
+    bash = shutil.which("bash")
+    if bash:
+        return [bash, "-lc", command]
+
+    return ["/bin/sh", "-lc", command]
 
 
 def run_file_exists_gate(root: Path, gate: dict[str, Any]) -> dict[str, Any]:
@@ -160,6 +189,8 @@ def build_verifier_prompt(root: Path, contract: dict[str, Any], hard_results: li
             ["git", "status", "--short"],
             cwd=str(root),
             text=True,
+            encoding="utf-8",
+            errors="replace",
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=False,
@@ -213,7 +244,7 @@ def run_codex_verifier(root: Path, run_dir: Path, contract: dict[str, Any], hard
     model = verifier_config.get("model")
     if model:
         cmd.extend(["-m", str(model)])
-    cmd.append(prompt)
+    cmd.append("-")
 
     env = shell_env()
     env["LONG_TASK_GATE_ALLOW_STOP"] = "1"
@@ -222,7 +253,10 @@ def run_codex_verifier(root: Path, run_dir: Path, contract: dict[str, Any], hard
         process = subprocess.run(
             cmd,
             cwd=str(root),
+            input=prompt,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             timeout=timeout,

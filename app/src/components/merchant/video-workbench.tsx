@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Clock,
+  Download,
   Film,
   Loader2,
   Maximize2,
@@ -1044,6 +1045,8 @@ export function VideoWorkbench({
   const resultVideoAsset =
     job?.resultAssets?.find((asset) => asset.assetType === "video") ?? job?.resultAssets?.[0] ?? null;
   const resultVideoPreviewUrl = resultVideoAsset?.signedPreviewUrl ?? resultVideoAsset?.originUrl ?? null;
+  const resultVideoDownloadUrl =
+    resultVideoAsset?.signedDownloadUrl ?? resultVideoPreviewUrl;
   const progressModules = job?.progressModules ?? [];
   const jobStatusCopy = job
     ? buildVideoJobStatusCopy({
@@ -1357,11 +1360,24 @@ export function VideoWorkbench({
                     </div>
                   </div>
                   {resultVideoPreviewUrl ? (
-                    <video
-                      controls
-                      className="mt-5 aspect-video w-full rounded-2xl border border-white/10 bg-black"
-                      src={resultVideoPreviewUrl}
-                    />
+                    <div className="mt-5">
+                      <video
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="aspect-video w-full rounded-2xl border border-white/10 bg-black"
+                        src={resultVideoPreviewUrl}
+                      />
+                      {resultVideoDownloadUrl ? (
+                        <a
+                          href={resultVideoDownloadUrl}
+                          className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          下载成片
+                        </a>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               </div>

@@ -382,9 +382,21 @@ def _build_fire_red_service_config(
     settings: Settings,
     production_config: dict[str, object],
 ) -> dict[str, object]:
+    service_config: dict[str, object] = {}
+    if settings.private_pexels_base_url:
+        service_config["search_media"] = {
+            "pexels": _compact_dict(
+                {
+                    "mode": "custom",
+                    "base_url": settings.private_pexels_base_url,
+                    "api_key": settings.private_pexels_api_key,
+                }
+            )
+        }
+
     voiceover = production_config.get("voiceover")
     if not isinstance(voiceover, dict) or voiceover.get("enabled") is False:
-        return {}
+        return service_config
 
     provider = str(voiceover.get("provider") or settings.tts_provider).strip()
     clone_enabled = _as_bool(
@@ -416,7 +428,8 @@ def _build_fire_red_service_config(
         ).strip()
         if external_voice_id:
             tts_config["pixelle_clone"]["external_voice_id"] = external_voice_id
-        return {"tts": tts_config}
+        service_config["tts"] = tts_config
+        return service_config
 
     if provider == "minimax":
         provider_config = _compact_dict(
@@ -445,12 +458,11 @@ def _build_fire_red_service_config(
             }
         )
 
-    return {
-        "tts": {
+    service_config["tts"] = {
             "provider": provider,
             provider: provider_config,
         }
-    }
+    return service_config
 
 
 def _as_bool(value: object) -> bool:

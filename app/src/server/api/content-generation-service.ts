@@ -16,6 +16,11 @@ import type {
 import { getConsultationSessionDetail } from "@/lib/db/consultation-repository";
 import { emptyStrategySnapshot, toStrategySnapshot } from "@/lib/strategy-snapshot";
 import {
+  buildDifyMainlineDraftInput,
+  isDifyMainlineEnabled,
+  readDifyFinalResultFixtureFromEnv,
+} from "@/lib/dify-content-generation-mainline";
+import {
   buildStrategyAssetMarkdown,
   getMerchantStrategyAssetDocument,
 } from "@/lib/db/merchant-strategy-asset-repository";
@@ -108,6 +113,43 @@ type ArticleMaterialRetrievalContext = {
   } | null;
   degradationNotices: string[];
 };
+type DifyMainlineDraftServiceInput = {
+  userId: string;
+  merchantId: string;
+  sessionId?: string | null;
+  dailyTaskId?: string | null;
+  teamTheme?: string | null;
+  teamCalendarSource?: unknown;
+  generationSource: GenerationSource;
+  calendarItemId?: string | null;
+  selectedCalendarItem?: unknown;
+  strategySnapshot: unknown;
+  strategyAssetMarkdown: string | null;
+  roundtableContext: unknown;
+  merchantProfile: unknown;
+  matchedProjectMaterials?: unknown[];
+  knowledgeRefs?: unknown[];
+  strategyTag?: string | null;
+  goal?: string | null;
+  extraRequirement?: string | null;
+  toneStyle?: string | null;
+  materialContext?: unknown;
+};
+
+export type DifyFinalResultProvider = (input: {
+  userId: string;
+  merchantId: string;
+  sessionId?: string | null;
+  dailyTaskId?: string | null;
+  goal?: string | null;
+  extraRequirement?: string | null;
+}) => Promise<unknown | null>;
+
+let injectedDifyFinalResultProvider: DifyFinalResultProvider | null = null;
+
+export function setDifyFinalResultProviderForTests(provider: DifyFinalResultProvider | null) {
+  injectedDifyFinalResultProvider = provider;
+}
 
 async function getConsultationSessionWithMerchantStrategy(input: {
   merchantId: string;
@@ -293,6 +335,33 @@ export async function generateArticleDraftForUser(input: {
       "ARTICLE_REWRITE_MATERIAL_REQUIRED",
       "改写模式需要先选择参考素材。",
     );
+  }
+
+  const difyDraftBundle = await tryCreateDifyMainlineDraft({
+    userId: input.userId,
+    merchantId: merchant.id,
+    sessionId: input.sessionId ? session.id : null,
+    dailyTaskId: dailyTask?.id ?? null,
+    teamTheme: dailyTask?.theme ?? null,
+    teamCalendarSource: dailyTask?.teamCalendarSource ?? null,
+    generationSource: generationContext.source,
+    calendarItemId: generationContext.calendarItemId,
+    selectedCalendarItem: generationContext.selectedCalendarItem,
+    strategySnapshot: session.strategySnapshot,
+    strategyAssetMarkdown: resolveStrategyAssetMarkdown(session),
+    roundtableContext,
+    merchantProfile: buildMerchantSnapshot(merchant),
+    matchedProjectMaterials: dailyTask?.materialRefs ?? [],
+    knowledgeRefs: dailyTask?.knowledgeRefs ?? [],
+    strategyTag: generationContext.strategyTag,
+    goal: firstString(input.goal, generationContext.selectedCalendarItem?.summary) ?? null,
+    extraRequirement: input.extraRequirement ?? null,
+    toneStyle: input.toneStyle ?? null,
+    materialContext: buildMaterialSnapshot(materialContext.material, materialContext.reference),
+  });
+
+  if (difyDraftBundle) {
+    return difyDraftBundle;
   }
 
   const workingTitle =
@@ -938,6 +1007,97 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
     changeSummary: result.changeSummary,
     trace: result.trace,
   };
+}
+
+async function tryCreateDifyMainlineDraft(
+  input: DifyMainlineDraftServiceInput,
+): Promise<ContentDraftBundleDto | null> {
+  if (!isDifyMainlineEnabled(process.env)) {
+    return null;
+  }
+
+  const finalResult = await resolveDifyFinalResultForMainline(input);
+  if (!finalResult) {
+    return null;
+  }
+
+  const built = buildDifyMainlineDraftInput({
+    source: input.generationSource,
+    dailyTaskId: input.dailyTaskId ?? null,
+    teamTheme: input.teamTheme ?? null,
+    teamCalendarSource: input.teamCalendarSource ?? null,
+    consultationSessionId: input.sessionId ?? null,
+    syntheticSessionId: input.sessionId ? null : `synthetic:${input.merchantId}`,
+    calendarItemId: input.calendarItemId ?? null,
+    selectedCalendarItem: input.selectedCalendarItem ?? null,
+    strategySnapshot: input.strategySnapshot,
+    strategyAssetMarkdown: input.strategyAssetMarkdown,
+    roundtableContext: input.roundtableContext,
+    merchantProfile: input.merchantProfile,
+    matchedProjectMaterials: input.matchedProjectMaterials ?? [],
+    knowledgeRefs: input.knowledgeRefs ?? [],
+    strategyTag: input.strategyTag ?? null,
+    extraRequirement: input.extraRequirement ?? null,
+    toneStyle: input.toneStyle ?? null,
+    materialContext: input.materialContext ?? null,
+    rewriteGoal: input.goal ?? null,
+    finalResult,
+  });
+
+  if (!built.ok) {
+    if (built.status === "blocked") {
+      throw new ApiError(409, "DIFY_QUALITY_BLOCKED", built.reason, {
+        workflowVersion: built.mapping.workflowVersion,
+        quality: built.mapping.quality,
+      });
+    }
+
+    return null;
+  }
+
+  const sourceItem = await createManualSourceItem({
+    merchantId: input.merchantId,
+    platform: built.sourceItem.platform,
+    title: built.sourceItem.title,
+    bodyText: built.sourceItem.bodyText,
+    scriptText: built.sourceItem.scriptText,
+    tracePayload: built.sourceItem.tracePayload,
+  });
+
+  return createDraftWithVariants({
+    merchantId: input.merchantId,
+    createdByUserId: input.userId,
+    sourceItemId: sourceItem.id,
+    workingTitle: built.draft.workingTitle,
+    rewriteGoal: built.draft.rewriteGoal,
+    inputSnapshot: built.draft.inputSnapshot,
+    commentInsights: built.draft.commentInsights,
+    variants: built.draft.variants,
+  });
+}
+
+async function resolveDifyFinalResultForMainline(input: DifyMainlineDraftServiceInput) {
+  const envFixture = readDifyFinalResultFixtureFromEnv(process.env);
+  if (envFixture) {
+    return envFixture;
+  }
+
+  if (!injectedDifyFinalResultProvider) {
+    return null;
+  }
+
+  try {
+    return await injectedDifyFinalResultProvider({
+      userId: input.userId,
+      merchantId: input.merchantId,
+      sessionId: input.sessionId ?? null,
+      dailyTaskId: input.dailyTaskId ?? null,
+      goal: input.goal ?? null,
+      extraRequirement: input.extraRequirement ?? null,
+    });
+  } catch {
+    return null;
+  }
 }
 
 async function resolveVideoWorkbenchCurrentScript(input: {

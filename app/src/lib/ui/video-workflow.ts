@@ -29,6 +29,7 @@ export type DraftMediaAsset = {
   etag: string;
   sortOrder?: number | null;
   signedPreviewUrl?: string | null;
+  signedDownloadUrl?: string | null;
   originUrl?: string | null;
   createdAt?: string | null;
 };
@@ -263,6 +264,10 @@ function normalizeAsset(input: unknown): DraftMediaAsset | null {
     etag,
     sortOrder,
     signedPreviewUrl:
+      readString(input, "signedPreviewUrl", "signed_preview_url", "previewUrl", "preview_url") ??
+      readString(input, "originUrl", "origin_url"),
+    signedDownloadUrl:
+      readString(input, "signedDownloadUrl", "signed_download_url", "downloadUrl", "download_url") ??
       readString(input, "signedPreviewUrl", "signed_preview_url", "previewUrl", "preview_url") ??
       readString(input, "originUrl", "origin_url"),
     originUrl: readString(input, "originUrl", "origin_url"),

@@ -175,6 +175,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
                 "FIRERED_OPENSTORYLINE_BASE_URL": "http://fire-red:7860",
                 "FIRERED_RUN_TIMEOUT_SECONDS": "123",
                 "FIRERED_PROVIDER_KEY": "secret-provider-key",
+                "PRIVATE_PEXELS_BASE_URL": "https://app.example.com/api/private-media/pexels/",
+                "PRIVATE_PEXELS_API_KEY": "private-pexels-token",
             },
             clear=False,
         ):
@@ -185,6 +187,11 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
         self.assertEqual(123, settings.fire_red_run_timeout_seconds)
         self.assertTrue(settings.fire_red_provider_key_configured)
         self.assertEqual("secret-provider-key", settings.fire_red_provider_key)
+        self.assertEqual(
+            "https://app.example.com/api/private-media/pexels",
+            settings.private_pexels_base_url,
+        )
+        self.assertEqual("private-pexels-token", settings.private_pexels_api_key)
 
     def test_skeleton_adapter_writes_run_outputs(self):
         settings = Settings(
@@ -500,7 +507,58 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertIn("generate_voiceover", payload["prompt"])
             self.assertIn("select_bgm", payload["prompt"])
 
-    def test_fire_red_clone_voiceover_uses_pixelle_clone_not_runninghub(self):
+    def test_fire_red_private_pexels_base_url_can_run_without_real_pexels_key(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            private_pexels_base_url="https://app.example.com/api/private-media/pexels",
+            private_pexels_api_key="",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {"engine": "fire_red-openstoryline"},
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                )
+            )
+
+            pexels = post.call_args.kwargs["json"]["service_config"]["search_media"]["pexels"]
+            self.assertEqual("custom", pexels["mode"])
+            self.assertEqual(
+                "https://app.example.com/api/private-media/pexels",
+                pexels["base_url"],
+            )
+            self.assertNotIn("api_key", pexels)
+
+    def test_fire_red_clone_voiceover_uses_runninghub_clone_legacy_pixelle_adapter_name(self):
         settings = Settings(
             host="127.0.0.1",
             port=8000,
@@ -556,7 +614,6 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
 
             tts = post.call_args.kwargs["json"]["service_config"]["tts"]
             self.assertEqual("pixelle_clone", tts["provider"])
-            self.assertNotEqual("runninghub", tts["provider"])
             self.assertEqual(str(Path(tmp) / "ref.wav"), tts["ref_audio"])
             self.assertEqual(str(Path(tmp) / "ref.wav"), tts["pixelle_clone"]["ref_audio"])
             self.assertEqual("pixelle-secret", tts["pixelle_clone"]["api_key"])

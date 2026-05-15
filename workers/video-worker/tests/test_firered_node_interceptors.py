@@ -129,6 +129,7 @@ class Context:
         "minimax": {"api_key": "tts-key", "base_url": "https://tts.example"},
     }
     pexels_api_key = "pexels-key"
+    pexels_base_url = "https://app.example.com/api/private-media/pexels"
 
 
 class Runtime:
@@ -190,6 +191,10 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
 
         self.assertEqual(1, len(calls))
         self.assertEqual("pexels-key", request.args["pexels_api_key"])
+        self.assertEqual(
+            "https://app.example.com/api/private-media/pexels",
+            request.args["pexels_base_url"],
+        )
 
 
 if __name__ == "__main__":

@@ -210,10 +210,12 @@ export async function putCosObject(input: {
   };
 }
 
-export function createCosSignedPreviewUrl(input: {
+export function createCosSignedReadUrl(input: {
   storageKey: string;
   bucketName?: string | null;
   expiresInSeconds?: number;
+  responseContentDisposition?: "inline" | "attachment";
+  responseContentType?: string | null;
 }): string {
   const config = getCosConfig();
   const client = new COS({
@@ -229,8 +231,16 @@ export function createCosSignedPreviewUrl(input: {
     Method: "GET",
     Expires: input.expiresInSeconds ?? config.readUrlTtlSeconds,
     Protocol: "https:",
+    Query: {
+      ...(input.responseContentDisposition
+        ? { "response-content-disposition": input.responseContentDisposition }
+        : {}),
+      ...(input.responseContentType ? { "response-content-type": input.responseContentType } : {}),
+    },
   });
 }
+
+export const createCosSignedPreviewUrl = createCosSignedReadUrl;
 
 function parsePositiveInt(rawValue: string | undefined, fallback: number, envName: string) {
   if (!rawValue) {
