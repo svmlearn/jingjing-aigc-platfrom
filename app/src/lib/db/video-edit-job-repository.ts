@@ -57,6 +57,7 @@ type ContentVariantContextRow = {
   script_text: string | null;
   hashtags: unknown;
   cta_text: string | null;
+  production_scenes?: unknown;
   review_status: ContentVariantDto["reviewStatus"];
 };
 
@@ -132,6 +133,7 @@ export async function assertVideoScriptVariantAccess(input: {
   scriptText?: string | null;
   hashtags?: string[];
   ctaText?: string | null;
+  productionScenes?: ContentVariantDto["productionScenes"];
   reviewStatus: ContentVariantDto["reviewStatus"];
 }> {
   if (!isSupabaseAdminConfigured()) {
@@ -163,6 +165,7 @@ export async function assertVideoScriptVariantAccess(input: {
       scriptText: variant.scriptText,
       hashtags: variant.hashtags,
       ctaText: variant.ctaText,
+      productionScenes: variant.productionScenes,
       reviewStatus: variant.reviewStatus,
     };
   }
@@ -170,7 +173,9 @@ export async function assertVideoScriptVariantAccess(input: {
   const supabase = createSupabaseAdminClient();
   const { data: variantData, error: variantError } = await supabase
     .from("content_variants")
-    .select("id, draft_id, variant_type, title, script_text, hashtags, cta_text, review_status")
+    .select(
+      "id, draft_id, variant_type, title, script_text, hashtags, cta_text, production_scenes, review_status",
+    )
     .eq("id", input.contentVariantId)
     .single();
 
@@ -214,6 +219,7 @@ export async function assertVideoScriptVariantAccess(input: {
     scriptText: variant.script_text,
     hashtags: toStringArray(variant.hashtags),
     ctaText: variant.cta_text,
+    productionScenes: toProductionScenes(variant.production_scenes),
     reviewStatus: variant.review_status,
   };
 }
@@ -804,6 +810,55 @@ function toStringArray(value: unknown) {
   }
 
   return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function toProductionScenes(value: unknown): ContentVariantDto["productionScenes"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const scenes: NonNullable<ContentVariantDto["productionScenes"]> = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      continue;
+    }
+
+    const record = item as Record<string, unknown>;
+    scenes.push({
+      sceneNo: toPositiveInteger(record.sceneNo) ?? 0,
+      timeRange: toStringValue(record.timeRange),
+      sceneType: toNullableStringValue(record.sceneType),
+      requiresUserUpload: toNullableBooleanValue(record.requiresUserUpload),
+      shotRequirement: toStringValue(record.shotRequirement),
+      visual: toStringValue(record.visual),
+      voiceover: toStringValue(record.voiceover),
+      subtitle: toStringValue(record.subtitle),
+      materials: toStringArray(record.materials),
+      cameraMovement: toStringValue(record.cameraMovement),
+      purpose: toStringValue(record.purpose),
+      fallbackShot: toStringValue(record.fallbackShot),
+    });
+  }
+
+  return scenes;
+}
+
+function toStringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function toNullableStringValue(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+function toNullableBooleanValue(value: unknown) {
+  return typeof value === "boolean" ? value : null;
+}
+
+function toPositiveInteger(value: unknown) {
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
 }
 
 const videoEditJobSelect = [

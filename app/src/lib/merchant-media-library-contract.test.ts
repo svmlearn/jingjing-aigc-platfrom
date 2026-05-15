@@ -89,9 +89,14 @@ const asset: MerchantMediaAssetRecord = {
 
 const readyClip: PrivateMediaClipRecord = {
   id: "clip-1",
+  assetId: "asset-1",
   merchantId: "merchant-a",
   mediaType: "video",
   status: "ready",
+  clipIndex: 0,
+  clipType: "segment",
+  startTimeSeconds: 0,
+  endTimeSeconds: 8,
   width: 1080,
   height: 1920,
   durationSeconds: 8,

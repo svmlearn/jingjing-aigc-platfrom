@@ -32,6 +32,7 @@ import {
 } from "@/server/api/dify-final-json-mapper";
 import { runDifyWorkflow } from "@/server/api/dify-workflow-client";
 import { getDailyContentWorkspaceForUser } from "@/server/api/daily-content-task-service";
+import { ApiError } from "@/server/api/errors";
 
 type BatchMemberScope = "self" | "active_members";
 
@@ -246,6 +247,7 @@ export async function runNextDifyContentGenerationJob(): Promise<RunNextJobResul
     return { job: updatedJob, processed: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Dify 生成任务失败。";
+    const retryable = isRetryableDifyContentGenerationError(error);
 
     await updateDailyContentTaskGeneratedContent({
       merchantId: job.merchantId,
@@ -264,7 +266,7 @@ export async function runNextDifyContentGenerationJob(): Promise<RunNextJobResul
     const failedJob = await markContentGenerationJobFailed({
       jobId: job.id,
       errorMessage: message,
-      retryable: false,
+      retryable,
     });
 
     return { job: failedJob, processed: true };
@@ -327,6 +329,31 @@ async function buildDifyJobInputSnapshot(input: {
       account_profile_json: JSON.stringify(accountProfile),
     },
   };
+}
+
+function isRetryableDifyContentGenerationError(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.code === "DIFY_API_KEY_MISSING") {
+      return false;
+    }
+
+    return (
+      error.code === "DIFY_WORKFLOW_REQUEST_FAILED" &&
+      (error.status === 408 || error.status === 409 || error.status === 429 || error.status >= 500)
+    );
+  }
+
+  const name = error instanceof Error ? error.name : "";
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+
+  return (
+    name === "AbortError" ||
+    name === "TimeoutError" ||
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("econnreset") ||
+    message.includes("fetch failed")
+  );
 }
 
 async function listImageAssetsForDify(input: {
@@ -528,6 +555,8 @@ function mapDifySceneToProductionScene(
   return {
     sceneNo: scene.sceneNo,
     timeRange: scene.timeRange,
+    sceneType: scene.sceneType,
+    requiresUserUpload: scene.requiresUserUpload,
     shotRequirement: scene.taskDescription,
     visual: scene.visualDescription,
     voiceover: scene.voiceover,

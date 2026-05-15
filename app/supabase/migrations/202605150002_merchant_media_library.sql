@@ -44,6 +44,7 @@ create table if not exists public.merchant_media_clips (
   clip_type text not null,
   start_time_seconds numeric,
   end_time_seconds numeric,
+  bucket_name text not null,
   cos_key text not null,
   thumb_cos_key text,
   description text not null,
@@ -59,13 +60,14 @@ create table if not exists public.merchant_media_clips (
   duration_seconds numeric,
   width integer not null,
   height integer not null,
+  mime_type text not null,
   status text not null default 'ready',
   failure_reason text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (media_type in ('image', 'video')),
-  check (clip_index = 0),
-  check (clip_type in ('full_video', 'image')),
+  check (clip_index >= 0),
+  check (clip_type in ('full_video', 'segment', 'image')),
   check (orientation in ('portrait', 'landscape')),
   check (status in ('ready', 'tagging_failed', 'archived', 'quarantined', 'missing_object')),
   check (jsonb_typeof(tags) = 'array'),
@@ -82,6 +84,16 @@ create table if not exists public.merchant_media_clips (
       and duration_seconds is not null
       and duration_seconds > 0
       and end_time_seconds = duration_seconds
+    )
+    or (
+      media_type = 'video'
+      and clip_type = 'segment'
+      and start_time_seconds is not null
+      and start_time_seconds >= 0
+      and end_time_seconds is not null
+      and end_time_seconds > start_time_seconds
+      and duration_seconds is not null
+      and duration_seconds > 0
     )
     or (
       media_type = 'image'

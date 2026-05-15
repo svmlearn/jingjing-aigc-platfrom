@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "content-generation:worker": "node scripts/content-generation-worker.mjs",
     "lint": "eslint",
     "typecheck": "tsc --noEmit"
   },

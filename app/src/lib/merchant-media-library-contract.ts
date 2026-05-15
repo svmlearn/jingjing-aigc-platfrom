@@ -109,32 +109,45 @@ function validateReadyClip(input: {
     input.clip.cosKey === input.asset.sourceCosKey;
   const clipUsesDerivedObject = input.clip.cosKey.startsWith(`merchant-media/${input.asset.merchantId}/clips/${input.asset.id}/`);
   if (!clipUsesOriginalObject && !clipUsesDerivedObject) {
-    input.errors.push("ready clip cos_key must reference the V1 original object or stay under merchant-media/{merchant_id}/clips/{asset_id}/.");
+    input.errors.push("ready clip cos_key must reference the original object or stay under merchant-media/{merchant_id}/clips/{asset_id}/.");
   }
-  if (input.clip.clipIndex != null && input.clip.clipIndex !== 0) {
-    input.errors.push("V1 slice policy requires clip_index = 0.");
+  if (input.clip.clipIndex != null && (!Number.isInteger(input.clip.clipIndex) || input.clip.clipIndex < 0)) {
+    input.errors.push("ready clip_index must be a non-negative integer.");
   }
-  if (input.clip.clipType && input.clip.clipType !== "full_video" && input.clip.clipType !== "image") {
-    input.errors.push("V1 slice policy only supports full_video and image clip types.");
+  if (input.clip.clipType && input.clip.clipType !== "full_video" && input.clip.clipType !== "segment" && input.clip.clipType !== "image") {
+    input.errors.push("ready clip_type must be full_video, segment, or image.");
   }
   if (input.asset.mediaType === "video") {
-    if (input.clip.clipType && input.clip.clipType !== "full_video") {
-      input.errors.push("V1 video assets must produce a full_video clip.");
+    if (input.clip.clipType !== "full_video" && input.clip.clipType !== "segment") {
+      input.errors.push("video assets must produce full_video or segment clips.");
     }
-    if (input.clip.startTimeSeconds != null && input.clip.startTimeSeconds !== 0) {
-      input.errors.push("V1 full_video clip must start at 0 seconds.");
+    if (input.clip.clipType === "full_video") {
+      if (input.clip.startTimeSeconds != null && input.clip.startTimeSeconds !== 0) {
+        input.errors.push("full_video clip must start at 0 seconds.");
+      }
+      if (
+        input.clip.endTimeSeconds != null &&
+        input.clip.durationSeconds != null &&
+        input.clip.endTimeSeconds !== input.clip.durationSeconds
+      ) {
+        input.errors.push("full_video clip must end at duration_seconds.");
+      }
     }
-    if (
-      input.clip.endTimeSeconds != null &&
-      input.clip.durationSeconds != null &&
-      input.clip.endTimeSeconds !== input.clip.durationSeconds
-    ) {
-      input.errors.push("V1 full_video clip must end at duration_seconds.");
+    if (input.clip.clipType === "segment") {
+      if (!Number.isFinite(input.clip.startTimeSeconds ?? NaN) || (input.clip.startTimeSeconds ?? -1) < 0) {
+        input.errors.push("segment clip start_time_seconds is required.");
+      }
+      if (
+        !Number.isFinite(input.clip.endTimeSeconds ?? NaN) ||
+        (input.clip.endTimeSeconds ?? 0) <= (input.clip.startTimeSeconds ?? 0)
+      ) {
+        input.errors.push("segment clip end_time_seconds must be greater than start_time_seconds.");
+      }
     }
   }
   if (input.asset.mediaType === "image") {
     if (input.clip.clipType && input.clip.clipType !== "image") {
-      input.errors.push("V1 image assets must produce an image clip.");
+      input.errors.push("image assets must produce an image clip.");
     }
     if (input.clip.durationSeconds != null) {
       input.errors.push("image clip must not write video duration_seconds.");

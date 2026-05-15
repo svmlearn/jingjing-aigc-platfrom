@@ -179,8 +179,9 @@ export async function upsertLocalRealChainDraftBundle(bundle: ContentDraftBundle
           script_text,
           hashtags,
           cta_text,
+          production_scenes,
           review_status
-        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
+        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11::jsonb, $12)
         on conflict (id) do update set
           draft_id = excluded.draft_id,
           platform = excluded.platform,
@@ -191,6 +192,7 @@ export async function upsertLocalRealChainDraftBundle(bundle: ContentDraftBundle
           script_text = excluded.script_text,
           hashtags = excluded.hashtags,
           cta_text = excluded.cta_text,
+          production_scenes = excluded.production_scenes,
           review_status = excluded.review_status,
           updated_at = timezone('utc', now())
         `,
@@ -205,6 +207,7 @@ export async function upsertLocalRealChainDraftBundle(bundle: ContentDraftBundle
           variant.scriptText,
           JSON.stringify(variant.hashtags),
           variant.ctaText,
+          JSON.stringify(variant.productionScenes ?? []),
           variant.reviewStatus,
         ],
       );

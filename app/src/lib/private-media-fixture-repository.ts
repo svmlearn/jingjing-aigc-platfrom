@@ -22,6 +22,25 @@ export class InMemoryPrivateMediaClipRepository implements PrivateMediaClipRepos
 }
 
 export function getDefaultPrivateMediaClipRepository(): PrivateMediaClipRepository {
+  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const globalWithRepository = globalThis as typeof globalThis & {
+      __jingjingSupabasePrivateMediaRepository?: PrivateMediaClipRepository;
+    };
+
+    globalWithRepository.__jingjingSupabasePrivateMediaRepository ??= {
+      async listClipsByMerchant(input) {
+        const { getPrivateMediaRepository } = await import("./db/merchant-media-repository.ts");
+        return getPrivateMediaRepository().listClipsByMerchant(input);
+      },
+      async getClipById(input) {
+        const { getPrivateMediaRepository } = await import("./db/merchant-media-repository.ts");
+        return getPrivateMediaRepository().getClipById(input);
+      },
+    };
+
+    return globalWithRepository.__jingjingSupabasePrivateMediaRepository;
+  }
+
   return defaultPrivateMediaClipRepository;
 }
 

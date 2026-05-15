@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildDifyMainlineDraftInput } from "./dify-content-generation-mainline.ts";
 import { runPrivateMediaDoctor } from "./private-media-doctor.ts";
 import {
   InMemoryPrivateMediaClipRepository,
@@ -20,36 +19,43 @@ const now = "2026-05-15T00:00:00.000Z";
 const tokenSecret = "fixture-workflow-secret";
 
 test("private media Dify-to-OpenStoryline workflow has a fixture-level smoke substitute", async () => {
-  const difyBuilt = buildDifyMainlineDraftInput({
-    source: "consultation_calendar",
-    consultationSessionId: "session-1",
-    calendarItemId: "calendar-1",
-    strategyTag: "project_walkthrough",
-    rewriteGoal: "Use private project media.",
-    finalResult: difyFixture,
-  });
-
-  assert.equal(difyBuilt.ok, true);
-  if (!difyBuilt.ok) {
-    return;
-  }
-
-  const videoVariant = difyBuilt.draft.variants.find((variant) => variant.variantType === "video_script");
-  assert.ok(videoVariant?.scriptText);
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-private-media-fixture",
     variant: {
       contentVariantId: "variant-private-media-video",
       draftId: "draft-private-media-fixture",
-      scriptText: videoVariant.scriptText,
-      productionScenes: videoVariant.productionScenes,
+      scriptText: privateMediaVideoScript.scriptText,
+      productionScenes: privateMediaVideoScript.productionScenes,
       reviewStatus: "approved",
     },
     materialReferences: [],
-    assets: [],
+    assets: [
+      {
+        id: "fixture-user-talking-head",
+        assetType: "video",
+        storageProvider: "tencent_cos",
+        bucketName: "fixture-private-bucket",
+        storageKey: "draft-inputs/demo-merchant-local/draft-private-media-fixture/opening.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+      },
+    ],
+    merchantMediaClips: [v1WorkflowClip],
+    requireUserTalkingHead: true,
     now,
   });
   assert.equal(payload.materialContext.sceneAssetQueries[0]?.query.includes("project entrance shops"), true);
+  assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["fixture-user-talking-head"]);
+  assert.equal(payload.materialContext.merchantMediaMatches[0]?.clipIds.includes("fixture-video-a-entrance"), true);
+  assert.equal(payload.input_assets[0]?.asset_id, "fixture-user-talking-head");
+  const rawPayload = payload as Record<string, unknown>;
+  assert.equal(rawPayload.workflowVersion, undefined);
+  assert.equal(rawPayload.outputs, undefined);
+  assert.equal(rawPayload.article, undefined);
+  assert.equal(rawPayload.video, undefined);
+  assert.equal(rawPayload.quality, undefined);
 
   const previousTokenSecret = process.env.PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET;
   process.env.PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET = tokenSecret;
@@ -121,60 +127,29 @@ test("private media Dify-to-OpenStoryline workflow has a fixture-level smoke sub
   assert.deepEqual(cleanDoctorIssues, []);
 });
 
-const difyFixture = {
-  workflowVersion: "dify-v3.1",
-  status: "succeeded",
-  article: {
-    title: "Private project media note",
-    coverCopy: "Real entrance, real scene",
-    images: [
-      {
-        cosPath: "cos://fixture/article-cover.jpg",
-        role: "cover",
-      },
-    ],
-    copyText: "A note generated from the private-media fixture flow.",
-    hashtags: ["#project", "#entrance"],
-    ctaText: "Ask for the viewing route.",
-  },
-  video: {
-    title: "Private project entrance video",
-    storyOutline: "Use private merchant media instead of public stock footage.",
-    estimatedDuration: 60,
-    scenes: [
-      {
-        sceneNo: 1,
-        timeRange: "00:00-00:08",
-        durationSec: 8,
-        sceneType: "location_broll",
-        title: "Entrance",
-        purpose: "Show the real project entrance.",
-        requiresUserUpload: false,
-        taskDescription: "Use a private clip of the project entrance.",
-        visualDescription: "Project entrance with nearby shops.",
-        voiceover: "Start from the real entrance that buyers can verify.",
-        subtitle: "Verify the entrance first.",
-        filmingGuide: {
-          props: ["project sign"],
-        },
-        shotLanguage: {
-          cameraMovement: "slow push",
-        },
-        assetQuery: "project entrance shops",
-        fallbackVisual: "Use a lobby clip if entrance media is unavailable.",
-      },
-    ],
-    ctaText: "Ask for a visit.",
-  },
-  quality: {
-    status: "passed",
-    pass: true,
-    blockingReasons: [],
-    missingInputs: [],
-  },
-  debug: {
-    fixtureSmoke: true,
-  },
+const privateMediaVideoScript = {
+  scriptText: [
+    "Private project entrance video",
+    "Use private merchant media instead of public stock footage.",
+    "Scene 1 | 00:00-00:08",
+    "Visual: Project entrance with nearby shops.",
+    "Task: Use a private clip of the project entrance.",
+    "Voiceover: Start from the real entrance that buyers can verify.",
+  ].join("\n"),
+  productionScenes: [
+    {
+      sceneNo: 1,
+      timeRange: "00:00-00:08",
+      shotRequirement: "Use a private clip of the project entrance.",
+      visual: "Project entrance with nearby shops.",
+      voiceover: "Start from the real entrance that buyers can verify.",
+      subtitle: "Verify the entrance first.",
+      materials: ["project entrance shops", "project sign"],
+      cameraMovement: "slow push",
+      purpose: "Show the real project entrance.",
+      fallbackShot: "Use a lobby clip if entrance media is unavailable.",
+    },
+  ],
 };
 
 const v1WorkflowClip = {

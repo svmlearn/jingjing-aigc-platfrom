@@ -478,10 +478,6 @@ export function VideoWorkbench({
       setError("请先生成视频脚本。");
       return;
     }
-    if (selectedVariant.reviewStatus !== "approved") {
-      setError("请先确认脚本，再创建正式视频任务。");
-      return;
-    }
 
     setCreatingJob(true);
     setError(null);
@@ -1103,14 +1099,14 @@ export function VideoWorkbench({
             className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-emerald-400 disabled:opacity-50"
           >
             {approvingScript ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-            {scriptApproved ? "脚本已确认" : "确认脚本"}
+            {scriptApproved ? "脚本已锁定" : "创建时自动锁定"}
           </button>
           <button
             type="button"
             onClick={() => {
               void createVideoJob();
             }}
-            disabled={creatingJob || Boolean(jobIsRunning) || !selectedVariant || !scriptApproved}
+            disabled={creatingJob || Boolean(jobIsRunning) || !selectedVariant}
             className="relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-white/70 transition-colors hover:bg-white/10 disabled:opacity-50"
           >
             {creatingJob || jobIsRunning ? (
@@ -1118,7 +1114,7 @@ export function VideoWorkbench({
             ) : (
               <Wand2 className="h-3.5 w-3.5 text-amber-500" />
             )}
-            {jobIsRunning ? "AI 剪辑中" : scriptApproved ? "AI 一键剪辑" : "待确认脚本"}
+            {jobIsRunning ? "AI 剪辑中" : "AI 一键剪辑"}
           </button>
         </div>
       </div>
@@ -1346,7 +1342,7 @@ export function VideoWorkbench({
                           重试任务
                         </button>
                       ) : null}
-                      {jobSucceeded && scriptApproved ? (
+                      {jobSucceeded && selectedVariant ? (
                         <button
                           type="button"
                           onClick={() => void createVideoJob(job.id)}

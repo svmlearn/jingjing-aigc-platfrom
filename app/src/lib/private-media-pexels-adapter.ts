@@ -5,7 +5,7 @@ export type PrivateMediaClipStatus =
   | "quarantined"
   | "missing_object";
 
-export type PrivateMediaClipType = "full_video" | "image";
+export type PrivateMediaClipType = "full_video" | "segment" | "image";
 
 export type PrivateMediaClipRecord = {
   id: string;
