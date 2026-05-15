@@ -242,6 +242,12 @@ def _build_fire_red_run_payload(
     directive = request.production_directive or {}
     desired_outputs = list(directive.get("desired_outputs") or ["final_video"])
     production_config = request.production_config or {}
+    service_config = _build_fire_red_service_config(settings, production_config)
+    if _is_worker_rehearsal_fast_path(request):
+        service_config = {
+            **service_config,
+            "worker_rehearsal_fast_path": True,
+        }
     payload = {
         "job_id": request.job_id,
         "merchant_id": request.merchant_id,
@@ -254,13 +260,19 @@ def _build_fire_red_run_payload(
         "script_text": request.script_text,
         "production_directive": directive,
         "production_config": production_config,
-        "service_config": _build_fire_red_service_config(settings, production_config),
+        "service_config": service_config,
         "runtime_payload": request.runtime_payload,
         "desired_outputs": desired_outputs,
         "input_assets": [asset.model_dump() for asset in request.input_assets],
         "prompt": _build_fire_red_prompt(request, desired_outputs, production_config),
     }
     return payload
+
+
+def _is_worker_rehearsal_fast_path(request: RunRequest) -> bool:
+    if request.execution_mode == "self_hosted_rehearsal_fast_path":
+        return True
+    return request.runtime_payload.get("self_hosted_rehearsal_fast_path") is True
 
 
 def _build_fire_red_service_config(

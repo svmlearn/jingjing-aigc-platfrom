@@ -314,6 +314,20 @@ Small synthetic e2e:
 7. Confirm final output is uploaded to Singapore COS.
 8. Confirm the app can return a signed preview/download URL.
 
+For infrastructure-only validation, use the deterministic worker rehearsal fast
+path:
+
+- set the video job `input_payload.executionMode` to
+  `self_hosted_rehearsal_fast_path`
+- set `runtime_payload.self_hosted_rehearsal_fast_path=true`
+- keep `desiredOutputs=["final_video"]`
+- keep `voiceover.enabled=false`, `bgm.enabled=false`, and
+  `subtitles.enabled=false`
+
+This path still validates worker claim, DB, COS input download, OpenStoryline,
+FireRed `/api/worker/runs`, final asset upload, and DB result writeback. It does
+not validate creative model quality.
+
 Record only redacted evidence in:
 
 ```text

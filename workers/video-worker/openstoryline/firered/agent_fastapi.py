@@ -2328,6 +2328,11 @@ def health():
     }
 
 
+@app.get("/ready")
+def ready():
+    return health()
+
+
 @api.get("/health")
 def api_health():
     return health()
@@ -2879,6 +2884,71 @@ def _fallback_worker_prompt(payload: Dict[str, Any]) -> str:
     )
 
 
+def _worker_rehearsal_fast_path_enabled(payload: Dict[str, Any]) -> bool:
+    service_config = payload.get("service_config")
+    return isinstance(service_config, dict) and service_config.get(
+        "worker_rehearsal_fast_path"
+    ) is True
+
+
+def _run_worker_rehearsal_fast_path(payload: Dict[str, Any], output_dir: Path) -> JSONResponse:
+    input_assets = payload.get("input_assets")
+    if not isinstance(input_assets, list) or not input_assets:
+        raise HTTPException(status_code=400, detail="input_assets is required")
+
+    source_path: Path | None = None
+    for asset in input_assets:
+        if not isinstance(asset, dict):
+            continue
+        local_path = _s(asset.get("local_path"))
+        if not local_path:
+            continue
+        candidate = Path(local_path)
+        if candidate.is_file():
+            source_path = candidate
+            break
+
+    if source_path is None:
+        raise HTTPException(
+            status_code=500,
+            detail="worker rehearsal input file not found",
+        )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    final_video_path = output_dir / "final.mp4"
+    shutil.copyfile(source_path, final_video_path)
+
+    render_payload = {
+        "mode": "worker_rehearsal_fast_path",
+        "output_path": str(final_video_path),
+        "source_path": str(source_path),
+        "input_asset_count": len(input_assets),
+    }
+    metadata_path = output_dir / "firered-run-metadata.json"
+    _write_worker_run_metadata(
+        metadata_path,
+        payload=payload,
+        session_id="worker_rehearsal_fast_path",
+        final_text="worker rehearsal fast path rendered final.mp4 from input asset",
+        render_payload=render_payload,
+        final_video_path=final_video_path,
+    )
+
+    return JSONResponse(
+        {
+            "job_id": payload.get("job_id"),
+            "session_id": "worker_rehearsal_fast_path",
+            "final_video_path": str(final_video_path),
+            "metadata_path": str(metadata_path),
+            "raw_response": {
+                "engine": "fire_red-openstoryline",
+                "worker_rehearsal_fast_path": True,
+                "render_video": render_payload,
+            },
+        }
+    )
+
+
 @api.post("/worker/runs")
 async def run_worker_video_job(request: Request):
     _authorize_worker_run(request)
@@ -2893,6 +2963,9 @@ async def run_worker_video_job(request: Request):
     if not output_dir_raw:
         raise HTTPException(status_code=400, detail="output_dir is required")
     output_dir = Path(output_dir_raw)
+
+    if _worker_rehearsal_fast_path_enabled(payload):
+        return _run_worker_rehearsal_fast_path(payload, output_dir)
 
     store: SessionStore = app.state.sessions
     sess = await store.create()

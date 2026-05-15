@@ -138,6 +138,7 @@ class ClientContext:
     chat_model_key: str  # Chat model key
     vlm_model_key: str = ""  # VLM model key
     pexels_api_key: Optional[str] = None
+    pexels_base_url: Optional[str] = None
     tts_config: Optional[dict] = None  # TTS config at runtime
     ai_transition_config: Optional[dict] = None # AI transition config at runtime
     llm_pool: dict[tuple[str, bool], ChatOpenAI] = field(default_factory=dict)

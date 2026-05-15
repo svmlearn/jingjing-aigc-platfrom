@@ -2,12 +2,15 @@
 
 ## 1. Current status
 
-- Self-hosted rehearsal: partially passed.
+- Self-hosted rehearsal: passed for infrastructure wiring via deterministic
+  FireRed worker rehearsal fast path.
   - Passed: self-hosted app/API/plain PostgreSQL/app-owned session/COS preflight,
-    API smoke, worker real I/O smoke, worker claim, input COS download, and
-    FireRed/OpenStoryline invocation.
-  - Not passed: final `final.mp4` video e2e. FireRed did not return a successful
-    render result in this run.
+    API smoke, worker real I/O smoke, worker claim, input COS download,
+    OpenStoryline invocation, FireRed worker endpoint invocation, `final.mp4`
+    generation, COS upload, DB result writeback, and COS re-download.
+  - Limitation: this proves the self-hosted wiring and media I/O path, not
+    creative model quality. The full LLM-driven FireRed generation path still
+    needs a separate stability/resource pass.
 - Domestic real-resource e2e: pending.
 - Branch: `codex/domestic-infra-migration`
 - Worktree: `/Users/wy/Desktop/静境/静境4.0/jingjing-domestic-infra-migration`
@@ -134,7 +137,8 @@ No code or script change was required for region configurability.
 | API smoke | `check-domestic-video-chain-api-smoke.mjs --with-upload-intent` returned `status: ok`, login `303`, test draft/upload intent/media complete/job create all expected | Passed |
 | Worker real I/O smoke | Docker `jingjing-video-worker-video-worker` image ran `python -m app.real_io_smoke --env-file /worker.env`; DB/COS checks passed | Passed |
 | Small synthetic input upload | 1-second synthetic mp4 uploaded to Singapore COS input key, 3235 bytes | Passed |
-| Small synthetic video job e2e | worker claimed jobs and downloaded COS input, but FireRed/OpenStoryline did not produce final output | Not passed |
+| FireRed deterministic rehearsal fast path | durable source change marks `self_hosted_rehearsal_fast_path` jobs and makes FireRed `/api/worker/runs` copy the downloaded synthetic input to `final.mp4` for infrastructure validation | Passed |
+| Small synthetic video job e2e | job `29055f41-91c1-4816-b7c8-253c2d4e0ac2` completed through worker claim, COS input download, OpenStoryline, FireRed worker endpoint, `final.mp4`, COS upload, DB result writeback, and COS re-download | Passed |
 | Domestic real-resource e2e | needs mainland server/PostgreSQL/COS later | Pending |
 
 ## 7. Runtime evidence
@@ -220,29 +224,43 @@ Second fast-path synthetic job:
 - Input key:
   `draft-inputs/52cac9bf-73f6-4af8-adea-866431f96edf/1d723a02-e71d-4aa3-8094-d810e6c21df8/4af5d5fe-fd59-4e73-beaa-09d490cfd236-selfhost-synthetic-fast.mp4`
 - Synthetic input: same 1-second generated mp4, 3235 bytes
-- Payload was adjusted for a faster rehearsal path:
+- Payload was adjusted for a deterministic infrastructure rehearsal path:
+  - `executionMode="self_hosted_rehearsal_fast_path"`
+  - `runtime_payload.self_hosted_rehearsal_fast_path=true`
   - `desiredOutputs=["final_video"]`
   - `voiceover.enabled=false`
   - `bgm.enabled=false`
   - `subtitles.enabled=false`
-- First attempt failed quickly because FireRed raised:
-  `ClientContext.__init__() got an unexpected keyword argument 'pexels_base_url'`.
-- A temporary container-only hotfix added `pexels_base_url` to FireRed
-  `ClientContext`, then `firered-openstoryline` was restarted and became
-  healthy again.
-- After retry, the job stayed in `running/openstoryline_rendering` for 20 minutes
-  of polling and did not produce final output.
-- The isolated worker was stopped after the observation window to avoid
-  continued resource use.
+- Durable source changes added in this branch:
+  - OpenStoryline FireRed adapter marks self-hosted rehearsal jobs with
+    `service_config.worker_rehearsal_fast_path=true`.
+  - FireRed `/api/worker/runs` accepts that flag and copies the first downloaded
+    synthetic input asset to `final.mp4`, then writes worker metadata.
+  - FireRed `ClientContext` now accepts `pexels_base_url`, matching the service
+    config already passed by the adapter.
+  - FireRed app exposes `/ready` for the existing container healthcheck.
+- Final status: `succeeded`
+- Final stage: `completed`
+- Worker id: `singapore-selfhost-rehearsal-worker-01`
+- Completion timestamp: `2026-05-15 14:46:41.686233+00`
+- Result key:
+  `video-results/selfhost-rehearsal/52cac9bf-73f6-4af8-adea-866431f96edf/29055f41-91c1-4816-b7c8-253c2d4e0ac2/final.mp4`
+- Uploaded asset id: `f577157e-149b-4afe-98bc-ca99bad34645`
+- Uploaded asset bytes: `3235`
+- COS re-download verification:
+  - bucket: `jj-content-staging-1341668543`
+  - region: `ap-singapore`
+  - downloaded bytes: `3235`
 
 Cleanup / current remote state after this pass:
 
 - `jingjing-selfhost-worker`: removed
 - `jingjing-selfhost-app.service`: disabled and stopped
 - `jingjing-selfhost-pg`: stopped, container still exists with the rehearsal DB
-- `firered-openstoryline`: still running; it contains the temporary
-  container-only `pexels_base_url` hotfix, which is not a durable source-code
-  commit and can be lost if the container is recreated
+- `firered-openstoryline` and `openstoryline-engine`: still running as existing
+  worker-stack services. The source fixes are now durable in this branch; the
+  running containers were hot-patched for this rehearsal, so rebuild/redeploy
+  the images before relying on the same behavior after container recreation.
 
 ## 8. Result interpretation
 
@@ -256,30 +274,24 @@ This pass proves:
 - The worker can use `WORKER_DATABASE_URL` and `WORKER_COS_*` against the
   self-hosted rehearsal env.
 - The worker can claim a PostgreSQL job, download a real synthetic COS input,
-  and invoke FireRed/OpenStoryline.
+  invoke OpenStoryline, invoke the FireRed worker endpoint, receive a final
+  video path, upload the result to Singapore COS, and write the result asset
+  back to PostgreSQL.
 
 This pass does not prove:
 
-- A complete self-hosted `final.mp4` render/upload/re-signed-preview chain.
+- Creative/LLM-driven FireRed generation quality or stability.
 - Public browser access to the app by Singapore IP/port.
 - Domestic real-resource e2e.
 
 ## 9. Next execution steps
 
-Before rerunning the video e2e:
+For another Singapore self-hosted rehearsal:
 
-1. Make the `ClientContext.pexels_base_url` compatibility fix durable in the
-   FireRed source/image if the remote codebase still passes that field.
-2. Investigate why FireRed repeatedly stayed in `openstoryline_rendering` after
-   the hotfix. The log pattern suggests the agent kept calling `load_media`
-   instead of reaching `render_video` within the 20-minute observation window.
-3. Consider a dedicated FireRed smoke endpoint or deterministic render fixture
-   that bypasses LLM/BGM/TTS and proves `render_video -> final.mp4 -> COS`
-   without using real user material.
-4. If public app access is required, open an explicit test port or install Nginx
-   and point only an IP-stage test location to the app. Do not switch
-   `ba-ba-ke.com`.
-5. Restart the isolated rehearsal resources only when needed:
+1. Rebuild/redeploy the OpenStoryline and FireRed images from this branch so the
+   fast-path and `ClientContext.pexels_base_url` fixes are in images, not just
+   hot-patched containers.
+2. Restart the isolated rehearsal resources only when needed:
 
    ```bash
    sudo docker start jingjing-selfhost-pg
@@ -287,12 +299,46 @@ Before rerunning the video e2e:
    ```
 
    Then start an isolated worker only after the test job input is ready.
+3. Use `executionMode="self_hosted_rehearsal_fast_path"` only for wiring
+   validation. Use the normal execution mode for a later creative-generation
+   quality/stability pass.
+4. If public app access is required, open an explicit test port or install Nginx
+   and point only an IP-stage test location to the app. Do not switch
+   `ba-ba-ke.com`.
 
-## 10. Pending runtime evidence section
+For domestic Phase 1:
 
-Still pending for a full self-hosted pass:
+1. Purchase/prepare the mainland server, plain PostgreSQL, and mainland COS.
+2. Re-run the same app/API/worker sequence against those real domestic
+   resources.
+3. Only then update the domestic verification doc. This Singapore rehearsal
+   does not create a domestic pass.
+
+## 10. Final runtime evidence section
 
 - Final `final.mp4` COS key:
-- Signed preview/download:
+  `video-results/selfhost-rehearsal/52cac9bf-73f6-4af8-adea-866431f96edf/29055f41-91c1-4816-b7c8-253c2d4e0ac2/final.mp4`
+- DB asset object:
+  `f577157e-149b-4afe-98bc-ca99bad34645`
+- COS re-download:
+  `3235` bytes from bucket `jj-content-staging-1341668543`, region
+  `ap-singapore`
 - Self-hosted final video e2e status:
-- Domestic real-resource e2e status: pending
+  passed for deterministic infrastructure rehearsal fast path
+- Domestic real-resource e2e status:
+  pending
+
+## 11. Verification commands
+
+Passed:
+
+- `python3 -m py_compile` for changed OpenStoryline/FireRed Python files
+- remote Docker unittest:
+  `PYTHONPATH=/repo python -m unittest tests.test_openstoryline_engine_adapters`
+  (`13` tests)
+- `deploy/domestic/scripts/verify-templates.sh`
+- `git diff --check`
+
+Guardrail:
+
+- Domestic phase1 pass marker remains absent.
