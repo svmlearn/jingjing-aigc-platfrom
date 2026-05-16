@@ -15,6 +15,7 @@ class Settings:
     engine_adapter: str
     fire_red_base_url: str
     fire_red_run_timeout_seconds: int = 900
+    fire_red_stream_idle_timeout_seconds: int = 180
     fire_red_provider_key_configured: bool = False
     fire_red_provider_key: str = ""
     tts_provider: str = "bytedance_bigtts"
@@ -59,6 +60,9 @@ class Settings:
             .rstrip("/"),
             fire_red_run_timeout_seconds=int(
                 os.getenv("FIRERED_RUN_TIMEOUT_SECONDS", "900")
+            ),
+            fire_red_stream_idle_timeout_seconds=int(
+                os.getenv("FIRERED_STREAM_IDLE_TIMEOUT_SECONDS", "180")
             ),
             fire_red_provider_key_configured=bool(
                 os.getenv("FIRERED_PROVIDER_KEY", "").strip()

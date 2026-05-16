@@ -34,7 +34,15 @@ class InputDownloadError(RuntimeError):
 
 
 class EngineRunError(RuntimeError):
-    def __init__(self, original_error: Exception) -> None:
+    def __init__(
+        self,
+        original_error: Exception,
+        *,
+        module_key: str | None = None,
+        progress_event: dict[str, Any] | None = None,
+    ) -> None:
+        self.module_key = module_key
+        self.progress_event = progress_event
         super().__init__(f"failed to run OpenStoryline engine: {original_error}")
 
 
@@ -59,6 +67,218 @@ def _nested_dict(source: dict[str, Any], *keys: str) -> dict[str, Any]:
         if isinstance(value, dict):
             return value
     return {}
+
+
+PROGRESS_MODULES: tuple[dict[str, str], ...] = (
+    {"key": "material_preparation", "label": "素材准备"},
+    {"key": "material_match", "label": "素材匹配"},
+    {"key": "voiceover", "label": "配音生成"},
+    {"key": "subtitles", "label": "字幕与时间线"},
+    {"key": "render", "label": "合成渲染"},
+    {"key": "output_delivery", "label": "保存成片"},
+)
+
+OPENSTORYLINE_TOOL_MODULE_TOKENS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "material_preparation",
+        (
+            "prepare",
+            "download",
+            "input_asset",
+        ),
+    ),
+    (
+        "voiceover",
+        (
+            "generate_voiceover",
+            "voiceover",
+            "text_to_speech",
+            "tts",
+        ),
+    ),
+    (
+        "subtitles",
+        (
+            "subtitle",
+            "caption",
+            "plan_timeline",
+            "timeline",
+            "generate_script",
+        ),
+    ),
+    (
+        "render",
+        (
+            "render_video",
+            "compose_video",
+            "export_video",
+            "ffmpeg",
+            "render",
+        ),
+    ),
+    (
+        "material_match",
+        (
+            "load_media",
+            "search_media",
+            "split_shots",
+            "understand_clips",
+            "group_clips",
+            "filter_clips",
+            "match",
+            "clip",
+            "media",
+        ),
+    ),
+)
+
+
+def _optional_bool(source: dict[str, Any], *keys: str, default: bool = True) -> bool:
+    for key in keys:
+        value = source.get(key)
+        if isinstance(value, bool):
+            return value
+    return default
+
+
+def _module_is_skipped(key: str, production_config: dict[str, Any]) -> bool:
+    if key == "voiceover":
+        return not _optional_bool(_nested_dict(production_config, "voiceover"), "enabled")
+    if key == "subtitles":
+        return not _optional_bool(_nested_dict(production_config, "subtitles"), "enabled")
+    return False
+
+
+def _progress_modules(
+    *,
+    active_key: str | None = None,
+    failed_key: str | None = None,
+    completed: bool = False,
+    production_config: dict[str, Any] | None = None,
+    active_progress_pct: int = 50,
+    active_detail: str | None = None,
+) -> list[dict[str, Any]]:
+    production_config = production_config or {}
+    active_index = next(
+        (index for index, module in enumerate(PROGRESS_MODULES) if module["key"] == active_key),
+        None,
+    )
+    failed_index = next(
+        (index for index, module in enumerate(PROGRESS_MODULES) if module["key"] == failed_key),
+        None,
+    )
+    modules: list[dict[str, Any]] = []
+
+    for index, module in enumerate(PROGRESS_MODULES):
+        key = module["key"]
+        skipped = _module_is_skipped(key, production_config)
+        status = "pending"
+        progress_pct = 0
+
+        if completed:
+            status = "skipped" if skipped else "succeeded"
+            progress_pct = 100
+        elif failed_index is not None:
+            if index < failed_index:
+                status = "skipped" if skipped else "succeeded"
+                progress_pct = 100
+            elif index == failed_index:
+                status = "failed"
+                progress_pct = 100
+            elif skipped:
+                status = "skipped"
+                progress_pct = 100
+        elif active_index is not None:
+            if index < active_index:
+                status = "skipped" if skipped else "succeeded"
+                progress_pct = 100
+            elif index == active_index:
+                status = "running"
+                progress_pct = active_progress_pct
+            elif skipped:
+                status = "skipped"
+                progress_pct = 100
+        elif skipped:
+            status = "skipped"
+            progress_pct = 100
+
+        modules.append(
+            {
+                "key": key,
+                "label": module["label"],
+                "status": status,
+                "progress_pct": progress_pct,
+                "detail": active_detail if index == active_index and active_detail else None,
+            }
+        )
+
+    return modules
+
+
+def _openstoryline_event_module_key(event: dict[str, Any]) -> str | None:
+    text_parts = [
+        event.get("name"),
+        event.get("server"),
+        event.get("tool_name"),
+        event.get("node"),
+        event.get("langgraph_node"),
+        event.get("message"),
+    ]
+    args = event.get("args")
+    if isinstance(args, dict):
+        text_parts.extend(str(key) for key in args.keys())
+    text = " ".join(str(value or "") for value in text_parts).lower()
+
+    for key, tokens in OPENSTORYLINE_TOOL_MODULE_TOKENS:
+        if any(token in text for token in tokens):
+            return key
+    return None
+
+
+def _openstoryline_event_progress_pct(event: dict[str, Any]) -> int:
+    if event.get("type") == "tool_start":
+        return 5
+
+    progress = event.get("progress")
+    total = event.get("total")
+    try:
+        progress_value = float(progress)
+        total_value = float(total) if total not in (None, 0, "0") else None
+    except (TypeError, ValueError):
+        return 100 if event.get("type") == "tool_end" else 50
+
+    if total_value and total_value > 0:
+        pct = progress_value / total_value * 100
+    else:
+        pct = progress_value if progress_value > 1 else progress_value * 100
+    return max(5, min(100, round(pct)))
+
+
+def _openstoryline_event_detail(event: dict[str, Any], module_key: str) -> str | None:
+    message = event.get("message")
+    if isinstance(message, str) and message.strip():
+        return message.strip()
+    name = event.get("name")
+    if isinstance(name, str) and name.strip():
+        return f"OpenStoryline 节点：{name.strip()}"
+    label = next(
+        (module["label"] for module in PROGRESS_MODULES if module["key"] == module_key),
+        None,
+    )
+    return f"正在处理：{label}" if label else None
+
+
+def _openstoryline_failure_module_key(exc: EngineRunError) -> str:
+    if exc.module_key:
+        return exc.module_key
+    text = str(exc).lower()
+    if "render_video" in text or "render" in text:
+        return "render"
+    if any(token in text for token in ("voiceover", "tts", "generate_voiceover")):
+        return "voiceover"
+    if any(token in text for token in ("timeline", "subtitle", "caption")):
+        return "subtitles"
+    return "material_match"
 
 
 def _openstoryline_result_payload(
@@ -283,7 +503,14 @@ class JobProcessor:
             status="preparing",
             current_stage="downloading_inputs",
             progress_pct=10,
-            runtime_payload={"workspace_dir": str(workspace_dir), "output_dir": str(output_dir)},
+            runtime_payload={
+                "workspace_dir": str(workspace_dir),
+                "output_dir": str(output_dir),
+                "progress_modules": _progress_modules(
+                    active_key="material_preparation",
+                    production_config=directive.production_config,
+                ),
+            },
             log_payload=log_payload,
         )
         run_result: EngineRunResult | None = None
@@ -306,9 +533,67 @@ class JobProcessor:
                     "workspace_dir": str(workspace_dir),
                     "output_dir": str(output_dir),
                     "input_assets": input_assets,
+                    "progress_modules": _progress_modules(
+                        active_key="material_match",
+                        production_config=directive.production_config,
+                    ),
                 },
                 log_payload=log_payload,
             )
+
+            progress_state = {
+                "active_key": "material_match",
+                "progress_pct": 50,
+                "event_count": 0,
+            }
+
+            def handle_openstoryline_progress(event: dict[str, Any]) -> None:
+                module_key = _openstoryline_event_module_key(event)
+                if module_key is None:
+                    return
+
+                progress_state["active_key"] = module_key
+                progress_state["event_count"] += 1
+                event_progress = _openstoryline_event_progress_pct(event)
+                if event.get("type") == "tool_end" and module_key != "render":
+                    active_progress = 100
+                else:
+                    active_progress = event_progress
+                progress_state["progress_pct"] = max(
+                    int(progress_state["progress_pct"]),
+                    min(75, 50 + int(progress_state["event_count"]) * 4),
+                )
+                log_payload["openstoryline_progress"] = {
+                    "last_event": {
+                        "type": event.get("type"),
+                        "server": event.get("server"),
+                        "name": event.get("name"),
+                        "message": event.get("message"),
+                        "is_error": event.get("is_error"),
+                        "summary": event.get("summary"),
+                    },
+                    "active_module": module_key,
+                }
+                self._repository.update_stage(
+                    job.id,
+                    status="running",
+                    current_stage=f"openstoryline_{module_key}",
+                    progress_pct=int(progress_state["progress_pct"]),
+                    runtime_payload={
+                        "workspace_dir": str(workspace_dir),
+                        "output_dir": str(output_dir),
+                        "input_assets": input_assets,
+                        "openstoryline_progress": log_payload["openstoryline_progress"],
+                        "progress_modules": _progress_modules(
+                            active_key=module_key,
+                            active_progress_pct=active_progress,
+                            active_detail=_openstoryline_event_detail(event, module_key),
+                            production_config=directive.production_config,
+                        ),
+                    },
+                    log_payload=log_payload,
+                )
+
             try:
                 stage_started_at = time.monotonic()
                 run_result = self._openstoryline_client.run_job(
@@ -317,10 +602,15 @@ class JobProcessor:
                     input_assets=input_assets,
                     workspace_dir=workspace_dir,
                     output_dir=output_dir,
+                    progress_callback=handle_openstoryline_progress,
                 )
                 record_timing("openstoryline_rendering", stage_started_at)
             except Exception as exc:
-                raise EngineRunError(exc) from exc
+                raise EngineRunError(
+                    exc,
+                    module_key=str(progress_state.get("active_key") or "") or None,
+                    progress_event=log_payload.get("openstoryline_progress"),
+                ) from exc
             log_payload["steps"].append(
                 {
                     "stage": "openstoryline_rendering",
@@ -346,6 +636,15 @@ class JobProcessor:
                     status="running",
                     current_stage="uploading_outputs",
                     progress_pct=80,
+                    runtime_payload={
+                        "workspace_dir": str(workspace_dir),
+                        "output_dir": str(output_dir),
+                        "input_assets": input_assets,
+                        "progress_modules": _progress_modules(
+                            active_key="output_delivery",
+                            production_config=directive.production_config,
+                        ),
+                    },
                     log_payload=log_payload,
                 )
                 stage_started_at = time.monotonic()
@@ -404,6 +703,10 @@ class JobProcessor:
                         uploaded_assets,
                         persisted_assets,
                     ),
+                    "progress_modules": _progress_modules(
+                        completed=True,
+                        production_config=directive.production_config,
+                    ),
                     "openstoryline": _openstoryline_result_payload(
                         run_result.raw_response,
                         directive.production_config,
@@ -425,7 +728,13 @@ class JobProcessor:
                 job.id,
                 current_stage="input_asset_validation_failed",
                 failure_reason=f"{exc.failure_code}: {exc}",
-                log_payload=log_payload,
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key="material_preparation",
+                        production_config=directive.production_config,
+                    ),
+                },
                 status="failed_manual",
             )
             return
@@ -443,7 +752,13 @@ class JobProcessor:
                 job.id,
                 current_stage="output_validation_failed",
                 failure_reason=f"{exc.failure_code}: {exc}",
-                log_payload=log_payload,
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key="render",
+                        production_config=directive.production_config,
+                    ),
+                },
                 status=exc.failure_status,
             )
             return
@@ -461,24 +776,39 @@ class JobProcessor:
                 job.id,
                 current_stage="downloading_inputs_failed",
                 failure_reason=f"input_download_failed: {exc}",
-                log_payload=log_payload,
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key="material_preparation",
+                        production_config=directive.production_config,
+                    ),
+                },
                 status="failed_retryable",
             )
             raise
         except EngineRunError as exc:
+            failed_module_key = _openstoryline_failure_module_key(exc)
             log_payload["steps"].append(
                 {
                     "stage": "openstoryline_rendering",
                     "status": "failed",
                     "failure_code": "engine_run_failed",
                     "error": str(exc),
+                    "active_module": failed_module_key,
+                    "openstoryline_progress": exc.progress_event,
                 }
             )
             self._repository.mark_failed(
                 job.id,
                 current_stage="openstoryline_rendering_failed",
                 failure_reason=f"engine_run_failed: {exc}",
-                log_payload=log_payload,
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key=failed_module_key,
+                        production_config=directive.production_config,
+                    ),
+                },
                 status="failed_retryable",
             )
             raise
@@ -499,7 +829,13 @@ class JobProcessor:
                 job.id,
                 current_stage="uploading_outputs_failed",
                 failure_reason=f"OUTPUT_UPLOAD_FAILED: {exc}",
-                log_payload=log_payload,
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key="output_delivery",
+                        production_config=directive.production_config,
+                    ),
+                },
                 status="failed_retryable",
             )
             raise
@@ -516,7 +852,13 @@ class JobProcessor:
                 job.id,
                 current_stage="asset_objects_persistence_failed",
                 failure_reason=f"asset_objects_insert_failed: {exc}",
-                log_payload=log_payload,
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key="output_delivery",
+                        production_config=directive.production_config,
+                    ),
+                },
                 status="failed_retryable",
             )
             raise
@@ -531,7 +873,13 @@ class JobProcessor:
                 job.id,
                 current_stage="failed",
                 failure_reason=str(exc),
-                log_payload=log_payload,
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key="material_match",
+                        production_config=directive.production_config,
+                    ),
+                },
             )
             raise
         finally:

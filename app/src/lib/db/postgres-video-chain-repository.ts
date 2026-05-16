@@ -10,6 +10,8 @@ import type {
   MerchantPlan,
   MerchantProfileDto,
   MerchantProfileInput,
+  MerchantTeamInvitationCodeDto,
+  MerchantTeamMemberDto,
   MerchantTeamRole,
   MerchantWorkspaceDto,
 } from "@/contracts/merchant";
@@ -25,12 +27,14 @@ import type {
   VideoEditJobStatus,
   VideoEditJobTriggerSource,
 } from "@/contracts/video";
+import { VIDEO_EDIT_JOB_IN_FLIGHT_STATUSES } from "@/contracts/video";
 import {
   isAppPostgresConfigured,
   isAppPostgresPreferred,
   queryAppDb,
   withAppDbTransaction,
 } from "@/lib/server-db/postgres";
+import { normalizeVideoProgressModules } from "@/lib/ui/video-progress-modules";
 import { ApiError } from "@/server/api/errors";
 
 type Timestamp = string | Date;
@@ -167,6 +171,13 @@ type VideoEditJobRow = {
   finished_at: Timestamp | null;
   created_at: Timestamp;
   updated_at: Timestamp;
+};
+
+type VideoEditJobDeduplicationScope = {
+  merchantId: string;
+  createdByUserId?: string | null;
+  draftId: string;
+  contentVariantId: string;
 };
 
 type MediaOwnerContext = {
@@ -386,6 +397,83 @@ export async function pgGetMerchantWorkspaceByUserId(
     role: membership.role,
     membershipId: membership.id,
   };
+}
+
+export async function pgListActiveMerchantTeamMembersByMerchant(
+  merchantId: string,
+): Promise<MerchantTeamMemberDto[]> {
+  const result = await queryAppDb<MerchantTeamMemberRow>(
+    `
+    select ${merchantTeamMemberSelect}
+    from public.merchant_team_members
+    where merchant_id = $1 and status = 'active'
+    order by created_at asc
+    `,
+    [merchantId],
+  );
+
+  return result.rows.map(mapMerchantTeamMember);
+}
+
+export async function pgListMerchantTeamInvitationCodesByMerchant(
+  merchantId: string,
+): Promise<MerchantTeamInvitationCodeDto[]> {
+  const result = await queryAppDb<MerchantTeamInvitationCodeRow>(
+    `
+    select ${merchantTeamInvitationCodeSelect}
+    from public.merchant_team_invitation_codes
+    where merchant_id = $1
+    order by created_at desc
+    `,
+    [merchantId],
+  );
+
+  return result.rows.map(mapMerchantTeamInvitationCode);
+}
+
+export async function pgCreateMemberInvitationCodeForOwner(input: {
+  merchantId: string;
+  createdByUserId: string;
+  code: string;
+  maxRedemptions?: number;
+  expiresAt?: string | null;
+  note?: string | null;
+}): Promise<MerchantTeamInvitationCodeDto> {
+  try {
+    const result = await queryAppDb<MerchantTeamInvitationCodeRow>(
+      `
+      insert into public.merchant_team_invitation_codes (
+        merchant_id,
+        code,
+        max_redemptions,
+        expires_at,
+        note,
+        created_by_user_id
+      ) values ($1, $2, $3, $4, $5, $6)
+      returning ${merchantTeamInvitationCodeSelect}
+      `,
+      [
+        input.merchantId,
+        input.code,
+        input.maxRedemptions ?? 20,
+        input.expiresAt ?? null,
+        input.note ?? null,
+        input.createdByUserId,
+      ],
+    );
+
+    return mapMerchantTeamInvitationCode(result.rows[0]);
+  } catch (error) {
+    if (error instanceof ApiError && error.message.includes("duplicate key")) {
+      throw new ApiError(
+        409,
+        "MEMBER_INVITATION_CODE_EXISTS",
+        "Member invitation code already exists.",
+      );
+    }
+
+    throw error;
+  }
 }
 
 export async function pgAcceptMemberInvitationCode(input: {
@@ -1132,45 +1220,100 @@ export async function pgCreateVideoEditJob(input: {
   contentVariantId: string;
   triggerSource?: VideoEditJobTriggerSource;
   instructionText?: CreateVideoEditJobRequest["instructionText"];
-  inputPayload?: CreateVideoEditJobRequest["inputPayload"];
+  inputPayload?: Record<string, unknown>;
   runtimePayload?: Record<string, unknown>;
 }): Promise<VideoEditJobDto> {
+  try {
+    const result = await queryAppDb<VideoEditJobRow>(
+      `
+      insert into public.video_edit_jobs (
+        merchant_id,
+        created_by_user_id,
+        draft_id,
+        content_variant_id,
+        trigger_source,
+        instruction_text,
+        input_payload,
+        runtime_payload,
+        result_payload,
+        log_payload,
+        progress_pct,
+        retry_count,
+        status,
+        current_stage,
+        failure_reason,
+        started_at,
+        finished_at
+      ) values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, '{}'::jsonb, '{}'::jsonb, 0, 0, 'pending', null, null, null, null)
+      returning ${videoEditJobSelect}
+      `,
+      [
+        input.merchantId,
+        input.createdByUserId ?? null,
+        input.draftId,
+        input.contentVariantId,
+        input.triggerSource ?? "manual",
+        input.instructionText ?? null,
+        JSON.stringify(input.inputPayload ?? {}),
+        JSON.stringify(input.runtimePayload ?? {}),
+      ],
+    );
+
+    return mapVideoEditJob(result.rows[0]);
+  } catch (error) {
+    if (error instanceof ApiError && error.message.includes("duplicate key")) {
+      const existing = await pgFindInFlightVideoEditJobForScope({
+        merchantId: input.merchantId,
+        createdByUserId: input.createdByUserId,
+        draftId: input.draftId,
+        contentVariantId: input.contentVariantId,
+      });
+
+      if (existing) {
+        return existing;
+      }
+    }
+
+    throw error;
+  }
+}
+
+export async function pgFindInFlightVideoEditJobForScope(
+  input: VideoEditJobDeduplicationScope,
+): Promise<VideoEditJobDto | null> {
+  const params: unknown[] = [
+    input.merchantId,
+    input.draftId,
+    input.contentVariantId,
+    [...VIDEO_EDIT_JOB_IN_FLIGHT_STATUSES],
+  ];
+  let creatorSql = "";
+
+  if (input.createdByUserId !== undefined) {
+    if (input.createdByUserId) {
+      params.push(input.createdByUserId);
+      creatorSql = `and created_by_user_id = $${params.length}`;
+    } else {
+      creatorSql = "and created_by_user_id is null";
+    }
+  }
+
   const result = await queryAppDb<VideoEditJobRow>(
     `
-    insert into public.video_edit_jobs (
-      merchant_id,
-      created_by_user_id,
-      draft_id,
-      content_variant_id,
-      trigger_source,
-      instruction_text,
-      input_payload,
-      runtime_payload,
-      result_payload,
-      log_payload,
-      progress_pct,
-      retry_count,
-      status,
-      current_stage,
-      failure_reason,
-      started_at,
-      finished_at
-    ) values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, '{}'::jsonb, '{}'::jsonb, 0, 0, 'pending', null, null, null, null)
-    returning ${videoEditJobSelect}
+    select ${videoEditJobSelect}
+    from public.video_edit_jobs
+    where merchant_id = $1
+      and draft_id = $2
+      and content_variant_id = $3
+      and status = any($4::text[])
+      ${creatorSql}
+    order by created_at desc
+    limit 1
     `,
-    [
-      input.merchantId,
-      input.createdByUserId ?? null,
-      input.draftId,
-      input.contentVariantId,
-      input.triggerSource ?? "manual",
-      input.instructionText ?? null,
-      JSON.stringify(input.inputPayload ?? {}),
-      JSON.stringify(input.runtimePayload ?? {}),
-    ],
+    params,
   );
 
-  return mapVideoEditJob(result.rows[0]);
+  return result.rows[0] ? mapVideoEditJob(result.rows[0]) : null;
 }
 
 export async function pgListVideoEditJobs(
@@ -1462,6 +1605,38 @@ function mapInvitationCode(row: InvitationCodeRow): InvitationCodeDto {
   };
 }
 
+function mapMerchantTeamMember(row: MerchantTeamMemberRow): MerchantTeamMemberDto {
+  return {
+    id: row.id,
+    merchantId: row.merchant_id,
+    userId: row.user_id,
+    role: row.role,
+    status: row.status,
+    displayName: row.display_name,
+    invitedByUserId: row.invited_by_user_id,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
+  };
+}
+
+function mapMerchantTeamInvitationCode(
+  row: MerchantTeamInvitationCodeRow,
+): MerchantTeamInvitationCodeDto {
+  return {
+    id: row.id,
+    merchantId: row.merchant_id,
+    code: row.code,
+    status: row.status,
+    maxRedemptions: row.max_redemptions,
+    redemptionCount: row.redemption_count,
+    expiresAt: row.expires_at ? toIsoString(row.expires_at) : null,
+    note: row.note,
+    createdByUserId: row.created_by_user_id,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
+  };
+}
+
 function mapContentDraft(row: ContentDraftRow): ContentDraftDto {
   return {
     id: row.id,
@@ -1534,6 +1709,14 @@ function mapVideoEditJob(row: VideoEditJobRow): VideoEditJobDto {
     failureReason: row.failure_reason,
     resultPayload: row.result_payload ?? {},
     logPayload: row.log_payload ?? {},
+    progressModules: normalizeVideoProgressModules({
+      status: row.status,
+      currentStage: row.current_stage,
+      progressPct: row.progress_pct,
+      runtimePayload: row.runtime_payload ?? {},
+      resultPayload: row.result_payload ?? {},
+      logPayload: row.log_payload ?? {},
+    }),
     startedAt: row.started_at ? toIsoString(row.started_at) : null,
     finishedAt: row.finished_at ? toIsoString(row.finished_at) : null,
     createdAt: toIsoString(row.created_at),

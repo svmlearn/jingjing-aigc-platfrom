@@ -1,4 +1,5 @@
 import os
+import json
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +27,33 @@ class MockHttpResponse:
 
     def json(self):
         return self.data
+
+
+class MockHttpStreamResponse:
+    def __init__(self, lines):
+        self._lines = lines
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _exc_type, _exc, _tb):
+        return False
+
+    def raise_for_status(self):
+        return None
+
+    def iter_lines(self):
+        return iter(self._lines)
+
+
+class ReadTimeoutHttpStreamResponse:
+    def __enter__(self):
+        import httpx
+
+        raise httpx.ReadTimeout("no stream events")
+
+    def __exit__(self, _exc_type, _exc, _tb):
+        return False
 
 
 class OpenStorylineEngineAdapterTests(unittest.TestCase):
@@ -133,7 +161,11 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
 
         self.assertEqual(200, response.status_code)
         self.assertEqual("ready", response.json()["status"])
-        get.assert_called_once_with("http://fire-red:7860/health", timeout=2.0)
+        get.assert_called_once_with(
+            "http://fire-red:7860/ready",
+            headers={"X-FIRERED-PROVIDER-KEY": "provider-secret"},
+            timeout=5.0,
+        )
 
     def test_settings_reads_engine_adapter_environment(self):
         with patch.dict(
@@ -529,6 +561,121 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertTrue(payload["service_config"]["worker_rehearsal_fast_path"])
             self.assertEqual("self_hosted_rehearsal_fast_path", payload["execution_mode"])
 
+    def test_fire_red_stream_proxies_progress_and_maps_final_result(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.stream",
+            return_value=MockHttpStreamResponse(
+                [
+                    json.dumps(
+                        {
+                            "type": "progress",
+                            "event": {
+                                "type": "tool_start",
+                                "name": "render_video",
+                            },
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "type": "result",
+                            "data": {
+                                "session_id": "fire-red-session",
+                                "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                                "raw_response": {"engine": "fire_red-openstoryline"},
+                            },
+                        }
+                    ),
+                ]
+            ),
+        ) as stream:
+            output_dir = Path(tmp) / "outputs"
+            events = list(
+                adapter.stream(
+                    RunRequest(
+                        job_id="fire-red-job",
+                        merchant_id="merchant-1",
+                        draft_id="draft-1",
+                        content_variant_id="variant-1",
+                        workspace_dir=str(Path(tmp) / "workspace"),
+                        output_dir=str(output_dir),
+                        script_text="locked script",
+                        production_directive={
+                            "script_locked": True,
+                            "desired_outputs": ["final_video"],
+                        },
+                    )
+                )
+            )
+
+            stream.assert_called_once()
+            args, kwargs = stream.call_args
+            self.assertEqual("POST", args[0])
+            self.assertEqual("http://fire-red:7860/api/worker/runs/stream", args[1])
+            self.assertEqual({"X-FIRERED-PROVIDER-KEY": "provider-secret"}, kwargs["headers"])
+            self.assertEqual("fire-red-job", kwargs["json"]["job_id"])
+            self.assertEqual("progress", events[0]["type"])
+            self.assertEqual("render_video", events[0]["event"]["name"])
+            self.assertEqual("result", events[1]["type"])
+            self.assertEqual("fire-red-job", events[1]["data"]["job_id"])
+            self.assertEqual(str(output_dir / "final.mp4"), events[1]["data"]["final_video_path"])
+
+    def test_fire_red_stream_read_timeout_returns_error_event(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_stream_idle_timeout_seconds=7,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.stream",
+            return_value=ReadTimeoutHttpStreamResponse(),
+        ) as stream:
+            events = list(
+                adapter.stream(
+                    RunRequest(
+                        job_id="fire-red-job",
+                        merchant_id="merchant-1",
+                        draft_id="draft-1",
+                        content_variant_id="variant-1",
+                        workspace_dir=str(Path(tmp) / "workspace"),
+                        output_dir=str(Path(tmp) / "outputs"),
+                        script_text="locked script",
+                        production_directive={
+                            "script_locked": True,
+                            "desired_outputs": ["final_video"],
+                        },
+                    )
+                )
+            )
+
+        self.assertEqual("error", events[0]["type"])
+        self.assertIn("idle timeout after 7s", events[0]["error"]["message"])
+        timeout = stream.call_args.kwargs["timeout"]
+        self.assertEqual(7.0, timeout.read)
+
     def test_fire_red_adapter_run_endpoint_uses_worker_mapping(self):
         original_settings = app.state.settings
         app.state.settings = Settings(
@@ -576,6 +723,77 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
         self.assertEqual(200, response.status_code)
         self.assertEqual("fire-red-job", response.json()["job_id"])
         self.assertEqual("fire_red-openstoryline", response.json()["engine"])
+
+    def test_fire_red_adapter_stream_endpoint_returns_ndjson_events(self):
+        original_settings = app.state.settings
+        app.state.settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+        )
+        try:
+            with TemporaryDirectory() as tmp, patch(
+                "openstoryline.app.engine_adapters.httpx.stream",
+                return_value=MockHttpStreamResponse(
+                    [
+                        json.dumps(
+                            {
+                                "type": "progress",
+                                "event": {
+                                    "type": "tool_start",
+                                    "name": "render_video",
+                                },
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "type": "result",
+                                "data": {
+                                    "session_id": "fire-red-session",
+                                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                                    "raw_response": {"engine": "fire_red-openstoryline"},
+                                },
+                            }
+                        ),
+                    ]
+                ),
+            ):
+                response = TestClient(app).post(
+                    "/v1/runs/stream",
+                    json={
+                        "job_id": "fire-red-job",
+                        "merchant_id": "merchant-1",
+                        "draft_id": "draft-1",
+                        "content_variant_id": "variant-1",
+                        "workspace_dir": str(Path(tmp) / "workspace"),
+                        "output_dir": str(Path(tmp) / "outputs"),
+                        "script_text": "locked script",
+                        "production_directive": {
+                            "script_locked": True,
+                            "desired_outputs": ["final_video"],
+                        },
+                    },
+                )
+        finally:
+            app.state.settings = original_settings
+
+        self.assertEqual(200, response.status_code)
+        events = [
+            json.loads(line)
+            for line in response.text.splitlines()
+            if line.strip()
+        ]
+        self.assertEqual("progress", events[0]["type"])
+        self.assertEqual("render_video", events[0]["event"]["name"])
+        self.assertEqual("result", events[1]["type"])
+        self.assertEqual("fire-red-job", events[1]["data"]["job_id"])
 
 
 if __name__ == "__main__":

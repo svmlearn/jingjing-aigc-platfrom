@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>总架构流程进度图</title>
+  <style>
+    :root {
+      --bg: #f6f3ea;
+      --ink: #171717;
+      --muted: rgba(23, 23, 23, 0.58);
+      --line: rgba(23, 23, 23, 0.12);
+      --panel: #fffdf7;
+      --done: #1f6f68;
+      --done-bg: #e3f2ee;
+      --partial: #a06612;
+      --partial-bg: #fff1cf;
+      --pending: #727272;
+      --pending-bg: #ededed;
+      --blocked: #a33a30;
+      --blocked-bg: #fde4df;
+      --shadow: 0 18px 50px rgba(23, 23, 23, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(1440px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .hero-card,
+    .panel {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      min-height: 260px;
+      padding: 30px;
+    }
+
+    .kicker {
+      margin: 0 0 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--done);
+    }
+
+    h1 {
+      max-width: 860px;
+      margin: 0;
+      font-size: clamp(34px, 5vw, 62px);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      max-width: 780px;
+      margin: 20px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      border-radius: 999px;
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      background: #faf7ef;
+      color: rgba(23, 23, 23, 0.68);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .status-board {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      padding: 20px;
+    }
+
+    .metric {
+      min-height: 116px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: #faf7ef;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 36px;
+      line-height: 1;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 22px 0 0;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.62);
+      padding: 6px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--pending);
+    }
+
+    .dot.done {
+      background: var(--done);
+    }
+
+    .dot.partial {
+      background: var(--partial);
+    }
+
+    .dot.blocked {
+      background: var(--blocked);
+    }
+
+    section {
+      margin-top: 22px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .section-note {
+      margin: 0;
+      max-width: 680px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(190px, 1fr));
+      gap: 14px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .stage {
+      min-width: 190px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .stage-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .stage-title h3 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .stage-index {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: #171717;
+      color: #f1c15b;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .node {
+      position: relative;
+      margin-top: 10px;
+      border: 1px solid transparent;
+      padding: 12px;
+      background: var(--pending-bg);
+      color: var(--pending);
+    }
+
+    .node.done {
+      border-color: rgba(31, 111, 104, 0.28);
+      background: var(--done-bg);
+      color: var(--done);
+    }
+
+    .node.partial {
+      border-color: rgba(160, 102, 18, 0.3);
+      background: var(--partial-bg);
+      color: var(--partial);
+    }
+
+    .node.blocked {
+      border-color: rgba(163, 58, 48, 0.28);
+      background: var(--blocked-bg);
+      color: var(--blocked);
+    }
+
+    .node strong {
+      display: block;
+      color: currentColor;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .node small {
+      display: block;
+      margin-top: 6px;
+      color: rgba(23, 23, 23, 0.58);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .tag {
+      display: inline-flex;
+      margin-top: 10px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: rgba(255, 255, 255, 0.72);
+      color: currentColor;
+      font-size: 11px;
+      font-weight: 760;
+    }
+
+    .lanes {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .lane {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .lane h3 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+
+    .mini-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .todo-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .todo {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .todo h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+
+    .todo ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .todo li + li {
+      margin-top: 8px;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .event {
+      display: grid;
+      grid-template-columns: 132px minmax(0, 1fr);
+      gap: 12px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 12px;
+    }
+
+    .event time {
+      color: var(--done);
+      font-size: 12px;
+      font-weight: 780;
+    }
+
+    .event p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .footnote {
+      margin: 22px 0 0;
+      color: rgba(23, 23, 23, 0.48);
+      font-size: 12px;
+    }
+
+    @media (max-width: 980px) {
+      main {
+        padding: 18px;
+      }
+
+      .hero,
+      .lanes,
+      .todo-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head {
+        display: block;
+      }
+
+      .section-note {
+        margin-top: 6px;
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <div class="hero-card">
+        <p class="kicker">Jingjing System Progress Map</p>
+        <h1>总架构流程进度图</h1>
+        <p class="hero-copy">
+          这张图用来记录从商家咨询、内容日历、Dify 生成、成员端执行、视频剪辑到发布回流的全系统进度。
+          以后每跑通一段链路，就把对应灰色节点改成绿色；黄色表示代码已到位但还缺真实环境、真实素材或 staging 验收。
+        </p>
+        <div class="meta">
+          <span class="pill">更新时间：2026-05-14</span>
+          <span class="pill">当前分支：codex/dify-calendar-member-integration</span>
+          <span class="pill">最新真实跑通：内容日历 -> Dify -> 成员端</span>
+          <span class="pill">最新本地冒烟：owner 邀请码 -> 成员加入 -> owner 回看成员</span>
+        </div>
+        <div class="legend" aria-label="状态图例">
+          <span class="legend-item"><span class="dot done"></span>已跑通 / 已验证</span>
+          <span class="legend-item"><span class="dot partial"></span>代码已接 / 待真实验收</span>
+          <span class="legend-item"><span class="dot"></span>规划中 / 未验证</span>
+          <span class="legend-item"><span class="dot blocked"></span>阻塞 / 需决策</span>
+        </div>
+      </div>
+
+      <aside class="panel status-board">
+        <div class="metric">
+          <strong>23</strong>
+          <span>当前追踪节点</span>
+        </div>
+        <div class="metric">
+          <strong>13</strong>
+          <span>已标亮节点</span>
+        </div>
+        <div class="metric">
+          <strong>7</strong>
+          <span>黄色待验收节点</span>
+        </div>
+        <div class="metric">
+          <strong>3</strong>
+          <span>灰色待建设节点</span>
+        </div>
+      </aside>
+    </header>
+
+    <section>
+      <div class="section-head">
+        <h2>主链路：从咨询到成员端看到一周内容</h2>
+        <p class="section-note">今天已经真实跑通的链路在这里标绿；图片素材因为本地 demo 素材库为空，暂时标黄。</p>
+      </div>
+
+      <div class="flow" aria-label="主链路流程">
+        <article class="stage">
+          <div class="stage-title">
+            <h3>商家入口</h3>
+            <span class="stage-index">1</span>
+          </div>
+          <div class="node done">
+            <strong>商家登录 / 项目资料</strong>
+            <small>已有商家资料、项目基础信息、成员邀请入口。</small>
+            <span class="tag">已实现</span>
+          </div>
+          <div class="node done">
+            <strong>中介成员端入口</strong>
+            <small>成员可通过邀请码进入项目介绍、内容日历、我的内容。</small>
+            <span class="tag">已实现</span>
+          </div>
+          <div class="node done">
+            <strong>成员管理 / 邀请码生成</strong>
+            <small>owner 侧团队页面、邀请码生成、邀请码列表、成员列表已接入；本地 API 冒烟已验证成员加入后 owner 可回看。</small>
+            <span class="tag">本地验证</span>
+          </div>
+        </article>
+
+        <article class="stage">
+          <div class="stage-title">
+            <h3>策略与日历</h3>
+            <span class="stage-index">2</span>
+          </div>
+          <div class="node done">
+            <strong>咨询台策略资产</strong>
+            <small>商家策略资产可沉淀项目卖点、客群、内容方向。</small>
+            <span class="tag">已接入</span>
+          </div>
+          <div class="node done">
+            <strong>团队内容日历</strong>
+            <small>可生成 daily_content_tasks，并给成员分配图文/视频任务。</small>
+            <span class="tag">已跑通</span>
+          </div>
+        </article>
+
+        <article class="stage">
+          <div class="stage-title">
+            <h3>生成编排</h3>
+            <span class="stage-index">3</span>
+          </div>
+          <div class="node done">
+            <strong>生成批次 batch/job</strong>
+            <small>已新增 content_generation_batches / jobs 与创建 API。</small>
+            <span class="tag">本地验证</span>
+          </div>
+          <div class="node done">
+            <strong>worker 消费 run-next</strong>
+            <small>真实调用 Dify 后能回写任务与草稿。</small>
+            <span class="tag">真实跑通</span>
+          </div>
+        </article>
+
+        <article class="stage">
+          <div class="stage-title">
+            <h3>Dify 生成</h3>
+            <span class="stage-index">4</span>
+          </div>
+          <div class="node done">
+            <strong>V3.1 final JSON contract</strong>
+            <small>只保留 status/article/video/quality，quality 只保留 riskTerms。</small>
+            <span class="tag">已校验</span>
+          </div>
+          <div class="node done">
+            <strong>真实 Dify smoke test</strong>
+            <small>1 个 job 真实 streaming 调用成功，耗时约 6.2 分钟。</small>
+            <span class="tag">真实跑通</span>
+          </div>
+        </article>
+
+        <article class="stage">
+          <div class="stage-title">
+            <h3>落库映射</h3>
+            <span class="stage-index">5</span>
+          </div>
+          <div class="node done">
+            <strong>草稿与双 variant</strong>
+            <small>生成 note + video_script，并回写 daily task 的 draft/variant id。</small>
+            <span class="tag">本地验证</span>
+          </div>
+          <div class="node partial">
+            <strong>staging Supabase migration</strong>
+            <small>迁移文件已写，待 staging 执行并用真实数据库验收。</small>
+            <span class="tag">待验收</span>
+          </div>
+        </article>
+
+        <article class="stage">
+          <div class="stage-title">
+            <h3>成员端展示</h3>
+            <span class="stage-index">6</span>
+          </div>
+          <div class="node done">
+            <strong>一周图文 / 视频脚本</strong>
+            <small>成员端 week API 已读到 Dify 写回结果，状态 succeeded。</small>
+            <span class="tag">真实跑通</span>
+          </div>
+          <div class="node partial">
+            <strong>图片渲染</strong>
+            <small>前端支持 https 与 COS 预览；本地真实输出图片数为 0，待有素材后验收。</small>
+            <span class="tag">待素材</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>侧链路：素材、剪辑、发布</h2>
+        <p class="section-note">这些是主链路之外必须补齐的能力，会决定从“能看内容”到“能稳定生产和发布”的距离。</p>
+      </div>
+
+      <div class="lanes">
+        <article class="lane">
+          <h3>素材与 RAG</h3>
+          <div class="mini-grid">
+            <div class="node partial">
+              <strong>文字知识库 RAG</strong>
+              <small>Dify workflow 内会检索知识库；app 侧已有 fallback_knowledge_text 入参，待 staging 端到端验收。</small>
+              <span class="tag">待验收</span>
+            </div>
+            <div class="node partial">
+              <strong>图片素材入参</strong>
+              <small>app 已按 article_image_asset 检索并传给 Dify；已种入示意素材，待真实 Dify 带图回归。</small>
+              <span class="tag">待回归</span>
+            </div>
+            <div class="node done">
+              <strong>房地产图片素材种子</strong>
+              <small>已给 ywangyangw1 对应商家写入 12 条 Unsplash 房地产示意图片素材。</small>
+              <span class="tag">已入库</span>
+            </div>
+            <div class="node pending">
+              <strong>图片多模态检索</strong>
+              <small>图片内容描述、向量索引、Dify 可检索图片素材库还需要继续设计和实现。</small>
+              <span class="tag">未完成</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="lane">
+          <h3>视频剪辑</h3>
+          <div class="mini-grid">
+            <div class="node done">
+              <strong>成员上传分镜素材</strong>
+              <small>requiresUserUpload 已映射到上传控件；非必传镜头显示团队素材。</small>
+              <span class="tag">已实现</span>
+            </div>
+            <div class="node partial">
+              <strong>AI 剪辑任务</strong>
+              <small>视频任务、COS、worker payload 已有基础链路；本轮未做真实成片回归。</small>
+              <span class="tag">待回归</span>
+            </div>
+            <div class="node partial">
+              <strong>assetQuery 匹配视频素材</strong>
+              <small>Dify 已输出 assetQuery，worker 侧素材二次匹配还要继续加强。</small>
+              <span class="tag">待优化</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="lane">
+          <h3>发布与回流</h3>
+          <div class="mini-grid">
+            <div class="node pending">
+              <strong>小红书 / 抖音发布适配</strong>
+              <small>真实账号、目标门店、目标平台、测试/正式环境需要严格确认后再接。</small>
+              <span class="tag">未接入</span>
+            </div>
+            <div class="node pending">
+              <strong>发布状态机与回滚</strong>
+              <small>发布任务、失败重试、账号错误保护、回滚点还未形成完整闭环。</small>
+              <span class="tag">未完成</span>
+            </div>
+            <div class="node partial">
+              <strong>历史内容与复盘</strong>
+              <small>我的内容、草稿历史已有；发布数据和表现回流还需补齐。</small>
+              <span class="tag">部分完成</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>下一批要点</h2>
+        <p class="section-note">按当前状态，最短路径是先把 staging 持久化和图片素材跑通，再接 worker 定时消费。</p>
+      </div>
+
+      <div class="todo-grid">
+        <article class="todo">
+          <h3>1. Staging 持久化</h3>
+          <ul>
+            <li>执行 batch/job migration。</li>
+            <li>配置 Dify 与 COS 环境变量。</li>
+            <li>用真实 Supabase 验证 batch -> job -> draft -> member task。</li>
+          </ul>
+        </article>
+        <article class="todo">
+          <h3>2. 图片素材闭环</h3>
+          <ul>
+            <li>上传项目图片素材。</li>
+            <li>确认 retrievalTargets 包含 article_image_asset。</li>
+            <li>验证 Dify 返回 cosPath 后成员端能渲染图片。</li>
+          </ul>
+        </article>
+        <article class="todo">
+          <h3>3. Worker 常驻消费</h3>
+          <ul>
+            <li>配置 CONTENT_GENERATION_WORKER_SECRET。</li>
+            <li>增加定时或队列消费 run-next。</li>
+            <li>补重试、超时、失败可视化。</li>
+          </ul>
+        </article>
+        <article class="todo">
+          <h3>4. 成片与发布</h3>
+          <ul>
+            <li>用真实成员上传素材跑 AI 剪辑。</li>
+            <li>确认成片 COS 回写与预览。</li>
+            <li>发布前先确认商家、门店、平台、账号和环境。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>跑通记录</h2>
+        <p class="section-note">以后每次点亮节点，都在这里加一条事实记录。</p>
+      </div>
+
+      <div class="timeline">
+        <div class="event">
+          <time>2026-05-10</time>
+          <p>V2.3 团队内容日历与成员端每日任务基础链路落地。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-13</time>
+          <p>Dify V3.1 final JSON contract 收敛，删除历史质量提示字段。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-14</time>
+          <p>内容日历 -> batch/job -> 真实 Dify streaming -> final JSON mapper -> 草稿/variant -> 成员端 week API 跑通。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-14</time>
+          <p>确认本地图片素材库为空，图片渲染代码已接好，但真实图片链路待上传项目图片素材后验收。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-14</time>
+          <p>给 ywangyangw1 对应商家 young 写入 12 条房地产公共图库示意图片素材，检索目标为 article_image_asset。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-14</time>
+          <p>补充完整主链路目标：成员管理和邀请码、图片/视频素材入库、Dify 生成各成员一周内容、成员上传素材、AI 剪辑成片。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-14</time>
+          <p>补齐 owner 侧团队成员页与邀请码 API，本地冒烟跑通 owner 生成邀请码、成员接受邀请码、owner 回看成员与使用次数。</p>
+        </div>
+      </div>
+    </section>
+
+    <p class="footnote">
+      维护方法：把节点 class 从 pending 改为 partial 或 done，即可把灰色节点点亮。不要把“缺图片”“需人工复核”等已删除的 Dify 历史质量字段加回成员端。
+    </p>
+  </main>
+</body>
+</html>

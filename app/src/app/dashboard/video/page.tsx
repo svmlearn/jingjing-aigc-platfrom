@@ -24,7 +24,6 @@ export default async function DashboardVideoPage({
       materialId={params.materialId}
       materialReferenceId={params.materialReferenceId}
       strategyTag={params.strategyTag}
-      testMode={params.testMode === "video_chain" ? "video_chain" : null}
     />
   );
 }

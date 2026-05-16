@@ -1,6 +1,6 @@
 # docs
 
-状态时间：`2026-05-13 18:37:02 CST`
+状态时间：`2026-05-14 13:14:11 CST`
 
 这是 `小红书抖音矩阵获客平台` 的文档主入口。
 
@@ -16,14 +16,17 @@
 6. `架构规范/2026-04-28-current-architecture.md`
 7. `架构规范/2026-05-12-内容日历批量生成与Dify过渡架构决策.md`
 8. `架构规范/2026-05-13-国内化部署与ba-ba-ke域名备案决策.md`
-9. `progress/2026-04-25-supabase-migration-current-state.md`
-10. `progress/2026-05-13-staging-server-resource-log-analysis.md`
+9. `架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`
+10. `progress/2026-04-25-supabase-migration-current-state.md`
+11. `progress/2026-05-13-staging-server-resource-log-analysis.md`
 
 如果是在接续当前未完成事项，再读 `current-task.md`。如果是在规划 V2.2 合并后的下一阶段，再读 `需求池.md` 和 `探索/2026-04-28-热点抓取与咨询Agent优化待验证事项.md`。
 
 如果是在执行国内化技术验证，先读 `handoff/2026-05-13-国内化技术验证采购与迁移执行计划.md`。
 
 如果是在开分支做国内化代码改造，先读 `handoff/2026-05-13-国内化代码改造与迁移计划表.md`。
+
+如果是在购买国内资源后恢复国内化验证，先读 `架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`，再进入 `../jingjing-domestic-infra-migration` worktree 继续。
 
 ## 当前真相源
 
@@ -39,6 +42,7 @@
 - `架构规范/2026-04-28-current-architecture.md`
 - `架构规范/2026-05-12-内容日历批量生成与Dify过渡架构决策.md`
 - `架构规范/2026-05-13-国内化部署与ba-ba-ke域名备案决策.md`
+- `架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`
 
 这份是当前架构总说明，覆盖：
 
@@ -54,6 +58,8 @@
 `2026-05-12-内容日历批量生成与Dify过渡架构决策.md` 补充定义内容日历批量生成的运行方式：Dify / 后续 LangGraph.js 只负责单条生成，系统负责批量展开、队列、限流、重试、进度和落库。
 
 `2026-05-13-国内化部署与ba-ba-ke域名备案决策.md` 补充定义国内生产部署方向：`ba-ba-ke.com` 域名规划、ICP备案取舍、从 Vercel / Supabase Cloud / 新加坡链路迁到国内服务器、国内 PostgreSQL、国内 COS 和自有 Node API 的分阶段方案。
+
+`2026-05-13-国内化改造分支冻结与恢复断点.md` 是国内化改造的架构级恢复入口，记录 `codex/domestic-infra-migration` 分支、worktree、冻结 commit、已完成验证、真实资源阻塞项和买完服务器后的继续验证命令。
 
 旧的增长 Agent 文档、旧 skeleton 默认路径、旧分阶段 worker / FireRed work-plan 不再作为当前依据。
 
@@ -120,5 +126,6 @@ staging 服务器资源日志分析记录了当前 2 核 4G 服务器的 CPU / �
 - 两份 V2.1 产品文档
 - `docs/架构规范/2026-04-28-current-architecture.md`
 - `docs/架构规范/2026-05-13-国内化部署与ba-ba-ke域名备案决策.md`
+- `docs/架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`，仅当接续国内化分支时提供
 - `docs/progress/2026-04-25-supabase-migration-current-state.md`
 - `docs/current-task.md`，仅当任务正在接续时提供

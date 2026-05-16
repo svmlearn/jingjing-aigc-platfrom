@@ -1,5 +1,8 @@
 "use client";
 
+import type { VideoEditProgressModuleDto } from "@/contracts/video";
+import { normalizeVideoProgressModules } from "@/lib/ui/video-progress-modules";
+
 export type MediaOwnerType = "source_item" | "content_draft" | "content_variant";
 export type MediaAssetType = "image" | "video" | "cover" | "subtitle";
 export type UploadableMediaAssetType = Extract<MediaAssetType, "image" | "video">;
@@ -39,6 +42,7 @@ export type VideoEditJob = {
   progressPct?: number | null;
   failureReason?: string | null;
   instructionText?: string | null;
+  progressModules: VideoEditProgressModuleDto[];
   resultAssets: DraftMediaAsset[];
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -277,14 +281,7 @@ function normalizeAssets(input: unknown) {
 }
 
 function getResultAssets(input: JsonRecord) {
-  const resultPayload =
-    readNestedRecord(input, "resultPayload", "result_payload") ??
-    readNestedRecord(input, "result", "videoResult", "video_result");
-
-  return normalizeAssets([
-    ...readArray(input, "resultAssets", "result_assets", "assets"),
-    ...readArray(resultPayload ?? {}, "resultAssets", "result_assets", "assets"),
-  ]);
+  return normalizeAssets(readArray(input, "resultAssets", "result_assets", "assets"));
 }
 
 function normalizeVideoEditJob(input: unknown): VideoEditJob | null {
@@ -297,16 +294,24 @@ function normalizeVideoEditJob(input: unknown): VideoEditJob | null {
   if (!id || !status) {
     return null;
   }
+  const currentStage = readString(input, "currentStage", "current_stage");
+  const progressPct = readNumber(input, "progressPct", "progress_pct");
 
   return {
     id,
     draftId: readString(input, "draftId", "draft_id"),
     contentVariantId: readString(input, "contentVariantId", "content_variant_id"),
     status: status as VideoEditJobStatus,
-    currentStage: readString(input, "currentStage", "current_stage"),
-    progressPct: readNumber(input, "progressPct", "progress_pct"),
+    currentStage,
+    progressPct,
     failureReason: readString(input, "failureReason", "failure_reason"),
     instructionText: readString(input, "instructionText", "instruction_text"),
+    progressModules: normalizeVideoProgressModules({
+      status: status as VideoEditJobStatus,
+      currentStage,
+      progressPct,
+      progressModules: readArray(input, "progressModules", "progress_modules"),
+    }),
     resultAssets: getResultAssets(input),
     createdAt: readString(input, "createdAt", "created_at"),
     updatedAt: readString(input, "updatedAt", "updated_at"),
@@ -722,16 +727,10 @@ export async function createVideoEditJob(payload: {
   productionConfig?: JsonRecord | null;
 }) {
   const requestPayload = {
-    draftId: payload.draftId,
     contentVariantId: payload.contentVariantId,
     instructionText: payload.instructionText ?? null,
     sourceJobId: payload.sourceJobId ?? null,
     productionConfig: payload.productionConfig ?? null,
-    draft_id: payload.draftId,
-    content_variant_id: payload.contentVariantId,
-    instruction_text: payload.instructionText ?? null,
-    source_job_id: payload.sourceJobId ?? null,
-    production_config: payload.productionConfig ?? null,
   };
 
   const response = await requestJson<JsonRecord>("/api/video-edit-jobs", {

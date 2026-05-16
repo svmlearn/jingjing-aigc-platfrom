@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Settings,
   Sparkles,
+  Users,
   Video,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/dashboard/video", label: "生成视频", icon: Video },
   { href: "/dashboard/content", label: "素材中心", icon: Library },
   { href: "/dashboard/history", label: "我的内容", icon: FolderGit2 },
+  { href: "/dashboard/team", label: "团队成员", icon: Users },
   { href: "/member", label: "成员端预览", icon: Sparkles },
   { href: "/dashboard/settings", label: "用户信息", icon: Settings },
 ];

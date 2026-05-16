@@ -442,6 +442,16 @@ on public.video_edit_jobs (status, created_at asc);
 create index if not exists idx_video_edit_jobs_status_heartbeat_at
 on public.video_edit_jobs (status, heartbeat_at);
 
+create unique index if not exists ux_video_edit_jobs_one_in_flight_per_creator_variant
+on public.video_edit_jobs (merchant_id, created_by_user_id, draft_id, content_variant_id)
+where status in ('pending', 'queued', 'preparing', 'running')
+  and created_by_user_id is not null;
+
+create unique index if not exists ux_video_edit_jobs_one_in_flight_per_owner_variant
+on public.video_edit_jobs (merchant_id, draft_id, content_variant_id)
+where status in ('pending', 'queued', 'preparing', 'running')
+  and created_by_user_id is null;
+
 drop trigger if exists trg_video_edit_jobs_updated_at on public.video_edit_jobs;
 create trigger trg_video_edit_jobs_updated_at
 before update on public.video_edit_jobs
@@ -501,4 +511,103 @@ on public.daily_content_tasks (merchant_id, task_date);
 drop trigger if exists trg_daily_content_tasks_updated_at on public.daily_content_tasks;
 create trigger trg_daily_content_tasks_updated_at
 before update on public.daily_content_tasks
+for each row execute function public.set_updated_at();
+
+create table if not exists public.content_generation_batches (
+  id uuid primary key default gen_random_uuid(),
+  merchant_id uuid not null references public.merchant_profiles(id) on delete cascade,
+  created_by_user_id uuid references public.app_users(id) on delete set null,
+  source text not null default 'daily_task',
+  calendar_snapshot jsonb not null default '{}'::jsonb,
+  member_scope_snapshot jsonb not null default '{}'::jsonb,
+  total_jobs integer not null default 0,
+  succeeded_jobs integer not null default 0,
+  failed_jobs integer not null default 0,
+  running_jobs integer not null default 0,
+  status text not null default 'pending',
+  workflow_provider text not null default 'dify',
+  workflow_version text not null default 'v3.1',
+  started_at timestamptz,
+  finished_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  check (source in ('consultation_calendar', 'manual_calendar', 'campaign', 'daily_task')),
+  check (status in ('pending', 'running', 'completed', 'completed_with_errors', 'canceled')),
+  check (workflow_provider in ('dify', 'langgraph')),
+  check (total_jobs >= 0),
+  check (succeeded_jobs >= 0),
+  check (failed_jobs >= 0),
+  check (running_jobs >= 0),
+  check (jsonb_typeof(calendar_snapshot) = 'object'),
+  check (jsonb_typeof(member_scope_snapshot) = 'object')
+);
+
+create table if not exists public.content_generation_jobs (
+  id uuid primary key default gen_random_uuid(),
+  batch_id uuid not null references public.content_generation_batches(id) on delete cascade,
+  merchant_id uuid not null references public.merchant_profiles(id) on delete cascade,
+  member_user_id uuid not null references public.app_users(id) on delete cascade,
+  daily_task_id uuid not null references public.daily_content_tasks(id) on delete cascade,
+  task_date date not null,
+  calendar_item_id text,
+  idempotency_key text not null,
+  status text not null default 'pending',
+  current_stage text,
+  attempt_count integer not null default 0,
+  max_attempts integer not null default 2,
+  input_snapshot jsonb not null default '{}'::jsonb,
+  output_json jsonb,
+  quality_review jsonb,
+  error_message text,
+  workflow_provider text not null default 'dify',
+  workflow_version text not null default 'v3.1',
+  dify_workflow_run_id text,
+  content_draft_id uuid references public.content_drafts(id) on delete set null,
+  article_variant_id uuid references public.content_variants(id) on delete set null,
+  video_variant_id uuid references public.content_variants(id) on delete set null,
+  started_at timestamptz,
+  finished_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  check (
+    status in (
+      'pending',
+      'running',
+      'succeeded',
+      'failed_retryable',
+      'failed_manual',
+      'canceled'
+    )
+  ),
+  check (workflow_provider in ('dify', 'langgraph')),
+  check (attempt_count >= 0),
+  check (max_attempts >= 1),
+  check (jsonb_typeof(input_snapshot) = 'object'),
+  check (output_json is null or jsonb_typeof(output_json) = 'object'),
+  check (quality_review is null or jsonb_typeof(quality_review) = 'object')
+);
+
+create index if not exists idx_content_generation_batches_merchant_created
+on public.content_generation_batches (merchant_id, created_at desc);
+
+create index if not exists idx_content_generation_jobs_batch_status
+on public.content_generation_jobs (batch_id, status);
+
+create index if not exists idx_content_generation_jobs_queue
+on public.content_generation_jobs (workflow_provider, status, created_at);
+
+create index if not exists idx_content_generation_jobs_member_task
+on public.content_generation_jobs (member_user_id, daily_task_id, created_at desc);
+
+create index if not exists idx_content_generation_jobs_idempotency
+on public.content_generation_jobs (idempotency_key);
+
+drop trigger if exists trg_content_generation_batches_updated_at on public.content_generation_batches;
+create trigger trg_content_generation_batches_updated_at
+before update on public.content_generation_batches
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_content_generation_jobs_updated_at on public.content_generation_jobs;
+create trigger trg_content_generation_jobs_updated_at
+before update on public.content_generation_jobs
 for each row execute function public.set_updated_at();

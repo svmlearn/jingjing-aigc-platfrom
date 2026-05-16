@@ -63,7 +63,15 @@ class UnderstandClipsNode(BaseNode):
 
         clip_captions: list[dict[str, Any]] = []
 
-        for clip in clips or []:
+        total_clips = len(clips or [])
+        for index, clip in enumerate(clips or [], start=1):
+            await self._report_progress(
+                node_state,
+                index - 1,
+                total_clips,
+                f"understanding clip {index}/{total_clips}",
+            )
+
             clip_id = str(clip.get("clip_id", "") or "").strip() or "(unknown_clip)"
             kind = str(clip.get("kind", "") or "").strip().lower()
             src = clip.get("source_ref") or {}
@@ -128,6 +136,7 @@ class UnderstandClipsNode(BaseNode):
                         top_p=0.9,
                         max_tokens=2048,
                         model_preferences=None,
+                        metadata=self._model_sampling_metadata("vlm"),
                     )
                     if raw is not None:
                         last_exc = None
@@ -163,6 +172,12 @@ class UnderstandClipsNode(BaseNode):
                 "media_id": clip.get("source_ref", {}).get("media_id", ""),
             }
             clip_captions.append(out_item)
+            await self._report_progress(
+                node_state,
+                index,
+                total_clips,
+                f"understood clip {index}/{total_clips}",
+            )
 
         desc_lines: list[str] = []
         for desc in clip_captions:
@@ -182,7 +197,8 @@ class UnderstandClipsNode(BaseNode):
                     temperature=0.3,
                     top_p=0.9,
                     max_tokens=1024,
-                    model_preferences=None
+                    model_preferences=None,
+                    metadata=self._model_sampling_metadata("llm"),
                 )
 
             except Exception as e:

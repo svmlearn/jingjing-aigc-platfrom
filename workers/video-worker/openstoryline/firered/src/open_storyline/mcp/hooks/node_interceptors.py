@@ -516,31 +516,27 @@ class ToolInterceptor:
             tool_name = str(getattr(request, "name", "") or "")
             args = getattr(request, "args", None)
 
-            if tool_name_keyword not in tool_name or not isinstance(args, dict):
-                return await handler(request)
+            if tool_name_keyword in tool_name and isinstance(args, dict):
+                runtime = getattr(request, "runtime", None)
+                ctx = getattr(runtime, "context", None) if runtime else None
+                provider_cfg_all = getattr(ctx, context_attr, None) if ctx else None
+                if isinstance(provider_cfg_all, dict):
+                    provider = str(provider_cfg_all.get("provider") or "").strip().lower()
+                    if not provider:
+                        if default_provider:
+                            args.setdefault("provider", default_provider)
+                    else:
+                        args.setdefault("provider", provider)
 
-            runtime = getattr(request, "runtime", None)
-            ctx = getattr(runtime, "context", None) if runtime else None
-            provider_cfg_all = getattr(ctx, context_attr, None) if ctx else None
-            if not isinstance(provider_cfg_all, dict):
-                return await handler(request)
-
-            provider = str(provider_cfg_all.get("provider") or "").strip().lower()
-            if not provider:
-                if default_provider:
-                    args.setdefault("provider", default_provider)
-                return await handler(request)
-
-            args.setdefault("provider", provider)
-
-            provider_cfg = provider_cfg_all.get(provider)
-            if isinstance(provider_cfg, dict):
-                for key, value in provider_cfg.items():
-                    if value is None:
-                        continue
-                    args.setdefault(key, str(value).strip())
+                        provider_cfg = provider_cfg_all.get(provider)
+                        if isinstance(provider_cfg, dict):
+                            for key, value in provider_cfg.items():
+                                if value is None:
+                                    continue
+                                args.setdefault(key, str(value).strip())
         except Exception as e:
             logger.warning(f"Failed to inject provider config ({context_attr}): {e}")
+
         return await handler(request)
 
 
@@ -582,21 +578,14 @@ class ToolInterceptor:
             tool_name = str(getattr(request, "name", "") or "")
             args = getattr(request, "args", None)
 
-            if not isinstance(args, dict):
-                return await handler(request)
+            if isinstance(args, dict) and "search_media" in tool_name:
+                runtime = getattr(request, "runtime", None)
+                ctx = getattr(runtime, "context", None) if runtime else None
+                key = getattr(ctx, "pexels_api_key", None) if ctx else None
+                key = str(key or "").strip()
 
-            if "search_media" not in tool_name:
-                return await handler(request)
-
-            runtime = getattr(request, "runtime", None)
-            ctx = getattr(runtime, "context", None) if runtime else None
-            key = getattr(ctx, "pexels_api_key", None) if ctx else None
-            key = str(key or "").strip()
-
-            if not key:
-                return await handler(request)
-
-            args["pexels_api_key"] = key
+                if key:
+                    args["pexels_api_key"] = key
 
         except Exception as e:
             logger.warning(f"Failed to inject pexels API key: {e}")

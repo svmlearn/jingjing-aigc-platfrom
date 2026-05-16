@@ -97,6 +97,12 @@ class RecommendTextNode(BaseNode):
         llm = node_state.llm
         system_prompt = get_prompt("elementrec_text.system", lang=node_state.lang)
         user_prompt = get_prompt("elementrec_text.user", lang=node_state.lang, scripts=group_scripts, candidates=candidates, user_request=user_request)
+        await self._report_progress(
+            node_state,
+            0,
+            1,
+            f"recommending text style from {len(candidates)} candidate(s)",
+        )
         raw = await llm.complete(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
@@ -104,6 +110,7 @@ class RecommendTextNode(BaseNode):
             top_p=0.9,
             max_tokens=2048,
             model_preferences=None,
+            metadata=self._model_sampling_metadata("llm", minimum_seconds=180.0),
         )
         try:
             selected_json = parse_json_dict(raw)
@@ -113,4 +120,10 @@ class RecommendTextNode(BaseNode):
             return None
         selected_json.update({"font_color": inputs.get("font_color", (255,255,255,255))})
         node_state.node_summary.info_for_user(f"[{self.meta.node_id}] Use font `{selected_json['font_name']}`")
+        await self._report_progress(
+            node_state,
+            1,
+            1,
+            "text style recommended",
+        )
         return [selected_json]

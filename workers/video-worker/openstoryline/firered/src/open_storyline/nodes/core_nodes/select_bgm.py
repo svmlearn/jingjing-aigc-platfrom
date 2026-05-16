@@ -52,6 +52,12 @@ class SelectBGMNode(BaseNode):
             return {"bgm": {}}
 
         result = self.analyze_music_metrics(bgm_info=bgm_info, sr=cfg.select_bgm.sample_rate, hop_length=cfg.select_bgm.hop_length, frame_length=cfg.select_bgm.frame_length)
+        await self._report_progress(
+            node_state,
+            1,
+            1,
+            "background music selected",
+        )
         if result.get("path"):
             node_state.node_summary.info_for_user(f"Successfully choose music", preview_urls = [result.get("path")])
         else:
@@ -86,6 +92,12 @@ class SelectBGMNode(BaseNode):
         llm = node_state.llm
         system_prompt = get_prompt("select_bgm.system", lang=node_state.lang)
         user_prompt = get_prompt("select_bgm.user", lang=node_state.lang, candidates=candidates, user_request=user_request)
+        await self._report_progress(
+            node_state,
+            0,
+            1,
+            f"selecting background music from {len(candidates)} candidate(s)",
+        )
         raw = await llm.complete(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
@@ -93,6 +105,7 @@ class SelectBGMNode(BaseNode):
             top_p=0.9,
             max_tokens=2048,
             model_preferences=None,
+            metadata=self._model_sampling_metadata("llm", minimum_seconds=180.0),
         )
         try:
             selected_json = parse_json_dict(raw)

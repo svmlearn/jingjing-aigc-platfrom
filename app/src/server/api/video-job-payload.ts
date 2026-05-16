@@ -1,4 +1,4 @@
-import type { ProductionConfig, VoiceoverProvider } from "@/contracts/video";
+import type { BgmFilter, ProductionConfig, VoiceoverProvider } from "@/contracts/video";
 import { tokenizeMaterialRetrievalQuery } from "../../lib/material-retrieval.ts";
 
 export type VideoJobPayloadAsset = {
@@ -139,8 +139,8 @@ type NormalizedProductionConfig = {
   bgm: {
     enabled: boolean;
     userRequest: string;
-    include: Record<string, Array<string | number>>;
-    exclude: Record<string, Array<string | number>>;
+    include: BgmFilter;
+    exclude: BgmFilter;
     volume: number;
   };
   subtitles: {
@@ -393,7 +393,7 @@ function normalizeOptionalNumber(
 }
 
 function normalizeBgmFilter(
-  value: Record<string, Array<string | number>> | undefined,
+  value: BgmFilter | undefined,
   field: string,
 ) {
   if (!value) {

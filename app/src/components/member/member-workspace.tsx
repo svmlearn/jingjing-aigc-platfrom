@@ -34,10 +34,13 @@ import type {
   DailyVideoScriptPackageDto,
 } from "@/contracts/daily-task";
 import type { ContentDraftBundleDto, ContentVariantDto } from "@/contracts/draft";
-import type { VideoEditJobDto } from "@/contracts/video";
+import type { PublicVideoEditJobDto, VideoEditProgressModuleDto } from "@/contracts/video";
+import { isVideoEditJobInFlightStatus } from "@/contracts/video";
 import { summarizeMemberVideoEditState } from "@/lib/member-video-workflow";
+import { getVideoJobStageLabel } from "@/lib/ui/video-job-display";
 import {
   createVideoEditJob,
+  type DraftMediaUploadStage,
   getVideoEditJobDetail,
   type VideoEditJob,
   uploadDraftMediaFile,
@@ -57,7 +60,29 @@ type MemberTaskPayload = ApiErrorPayload & {
 
 type MemberHistoryPayload = ApiErrorPayload & {
   draftBundles?: ContentDraftBundleDto[];
-  videoJobs?: VideoEditJobDto[];
+  videoJobs?: PublicVideoEditJobDto[];
+};
+
+type AiEditBusyStage = "preparing_script" | "confirming_script" | "uploading_media" | "creating_job";
+
+type AiEditBusyState = {
+  stage: AiEditBusyStage;
+  uploadIndex?: number;
+  uploadTotal?: number;
+  uploadPercent?: number;
+  uploadStage?: DraftMediaUploadStage;
+};
+
+type AiEditProgressView = {
+  statusLabel: string;
+  progressPct?: number | null;
+  stageLabel: string;
+  moduleLabel?: string | null;
+  moduleDetail?: string | null;
+  moduleProgressPct?: number | null;
+  moduleStatus?: VideoEditProgressModuleDto["status"];
+  moduleStatusLabel?: string | null;
+  failureReason?: string | null;
 };
 
 const taskFetchHeaders = {
@@ -231,6 +256,7 @@ export function MemberCalendarPage() {
           eyebrow="今日图文"
           title={today.articleTask.title}
           summary={today.articleTask.summary}
+          status={today.articleTask.generationStatus}
           action="查看图文"
         />
         <DailyTaskLink
@@ -239,6 +265,7 @@ export function MemberCalendarPage() {
           eyebrow="今日视频"
           title={today.videoTask.title}
           summary={today.videoTask.summary}
+          status={today.videoTask.generationStatus}
           action="查看脚本"
         />
       </div>
@@ -253,7 +280,10 @@ export function MemberCalendarPage() {
             <div key={task.id} className="px-4 py-3">
               <p className="text-xs text-black/45">{task.taskDate}</p>
               <p className="mt-1 text-sm font-medium leading-6">{task.theme}</p>
-              <p className="mt-1 text-xs leading-5 text-black/50">{task.articleTask.title}</p>
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <p className="min-w-0 text-xs leading-5 text-black/50">{task.articleTask.title}</p>
+                <GenerationStatusPill status={task.articleTask.generationStatus} />
+              </div>
             </div>
           ))}
         </div>
@@ -278,13 +308,13 @@ export function MemberArticleTaskPage({ taskId }: { taskId: string }) {
   const publishText = buildPublishText(article);
 
   async function copyText(label: string, text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
+    if (await writeClipboardText(text)) {
       setCopiedLabel(label);
       window.setTimeout(() => setCopiedLabel(null), 1600);
-    } catch {
-      setCopiedLabel("复制失败");
+      return;
     }
+
+    setCopiedLabel("复制失败，请手动长按选择文案");
   }
 
   return (
@@ -398,7 +428,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [draftBundle, setDraftBundle] = useState<ContentDraftBundleDto | null>(null);
   const [job, setJob] = useState<VideoEditJob | null>(null);
-  const [busyMessage, setBusyMessage] = useState<string | null>(null);
+  const [busyState, setBusyState] = useState<AiEditBusyState | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -429,6 +459,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
 
   const script = task.videoTask.generatedVideoScript ?? buildVideoScriptFallback(task);
   const selectedFileCount = Object.values(selectedFiles).filter(Boolean).length;
+  const requiredSceneCount = script.scenes.filter((scene) => scene.required).length;
   const editState = summarizeMemberVideoEditState({
     uploadedFileCount: selectedFileCount,
     job,
@@ -437,6 +468,11 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
 
   async function startAiEdit() {
     const currentTask = task;
+
+    if (job && isVideoEditJobInFlightStatus(job.status)) {
+      setActionError("当前 AI 剪辑正在进行中，请等待成片完成。");
+      return;
+    }
 
     if (!currentTask) {
       setActionError("任务加载完成后才能发起 AI 剪辑。");
@@ -447,13 +483,13 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
       (entry): entry is [string, File] => Boolean(entry[1]),
     );
 
-    if (!uploadEntries.length) {
+    if (requiredSceneCount > 0 && !uploadEntries.length) {
       setActionError("请先至少上传一段手机素材，再发起 AI 剪辑。");
       return;
     }
 
     setActionError(null);
-    setBusyMessage("准备剪辑脚本...");
+    setBusyState({ stage: "preparing_script" });
 
     try {
       const bundle = draftBundle ?? (await createVideoDraftFromTask(currentTask, script));
@@ -464,21 +500,41 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         throw new Error("视频脚本草稿缺少候选版本。");
       }
 
-      setBusyMessage("确认脚本...");
+      setBusyState({ stage: "confirming_script" });
       const approvedVariant = await approveVariantIfNeeded(selectedVariant);
 
-      setBusyMessage("上传手机素材...");
+      const uploadTotal = uploadEntries.length;
       for (let index = 0; index < uploadEntries.length; index += 1) {
         const [, file] = uploadEntries[index]!;
+        let currentUploadPercent = 0;
+        const updateUploadState = (
+          uploadStage: DraftMediaUploadStage,
+          uploadPercent = currentUploadPercent,
+        ) => {
+          currentUploadPercent = normalizeUploadPercent(uploadPercent);
+          setBusyState({
+            stage: "uploading_media",
+            uploadIndex: index + 1,
+            uploadTotal,
+            uploadPercent: currentUploadPercent,
+            uploadStage,
+          });
+        };
 
         await uploadDraftMediaFile({
           draftId: bundle.draft.id,
           file,
           sortOrder: index,
+          onStageChange(uploadStage) {
+            updateUploadState(uploadStage, uploadStage === "finalizing" ? 100 : currentUploadPercent);
+          },
+          onProgress(progress) {
+            updateUploadState("uploading", progress.percent);
+          },
         });
       }
 
-      setBusyMessage("创建 AI 剪辑任务...");
+      setBusyState({ stage: "creating_job" });
       const nextJob = await createVideoEditJob({
         draftId: bundle.draft.id,
         contentVariantId: approvedVariant.id,
@@ -504,7 +560,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
     } catch (requestError) {
       setActionError(requestError instanceof Error ? requestError.message : "AI 剪辑任务创建失败");
     } finally {
-      setBusyMessage(null);
+      setBusyState(null);
     }
   }
 
@@ -547,26 +603,36 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
                 <p>拍法：{scene.camera}</p>
                 <p>提示：{scene.shootingGuide}</p>
               </div>
-              <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-black/20 bg-[#f7f4ea] px-3 py-3 text-sm">
-                <span className="min-w-0 truncate">
-                  {selectedFiles[scene.id]?.name ?? scene.materialSlot}
-                </span>
-                <span className="inline-flex items-center gap-1 text-[#1f6f68]">
-                  <Upload className="size-4" aria-hidden="true" />
-                  上传
-                </span>
-                <input
-                  type="file"
-                  accept="video/*,image/*"
-                  className="sr-only"
-                  onChange={(event) => {
-                    setSelectedFiles((current) => ({
-                      ...current,
-                      [scene.id]: event.target.files?.[0] ?? null,
-                    }));
-                  }}
-                />
-              </label>
+              {scene.required ? (
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-black/20 bg-[#f7f4ea] px-3 py-3 text-sm">
+                  <span className="min-w-0 truncate">
+                    {selectedFiles[scene.id]?.name ?? scene.materialSlot}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[#1f6f68]">
+                    <Upload className="size-4" aria-hidden="true" />
+                    上传
+                  </span>
+                  <input
+                    type="file"
+                    accept="video/*,image/*"
+                    className="sr-only"
+                    onChange={(event) => {
+                      setSelectedFiles((current) => ({
+                        ...current,
+                        [scene.id]: event.target.files?.[0] ?? null,
+                      }));
+                    }}
+                  />
+                </label>
+              ) : (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-[#f7f4ea] px-3 py-3 text-sm">
+                  <span className="min-w-0 truncate">{scene.materialSlot}</span>
+                  <span className="inline-flex items-center gap-1 text-[#1f6f68]">
+                    <Check className="size-4" aria-hidden="true" />
+                    团队素材
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -577,23 +643,30 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           <div>
             <p className="text-sm font-semibold">AI 剪辑</p>
             <p className="mt-1 text-xs text-black/50">
-              已选择 {selectedFileCount} 段素材，预计成片 {script.targetDurationSeconds}s。
+              已选择 {selectedFileCount} 段素材，需成员上传 {requiredSceneCount} 段，预计成片 {script.targetDurationSeconds}s。
             </p>
           </div>
           <button
             type="button"
             onClick={() => void startAiEdit()}
-            disabled={Boolean(busyMessage)}
+            disabled={Boolean(busyState) || Boolean(job && isVideoEditJobInFlightStatus(job.status))}
             className="inline-flex items-center gap-2 rounded-lg bg-[#171717] px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
           >
-            {busyMessage ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <WandSparkles className="size-4" aria-hidden="true" />}
-            AI 剪辑
+            {busyState || (job && isVideoEditJobInFlightStatus(job.status)) ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <WandSparkles className="size-4" aria-hidden="true" />
+            )}
+            {busyState || (job && isVideoEditJobInFlightStatus(job.status)) ? "剪辑中" : "AI 剪辑"}
           </button>
         </div>
 
-        {busyMessage ? <StatusLine icon={<Loader2 className="size-4 animate-spin" />} text={busyMessage} /> : null}
+        <AiEditProgressStatus
+          busyState={busyState}
+          job={job}
+          resultUrl={resultUrl}
+        />
         {actionError ? <StatusLine tone="danger" icon={<AlertCircle className="size-4" />} text={actionError} /> : null}
-        {job ? <VideoJobStatus job={job} resultUrl={resultUrl} /> : null}
       </section>
     </div>
   );
@@ -666,7 +739,7 @@ export function MemberHistoryPage() {
             </div>
             <p className="mt-2 text-xs text-black/45">{formatDateTime(videoJob.createdAt)}</p>
             <p className="mt-2 text-xs leading-5 text-black/55">
-              {videoJob.currentStage ?? videoJob.instructionText ?? "等待 worker 处理。"}
+              {getVideoJobStageLabel(videoJob.currentStage, videoJob.status)}
             </p>
           </div>
         ))}
@@ -838,6 +911,35 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return data;
 }
 
+async function writeClipboardText(text: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Some mobile/webview contexts expose Clipboard API but block it by permission.
+    }
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "fixed";
+  textArea.style.left = "-9999px";
+  textArea.style.top = "0";
+  document.body.append(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    textArea.remove();
+  }
+}
+
 async function createVideoDraftFromTask(
   task: DailyContentTaskDto,
   script: DailyVideoScriptPackageDto,
@@ -900,6 +1002,7 @@ function DailyTaskLink({
   eyebrow,
   title,
   summary,
+  status,
   action,
 }: {
   href: string;
@@ -907,6 +1010,7 @@ function DailyTaskLink({
   eyebrow: string;
   title: string;
   summary: string;
+  status?: DailyContentTaskDto["articleTask"]["generationStatus"];
   action: string;
 }) {
   return (
@@ -916,11 +1020,46 @@ function DailyTaskLink({
           {icon}
           {eyebrow}
         </div>
-        <span className="text-xs text-black/45">{action}</span>
+        <div className="flex items-center gap-2">
+          <GenerationStatusPill status={status} />
+          <span className="text-xs text-black/45">{action}</span>
+        </div>
       </div>
       <h2 className="mt-3 text-base font-semibold leading-7">{title}</h2>
       <p className="mt-2 text-sm leading-6 text-black/58">{summary}</p>
     </Link>
+  );
+}
+
+function GenerationStatusPill({
+  status,
+}: {
+  status?: DailyContentTaskDto["articleTask"]["generationStatus"];
+}) {
+  if (!status || status === "not_started") {
+    return null;
+  }
+
+  const labelMap: Record<NonNullable<typeof status>, string> = {
+    pending: "队列中",
+    running: "生成中",
+    succeeded: "已生成",
+    failed: "失败",
+  };
+
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-lg px-2 py-1 text-[11px]",
+        status === "failed"
+          ? "bg-red-50 text-red-700"
+          : status === "succeeded"
+            ? "bg-[#e6f1ee] text-[#1f6f68]"
+            : "bg-[#ece8dc] text-black/55",
+      )}
+    >
+      {labelMap[status]}
+    </span>
   );
 }
 
@@ -1036,24 +1175,74 @@ function StatusLine({
   );
 }
 
-function VideoJobStatus({ job, resultUrl }: { job: VideoEditJob; resultUrl: string | null }) {
+function AiEditProgressStatus({
+  busyState,
+  job,
+  resultUrl,
+}: {
+  busyState: AiEditBusyState | null;
+  job: VideoEditJob | null;
+  resultUrl: string | null;
+}) {
+  const progress = busyState ? getBusyProgressView(busyState) : job ? getJobProgressView(job) : null;
+
+  if (!progress) {
+    return null;
+  }
+
+  const isSucceeded = job?.status === "succeeded" && !busyState;
+  const isFailed = Boolean(progress.failureReason);
+  const moduleStatus = progress.moduleStatus ?? "running";
+  const hasOverallProgress = typeof progress.progressPct === "number";
+  const hasModuleProgress =
+    progress.moduleLabel &&
+    typeof progress.moduleProgressPct === "number" &&
+    typeof progress.moduleStatus === "string";
+
   return (
     <div className="mt-3 rounded-lg border border-black/10 bg-[#f7f4ea] p-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-medium">
-          {job.status === "succeeded" ? (
+          {isSucceeded ? (
             <Check className="size-4 text-[#1f6f68]" aria-hidden="true" />
+          ) : isFailed ? (
+            <AlertCircle className="size-4 text-red-700" aria-hidden="true" />
           ) : (
             <Clock3 className="size-4 text-black/45" aria-hidden="true" />
           )}
-          {renderJobStatus(job.status)}
+          {progress.statusLabel}
         </div>
-        <span className="text-xs text-black/45">{job.progressPct ?? 0}%</span>
+        {hasOverallProgress ? <span className="text-xs text-black/45">{progress.progressPct}%</span> : null}
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-lg bg-black/10">
-        <div className="h-full bg-[#1f6f68]" style={{ width: `${Math.max(job.progressPct ?? 0, 5)}%` }} />
-      </div>
-      {job.failureReason ? <p className="mt-2 text-xs leading-5 text-red-700">{job.failureReason}</p> : null}
+      {hasOverallProgress ? (
+        <div className="mt-3 h-2 overflow-hidden rounded-lg bg-black/10">
+          <div className="h-full bg-[#1f6f68]" style={{ width: `${Math.max(progress.progressPct ?? 0, 5)}%` }} />
+        </div>
+      ) : null}
+      <p className="mt-2 text-xs leading-5 text-black/55">{progress.stageLabel}</p>
+      {hasModuleProgress ? (
+        <div className="mt-3 rounded-lg border border-[#dbe4e1] bg-white/70 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className={cn("size-2 shrink-0 rounded-full", getMemberProgressModuleDotClass(moduleStatus))} />
+              <span className="truncate text-sm font-medium text-[#17202a]">{progress.moduleLabel}</span>
+            </div>
+            <span className={cn("shrink-0 text-xs", getMemberProgressModuleTextClass(moduleStatus))}>
+              {progress.moduleStatusLabel ?? renderProgressModuleStatus(moduleStatus)}
+            </span>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#e2e8f0]">
+            <div
+              className={cn("h-full rounded-full", getMemberProgressModuleBarClass(moduleStatus))}
+              style={{ width: `${Math.max(progress.moduleProgressPct ?? 0, 5)}%` }}
+            />
+          </div>
+          {progress.moduleDetail ? (
+            <p className="mt-2 text-xs leading-5 text-black/50">{progress.moduleDetail}</p>
+          ) : null}
+        </div>
+      ) : null}
+      {progress.failureReason ? <p className="mt-2 text-xs leading-5 text-red-700">{progress.failureReason}</p> : null}
       {resultUrl ? (
         <a
           href={resultUrl}
@@ -1067,6 +1256,178 @@ function VideoJobStatus({ job, resultUrl }: { job: VideoEditJob; resultUrl: stri
       ) : null}
     </div>
   );
+}
+
+function getBusyProgressView(state: AiEditBusyState): AiEditProgressView {
+  if (state.stage === "preparing_script") {
+    return {
+      statusLabel: "剪辑准备中",
+      stageLabel: "正在整理镜头脚本",
+    };
+  }
+
+  if (state.stage === "confirming_script") {
+    return {
+      statusLabel: "剪辑准备中",
+      stageLabel: "正在确认脚本版本",
+    };
+  }
+
+  if (state.stage === "uploading_media") {
+    const uploadProgress = getUploadBusyProgress(state);
+    const uploadStageLabel = getUploadStageLabel(state.uploadStage);
+    return {
+      statusLabel: "上传素材中",
+      progressPct: uploadProgress.overallProgressPct,
+      stageLabel: `正在上传第 ${state.uploadIndex ?? 1} / ${state.uploadTotal ?? 1} 段素材`,
+      moduleLabel: "上传手机素材",
+      moduleDetail: uploadStageLabel,
+      moduleProgressPct: uploadProgress.moduleProgressPct,
+      moduleStatus: "running",
+      moduleStatusLabel: state.uploadStage === "finalizing" ? "保存中" : "上传中",
+    };
+  }
+
+  return {
+    statusLabel: "剪辑准备中",
+    stageLabel: "正在创建 AI 剪辑任务",
+  };
+}
+
+function getJobProgressView(job: VideoEditJob): AiEditProgressView {
+  const currentModule = isOpenStorylineProgressStage(job.currentStage) ? getCurrentVideoProgressModule(job) : null;
+  const currentStageLabel = getVideoJobStageLabel(job.currentStage, job.status);
+  const rawProgressPct = normalizeProgressPct(job.progressPct ?? 0);
+
+  return {
+    statusLabel: renderJobStatus(job.status),
+    progressPct: isOpenStorylineProgressStage(job.currentStage) || job.status === "succeeded" ? rawProgressPct : null,
+    stageLabel: currentStageLabel,
+    moduleLabel: currentModule?.label ?? null,
+    moduleDetail: currentModule ? getMemberProgressModuleDetail(currentModule.label) : null,
+    moduleProgressPct: currentModule?.progressPct ?? null,
+    moduleStatus: currentModule?.status,
+    moduleStatusLabel: currentModule ? renderProgressModuleStatus(currentModule.status) : null,
+    failureReason: job.failureReason,
+  };
+}
+
+function isOpenStorylineProgressStage(stage?: string | null) {
+  return Boolean(stage?.startsWith("openstoryline_") && !stage.endsWith("_failed"));
+}
+
+function getCurrentVideoProgressModule(job: VideoEditJob) {
+  return (
+    job.progressModules.find((module) => module.status === "running") ??
+    job.progressModules.find((module) => module.status === "failed") ??
+    [...job.progressModules].reverse().find((module) => module.status === "succeeded") ??
+    null
+  );
+}
+
+function getMemberProgressModuleDetail(label: string) {
+  const details: Record<string, string> = {
+    上传手机素材: "正在上传你选择的手机素材。",
+    素材准备: "正在读取你上传的手机素材。",
+    素材匹配: "正在按脚本镜头挑选合适素材。",
+    配音生成: "正在生成旁白配音。",
+    字幕与时间线: "正在对齐字幕和镜头时间线。",
+    合成渲染: "正在合成最终视频。",
+    保存成片: "正在保存成片，完成后可预览下载。",
+  };
+  return details[label] ?? "正在处理当前剪辑步骤。";
+}
+
+function getUploadBusyProgress(state: AiEditBusyState) {
+  const uploadTotal = Math.max(state.uploadTotal ?? 1, 1);
+  const uploadIndex = Math.max(state.uploadIndex ?? 1, 1);
+  const uploadPercent = state.uploadStage === "finalizing" ? 100 : normalizeUploadPercent(state.uploadPercent ?? 0);
+  const finishedFiles = Math.max(uploadIndex - 1, 0);
+  const uploadedRatio = Math.min(1, (finishedFiles + uploadPercent / 100) / uploadTotal);
+
+  return {
+    overallProgressPct: normalizeProgressPct(24 + uploadedRatio * 24),
+    moduleProgressPct: normalizeProgressPct(
+      state.uploadStage === "preparing" ? 12 : state.uploadStage === "finalizing" ? 92 : uploadPercent,
+    ),
+  };
+}
+
+function getUploadStageLabel(stage?: DraftMediaUploadStage) {
+  if (stage === "preparing") {
+    return "正在申请上传通道。";
+  }
+  if (stage === "finalizing") {
+    return "素材已经上传，正在保存素材记录。";
+  }
+  return "正在上传你选择的手机素材。";
+}
+
+function normalizeUploadPercent(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  const percent = value > 0 && value <= 1 ? value * 100 : value;
+  return normalizeProgressPct(percent);
+}
+
+function normalizeProgressPct(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function renderProgressModuleStatus(status: VideoEditProgressModuleDto["status"]) {
+  const labels: Record<VideoEditProgressModuleDto["status"], string> = {
+    pending: "等待",
+    running: "处理中",
+    succeeded: "完成",
+    failed: "失败",
+    skipped: "跳过",
+  };
+  return labels[status] ?? "处理中";
+}
+
+function getMemberProgressModuleDotClass(status: VideoEditProgressModuleDto["status"]) {
+  if (status === "running") {
+    return "bg-[#2563eb] shadow-[0_0_0_4px_rgba(37,99,235,0.12)]";
+  }
+  if (status === "succeeded") {
+    return "bg-[#16a34a] shadow-[0_0_0_4px_rgba(22,163,74,0.12)]";
+  }
+  if (status === "failed") {
+    return "bg-[#e11d48] shadow-[0_0_0_4px_rgba(225,29,72,0.12)]";
+  }
+  return "bg-black/25";
+}
+
+function getMemberProgressModuleTextClass(status: VideoEditProgressModuleDto["status"]) {
+  if (status === "running") {
+    return "text-[#1d4ed8]";
+  }
+  if (status === "succeeded") {
+    return "text-[#166534]";
+  }
+  if (status === "failed") {
+    return "text-[#be123c]";
+  }
+  return "text-black/45";
+}
+
+function getMemberProgressModuleBarClass(status: VideoEditProgressModuleDto["status"]) {
+  if (status === "running") {
+    return "bg-[#2563eb]";
+  }
+  if (status === "succeeded") {
+    return "bg-[#16a34a]";
+  }
+  if (status === "failed") {
+    return "bg-[#e11d48]";
+  }
+  return "bg-black/20";
 }
 
 function buildArticleFallback(task: DailyContentTaskDto): DailyArticleContentPackageDto {
@@ -1139,8 +1500,8 @@ function buildPublishText(article: DailyArticleContentPackageDto) {
   return `${article.title}\n\n${article.body}\n\n${article.cta}\n\n${tags}`;
 }
 
-function renderJobStatus(status: VideoEditJobDto["status"]) {
-  const labels: Record<VideoEditJobDto["status"], string> = {
+function renderJobStatus(status: PublicVideoEditJobDto["status"]) {
+  const labels: Record<PublicVideoEditJobDto["status"], string> = {
     pending: "待进入队列",
     queued: "队列中",
     preparing: "准备素材",
@@ -1154,7 +1515,7 @@ function renderJobStatus(status: VideoEditJobDto["status"]) {
   return labels[status] ?? status;
 }
 
-function isTerminalJob(status: VideoEditJobDto["status"]) {
+function isTerminalJob(status: PublicVideoEditJobDto["status"]) {
   return status === "succeeded" || status === "failed_manual" || status === "cancelled";
 }
 

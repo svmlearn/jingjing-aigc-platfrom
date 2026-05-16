@@ -85,6 +85,12 @@ class GenerateScriptNode(BaseNode):
             user_request = "No requirements"
         user_prompt = get_prompt("generate_script.user", lang=node_state.lang, user_request=user_request, overall=overall, groups=groups_block)
 
+        await self._report_progress(
+            node_state,
+            0,
+            1,
+            f"generating script for {len(group_ids)} group(s)",
+        )
         raw = await llm.complete(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
@@ -92,6 +98,7 @@ class GenerateScriptNode(BaseNode):
             top_p=0.9,
             max_tokens=4096,
             model_preferences=None,
+            metadata=self._model_sampling_metadata("llm", minimum_seconds=180.0),
         )
         group_text_map: dict[str, str] = {}
         script_title = ""
@@ -139,6 +146,12 @@ class GenerateScriptNode(BaseNode):
                 }
             )
 
+        await self._report_progress(
+            node_state,
+            1,
+            1,
+            f"generated script for {len(group_scripts)} group(s)",
+        )
         return {
             "group_scripts": group_scripts,
             "title": script_title,

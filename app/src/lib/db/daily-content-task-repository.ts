@@ -10,8 +10,15 @@ import type {
   DailyVideoScriptPackageDto,
   DailyVideoScriptSceneDto,
 } from "@/contracts/daily-task";
+import {
+  isAppPostgresConfigured,
+  isAppPostgresPreferred,
+  queryAppDb,
+} from "@/lib/server-db/postgres";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
+
+type Timestamp = string | Date;
 
 type DailyContentTaskRow = {
   id: string;
@@ -25,8 +32,8 @@ type DailyContentTaskRow = {
   knowledge_refs: unknown;
   material_refs: unknown;
   status: DailyTaskStatus;
-  created_at: string;
-  updated_at: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
 };
 
 const dailyContentTaskSelect = [
@@ -52,6 +59,20 @@ export async function getDailyContentTask(input: {
   userId: string;
   taskDate: string;
 }): Promise<DailyContentTaskDto | null> {
+  if (isPostgresDailyContentTaskEnabled()) {
+    const result = await queryAppDb<DailyContentTaskRow>(
+      `
+      select ${dailyContentTaskSelect}
+      from public.daily_content_tasks
+      where merchant_id = $1 and user_id = $2 and task_date = $3::date
+      limit 1
+      `,
+      [input.merchantId, input.userId, input.taskDate],
+    );
+
+    return result.rows[0] ? mapDailyContentTask(result.rows[0]) : null;
+  }
+
   if (!isSupabaseAdminConfigured()) {
     return demoDailyTasks.get(buildDemoKey(input)) ?? null;
   }
@@ -84,6 +105,49 @@ export async function upsertDailyContentTask(input: {
   materialRefs?: Array<Record<string, unknown>>;
   status?: DailyTaskStatus;
 }): Promise<DailyContentTaskDto> {
+  if (isPostgresDailyContentTaskEnabled()) {
+    const result = await queryAppDb<DailyContentTaskRow>(
+      `
+      insert into public.daily_content_tasks (
+        merchant_id,
+        user_id,
+        task_date,
+        theme,
+        team_calendar_source,
+        article_task,
+        video_task,
+        knowledge_refs,
+        material_refs,
+        status
+      ) values ($1, $2, $3::date, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, $10)
+      on conflict (merchant_id, user_id, task_date) do update set
+        theme = excluded.theme,
+        team_calendar_source = excluded.team_calendar_source,
+        article_task = excluded.article_task,
+        video_task = excluded.video_task,
+        knowledge_refs = excluded.knowledge_refs,
+        material_refs = excluded.material_refs,
+        status = excluded.status,
+        updated_at = timezone('utc', now())
+      returning ${dailyContentTaskSelect}
+      `,
+      [
+        input.merchantId,
+        input.userId,
+        input.taskDate,
+        input.theme,
+        JSON.stringify(input.teamCalendarSource),
+        JSON.stringify(input.articleTask),
+        JSON.stringify(input.videoTask),
+        JSON.stringify(input.knowledgeRefs ?? []),
+        JSON.stringify(input.materialRefs ?? []),
+        input.status ?? "generated",
+      ],
+    );
+
+    return mapDailyContentTask(result.rows[0]);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     const now = new Date().toISOString();
     const existing = demoDailyTasks.get(buildDemoKey(input));
@@ -140,6 +204,24 @@ export async function getDailyContentTaskById(input: {
   userId: string;
   taskId: string;
 }): Promise<DailyContentTaskDto> {
+  if (isPostgresDailyContentTaskEnabled()) {
+    const result = await queryAppDb<DailyContentTaskRow>(
+      `
+      select ${dailyContentTaskSelect}
+      from public.daily_content_tasks
+      where id = $1 and merchant_id = $2 and user_id = $3
+      limit 1
+      `,
+      [input.taskId, input.merchantId, input.userId],
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(404, "DAILY_CONTENT_TASK_NOT_FOUND", "今日任务不存在或无权访问。");
+    }
+
+    return mapDailyContentTask(result.rows[0]);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     const task = Array.from(demoDailyTasks.values()).find(
       (item) =>
@@ -171,6 +253,102 @@ export async function getDailyContentTaskById(input: {
   return mapDailyContentTask(data as unknown as DailyContentTaskRow);
 }
 
+export async function updateDailyContentTaskGeneratedContent(input: {
+  merchantId: string;
+  userId: string;
+  taskId: string;
+  articleTaskPatch?: Partial<DailyContentTaskItemDto>;
+  videoTaskPatch?: Partial<DailyContentTaskItemDto>;
+  status?: DailyTaskStatus;
+}): Promise<DailyContentTaskDto> {
+  const current = await getDailyContentTaskById({
+    merchantId: input.merchantId,
+    userId: input.userId,
+    taskId: input.taskId,
+  });
+  const nextArticleTask = {
+    ...current.articleTask,
+    ...input.articleTaskPatch,
+  };
+  const nextVideoTask = {
+    ...current.videoTask,
+    ...input.videoTaskPatch,
+  };
+
+  if (isPostgresDailyContentTaskEnabled()) {
+    const result = await queryAppDb<DailyContentTaskRow>(
+      `
+      update public.daily_content_tasks
+      set article_task = $4::jsonb,
+          video_task = $5::jsonb,
+          status = $6,
+          updated_at = timezone('utc', now())
+      where id = $1 and merchant_id = $2 and user_id = $3
+      returning ${dailyContentTaskSelect}
+      `,
+      [
+        input.taskId,
+        input.merchantId,
+        input.userId,
+        JSON.stringify(nextArticleTask),
+        JSON.stringify(nextVideoTask),
+        input.status ?? current.status,
+      ],
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(500, "DAILY_CONTENT_TASK_UPDATE_FAILED", "Update failed.");
+    }
+
+    return mapDailyContentTask(result.rows[0]);
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    const updated: DailyContentTaskDto = {
+      ...current,
+      articleTask: nextArticleTask,
+      videoTask: nextVideoTask,
+      status: input.status ?? current.status,
+      updatedAt: new Date().toISOString(),
+    };
+
+    demoDailyTasks.set(
+      buildDemoKey({
+        merchantId: input.merchantId,
+        userId: input.userId,
+        taskDate: current.taskDate,
+      }),
+      updated,
+    );
+
+    return updated;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("daily_content_tasks")
+    .update({
+      article_task: nextArticleTask,
+      video_task: nextVideoTask,
+      status: input.status ?? current.status,
+    })
+    .eq("id", input.taskId)
+    .eq("merchant_id", input.merchantId)
+    .eq("user_id", input.userId)
+    .select(dailyContentTaskSelect)
+    .single();
+
+  if (error || !data) {
+    throw new ApiError(
+      500,
+      "DAILY_CONTENT_TASK_UPDATE_FAILED",
+      error?.message ?? "Update failed.",
+    );
+  }
+
+  return mapDailyContentTask(data as unknown as DailyContentTaskRow);
+}
+
 function mapDailyContentTask(row: DailyContentTaskRow): DailyContentTaskDto {
   return {
     id: row.id,
@@ -184,9 +362,13 @@ function mapDailyContentTask(row: DailyContentTaskRow): DailyContentTaskDto {
     knowledgeRefs: toRecordArray(row.knowledge_refs),
     materialRefs: toRecordArray(row.material_refs),
     status: row.status,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
   };
+}
+
+function isPostgresDailyContentTaskEnabled() {
+  return isAppPostgresPreferred() && isAppPostgresConfigured();
 }
 
 function toTaskItem(value: unknown, fallbackKind: "article" | "video"): DailyContentTaskItemDto {
@@ -204,6 +386,10 @@ function toTaskItem(value: unknown, fallbackKind: "article" | "video"): DailyCon
       : [],
     generatedArticle: toArticlePackage(record.generatedArticle),
     generatedVideoScript: toVideoScriptPackage(record.generatedVideoScript),
+    generationStatus: toGenerationStatus(record.generationStatus),
+    generationJobId: readNullableString(record.generationJobId),
+    contentDraftId: readNullableString(record.contentDraftId),
+    contentVariantId: readNullableString(record.contentVariantId),
   };
 }
 
@@ -311,6 +497,20 @@ function toStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
     : [];
+}
+
+function toIsoString(value: Timestamp) {
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function toGenerationStatus(value: unknown): DailyContentTaskItemDto["generationStatus"] {
+  return value === "not_started" ||
+    value === "pending" ||
+    value === "running" ||
+    value === "succeeded" ||
+    value === "failed"
+    ? value
+    : null;
 }
 
 function buildDemoKey(input: { merchantId: string; userId: string; taskDate: string }) {

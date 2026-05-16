@@ -71,6 +71,10 @@ export type DailyContentTaskItemDto = {
   materialHints: string[];
   generatedArticle?: DailyArticleContentPackageDto | null;
   generatedVideoScript?: DailyVideoScriptPackageDto | null;
+  generationStatus?: "not_started" | "pending" | "running" | "succeeded" | "failed" | null;
+  generationJobId?: string | null;
+  contentDraftId?: string | null;
+  contentVariantId?: string | null;
 };
 
 export type DailyContentTaskDto = {

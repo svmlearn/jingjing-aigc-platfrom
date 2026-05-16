@@ -4,10 +4,13 @@ import { CheckCircle2, CircleAlert, Clapperboard, ImageIcon, Loader2, RefreshCw,
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ContentVariantDto } from "@/contracts/draft";
+import type { VideoEditProgressModuleDto } from "@/contracts/video";
+import { isVideoEditJobInFlightStatus } from "@/contracts/video";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getVideoJobStageLabel } from "@/lib/ui/video-job-display";
 import {
   cancelVideoEditJob,
   createVideoEditJob,
@@ -52,14 +55,6 @@ function variantTypeLabel(variantType: ContentVariantDto["variantType"]) {
   return variantType === "video_script" ? "视频脚本" : "图文笔记";
 }
 
-function formatStage(currentStage?: string | null) {
-  if (!currentStage) {
-    return "待进入执行阶段";
-  }
-
-  return currentStage.replaceAll("_", " ");
-}
-
 function defaultInstructionText(variant: ContentVariantDto) {
   const title = variant.title?.trim();
   if (title) {
@@ -92,6 +87,12 @@ function isRelatedJob(job: VideoEditJob, draftId: string, variantIds: string[]) 
     : false;
 
   return sameDraft || sameVariant;
+}
+
+function findInFlightJobForVariant(jobs: VideoEditJob[], variantId: string) {
+  return jobs.find(
+    (job) => job.contentVariantId === variantId && isVideoEditJobInFlightStatus(job.status),
+  );
 }
 
 function pickBetterAssets(primary: DraftMediaAsset[], secondary: DraftMediaAsset[]) {
@@ -160,6 +161,65 @@ function needsJobDetailHydration(job: VideoEditJob) {
   }
 
   return job.resultAssets.some((asset) => !asset.signedPreviewUrl);
+}
+
+function CompactProgressModules({ modules }: { modules: VideoEditProgressModuleDto[] }) {
+  return (
+    <div className="mt-3 grid gap-2">
+      {modules.map((module) => (
+        <div key={module.key} className="grid gap-1">
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className="truncate text-[#475569]">{module.label}</span>
+            <span className={getCompactModuleTextClass(module.status)}>
+              {compactProgressModuleStatusLabel[module.status]}
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-[#e2e8f0]">
+            <div
+              className={`h-full rounded-full ${getCompactModuleBarClass(module.status)}`}
+              style={{ width: `${module.progressPct}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const compactProgressModuleStatusLabel: Record<VideoEditProgressModuleDto["status"], string> = {
+  pending: "等待",
+  running: "处理中",
+  succeeded: "完成",
+  failed: "失败",
+  skipped: "跳过",
+};
+
+function getCompactModuleTextClass(status: VideoEditProgressModuleDto["status"]) {
+  if (status === "running") {
+    return "shrink-0 text-[#1d4ed8]";
+  }
+  if (status === "succeeded") {
+    return "shrink-0 text-[#166534]";
+  }
+  if (status === "failed") {
+    return "shrink-0 text-[#be123c]";
+  }
+
+  return "shrink-0 text-[#64748b]";
+}
+
+function getCompactModuleBarClass(status: VideoEditProgressModuleDto["status"]) {
+  if (status === "running") {
+    return "bg-[#2563eb]";
+  }
+  if (status === "succeeded") {
+    return "bg-[#16a34a]";
+  }
+  if (status === "failed") {
+    return "bg-[#e11d48]";
+  }
+
+  return "bg-[#94a3b8]";
 }
 
 export function DraftVideoPanels({
@@ -376,6 +436,12 @@ function DraftVideoPanelsContent({
   async function handleCreateJob(variant: ContentVariantDto) {
     if (!isVariantApproved(variant)) {
       setJobsError("请先确认脚本，再创建正式视频任务。");
+      return;
+    }
+    const existingJob = findInFlightJobForVariant(jobs, variant.id);
+
+    if (existingJob) {
+      setJobsHint(`「${variant.title ?? `版本 ${variant.versionNo}`}」已有视频任务正在进行中。`);
       return;
     }
 
@@ -634,6 +700,7 @@ function DraftVideoPanelsContent({
                 const isSelected = variant.id === selectedVariantId;
                 const isVideoVariant = variant.variantType === "video_script";
                 const isApproved = isVariantApproved(variant);
+                const inFlightJob = findInFlightJobForVariant(jobs, variant.id);
 
                 return (
                   <div
@@ -699,14 +766,14 @@ function DraftVideoPanelsContent({
                             type="button"
                             className="h-10 rounded-md bg-[#0f766e] text-white hover:bg-[#115e59]"
                             onClick={() => void handleCreateJob(variant)}
-                            disabled={!isApproved || activeVariantId === variant.id}
+                            disabled={!isApproved || Boolean(inFlightJob) || activeVariantId === variant.id}
                           >
-                            {activeVariantId === variant.id ? (
+                            {activeVariantId === variant.id || inFlightJob ? (
                               <Loader2 className="size-4 animate-spin" />
                             ) : (
                               <Clapperboard className="size-4" />
                             )}
-                            {isApproved ? "生成视频" : "待确认"}
+                            {inFlightJob ? "生成中" : isApproved ? "生成视频" : "待确认"}
                           </Button>
                         </>
                       ) : null}
@@ -767,11 +834,16 @@ function DraftVideoPanelsContent({
                           </Badge>
                         ) : null}
                       </div>
-                      <p className="mt-3 text-sm text-[#17202a]">stage: {formatStage(job.currentStage)}</p>
+                      <p className="mt-3 text-sm text-[#17202a]">
+                        当前阶段：{getVideoJobStageLabel(job.currentStage, job.status)}
+                      </p>
                       <p className="mt-1 text-sm text-[#17202a]">
-                        progress: {job.progressPct ?? 0}
+                        整体进度：{job.progressPct ?? 0}
                         %
                       </p>
+                      {job.progressModules.length > 0 ? (
+                        <CompactProgressModules modules={job.progressModules} />
+                      ) : null}
                       {job.failureReason ? (
                         <p className="mt-2 rounded-md border border-[#fecdd3] bg-white px-3 py-2 text-sm text-[#be123c]">
                           {job.failureReason}

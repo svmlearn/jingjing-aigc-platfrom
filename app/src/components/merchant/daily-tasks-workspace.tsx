@@ -3,9 +3,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { CalendarDays, FileText, RefreshCw, Sparkles, Video } from "lucide-react";
+import { CalendarDays, FileText, Loader2, RefreshCw, Sparkles, Video } from "lucide-react";
 
 import type { DailyContentWorkspaceDto } from "@/contracts/daily-task";
+import type { ContentGenerationBatchDto } from "@/contracts/content-generation";
 
 type ApiErrorPayload = {
   error?: {
@@ -17,6 +18,8 @@ export function DailyTasksWorkspace() {
   const [workspace, setWorkspace] = useState<DailyContentWorkspaceDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generationNotice, setGenerationNotice] = useState<string | null>(null);
+  const [generationBusy, setGenerationBusy] = useState(false);
 
   async function loadWorkspace() {
     setLoading(true);
@@ -40,6 +43,45 @@ export function DailyTasksWorkspace() {
       setError(requestError instanceof Error ? requestError.message : "今日任务加载失败");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function startDifyWeekGeneration() {
+    if (!workspace) {
+      return;
+    }
+
+    setGenerationBusy(true);
+    setError(null);
+    setGenerationNotice(null);
+
+    try {
+      const response = await fetch("/api/content-generation/batches", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          date: workspace.today.taskDate,
+          days: 7,
+          memberScope: workspace.role === "owner" ? "active_members" : "self",
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as
+        | ({ batch?: ContentGenerationBatchDto; jobs?: unknown[] } & ApiErrorPayload)
+        | null;
+
+      if (!response.ok || !data?.batch) {
+        throw new Error(data?.error?.message ?? "Dify 批量生成任务创建失败");
+      }
+
+      setGenerationNotice(`已创建 ${data.jobs?.length ?? data.batch.totalJobs} 个 Dify 生成任务。`);
+      await loadWorkspace();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Dify 批量生成任务创建失败");
+    } finally {
+      setGenerationBusy(false);
     }
   }
 
@@ -102,6 +144,21 @@ export function DailyTasksWorkspace() {
           <button
             type="button"
             onClick={() => {
+              void startDifyWeekGeneration();
+            }}
+            disabled={generationBusy}
+            className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-emerald-300 disabled:opacity-50"
+          >
+            {generationBusy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
+            生成本周
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               void loadWorkspace();
             }}
             className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-white/55"
@@ -113,6 +170,11 @@ export function DailyTasksWorkspace() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6 lg:p-8">
+        {generationNotice ? (
+          <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/80">
+            {generationNotice}
+          </div>
+        ) : null}
         <section className="rounded-3xl border border-white/10 bg-[#111111] p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -140,6 +202,7 @@ export function DailyTasksWorkspace() {
             title={today.articleTask.title}
             summary={today.articleTask.summary}
             materialHints={today.articleTask.materialHints}
+            generationStatus={today.articleTask.generationStatus}
             href={`/dashboard/article?source=daily_task&dailyTaskId=${today.id}`}
             actionLabel="生成图文"
           />
@@ -149,6 +212,7 @@ export function DailyTasksWorkspace() {
             title={today.videoTask.title}
             summary={today.videoTask.summary}
             materialHints={today.videoTask.materialHints}
+            generationStatus={today.videoTask.generationStatus}
             href={`/dashboard/video?source=daily_task&dailyTaskId=${today.id}`}
             actionLabel="看脚本并上传素材"
           />
@@ -171,6 +235,7 @@ export function DailyTasksWorkspace() {
                 <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/40">
                   {task.articleTask.title}
                 </p>
+                <GenerationStatusBadge status={task.articleTask.generationStatus} />
               </div>
             ))}
           </div>
@@ -186,6 +251,7 @@ function TaskCard({
   title,
   summary,
   materialHints,
+  generationStatus,
   href,
   actionLabel,
 }: {
@@ -194,6 +260,7 @@ function TaskCard({
   title: string;
   summary: string;
   materialHints: string[];
+  generationStatus?: DailyContentWorkspaceDto["today"]["articleTask"]["generationStatus"];
   href: string;
   actionLabel: string;
 }) {
@@ -215,6 +282,7 @@ function TaskCard({
       </div>
       <h3 className="mt-5 text-xl leading-7 text-white">{title}</h3>
       <p className="mt-3 text-sm leading-7 text-white/55">{summary}</p>
+      <GenerationStatusBadge status={generationStatus} />
       {materialHints.length ? (
         <div className="mt-5 flex flex-wrap gap-2">
           {materialHints.slice(0, 4).map((item) => (
@@ -225,6 +293,29 @@ function TaskCard({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function GenerationStatusBadge({
+  status,
+}: {
+  status?: DailyContentWorkspaceDto["today"]["articleTask"]["generationStatus"];
+}) {
+  if (!status || status === "not_started") {
+    return null;
+  }
+
+  const labels: Record<NonNullable<typeof status>, string> = {
+    pending: "Dify 队列中",
+    running: "Dify 生成中",
+    succeeded: "Dify 已生成",
+    failed: "Dify 失败",
+  };
+
+  return (
+    <span className="mt-4 inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/45">
+      {labels[status]}
+    </span>
   );
 }
 

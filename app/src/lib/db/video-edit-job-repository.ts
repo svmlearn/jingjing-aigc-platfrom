@@ -9,6 +9,10 @@ import type {
   VideoEditJobStatus,
   VideoEditJobTriggerSource,
 } from "@/contracts/video";
+import {
+  VIDEO_EDIT_JOB_IN_FLIGHT_STATUSES,
+  isVideoEditJobInFlightStatus,
+} from "@/contracts/video";
 import { getLocalDemoContentVariantContext } from "@/lib/db/content-draft-repository";
 import {
   cancelLocalRealChainVideoEditJob,
@@ -23,10 +27,12 @@ import {
   pgAssertVideoScriptVariantAccess,
   pgCancelVideoEditJob,
   pgCreateVideoEditJob,
+  pgFindInFlightVideoEditJobForScope,
   pgGetVideoEditJobById,
   pgListVideoEditJobs,
   pgRetryVideoEditJob,
 } from "@/lib/db/postgres-video-chain-repository";
+import { normalizeVideoProgressModules } from "@/lib/ui/video-progress-modules";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -74,6 +80,13 @@ export type VideoEditJobListFilters = {
   status?: VideoEditJobStatus;
   createdByUserId?: string | null;
   limit?: number;
+};
+
+export type VideoEditJobDeduplicationScope = {
+  merchantId: string;
+  createdByUserId?: string | null;
+  draftId: string;
+  contentVariantId: string;
 };
 
 const demoVideoEditJobs = new Map<string, VideoEditJobDto>();
@@ -226,11 +239,33 @@ export async function createVideoEditJob(input: {
   contentVariantId: string;
   triggerSource?: VideoEditJobTriggerSource;
   instructionText?: CreateVideoEditJobRequest["instructionText"];
-  inputPayload?: CreateVideoEditJobRequest["inputPayload"];
+  inputPayload?: Record<string, unknown>;
   runtimePayload?: Record<string, unknown>;
 }): Promise<VideoEditJobDto> {
   if (isPostgresVideoChainEnabled()) {
+    const existingInFlightJob = await findInFlightVideoEditJobForScope({
+      merchantId: input.merchantId,
+      createdByUserId: input.createdByUserId,
+      draftId: input.draftId,
+      contentVariantId: input.contentVariantId,
+    });
+
+    if (existingInFlightJob) {
+      return existingInFlightJob;
+    }
+
     return pgCreateVideoEditJob(input);
+  }
+
+  const existingInFlightJob = await findInFlightVideoEditJobForScope({
+    merchantId: input.merchantId,
+    createdByUserId: input.createdByUserId,
+    draftId: input.draftId,
+    contentVariantId: input.contentVariantId,
+  });
+
+  if (existingInFlightJob) {
+    return existingInFlightJob;
   }
 
   if (!isSupabaseAdminConfigured()) {
@@ -238,6 +273,7 @@ export async function createVideoEditJob(input: {
       return createLocalRealChainVideoEditJob({
         draftId: input.draftId,
         contentVariantId: input.contentVariantId,
+        createdByUserId: input.createdByUserId,
         triggerSource: input.triggerSource,
         instructionText: input.instructionText,
         inputPayload: input.inputPayload,
@@ -264,6 +300,14 @@ export async function createVideoEditJob(input: {
       failureReason: null,
       resultPayload: {},
       logPayload: {},
+      progressModules: normalizeVideoProgressModules({
+        status: "pending",
+        currentStage: "local_demo_pending_worker",
+        progressPct: 0,
+        runtimePayload: input.runtimePayload ?? { mode: "local_demo_memory" },
+        resultPayload: {},
+        logPayload: {},
+      }),
       startedAt: now,
       finishedAt: null,
       createdAt: now,
@@ -301,10 +345,85 @@ export async function createVideoEditJob(input: {
     .single();
 
   if (error || !data) {
+    if (isUniqueViolation(error)) {
+      const inFlightJob = await findInFlightVideoEditJobForScope({
+        merchantId: input.merchantId,
+        createdByUserId: input.createdByUserId,
+        draftId: input.draftId,
+        contentVariantId: input.contentVariantId,
+      });
+
+      if (inFlightJob) {
+        return inFlightJob;
+      }
+    }
+
     throw new ApiError(500, "VIDEO_EDIT_JOB_CREATE_FAILED", error?.message ?? "Create failed.");
   }
 
   return mapVideoEditJob(data as unknown as VideoEditJobRow);
+}
+
+export async function findInFlightVideoEditJobForScope(
+  input: VideoEditJobDeduplicationScope,
+): Promise<VideoEditJobDto | null> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgFindInFlightVideoEditJobForScope(input);
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    if (isLocalRealChainEnabled()) {
+      const jobs = await listLocalRealChainVideoEditJobs({
+        createdByUserId: input.createdByUserId,
+        limit: 50,
+      });
+
+      return (
+        jobs.find((job) =>
+          isSameVideoEditJobScope(job, input) &&
+          isVideoEditJobInFlightStatus(job.status),
+        ) ?? null
+      );
+    }
+
+    const jobs = Array.from(demoVideoEditJobs.values()).map(advanceLocalDemoVideoJob);
+
+    return (
+      jobs
+        .filter((job) => isSameVideoEditJobScope(job, input))
+        .filter((job) => isVideoEditJobInFlightStatus(job.status))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
+    );
+  }
+
+  const supabase = createSupabaseAdminClient();
+  let query = supabase
+    .from("video_edit_jobs")
+    .select(videoEditJobSelect)
+    .eq("merchant_id", input.merchantId)
+    .eq("draft_id", input.draftId)
+    .eq("content_variant_id", input.contentVariantId)
+    .in("status", [...VIDEO_EDIT_JOB_IN_FLIGHT_STATUSES])
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (input.createdByUserId !== undefined) {
+    if (input.createdByUserId) {
+      query = query.eq("created_by_user_id", input.createdByUserId);
+    } else {
+      query = query.is("created_by_user_id", null);
+    }
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new ApiError(500, "VIDEO_EDIT_JOB_LOOKUP_FAILED", error.message);
+  }
+
+  const row = (data?.[0] ?? null) as unknown as VideoEditJobRow | null;
+
+  return row ? mapVideoEditJob(row) : null;
 }
 
 export async function listVideoEditJobs(
@@ -323,7 +442,11 @@ export async function listVideoEditJobs(
     return Array.from(demoVideoEditJobs.values())
       .map(advanceLocalDemoVideoJob)
       .filter((job) => job.merchantId === merchantId)
-      .filter((job) => !filters.createdByUserId || job.createdByUserId === filters.createdByUserId)
+      .filter((job) =>
+        filters.createdByUserId === undefined
+          ? true
+          : job.createdByUserId === (filters.createdByUserId ?? null),
+      )
       .filter((job) => !filters.status || job.status === filters.status)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, filters.limit ?? 50);
@@ -342,6 +465,8 @@ export async function listVideoEditJobs(
   }
   if (filters.createdByUserId) {
     query = query.eq("created_by_user_id", filters.createdByUserId);
+  } else if (filters.createdByUserId === null) {
+    query = query.is("created_by_user_id", null);
   }
 
   const { data, error } = await query;
@@ -434,6 +559,14 @@ export async function retryVideoEditJob(input: {
       runtimePayload: {},
       resultPayload: {},
       logPayload: {},
+      progressModules: normalizeVideoProgressModules({
+        status: "pending",
+        currentStage: "local_demo_pending_worker",
+        progressPct: 0,
+        runtimePayload: {},
+        resultPayload: {},
+        logPayload: {},
+      }),
       startedAt: now,
       finishedAt: null,
       retryCount: current.retryCount + 1,
@@ -505,6 +638,14 @@ export async function cancelVideoEditJob(input: {
       ...current,
       status: "cancelled",
       currentStage: current.currentStage ?? "cancelled",
+      progressModules: normalizeVideoProgressModules({
+        status: "cancelled",
+        currentStage: current.currentStage ?? "cancelled",
+        progressPct: current.progressPct,
+        runtimePayload: current.runtimePayload,
+        resultPayload: current.resultPayload,
+        logPayload: current.logPayload,
+      }),
       finishedAt: now,
       updatedAt: now,
     };
@@ -556,6 +697,14 @@ export function mapVideoEditJob(row: VideoEditJobRow): VideoEditJobDto {
     failureReason: row.failure_reason,
     resultPayload: row.result_payload ?? {},
     logPayload: row.log_payload ?? {},
+    progressModules: normalizeVideoProgressModules({
+      status: row.status,
+      currentStage: row.current_stage,
+      progressPct: row.progress_pct,
+      runtimePayload: row.runtime_payload ?? {},
+      resultPayload: row.result_payload ?? {},
+      logPayload: row.log_payload ?? {},
+    }),
     startedAt: row.started_at,
     finishedAt: row.finished_at,
     createdAt: row.created_at,
@@ -609,6 +758,14 @@ function advanceLocalDemoVideoJob(job: VideoEditJobDto): VideoEditJobDto {
         note: "Local demo mode simulates worker progress without rendering media.",
       },
     },
+    progressModules: normalizeVideoProgressModules({
+      status: step.status,
+      currentStage: step.currentStage,
+      progressPct: step.progressPct,
+      runtimePayload: job.runtimePayload,
+      resultPayload: succeeded ? buildLocalDemoResultPayload(job) : job.resultPayload,
+      logPayload: job.logPayload,
+    }),
     finishedAt: succeeded ? (job.finishedAt ?? now) : null,
     updatedAt: now,
   };
@@ -616,6 +773,28 @@ function advanceLocalDemoVideoJob(job: VideoEditJobDto): VideoEditJobDto {
   demoVideoEditJobs.set(job.id, updated);
 
   return updated;
+}
+
+function isSameVideoEditJobScope(
+  job: VideoEditJobDto,
+  scope: VideoEditJobDeduplicationScope,
+) {
+  return (
+    job.merchantId === scope.merchantId &&
+    (scope.createdByUserId === undefined ||
+      job.createdByUserId === (scope.createdByUserId ?? null)) &&
+    job.draftId === scope.draftId &&
+    job.contentVariantId === scope.contentVariantId
+  );
+}
+
+function isUniqueViolation(error: unknown) {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "23505",
+  );
 }
 
 function buildLocalDemoResultPayload(job: VideoEditJobDto): Record<string, unknown> {
