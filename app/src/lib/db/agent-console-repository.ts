@@ -30,6 +30,13 @@ import type {
   MerchantCreditLedgerDto,
   MerchantUsageEventDto,
 } from "@/contracts/agent-console";
+import {
+  isAppPostgresConfigured,
+  isAppPostgresPreferred,
+  mapPostgresError,
+  queryAppDb,
+  withAppDbTransaction,
+} from "@/lib/server-db/postgres";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -44,8 +51,8 @@ type AgentConfigRow = {
   model_config: unknown;
   copied_from_agent_id: string | null;
   created_by_admin_id: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 type AgentPromptVersionRow = {
@@ -56,9 +63,9 @@ type AgentPromptVersionRow = {
   status: AgentPromptVersionStatus;
   change_note: string | null;
   created_by_admin_id: string | null;
-  created_at: string;
-  activated_at: string | null;
-  archived_at: string | null;
+  created_at: string | Date;
+  activated_at: string | Date | null;
+  archived_at: string | Date | null;
 };
 
 type AgentSoulVersionRow = {
@@ -69,9 +76,9 @@ type AgentSoulVersionRow = {
   status: AgentPromptVersionStatus;
   change_note: string | null;
   created_by_admin_id: string | null;
-  created_at: string;
-  activated_at: string | null;
-  archived_at: string | null;
+  created_at: string | Date;
+  activated_at: string | Date | null;
+  archived_at: string | Date | null;
 };
 
 type AgentSkillRow = {
@@ -85,8 +92,8 @@ type AgentSkillRow = {
   dependencies: unknown;
   metadata: unknown;
   created_by_admin_id: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 type AgentSkillBindingRow = {
@@ -95,8 +102,8 @@ type AgentSkillBindingRow = {
   skill_id: string;
   status: AgentBindingStatus;
   created_by_admin_id: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 type KnowledgeSetRow = {
@@ -109,8 +116,8 @@ type KnowledgeSetRow = {
   status: AgentAssetStatus;
   metadata: unknown;
   created_by_admin_id: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 type AgentKnowledgeSetBindingRow = {
@@ -119,8 +126,8 @@ type AgentKnowledgeSetBindingRow = {
   knowledge_set_id: string;
   status: AgentBindingStatus;
   created_by_admin_id: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 type AgentRouteBindingRow = {
@@ -130,8 +137,8 @@ type AgentRouteBindingRow = {
   status: AgentRouteBindingStatus;
   description: string | null;
   created_by_admin_id: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 type KnowledgeSetDocumentRow = {
@@ -139,7 +146,7 @@ type KnowledgeSetDocumentRow = {
   knowledge_set_id: string;
   document_id: string;
   created_by_admin_id: string | null;
-  created_at: string;
+  created_at: string | Date;
 };
 
 type AgentRuntimeSnapshotRow = {
@@ -155,7 +162,7 @@ type AgentRuntimeSnapshotRow = {
   memory_match_ids: unknown;
   tool_call_summary: unknown;
   model: string | null;
-  created_at: string;
+  created_at: string | Date;
 };
 
 type AgentTestRunRow = {
@@ -175,7 +182,7 @@ type AgentTestRunRow = {
   error_summary: string | null;
   model: string | null;
   created_by_admin_id: string | null;
-  created_at: string;
+  created_at: string | Date;
 };
 
 type MerchantCreditAccountRow = {
@@ -424,7 +431,30 @@ export async function createAgentConfig(
 }
 
 export async function getAgentConfigById(agentId: string): Promise<AgentConfigDto> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<AgentConfigRow>(
+        `
+        select ${agentConfigSelect}
+        from public.agent_configs
+        where id = $1
+        limit 1
+        `,
+        [agentId],
+      );
+      const row = result.rows[0];
+
+      if (!row) {
+        throw new ApiError(404, "AGENT_CONFIG_NOT_FOUND", "Agent config not found.");
+      }
+
+      return mapAgentConfig(row);
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_CONFIG_FETCH_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     if (agentId === demoInitialAgent.id) {
       return demoInitialAgent;
     }
@@ -694,7 +724,23 @@ export async function copyAgentConfig(
 }
 
 export async function listAgentConfigs(): Promise<AgentConfigDto[]> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<AgentConfigRow>(
+        `
+        select ${agentConfigSelect}
+        from public.agent_configs
+        order by created_at desc
+        `,
+      );
+
+      return result.rows.map(mapAgentConfig);
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_CONFIGS_LIST_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return [demoInitialAgent];
   }
 
@@ -714,7 +760,25 @@ export async function listAgentConfigs(): Promise<AgentConfigDto[]> {
 export async function listAgentPromptVersions(
   agentId: string,
 ): Promise<AgentPromptVersionDto[]> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<AgentPromptVersionRow>(
+        `
+        select ${agentPromptVersionSelect}
+        from public.agent_prompt_versions
+        where agent_id = $1
+        order by version_no desc
+        `,
+        [agentId],
+      );
+
+      return result.rows.map(mapAgentPromptVersion);
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_PROMPT_VERSIONS_LIST_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return [];
   }
 
@@ -735,7 +799,26 @@ export async function listAgentPromptVersions(
 export async function getActiveAgentPromptVersion(
   agentId: string,
 ): Promise<AgentPromptVersionDto | null> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<AgentPromptVersionRow>(
+        `
+        select ${agentPromptVersionSelect}
+        from public.agent_prompt_versions
+        where agent_id = $1
+          and status = 'active'
+        limit 1
+        `,
+        [agentId],
+      );
+
+      return result.rows[0] ? mapAgentPromptVersion(result.rows[0]) : null;
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_ACTIVE_PROMPT_FETCH_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return null;
   }
 
@@ -1009,7 +1092,25 @@ export async function rollbackAgentPromptVersion(input: {
 export async function listAgentSoulVersions(
   agentId: string,
 ): Promise<AgentSoulVersionDto[]> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<AgentSoulVersionRow>(
+        `
+        select ${agentSoulVersionSelect}
+        from public.agent_soul_versions
+        where agent_id = $1
+        order by version_no desc
+        `,
+        [agentId],
+      );
+
+      return result.rows.map(mapAgentSoulVersion);
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_SOUL_VERSIONS_LIST_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return [];
   }
 
@@ -1030,7 +1131,26 @@ export async function listAgentSoulVersions(
 export async function getActiveAgentSoulVersion(
   agentId: string,
 ): Promise<AgentSoulVersionDto | null> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<AgentSoulVersionRow>(
+        `
+        select ${agentSoulVersionSelect}
+        from public.agent_soul_versions
+        where agent_id = $1
+          and status = 'active'
+        limit 1
+        `,
+        [agentId],
+      );
+
+      return result.rows[0] ? mapAgentSoulVersion(result.rows[0]) : null;
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_ACTIVE_SOUL_FETCH_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return null;
   }
 
@@ -1327,7 +1447,30 @@ export async function createAgentSkill(input: AgentSkillCreateInput): Promise<Ag
 }
 
 export async function getAgentSkillById(skillId: string): Promise<AgentSkillDto> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<AgentSkillRow>(
+        `
+        select ${agentSkillSelect}
+        from public.agent_skills
+        where id = $1
+        limit 1
+        `,
+        [skillId],
+      );
+      const row = result.rows[0];
+
+      if (!row) {
+        throw new ApiError(404, "AGENT_SKILL_NOT_FOUND", "Agent skill not found.");
+      }
+
+      return mapAgentSkill(row);
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_SKILL_FETCH_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     throw new ApiError(404, "AGENT_SKILL_NOT_FOUND", "Agent skill not found.");
   }
 
@@ -1425,7 +1568,23 @@ export async function updateAgentSkill(
 }
 
 export async function listAgentSkills(): Promise<AgentSkillDto[]> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<AgentSkillRow>(
+        `
+        select ${agentSkillSelect}
+        from public.agent_skills
+        order by created_at desc
+        `,
+      );
+
+      return result.rows.map(mapAgentSkill);
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_SKILLS_LIST_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return [];
   }
 
@@ -1445,7 +1604,33 @@ export async function listAgentSkills(): Promise<AgentSkillDto[]> {
 export async function listAgentSkillBindings(input: {
   agentId?: string;
 } = {}): Promise<AgentSkillBindingDto[]> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const filters: string[] = [];
+      const values: unknown[] = [];
+
+      if (input.agentId) {
+        values.push(input.agentId);
+        filters.push(`agent_id = $${values.length}`);
+      }
+
+      const result = await queryAppDb<AgentSkillBindingRow>(
+        `
+        select ${agentSkillBindingSelect}
+        from public.agent_skill_bindings
+        ${filters.length ? `where ${filters.join(" and ")}` : ""}
+        order by created_at desc
+        `,
+        values,
+      );
+
+      return result.rows.map(mapAgentSkillBinding);
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_SKILL_BINDINGS_LIST_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return [];
   }
 
@@ -1591,7 +1776,30 @@ export async function createKnowledgeSet(
 }
 
 export async function getKnowledgeSetById(setId: string): Promise<KnowledgeSetDto> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<KnowledgeSetRow>(
+        `
+        select ${knowledgeSetSelect}
+        from public.knowledge_sets
+        where id = $1
+        limit 1
+        `,
+        [setId],
+      );
+      const row = result.rows[0];
+
+      if (!row) {
+        throw new ApiError(404, "KNOWLEDGE_SET_NOT_FOUND", "Knowledge set not found.");
+      }
+
+      return mapKnowledgeSet(row);
+    } catch (error) {
+      throw mapPostgresError(error, "KNOWLEDGE_SET_FETCH_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     if (setId === demoBaseKnowledgeSet.id) {
       return demoBaseKnowledgeSet;
     }
@@ -1696,7 +1904,23 @@ export async function updateKnowledgeSet(
 }
 
 export async function listKnowledgeSets(): Promise<KnowledgeSetDto[]> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<KnowledgeSetRow>(
+        `
+        select ${knowledgeSetSelect}
+        from public.knowledge_sets
+        order by created_at desc
+        `,
+      );
+
+      return result.rows.map(mapKnowledgeSet);
+    } catch (error) {
+      throw mapPostgresError(error, "KNOWLEDGE_SETS_LIST_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return [demoBaseKnowledgeSet];
   }
 
@@ -1717,7 +1941,38 @@ export async function listKnowledgeSetDocuments(input: {
   knowledgeSetId?: string;
   documentId?: string;
 } = {}): Promise<KnowledgeSetDocumentDto[]> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const filters: string[] = [];
+      const values: unknown[] = [];
+
+      if (input.knowledgeSetId) {
+        values.push(input.knowledgeSetId);
+        filters.push(`knowledge_set_id = $${values.length}`);
+      }
+
+      if (input.documentId) {
+        values.push(input.documentId);
+        filters.push(`document_id = $${values.length}`);
+      }
+
+      const result = await queryAppDb<KnowledgeSetDocumentRow>(
+        `
+        select ${knowledgeSetDocumentSelect}
+        from public.knowledge_set_documents
+        ${filters.length ? `where ${filters.join(" and ")}` : ""}
+        order by created_at desc
+        `,
+        values,
+      );
+
+      return result.rows.map(mapKnowledgeSetDocument);
+    } catch (error) {
+      throw mapPostgresError(error, "KNOWLEDGE_SET_DOCUMENTS_LIST_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return [];
   }
 
@@ -1841,7 +2096,33 @@ export async function replaceKnowledgeDocumentSets(input: {
 export async function listAgentKnowledgeSetBindings(input: {
   agentId?: string;
 } = {}): Promise<AgentKnowledgeSetBindingDto[]> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const filters: string[] = [];
+      const values: unknown[] = [];
+
+      if (input.agentId) {
+        values.push(input.agentId);
+        filters.push(`agent_id = $${values.length}`);
+      }
+
+      const result = await queryAppDb<AgentKnowledgeSetBindingRow>(
+        `
+        select ${agentKnowledgeSetBindingSelect}
+        from public.agent_knowledge_set_bindings
+        ${filters.length ? `where ${filters.join(" and ")}` : ""}
+        order by created_at desc
+        `,
+        values,
+      );
+
+      return result.rows.map(mapAgentKnowledgeSetBinding);
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_KNOWLEDGE_SET_BINDINGS_LIST_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return [];
   }
 
@@ -1943,7 +2224,23 @@ export async function replaceAgentKnowledgeSetBindings(input: {
 }
 
 export async function listAgentRouteBindings(): Promise<AgentRouteBindingDto[]> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<AgentRouteBindingRow>(
+        `
+        select ${agentRouteBindingSelect}
+        from public.agent_route_bindings
+        order by created_at desc
+        `,
+      );
+
+      return result.rows.map(mapAgentRouteBinding);
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_ROUTE_BINDINGS_LIST_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return [demoConsultationDefaultBinding];
   }
 
@@ -1963,7 +2260,25 @@ export async function listAgentRouteBindings(): Promise<AgentRouteBindingDto[]> 
 export async function getAgentRouteBinding(
   routeKey: AgentRouteKey,
 ): Promise<AgentRouteBindingDto | null> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<AgentRouteBindingRow>(
+        `
+        select ${agentRouteBindingSelect}
+        from public.agent_route_bindings
+        where route_key = $1
+        limit 1
+        `,
+        [routeKey],
+      );
+
+      return result.rows[0] ? mapAgentRouteBinding(result.rows[0]) : null;
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_ROUTE_BINDING_FETCH_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return routeKey === "consultation_default" ? demoConsultationDefaultBinding : null;
   }
 
@@ -2041,7 +2356,47 @@ export async function setConsultationDefaultAgent(input: {
 export async function recordAgentRuntimeSnapshot(
   input: AgentRuntimeSnapshotCreateInput,
 ): Promise<AgentRuntimeSnapshotDto | null> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<AgentRuntimeSnapshotRow>(
+        `
+        insert into public.agent_runtime_snapshots (
+          session_id,
+          message_id,
+          agent_id,
+          prompt_version_id,
+          candidate_skill_ids,
+          actual_skill_ids,
+          knowledge_set_ids,
+          knowledge_match_ids,
+          memory_match_ids,
+          tool_call_summary,
+          model
+        ) values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11)
+        returning ${agentRuntimeSnapshotSelect}
+        `,
+        [
+          input.sessionId ?? null,
+          input.messageId ?? null,
+          input.agentId ?? null,
+          input.promptVersionId ?? null,
+          JSON.stringify(input.candidateSkillIds ?? []),
+          JSON.stringify(input.actualSkillIds ?? []),
+          JSON.stringify(input.knowledgeSetIds ?? []),
+          JSON.stringify(input.knowledgeMatchIds ?? []),
+          JSON.stringify(input.memoryMatchIds ?? []),
+          JSON.stringify(input.toolCallSummary ?? {}),
+          input.model ?? null,
+        ],
+      );
+
+      return mapAgentRuntimeSnapshot(result.rows[0]);
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_RUNTIME_SNAPSHOT_CREATE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return null;
   }
 
@@ -2078,7 +2433,83 @@ export async function recordAgentRuntimeSnapshot(
 export async function recordAgentTestRun(
   input: AgentTestRunCreateInput,
 ): Promise<AgentTestRunDto | null> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      return await withAppDbTransaction(async (client) => {
+        const result = await client.query<AgentTestRunRow>(
+          `
+          insert into public.agent_test_runs (
+            agent_id,
+            merchant_id,
+            input_message,
+            prompt_version_id,
+            candidate_skill_ids,
+            actual_skill_ids,
+            knowledge_set_ids,
+            knowledge_match_ids,
+            memory_match_ids,
+            tool_summary,
+            assistant_output,
+            status,
+            error_summary,
+            model
+          ) values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, $13, $14)
+          returning ${agentTestRunSelect}
+          `,
+          [
+            input.agentId ?? null,
+            input.merchantId ?? null,
+            input.inputMessage,
+            input.promptVersionId ?? null,
+            JSON.stringify(input.candidateSkillIds ?? []),
+            JSON.stringify(input.actualSkillIds ?? []),
+            JSON.stringify(input.knowledgeSetIds ?? []),
+            JSON.stringify(input.knowledgeMatchIds ?? []),
+            JSON.stringify(input.memoryMatchIds ?? []),
+            JSON.stringify(input.toolSummary ?? {}),
+            input.assistantOutput ?? null,
+            input.status,
+            input.errorSummary ?? null,
+            input.model ?? null,
+          ],
+        );
+        const testRun = mapAgentTestRun(result.rows[0]);
+
+        await client.query(
+          `
+          insert into public.platform_admin_events (
+            actor_label,
+            event_type,
+            target_type,
+            target_id,
+            summary,
+            details
+          ) values ($1, $2, $3, $4, $5, $6::jsonb)
+          `,
+          [
+            input.actorLabel ?? "admin",
+            "agent_test_run.created",
+            "agent_test_run",
+            testRun.id,
+            `保存 Agent 调试记录：${testRun.status}`,
+            JSON.stringify({
+              agentId: testRun.agentId,
+              merchantId: testRun.merchantId,
+              status: testRun.status,
+              actualSkillIds: testRun.actualSkillIds,
+              knowledgeSetIds: testRun.knowledgeSetIds,
+            }),
+          ],
+        );
+
+        return testRun;
+      });
+    } catch (error) {
+      throw mapPostgresError(error, "AGENT_TEST_RUN_CREATE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return null;
   }
 
@@ -2364,8 +2795,8 @@ function mapAgentConfig(row: AgentConfigRow): AgentConfigDto {
     modelConfig: toRecord(row.model_config),
     copiedFromAgentId: row.copied_from_agent_id,
     createdByAdminId: row.created_by_admin_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
   };
 }
 
@@ -2378,9 +2809,9 @@ function mapAgentPromptVersion(row: AgentPromptVersionRow): AgentPromptVersionDt
     status: row.status,
     changeNote: row.change_note,
     createdByAdminId: row.created_by_admin_id,
-    createdAt: row.created_at,
-    activatedAt: row.activated_at,
-    archivedAt: row.archived_at,
+    createdAt: toIsoString(row.created_at),
+    activatedAt: toNullableIsoString(row.activated_at),
+    archivedAt: toNullableIsoString(row.archived_at),
   };
 }
 
@@ -2393,9 +2824,9 @@ function mapAgentSoulVersion(row: AgentSoulVersionRow): AgentSoulVersionDto {
     status: row.status,
     changeNote: row.change_note,
     createdByAdminId: row.created_by_admin_id,
-    createdAt: row.created_at,
-    activatedAt: row.activated_at,
-    archivedAt: row.archived_at,
+    createdAt: toIsoString(row.created_at),
+    activatedAt: toNullableIsoString(row.activated_at),
+    archivedAt: toNullableIsoString(row.archived_at),
   };
 }
 
@@ -2411,8 +2842,8 @@ function mapAgentSkill(row: AgentSkillRow): AgentSkillDto {
     dependencies: toStringArray(row.dependencies),
     metadata: toRecord(row.metadata),
     createdByAdminId: row.created_by_admin_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
   };
 }
 
@@ -2423,8 +2854,8 @@ function mapAgentSkillBinding(row: AgentSkillBindingRow): AgentSkillBindingDto {
     skillId: row.skill_id,
     status: row.status,
     createdByAdminId: row.created_by_admin_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
   };
 }
 
@@ -2439,8 +2870,8 @@ function mapKnowledgeSet(row: KnowledgeSetRow): KnowledgeSetDto {
     status: row.status,
     metadata: toRecord(row.metadata),
     createdByAdminId: row.created_by_admin_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
   };
 }
 
@@ -2453,8 +2884,8 @@ function mapAgentKnowledgeSetBinding(
     knowledgeSetId: row.knowledge_set_id,
     status: row.status,
     createdByAdminId: row.created_by_admin_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
   };
 }
 
@@ -2466,8 +2897,8 @@ function mapAgentRouteBinding(row: AgentRouteBindingRow): AgentRouteBindingDto {
     status: row.status,
     description: row.description,
     createdByAdminId: row.created_by_admin_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
   };
 }
 
@@ -2477,7 +2908,7 @@ function mapKnowledgeSetDocument(row: KnowledgeSetDocumentRow): KnowledgeSetDocu
     knowledgeSetId: row.knowledge_set_id,
     documentId: row.document_id,
     createdByAdminId: row.created_by_admin_id,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
 }
 
@@ -2495,7 +2926,7 @@ function mapAgentRuntimeSnapshot(row: AgentRuntimeSnapshotRow): AgentRuntimeSnap
     memoryMatchIds: toStringArray(row.memory_match_ids),
     toolCallSummary: toRecord(row.tool_call_summary),
     model: row.model,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
 }
 
@@ -2517,7 +2948,7 @@ function mapAgentTestRun(row: AgentTestRunRow): AgentTestRunDto {
     errorSummary: row.error_summary,
     model: row.model,
     createdByAdminId: row.created_by_admin_id,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
 }
 
@@ -2599,6 +3030,34 @@ async function recordAgentConsoleAdminEvent(input: {
   summary: string;
   details?: Record<string, unknown>;
 }) {
+  if (shouldUseAppPostgres()) {
+    try {
+      await queryAppDb(
+        `
+        insert into public.platform_admin_events (
+          actor_label,
+          event_type,
+          target_type,
+          target_id,
+          summary,
+          details
+        ) values ($1, $2, $3, $4, $5, $6::jsonb)
+        `,
+        [
+          input.actorLabel ?? "admin",
+          input.eventType,
+          input.targetType,
+          input.targetId ?? null,
+          input.summary,
+          JSON.stringify(input.details ?? {}),
+        ],
+      );
+      return;
+    } catch (error) {
+      throw mapPostgresError(error, "PLATFORM_ADMIN_EVENT_CREATE_FAILED");
+    }
+  }
+
   requireSupabaseAdmin("PLATFORM_ADMIN_EVENT_CREATE_UNAVAILABLE");
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase.from("platform_admin_events").insert({
@@ -2772,6 +3231,22 @@ function toStringArray(value: unknown): string[] {
 
 function getBoolean(value: unknown, fallback: boolean) {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function shouldUseAppPostgres() {
+  return isAppPostgresConfigured() && isAppPostgresPreferred();
+}
+
+function shouldUseDemoFallback() {
+  return !shouldUseAppPostgres() && !isSupabaseAdminConfigured();
+}
+
+function toIsoString(value: string | Date) {
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function toNullableIsoString(value: string | Date | null) {
+  return value ? toIsoString(value) : null;
 }
 
 const agentConfigSelect = [

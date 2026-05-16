@@ -21,6 +21,13 @@ import type {
   PlatformAdminUserStatus,
 } from "@/contracts/platform-admin";
 import { createInvitationCode, mapMerchantProfile } from "@/lib/db/merchant-repository";
+import {
+  isAppPostgresConfigured,
+  isAppPostgresPreferred,
+  mapPostgresError,
+  queryAppDb,
+  withAppDbTransaction,
+} from "@/lib/server-db/postgres";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { getAiRuntimeApiKeySource, maskAiRuntimeApiKey } from "@/server/api/ai-runtime";
 import { ApiError } from "@/server/api/errors";
@@ -61,6 +68,10 @@ type PlatformSettingRow = {
   key: string;
   category: "llm" | "import" | "membership" | "consultation" | "script_production" | "knowledge";
   value: unknown;
+};
+
+type PlatformAdminEventRow = {
+  id: string;
 };
 
 type PlatformAdminUserRow = {
@@ -157,6 +168,15 @@ const defaultKnowledgeRuntime: KnowledgeRuntimeSettingsDto = {
 };
 
 const invitationCodeExpiringSoonWindowDays = 7;
+
+const platformSettingKeys = [
+  "llm_runtime",
+  "import_runtime",
+  "membership_plans",
+  "consultation_agent",
+  "script_production_agent",
+  "knowledge_runtime",
+];
 
 let demoPlatformSettings: PlatformSettingsDto | null = null;
 
@@ -616,7 +636,25 @@ export async function updatePlatformMerchant(
 }
 
 export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<PlatformSettingRow>(
+        `
+        select key, category, value
+        from public.platform_settings
+        where key = any($1::text[])
+        `,
+        [platformSettingKeys],
+      );
+      const rows = new Map(result.rows.map((row) => [row.key, row]));
+
+      return mapPlatformSettingsRows(rows);
+    } catch (error) {
+      throw mapPostgresError(error, "PLATFORM_SETTINGS_FETCH_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return demoPlatformSettings ?? getDefaultPlatformSettings();
   }
 
@@ -624,20 +662,18 @@ export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
   const { data, error } = await supabase
     .from("platform_settings")
     .select("key, category, value")
-    .in("key", [
-      "llm_runtime",
-      "import_runtime",
-      "membership_plans",
-      "consultation_agent",
-      "script_production_agent",
-      "knowledge_runtime",
-    ]);
+    .in("key", platformSettingKeys);
 
   if (error) {
     throw new ApiError(500, "PLATFORM_SETTINGS_FETCH_FAILED", error.message);
   }
 
   const rows = new Map(((data ?? []) as PlatformSettingRow[]).map((row) => [row.key, row]));
+
+  return mapPlatformSettingsRows(rows);
+}
+
+function mapPlatformSettingsRows(rows: Map<string, PlatformSettingRow>) {
   const llmRuntime = toLlmRuntimeSettings(rows.get("llm_runtime")?.value);
   const importRuntime = toImportRuntimeSettings(rows.get("import_runtime")?.value);
   const membershipPlans = toMembershipPlans(rows.get("membership_plans")?.value);
@@ -666,14 +702,87 @@ export async function updatePlatformSettings(
   const current = await getPlatformSettings();
   const next = mergePlatformSettings(current, input);
 
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      await withAppDbTransaction(async (client) => {
+        for (const row of buildPlatformSettingsRows(next)) {
+          await client.query(
+            `
+            insert into public.platform_settings (
+              key,
+              category,
+              value,
+              description
+            ) values ($1, $2, $3::jsonb, $4)
+            on conflict (key) do update
+            set category = excluded.category,
+                value = excluded.value,
+                description = excluded.description,
+                updated_at = timezone('utc', now())
+            `,
+            [row.key, row.category, JSON.stringify(row.value), row.description],
+          );
+        }
+
+        await client.query(
+          `
+          insert into public.platform_admin_events (
+            actor_label,
+            event_type,
+            target_type,
+            target_id,
+            summary,
+            details
+          ) values ($1, $2, $3, $4, $5, $6::jsonb)
+          `,
+          [
+            actorLabel,
+            "settings.updated",
+            "platform_settings",
+            null,
+            "更新平台配置",
+            JSON.stringify({ updatedKeys: Object.keys(input) }),
+          ],
+        );
+      });
+
+      return getPlatformSettings();
+    } catch (error) {
+      throw mapPostgresError(error, "PLATFORM_SETTINGS_UPDATE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     demoPlatformSettings = next;
     return next;
   }
 
   const supabase = createSupabaseAdminClient();
+  const rows = buildPlatformSettingsRows(next);
 
-  const rows = [
+  const { error } = await supabase.from("platform_settings").upsert(rows, {
+    onConflict: "key",
+  });
+
+  if (error) {
+    throw new ApiError(500, "PLATFORM_SETTINGS_UPDATE_FAILED", error.message);
+  }
+
+  await recordPlatformAdminEvent({
+    actorLabel,
+    eventType: "settings.updated",
+    targetType: "platform_settings",
+    summary: "更新平台配置",
+    details: {
+      updatedKeys: Object.keys(input),
+    },
+  });
+
+  return getPlatformSettings();
+}
+
+function buildPlatformSettingsRows(next: PlatformSettingsDto) {
+  return [
     {
       key: "llm_runtime",
       category: "llm",
@@ -724,27 +833,7 @@ export async function updatePlatformSettings(
       value: next.knowledgeRuntime,
       description: "Platform-level knowledge retrieval runtime settings.",
     },
-  ];
-
-  const { error } = await supabase.from("platform_settings").upsert(rows, {
-    onConflict: "key",
-  });
-
-  if (error) {
-    throw new ApiError(500, "PLATFORM_SETTINGS_UPDATE_FAILED", error.message);
-  }
-
-  await recordPlatformAdminEvent({
-    actorLabel,
-    eventType: "settings.updated",
-    targetType: "platform_settings",
-    summary: "更新平台配置",
-    details: {
-      updatedKeys: Object.keys(input),
-    },
-  });
-
-  return getPlatformSettings();
+  ] as const;
 }
 
 function getDefaultPlatformSettings(): PlatformSettingsDto {
@@ -844,6 +933,35 @@ async function recordPlatformAdminEvent(input: {
   summary: string;
   details?: Record<string, unknown>;
 }) {
+  if (shouldUseAppPostgres()) {
+    try {
+      await queryAppDb<PlatformAdminEventRow>(
+        `
+        insert into public.platform_admin_events (
+          actor_label,
+          event_type,
+          target_type,
+          target_id,
+          summary,
+          details
+        ) values ($1, $2, $3, $4, $5, $6::jsonb)
+        returning id
+        `,
+        [
+          input.actorLabel,
+          input.eventType,
+          input.targetType,
+          input.targetId ?? null,
+          input.summary,
+          JSON.stringify(input.details ?? {}),
+        ],
+      );
+      return;
+    } catch (error) {
+      throw mapPostgresError(error, "PLATFORM_ADMIN_EVENT_CREATE_FAILED");
+    }
+  }
+
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase.from("platform_admin_events").insert({
     actor_label: input.actorLabel,
@@ -857,6 +975,14 @@ async function recordPlatformAdminEvent(input: {
   if (error) {
     throw new ApiError(500, "PLATFORM_ADMIN_EVENT_CREATE_FAILED", error.message);
   }
+}
+
+function shouldUseAppPostgres() {
+  return isAppPostgresConfigured() && isAppPostgresPreferred();
+}
+
+function shouldUseDemoFallback() {
+  return !shouldUseAppPostgres() && !isSupabaseAdminConfigured();
 }
 
 async function getPlatformInvitationCodeById(
