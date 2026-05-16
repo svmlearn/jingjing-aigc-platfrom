@@ -6,10 +6,8 @@ import {
   type PrivateMediaDownloadKind,
   type PrivateMediaSignedUrl,
 } from "./private-media-pexels-adapter.ts";
-import {
-  getDefaultPrivateMediaClipRepository,
-  type PrivateMediaClipRepository,
-} from "./private-media-fixture-repository.ts";
+import type { PrivateMediaClipRepository } from "./private-media-fixture-repository.ts";
+import { getPrivateMediaRepository } from "./db/merchant-media-repository.ts";
 import { createPrivateMediaDownloadToken } from "./private-media-download-token.ts";
 
 export type PrivateMediaPexelsSearchKind = "video" | "photo";
@@ -21,8 +19,6 @@ export class PrivateMediaPexelsQueryError extends Error {
 }
 
 const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
-const LOCAL_FIXTURE_DOWNLOAD_TOKEN_SECRET = "local-fixture-private-media-download-token-secret";
-
 type SearchPrivateMediaPexelsInput = {
   merchantId: string;
   requestUrl: string;
@@ -42,7 +38,7 @@ export async function searchPrivateMediaPexels(
 ): Promise<PexelsVideoSearchResponse | PexelsPhotoSearchResponse> {
   const requestUrl = new URL(input.requestUrl);
   const now = input.now ?? new Date().toISOString();
-  const repository = input.repository ?? getDefaultPrivateMediaClipRepository();
+  const repository = input.repository ?? getPrivateMediaRepository();
   const clips = await repository.listClipsByMerchant({ merchantId: input.merchantId });
   const searchInput: PexelsSearchInput = {
     clips,
@@ -98,7 +94,13 @@ export function signPrivateMediaDownloadUrl(input: {
 }
 
 export function getPrivateMediaDownloadTokenSecret() {
-  return process.env.PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET || LOCAL_FIXTURE_DOWNLOAD_TOKEN_SECRET;
+  const secret = process.env.PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET?.trim();
+
+  if (!secret) {
+    throw new Error("PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET is required.");
+  }
+
+  return secret;
 }
 
 function parsePositiveInteger(value: string | null) {

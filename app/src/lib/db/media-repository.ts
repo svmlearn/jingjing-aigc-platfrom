@@ -1,7 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
 import type {
   MediaAssetDto,
   MediaAssetType,
@@ -9,7 +7,7 @@ import type {
   MediaStorageProvider,
 } from "@/contracts/media";
 import type { ContentVariantDto } from "@/contracts/draft";
-import { getLocalDemoMediaOwnerContext } from "@/lib/db/content-draft-repository";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -62,21 +60,6 @@ export type MediaOwnerContext = {
   variantType?: ContentVariantDto["variantType"];
 };
 
-type LocalDemoMediaStore = {
-  assetObjects: Map<string, MediaAssetDto>;
-};
-
-const globalDemoMediaStore = globalThis as typeof globalThis & {
-  __jingjingLocalDemoMediaStore?: LocalDemoMediaStore;
-};
-
-const demoMediaStore =
-  globalDemoMediaStore.__jingjingLocalDemoMediaStore ??
-  (globalDemoMediaStore.__jingjingLocalDemoMediaStore = {
-    assetObjects: new Map<string, MediaAssetDto>(),
-  });
-const demoAssetObjects = demoMediaStore.assetObjects;
-
 export async function assertMediaOwnerAccess(input: {
   merchantId: string;
   createdByUserId?: string | null;
@@ -84,40 +67,7 @@ export async function assertMediaOwnerAccess(input: {
   ownerId: string;
 }): Promise<MediaOwnerContext> {
   if (!isSupabaseAdminConfigured()) {
-    const owner =
-      input.ownerType === "voice_profile"
-        ? null
-        : getLocalDemoMediaOwnerContext({
-            merchantId: input.merchantId,
-            ownerType: input.ownerType,
-            ownerId: input.ownerId,
-          });
-
-    if (owner) {
-      if (input.createdByUserId && owner.createdByUserId !== input.createdByUserId) {
-        throw new ApiError(404, "MEDIA_OWNER_NOT_FOUND", "Media owner not found.");
-      }
-      return owner;
-    }
-
-    if (input.ownerType === "source_item") {
-      return {
-        ownerType: input.ownerType,
-        ownerId: input.ownerId,
-        merchantId: input.merchantId,
-      };
-    }
-
-    if (input.ownerType === "voice_profile") {
-      return {
-        ownerType: input.ownerType,
-        ownerId: input.ownerId,
-        merchantId: input.merchantId,
-        createdByUserId: input.createdByUserId ?? null,
-      };
-    }
-
-    throw new ApiError(404, "MEDIA_OWNER_NOT_FOUND", "Media owner not found.");
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -256,29 +206,7 @@ export async function createAssetObject(input: {
   sortOrder?: number;
 }): Promise<MediaAssetDto> {
   if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
-    const sortOrder =
-      input.sortOrder ?? getNextLocalAssetSortOrder({ ownerType: input.ownerType, ownerId: input.ownerId });
-    const asset: MediaAssetDto = {
-      id: randomUUID(),
-      ownerType: input.ownerType,
-      ownerId: input.ownerId,
-      assetType: input.assetType,
-      storageProvider: input.storageProvider,
-      bucketName: input.bucketName ?? null,
-      storageKey: input.storageKey,
-      originUrl: input.originUrl ?? null,
-      mimeType: input.mimeType ?? null,
-      fileSizeBytes: input.fileSizeBytes ?? null,
-      etag: input.etag ?? null,
-      sortOrder,
-      createdAt: now,
-      updatedAt: null,
-    };
-
-    demoAssetObjects.set(asset.id, asset);
-
-    return asset;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -315,17 +243,7 @@ export async function listAssetObjectsByOwner(input: {
   ownerId: string;
 }): Promise<MediaAssetDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return Array.from(demoAssetObjects.values())
-      .filter((asset) => asset.ownerType === input.ownerType && asset.ownerId === input.ownerId)
-      .sort((a, b) => {
-        const sortDelta = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
-
-        if (sortDelta !== 0) {
-          return sortDelta;
-        }
-
-        return (a.createdAt ?? "").localeCompare(b.createdAt ?? "");
-      });
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -363,17 +281,6 @@ async function getNextAssetSortOrder(input: {
   }
 
   return (((data as { sort_order: number } | null)?.sort_order) ?? -1) + 1;
-}
-
-function getNextLocalAssetSortOrder(input: {
-  ownerType: MediaOwnerType;
-  ownerId: string;
-}): number {
-  const matchingAssets = Array.from(demoAssetObjects.values()).filter(
-    (asset) => asset.ownerType === input.ownerType && asset.ownerId === input.ownerId,
-  );
-
-  return Math.max(-1, ...matchingAssets.map((asset) => asset.sortOrder ?? -1)) + 1;
 }
 
 function mapAssetObject(row: AssetObjectRow): MediaAssetDto {

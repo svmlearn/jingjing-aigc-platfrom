@@ -10,10 +10,6 @@ const videoJobRepositorySource = readFileSync(
   new URL("./video-edit-job-repository.ts", import.meta.url),
   "utf8",
 );
-const localRealChainRepositorySource = readFileSync(
-  new URL("./local-real-chain-repository.ts", import.meta.url),
-  "utf8",
-);
 const migrationSource = readFileSync(
   new URL("../../../supabase/migrations/202605150003_content_variant_production_scenes.sql", import.meta.url),
   "utf8",
@@ -35,12 +31,4 @@ test("video edit jobs receive persisted production scenes instead of raw Dify JS
   );
   assert.doesNotMatch(videoJobRepositorySource, /final_result_json/);
   assert.doesNotMatch(videoJobRepositorySource, /difyRawOutputs/);
-});
-
-test("local real-chain sync keeps production scenes for local smoke runs", () => {
-  assert.match(localRealChainRepositorySource, /production_scenes/);
-  assert.match(
-    localRealChainRepositorySource,
-    /JSON\.stringify\(variant\.productionScenes \?\? \[\]\)/,
-  );
 });

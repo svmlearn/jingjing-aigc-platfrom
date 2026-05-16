@@ -1,7 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
 import type {
   KnowledgeChunkDto,
   KnowledgeDocumentDto,
@@ -11,6 +9,7 @@ import type {
   KnowledgeSearchMatchDto,
 } from "@/contracts/knowledge";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { ApiError } from "@/server/api/errors";
 
 type KnowledgeDocumentRow = {
@@ -60,31 +59,13 @@ type KnowledgeIngestionJobRow = {
   updated_at: string;
 };
 
-const demoKnowledgeDocuments = new Map<string, KnowledgeDocumentDto>();
-const demoKnowledgeChunks = new Map<string, KnowledgeChunkDto[]>();
-const demoKnowledgeJobs = new Map<string, KnowledgeIngestionJobDto>();
-
 export async function listKnowledgeDocuments(input: {
   scope?: KnowledgeDocumentDto["scope"];
   merchantId?: string | null;
   limit?: number;
 } = {}): Promise<KnowledgeDocumentWithStatsDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    const documents = Array.from(demoKnowledgeDocuments.values())
-      .filter((document) => !input.scope || document.scope === input.scope)
-      .filter((document) => {
-        if (input.merchantId === undefined) {
-          return true;
-        }
-
-        return input.merchantId === null
-          ? document.merchantId === null
-          : document.merchantId === input.merchantId;
-      })
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, input.limit ?? 100);
-
-    return attachKnowledgeDocumentStats(documents);
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -118,14 +99,7 @@ export async function getKnowledgeDocumentById(
   documentId: string,
 ): Promise<KnowledgeDocumentWithStatsDto> {
   if (!isSupabaseAdminConfigured()) {
-    const document = demoKnowledgeDocuments.get(documentId);
-
-    if (!document) {
-      throw new ApiError(404, "KNOWLEDGE_DOCUMENT_NOT_FOUND", "Knowledge document not found.");
-    }
-
-    const [documentWithStats] = await attachKnowledgeDocumentStats([document]);
-    return documentWithStats;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -162,29 +136,7 @@ export async function createKnowledgeDocument(input: {
   createdByUserId?: string | null;
 }): Promise<KnowledgeDocumentDto> {
   if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
-    const document: KnowledgeDocumentDto = {
-      id: input.id,
-      scope: input.scope,
-      merchantId: input.merchantId ?? null,
-      title: input.title,
-      sourceName: input.sourceName ?? null,
-      storageProvider: input.storageProvider,
-      bucketName: input.bucketName ?? null,
-      storageKey: input.storageKey ?? null,
-      mimeType: input.mimeType ?? null,
-      status: input.status ?? "uploaded",
-      summaryText: input.summaryText ?? null,
-      metadata: input.metadata ?? {},
-      createdByUserId: input.createdByUserId ?? null,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    demoKnowledgeDocuments.set(document.id, document);
-    demoKnowledgeChunks.set(document.id, []);
-
-    return document;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -226,27 +178,7 @@ export async function updateKnowledgeDocument(input: {
   storageKey?: string | null;
 }): Promise<KnowledgeDocumentDto> {
   if (!isSupabaseAdminConfigured()) {
-    const current = demoKnowledgeDocuments.get(input.documentId);
-
-    if (!current) {
-      throw new ApiError(404, "KNOWLEDGE_DOCUMENT_NOT_FOUND", "Knowledge document not found.");
-    }
-
-    const updated: KnowledgeDocumentDto = {
-      ...current,
-      title: input.title ?? current.title,
-      sourceName: input.sourceName !== undefined ? input.sourceName : current.sourceName,
-      status: input.status ?? current.status,
-      summaryText: input.summaryText !== undefined ? input.summaryText : current.summaryText,
-      metadata: input.metadata ?? current.metadata,
-      bucketName: input.bucketName !== undefined ? input.bucketName : current.bucketName,
-      storageKey: input.storageKey !== undefined ? input.storageKey : current.storageKey,
-      updatedAt: new Date().toISOString(),
-    };
-
-    demoKnowledgeDocuments.set(input.documentId, updated);
-
-    return updated;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -276,16 +208,7 @@ export async function updateKnowledgeDocument(input: {
 
 export async function deleteKnowledgeDocument(documentId: string): Promise<void> {
   if (!isSupabaseAdminConfigured()) {
-    demoKnowledgeDocuments.delete(documentId);
-    demoKnowledgeChunks.delete(documentId);
-
-    for (const [jobId, job] of demoKnowledgeJobs.entries()) {
-      if (job.documentId === documentId) {
-        demoKnowledgeJobs.delete(jobId);
-      }
-    }
-
-    return;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -304,24 +227,7 @@ export async function createKnowledgeIngestionJob(input: {
   logPayload?: Record<string, unknown>;
 }): Promise<KnowledgeIngestionJobDto> {
   if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
-    const job: KnowledgeIngestionJobDto = {
-      id: randomUUID(),
-      documentId: input.documentId,
-      merchantId: input.merchantId ?? null,
-      jobType: "document_ingestion",
-      status: input.status ?? "pending",
-      inputPayload: input.inputPayload ?? {},
-      logPayload: input.logPayload ?? {},
-      errorSummary: null,
-      finishedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    demoKnowledgeJobs.set(job.id, job);
-
-    return job;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -352,25 +258,7 @@ export async function updateKnowledgeIngestionJob(input: {
   finishedAt?: string | null;
 }): Promise<KnowledgeIngestionJobDto> {
   if (!isSupabaseAdminConfigured()) {
-    const current = demoKnowledgeJobs.get(input.jobId);
-
-    if (!current) {
-      throw new ApiError(404, "KNOWLEDGE_INGESTION_JOB_NOT_FOUND", "Knowledge job not found.");
-    }
-
-    const updated: KnowledgeIngestionJobDto = {
-      ...current,
-      status: input.status ?? current.status,
-      logPayload: input.logPayload ?? current.logPayload,
-      errorSummary:
-        input.errorSummary !== undefined ? input.errorSummary : current.errorSummary,
-      finishedAt: input.finishedAt !== undefined ? input.finishedAt : current.finishedAt,
-      updatedAt: new Date().toISOString(),
-    };
-
-    demoKnowledgeJobs.set(input.jobId, updated);
-
-    return updated;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -406,20 +294,7 @@ export async function replaceKnowledgeChunks(input: {
   }>;
 }): Promise<KnowledgeChunkDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
-    const chunks = input.chunks.map((chunk) => ({
-      id: randomUUID(),
-      documentId: input.documentId,
-      chunkIndex: chunk.chunkIndex,
-      content: chunk.content,
-      tokenCount: chunk.tokenCount,
-      metadata: chunk.metadata ?? {},
-      createdAt: now,
-    }));
-
-    demoKnowledgeChunks.set(input.documentId, chunks);
-
-    return chunks;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -462,9 +337,7 @@ export async function listKnowledgeChunksByDocumentId(
   documentId: string,
 ): Promise<KnowledgeChunkDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return [...(demoKnowledgeChunks.get(documentId) ?? [])].sort(
-      (a, b) => a.chunkIndex - b.chunkIndex,
-    );
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -508,34 +381,7 @@ export async function searchKnowledgeChunks(input: {
   const matches: KnowledgeSearchMatchDto[] = [];
 
   if (!isSupabaseAdminConfigured()) {
-    for (const documentId of documentIds) {
-      const document = documentById.get(documentId);
-
-      if (!document) {
-        continue;
-      }
-
-      for (const chunk of demoKnowledgeChunks.get(documentId) ?? []) {
-        const contentScore = scoreText(chunk.content, terms);
-        const titleScore = scoreText(document.title, terms) * 0.5;
-        const score = contentScore + titleScore;
-
-        matches.push({
-          chunkId: chunk.id,
-          documentId: document.id,
-          documentTitle: document.title,
-          sourceName: document.sourceName,
-          scope: document.scope,
-          merchantId: document.merchantId,
-          content: chunk.content,
-          score,
-          chunkIndex: chunk.chunkIndex,
-          metadata: chunk.metadata,
-        });
-      }
-    }
-
-    return rankKnowledgeMatches(matches, input.limit);
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -617,11 +463,7 @@ async function attachKnowledgeDocumentStats(
   }
 
   if (!isSupabaseAdminConfigured()) {
-    return documents.map((document) => ({
-      ...document,
-      chunkCount: demoKnowledgeChunks.get(document.id)?.length ?? 0,
-      latestJob: findLatestDemoKnowledgeJob(document.id),
-    }));
+    throw cloudSupabaseRequiredError();
   }
 
   const documentIds = documents.map((document) => document.id);
@@ -644,14 +486,6 @@ function rankKnowledgeMatches(matches: KnowledgeSearchMatchDto[], limit: number)
   const rankedMatches = positiveMatches.length > 0 ? positiveMatches : matches;
 
   return rankedMatches.slice(0, limit);
-}
-
-function findLatestDemoKnowledgeJob(documentId: string) {
-  return (
-    Array.from(demoKnowledgeJobs.values())
-      .filter((job) => job.documentId === documentId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
-  );
 }
 
 async function countKnowledgeChunksByDocumentIds(documentIds: string[]) {

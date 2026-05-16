@@ -1,4 +1,4 @@
-import { getDefaultPrivateMediaClipRepository } from "@/lib/private-media-fixture-repository";
+import { getPrivateMediaRepository } from "@/lib/db/merchant-media-repository";
 import { resolvePrivateMediaDownload } from "@/lib/private-media-download-service-core";
 import { createCosSignedReadUrl } from "@/server/api/cos";
 import { handleApiError, ApiError } from "@/server/api/errors";
@@ -16,7 +16,7 @@ export async function GET(
       token,
       secret: getPrivateMediaDownloadTokenSecret(),
       now: new Date().toISOString(),
-      repository: getDefaultPrivateMediaClipRepository(),
+      repository: getPrivateMediaRepository(),
       signReadUrl: (input) =>
         createCosSignedReadUrl({
           bucketName: input.bucketName,

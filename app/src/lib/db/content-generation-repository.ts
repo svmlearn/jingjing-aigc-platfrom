@@ -1,7 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
 import type {
   ContentGenerationBatchDto,
   ContentGenerationBatchSource,
@@ -11,6 +9,7 @@ import type {
   ContentGenerationProvider,
 } from "@/contracts/content-generation";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { ApiError } from "@/server/api/errors";
 
 type ContentGenerationBatchRow = {
@@ -111,22 +110,6 @@ const jobSelect = [
   "updated_at",
 ].join(", ");
 
-type DemoStore = {
-  batches: Map<string, ContentGenerationBatchDto>;
-  jobs: Map<string, ContentGenerationJobDto>;
-};
-
-const globalDemoStore = globalThis as typeof globalThis & {
-  __jingjingContentGenerationStore?: DemoStore;
-};
-
-const demoStore =
-  globalDemoStore.__jingjingContentGenerationStore ??
-  (globalDemoStore.__jingjingContentGenerationStore = {
-    batches: new Map<string, ContentGenerationBatchDto>(),
-    jobs: new Map<string, ContentGenerationJobDto>(),
-  });
-
 export async function createContentGenerationBatch(input: {
   merchantId: string;
   createdByUserId?: string | null;
@@ -149,61 +132,7 @@ export async function createContentGenerationBatch(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
-    const batch: ContentGenerationBatchDto = {
-      id: randomUUID(),
-      merchantId: input.merchantId,
-      createdByUserId: input.createdByUserId ?? null,
-      source: input.source,
-      calendarSnapshot: input.calendarSnapshot ?? {},
-      memberScopeSnapshot: input.memberScopeSnapshot ?? {},
-      totalJobs: input.jobs.length,
-      succeededJobs: 0,
-      failedJobs: 0,
-      runningJobs: 0,
-      status: "pending",
-      workflowProvider: input.workflowProvider,
-      workflowVersion: input.workflowVersion,
-      startedAt: null,
-      finishedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const jobs = input.jobs.map((job): ContentGenerationJobDto => ({
-      id: randomUUID(),
-      batchId: batch.id,
-      merchantId: input.merchantId,
-      memberUserId: job.memberUserId,
-      dailyTaskId: job.dailyTaskId,
-      taskDate: job.taskDate,
-      calendarItemId: job.calendarItemId ?? null,
-      idempotencyKey: job.idempotencyKey,
-      status: "pending",
-      currentStage: "queued",
-      attemptCount: 0,
-      maxAttempts: 2,
-      inputSnapshot: job.inputSnapshot,
-      outputJson: null,
-      qualityReview: null,
-      errorMessage: null,
-      workflowProvider: input.workflowProvider,
-      workflowVersion: input.workflowVersion,
-      difyWorkflowRunId: null,
-      contentDraftId: null,
-      articleVariantId: null,
-      videoVariantId: null,
-      startedAt: null,
-      finishedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    }));
-
-    demoStore.batches.set(batch.id, batch);
-    for (const job of jobs) {
-      demoStore.jobs.set(job.id, job);
-    }
-
-    return { batch, jobs };
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -270,12 +199,7 @@ export async function claimNextContentGenerationJob(input: {
   provider?: ContentGenerationProvider;
 } = {}): Promise<ContentGenerationJobDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    const job = Array.from(demoStore.jobs.values())
-      .filter((item) => item.status === "pending")
-      .filter((item) => !input.provider || item.workflowProvider === input.provider)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
-
-    return job ? markLocalJobRunning(job) : null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -340,24 +264,7 @@ export async function markContentGenerationJobSucceeded(input: {
   const now = new Date().toISOString();
 
   if (!isSupabaseAdminConfigured()) {
-    const job = assertLocalJob(input.jobId);
-    const updated: ContentGenerationJobDto = {
-      ...job,
-      status: "succeeded",
-      currentStage: "persisted",
-      outputJson: input.outputJson,
-      qualityReview: input.qualityReview ?? null,
-      difyWorkflowRunId: input.difyWorkflowRunId ?? null,
-      contentDraftId: input.contentDraftId ?? null,
-      articleVariantId: input.articleVariantId ?? null,
-      videoVariantId: input.videoVariantId ?? null,
-      errorMessage: null,
-      finishedAt: now,
-      updatedAt: now,
-    };
-    demoStore.jobs.set(updated.id, updated);
-    recomputeLocalBatch(updated.batchId);
-    return updated;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -401,18 +308,7 @@ export async function markContentGenerationJobFailed(input: {
   const nextStatus: ContentGenerationJobStatus = input.retryable ? "failed_retryable" : "failed_manual";
 
   if (!isSupabaseAdminConfigured()) {
-    const job = assertLocalJob(input.jobId);
-    const updated: ContentGenerationJobDto = {
-      ...job,
-      status: nextStatus,
-      currentStage: "failed",
-      errorMessage: input.errorMessage,
-      finishedAt: now,
-      updatedAt: now,
-    };
-    demoStore.jobs.set(updated.id, updated);
-    recomputeLocalBatch(updated.batchId);
-    return updated;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -445,13 +341,7 @@ export async function getContentGenerationBatchById(
   batchId: string,
 ): Promise<ContentGenerationBatchDto> {
   if (!isSupabaseAdminConfigured()) {
-    const batch = demoStore.batches.get(batchId);
-
-    if (!batch) {
-      throw new ApiError(404, "CONTENT_GENERATION_BATCH_NOT_FOUND", "生成批次不存在。");
-    }
-
-    return batch;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -470,8 +360,7 @@ export async function getContentGenerationBatchById(
 
 async function recomputeContentGenerationBatch(batchId: string) {
   if (!isSupabaseAdminConfigured()) {
-    recomputeLocalBatch(batchId);
-    return;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -511,52 +400,7 @@ async function recomputeContentGenerationBatch(batchId: string) {
     throw new ApiError(500, "CONTENT_GENERATION_BATCH_UPDATE_FAILED", updateError.message);
   }
 }
-
-function markLocalJobRunning(job: ContentGenerationJobDto): ContentGenerationJobDto {
-  const now = new Date().toISOString();
-  const updated: ContentGenerationJobDto = {
-    ...job,
-    status: "running",
-    currentStage: "calling_dify",
-    attemptCount: job.attemptCount + 1,
-    errorMessage: null,
-    startedAt: job.startedAt ?? now,
-    updatedAt: now,
-  };
-  demoStore.jobs.set(updated.id, updated);
-  recomputeLocalBatch(updated.batchId);
-  return updated;
-}
-
-function recomputeLocalBatch(batchId: string) {
-  const batch = demoStore.batches.get(batchId);
-
-  if (!batch) {
-    return;
-  }
-
-  const statuses = Array.from(demoStore.jobs.values())
-    .filter((job) => job.batchId === batchId)
-    .map((job) => job.status);
-  const counts = countJobStatuses(statuses);
-  const now = new Date().toISOString();
-  const status = deriveBatchStatus(statuses);
-  const updated: ContentGenerationBatchDto = {
-    ...batch,
-    succeededJobs: counts.succeeded,
-    failedJobs: counts.failed,
-    runningJobs: counts.running,
-    status,
-    startedAt: batch.startedAt ?? (statuses.some((item) => item !== "pending") ? now : null),
-    finishedAt:
-      status === "completed" || status === "completed_with_errors" || status === "canceled"
-        ? now
-        : null,
-    updatedAt: now,
-  };
-  demoStore.batches.set(batchId, updated);
-}
-
+
 function countJobStatuses(statuses: ContentGenerationJobStatus[]) {
   return {
     succeeded: statuses.filter((status) => status === "succeeded").length,
@@ -581,16 +425,6 @@ function deriveBatchStatus(statuses: ContentGenerationJobStatus[]): ContentGener
   return statuses.some((status) => status === "failed_retryable" || status === "failed_manual")
     ? "completed_with_errors"
     : "completed";
-}
-
-function assertLocalJob(jobId: string): ContentGenerationJobDto {
-  const job = demoStore.jobs.get(jobId);
-
-  if (!job) {
-    throw new ApiError(404, "CONTENT_GENERATION_JOB_NOT_FOUND", "生成任务不存在。");
-  }
-
-  return job;
 }
 
 function mapBatch(row: ContentGenerationBatchRow): ContentGenerationBatchDto {

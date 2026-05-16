@@ -9,11 +9,8 @@ import type {
   VoiceProfileStatus,
 } from "@/contracts/voice";
 import type { MediaAssetDto } from "@/contracts/media";
-import {
-  VoiceProfileRuleError,
-  replaceCurrentVoiceProfile,
-} from "@/lib/voice-profile-state-machine";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { ApiError } from "@/server/api/errors";
 
 type VoiceProfileRow = {
@@ -48,33 +45,12 @@ type VoiceProfileAssetRow = {
   updated_at: string | null;
 };
 
-type LocalVoiceProfileStore = {
-  voiceProfiles: Map<string, VoiceProfileDto>;
-};
-
-const globalVoiceProfileStore = globalThis as typeof globalThis & {
-  __jingjingLocalVoiceProfileStore?: LocalVoiceProfileStore;
-};
-
-const localVoiceProfileStore =
-  globalVoiceProfileStore.__jingjingLocalVoiceProfileStore ??
-  (globalVoiceProfileStore.__jingjingLocalVoiceProfileStore = {
-    voiceProfiles: new Map<string, VoiceProfileDto>(),
-  });
-
 export async function listVoiceProfiles(input: {
   merchantId: string;
   createdByUserId: string;
 }): Promise<VoiceProfileDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return Array.from(localVoiceProfileStore.voiceProfiles.values())
-      .filter(
-        (profile) =>
-          profile.merchantId === input.merchantId &&
-          profile.createdByUserId === input.createdByUserId &&
-          profile.status !== "archived",
-      )
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -94,9 +70,6 @@ export async function listVoiceProfiles(input: {
   return attachVoiceProfileAssets(profiles);
 }
 
-export function resetLocalVoiceProfileStoreForTests() {
-  localVoiceProfileStore.voiceProfiles.clear();
-}
 
 export async function createVoiceProfile(input: {
   merchantId: string;
@@ -121,28 +94,7 @@ export async function createVoiceProfile(input: {
   });
 
   if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
-    const replacement = runLocalVoiceProfileReplacement({
-      id,
-      merchantId: input.merchantId,
-      createdByUserId: input.createdByUserId,
-      displayName: input.request.displayName,
-      refAudioAssetId: input.request.refAudioAssetId,
-      now,
-    });
-    if (!replacement.currentProfile) {
-      throw new ApiError(500, "VOICE_PROFILE_CREATE_FAILED", "Create voice profile failed.");
-    }
-
-    localVoiceProfileStore.voiceProfiles.set(replacement.currentProfile.id, {
-      ...replacement.currentProfile,
-      refAudioAsset,
-    });
-
-    return {
-      ...replacement.currentProfile,
-      refAudioAsset,
-    };
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -165,60 +117,13 @@ export async function createVoiceProfile(input: {
   };
 }
 
-function runLocalVoiceProfileReplacement(input: {
-  id: string;
-  merchantId: string;
-  createdByUserId: string;
-  displayName: string;
-  refAudioAssetId: string;
-  now: string;
-}) {
-  try {
-    const replacement = replaceCurrentVoiceProfile({
-      profiles: Array.from(localVoiceProfileStore.voiceProfiles.values()),
-      candidate: {
-        id: input.id,
-        merchantId: input.merchantId,
-        createdByUserId: input.createdByUserId,
-        displayName: input.displayName,
-        refAudioAssetId: input.refAudioAssetId,
-        authorizationAcceptedAt: input.now,
-      },
-      providerResult: { ok: true },
-      now: input.now,
-    });
-
-    localVoiceProfileStore.voiceProfiles.clear();
-    for (const profile of replacement.profiles) {
-      localVoiceProfileStore.voiceProfiles.set(profile.id, profile);
-    }
-
-    return replacement;
-  } catch (error) {
-    if (error instanceof VoiceProfileRuleError && error.code === "VOICE_PROFILE_ID_CONFLICT") {
-      throw new ApiError(409, error.code, error.message);
-    }
-
-    throw error;
-  }
-}
-
 export async function assertVoiceProfileAccess(input: {
   merchantId: string;
   createdByUserId: string;
   voiceProfileId: string;
 }): Promise<VoiceProfileDto> {
   if (!isSupabaseAdminConfigured()) {
-    const profile = localVoiceProfileStore.voiceProfiles.get(input.voiceProfileId);
-    if (
-      !profile ||
-      profile.merchantId !== input.merchantId ||
-      profile.createdByUserId !== input.createdByUserId ||
-      profile.status !== "ready"
-    ) {
-      throw new ApiError(404, "VOICE_PROFILE_NOT_FOUND", "Voice profile not found.");
-    }
-    return profile;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -245,22 +150,7 @@ export async function assertVoiceProfileAudioAsset(input: {
   assetId: string;
 }): Promise<MediaAssetDto> {
   if (!isSupabaseAdminConfigured()) {
-    return {
-      id: input.assetId,
-      ownerType: "voice_profile",
-      ownerId: input.voiceProfileId,
-      assetType: "audio",
-      storageProvider: "tencent_cos",
-      bucketName: null,
-      storageKey: `voice-profiles/${input.merchantId}/${input.voiceProfileId}/local-audio`,
-      originUrl: null,
-      mimeType: "audio/wav",
-      fileSizeBytes: null,
-      etag: null,
-      sortOrder: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: null,
-    };
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();

@@ -9,10 +9,6 @@ import type {
   VideoEditJobStatus,
 } from "@/contracts/video";
 import { approveContentVariant } from "@/lib/db/content-draft-repository";
-import {
-  isLocalRealChainEnabled,
-  listLocalRealChainAssetObjectsByOwner,
-} from "@/lib/db/local-real-chain-repository";
 import { getPrivateMediaRepository } from "@/lib/db/merchant-media-repository";
 import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
 import {
@@ -43,6 +39,7 @@ import {
 } from "@/server/api/video-job-payload";
 import { extractPayloadResultAssets, toPublicVideoEditJob } from "@/server/api/video-job-public-dto";
 import { ApiError } from "@/server/api/errors";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 
 export async function createVideoEditJobForUser(input: {
   userId: string;
@@ -234,15 +231,10 @@ export async function getVideoEditJobResultAssetRedirectUrlForUser(input: {
     throw new ApiError(404, "VIDEO_RESULT_ASSET_NOT_FOUND", "Video result asset was not found.");
   }
 
-  const assets = isLocalRealChainEnabled()
-    ? await listLocalRealChainAssetObjectsByOwner({
-        ownerType: "content_variant",
-        ownerId: job.contentVariantId,
-      })
-    : await listAssetObjectsByOwner({
-        ownerType: "content_variant",
-        ownerId: job.contentVariantId,
-      });
+  const assets = await listAssetObjectsByOwner({
+    ownerType: "content_variant",
+    ownerId: job.contentVariantId,
+  });
   const asset = assets.find(
     (item) =>
       item.id === input.assetId &&
@@ -310,15 +302,10 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
     };
   }
 
-  const assets = isLocalRealChainEnabled()
-    ? await listLocalRealChainAssetObjectsByOwner({
-        ownerType: "content_variant",
-        ownerId: job.contentVariantId,
-      })
-    : await listAssetObjectsByOwner({
-        ownerType: "content_variant",
-        ownerId: job.contentVariantId,
-      });
+  const assets = await listAssetObjectsByOwner({
+    ownerType: "content_variant",
+    ownerId: job.contentVariantId,
+  });
   const matchedAssets = assets.filter(
     (asset) =>
       references.assetIds.has(asset.id) || references.storageKeys.has(asset.storageKey),
@@ -381,33 +368,7 @@ async function buildServerManagedInputPayload(input: {
   productionConfig: CreateVideoEditJobRequest["productionConfig"];
 }) {
   if (!isSupabaseAdminConfigured()) {
-    const [assets, merchantMediaClips] = await Promise.all([
-      isLocalRealChainEnabled()
-        ? listLocalRealChainAssetObjectsByOwner({
-            ownerType: "content_draft",
-            ownerId: input.draftId,
-          })
-        : listAssetObjectsByOwner({
-            ownerType: "content_draft",
-            ownerId: input.draftId,
-          }),
-      getPrivateMediaRepository().listClipsByMerchant({ merchantId: input.merchantId }),
-    ]);
-
-    const payload = buildVideoEditJobPayloadOrThrow({
-      draftId: input.draftId,
-      variant: input.variant,
-      materialReferences: [],
-      assets,
-      merchantMediaClips,
-      requireUserTalkingHead: true,
-      productionConfig: input.productionConfig,
-    });
-    return attachVoiceProfileReference({
-      userId: input.userId,
-      merchantId: input.merchantId,
-      payload,
-    });
+    throw cloudSupabaseRequiredError();
   }
 
   const [assets, materialReferences, merchantMediaClips] = await Promise.all([

@@ -31,6 +31,7 @@ import type {
   MerchantUsageEventDto,
 } from "@/contracts/agent-console";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { ApiError } from "@/server/api/errors";
 
 type AgentConfigRow = {
@@ -311,52 +312,7 @@ type AgentTestRunCreateInput = {
   actorLabel?: string;
 };
 
-const demoCreatedAt = "2026-04-27T00:00:00.000Z";
-
-const demoInitialAgent: AgentConfigDto = {
-  id: "demo_initial_consultation_agent",
-  agentKey: "initial_consultation_agent",
-  displayName: "初始咨询 Agent",
-  roleDescription: "用户内容咨询顾问",
-  description: "本地 demo fallback，仅在 Supabase service role 未配置时使用。",
-  serviceStatus: "enabled",
-  serviceFlags: {
-    systemPromptEnabled: true,
-    skillsEnabled: true,
-    knowledgeEnabled: true,
-  },
-  modelConfig: {},
-  copiedFromAgentId: null,
-  createdByAdminId: null,
-  createdAt: demoCreatedAt,
-  updatedAt: demoCreatedAt,
-};
-
-const demoBaseKnowledgeSet: KnowledgeSetDto = {
-  id: "demo_base_platform_knowledge",
-  setKey: "base_platform_knowledge",
-  name: "基础平台知识集",
-  description: "本地 demo fallback，仅在 Supabase service role 未配置时使用。",
-  scope: "platform",
-  merchantId: null,
-  status: "enabled",
-  metadata: {},
-  createdByAdminId: null,
-  createdAt: demoCreatedAt,
-  updatedAt: demoCreatedAt,
-};
-
-const demoConsultationDefaultBinding: AgentRouteBindingDto = {
-  id: "demo_consultation_default_binding",
-  routeKey: "consultation_default",
-  agentId: demoInitialAgent.id,
-  status: "active",
-  description: "用户端默认咨询入口绑定。",
-  createdByAdminId: null,
-  createdAt: demoCreatedAt,
-  updatedAt: demoCreatedAt,
-};
-
+
 export async function getAgentConsoleFoundationState(): Promise<AgentConsoleFoundationStateDto> {
   const [agents, routeBindings, knowledgeSets, skills] = await Promise.all([
     listAgentConfigs(),
@@ -425,11 +381,7 @@ export async function createAgentConfig(
 
 export async function getAgentConfigById(agentId: string): Promise<AgentConfigDto> {
   if (!isSupabaseAdminConfigured()) {
-    if (agentId === demoInitialAgent.id) {
-      return demoInitialAgent;
-    }
-
-    throw new ApiError(404, "AGENT_CONFIG_NOT_FOUND", "Agent config not found.");
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -695,7 +647,7 @@ export async function copyAgentConfig(
 
 export async function listAgentConfigs(): Promise<AgentConfigDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return [demoInitialAgent];
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -715,7 +667,7 @@ export async function listAgentPromptVersions(
   agentId: string,
 ): Promise<AgentPromptVersionDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return [];
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -736,7 +688,7 @@ export async function getActiveAgentPromptVersion(
   agentId: string,
 ): Promise<AgentPromptVersionDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    return null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1010,7 +962,7 @@ export async function listAgentSoulVersions(
   agentId: string,
 ): Promise<AgentSoulVersionDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return [];
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1031,7 +983,7 @@ export async function getActiveAgentSoulVersion(
   agentId: string,
 ): Promise<AgentSoulVersionDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    return null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1328,7 +1280,7 @@ export async function createAgentSkill(input: AgentSkillCreateInput): Promise<Ag
 
 export async function getAgentSkillById(skillId: string): Promise<AgentSkillDto> {
   if (!isSupabaseAdminConfigured()) {
-    throw new ApiError(404, "AGENT_SKILL_NOT_FOUND", "Agent skill not found.");
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1426,7 +1378,7 @@ export async function updateAgentSkill(
 
 export async function listAgentSkills(): Promise<AgentSkillDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return [];
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1446,7 +1398,7 @@ export async function listAgentSkillBindings(input: {
   agentId?: string;
 } = {}): Promise<AgentSkillBindingDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return [];
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1592,11 +1544,7 @@ export async function createKnowledgeSet(
 
 export async function getKnowledgeSetById(setId: string): Promise<KnowledgeSetDto> {
   if (!isSupabaseAdminConfigured()) {
-    if (setId === demoBaseKnowledgeSet.id) {
-      return demoBaseKnowledgeSet;
-    }
-
-    throw new ApiError(404, "KNOWLEDGE_SET_NOT_FOUND", "Knowledge set not found.");
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1697,7 +1645,7 @@ export async function updateKnowledgeSet(
 
 export async function listKnowledgeSets(): Promise<KnowledgeSetDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return [demoBaseKnowledgeSet];
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1718,7 +1666,7 @@ export async function listKnowledgeSetDocuments(input: {
   documentId?: string;
 } = {}): Promise<KnowledgeSetDocumentDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return [];
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1842,7 +1790,7 @@ export async function listAgentKnowledgeSetBindings(input: {
   agentId?: string;
 } = {}): Promise<AgentKnowledgeSetBindingDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return [];
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1944,7 +1892,7 @@ export async function replaceAgentKnowledgeSetBindings(input: {
 
 export async function listAgentRouteBindings(): Promise<AgentRouteBindingDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return [demoConsultationDefaultBinding];
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1964,7 +1912,7 @@ export async function getAgentRouteBinding(
   routeKey: AgentRouteKey,
 ): Promise<AgentRouteBindingDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    return routeKey === "consultation_default" ? demoConsultationDefaultBinding : null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -2042,7 +1990,7 @@ export async function recordAgentRuntimeSnapshot(
   input: AgentRuntimeSnapshotCreateInput,
 ): Promise<AgentRuntimeSnapshotDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    return null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -2079,7 +2027,7 @@ export async function recordAgentTestRun(
   input: AgentTestRunCreateInput,
 ): Promise<AgentTestRunDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    return null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -2133,7 +2081,7 @@ export async function ensureMerchantCreditAccount(input: {
   reason?: string;
 }): Promise<MerchantCreditAccountDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    return null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -2201,7 +2149,7 @@ export async function recordMerchantUsageEvent(input: {
   metadata?: Record<string, unknown>;
 }): Promise<MerchantUsageEventDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    return null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -2233,7 +2181,7 @@ export async function updateMerchantUsageEvent(input: {
   metadata?: Record<string, unknown>;
 }): Promise<MerchantUsageEventDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    return null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -2271,7 +2219,7 @@ export async function consumeMerchantCredits(input: {
   reason: string;
 }): Promise<MerchantCreditAccountDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    return null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -2327,7 +2275,7 @@ async function recordMerchantCreditLedger(input: {
   metadata?: Record<string, unknown>;
 }): Promise<MerchantCreditLedgerDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    return null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -2562,7 +2510,7 @@ function mapMerchantCreditLedger(row: MerchantCreditLedgerRow): MerchantCreditLe
 
 function requireSupabaseAdmin(code: string) {
   if (!isSupabaseAdminConfigured()) {
-    throw new ApiError(503, code, "Supabase admin client is not configured.");
+    throw cloudSupabaseRequiredError(code);
   }
 }
 

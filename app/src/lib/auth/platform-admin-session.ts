@@ -1,13 +1,12 @@
 import "server-only";
 
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 
 import type {
   PlatformAdminRole,
   PlatformAdminUserDto,
   PlatformAdminUserStatus,
 } from "@/contracts/platform-admin";
-import { isLocalDemoRuntime } from "@/lib/demo/local-demo-runtime";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import {
   createSupabaseServerClient,
@@ -53,19 +52,6 @@ const platformAdminUserSelect = [
   "updated_at",
 ].join(", ");
 
-const demoPlatformAdminUser: PlatformAdminUserDto = {
-  id: "local-demo-platform-admin",
-  authUserId: "local-demo-auth-user",
-  email: "local-demo@platform-admin.internal",
-  displayName: "本地演示超管",
-  role: "super_admin",
-  status: "active",
-  createdByAdminId: null,
-  lastLoginAt: null,
-  createdAt: new Date(0).toISOString(),
-  updatedAt: new Date(0).toISOString(),
-};
-
 function getPlatformAdminSecret() {
   return process.env.ADMIN_SETUP_SECRET?.trim() ?? "";
 }
@@ -97,10 +83,6 @@ export async function hasPlatformAdminSession() {
 }
 
 export async function getCurrentPlatformAdmin(): Promise<PlatformAdminUserDto | null> {
-  if (await isLocalDemoPlatformAdminRequest()) {
-    return demoPlatformAdminUser;
-  }
-
   if (!isPlatformAdminAccessConfigured()) {
     return null;
   }
@@ -283,17 +265,6 @@ async function touchPlatformAdminLastLogin(adminUserId: string) {
     .from("platform_admin_users")
     .update({ last_login_at: new Date().toISOString() })
     .eq("id", adminUserId);
-}
-
-async function isLocalDemoPlatformAdminRequest() {
-  if (!isLocalDemoRuntime()) {
-    return false;
-  }
-
-  const headerStore = await headers();
-  const host = headerStore.get("host")?.split(":")[0];
-
-  return host === "localhost" || host === "127.0.0.1" || host === "::1";
 }
 
 function mapPlatformAdminUser(row: PlatformAdminUserRow): PlatformAdminUserDto {

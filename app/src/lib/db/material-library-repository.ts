@@ -15,6 +15,7 @@ import type {
 import { normalizeMaterialRouting } from "@/lib/material-routing";
 import { rankMaterialLibraryItemsForRetrieval } from "@/lib/material-retrieval";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { ApiError } from "@/server/api/errors";
 
 type SourceItemMaterialRow = {
@@ -93,9 +94,6 @@ const materialWorkbenchReferenceSelect = [
   "consumed_at",
 ].join(", ");
 
-const demoMaterialItems = new Map<string, MaterialLibraryItemDto>();
-const demoWorkbenchReferences = new Map<string, MaterialWorkbenchReferenceDto>();
-
 export async function listMaterialLibraryItems(input: {
   merchantId: string;
   limit?: number;
@@ -103,16 +101,7 @@ export async function listMaterialLibraryItems(input: {
   query?: string | null;
 }): Promise<MaterialLibraryItemDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    const materials = Array.from(demoMaterialItems.values()).filter(
-      (item) => item.merchantId === input.merchantId && item.status !== "archived",
-    );
-
-    return rankMaterialLibraryItemsForRetrieval({
-      materials,
-      retrievalTarget: input.retrievalTarget,
-      query: input.query,
-      limit: input.limit ?? 50,
-    });
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -147,13 +136,7 @@ export async function getMaterialLibraryItemById(input: {
   materialItemId: string;
 }): Promise<MaterialLibraryItemDto> {
   if (!isSupabaseAdminConfigured()) {
-    const item = demoMaterialItems.get(input.materialItemId);
-
-    if (!item || item.merchantId !== input.merchantId) {
-      throw new ApiError(404, "MATERIAL_ITEM_NOT_FOUND", "Material item not found.");
-    }
-
-    return item;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -207,29 +190,7 @@ export async function createMaterialLibraryItem(input: {
   };
 
   if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
-    const item: MaterialLibraryItemDto = {
-      id: randomUUID(),
-      merchantId: input.merchantId,
-      sourceItemId: null,
-      platform: input.platform,
-      materialType: input.materialType,
-      sourceKind: input.sourceKind,
-      usageType: routing.usageType,
-      retrievalTargets: routing.retrievalTargets,
-      status,
-      title: input.title,
-      description: input.description ?? null,
-      originalUrl: input.originalUrl ?? null,
-      creatorName: input.creatorName ?? null,
-      engagementLabel: input.engagementLabel ?? null,
-      analysisPayload: materialAnalysisPayload,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    demoMaterialItems.set(item.id, item);
-    return item;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -295,40 +256,7 @@ export async function listCachedMaterialProviderItems(input: {
   limit?: number;
 }): Promise<MaterialProviderLibraryItemInput[]> {
   if (!isSupabaseAdminConfigured()) {
-    const cutoff = Date.now() - input.maxAgeMs;
-
-    return Array.from(demoMaterialItems.values())
-      .filter((item) => {
-        const payload = item.analysisPayload;
-        const tracePayload = toRecord(payload.tracePayload);
-        const createdAt = new Date(item.createdAt).getTime();
-
-        return (
-          item.platform === input.platform &&
-          tracePayload.materialProvider === input.provider &&
-          tracePayload.materialProviderCacheKey === input.cacheKey &&
-          Number.isFinite(createdAt) &&
-          createdAt >= cutoff
-        );
-      })
-      .slice(0, input.limit ?? 20)
-      .map((item) => {
-        const tracePayload = toRecord(item.analysisPayload.tracePayload);
-
-        return {
-          platform: item.platform,
-          materialType: item.materialType,
-          sourceKind: item.sourceKind,
-          sourceType: item.sourceKind === "benchmark" ? "search" : "manual_text",
-          sourceUrl: item.originalUrl,
-          creatorName: item.creatorName,
-          title: item.title,
-          description: item.description,
-          engagementSnapshot: toRecord(item.analysisPayload.engagementSnapshot),
-          structureSummary: toRecord(item.analysisPayload.structureSummary),
-          tracePayload,
-        };
-      });
+    throw cloudSupabaseRequiredError();
   }
 
   const cutoff = new Date(Date.now() - input.maxAgeMs).toISOString();
@@ -359,41 +287,7 @@ export async function upsertMaterialLibraryItemsFromProvider(input: {
   items: MaterialProviderLibraryItemInput[];
 }): Promise<MaterialLibraryItemDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
-    const savedItems = input.items.map((item) => {
-      const material: MaterialLibraryItemDto = {
-        id: randomUUID(),
-        merchantId: input.merchantId,
-        sourceItemId: null,
-        platform: item.platform,
-        materialType: item.materialType,
-        sourceKind: item.sourceKind,
-        usageType: "viral_reference",
-        retrievalTargets: ["copy_context", "script_context"],
-        status: "ready",
-        title: item.title,
-        description: item.description ?? null,
-        originalUrl: item.sourceUrl ?? null,
-        creatorName: item.creatorName ?? null,
-        engagementLabel:
-          typeof item.engagementSnapshot?.label === "string" ? item.engagementSnapshot.label : null,
-        analysisPayload: {
-          structureSummary: item.structureSummary ?? {},
-          engagementSnapshot: item.engagementSnapshot ?? {},
-          tracePayload: {
-            ...(item.tracePayload ?? {}),
-            createdByUserId: input.createdByUserId,
-          },
-        },
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      demoMaterialItems.set(material.id, material);
-      return material;
-    });
-
-    return savedItems;
+    throw cloudSupabaseRequiredError();
   }
 
   const rows = input.items.map((item) => ({
@@ -496,15 +390,7 @@ export async function createMaterialWorkbenchReference(input: {
   createdByUserId: string;
 }): Promise<MaterialWorkbenchReferenceDto> {
   if (!isSupabaseAdminConfigured()) {
-    const item = demoMaterialItems.get(input.materialItemId);
-
-    if (!item || item.merchantId !== input.merchantId) {
-      throw new ApiError(404, "MATERIAL_ITEM_NOT_FOUND", "Material item not found.");
-    }
-
-    const reference = buildWorkbenchReference(input);
-    demoWorkbenchReferences.set(reference.id, reference);
-    return reference;
+    throw cloudSupabaseRequiredError();
   }
 
   await getMaterialLibraryItemById({
@@ -551,17 +437,7 @@ export async function getMaterialWorkbenchReference(input: {
   targetWorkbench?: MaterialWorkbenchTarget;
 }): Promise<MaterialWorkbenchReferenceDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    const reference = demoWorkbenchReferences.get(input.referenceId);
-
-    if (!reference || reference.merchantId !== input.merchantId) {
-      return null;
-    }
-
-    if (input.targetWorkbench && reference.targetWorkbench !== input.targetWorkbench) {
-      return null;
-    }
-
-    return reference;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -594,12 +470,7 @@ export async function listMaterialWorkbenchReferencesByDraft(input: {
   targetWorkbench?: MaterialWorkbenchTarget;
 }): Promise<MaterialWorkbenchReferenceDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return Array.from(demoWorkbenchReferences.values()).filter(
-      (reference) =>
-        reference.merchantId === input.merchantId &&
-        reference.draftId === input.draftId &&
-        (!input.targetWorkbench || reference.targetWorkbench === input.targetWorkbench),
-    );
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -634,21 +505,7 @@ export async function consumeMaterialWorkbenchReference(input: {
   materialItemId?: string | null;
 }): Promise<MaterialWorkbenchReferenceDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    const reference = demoWorkbenchReferences.get(input.referenceId);
-
-    if (!reference || reference.merchantId !== input.merchantId) {
-      return null;
-    }
-
-    const consumedReference = {
-      ...reference,
-      status: "consumed" as const,
-      draftId: input.draftId,
-      consumedAt: new Date().toISOString(),
-    };
-
-    demoWorkbenchReferences.set(reference.id, consumedReference);
-    return consumedReference;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -734,7 +591,7 @@ async function markMaterialSelectedForRewrite(input: {
   materialItemId: string;
 }) {
   if (!isSupabaseAdminConfigured()) {
-    return;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();

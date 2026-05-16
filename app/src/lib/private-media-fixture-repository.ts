@@ -21,29 +21,6 @@ export class InMemoryPrivateMediaClipRepository implements PrivateMediaClipRepos
   }
 }
 
-export function getDefaultPrivateMediaClipRepository(): PrivateMediaClipRepository {
-  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const globalWithRepository = globalThis as typeof globalThis & {
-      __jingjingSupabasePrivateMediaRepository?: PrivateMediaClipRepository;
-    };
-
-    globalWithRepository.__jingjingSupabasePrivateMediaRepository ??= {
-      async listClipsByMerchant(input) {
-        const { getPrivateMediaRepository } = await import("./db/merchant-media-repository.ts");
-        return getPrivateMediaRepository().listClipsByMerchant(input);
-      },
-      async getClipById(input) {
-        const { getPrivateMediaRepository } = await import("./db/merchant-media-repository.ts");
-        return getPrivateMediaRepository().getClipById(input);
-      },
-    };
-
-    return globalWithRepository.__jingjingSupabasePrivateMediaRepository;
-  }
-
-  return defaultPrivateMediaClipRepository;
-}
-
 export const fixturePrivateMediaClips: PrivateMediaClipRecord[] = [
   {
     id: "fixture-video-a-entrance",
@@ -136,5 +113,3 @@ export const fixturePrivateMediaClips: PrivateMediaClipRecord[] = [
     createdAt: "2026-05-15T00:00:00.000Z",
   },
 ];
-
-const defaultPrivateMediaClipRepository = new InMemoryPrivateMediaClipRepository(fixturePrivateMediaClips);
