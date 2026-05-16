@@ -3,6 +3,7 @@ import "server-only";
 import type { MerchantStrategyAssetDto, StrategySnapshotDto } from "@/contracts/consultation";
 import { emptyStrategySnapshot, toStrategySnapshot } from "@/lib/strategy-snapshot";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { ApiError } from "@/server/api/errors";
 
 type MerchantStrategyAssetRow = {
@@ -14,8 +15,6 @@ type MerchantStrategyAssetRow = {
   created_at: string;
   updated_at: string;
 };
-
-const demoMerchantStrategyAssets = new Map<string, MerchantStrategyAssetDto>();
 
 export async function getMerchantStrategyAsset(
   merchantId: string,
@@ -29,7 +28,7 @@ export async function getMerchantStrategyAssetDocument(
   merchantId: string,
 ): Promise<MerchantStrategyAssetDto | null> {
   if (!isSupabaseAdminConfigured()) {
-    return demoMerchantStrategyAssets.get(merchantId) ?? null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -66,21 +65,7 @@ export async function upsertMerchantStrategyAssetDocument(input: {
   compiledContext?: Record<string, unknown> | null;
 }): Promise<MerchantStrategyAssetDto> {
   if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
-    const current = demoMerchantStrategyAssets.get(input.merchantId);
-    const asset: MerchantStrategyAssetDto = {
-      merchantId: input.merchantId,
-      strategySnapshot: input.strategySnapshot,
-      strategyMarkdown:
-        normalizeStrategyMarkdown(input.strategyMarkdown) ||
-        current?.strategyMarkdown ||
-        buildStrategyAssetMarkdown(input.strategySnapshot),
-      canonicalSnapshot: input.canonicalSnapshot ?? input.strategySnapshot,
-      compiledContext: input.compiledContext ?? current?.compiledContext ?? null,
-      updatedAt: now,
-    };
-    demoMerchantStrategyAssets.set(input.merchantId, asset);
-    return asset;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();

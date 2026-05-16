@@ -29,6 +29,7 @@ __pycache__/
 .vercel/
 .turbo/
 app/supabase/.temp/
+app/supabase/supabase/
 .codex/long-task/
 .codex/branch-events/
 

@@ -28,7 +28,7 @@ export default async function MerchantOnboardingPage() {
 
 async function requireSignedInMerchantOwner() {
   if (!isSupabasePublicConfigured()) {
-    return;
+    redirect("/login?error=supabase-not-configured&next=/merchant/onboarding");
   }
 
   const supabase = await createSupabaseServerClient();

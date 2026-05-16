@@ -22,6 +22,7 @@ import type {
 } from "@/contracts/platform-admin";
 import { createInvitationCode, mapMerchantProfile } from "@/lib/db/merchant-repository";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { getAiRuntimeApiKeySource, maskAiRuntimeApiKey } from "@/server/api/ai-runtime";
 import { ApiError } from "@/server/api/errors";
 
@@ -158,8 +159,6 @@ const defaultKnowledgeRuntime: KnowledgeRuntimeSettingsDto = {
 
 const invitationCodeExpiringSoonWindowDays = 7;
 
-let demoPlatformSettings: PlatformSettingsDto | null = null;
-
 const platformAdminUserSelect = [
   "id",
   "auth_user_id",
@@ -175,7 +174,7 @@ const platformAdminUserSelect = [
 
 export async function listPlatformAdminUsers(): Promise<PlatformAdminUserDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return [];
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -201,11 +200,7 @@ export async function createPlatformAdminUser(
   actor: PlatformAdminUserDto,
 ): Promise<PlatformAdminUserDto> {
   if (!isSupabaseAdminConfigured()) {
-    throw new ApiError(
-      503,
-      "PLATFORM_ADMIN_AUTH_NOT_CONFIGURED",
-      "Supabase service role is required to manage platform admins.",
-    );
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -280,11 +275,7 @@ export async function updatePlatformAdminUser(
   actor: PlatformAdminUserDto,
 ): Promise<PlatformAdminUserDto> {
   if (!isSupabaseAdminConfigured()) {
-    throw new ApiError(
-      503,
-      "PLATFORM_ADMIN_AUTH_NOT_CONFIGURED",
-      "Supabase service role is required to manage platform admins.",
-    );
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -372,7 +363,7 @@ export async function listPlatformInvitationCodes(
   filters: PlatformAdminInvitationCodeFilters = {},
 ): Promise<PlatformAdminInvitationCodeDto[]> {
   if (!isSupabaseAdminConfigured()) {
-    return filterPlatformInvitationCodes([], filters);
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -617,7 +608,7 @@ export async function updatePlatformMerchant(
 
 export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
   if (!isSupabaseAdminConfigured()) {
-    return demoPlatformSettings ?? getDefaultPlatformSettings();
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -667,8 +658,7 @@ export async function updatePlatformSettings(
   const next = mergePlatformSettings(current, input);
 
   if (!isSupabaseAdminConfigured()) {
-    demoPlatformSettings = next;
-    return next;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -745,17 +735,6 @@ export async function updatePlatformSettings(
   });
 
   return getPlatformSettings();
-}
-
-function getDefaultPlatformSettings(): PlatformSettingsDto {
-  return {
-    llmRuntime: toLlmRuntimeSettings(undefined),
-    importRuntime: toImportRuntimeSettings(undefined),
-    membershipPlans: toMembershipPlans(undefined),
-    consultationAgent: toConsultationAgentSettings(undefined),
-    scriptProductionAgent: toScriptProductionAgentSettings(undefined),
-    knowledgeRuntime: toKnowledgeRuntimeSettings(undefined),
-  };
 }
 
 function mergePlatformSettings(

@@ -2,12 +2,9 @@ import "server-only";
 
 import type { MerchantMediaAssetRecord } from "@/lib/merchant-media-library-contract";
 import type { MerchantMediaRepository } from "@/lib/merchant-media-repository-contract";
-import { InMemoryMerchantMediaRepository } from "@/lib/merchant-media-repository-contract";
 import type { PrivateMediaClipRecord } from "@/lib/private-media-pexels-adapter";
 import type { PrivateMediaClipRepository } from "@/lib/private-media-fixture-repository";
-import {
-  getDefaultPrivateMediaClipRepository,
-} from "@/lib/private-media-fixture-repository";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -61,18 +58,20 @@ type MerchantMediaClipRow = {
   created_at: string;
 };
 
-const localRepository = new InMemoryMerchantMediaRepository();
-
 export function getMerchantMediaRepository(): MerchantMediaRepository {
-  return isSupabaseAdminConfigured()
-    ? new SupabaseMerchantMediaRepository()
-    : localRepository;
+  if (!isSupabaseAdminConfigured()) {
+    throw cloudSupabaseRequiredError();
+  }
+
+  return new SupabaseMerchantMediaRepository();
 }
 
 export function getPrivateMediaRepository(): PrivateMediaClipRepository {
-  return isSupabaseAdminConfigured()
-    ? new SupabaseMerchantMediaPrivateClipRepository()
-    : getDefaultPrivateMediaClipRepository();
+  if (!isSupabaseAdminConfigured()) {
+    throw cloudSupabaseRequiredError();
+  }
+
+  return new SupabaseMerchantMediaPrivateClipRepository();
 }
 
 export class SupabaseMerchantMediaRepository implements MerchantMediaRepository {

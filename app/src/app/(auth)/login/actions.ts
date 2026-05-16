@@ -21,13 +21,13 @@ function getSafeNextPath(value: FormDataEntryValue | null) {
 }
 
 export async function signInToMerchant(formData: FormData) {
-  if (!isSupabasePublicConfigured()) {
-    redirect("/dashboard");
-  }
-
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const next = getSafeNextPath(formData.get("next"));
+
+  if (!isSupabasePublicConfigured()) {
+    redirect(`/login?error=supabase-not-configured&next=${encodeURIComponent(next)}`);
+  }
 
   if (!email || !password) {
     redirect(`/login?error=invalid-credentials&next=${encodeURIComponent(next)}`);

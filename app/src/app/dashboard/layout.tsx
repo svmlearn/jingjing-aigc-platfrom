@@ -19,7 +19,7 @@ export default async function DashboardLayout({
 
 async function requireMerchantAccess() {
   if (!isSupabasePublicConfigured()) {
-    return;
+    redirect("/login?error=supabase-not-configured&next=/dashboard");
   }
 
   const supabase = await createSupabaseServerClient();
