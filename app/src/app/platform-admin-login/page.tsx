@@ -17,14 +17,14 @@ import { initializePlatformAdmin, signInToPlatformAdmin } from "./actions";
 
 const errorMessages: Record<string, string> = {
   "bootstrap-exists": "当前环境已经存在后台管理员，请直接用账号密码登录。",
-  "bootstrap-failed": "首个超管初始化失败，请确认 Supabase Auth 与身份表已经可用。",
+  "bootstrap-failed": "首个超管初始化失败，请确认平台管理身份表与初始化参数已经可用。",
   "bootstrap-invalid": "初始化表单内容不完整，邮箱格式或密码长度不符合要求。",
   "bootstrap-secret-required": "首个超管初始化需要先配置 ADMIN_SETUP_SECRET。",
   "disabled-admin": "这个后台管理员账号已被禁用，请联系超级管理员。",
   "invalid-credentials": "邮箱或密码不正确，暂时不能进入平台管理台。",
   "invalid-setup-secret": "初始化口令不正确，不能创建首个超级管理员。",
   "no-admin-access": "这个账号还不是平台后台管理员，请联系超级管理员开通。",
-  "not-configured": "当前环境还没有配置 Supabase Auth，管理台入口暂不可用。",
+  "not-configured": "当前环境还没有配置平台管理登录能力，管理台入口暂不可用。",
 };
 
 export default async function PlatformAdminLoginPage({
