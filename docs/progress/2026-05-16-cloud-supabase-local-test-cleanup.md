@@ -38,4 +38,4 @@
 
 ## push / merge
 
-本轮准备仅做本地 merge 到 `孟_5.13`，不 push。
+本轮已本地 merge 到 `孟_5.13`，merge commit 为 `67cda50`。未 push。
