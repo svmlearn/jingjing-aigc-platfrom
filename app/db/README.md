@@ -13,11 +13,24 @@ First-phase scope:
 - Worker reliability columns for claim, heartbeat, timeout, failure reason,
   retry, and manual rerun tracking.
 
-Apply on an empty domestic PostgreSQL database:
+Apply on an empty domestic PostgreSQL database by filename order:
 
 ```bash
 psql "$DATABASE_URL" -f app/db/migrations/202605130001_domestic_core_baseline.sql
+psql "$DATABASE_URL" -f app/db/migrations/202605160001_selfhost_p0_foundation.sql
+psql "$DATABASE_URL" -f app/db/migrations/202605160002_selfhost_pgvector_optional.sql
 ```
+
+`202605160001_selfhost_p0_foundation.sql` is additive for existing
+self-hosted rehearsal databases. It adds platform admin auth, consultation,
+strategy asset, knowledge/RAG foundation, platform settings/events, Agent
+foundation, and material workbench reference tables without Supabase Auth or
+RLS dependencies.
+
+`202605160002_selfhost_pgvector_optional.sql` is safe to run after foundation
+schema. It adds `knowledge_chunks.embedding vector(1536)`, an HNSW index, and
+`match_knowledge_chunks` only when the target PostgreSQL instance exposes
+`pgvector`; otherwise it leaves the `embedding_json` fallback untouched.
 
 Check app-side domestic environment without printing secrets:
 
