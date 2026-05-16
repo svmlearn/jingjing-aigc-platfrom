@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
+import pg from "pg";
+
 import { loadEnvFileFromArgs } from "./lib/env-file.mjs";
 
 loadEnvFileFromArgs();
+
+const { Pool } = pg;
 
 const baseUrl = normalizeBaseUrl(
   getArgValue("--base-url") ||
@@ -122,9 +126,13 @@ try {
     },
   });
   const job = jobCreate.body?.job;
-  const inputAssets = Array.isArray(job?.inputPayload?.input_assets)
-    ? job.inputPayload.input_assets
-    : [];
+  const persistedJobPayload = await inspectPersistedJobInputPayload(job?.id);
+  const publicInputPayload =
+    job?.inputPayload && typeof job.inputPayload === "object" ? job.inputPayload : {};
+  const inputAssets = Array.isArray(publicInputPayload.input_assets)
+    ? publicInputPayload.input_assets
+    : persistedJobPayload.inputAssets;
+  const renderMode = publicInputPayload.render_mode ?? persistedJobPayload.renderMode;
   const passed =
     login.status === 303 &&
     testDraft.status === 201 &&
@@ -132,7 +140,7 @@ try {
     mediaComplete.status === 201 &&
     jobCreate.status === 201 &&
     job?.status === "pending" &&
-    job?.inputPayload?.render_mode === "asset_driven" &&
+    renderMode === "asset_driven" &&
     inputAssets.length > 0;
 
   writeReport(
@@ -150,8 +158,9 @@ try {
       mediaAssetId: mediaComplete.body?.asset?.id ?? null,
       jobId: job?.id ?? null,
       jobStatus: job?.status ?? null,
-      renderMode: job?.inputPayload?.render_mode ?? null,
+      renderMode,
       inputAssetCount: inputAssets.length,
+      persistedJobPayloadInspected: persistedJobPayload.inspected,
       uploadIntentKey:
         typeof uploadIntentPayload?.cosKey === "string" ? uploadIntentPayload.cosKey : null,
       uploadIntentMissingFields: withUploadIntent ? uploadIntentShape.missingFields : [],
@@ -219,6 +228,60 @@ async function postJson(input) {
     status: response.status,
     body,
   };
+}
+
+async function inspectPersistedJobInputPayload(jobId) {
+  if (!jobId) {
+    return {
+      inspected: false,
+      renderMode: null,
+      inputAssets: [],
+    };
+  }
+
+  const databaseUrl =
+    process.env.APP_DATABASE_URL?.trim() ||
+    process.env.DATABASE_URL?.trim() ||
+    process.env.LOCAL_REAL_CHAIN_DB_URL?.trim() ||
+    "";
+
+  if (!databaseUrl) {
+    return {
+      inspected: false,
+      renderMode: null,
+      inputAssets: [],
+    };
+  }
+
+  const pool = new Pool({
+    connectionString: databaseUrl,
+    ssl: resolveSslConfig(),
+    max: 1,
+  });
+
+  try {
+    const result = await pool.query(
+      "select input_payload from public.video_edit_jobs where id = $1 limit 1",
+      [jobId],
+    );
+    const inputPayload = result.rows[0]?.input_payload;
+
+    if (!inputPayload || typeof inputPayload !== "object") {
+      return {
+        inspected: true,
+        renderMode: null,
+        inputAssets: [],
+      };
+    }
+
+    return {
+      inspected: true,
+      renderMode: typeof inputPayload.render_mode === "string" ? inputPayload.render_mode : null,
+      inputAssets: Array.isArray(inputPayload.input_assets) ? inputPayload.input_assets : [],
+    };
+  } finally {
+    await pool.end();
+  }
 }
 
 function extractCookieHeader(response) {
@@ -300,6 +363,21 @@ function normalizeBooleanFlag(value) {
   }
 
   return null;
+}
+
+function resolveSslConfig() {
+  const raw =
+    process.env.APP_DATABASE_SSL ?? process.env.DATABASE_SSL ?? process.env.LOCAL_REAL_CHAIN_DB_SSL;
+
+  if (raw === "disable" || raw === "false") {
+    return false;
+  }
+
+  if (raw === "require" || raw === "true") {
+    return { rejectUnauthorized: false };
+  }
+
+  return undefined;
 }
 
 function sanitizeFileName(value) {

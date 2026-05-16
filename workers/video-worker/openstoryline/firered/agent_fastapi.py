@@ -2990,7 +2990,7 @@ def _worker_rehearsal_fast_path_enabled(payload: Dict[str, Any]) -> bool:
     ) is True
 
 
-def _run_worker_rehearsal_fast_path(payload: Dict[str, Any], output_dir: Path) -> JSONResponse:
+def _worker_rehearsal_fast_path_payload(payload: Dict[str, Any], output_dir: Path) -> Dict[str, Any]:
     input_assets = payload.get("input_assets")
     if not isinstance(input_assets, list) or not input_assets:
         raise HTTPException(status_code=400, detail="input_assets is required")
@@ -3033,19 +3033,21 @@ def _run_worker_rehearsal_fast_path(payload: Dict[str, Any], output_dir: Path) -
         final_video_path=final_video_path,
     )
 
-    return JSONResponse(
-        {
-            "job_id": payload.get("job_id"),
-            "session_id": "worker_rehearsal_fast_path",
-            "final_video_path": str(final_video_path),
-            "metadata_path": str(metadata_path),
-            "raw_response": {
-                "engine": "fire_red-openstoryline",
-                "worker_rehearsal_fast_path": True,
-                "render_video": render_payload,
-            },
-        }
-    )
+    return {
+        "job_id": payload.get("job_id"),
+        "session_id": "worker_rehearsal_fast_path",
+        "final_video_path": str(final_video_path),
+        "metadata_path": str(metadata_path),
+        "raw_response": {
+            "engine": "fire_red-openstoryline",
+            "worker_rehearsal_fast_path": True,
+            "render_video": render_payload,
+        },
+    }
+
+
+def _run_worker_rehearsal_fast_path(payload: Dict[str, Any], output_dir: Path) -> JSONResponse:
+    return JSONResponse(_worker_rehearsal_fast_path_payload(payload, output_dir))
 
 
 def _worker_run_response_payload(
@@ -3167,6 +3169,18 @@ async def stream_worker_video_job(request: Request):
     if not output_dir_raw:
         raise HTTPException(status_code=400, detail="output_dir is required")
     output_dir = Path(output_dir_raw)
+
+    if _worker_rehearsal_fast_path_enabled(payload):
+        fast_path_payload = _worker_rehearsal_fast_path_payload(payload, output_dir)
+
+        async def generate_fast_path():
+            yield json.dumps(
+                {"type": "result", "data": fast_path_payload},
+                ensure_ascii=False,
+                default=str,
+            ) + "\n"
+
+        return StreamingResponse(generate_fast_path(), media_type="application/x-ndjson")
 
     async def generate():
         queue: asyncio.Queue = asyncio.Queue()

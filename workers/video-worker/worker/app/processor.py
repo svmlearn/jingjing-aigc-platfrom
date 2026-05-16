@@ -488,6 +488,21 @@ class JobProcessor:
             return
 
         workspace_dir, input_dir, output_dir = self._workspace_for(job)
+        existing_runtime_payload = _dict_or_empty(job.runtime_payload)
+        self_hosted_fast_path = (
+            directive.execution_mode == "self_hosted_rehearsal_fast_path"
+            or existing_runtime_payload.get("self_hosted_rehearsal_fast_path") is True
+        )
+
+        def stage_runtime_payload(**payload: Any) -> dict[str, Any]:
+            runtime_payload = {
+                **payload,
+                "execution_mode": directive.execution_mode,
+            }
+            if self_hosted_fast_path:
+                runtime_payload["self_hosted_rehearsal_fast_path"] = True
+            return runtime_payload
+
         record_timing("directive_validation", job_started_at)
         log_payload["steps"].append(
             {
@@ -503,14 +518,14 @@ class JobProcessor:
             status="preparing",
             current_stage="downloading_inputs",
             progress_pct=10,
-            runtime_payload={
-                "workspace_dir": str(workspace_dir),
-                "output_dir": str(output_dir),
-                "progress_modules": _progress_modules(
+            runtime_payload=stage_runtime_payload(
+                workspace_dir=str(workspace_dir),
+                output_dir=str(output_dir),
+                progress_modules=_progress_modules(
                     active_key="material_preparation",
                     production_config=directive.production_config,
                 ),
-            },
+            ),
             log_payload=log_payload,
         )
         run_result: EngineRunResult | None = None
@@ -529,15 +544,15 @@ class JobProcessor:
                 status="running",
                 current_stage="openstoryline_rendering",
                 progress_pct=50,
-                runtime_payload={
-                    "workspace_dir": str(workspace_dir),
-                    "output_dir": str(output_dir),
-                    "input_assets": input_assets,
-                    "progress_modules": _progress_modules(
+                runtime_payload=stage_runtime_payload(
+                    workspace_dir=str(workspace_dir),
+                    output_dir=str(output_dir),
+                    input_assets=input_assets,
+                    progress_modules=_progress_modules(
                         active_key="material_match",
                         production_config=directive.production_config,
                     ),
-                },
+                ),
                 log_payload=log_payload,
             )
 
@@ -579,18 +594,18 @@ class JobProcessor:
                     status="running",
                     current_stage=f"openstoryline_{module_key}",
                     progress_pct=int(progress_state["progress_pct"]),
-                    runtime_payload={
-                        "workspace_dir": str(workspace_dir),
-                        "output_dir": str(output_dir),
-                        "input_assets": input_assets,
-                        "openstoryline_progress": log_payload["openstoryline_progress"],
-                        "progress_modules": _progress_modules(
+                    runtime_payload=stage_runtime_payload(
+                        workspace_dir=str(workspace_dir),
+                        output_dir=str(output_dir),
+                        input_assets=input_assets,
+                        openstoryline_progress=log_payload["openstoryline_progress"],
+                        progress_modules=_progress_modules(
                             active_key=module_key,
                             active_progress_pct=active_progress,
                             active_detail=_openstoryline_event_detail(event, module_key),
                             production_config=directive.production_config,
                         ),
-                    },
+                    ),
                     log_payload=log_payload,
                 )
 
@@ -636,15 +651,15 @@ class JobProcessor:
                     status="running",
                     current_stage="uploading_outputs",
                     progress_pct=80,
-                    runtime_payload={
-                        "workspace_dir": str(workspace_dir),
-                        "output_dir": str(output_dir),
-                        "input_assets": input_assets,
-                        "progress_modules": _progress_modules(
+                    runtime_payload=stage_runtime_payload(
+                        workspace_dir=str(workspace_dir),
+                        output_dir=str(output_dir),
+                        input_assets=input_assets,
+                        progress_modules=_progress_modules(
                             active_key="output_delivery",
                             production_config=directive.production_config,
                         ),
-                    },
+                    ),
                     log_payload=log_payload,
                 )
                 stage_started_at = time.monotonic()
