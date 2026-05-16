@@ -85,9 +85,11 @@ Singapore non-regression:
 - `/api/health`: passed.
 - App env preflight: passed.
 - Team invite + Dify mock: passed, batch `ee799f83-93aa-40c2-b822-a7949de76973`.
-- Video-chain API smoke: passed, job `2a225583-b5c3-45d1-92bc-bf82469f8dfa`.
+- Video-chain API smoke: passed, job `2a225583-b5c3-45d1-92bc-bf82469f8dfa`; the contract-only job was later marked `failed_manual`.
 - Worker fast-path smoke: passed after worker DB env correction, job `1c32b8bf-a19c-4ebc-adda-8ad6ffb010af`.
 - Normal no-voiceover FireRed: failed independently, job `e9961767-2a2b-4aae-9ce0-ebdcb2a0efc3`, stage `openstoryline_rendering_failed`.
+- Normal no-voiceover rerun: timed out before worker claim, job `22a27193-ff8c-441f-90f9-f6a96aa766de`.
+- Cleanup: API contract-only and normal no-voiceover validation jobs from this round were marked `failed_manual` after evidence capture to avoid worker retry noise.
 
 ## Remote Runtime Change
 

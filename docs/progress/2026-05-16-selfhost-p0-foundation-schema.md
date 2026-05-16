@@ -162,6 +162,7 @@ Passed:
   - job `2a225583-b5c3-45d1-92bc-bf82469f8dfa`
   - API contract returned `status=ok`
   - persisted payload inspected
+  - contract-only job was later marked `failed_manual` to prevent worker retry of a no-bytes smoke asset
 - Worker real I/O smoke after env correction:
   - DB `select_1=1`
   - required worker tables present
@@ -177,9 +178,14 @@ Not passed:
 
 - Normal no-voiceover FireRed smoke:
   - job `e9961767-2a2b-4aae-9ce0-ebdcb2a0efc3`
-  - final status `failed_retryable`
+  - script result was `failed_retryable`
   - final stage `openstoryline_rendering_failed`
   - failure: `RemoteProtocolError: peer closed connection without sending complete message body`
+- Normal no-voiceover FireRed rerun:
+  - job `22a27193-ff8c-441f-90f9-f6a96aa766de`
+  - script timed out before worker claim; last status was `pending`
+- Cleanup:
+  - API contract-only job, normal failed job, and normal rerun timeout job were marked `failed_manual` after evidence capture to prevent retry noise in the worker queue.
 
 ## Runtime Config Finding
 
