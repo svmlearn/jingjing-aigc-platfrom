@@ -24,6 +24,12 @@ const filePath = getArgValue("--file") || "";
 const timeoutSeconds = parsePositiveInt(getArgValue("--timeout-seconds"), 900);
 const pollSeconds = parsePositiveInt(getArgValue("--poll-seconds"), 5);
 const selfHostedFastPath = hasFlag("--self-hosted-fast-path");
+const instructionText = getArgValue("--instruction-text") || "domestic worker smoke job";
+const productionConfigJson = getArgValue("--production-config-json");
+const productionConfig = productionConfigJson ? parseJsonObjectArg({
+  name: "--production-config-json",
+  value: productionConfigJson,
+}) : null;
 
 const missing = [
   ["baseUrl", baseUrl],
@@ -116,7 +122,8 @@ try {
     cookie: login.cookie,
     body: {
       contentVariantId: variant.id,
-      instructionText: "domestic worker smoke job",
+      instructionText,
+      ...(productionConfig ? { productionConfig } : {}),
     },
   });
   const jobId = jobCreate.body?.job?.id;
@@ -186,6 +193,7 @@ try {
       failureReason: finalJob.failureReason ?? null,
       uploadIntentKey: uploadIntentPayload.cosKey,
       selfHostedFastPath,
+      productionConfigProvided: Boolean(productionConfig),
     },
     passed ? 0 : 1,
   );
@@ -458,6 +466,37 @@ function normalizeBaseUrl(value) {
 function parsePositiveInt(value, fallback) {
   const parsed = Number.parseInt(value || "", 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseJsonObjectArg(input) {
+  try {
+    const parsed = JSON.parse(input.value);
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      writeReport(
+        {
+          status: "invalid_input",
+          argument: input.name,
+          message: `${input.name} must be a JSON object.`,
+        },
+        2,
+      );
+    }
+
+    return parsed;
+  } catch (error) {
+    writeReport(
+      {
+        status: "invalid_input",
+        argument: input.name,
+        message:
+          error instanceof Error
+            ? error.message
+            : `${input.name} must be valid JSON.`,
+      },
+      2,
+    );
+  }
 }
 
 function sleep(ms) {
