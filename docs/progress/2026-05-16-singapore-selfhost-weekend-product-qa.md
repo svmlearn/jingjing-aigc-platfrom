@@ -254,4 +254,4 @@ Aliyun OSS work in this round is design-only and recorded in `docs/架构规范/
 - Merge to `main`: no.
 - `DOMESTIC_PHASE1_E2E_PASS`: not written.
 - `.codex/long-task`: not marked complete.
-- Final commit: pending local commit at time of initial writing.
+- Final commit: `7bcfe46 docs: record singapore selfhost product qa`

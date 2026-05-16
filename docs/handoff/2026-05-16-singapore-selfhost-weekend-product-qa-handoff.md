@@ -12,7 +12,7 @@
 - Branch: `codex/domestic-infra-migration`
 - Push: no
 - Merge: no
-- Final commit: pending local commit at time of initial writing
+- Final commit: `7bcfe46 docs: record singapore selfhost product qa`
 
 ## 已完成
 
