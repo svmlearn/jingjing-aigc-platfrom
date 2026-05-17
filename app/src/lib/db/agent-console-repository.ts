@@ -191,8 +191,8 @@ type MerchantCreditAccountRow = {
   merchant_id: string;
   balance: number;
   metadata: unknown;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 type MerchantUsageEventRow = {
@@ -204,7 +204,7 @@ type MerchantUsageEventRow = {
   actual_cost: number | null;
   status: MerchantUsageEventDto["status"];
   metadata: unknown;
-  created_at: string;
+  created_at: string | Date;
 };
 
 type MerchantCreditLedgerRow = {
@@ -216,7 +216,7 @@ type MerchantCreditLedgerRow = {
   reason: string;
   related_usage_event_id: string | null;
   metadata: unknown;
-  created_at: string;
+  created_at: string | Date;
 };
 
 type AgentConfigCreateInput = {
@@ -3833,7 +3833,76 @@ export async function ensureMerchantCreditAccount(input: {
   initialBalance?: number;
   reason?: string;
 }): Promise<MerchantCreditAccountDto | null> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      return await withAppDbTransaction(async (client) => {
+        const initialBalance = Math.max(0, input.initialBalance ?? 0);
+        const metadata = {
+          createdBy: "consultation_entitlement_gate",
+          reason: input.reason ?? "signup_bonus",
+        };
+        const insertResult = await client.query<MerchantCreditAccountRow>(
+          `
+          insert into public.merchant_credit_accounts (
+            merchant_id,
+            balance,
+            metadata
+          ) values ($1, $2, $3::jsonb)
+          on conflict (merchant_id) do nothing
+          returning ${merchantCreditAccountSelect}
+          `,
+          [input.merchantId, initialBalance, JSON.stringify(metadata)],
+        );
+
+        if (insertResult.rows[0]) {
+          const account = mapMerchantCreditAccount(insertResult.rows[0]);
+
+          if (initialBalance > 0) {
+            await recordMerchantCreditLedger(
+              {
+                merchantId: input.merchantId,
+                creditAccountId: account.id,
+                direction: "grant",
+                amount: initialBalance,
+                reason: input.reason ?? "signup_bonus",
+                metadata: {
+                  createdBy: "consultation_entitlement_gate",
+                },
+              },
+              client,
+            );
+          }
+
+          return account;
+        }
+
+        const existingResult = await client.query<MerchantCreditAccountRow>(
+          `
+          select ${merchantCreditAccountSelect}
+          from public.merchant_credit_accounts
+          where merchant_id = $1
+          limit 1
+          `,
+          [input.merchantId],
+        );
+        const existing = existingResult.rows[0];
+
+        if (!existing) {
+          throw new ApiError(
+            500,
+            "MERCHANT_CREDIT_ACCOUNT_CREATE_FAILED",
+            "Credit account was not created.",
+          );
+        }
+
+        return mapMerchantCreditAccount(existing);
+      });
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_CREDIT_ACCOUNT_CREATE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return null;
   }
 
@@ -3901,7 +3970,39 @@ export async function recordMerchantUsageEvent(input: {
   status: MerchantUsageEventDto["status"];
   metadata?: Record<string, unknown>;
 }): Promise<MerchantUsageEventDto | null> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<MerchantUsageEventRow>(
+        `
+        insert into public.merchant_usage_events (
+          merchant_id,
+          action_type,
+          agent_id,
+          estimated_cost,
+          actual_cost,
+          status,
+          metadata
+        ) values ($1, $2, $3, $4, $5, $6, $7::jsonb)
+        returning ${merchantUsageEventSelect}
+        `,
+        [
+          input.merchantId,
+          input.actionType,
+          input.agentId ?? null,
+          input.estimatedCost ?? null,
+          input.actualCost ?? null,
+          input.status,
+          JSON.stringify(input.metadata ?? {}),
+        ],
+      );
+
+      return mapMerchantUsageEvent(result.rows[0]);
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_USAGE_EVENT_CREATE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return null;
   }
 
@@ -3933,7 +4034,39 @@ export async function updateMerchantUsageEvent(input: {
   status: MerchantUsageEventDto["status"];
   metadata?: Record<string, unknown>;
 }): Promise<MerchantUsageEventDto | null> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<MerchantUsageEventRow>(
+        `
+        update public.merchant_usage_events
+        set status = $2,
+            actual_cost = case when $3::boolean then $4 else actual_cost end,
+            metadata = case when $5::boolean then $6::jsonb else metadata end
+        where id = $1
+        returning ${merchantUsageEventSelect}
+        `,
+        [
+          input.usageEventId,
+          input.status,
+          input.actualCost !== undefined,
+          input.actualCost ?? null,
+          input.metadata !== undefined,
+          JSON.stringify(input.metadata ?? {}),
+        ],
+      );
+      const row = result.rows[0];
+
+      if (!row) {
+        throw new ApiError(404, "MERCHANT_USAGE_EVENT_NOT_FOUND", "Usage event not found.");
+      }
+
+      return mapMerchantUsageEvent(row);
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_USAGE_EVENT_UPDATE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return null;
   }
 
@@ -3971,7 +4104,67 @@ export async function consumeMerchantCredits(input: {
   relatedUsageEventId?: string | null;
   reason: string;
 }): Promise<MerchantCreditAccountDto | null> {
-  if (!isSupabaseAdminConfigured()) {
+  if (shouldUseAppPostgres()) {
+    try {
+      return await withAppDbTransaction(async (client) => {
+        const accountResult = await client.query<MerchantCreditAccountRow>(
+          `
+          select ${merchantCreditAccountSelect}
+          from public.merchant_credit_accounts
+          where id = $1
+            and merchant_id = $2
+          for update
+          `,
+          [input.creditAccountId, input.merchantId],
+        );
+        const account = accountResult.rows[0];
+
+        if (!account) {
+          throw new ApiError(404, "MERCHANT_CREDIT_ACCOUNT_NOT_FOUND", "Credit account not found.");
+        }
+
+        if (account.balance < input.amount) {
+          throw new ApiError(
+            402,
+            "MERCHANT_CREDIT_INSUFFICIENT",
+            "当前积分不足，无法继续使用该 AI 能力。请升级会员或补充积分。",
+          );
+        }
+
+        const updatedResult = await client.query<MerchantCreditAccountRow>(
+          `
+          update public.merchant_credit_accounts
+          set balance = balance - $2
+          where id = $1
+          returning ${merchantCreditAccountSelect}
+          `,
+          [input.creditAccountId, input.amount],
+        );
+        const updatedAccount = updatedResult.rows[0];
+
+        await recordMerchantCreditLedger(
+          {
+            merchantId: input.merchantId,
+            creditAccountId: input.creditAccountId,
+            direction: "consume",
+            amount: input.amount,
+            reason: input.reason,
+            relatedUsageEventId: input.relatedUsageEventId ?? null,
+            metadata: {
+              createdBy: "consultation_entitlement_gate",
+            },
+          },
+          client,
+        );
+
+        return mapMerchantCreditAccount(updatedAccount);
+      });
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_CREDIT_CONSUME_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return null;
   }
 
@@ -4018,16 +4211,52 @@ export async function consumeMerchantCredits(input: {
   return mapMerchantCreditAccount(data as unknown as MerchantCreditAccountRow);
 }
 
-async function recordMerchantCreditLedger(input: {
-  merchantId: string;
-  creditAccountId?: string | null;
-  direction: MerchantCreditLedgerDto["direction"];
-  amount: number;
-  reason: string;
-  relatedUsageEventId?: string | null;
-  metadata?: Record<string, unknown>;
-}): Promise<MerchantCreditLedgerDto | null> {
-  if (!isSupabaseAdminConfigured()) {
+async function recordMerchantCreditLedger(
+  input: {
+    merchantId: string;
+    creditAccountId?: string | null;
+    direction: MerchantCreditLedgerDto["direction"];
+    amount: number;
+    reason: string;
+    relatedUsageEventId?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+  client?: DatabaseClient,
+): Promise<MerchantCreditLedgerDto | null> {
+  if (shouldUseAppPostgres()) {
+    try {
+      const executor = client ?? { query: queryAppDb };
+      const result = await executor.query<MerchantCreditLedgerRow>(
+        `
+        insert into public.merchant_credit_ledger (
+          merchant_id,
+          credit_account_id,
+          direction,
+          amount,
+          reason,
+          related_usage_event_id,
+          metadata
+        ) values ($1, $2, $3, $4, $5, $6, $7::jsonb)
+        returning ${merchantCreditLedgerSelect}
+        `,
+        [
+          input.merchantId,
+          input.creditAccountId ?? null,
+          input.direction,
+          input.amount,
+          input.reason,
+          input.relatedUsageEventId ?? null,
+          JSON.stringify(input.metadata ?? {}),
+        ],
+      );
+
+      return mapMerchantCreditLedger(result.rows[0]);
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_CREDIT_LEDGER_CREATE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
     return null;
   }
 
@@ -4228,8 +4457,8 @@ function mapMerchantCreditAccount(row: MerchantCreditAccountRow): MerchantCredit
     merchantId: row.merchant_id,
     balance: row.balance,
     metadata: toRecord(row.metadata),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
   };
 }
 
@@ -4243,7 +4472,7 @@ function mapMerchantUsageEvent(row: MerchantUsageEventRow): MerchantUsageEventDt
     actualCost: row.actual_cost,
     status: row.status,
     metadata: toRecord(row.metadata),
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
 }
 
@@ -4257,7 +4486,7 @@ function mapMerchantCreditLedger(row: MerchantCreditLedgerRow): MerchantCreditLe
     reason: row.reason,
     relatedUsageEventId: row.related_usage_event_id,
     metadata: toRecord(row.metadata),
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
 }
 
