@@ -31,6 +31,7 @@ import type {
   MerchantUsageEventDto,
 } from "@/contracts/agent-console";
 import {
+  type DatabaseClient,
   isAppPostgresConfigured,
   isAppPostgresPreferred,
   mapPostgresError,
@@ -383,6 +384,59 @@ export async function getAgentConsoleFoundationState(): Promise<AgentConsoleFoun
 export async function createAgentConfig(
   input: AgentConfigCreateInput,
 ): Promise<AgentConfigDto> {
+  if (shouldUseAppPostgres()) {
+    if (input.serviceStatus === "enabled") {
+      throw new ApiError(
+        409,
+        "AGENT_ACTIVE_PROMPT_REQUIRED",
+        "请先创建并发布 agent.md，再启用 Agent",
+      );
+    }
+
+    return withAppDbTransaction(async (client) => {
+      await assertAgentDisplayNameAvailableInPostgres(client, input.displayName);
+      const agentKey = input.agentKey ?? createStableKey("agent");
+      const result = await client.query<AgentConfigRow>(
+        `
+        insert into public.agent_configs (
+          agent_key,
+          display_name,
+          role_description,
+          description,
+          service_status,
+          service_flags,
+          model_config
+        ) values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
+        returning ${agentConfigSelect}
+        `,
+        [
+          agentKey,
+          input.displayName,
+          input.roleDescription ?? null,
+          input.description ?? null,
+          input.serviceStatus ?? "draft",
+          JSON.stringify(normalizeAgentServiceFlags(input.serviceFlags)),
+          JSON.stringify(input.modelConfig ?? {}),
+        ],
+      );
+      const agent = mapAgentConfig(result.rows[0]);
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent.created",
+        targetType: "agent",
+        targetId: agent.id,
+        summary: `创建 Agent ${agent.displayName}`,
+        details: {
+          agentKey: agent.agentKey,
+          serviceStatus: agent.serviceStatus,
+        },
+      });
+
+      return agent;
+    });
+  }
+
   requireSupabaseAdmin("AGENT_CONFIG_CREATE_UNAVAILABLE");
   if (input.serviceStatus === "enabled") {
     throw new ApiError(
@@ -502,6 +556,100 @@ export async function updateAgentConfig(
   agentId: string,
   input: AgentConfigUpdateInput,
 ): Promise<AgentConfigDto> {
+  if (shouldUseAppPostgres()) {
+    return withAppDbTransaction(async (client) => {
+      const current = await getAgentConfigByIdFromPostgres(client, agentId);
+      const updates: string[] = [];
+      const values: unknown[] = [];
+
+      if (input.serviceStatus === "enabled") {
+        await assertAgentHasActivePromptInPostgres(client, agentId);
+      }
+
+      if (input.serviceStatus && input.serviceStatus !== "enabled") {
+        const routeResult = await client.query<AgentRouteBindingRow>(
+          `
+          select ${agentRouteBindingSelect}
+          from public.agent_route_bindings
+          where route_key = 'consultation_default'
+            and status = 'active'
+            and agent_id = $1
+          limit 1
+          `,
+          [agentId],
+        );
+
+        if (routeResult.rows[0]) {
+          throw new ApiError(
+            409,
+            "AGENT_DEFAULT_DISABLE_BLOCKED",
+            "请先切换默认 Agent",
+            { agentId },
+          );
+        }
+      }
+
+      if (input.displayName !== undefined) {
+        if (input.displayName !== current.displayName) {
+          await assertAgentDisplayNameAvailableInPostgres(client, input.displayName, agentId);
+        }
+        values.push(input.displayName);
+        updates.push(`display_name = $${values.length}`);
+      }
+      if (input.roleDescription !== undefined) {
+        values.push(input.roleDescription);
+        updates.push(`role_description = $${values.length}`);
+      }
+      if (input.description !== undefined) {
+        values.push(input.description);
+        updates.push(`description = $${values.length}`);
+      }
+      if (input.serviceStatus !== undefined) {
+        values.push(input.serviceStatus);
+        updates.push(`service_status = $${values.length}`);
+      }
+      if (input.serviceFlags !== undefined) {
+        values.push(JSON.stringify(normalizeAgentServiceFlags(input.serviceFlags, current.serviceFlags)));
+        updates.push(`service_flags = $${values.length}::jsonb`);
+      }
+      if (input.modelConfig !== undefined) {
+        values.push(JSON.stringify(input.modelConfig));
+        updates.push(`model_config = $${values.length}::jsonb`);
+      }
+
+      if (updates.length === 0) {
+        return current;
+      }
+
+      values.push(agentId);
+      const result = await client.query<AgentConfigRow>(
+        `
+        update public.agent_configs
+        set ${updates.join(", ")}
+        where id = $${values.length}
+        returning ${agentConfigSelect}
+        `,
+        values,
+      );
+      const agent = mapAgentConfig(result.rows[0]);
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent.updated",
+        targetType: "agent",
+        targetId: agentId,
+        summary: `更新 Agent ${agent.displayName}`,
+        details: {
+          updatedFields: updates.map((item) => item.split(" = ")[0]),
+          fromStatus: current.serviceStatus,
+          toStatus: agent.serviceStatus,
+        },
+      });
+
+      return agent;
+    });
+  }
+
   requireSupabaseAdmin("AGENT_CONFIG_UPDATE_UNAVAILABLE");
   const current = await getAgentConfigById(agentId);
   const update: Record<string, unknown> = {};
@@ -583,6 +731,214 @@ export async function copyAgentConfig(
   agentId: string,
   input: { displayName: string; actorLabel?: string },
 ): Promise<AgentConfigDetailDto> {
+  if (shouldUseAppPostgres()) {
+    const copiedAgentId = await withAppDbTransaction(async (client) => {
+      const source = await getAgentConfigByIdFromPostgres(client, agentId);
+      await assertAgentDisplayNameAvailableInPostgres(client, input.displayName);
+      const insertAgent = await client.query<AgentConfigRow>(
+        `
+        insert into public.agent_configs (
+          agent_key,
+          display_name,
+          role_description,
+          description,
+          service_status,
+          service_flags,
+          model_config,
+          copied_from_agent_id
+        ) values ($1, $2, $3, $4, 'draft', $5::jsonb, $6::jsonb, $7)
+        returning ${agentConfigSelect}
+        `,
+        [
+          createStableKey("agent"),
+          input.displayName,
+          source.roleDescription ?? null,
+          source.description ?? null,
+          JSON.stringify(source.serviceFlags),
+          JSON.stringify(source.modelConfig),
+          source.id,
+        ],
+      );
+      const copied = mapAgentConfig(insertAgent.rows[0]);
+
+      const [promptRows, soulRows, skillBindingRows, knowledgeBindingRows] = await Promise.all([
+        client.query<AgentPromptVersionRow>(
+          `
+          select ${agentPromptVersionSelect}
+          from public.agent_prompt_versions
+          where agent_id = $1
+          order by version_no asc
+          `,
+          [source.id],
+        ),
+        client.query<AgentSoulVersionRow>(
+          `
+          select ${agentSoulVersionSelect}
+          from public.agent_soul_versions
+          where agent_id = $1
+          order by version_no asc
+          `,
+          [source.id],
+        ),
+        client.query<AgentSkillBindingRow>(
+          `
+          select ${agentSkillBindingSelect}
+          from public.agent_skill_bindings
+          where agent_id = $1
+          order by created_at asc
+          `,
+          [source.id],
+        ),
+        client.query<AgentKnowledgeSetBindingRow>(
+          `
+          select ${agentKnowledgeSetBindingSelect}
+          from public.agent_knowledge_set_bindings
+          where agent_id = $1
+          order by created_at asc
+          `,
+          [source.id],
+        ),
+      ]);
+
+      const prompts = promptRows.rows.map(mapAgentPromptVersion);
+      const souls = soulRows.rows.map(mapAgentSoulVersion);
+      const skillBindings = skillBindingRows.rows.map(mapAgentSkillBinding);
+      const knowledgeSetBindings = knowledgeBindingRows.rows.map(mapAgentKnowledgeSetBinding);
+      const activePrompt = prompts.find((prompt) => prompt.status === "active");
+      const draftPrompt = prompts.find((prompt) => prompt.status === "draft");
+      const activeSoul = souls.find((soul) => soul.status === "active");
+      const draftSoul = souls.find((soul) => soul.status === "draft");
+      const now = new Date();
+
+      if (activePrompt) {
+        await client.query(
+          `
+          insert into public.agent_prompt_versions (
+            agent_id,
+            version_no,
+            body,
+            status,
+            change_note,
+            activated_at
+          ) values ($1, 1, $2, 'active', $3, $4)
+          `,
+          [
+            copied.id,
+            activePrompt.body,
+            `复制自 ${source.displayName} 的 active agent.md。`,
+            now,
+          ],
+        );
+      }
+
+      if (draftPrompt) {
+        await client.query(
+          `
+          insert into public.agent_prompt_versions (
+            agent_id,
+            version_no,
+            body,
+            status,
+            change_note
+          ) values ($1, $2, $3, 'draft', $4)
+          `,
+          [
+            copied.id,
+            activePrompt ? 2 : 1,
+            draftPrompt.body,
+            `复制自 ${source.displayName} 的 draft agent.md。`,
+          ],
+        );
+      }
+
+      if (activeSoul) {
+        await client.query(
+          `
+          insert into public.agent_soul_versions (
+            agent_id,
+            version_no,
+            body,
+            status,
+            change_note,
+            activated_at
+          ) values ($1, 1, $2, 'active', $3, $4)
+          `,
+          [
+            copied.id,
+            activeSoul.body,
+            `复制自 ${source.displayName} 的 active soul.md。`,
+            now,
+          ],
+        );
+      }
+
+      if (draftSoul) {
+        await client.query(
+          `
+          insert into public.agent_soul_versions (
+            agent_id,
+            version_no,
+            body,
+            status,
+            change_note
+          ) values ($1, $2, $3, 'draft', $4)
+          `,
+          [
+            copied.id,
+            activeSoul ? 2 : 1,
+            draftSoul.body,
+            `复制自 ${source.displayName} 的 draft soul.md。`,
+          ],
+        );
+      }
+
+      for (const binding of skillBindings) {
+        await client.query(
+          `
+          insert into public.agent_skill_bindings (
+            agent_id,
+            skill_id,
+            status
+          ) values ($1, $2, $3)
+          `,
+          [copied.id, binding.skillId, binding.status],
+        );
+      }
+
+      for (const binding of knowledgeSetBindings) {
+        await client.query(
+          `
+          insert into public.agent_knowledge_set_bindings (
+            agent_id,
+            knowledge_set_id,
+            status
+          ) values ($1, $2, $3)
+          `,
+          [copied.id, binding.knowledgeSetId, binding.status],
+        );
+      }
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent.copied",
+        targetType: "agent",
+        targetId: copied.id,
+        summary: `复制 Agent ${source.displayName} 为 ${copied.displayName}`,
+        details: {
+          sourceAgentId: source.id,
+          copiedSkillCount: skillBindings.length,
+          copiedKnowledgeSetCount: knowledgeSetBindings.length,
+          copiedPromptStates: prompts.map((prompt) => prompt.status),
+          copiedSoulStates: souls.map((soul) => soul.status),
+        },
+      });
+
+      return copied.id;
+    });
+
+    return getAgentConfigDetail(copiedAgentId);
+  }
+
   requireSupabaseAdmin("AGENT_CONFIG_COPY_UNAVAILABLE");
   const source = await getAgentConfigById(agentId);
   await assertAgentDisplayNameAvailable(input.displayName);
@@ -856,6 +1212,71 @@ export async function saveAgentPromptDraft(input: {
   changeNote?: string | null;
   actorLabel?: string;
 }): Promise<AgentPromptVersionDto> {
+  if (shouldUseAppPostgres()) {
+    return withAppDbTransaction(async (client) => {
+      await getAgentConfigByIdFromPostgres(client, input.agentId);
+      const existingDraft = await getDraftPromptFromPostgres(client, input.agentId);
+
+      if (existingDraft) {
+        const result = await client.query<AgentPromptVersionRow>(
+          `
+          update public.agent_prompt_versions
+          set body = $1,
+              change_note = $2
+          where id = $3
+          returning ${agentPromptVersionSelect}
+          `,
+          [input.body, input.changeNote ?? null, existingDraft.id],
+        );
+        const draft = mapAgentPromptVersion(result.rows[0]);
+
+        await recordAgentConsoleAdminEventWithClient(client, {
+          actorLabel: input.actorLabel,
+          eventType: "agent_prompt.draft_saved",
+          targetType: "agent_prompt_version",
+          targetId: draft.id,
+          summary: `保存 agent.md 草稿 v${draft.versionNo}`,
+          details: {
+            agentId: input.agentId,
+            changeNote: input.changeNote ?? null,
+          },
+        });
+
+        return draft;
+      }
+
+      const nextVersionNo = await getNextPromptVersionNoInPostgres(client, input.agentId);
+      const result = await client.query<AgentPromptVersionRow>(
+        `
+        insert into public.agent_prompt_versions (
+          agent_id,
+          version_no,
+          body,
+          status,
+          change_note
+        ) values ($1, $2, $3, 'draft', $4)
+        returning ${agentPromptVersionSelect}
+        `,
+        [input.agentId, nextVersionNo, input.body, input.changeNote ?? null],
+      );
+      const draft = mapAgentPromptVersion(result.rows[0]);
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent_prompt.draft_created",
+        targetType: "agent_prompt_version",
+        targetId: draft.id,
+        summary: `创建 agent.md 草稿 v${draft.versionNo}`,
+        details: {
+          agentId: input.agentId,
+          changeNote: input.changeNote ?? null,
+        },
+      });
+
+      return draft;
+    });
+  }
+
   requireSupabaseAdmin("AGENT_PROMPT_DRAFT_SAVE_UNAVAILABLE");
   await getAgentConfigById(input.agentId);
   const supabase = createSupabaseAdminClient();
@@ -932,6 +1353,69 @@ export async function publishAgentPromptDraft(input: {
   promptVersionId?: string;
   actorLabel?: string;
 }): Promise<AgentPromptVersionDto> {
+  if (shouldUseAppPostgres()) {
+    return withAppDbTransaction(async (client) => {
+      const prompts = await listPromptVersionsFromPostgres(client, input.agentId);
+      const draft = input.promptVersionId
+        ? prompts.find((prompt) => prompt.id === input.promptVersionId)
+        : prompts.find((prompt) => prompt.status === "draft");
+
+      if (!draft) {
+        throw new ApiError(404, "AGENT_PROMPT_DRAFT_NOT_FOUND", "agent.md draft not found.");
+      }
+
+      if (draft.status !== "draft") {
+        throw new ApiError(409, "AGENT_PROMPT_NOT_DRAFT", "Only draft prompts can be published.");
+      }
+
+      if (!draft.body.trim()) {
+        throw new ApiError(400, "AGENT_PROMPT_EMPTY", "agent.md 不能为空");
+      }
+
+      const active = prompts.find((prompt) => prompt.status === "active");
+      const now = new Date();
+
+      if (active) {
+        await client.query(
+          `
+          update public.agent_prompt_versions
+          set status = 'archived',
+              archived_at = $1
+          where id = $2
+          `,
+          [now, active.id],
+        );
+      }
+
+      const result = await client.query<AgentPromptVersionRow>(
+        `
+        update public.agent_prompt_versions
+        set status = 'active',
+            activated_at = $1,
+            archived_at = null
+        where id = $2
+        returning ${agentPromptVersionSelect}
+        `,
+        [now, draft.id],
+      );
+      const published = mapAgentPromptVersion(result.rows[0]);
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent_prompt.published",
+        targetType: "agent_prompt_version",
+        targetId: published.id,
+        summary: `发布 agent.md v${published.versionNo}`,
+        details: {
+          agentId: input.agentId,
+          previousActivePromptVersionId: active?.id ?? null,
+        },
+      });
+
+      return published;
+    });
+  }
+
   requireSupabaseAdmin("AGENT_PROMPT_PUBLISH_UNAVAILABLE");
   const prompts = await listAgentPromptVersions(input.agentId);
   const draft = input.promptVersionId
@@ -1014,6 +1498,67 @@ export async function rollbackAgentPromptVersion(input: {
   promptVersionId: string;
   actorLabel?: string;
 }): Promise<AgentPromptVersionDto> {
+  if (shouldUseAppPostgres()) {
+    return withAppDbTransaction(async (client) => {
+      const prompts = await listPromptVersionsFromPostgres(client, input.agentId);
+      const target = prompts.find((prompt) => prompt.id === input.promptVersionId);
+
+      if (!target) {
+        throw new ApiError(404, "AGENT_PROMPT_VERSION_NOT_FOUND", "agent.md version not found.");
+      }
+
+      if (target.status !== "archived") {
+        throw new ApiError(409, "AGENT_PROMPT_NOT_ARCHIVED", "Only archived prompts can be rolled back.");
+      }
+
+      if (!target.body.trim()) {
+        throw new ApiError(400, "AGENT_PROMPT_EMPTY", "agent.md 不能为空");
+      }
+
+      const active = prompts.find((prompt) => prompt.status === "active");
+      const now = new Date();
+
+      if (active) {
+        await client.query(
+          `
+          update public.agent_prompt_versions
+          set status = 'archived',
+              archived_at = $1
+          where id = $2
+          `,
+          [now, active.id],
+        );
+      }
+
+      const result = await client.query<AgentPromptVersionRow>(
+        `
+        update public.agent_prompt_versions
+        set status = 'active',
+            activated_at = $1,
+            archived_at = null
+        where id = $2
+        returning ${agentPromptVersionSelect}
+        `,
+        [now, target.id],
+      );
+      const rolledBack = mapAgentPromptVersion(result.rows[0]);
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent_prompt.rolled_back",
+        targetType: "agent_prompt_version",
+        targetId: rolledBack.id,
+        summary: `回滚 agent.md 到 v${rolledBack.versionNo}`,
+        details: {
+          agentId: input.agentId,
+          previousActivePromptVersionId: active?.id ?? null,
+        },
+      });
+
+      return rolledBack;
+    });
+  }
+
   requireSupabaseAdmin("AGENT_PROMPT_ROLLBACK_UNAVAILABLE");
   const prompts = await listAgentPromptVersions(input.agentId);
   const target = prompts.find((prompt) => prompt.id === input.promptVersionId);
@@ -1175,6 +1720,71 @@ export async function saveAgentSoulDraft(input: {
   changeNote?: string | null;
   actorLabel?: string;
 }): Promise<AgentSoulVersionDto> {
+  if (shouldUseAppPostgres()) {
+    return withAppDbTransaction(async (client) => {
+      await getAgentConfigByIdFromPostgres(client, input.agentId);
+      const existingDraft = await getDraftSoulFromPostgres(client, input.agentId);
+
+      if (existingDraft) {
+        const result = await client.query<AgentSoulVersionRow>(
+          `
+          update public.agent_soul_versions
+          set body = $1,
+              change_note = $2
+          where id = $3
+          returning ${agentSoulVersionSelect}
+          `,
+          [input.body, input.changeNote ?? null, existingDraft.id],
+        );
+        const draft = mapAgentSoulVersion(result.rows[0]);
+
+        await recordAgentConsoleAdminEventWithClient(client, {
+          actorLabel: input.actorLabel,
+          eventType: "agent_soul.draft_saved",
+          targetType: "agent_soul_version",
+          targetId: draft.id,
+          summary: `保存 soul.md 草稿 v${draft.versionNo}`,
+          details: {
+            agentId: input.agentId,
+            changeNote: input.changeNote ?? null,
+          },
+        });
+
+        return draft;
+      }
+
+      const nextVersionNo = await getNextSoulVersionNoInPostgres(client, input.agentId);
+      const result = await client.query<AgentSoulVersionRow>(
+        `
+        insert into public.agent_soul_versions (
+          agent_id,
+          version_no,
+          body,
+          status,
+          change_note
+        ) values ($1, $2, $3, 'draft', $4)
+        returning ${agentSoulVersionSelect}
+        `,
+        [input.agentId, nextVersionNo, input.body, input.changeNote ?? null],
+      );
+      const draft = mapAgentSoulVersion(result.rows[0]);
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent_soul.draft_created",
+        targetType: "agent_soul_version",
+        targetId: draft.id,
+        summary: `创建 soul.md 草稿 v${draft.versionNo}`,
+        details: {
+          agentId: input.agentId,
+          changeNote: input.changeNote ?? null,
+        },
+      });
+
+      return draft;
+    });
+  }
+
   requireSupabaseAdmin("AGENT_SOUL_DRAFT_SAVE_UNAVAILABLE");
   await getAgentConfigById(input.agentId);
   const supabase = createSupabaseAdminClient();
@@ -1251,6 +1861,69 @@ export async function publishAgentSoulDraft(input: {
   soulVersionId?: string;
   actorLabel?: string;
 }): Promise<AgentSoulVersionDto> {
+  if (shouldUseAppPostgres()) {
+    return withAppDbTransaction(async (client) => {
+      const souls = await listSoulVersionsFromPostgres(client, input.agentId);
+      const draft = input.soulVersionId
+        ? souls.find((soul) => soul.id === input.soulVersionId)
+        : souls.find((soul) => soul.status === "draft");
+
+      if (!draft) {
+        throw new ApiError(404, "AGENT_SOUL_DRAFT_NOT_FOUND", "soul.md draft not found.");
+      }
+
+      if (draft.status !== "draft") {
+        throw new ApiError(409, "AGENT_SOUL_NOT_DRAFT", "Only draft soul.md versions can be published.");
+      }
+
+      if (!draft.body.trim()) {
+        throw new ApiError(400, "AGENT_SOUL_EMPTY", "soul.md 不能为空");
+      }
+
+      const active = souls.find((soul) => soul.status === "active");
+      const now = new Date();
+
+      if (active) {
+        await client.query(
+          `
+          update public.agent_soul_versions
+          set status = 'archived',
+              archived_at = $1
+          where id = $2
+          `,
+          [now, active.id],
+        );
+      }
+
+      const result = await client.query<AgentSoulVersionRow>(
+        `
+        update public.agent_soul_versions
+        set status = 'active',
+            activated_at = $1,
+            archived_at = null
+        where id = $2
+        returning ${agentSoulVersionSelect}
+        `,
+        [now, draft.id],
+      );
+      const published = mapAgentSoulVersion(result.rows[0]);
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent_soul.published",
+        targetType: "agent_soul_version",
+        targetId: published.id,
+        summary: `发布 soul.md v${published.versionNo}`,
+        details: {
+          agentId: input.agentId,
+          previousActiveSoulVersionId: active?.id ?? null,
+        },
+      });
+
+      return published;
+    });
+  }
+
   requireSupabaseAdmin("AGENT_SOUL_PUBLISH_UNAVAILABLE");
   const souls = await listAgentSoulVersions(input.agentId);
   const draft = input.soulVersionId
@@ -1333,6 +2006,67 @@ export async function rollbackAgentSoulVersion(input: {
   soulVersionId: string;
   actorLabel?: string;
 }): Promise<AgentSoulVersionDto> {
+  if (shouldUseAppPostgres()) {
+    return withAppDbTransaction(async (client) => {
+      const souls = await listSoulVersionsFromPostgres(client, input.agentId);
+      const target = souls.find((soul) => soul.id === input.soulVersionId);
+
+      if (!target) {
+        throw new ApiError(404, "AGENT_SOUL_VERSION_NOT_FOUND", "soul.md version not found.");
+      }
+
+      if (target.status !== "archived") {
+        throw new ApiError(409, "AGENT_SOUL_NOT_ARCHIVED", "Only archived soul.md versions can be rolled back.");
+      }
+
+      if (!target.body.trim()) {
+        throw new ApiError(400, "AGENT_SOUL_EMPTY", "soul.md 不能为空");
+      }
+
+      const active = souls.find((soul) => soul.status === "active");
+      const now = new Date();
+
+      if (active) {
+        await client.query(
+          `
+          update public.agent_soul_versions
+          set status = 'archived',
+              archived_at = $1
+          where id = $2
+          `,
+          [now, active.id],
+        );
+      }
+
+      const result = await client.query<AgentSoulVersionRow>(
+        `
+        update public.agent_soul_versions
+        set status = 'active',
+            activated_at = $1,
+            archived_at = null
+        where id = $2
+        returning ${agentSoulVersionSelect}
+        `,
+        [now, target.id],
+      );
+      const rolledBack = mapAgentSoulVersion(result.rows[0]);
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent_soul.rolled_back",
+        targetType: "agent_soul_version",
+        targetId: rolledBack.id,
+        summary: `回滚 soul.md 到 v${rolledBack.versionNo}`,
+        details: {
+          agentId: input.agentId,
+          previousActiveSoulVersionId: active?.id ?? null,
+        },
+      });
+
+      return rolledBack;
+    });
+  }
+
   requireSupabaseAdmin("AGENT_SOUL_ROLLBACK_UNAVAILABLE");
   const souls = await listAgentSoulVersions(input.agentId);
   const target = souls.find((soul) => soul.id === input.soulVersionId);
@@ -1409,6 +2143,51 @@ export async function rollbackAgentSoulVersion(input: {
 }
 
 export async function createAgentSkill(input: AgentSkillCreateInput): Promise<AgentSkillDto> {
+  if (shouldUseAppPostgres()) {
+    return withAppDbTransaction(async (client) => {
+      const result = await client.query<AgentSkillRow>(
+        `
+        insert into public.agent_skills (
+          skill_key,
+          name,
+          description,
+          when_to_use,
+          body,
+          status,
+          dependencies,
+          metadata
+        ) values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)
+        returning ${agentSkillSelect}
+        `,
+        [
+          input.skillKey ?? createStableKey("skill"),
+          input.name,
+          input.description ?? "",
+          input.whenToUse ?? "",
+          input.body ?? "",
+          input.status ?? "draft",
+          JSON.stringify(input.dependencies ?? []),
+          JSON.stringify(input.metadata ?? {}),
+        ],
+      );
+      const skill = mapAgentSkill(result.rows[0]);
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent_skill.created",
+        targetType: "agent_skill",
+        targetId: skill.id,
+        summary: `创建 Skill ${skill.name}`,
+        details: {
+          skillKey: skill.skillKey,
+          status: skill.status,
+        },
+      });
+
+      return skill;
+    });
+  }
+
   requireSupabaseAdmin("AGENT_SKILL_CREATE_UNAVAILABLE");
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
@@ -1492,6 +2271,90 @@ export async function updateAgentSkill(
   skillId: string,
   input: AgentSkillUpdateInput,
 ): Promise<AgentSkillDto> {
+  if (shouldUseAppPostgres()) {
+    return withAppDbTransaction(async (client) => {
+      const current = await getAgentSkillByIdFromPostgres(client, skillId);
+      const updates: string[] = [];
+      const values: unknown[] = [];
+
+      if (input.skillKey !== undefined) {
+        values.push(input.skillKey);
+        updates.push(`skill_key = $${values.length}`);
+      }
+      if (input.name !== undefined) {
+        values.push(input.name);
+        updates.push(`name = $${values.length}`);
+      }
+      if (input.description !== undefined) {
+        values.push(input.description);
+        updates.push(`description = $${values.length}`);
+      }
+      if (input.whenToUse !== undefined) {
+        values.push(input.whenToUse);
+        updates.push(`when_to_use = $${values.length}`);
+      }
+      if (input.body !== undefined) {
+        values.push(input.body);
+        updates.push(`body = $${values.length}`);
+      }
+      if (input.status !== undefined) {
+        values.push(input.status);
+        updates.push(`status = $${values.length}`);
+      }
+      if (input.dependencies !== undefined) {
+        values.push(JSON.stringify(input.dependencies));
+        updates.push(`dependencies = $${values.length}::jsonb`);
+      }
+      if (input.metadata !== undefined) {
+        values.push(JSON.stringify(input.metadata));
+        updates.push(`metadata = $${values.length}::jsonb`);
+      }
+
+      if (updates.length === 0) {
+        return current;
+      }
+
+      values.push(skillId);
+      const result = await client.query<AgentSkillRow>(
+        `
+        update public.agent_skills
+        set ${updates.join(", ")}
+        where id = $${values.length}
+        returning ${agentSkillSelect}
+        `,
+        values,
+      );
+      const skill = mapAgentSkill(result.rows[0]);
+
+      if (input.status === "disabled" && current.status !== "disabled") {
+        await client.query(
+          `
+          update public.agent_skill_bindings
+          set status = 'disabled'
+          where skill_id = $1
+            and status = 'enabled'
+          `,
+          [skillId],
+        );
+      }
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent_skill.updated",
+        targetType: "agent_skill",
+        targetId: skill.id,
+        summary: `更新 Skill ${skill.name}`,
+        details: {
+          updatedFields: updates.map((item) => item.split(" = ")[0]),
+          fromStatus: current.status,
+          toStatus: skill.status,
+        },
+      });
+
+      return skill;
+    });
+  }
+
   requireSupabaseAdmin("AGENT_SKILL_UPDATE_UNAVAILABLE");
   const current = await getAgentSkillById(skillId);
   const update: Record<string, unknown> = {};
@@ -1658,6 +2521,79 @@ export async function replaceAgentSkillBindings(input: {
   skillIds: string[];
   actorLabel?: string;
 }): Promise<AgentSkillBindingDto[]> {
+  if (shouldUseAppPostgres()) {
+    await withAppDbTransaction(async (client) => {
+      await getAgentConfigByIdFromPostgres(client, input.agentId);
+      const desiredSkillIds = uniqueIds(input.skillIds);
+      const skills = await getAgentSkillsByIdsFromPostgres(client, desiredSkillIds);
+      const notEnabled = skills.filter((skill) => skill.status !== "enabled");
+
+      if (notEnabled.length > 0) {
+        throw new ApiError(
+          409,
+          "AGENT_SKILL_NOT_ENABLED",
+          "Only enabled skills can be attached as enabled candidates.",
+          { skillIds: notEnabled.map((skill) => skill.id) },
+        );
+      }
+
+      const existing = await listAgentSkillBindingsFromPostgres(client, input.agentId);
+      const existingBySkillId = new Map(existing.map((binding) => [binding.skillId, binding]));
+      const desired = new Set(desiredSkillIds);
+
+      for (const binding of existing) {
+        const nextStatus: AgentBindingStatus = desired.has(binding.skillId)
+          ? "enabled"
+          : "disabled";
+
+        if (binding.status === nextStatus) {
+          continue;
+        }
+
+        await client.query(
+          `
+          update public.agent_skill_bindings
+          set status = $1
+          where id = $2
+          `,
+          [nextStatus, binding.id],
+        );
+      }
+
+      for (const skillId of desiredSkillIds) {
+        if (existingBySkillId.has(skillId)) {
+          continue;
+        }
+
+        await client.query(
+          `
+          insert into public.agent_skill_bindings (
+            agent_id,
+            skill_id,
+            status
+          ) values ($1, $2, 'enabled')
+          on conflict (agent_id, skill_id)
+          do update set status = 'enabled'
+          `,
+          [input.agentId, skillId],
+        );
+      }
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent_skill_bindings.replaced",
+        targetType: "agent",
+        targetId: input.agentId,
+        summary: "更新 Agent 挂载 Skill",
+        details: {
+          enabledSkillIds: desiredSkillIds,
+        },
+      });
+    });
+
+    return listAgentSkillBindings({ agentId: input.agentId });
+  }
+
   requireSupabaseAdmin("AGENT_SKILL_BINDINGS_UPDATE_UNAVAILABLE");
   await getAgentConfigById(input.agentId);
   const desiredSkillIds = uniqueIds(input.skillIds);
@@ -1728,6 +2664,60 @@ export async function replaceAgentSkillBindings(input: {
 export async function createKnowledgeSet(
   input: KnowledgeSetCreateInput,
 ): Promise<KnowledgeSetDto> {
+  if (shouldUseAppPostgres()) {
+    const scope = input.scope ?? "platform";
+
+    if (scope === "platform" && input.merchantId) {
+      throw new ApiError(400, "KNOWLEDGE_SET_SCOPE_INVALID", "Platform knowledge sets cannot have merchantId.");
+    }
+
+    if (scope === "merchant" && !input.merchantId) {
+      throw new ApiError(400, "KNOWLEDGE_SET_SCOPE_INVALID", "Merchant knowledge sets require merchantId.");
+    }
+
+    return withAppDbTransaction(async (client) => {
+      const result = await client.query<KnowledgeSetRow>(
+        `
+        insert into public.knowledge_sets (
+          set_key,
+          name,
+          description,
+          scope,
+          merchant_id,
+          status,
+          metadata
+        ) values ($1, $2, $3, $4, $5, $6, $7::jsonb)
+        returning ${knowledgeSetSelect}
+        `,
+        [
+          input.setKey ?? createStableKey("ks"),
+          input.name,
+          input.description ?? null,
+          scope,
+          scope === "merchant" ? input.merchantId : null,
+          input.status ?? "draft",
+          JSON.stringify(input.metadata ?? {}),
+        ],
+      );
+      const knowledgeSet = mapKnowledgeSet(result.rows[0]);
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "knowledge_set.created",
+        targetType: "knowledge_set",
+        targetId: knowledgeSet.id,
+        summary: `创建 Knowledge Set ${knowledgeSet.name}`,
+        details: {
+          setKey: knowledgeSet.setKey,
+          scope: knowledgeSet.scope,
+          status: knowledgeSet.status,
+        },
+      });
+
+      return knowledgeSet;
+    });
+  }
+
   requireSupabaseAdmin("KNOWLEDGE_SET_CREATE_UNAVAILABLE");
   const scope = input.scope ?? "platform";
 
@@ -1837,6 +2827,78 @@ export async function updateKnowledgeSet(
   setId: string,
   input: KnowledgeSetUpdateInput,
 ): Promise<KnowledgeSetDto> {
+  if (shouldUseAppPostgres()) {
+    return withAppDbTransaction(async (client) => {
+      const current = await getKnowledgeSetByIdFromPostgres(client, setId);
+      const updates: string[] = [];
+      const values: unknown[] = [];
+
+      if (input.setKey !== undefined) {
+        values.push(input.setKey);
+        updates.push(`set_key = $${values.length}`);
+      }
+      if (input.name !== undefined) {
+        values.push(input.name);
+        updates.push(`name = $${values.length}`);
+      }
+      if (input.description !== undefined) {
+        values.push(input.description);
+        updates.push(`description = $${values.length}`);
+      }
+      if (input.status !== undefined) {
+        values.push(input.status);
+        updates.push(`status = $${values.length}`);
+      }
+      if (input.metadata !== undefined) {
+        values.push(JSON.stringify(input.metadata));
+        updates.push(`metadata = $${values.length}::jsonb`);
+      }
+
+      if (updates.length === 0) {
+        return current;
+      }
+
+      values.push(setId);
+      const result = await client.query<KnowledgeSetRow>(
+        `
+        update public.knowledge_sets
+        set ${updates.join(", ")}
+        where id = $${values.length}
+        returning ${knowledgeSetSelect}
+        `,
+        values,
+      );
+      const knowledgeSet = mapKnowledgeSet(result.rows[0]);
+
+      if (input.status === "disabled" && current.status !== "disabled") {
+        await client.query(
+          `
+          update public.agent_knowledge_set_bindings
+          set status = 'disabled'
+          where knowledge_set_id = $1
+            and status = 'enabled'
+          `,
+          [setId],
+        );
+      }
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "knowledge_set.updated",
+        targetType: "knowledge_set",
+        targetId: knowledgeSet.id,
+        summary: `更新 Knowledge Set ${knowledgeSet.name}`,
+        details: {
+          updatedFields: updates.map((item) => item.split(" = ")[0]),
+          fromStatus: current.status,
+          toStatus: knowledgeSet.status,
+        },
+      });
+
+      return knowledgeSet;
+    });
+  }
+
   requireSupabaseAdmin("KNOWLEDGE_SET_UPDATE_UNAVAILABLE");
   const current = await getKnowledgeSetById(setId);
   const update: Record<string, unknown> = {};
@@ -2004,6 +3066,48 @@ export async function replaceKnowledgeSetDocuments(input: {
   documentIds: string[];
   actorLabel?: string;
 }): Promise<KnowledgeSetDetailDto> {
+  if (shouldUseAppPostgres()) {
+    await withAppDbTransaction(async (client) => {
+      await getKnowledgeSetByIdFromPostgres(client, input.knowledgeSetId);
+      const documentIds = uniqueIds(input.documentIds);
+      await assertKnowledgeDocumentsExistInPostgres(client, documentIds);
+
+      await client.query(
+        `
+        delete from public.knowledge_set_documents
+        where knowledge_set_id = $1
+        `,
+        [input.knowledgeSetId],
+      );
+
+      for (const documentId of documentIds) {
+        await client.query(
+          `
+          insert into public.knowledge_set_documents (
+            knowledge_set_id,
+            document_id
+          ) values ($1, $2)
+          on conflict (knowledge_set_id, document_id) do nothing
+          `,
+          [input.knowledgeSetId, documentId],
+        );
+      }
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "knowledge_set_documents.replaced",
+        targetType: "knowledge_set",
+        targetId: input.knowledgeSetId,
+        summary: "更新 Knowledge Set 文档",
+        details: {
+          documentIds,
+        },
+      });
+    });
+
+    return getKnowledgeSetDetail(input.knowledgeSetId);
+  }
+
   requireSupabaseAdmin("KNOWLEDGE_SET_DOCUMENTS_UPDATE_UNAVAILABLE");
   await getKnowledgeSetById(input.knowledgeSetId);
   const documentIds = uniqueIds(input.documentIds);
@@ -2051,6 +3155,48 @@ export async function replaceKnowledgeDocumentSets(input: {
   knowledgeSetIds: string[];
   actorLabel?: string;
 }): Promise<KnowledgeSetDocumentDto[]> {
+  if (shouldUseAppPostgres()) {
+    await withAppDbTransaction(async (client) => {
+      await assertKnowledgeDocumentsExistInPostgres(client, [input.documentId]);
+      const knowledgeSetIds = uniqueIds(input.knowledgeSetIds);
+      await getKnowledgeSetsByIdsFromPostgres(client, knowledgeSetIds);
+
+      await client.query(
+        `
+        delete from public.knowledge_set_documents
+        where document_id = $1
+        `,
+        [input.documentId],
+      );
+
+      for (const knowledgeSetId of knowledgeSetIds) {
+        await client.query(
+          `
+          insert into public.knowledge_set_documents (
+            knowledge_set_id,
+            document_id
+          ) values ($1, $2)
+          on conflict (knowledge_set_id, document_id) do nothing
+          `,
+          [knowledgeSetId, input.documentId],
+        );
+      }
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "knowledge_document_sets.replaced",
+        targetType: "knowledge_document",
+        targetId: input.documentId,
+        summary: "更新 Knowledge 文档所属知识集",
+        details: {
+          knowledgeSetIds,
+        },
+      });
+    });
+
+    return listKnowledgeSetDocuments({ documentId: input.documentId });
+  }
+
   requireSupabaseAdmin("KNOWLEDGE_DOCUMENT_SETS_UPDATE_UNAVAILABLE");
   await assertKnowledgeDocumentsExist([input.documentId]);
   const knowledgeSetIds = uniqueIds(input.knowledgeSetIds);
@@ -2152,6 +3298,81 @@ export async function replaceAgentKnowledgeSetBindings(input: {
   knowledgeSetIds: string[];
   actorLabel?: string;
 }): Promise<AgentKnowledgeSetBindingDto[]> {
+  if (shouldUseAppPostgres()) {
+    await withAppDbTransaction(async (client) => {
+      await getAgentConfigByIdFromPostgres(client, input.agentId);
+      const desiredKnowledgeSetIds = uniqueIds(input.knowledgeSetIds);
+      const knowledgeSets = await getKnowledgeSetsByIdsFromPostgres(client, desiredKnowledgeSetIds);
+      const notEnabled = knowledgeSets.filter((knowledgeSet) => knowledgeSet.status !== "enabled");
+
+      if (notEnabled.length > 0) {
+        throw new ApiError(
+          409,
+          "KNOWLEDGE_SET_NOT_ENABLED",
+          "Only enabled knowledge sets can be attached as enabled candidates.",
+          { knowledgeSetIds: notEnabled.map((knowledgeSet) => knowledgeSet.id) },
+        );
+      }
+
+      const existing = await listAgentKnowledgeSetBindingsFromPostgres(client, input.agentId);
+      const existingByKnowledgeSetId = new Map(
+        existing.map((binding) => [binding.knowledgeSetId, binding]),
+      );
+      const desired = new Set(desiredKnowledgeSetIds);
+
+      for (const binding of existing) {
+        const nextStatus: AgentBindingStatus = desired.has(binding.knowledgeSetId)
+          ? "enabled"
+          : "disabled";
+
+        if (binding.status === nextStatus) {
+          continue;
+        }
+
+        await client.query(
+          `
+          update public.agent_knowledge_set_bindings
+          set status = $1
+          where id = $2
+          `,
+          [nextStatus, binding.id],
+        );
+      }
+
+      for (const knowledgeSetId of desiredKnowledgeSetIds) {
+        if (existingByKnowledgeSetId.has(knowledgeSetId)) {
+          continue;
+        }
+
+        await client.query(
+          `
+          insert into public.agent_knowledge_set_bindings (
+            agent_id,
+            knowledge_set_id,
+            status
+          ) values ($1, $2, 'enabled')
+          on conflict (agent_id, knowledge_set_id)
+          do update set status = 'enabled'
+          `,
+          [input.agentId, knowledgeSetId],
+        );
+      }
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent_knowledge_set_bindings.replaced",
+        targetType: "agent",
+        targetId: input.agentId,
+        summary: "更新 Agent 挂载 Knowledge Set",
+        details: {
+          enabledKnowledgeSetIds: desiredKnowledgeSetIds,
+        },
+      });
+    });
+
+    return listAgentKnowledgeSetBindings({ agentId: input.agentId });
+  }
+
   requireSupabaseAdmin("AGENT_KNOWLEDGE_SET_BINDINGS_UPDATE_UNAVAILABLE");
   await getAgentConfigById(input.agentId);
   const desiredKnowledgeSetIds = uniqueIds(input.knowledgeSetIds);
@@ -2304,6 +3525,55 @@ export async function setConsultationDefaultAgent(input: {
   agentId: string;
   actorLabel?: string;
 }): Promise<AgentRouteBindingDto> {
+  if (shouldUseAppPostgres()) {
+    return withAppDbTransaction(async (client) => {
+      const agent = await getAgentConfigByIdFromPostgres(client, input.agentId);
+
+      if (agent.serviceStatus !== "enabled") {
+        throw new ApiError(
+          409,
+          "AGENT_NOT_ENABLED",
+          "Only enabled Agents can be set as consultation_default.",
+          { agentId: agent.id, serviceStatus: agent.serviceStatus },
+        );
+      }
+
+      await assertAgentHasActivePromptInPostgres(client, agent.id);
+
+      const result = await client.query<AgentRouteBindingRow>(
+        `
+        insert into public.agent_route_bindings (
+          route_key,
+          agent_id,
+          status,
+          description
+        ) values ('consultation_default', $1, 'active', '用户端默认咨询入口绑定。')
+        on conflict (route_key)
+        do update set agent_id = excluded.agent_id,
+                      status = excluded.status,
+                      description = excluded.description
+        returning ${agentRouteBindingSelect}
+        `,
+        [agent.id],
+      );
+      const binding = mapAgentRouteBinding(result.rows[0]);
+
+      await recordAgentConsoleAdminEventWithClient(client, {
+        actorLabel: input.actorLabel,
+        eventType: "agent_route_binding.set_online",
+        targetType: "agent_route_binding",
+        targetId: binding.id,
+        summary: `切换 consultation_default 到 ${agent.displayName}`,
+        details: {
+          routeKey: binding.routeKey,
+          agentId: agent.id,
+        },
+      });
+
+      return binding;
+    });
+  }
+
   requireSupabaseAdmin("AGENT_ROUTE_BINDING_UPDATE_UNAVAILABLE");
   const agent = await getAgentConfigById(input.agentId);
 
@@ -3071,6 +4341,379 @@ async function recordAgentConsoleAdminEvent(input: {
 
   if (error) {
     throw new ApiError(500, "PLATFORM_ADMIN_EVENT_CREATE_FAILED", error.message);
+  }
+}
+
+async function recordAgentConsoleAdminEventWithClient(
+  client: DatabaseClient,
+  input: {
+    actorLabel?: string;
+    eventType: string;
+    targetType: string;
+    targetId?: string;
+    summary: string;
+    details?: Record<string, unknown>;
+  },
+) {
+  await client.query(
+    `
+    insert into public.platform_admin_events (
+      actor_label,
+      event_type,
+      target_type,
+      target_id,
+      summary,
+      details
+    ) values ($1, $2, $3, $4, $5, $6::jsonb)
+    `,
+    [
+      input.actorLabel ?? "admin",
+      input.eventType,
+      input.targetType,
+      input.targetId ?? null,
+      input.summary,
+      JSON.stringify(input.details ?? {}),
+    ],
+  );
+}
+
+async function getAgentConfigByIdFromPostgres(
+  client: DatabaseClient,
+  agentId: string,
+): Promise<AgentConfigDto> {
+  const result = await client.query<AgentConfigRow>(
+    `
+    select ${agentConfigSelect}
+    from public.agent_configs
+    where id = $1
+    limit 1
+    `,
+    [agentId],
+  );
+  const row = result.rows[0];
+
+  if (!row) {
+    throw new ApiError(404, "AGENT_CONFIG_NOT_FOUND", "Agent config not found.");
+  }
+
+  return mapAgentConfig(row);
+}
+
+async function getAgentSkillByIdFromPostgres(
+  client: DatabaseClient,
+  skillId: string,
+): Promise<AgentSkillDto> {
+  const result = await client.query<AgentSkillRow>(
+    `
+    select ${agentSkillSelect}
+    from public.agent_skills
+    where id = $1
+    limit 1
+    `,
+    [skillId],
+  );
+  const row = result.rows[0];
+
+  if (!row) {
+    throw new ApiError(404, "AGENT_SKILL_NOT_FOUND", "Agent skill not found.");
+  }
+
+  return mapAgentSkill(row);
+}
+
+async function getKnowledgeSetByIdFromPostgres(
+  client: DatabaseClient,
+  setId: string,
+): Promise<KnowledgeSetDto> {
+  const result = await client.query<KnowledgeSetRow>(
+    `
+    select ${knowledgeSetSelect}
+    from public.knowledge_sets
+    where id = $1
+    limit 1
+    `,
+    [setId],
+  );
+  const row = result.rows[0];
+
+  if (!row) {
+    throw new ApiError(404, "KNOWLEDGE_SET_NOT_FOUND", "Knowledge set not found.");
+  }
+
+  return mapKnowledgeSet(row);
+}
+
+async function listPromptVersionsFromPostgres(
+  client: DatabaseClient,
+  agentId: string,
+): Promise<AgentPromptVersionDto[]> {
+  const result = await client.query<AgentPromptVersionRow>(
+    `
+    select ${agentPromptVersionSelect}
+    from public.agent_prompt_versions
+    where agent_id = $1
+    order by version_no desc
+    `,
+    [agentId],
+  );
+
+  return result.rows.map(mapAgentPromptVersion);
+}
+
+async function listSoulVersionsFromPostgres(
+  client: DatabaseClient,
+  agentId: string,
+): Promise<AgentSoulVersionDto[]> {
+  const result = await client.query<AgentSoulVersionRow>(
+    `
+    select ${agentSoulVersionSelect}
+    from public.agent_soul_versions
+    where agent_id = $1
+    order by version_no desc
+    `,
+    [agentId],
+  );
+
+  return result.rows.map(mapAgentSoulVersion);
+}
+
+async function getDraftPromptFromPostgres(
+  client: DatabaseClient,
+  agentId: string,
+): Promise<AgentPromptVersionDto | null> {
+  const result = await client.query<AgentPromptVersionRow>(
+    `
+    select ${agentPromptVersionSelect}
+    from public.agent_prompt_versions
+    where agent_id = $1
+      and status = 'draft'
+    limit 1
+    `,
+    [agentId],
+  );
+
+  return result.rows[0] ? mapAgentPromptVersion(result.rows[0]) : null;
+}
+
+async function getDraftSoulFromPostgres(
+  client: DatabaseClient,
+  agentId: string,
+): Promise<AgentSoulVersionDto | null> {
+  const result = await client.query<AgentSoulVersionRow>(
+    `
+    select ${agentSoulVersionSelect}
+    from public.agent_soul_versions
+    where agent_id = $1
+      and status = 'draft'
+    limit 1
+    `,
+    [agentId],
+  );
+
+  return result.rows[0] ? mapAgentSoulVersion(result.rows[0]) : null;
+}
+
+async function assertAgentDisplayNameAvailableInPostgres(
+  client: DatabaseClient,
+  displayName: string,
+  excludingAgentId?: string,
+) {
+  const values: unknown[] = [displayName];
+  const filters = ["display_name = $1"];
+
+  if (excludingAgentId) {
+    values.push(excludingAgentId);
+    filters.push(`id <> $${values.length}`);
+  }
+
+  const result = await client.query<{ id: string }>(
+    `
+    select id
+    from public.agent_configs
+    where ${filters.join(" and ")}
+    limit 1
+    `,
+    values,
+  );
+
+  if (result.rows.length > 0) {
+    throw new ApiError(409, "AGENT_DISPLAY_NAME_TAKEN", "Agent display name is already used.");
+  }
+}
+
+async function assertAgentHasActivePromptInPostgres(
+  client: DatabaseClient,
+  agentId: string,
+) {
+  const result = await client.query<{ id: string }>(
+    `
+    select id
+    from public.agent_prompt_versions
+    where agent_id = $1
+      and status = 'active'
+      and length(trim(body)) > 0
+    limit 1
+    `,
+    [agentId],
+  );
+
+  if (result.rows.length === 0) {
+    throw new ApiError(
+      409,
+      "AGENT_ACTIVE_PROMPT_REQUIRED",
+      "请先发布 agent.md",
+      { agentId },
+    );
+  }
+}
+
+async function getNextPromptVersionNoInPostgres(
+  client: DatabaseClient,
+  agentId: string,
+) {
+  const result = await client.query<{ next_version_no: number }>(
+    `
+    select coalesce(max(version_no), 0)::int + 1 as next_version_no
+    from public.agent_prompt_versions
+    where agent_id = $1
+    `,
+    [agentId],
+  );
+
+  return result.rows[0]?.next_version_no ?? 1;
+}
+
+async function getNextSoulVersionNoInPostgres(
+  client: DatabaseClient,
+  agentId: string,
+) {
+  const result = await client.query<{ next_version_no: number }>(
+    `
+    select coalesce(max(version_no), 0)::int + 1 as next_version_no
+    from public.agent_soul_versions
+    where agent_id = $1
+    `,
+    [agentId],
+  );
+
+  return result.rows[0]?.next_version_no ?? 1;
+}
+
+async function getAgentSkillsByIdsFromPostgres(
+  client: DatabaseClient,
+  skillIds: string[],
+) {
+  if (skillIds.length === 0) {
+    return [];
+  }
+
+  const result = await client.query<AgentSkillRow>(
+    `
+    select ${agentSkillSelect}
+    from public.agent_skills
+    where id = any($1::uuid[])
+    `,
+    [skillIds],
+  );
+  const skills = result.rows.map(mapAgentSkill);
+
+  if (skills.length !== skillIds.length) {
+    throw new ApiError(404, "AGENT_SKILL_NOT_FOUND", "One or more agent skills were not found.", {
+      skillIds,
+      foundSkillIds: skills.map((skill) => skill.id),
+    });
+  }
+
+  return skills;
+}
+
+async function listAgentSkillBindingsFromPostgres(
+  client: DatabaseClient,
+  agentId: string,
+) {
+  const result = await client.query<AgentSkillBindingRow>(
+    `
+    select ${agentSkillBindingSelect}
+    from public.agent_skill_bindings
+    where agent_id = $1
+    order by created_at desc
+    `,
+    [agentId],
+  );
+
+  return result.rows.map(mapAgentSkillBinding);
+}
+
+async function getKnowledgeSetsByIdsFromPostgres(
+  client: DatabaseClient,
+  knowledgeSetIds: string[],
+) {
+  if (knowledgeSetIds.length === 0) {
+    return [];
+  }
+
+  const result = await client.query<KnowledgeSetRow>(
+    `
+    select ${knowledgeSetSelect}
+    from public.knowledge_sets
+    where id = any($1::uuid[])
+    `,
+    [knowledgeSetIds],
+  );
+  const knowledgeSets = result.rows.map(mapKnowledgeSet);
+
+  if (knowledgeSets.length !== knowledgeSetIds.length) {
+    throw new ApiError(404, "KNOWLEDGE_SET_NOT_FOUND", "One or more knowledge sets were not found.", {
+      knowledgeSetIds,
+      foundKnowledgeSetIds: knowledgeSets.map((knowledgeSet) => knowledgeSet.id),
+    });
+  }
+
+  return knowledgeSets;
+}
+
+async function listAgentKnowledgeSetBindingsFromPostgres(
+  client: DatabaseClient,
+  agentId: string,
+) {
+  const result = await client.query<AgentKnowledgeSetBindingRow>(
+    `
+    select ${agentKnowledgeSetBindingSelect}
+    from public.agent_knowledge_set_bindings
+    where agent_id = $1
+    order by created_at desc
+    `,
+    [agentId],
+  );
+
+  return result.rows.map(mapAgentKnowledgeSetBinding);
+}
+
+async function assertKnowledgeDocumentsExistInPostgres(
+  client: DatabaseClient,
+  documentIds: string[],
+) {
+  if (documentIds.length === 0) {
+    return;
+  }
+
+  const result = await client.query<{ id: string }>(
+    `
+    select id
+    from public.knowledge_documents
+    where id = any($1::uuid[])
+    `,
+    [documentIds],
+  );
+  const foundDocumentIds = result.rows.map((row) => row.id);
+
+  if (foundDocumentIds.length !== documentIds.length) {
+    throw new ApiError(
+      404,
+      "KNOWLEDGE_DOCUMENT_NOT_FOUND",
+      "One or more knowledge documents were not found.",
+      { documentIds, foundDocumentIds },
+    );
   }
 }
 
