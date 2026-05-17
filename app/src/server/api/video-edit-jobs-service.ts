@@ -30,7 +30,6 @@ import {
   retryVideoEditJob,
 } from "@/lib/db/video-edit-job-repository";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin";
-import { createCosSignedPreviewUrl } from "@/server/api/cos";
 import {
   VideoJobPayloadValidationError,
   buildVideoEditJobInputPayload,
@@ -38,6 +37,7 @@ import {
 } from "@/server/api/video-job-payload";
 import { extractPayloadResultAssets, toPublicVideoEditJob } from "@/server/api/video-job-public-dto";
 import { ApiError } from "@/server/api/errors";
+import { getObjectStorageProvider } from "@/server/storage";
 
 export async function createVideoEditJobForUser(input: {
   userId: string;
@@ -194,8 +194,8 @@ export async function getVideoEditJobResultAssetRedirectUrlForUser(input: {
     throw new ApiError(404, "VIDEO_RESULT_ASSET_NOT_FOUND", "Video result asset was not found.");
   }
 
-  if (asset.storageProvider === "tencent_cos") {
-    return createCosSignedPreviewUrl({
+  if (asset.storageProvider === "tencent_cos" || asset.storageProvider === "aliyun_oss") {
+    return getObjectStorageProvider(asset.storageProvider).createSignedReadUrl({
       bucketName: asset.bucketName,
       storageKey: asset.storageKey,
     });
@@ -269,7 +269,7 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
       ...matchedAssets.map((asset) => ({
         ...asset,
         signedPreviewUrl:
-          asset.storageProvider === "tencent_cos"
+          asset.storageProvider === "tencent_cos" || asset.storageProvider === "aliyun_oss"
             ? buildStableVideoResultAssetUrl(job.id, asset.id)
             : null,
       })),

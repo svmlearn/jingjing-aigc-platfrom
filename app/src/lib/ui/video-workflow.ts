@@ -564,7 +564,7 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
   const source = readNestedRecord(response, "uploadIntent", "intent", "credentials") ?? response;
   const bucket = readString(source, "bucket");
   const region = readString(source, "region");
-  const cosKey = readString(source, "cosKey", "cos_key", "key");
+  const cosKey = readString(source, "cosKey", "cos_key", "storageKey", "uploadKey", "key");
   const tmpSecretId = readString(source, "TmpSecretId", "tmpSecretId", "tmp_secret_id");
   const tmpSecretKey = readString(source, "TmpSecretKey", "tmpSecretKey", "tmp_secret_key");
   const token = readString(source, "Token", "token", "SecurityToken", "securityToken");

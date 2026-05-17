@@ -16,13 +16,9 @@ import { assertMediaOwnerAccess, createAssetObject } from "@/lib/db/media-reposi
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import { ApiError } from "@/server/api/errors";
 import {
-  assertSupportedMediaStorageProvider,
-  assertUploadSizeWithinLimit,
-  buildCosUploadObjectKey,
-  getCosConfig,
-  getCosUploadKeyPrefix,
-  issueCosUploadCredentials,
-} from "@/server/api/cos";
+  getConfiguredObjectStorageProvider,
+  getWritableConfiguredObjectStorageProvider,
+} from "@/server/storage";
 
 export async function createMediaUploadIntentForUser(input: {
   userId: string;
@@ -38,28 +34,22 @@ export async function createMediaUploadIntentForUser(input: {
     );
   }
 
-  assertUploadSizeWithinLimit(input.request.sizeBytes);
+  const storage = getConfiguredObjectStorageProvider();
+  storage.assertUploadSizeWithinLimit(input.request.sizeBytes);
 
   if (isLocalRealChainEnabled()) {
     await assertLocalRealChainMediaOwner({
       ownerType: input.request.ownerType,
       ownerId: input.request.ownerId,
     });
-    const cosKey = buildCosUploadObjectKey({
+    const storageKey = storage.buildMediaUploadKey({
       merchantId: getLocalRealChainMerchantId(),
       ownerType: input.request.ownerType,
       ownerId: input.request.ownerId,
       fileName: input.request.fileName,
     });
-    const credentials = await issueCosUploadCredentials({ cosKey });
-    const cosConfig = getCosConfig();
 
-    return {
-      bucket: cosConfig.bucket,
-      region: cosConfig.region,
-      cosKey,
-      ...credentials,
-    };
+    return storage.issueBrowserUploadIntent({ storageKey });
   }
 
   await assertMediaOwnerAccess({
@@ -69,21 +59,14 @@ export async function createMediaUploadIntentForUser(input: {
     ownerId: input.request.ownerId,
   });
 
-  const cosKey = buildCosUploadObjectKey({
+  const storageKey = storage.buildMediaUploadKey({
     merchantId: merchant.id,
     ownerType: input.request.ownerType,
     ownerId: input.request.ownerId,
     fileName: input.request.fileName,
   });
-  const credentials = await issueCosUploadCredentials({ cosKey });
-  const cosConfig = getCosConfig();
 
-  return {
-    bucket: cosConfig.bucket,
-    region: cosConfig.region,
-    cosKey,
-    ...credentials,
-  };
+  return storage.issueBrowserUploadIntent({ storageKey });
 }
 
 export async function completeMediaUploadForUser(input: {
@@ -100,36 +83,20 @@ export async function completeMediaUploadForUser(input: {
     );
   }
 
-  assertSupportedMediaStorageProvider(input.request.storageProvider);
-  const cosConfig = getCosConfig();
+  const storage = getWritableConfiguredObjectStorageProvider(input.request.storageProvider);
+  const merchantId = isLocalRealChainEnabled() ? getLocalRealChainMerchantId() : merchant.id;
 
   if (input.request.sizeBytes !== null && input.request.sizeBytes !== undefined) {
-    assertUploadSizeWithinLimit(input.request.sizeBytes);
+    storage.assertUploadSizeWithinLimit(input.request.sizeBytes);
   }
 
-  if ((input.request.bucketName ?? cosConfig.bucket) !== cosConfig.bucket) {
-    throw new ApiError(
-      400,
-      "MEDIA_BUCKET_MISMATCH",
-      "Uploaded media must target the configured Tencent COS bucket.",
-    );
-  }
-
-  if (
-    !input.request.storageKey.startsWith(
-      `${getCosUploadKeyPrefix({
-        merchantId: isLocalRealChainEnabled() ? getLocalRealChainMerchantId() : merchant.id,
-        ownerType: input.request.ownerType,
-        ownerId: input.request.ownerId,
-      })}/`,
-    )
-  ) {
-    throw new ApiError(
-      400,
-      "MEDIA_STORAGE_KEY_INVALID",
-      "Uploaded media key does not match the expected owner prefix.",
-    );
-  }
+  const objectRef = storage.assertWritableObjectRef({
+    bucketName: input.request.bucketName,
+    storageKey: input.request.storageKey,
+    merchantId,
+    ownerType: input.request.ownerType,
+    ownerId: input.request.ownerId,
+  });
 
   if (isLocalRealChainEnabled()) {
     await assertLocalRealChainMediaOwner({
@@ -141,9 +108,9 @@ export async function completeMediaUploadForUser(input: {
       ownerType: input.request.ownerType,
       ownerId: input.request.ownerId,
       assetType: input.request.assetType,
-      storageProvider: input.request.storageProvider,
-      bucketName: input.request.bucketName ?? cosConfig.bucket,
-      storageKey: input.request.storageKey,
+      storageProvider: storage.provider,
+      bucketName: objectRef.bucketName,
+      storageKey: objectRef.storageKey,
       originUrl: input.request.originUrl,
       mimeType: input.request.mimeType,
       fileSizeBytes: input.request.sizeBytes,
@@ -163,9 +130,9 @@ export async function completeMediaUploadForUser(input: {
     ownerType: input.request.ownerType,
     ownerId: input.request.ownerId,
     assetType: input.request.assetType,
-    storageProvider: input.request.storageProvider,
-    bucketName: input.request.bucketName ?? cosConfig.bucket,
-    storageKey: input.request.storageKey,
+    storageProvider: storage.provider,
+    bucketName: objectRef.bucketName,
+    storageKey: objectRef.storageKey,
     originUrl: input.request.originUrl,
     mimeType: input.request.mimeType,
     fileSizeBytes: input.request.sizeBytes,

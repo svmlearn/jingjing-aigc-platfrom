@@ -19,12 +19,9 @@ import {
   updateKnowledgeIngestionJob,
 } from "@/lib/db/knowledge-repository";
 import { getPlatformSettings } from "@/lib/db/platform-admin-repository";
-import {
-  buildKnowledgeCosObjectKey,
-  putCosObject,
-} from "@/server/api/cos";
 import { AiRuntimeError, createEmbeddings, getAiRuntimeApiKey } from "@/server/api/ai-runtime";
 import { ApiError } from "@/server/api/errors";
+import { getConfiguredObjectStorageProvider } from "@/server/storage";
 
 type KnowledgeUploadFileInput = {
   fileName: string;
@@ -314,7 +311,7 @@ async function uploadKnowledgeDocument(
 ): Promise<KnowledgeDocumentWithStatsDto> {
   const prepared = prepareKnowledgeUpload(input);
   const documentId = randomUUID();
-  const storage = await uploadSourceToCos({
+  const storage = await uploadSourceToObjectStorage({
     documentId,
     scope: input.scope,
     merchantId: input.merchantId,
@@ -328,7 +325,7 @@ async function uploadKnowledgeDocument(
     merchantId: input.scope === "merchant" ? input.merchantId : null,
     title: prepared.title,
     sourceName: prepared.sourceName,
-    storageProvider: "tencent_cos",
+    storageProvider: storage.provider,
     bucketName: storage.bucketName,
     storageKey: storage.storageKey,
     mimeType: prepared.mimeType,
@@ -337,6 +334,9 @@ async function uploadKnowledgeDocument(
     metadata: {
       sourceType: input.file ? "file" : "text",
       fileSizeBytes: prepared.body.length,
+      storageProvider: storage.provider,
+      storageEtag: storage.etag ?? null,
+      storageUploadSkippedReason: storage.skippedReason ?? null,
       cosEtag: storage.etag ?? null,
       cosUploadSkippedReason: storage.skippedReason ?? null,
       ingestionMode: "sync_demo_lexical",
@@ -670,7 +670,7 @@ function buildKnowledgeChunks(input: KnowledgeDocumentDto, text: string, options
   return chunkKnowledgeText(text, options);
 }
 
-async function uploadSourceToCos(input: {
+async function uploadSourceToObjectStorage(input: {
   documentId: string;
   scope: KnowledgeDocumentDto["scope"];
   merchantId?: string | null;
@@ -678,12 +678,14 @@ async function uploadSourceToCos(input: {
   mimeType?: string | null;
   body: Buffer;
 }): Promise<{
+  provider: KnowledgeDocumentDto["storageProvider"];
   bucketName?: string | null;
   storageKey?: string | null;
   etag?: string | null;
   skippedReason?: string | null;
 }> {
-  const storageKey = buildKnowledgeCosObjectKey({
+  const storage = getConfiguredObjectStorageProvider();
+  const storageKey = storage.buildKnowledgeUploadKey({
     scope: input.scope,
     merchantId: input.merchantId,
     documentId: input.documentId,
@@ -691,7 +693,7 @@ async function uploadSourceToCos(input: {
   });
 
   try {
-    return await putCosObject({
+    return await storage.putObject({
       key: storageKey,
       body: input.body,
       contentType: input.mimeType,
@@ -699,16 +701,24 @@ async function uploadSourceToCos(input: {
   } catch (error) {
     if (error instanceof ApiError && error.code === "COS_NOT_CONFIGURED") {
       return {
+        provider: storage.provider,
         bucketName: null,
         storageKey: null,
         skippedReason: "COS_NOT_CONFIGURED",
       };
     }
 
+    if (
+      error instanceof ApiError &&
+      (error.code === "OSS_NOT_CONFIGURED" || error.code.startsWith("ALIYUN_OSS_"))
+    ) {
+      throw error;
+    }
+
     throw new ApiError(
       500,
-      "KNOWLEDGE_COS_UPLOAD_FAILED",
-      error instanceof Error ? error.message : "Tencent COS upload failed.",
+      "KNOWLEDGE_STORAGE_UPLOAD_FAILED",
+      error instanceof Error ? error.message : "Object storage upload failed.",
     );
   }
 }

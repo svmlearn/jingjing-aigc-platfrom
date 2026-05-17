@@ -1,11 +1,11 @@
 import { isAppPostgresConfigured, queryAppDb } from "@/lib/server-db/postgres";
-import { getCosConfig } from "@/server/api/cos";
+import { getConfiguredObjectStorageProvider } from "@/server/storage";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const [database, cos] = await Promise.all([checkDatabase(), checkCosConfig()]);
-  const ok = database.status === "ok" && cos.status === "configured";
+  const [database, storage] = await Promise.all([checkDatabase(), checkStorageConfig()]);
+  const ok = database.status === "ok" && storage.status === "configured";
 
   return Response.json(
     {
@@ -15,7 +15,8 @@ export async function GET() {
         runtime: "nodejs",
       },
       database,
-      cos,
+      storage,
+      cos: storage.provider === "tencent_cos" ? storage : undefined,
     },
     { status: ok ? 200 : 503 },
   );
@@ -45,18 +46,22 @@ async function checkDatabase() {
   }
 }
 
-async function checkCosConfig() {
+async function checkStorageConfig() {
   try {
-    const config = getCosConfig();
+    const provider = getConfiguredObjectStorageProvider();
+    const config = provider.getConfig();
     return {
       status: "configured",
+      provider: config.provider,
       bucket: config.bucket,
       region: config.region,
+      endpoint: config.endpoint ?? null,
     };
   } catch (error) {
     return {
       status: "error",
-      message: error instanceof Error ? error.message : "COS health check failed.",
+      provider: process.env.STORAGE_PROVIDER?.trim() || "tencent_cos",
+      message: error instanceof Error ? error.message : "Object storage health check failed.",
     };
   }
 }

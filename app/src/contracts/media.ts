@@ -2,7 +2,7 @@ export type MediaOwnerType = "source_item" | "content_draft" | "content_variant"
 
 export type MediaAssetType = "image" | "video" | "cover" | "subtitle";
 
-export type MediaStorageProvider = "tencent_cos" | "supabase_storage";
+export type MediaStorageProvider = "tencent_cos" | "aliyun_oss" | "supabase_storage";
 
 export type MediaAssetDto = {
   id: string;
@@ -32,8 +32,12 @@ export type MediaUploadIntentRequest = {
 };
 
 export type MediaUploadIntentDto = {
+  provider?: Extract<MediaStorageProvider, "tencent_cos" | "aliyun_oss">;
   bucket: string;
   region: string;
+  endpoint?: string | null;
+  storageKey?: string;
+  uploadKey?: string;
   cosKey: string;
   TmpSecretId: string;
   TmpSecretKey: string;
@@ -41,6 +45,7 @@ export type MediaUploadIntentDto = {
   StartTime: number;
   ExpiredTime: number;
   expiredTime: number;
+  credentials?: Record<string, unknown>;
 };
 
 export type MediaCompleteRequest = {

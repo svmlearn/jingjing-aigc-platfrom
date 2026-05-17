@@ -1,67 +1,23 @@
 import "server-only";
 
-import { Buffer } from "node:buffer";
-import { randomUUID } from "node:crypto";
-
-import COS from "cos-nodejs-sdk-v5";
-import * as STS from "qcloud-cos-sts";
+import type { Buffer } from "node:buffer";
 
 import type { MediaStorageProvider, MediaUploadIntentDto } from "@/contracts/media";
 import { ApiError } from "@/server/api/errors";
+import type {
+  BrowserUploadOwnerType,
+  KnowledgeUploadScope,
+} from "@/server/storage/object-storage";
+import {
+  getTencentCosConfig,
+  tencentCosProvider,
+  type TencentCosConfig,
+} from "@/server/storage/tencent-cos-provider";
 
-const defaultCosStsDurationSeconds = 1800;
-const defaultCosReadUrlTtlSeconds = 3600;
-const defaultMediaUploadMaxBytes = 1024 * 1024 * 1024;
-
-type BrowserUploadOwnerType = "source_item" | "content_draft";
-
-type KnowledgeUploadScope = "platform" | "merchant";
-
-type CosConfig = {
-  secretId: string;
-  secretKey: string;
-  bucket: string;
-  region: string;
-  stsDurationSeconds: number;
-  readUrlTtlSeconds: number;
-  mediaUploadMaxBytes: number;
-};
+export type CosConfig = TencentCosConfig;
 
 export function getCosConfig(): CosConfig {
-  const secretId = process.env.COS_SECRET_ID;
-  const secretKey = process.env.COS_SECRET_KEY;
-  const bucket = process.env.COS_BUCKET;
-  const region = process.env.COS_REGION;
-
-  if (!secretId || !secretKey || !bucket || !region) {
-    throw new ApiError(
-      503,
-      "COS_NOT_CONFIGURED",
-      "Tencent COS environment variables are not configured.",
-    );
-  }
-
-  return {
-    secretId,
-    secretKey,
-    bucket,
-    region,
-    stsDurationSeconds: parsePositiveInt(
-      process.env.COS_STS_DURATION_SECONDS,
-      defaultCosStsDurationSeconds,
-      "COS_STS_DURATION_SECONDS",
-    ),
-    readUrlTtlSeconds: parsePositiveInt(
-      process.env.COS_READ_URL_TTL_SECONDS,
-      defaultCosReadUrlTtlSeconds,
-      "COS_READ_URL_TTL_SECONDS",
-    ),
-    mediaUploadMaxBytes: parsePositiveInt(
-      process.env.MEDIA_UPLOAD_MAX_BYTES,
-      defaultMediaUploadMaxBytes,
-      "MEDIA_UPLOAD_MAX_BYTES",
-    ),
-  };
+  return getTencentCosConfig();
 }
 
 export function assertSupportedMediaStorageProvider(storageProvider: MediaStorageProvider) {
@@ -75,15 +31,7 @@ export function assertSupportedMediaStorageProvider(storageProvider: MediaStorag
 }
 
 export function assertUploadSizeWithinLimit(sizeBytes: number) {
-  const { mediaUploadMaxBytes } = getCosConfig();
-
-  if (sizeBytes > mediaUploadMaxBytes) {
-    throw new ApiError(
-      413,
-      "MEDIA_UPLOAD_TOO_LARGE",
-      `Media upload exceeds the ${mediaUploadMaxBytes} byte limit.`,
-    );
-  }
+  tencentCosProvider.assertUploadSizeWithinLimit(sizeBytes);
 }
 
 export function buildCosUploadObjectKey(input: {
@@ -92,8 +40,7 @@ export function buildCosUploadObjectKey(input: {
   ownerId: string;
   fileName: string;
 }): string {
-  const prefix = getCosUploadKeyPrefix(input);
-  return `${prefix}/${randomUUID()}-${sanitizeFileName(input.fileName)}`;
+  return tencentCosProvider.buildMediaUploadKey(input);
 }
 
 export function buildKnowledgeCosObjectKey(input: {
@@ -102,12 +49,7 @@ export function buildKnowledgeCosObjectKey(input: {
   documentId: string;
   fileName: string;
 }): string {
-  const ownerSegment =
-    input.scope === "merchant" ? input.merchantId ?? "unknown-merchant" : "platform";
-
-  return `knowledge/${input.scope}/${ownerSegment}/${input.documentId}/${sanitizeFileName(
-    input.fileName,
-  )}`;
+  return tencentCosProvider.buildKnowledgeUploadKey(input);
 }
 
 export function getCosUploadKeyPrefix(input: {
@@ -115,57 +57,23 @@ export function getCosUploadKeyPrefix(input: {
   ownerType: BrowserUploadOwnerType;
   ownerId: string;
 }): string {
-  if (input.ownerType === "source_item") {
-    return `source-assets/${input.merchantId}/${input.ownerId}`;
-  }
-
-  return `draft-inputs/${input.merchantId}/${input.ownerId}`;
+  return tencentCosProvider.getMediaUploadKeyPrefix(input);
 }
 
 export async function issueCosUploadCredentials(input: {
   cosKey: string;
 }): Promise<Omit<MediaUploadIntentDto, "bucket" | "region" | "cosKey">> {
-  const config = getCosConfig();
-  const policy = STS.getPolicy([
-    {
-      action: [
-        "name/cos:PutObject",
-        "name/cos:PostObject",
-        "name/cos:InitiateMultipartUpload",
-        "name/cos:ListMultipartUploads",
-        "name/cos:ListParts",
-        "name/cos:UploadPart",
-        "name/cos:CompleteMultipartUpload",
-        "name/cos:AbortMultipartUpload",
-      ],
-      bucket: config.bucket,
-      region: config.region,
-      prefix: input.cosKey,
-    },
-  ]);
-
-  const data = await STS.getCredential({
-    secretId: config.secretId,
-    secretKey: config.secretKey,
-    durationSeconds: config.stsDurationSeconds,
-    policy,
+  const intent = await tencentCosProvider.issueBrowserUploadIntent({
+    storageKey: input.cosKey,
   });
 
-  if (!data.credentials) {
-    throw new ApiError(
-      500,
-      "COS_TEMP_CREDENTIALS_MISSING",
-      "Tencent COS temporary credentials were not returned.",
-    );
-  }
-
   return {
-    TmpSecretId: data.credentials.tmpSecretId,
-    TmpSecretKey: data.credentials.tmpSecretKey,
-    Token: data.credentials.sessionToken,
-    StartTime: data.startTime,
-    ExpiredTime: data.expiredTime,
-    expiredTime: data.expiredTime,
+    TmpSecretId: intent.TmpSecretId,
+    TmpSecretKey: intent.TmpSecretKey,
+    Token: intent.Token,
+    StartTime: intent.StartTime,
+    ExpiredTime: intent.ExpiredTime,
+    expiredTime: intent.expiredTime,
   };
 }
 
@@ -174,35 +82,11 @@ export async function putCosObject(input: {
   body: Buffer;
   contentType?: string | null;
 }): Promise<{ bucketName: string; storageKey: string; etag?: string | null }> {
-  const config = getCosConfig();
-  const client = new COS({
-    SecretId: config.secretId,
-    SecretKey: config.secretKey,
-  });
-
-  const result = await new Promise<{ etag?: string | null }>((resolve, reject) => {
-    client.putObject(
-      {
-        Bucket: config.bucket,
-        Region: config.region,
-        Key: input.key,
-        Body: input.body,
-        ContentType: input.contentType ?? undefined,
-      },
-      (error, data) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve({ etag: data?.ETag ?? null });
-      },
-    );
-  });
+  const result = await tencentCosProvider.putObject(input);
 
   return {
-    bucketName: config.bucket,
-    storageKey: input.key,
+    bucketName: result.bucketName,
+    storageKey: result.storageKey,
     etag: result.etag,
   };
 }
@@ -212,55 +96,5 @@ export function createCosSignedPreviewUrl(input: {
   bucketName?: string | null;
   expiresInSeconds?: number;
 }): string {
-  const config = getCosConfig();
-  const client = new COS({
-    SecretId: config.secretId,
-    SecretKey: config.secretKey,
-  });
-
-  return client.getObjectUrl({
-    Bucket: input.bucketName ?? config.bucket,
-    Region: config.region,
-    Key: input.storageKey,
-    Sign: true,
-    Method: "GET",
-    Expires: input.expiresInSeconds ?? config.readUrlTtlSeconds,
-    Protocol: "https:",
-  });
-}
-
-function parsePositiveInt(rawValue: string | undefined, fallback: number, envName: string) {
-  if (!rawValue) {
-    return fallback;
-  }
-
-  const parsed = Number.parseInt(rawValue, 10);
-
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new ApiError(500, "COS_ENV_INVALID", `${envName} must be a positive integer.`);
-  }
-
-  return parsed;
-}
-
-function sanitizeFileName(fileName: string) {
-  const baseName = fileName.split(/[\\/]/).pop()?.trim() || "upload";
-  const extensionIndex = baseName.lastIndexOf(".");
-  const namePart = extensionIndex > 0 ? baseName.slice(0, extensionIndex) : baseName;
-  const extensionPart = extensionIndex > 0 ? baseName.slice(extensionIndex + 1) : "";
-  const safeName = normalizeKeySegment(namePart, "upload");
-  const safeExtension = normalizeKeySegment(extensionPart, "");
-
-  return safeExtension ? `${safeName}.${safeExtension}` : safeName;
-}
-
-function normalizeKeySegment(value: string, fallback: string) {
-  const normalized = value
-    .normalize("NFKD")
-    .replace(/[^\x00-\x7F]/g, "")
-    .replace(/[^A-Za-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^[.-]+|[.-]+$/g, "");
-
-  return normalized || fallback;
+  return tencentCosProvider.createSignedReadUrl(input);
 }

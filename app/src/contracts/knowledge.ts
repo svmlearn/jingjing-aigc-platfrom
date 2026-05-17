@@ -40,13 +40,15 @@ export type KnowledgeDocumentStatus =
   | "indexed"
   | "failed";
 
+export type KnowledgeStorageProvider = "tencent_cos" | "aliyun_oss" | "supabase_storage";
+
 export type KnowledgeDocumentDto = {
   id: string;
   scope: "platform" | "merchant";
   merchantId?: string | null;
   title: string;
   sourceName?: string | null;
-  storageProvider: "tencent_cos" | "supabase_storage";
+  storageProvider: KnowledgeStorageProvider;
   bucketName?: string | null;
   storageKey?: string | null;
   mimeType?: string | null;
