@@ -15,11 +15,23 @@ from open_storyline.nodes.core_nodes.base_node import BaseNode, NodeMeta
 from open_storyline.nodes.node_schema import GenerateVoiceoverInput
 from open_storyline.nodes.node_state import NodeState
 from open_storyline.utils.logging import get_logger
+from open_storyline.utils.pixelle_tts_adapter import PixelleTTSAdapter
 from open_storyline.utils.parse_json import parse_json_dict
 from open_storyline.utils.prompts import get_prompt
 from open_storyline.utils.register import NODE_REGISTRY
 
 logger = get_logger(__name__)
+
+
+def _should_skip_voiceover_for_group(group: Any) -> bool:
+    if not isinstance(group, dict):
+        return False
+    if group.get("skip_voiceover") is True:
+        return True
+    if group.get("voiceover_enabled") is False:
+        return True
+    return str(group.get("audio_source") or "").strip().lower() == "original_video_audio"
+
 
 @NODE_REGISTRY.register()
 class GenerateVoiceoverNode(BaseNode):
@@ -39,6 +51,8 @@ class GenerateVoiceoverNode(BaseNode):
         "bytedance": "_tts_bytedance_sync",
         "bytedance_bigtts": "_tts_bytedance_bigtts_sync",
         "minimax": "_tts_minimax_sync",
+        "runninghub": "_tts_runninghub_sync",
+        "pixelle_runninghub": "_tts_runninghub_sync",
         "302": "_tts_302_sync",
         "pixelle_clone": "_tts_pixelle_clone_sync",
     }
@@ -50,19 +64,24 @@ class GenerateVoiceoverNode(BaseNode):
         "bytedance": ("uid", "appid", "access_token"),
         "bytedance_bigtts": ("appid", "access_key", "resource_id", "speaker"),
         "minimax": ("api_key",),
-        "pixelle_clone": ("ref_audio",),
+        "runninghub": ("api_key",),
+        "pixelle_runninghub": ("api_key",),
+        "pixelle_clone": ("base_url", "api_key", "ref_audio"),
     }
     _PROVIDER_OPTIONAL_KEYS: Dict[str, tuple[str, ...]] = {
         "302": ("base_url",),
         "bytedance": ("base_url", "cluster"),
         "bytedance_bigtts": ("base_url", "uid", "label"),
         "minimax": ("base_url",),
-        "pixelle_clone": ("base_url", "api_key", "external_voice_id"),
+        "runninghub": ("base_url", "voice", "workflow_id", "runninghub_tts_edge_workflow_id", "timeout_seconds", "speed"),
+        "pixelle_runninghub": ("base_url", "voice", "workflow_id", "runninghub_tts_edge_workflow_id", "timeout_seconds", "speed"),
+        "pixelle_clone": ("external_voice_id", "workflow_id", "runninghub_tts_clone_workflow_id", "timeout_seconds"),
     }
     _PROVIDER_SUCCESS_CODES = {None, 0, 200, 3000, 20000000}
 
     MILLISECONDS_PER_SECOND = 1000.0
     _SAFE_MARGIN = 10
+    _ORIGINAL_AUDIO_SOURCE = "original_video_audio"
 
     async def default_process(self, node_state: NodeState, inputs: Dict[str, Any]) -> Any:
         node_state.node_summary.info_for_user("Voiceover not generated")
@@ -97,17 +116,17 @@ class GenerateVoiceoverNode(BaseNode):
         # 4) Deduce which key fields this provider needs from config, and get values from inputs
         #    If user/config keys are incomplete, fallback to 302 and use 302 key from environment variables
         try:
-            provider_cfg = self._get_provider_cfg(provider_name)
+            provider_cfg = self._get_runtime_provider_cfg(provider_name, inputs)
             secrets = self._resolve_provider_secrets(provider_name, provider_cfg, inputs, node_state)
         except ValueError as e:
-            if provider_name == default_provider:
+            if provider_name == default_provider or self._is_clone_provider(provider_name):
                 raise
             node_state.node_summary.info_for_user(
                 f"Key/config for provider={provider_name} is incomplete, automatically falling back to {default_provider}: {e}"
             )
             provider_name = default_provider
             handler = self._get_provider_handler(provider_name)
-            provider_cfg = self._get_provider_cfg(provider_name)
+            provider_cfg = self._get_runtime_provider_cfg(provider_name, inputs)
             secrets = self._resolve_provider_secrets(provider_name, provider_cfg, inputs, node_state)
             node_state.node_summary.info_for_user(f"TTS service fallback to: {provider_name}")
 
@@ -135,6 +154,7 @@ class GenerateVoiceoverNode(BaseNode):
         # 6) Generate segment by segment
         ts_ms = int(time.time() * 1000)
         voiceover: list[dict[str, Any]] = []
+        skipped_voiceover: list[dict[str, Any]] = []
 
         for i, group in enumerate(group_scripts, start=1):
             await self._report_progress(
@@ -148,20 +168,66 @@ class GenerateVoiceoverNode(BaseNode):
 
             if not group_id:
                 raise ValueError(f"Missing group_id: {group}")
+            if _should_skip_voiceover_for_group(group):
+                skipped_voiceover.append(
+                    {
+                        "group_id": group_id,
+                        "reason": "original_video_audio",
+                        "audio_source": (group or {}).get("audio_source"),
+                        "subtitle_source": (group or {}).get("subtitle_source"),
+                    }
+                )
+                node_state.node_summary.info_for_user(
+                    f"Skipped voiceover for {group_id}: original video audio is preserved"
+                )
+                continue
             if not isinstance(raw_text, str) or not raw_text.strip():
                 raise ValueError(f"raw_text is empty for group_id={group_id}, cannot generate speech.")
 
             voiceover_id = f"voiceover_{i:04d}"
             wav_path = output_dir / f"{voiceover_id}_{ts_ms}.wav"
 
-            await asyncio.to_thread(
-                handler,
-                text=raw_text,
-                wav_path=wav_path,
-                secrets=secrets,
-                tts_params=tts_params,
-                provider_cfg=provider_cfg,
-            )
+            used_provider = provider_name
+            try:
+                await asyncio.to_thread(
+                    handler,
+                    text=raw_text,
+                    wav_path=wav_path,
+                    secrets=secrets,
+                    tts_params=tts_params,
+                    provider_cfg=provider_cfg,
+                )
+            except Exception as exc:
+                fallback_provider = str(inputs.get("fallback_provider") or "").strip()
+                if not self._can_fallback_provider(
+                    provider_name,
+                    fallback_provider,
+                    inputs,
+                ):
+                    raise
+                node_state.node_summary.info_for_user(
+                    f"TTS provider={provider_name} failed, falling back to {fallback_provider}: {exc}"
+                )
+                fallback_handler = self._get_provider_handler(fallback_provider)
+                fallback_cfg = self._get_runtime_provider_cfg(
+                    fallback_provider,
+                    inputs,
+                )
+                fallback_secrets = self._resolve_provider_secrets(
+                    fallback_provider,
+                    fallback_cfg,
+                    inputs,
+                    node_state,
+                )
+                await asyncio.to_thread(
+                    fallback_handler,
+                    text=raw_text,
+                    wav_path=wav_path,
+                    secrets=fallback_secrets,
+                    tts_params=tts_params,
+                    provider_cfg=fallback_cfg,
+                )
+                used_provider = fallback_provider
 
             duration = self._wav_duration_ms(wav_path)
             voiceover.append(
@@ -170,6 +236,9 @@ class GenerateVoiceoverNode(BaseNode):
                     "group_id": group_id,
                     "path": str(wav_path),
                     "duration": duration,
+                    "duration_ms": duration,
+                    "provider": used_provider,
+                    "clone": self._is_clone_provider(used_provider),
                 }
             )
 
@@ -186,7 +255,7 @@ class GenerateVoiceoverNode(BaseNode):
             f"generated {len(voiceover)} voiceover segment(s)",
         )
         node_state.node_summary.info_for_user(f"Generated {len(voiceover)} voiceover segments in total")
-        return {"voiceover": voiceover}
+        return {"voiceover": voiceover, "skipped_voiceover": skipped_voiceover}
 
     # ---------------------------------------------------------------------
     # Provider dispatch / config helpers
@@ -236,6 +305,41 @@ class GenerateVoiceoverNode(BaseNode):
         if not isinstance(cfg, dict):
             raise ValueError(f"provider={provider_name} not configured in server_cfg.generate_voiceover.providers")
         return cfg
+
+    def _get_runtime_provider_cfg(self, provider_name: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        cfg: Dict[str, Any] = {}
+        try:
+            cfg.update(self._get_provider_cfg(provider_name))
+        except ValueError:
+            pass
+        runtime_cfg = inputs.get(provider_name)
+        if isinstance(runtime_cfg, dict):
+            cfg.update(runtime_cfg)
+        provider_keys = inputs.get("provider_keys")
+        if isinstance(provider_keys, dict) and provider_name == str(inputs.get("provider") or "").strip():
+            cfg.update(provider_keys)
+        if not cfg:
+            raise ValueError(f"provider={provider_name} not configured")
+        return cfg
+
+    def _is_clone_provider(self, provider_name: str) -> bool:
+        return "clone" in str(provider_name or "").strip().lower()
+
+    def _can_fallback_provider(
+        self,
+        provider_name: str,
+        fallback_provider: str,
+        inputs: Dict[str, Any],
+    ) -> bool:
+        if self._is_clone_provider(provider_name):
+            return False
+        if provider_name != "minimax":
+            return False
+        if fallback_provider not in {"runninghub", "pixelle_runninghub"}:
+            return False
+        if not isinstance(inputs.get(fallback_provider), dict):
+            return False
+        return True
 
     def _resolve_provider_secrets(self, provider_name: str, provider_cfg: Dict[str, Any], inputs: Dict[str, Any], node_state: NodeState) -> Dict[str, Any]:
         """
@@ -294,6 +398,8 @@ class GenerateVoiceoverNode(BaseNode):
             return "https://openspeech.bytedance.com"
         if provider_name == "minimax":
             return "https://api.minimax.io"
+        if provider_name in {"runninghub", "pixelle_runninghub", "pixelle_clone"}:
+            return "https://www.runninghub.cn"
         if provider_name == "302":
             return "https://api.302.ai"
         return ""
@@ -401,8 +507,30 @@ class GenerateVoiceoverNode(BaseNode):
             return self._resolve_302_env_secret(key)
         if provider_name == "minimax":
             return self._resolve_minimax_env_secret(key)
+        if provider_name in {"runninghub", "pixelle_runninghub"}:
+            return (
+                os.getenv(f"TTS_RUNNINGHUB_{str(key).strip().upper()}")
+                or os.getenv(f"RUNNINGHUB_{str(key).strip().upper()}")
+            )
         if provider_name == "pixelle_clone":
-            return os.getenv(f"TTS_PIXELLE_CLONE_{str(key).strip().upper()}")
+            return (
+                os.getenv(f"TTS_PIXELLE_CLONE_{str(key).strip().upper()}")
+                or (
+                    os.getenv(f"TTS_RUNNINGHUB_{str(key).strip().upper()}")
+                    if str(key).strip().lower() in {"base_url", "api_key"}
+                    else None
+                )
+                or (
+                    os.getenv(f"RUNNINGHUB_TTS_CLONE_WORKFLOW_ID")
+                    if str(key).strip().lower() in {"workflow_id", "runninghub_tts_clone_workflow_id"}
+                    else None
+                )
+                or (
+                    os.getenv(f"RUNNINGHUB_{str(key).strip().upper()}")
+                    if str(key).strip().lower() in {"base_url", "api_key"}
+                    else None
+                )
+            )
         return None
 
     def _sanitize_params_by_schema(self, params: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str, Any]:
@@ -946,6 +1074,57 @@ class GenerateVoiceoverNode(BaseNode):
             raise RuntimeError(f"302 tts http {resp.status_code}: {resp.text}")
         wav_path.write_bytes(resp.content)
 
+    def _tts_runninghub_sync(
+        self,
+        *,
+        text: str,
+        wav_path: Path,
+        secrets: Dict[str, Any],
+        tts_params: Dict[str, Any],
+        provider_cfg: Dict[str, Any],
+    ) -> None:
+        base_url = str(secrets.get("base_url") or "https://www.runninghub.cn").strip().rstrip("/")
+        api_key = str(secrets.get("api_key") or "").strip()
+        if not api_key:
+            raise ValueError("runninghub missing api_key")
+
+        workflow_id = (
+            tts_params.get("workflow_id")
+            or tts_params.get("runninghub_tts_edge_workflow_id")
+            or secrets.get("workflow_id")
+            or secrets.get("runninghub_tts_edge_workflow_id")
+            or provider_cfg.get("workflow_id")
+            or provider_cfg.get("runninghub_tts_edge_workflow_id")
+        )
+        fallback_cfg: Dict[str, Any] = {
+            "enabled": True,
+            "try_edge_tts": False,
+            "fallback_to_runninghub": True,
+            "runninghub_api_key": api_key,
+            "runninghub_base_url": base_url,
+            "voice": (
+                tts_params.get("voice")
+                or tts_params.get("voice_id")
+                or secrets.get("voice")
+                or secrets.get("voice_id")
+                or provider_cfg.get("voice")
+                or provider_cfg.get("voice_id")
+                or "zh-CN-YunjianNeural"
+            ),
+            "speed": tts_params.get("speed", provider_cfg.get("speed", 1.2)),
+            "timeout_seconds": (
+                tts_params.get("timeout_seconds")
+                or secrets.get("timeout_seconds")
+                or provider_cfg.get("timeout_seconds")
+                or 300
+            ),
+        }
+        if workflow_id:
+            fallback_cfg["runninghub_tts_edge_workflow_id"] = str(workflow_id)
+
+        adapter = PixelleTTSAdapter(fallback_cfg=fallback_cfg, clone_cfg={})
+        asyncio.run(adapter.synthesize_runninghub_fallback(text=text, output_path=wav_path))
+
     def _tts_pixelle_clone_sync(
         self,
         *,
@@ -955,57 +1134,45 @@ class GenerateVoiceoverNode(BaseNode):
         tts_params: Dict[str, Any],
         provider_cfg: Dict[str, Any],
     ) -> None:
-        ref_audio = Path(str(secrets.get("ref_audio") or "").strip())
-        if not ref_audio.is_file():
-            raise ValueError("pixelle_clone requires a readable ref_audio file")
+        ref_audio = str(secrets.get("ref_audio") or "").strip()
+        if not ref_audio:
+            raise ValueError("pixelle_clone requires ref_audio")
 
         base_url = str(secrets.get("base_url") or "").strip().rstrip("/")
         api_key = str(secrets.get("api_key") or "").strip()
         if not base_url:
             raise ValueError("pixelle_clone missing base_url")
+        if not api_key:
+            raise ValueError("pixelle_clone missing api_key")
 
-        headers = {"Accept": "audio/wav"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-
-        data = {
-            "text": text,
-            "external_voice_id": secrets.get("external_voice_id") or "",
-            "speed": str(tts_params.get("speed", provider_cfg.get("speed", 1.0))),
-            "format": str(tts_params.get("format", provider_cfg.get("format", "wav"))),
-        }
-        with ref_audio.open("rb") as audio_file:
-            files = {
-                "ref_audio": (
-                    ref_audio.name,
-                    audio_file,
-                    "audio/wav",
-                )
-            }
-            resp = requests.post(
-                f"{base_url}/tts/clone",
-                headers=headers,
-                data=data,
-                files=files,
-                timeout=180,
+        workflow_id = (
+            tts_params.get("workflow_id")
+            or tts_params.get("runninghub_tts_clone_workflow_id")
+            or secrets.get("workflow_id")
+            or secrets.get("runninghub_tts_clone_workflow_id")
+            or provider_cfg.get("workflow_id")
+            or provider_cfg.get("runninghub_tts_clone_workflow_id")
+            or "1983718528991862786"
+        )
+        timeout_seconds = (
+            tts_params.get("timeout_seconds")
+            or secrets.get("timeout_seconds")
+            or provider_cfg.get("timeout_seconds")
+            or 300
+        )
+        adapter = PixelleTTSAdapter(
+            fallback_cfg={},
+            clone_cfg={
+                "runninghub_api_key": api_key,
+                "runninghub_base_url": base_url,
+                "runninghub_tts_clone_workflow_id": str(workflow_id),
+                "timeout_seconds": timeout_seconds,
+            },
+        )
+        asyncio.run(
+            adapter.synthesize_clone(
+                text=text,
+                ref_audio=ref_audio,
+                output_path=wav_path,
             )
-
-        if not resp.ok:
-            raise RuntimeError(f"pixelle_clone tts http {resp.status_code}: {resp.text}")
-
-        content_type = resp.headers.get("content-type", "")
-        if "application/json" in content_type:
-            payload = self._safe_json(resp)
-            audio_url = self._extract_first_value(payload, ("audio_url", "url", "download_url"))
-            audio_b64 = self._extract_first_value(payload, ("audio", "audio_base64", "data"))
-            if isinstance(audio_url, str) and audio_url.startswith("http"):
-                audio_resp = requests.get(audio_url, timeout=120)
-                audio_resp.raise_for_status()
-                wav_path.write_bytes(audio_resp.content)
-                return
-            if isinstance(audio_b64, str) and audio_b64:
-                wav_path.write_bytes(base64.b64decode(audio_b64))
-                return
-            raise RuntimeError(f"pixelle_clone tts returned JSON without audio: {payload}")
-
-        wav_path.write_bytes(resp.content)
+        )

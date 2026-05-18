@@ -78,7 +78,7 @@ class LocalASRNode(BaseNode):
         node_state,
         inputs: Dict[str, Any],
     ) -> Any:
-        return {}
+        return await self.process(node_state, inputs)
 
     async def process(self, node_state: NodeState, inputs: Dict[str, Any]) -> Any:
 

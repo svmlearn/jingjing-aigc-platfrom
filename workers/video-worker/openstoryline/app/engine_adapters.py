@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import time
 import subprocess
 from pathlib import Path
@@ -20,6 +21,24 @@ MINIMAL_JPEG_BASE64 = (
     "AAABAgMRBBIhMQVBUQYiYXGBEzKRobHB0SNSYnKS4fAHFSMzQ1Nz/8QAGQEAAwEBAQAAAAAAAA"
     "AAAAAAAAECAwQF/8QAHREAAgICAwEAAAAAAAAAAAAAAAECEQMhEjFBcf/aAAwDAQACEQMRAD8A"
     "9YooooooooA//2Q=="
+)
+
+TALKING_HEAD_LABELS = {
+    "talking_head",
+    "talking-head",
+    "talkinghead",
+    "口播",
+    "真人口播",
+    "真人开头口播",
+    "真人结尾口播",
+}
+TALKING_HEAD_SCRIPT_TOKENS = (
+    "真人开头口播",
+    "真人结尾口播",
+    "真人口播",
+    "口播",
+    "出镜讲解",
+    "人物讲解",
 )
 
 
@@ -139,7 +158,7 @@ class FireRedEngineAdapter:
             headers=headers,
             timeout=self._settings.fire_red_run_timeout_seconds,
         )
-        response.raise_for_status()
+        _raise_for_status_with_body(response, "FireRed run")
         fire_red_response = response.json()
 
         return self._response_from_fire_red_response(
@@ -180,7 +199,7 @@ class FireRedEngineAdapter:
                     read=float(self._settings.fire_red_stream_idle_timeout_seconds),
                 ),
             ) as response:
-                response.raise_for_status()
+                _raise_for_status_with_body(response, "FireRed stream run")
                 last_event_at = time.monotonic()
                 for line in response.iter_lines():
                     event = _decode_stream_event(line)
@@ -357,6 +376,10 @@ def _build_fire_red_run_payload(
     directive = request.production_directive or {}
     desired_outputs = list(directive.get("desired_outputs") or ["final_video"])
     production_config = request.production_config or {}
+    production_config = _with_talking_head_audio_policy(
+        production_config,
+        request,
+    )
     payload = {
         "job_id": request.job_id,
         "merchant_id": request.merchant_id,
@@ -372,7 +395,9 @@ def _build_fire_red_run_payload(
         "service_config": _build_fire_red_service_config(settings, production_config),
         "runtime_payload": request.runtime_payload,
         "desired_outputs": desired_outputs,
-        "input_assets": [asset.model_dump() for asset in request.input_assets],
+        "input_assets": [
+            _compact_payload(asset.model_dump()) for asset in request.input_assets
+        ],
         "prompt": _build_fire_red_prompt(request, desired_outputs, production_config),
     }
     return payload
@@ -438,6 +463,12 @@ def _build_fire_red_service_config(
                 "api_key": settings.tts_minimax_api_key,
             }
         )
+        fallback_config = _compact_dict(
+            {
+                "base_url": settings.tts_runninghub_base_url,
+                "api_key": settings.tts_runninghub_api_key,
+            }
+        )
     elif provider == "302":
         provider_config = _compact_dict(
             {
@@ -445,6 +476,7 @@ def _build_fire_red_service_config(
                 "api_key": settings.tts_302_api_key,
             }
         )
+        fallback_config = {}
     else:
         provider = "bytedance_bigtts"
         provider_config = _compact_dict(
@@ -457,12 +489,125 @@ def _build_fire_red_service_config(
                 "speaker": settings.tts_bytedance_bigtts_speaker,
             }
         )
+        fallback_config = {}
 
     service_config["tts"] = {
             "provider": provider,
             provider: provider_config,
         }
+    if provider == "minimax" and fallback_config:
+        service_config["tts"]["fallback_provider"] = "runninghub"
+        service_config["tts"]["runninghub"] = fallback_config
     return service_config
+
+
+def _with_talking_head_audio_policy(
+    production_config: dict[str, object],
+    request: RunRequest,
+) -> dict[str, object]:
+    if not _voiceover_enabled(production_config):
+        return production_config
+    if not _is_talking_head_request(request):
+        return production_config
+
+    render = production_config.get("render")
+    render_config = dict(render) if isinstance(render, dict) else {}
+    if _as_bool(
+        render_config.get("preserve_talking_head_original_audio")
+        or render_config.get("preserveTalkingHeadOriginalAudio")
+    ):
+        render_config["include_original_audio"] = True
+        render_config["include_video_audio"] = True
+        render_config["video_volume_scale"] = render_config.get("video_volume_scale", 1)
+        render_config["audio_policy"] = (
+            render_config.get("audio_policy")
+            or "preserve_talking_head_original_audio_with_voiceover"
+        )
+        updated = dict(production_config)
+        updated["render"] = render_config
+        updated["asset_classification"] = _talking_head_asset_classification(
+            production_config
+        )
+        return updated
+
+    render_config["include_original_audio"] = False
+    render_config["include_video_audio"] = False
+    render_config["video_volume_scale"] = 0
+    render_config["audio_policy"] = "mute_source_for_talking_head_voiceover"
+
+    updated = dict(production_config)
+    updated["render"] = render_config
+    updated["asset_classification"] = _talking_head_asset_classification(
+        production_config
+    )
+    return updated
+
+
+def _talking_head_asset_classification(
+    production_config: dict[str, object],
+) -> dict[str, object]:
+    existing = production_config.get("asset_classification")
+    base = existing if isinstance(existing, dict) else {}
+    return {
+        **base,
+        "talking_head": True,
+        "standard": (
+            "explicit asset/script tags first; locked script semantics second; "
+            "filename alone is never sufficient"
+        ),
+    }
+
+
+def _voiceover_enabled(production_config: dict[str, object]) -> bool:
+    voiceover = production_config.get("voiceover")
+    return not (isinstance(voiceover, dict) and voiceover.get("enabled") is False)
+
+
+def _is_talking_head_request(request: RunRequest) -> bool:
+    for asset in request.input_assets:
+        if _asset_has_talking_head_label(asset.model_dump()):
+            return True
+
+    script_text = " ".join(
+        [
+            str(request.script_text or ""),
+            json.dumps(request.production_directive or {}, ensure_ascii=False),
+            json.dumps(request.production_config or {}, ensure_ascii=False),
+        ]
+    )
+    return any(token in script_text for token in TALKING_HEAD_SCRIPT_TOKENS)
+
+
+def _asset_has_talking_head_label(asset: dict[str, object]) -> bool:
+    values: list[str] = []
+    for key in ("role", "scene_type"):
+        value = asset.get(key)
+        if isinstance(value, str):
+            values.append(value)
+    for key in ("tags", "labels"):
+        value = asset.get(key)
+        if isinstance(value, list):
+            values.extend(str(item) for item in value)
+    metadata = asset.get("metadata")
+    if isinstance(metadata, dict):
+        for key in ("role", "scene_type", "asset_type", "content_type"):
+            value = metadata.get(key)
+            if isinstance(value, str):
+                values.append(value)
+        for key in ("tags", "labels"):
+            value = metadata.get(key)
+            if isinstance(value, list):
+                values.extend(str(item) for item in value)
+
+    normalized = {
+        str(value).strip().lower().replace("_", "-")
+        for value in values
+        if str(value).strip()
+    }
+    return any(
+        label.lower().replace("_", "-") in normalized
+        for label in TALKING_HEAD_LABELS
+    )
 
 
 def _as_bool(value: object) -> bool:
@@ -489,7 +634,7 @@ def _build_fire_red_prompt(
         indent=2,
     )
     assets_json = json.dumps(
-        [asset.model_dump() for asset in request.input_assets],
+        [_compact_payload(asset.model_dump()) for asset in request.input_assets],
         ensure_ascii=False,
         indent=2,
     )
@@ -498,6 +643,9 @@ def _build_fire_red_prompt(
     return "\n".join(
         [
             "You are the FireRed OpenStoryline production engine for a locked worker job.",
+            "This is an unattended background worker run, not an interactive chat.",
+            "Approval to execute has already been granted by the caller.",
+            "Do not ask for confirmation and do not stop after presenting a plan.",
             "Use the uploaded media in this session and render a final video.",
             "Do not rewrite the locked script unless ProductionDirective explicitly allows it.",
             "The final step must produce a render_video artifact.",
@@ -531,6 +679,14 @@ def _compact_dict(payload: dict[str, str]) -> dict[str, str]:
     return {key: value for key, value in payload.items() if value}
 
 
+def _compact_payload(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        key: value
+        for key, value in payload.items()
+        if value not in (None, "", [], {})
+    }
+
+
 def _first_dict(payload: dict[str, object], *keys: str) -> dict[str, object]:
     for key in keys:
         value = payload.get(key)
@@ -559,6 +715,34 @@ def _decode_stream_event(line: str | bytes) -> dict[str, Any] | None:
             "error": {"message": f"invalid stream event JSON: {exc}"},
         }
     return data if isinstance(data, dict) else None
+
+
+def _raise_for_status_with_body(response: httpx.Response, action: str) -> None:
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        try:
+            body_text = response.text
+        except httpx.ResponseNotRead:
+            response.read()
+            body_text = response.text
+        body = _redact_sensitive_text(body_text or "").strip()
+        if len(body) > 2000:
+            body = body[:2000] + "...<truncated>"
+        detail = f"{action} failed: {exc}"
+        if body:
+            detail = f"{detail}; response_body={body}"
+        raise RuntimeError(detail) from exc
+
+
+def _redact_sensitive_text(value: str) -> str:
+    value = re.sub(
+        r'("?(?:api[_-]?key|access[_-]?key|token|secret|provider[_-]?key)"?\s*[:=]\s*")([^"]+)(")',
+        r"\1***\3",
+        value,
+        flags=re.IGNORECASE,
+    )
+    return value
 
 
 def _write_video_cover_thumbnail(video_path: Path, cover_path: Path) -> None:
