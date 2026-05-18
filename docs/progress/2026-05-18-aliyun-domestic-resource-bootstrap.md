@@ -110,3 +110,76 @@ RAM / AccessKey 状态：
 - 未创建、查看或记录 AccessKey Secret。
 - 未改 DNS，未提交 ICP，未 push / merge。
 - 未写 `DOMESTIC_PHASE1_E2E_PASS`，未标记 long-task complete。
+
+## 资源接线执行记录（2026-05-18 22:19 CST）
+
+执行方式：阿里云控制台当前资源为准。本轮只做 RDS / OSS / RAM 云资源接线；未部署 app / worker，未 SSH 初始化 ECS，未修改 DNS，未提交 ICP，未 merge `main`，未写 `DOMESTIC_PHASE1_E2E_PASS`，未标记 long-task complete。
+
+### RDS PostgreSQL 接线结果
+
+- RDS 实例：`pgm-bp1p28yc1u41re78`
+- `default` 白名单已包含最终 ECS 内网 IP：`172.27.156.22`
+- `default` 白名单保留旧内网 IP：`172.27.156.19`
+- `default` 白名单当前包含：`127.0.0.1,172.27.156.19,172.27.156.22`
+- 未开启 RDS 公网访问。
+- 业务账号：`jingjing_app` 已创建，类型为普通账号，状态已激活；密码由用户在控制台输入和保管，未写入聊天、文档或 Git。
+- 业务数据库：`jingjing_domestic` 已创建，字符集 UTF8，Collate 为 `C`，Ctype 为 `en_US.utf8`，已绑定账号 `jingjing_app`。
+
+### OSS Bucket 接线结果
+
+- Bucket 已创建：`jingjing-domestic-phase1-hz`
+- Region：华东1（杭州）/ `oss-cn-hangzhou`
+- 公网 Endpoint：`oss-cn-hangzhou.aliyuncs.com`
+- ECS 内网 Endpoint：`oss-cn-hangzhou-internal.aliyuncs.com`
+- Bucket 域名：`jingjing-domestic-phase1-hz.oss-cn-hangzhou.aliyuncs.com`
+- ECS 内网 Bucket 域名：`jingjing-domestic-phase1-hz.oss-cn-hangzhou-internal.aliyuncs.com`
+- ACL：私有
+- 阻止公共访问：已开启
+- 存储类型：标准存储
+- 冗余类型：本地冗余存储
+- 版本控制：未开通
+- 服务端加密：无
+
+### OSS CORS 接线结果
+
+CORS 已创建 1 条规则。控制台提示跨域规则可能在设置成功后 15 分钟内生效。
+
+- Allowed Origins：
+  - `http://8.154.28.41`
+  - `http://43.160.208.189`
+  - `http://127.0.0.1:3000`
+- Allowed Methods：GET、PUT、HEAD
+- Allowed Headers：`*`
+- Expose Headers：`ETag`、`x-oss-request-id`
+- MaxAgeSeconds：`0`
+- 后续备案域名完成后，再追加 `app.ba-ba-ke.com` 对应 Origin。
+
+### RAM 最小权限接线结果
+
+- RAM 自定义策略已创建：`jingjing-domestic-phase1-oss-prefix-policy`
+- RAM 用户已创建：`jingjing-domestic-oss-phase1`
+- 已将自定义策略绑定到 RAM 用户 `jingjing-domestic-oss-phase1`
+- 该 RAM 用户当前 AccessKey 数量：0
+- 本轮未创建、展示、复制或保存任何 AccessKey Secret，也未记录完整 AccessKey ID。
+- 创建 RAM 策略 / 用户时触发过阿里云安全验证，由用户在控制台自行完成；验证码未进入聊天或文档。
+
+策略动作范围：
+
+- `oss:PutObject`
+- `oss:GetObject`
+- `oss:DeleteObject`
+- `oss:GetObjectMeta`
+
+策略资源范围：
+
+- `acs:oss:*:*:jingjing-domestic-phase1-hz/app-storage-provider-smoke/*`
+- `acs:oss:*:*:jingjing-domestic-phase1-hz/source-assets/*`
+- `acs:oss:*:*:jingjing-domestic-phase1-hz/draft-inputs/*`
+- `acs:oss:*:*:jingjing-domestic-phase1-hz/knowledge/*`
+
+### 仍需用户人工输入 / 确认
+
+1. RDS 账号 `jingjing_app` 的密码由用户自行安全保存，后续部署或迁移时写入安全 env，不写入文档或 Git。
+2. 后续如应用需要 OSS 凭证，用户需要为 RAM 用户 `jingjing-domestic-oss-phase1` 自行创建 AccessKey，并把 Secret 仅保存到本地 / 服务器安全 env；不要发到聊天或提交到 Git。
+3. 备案域名可用后，补充 OSS CORS Origin：`app.ba-ba-ke.com` 对应协议域名。
+4. 下一轮再执行 RDS migration、OSS roundtrip / signed PUT 验证和 app / worker 部署；本轮未做这些验证。
