@@ -341,7 +341,59 @@ Bucket 仍需配置：
 如果想按低阻塞方案走，也可以不买资源包，直接创建私有 Bucket 后按量付费。
 ```
 
-### 10.4 多项目共用资源判断
+### 10.4 OSS 下行流量包页面（暂不下单）
+
+截图：
+
+![OSS downlink package final](assets/2026-05-18-aliyun-phase1-oss-downlink-final.png)
+
+页面 URL：
+
+```text
+https://common-buy.aliyun.com/?commodityCode=ossbag#/buy
+```
+
+页面配置记录：
+
+```text
+商品类型：OSS 资源包
+资源包类型：下行流量
+地域：中国内地通用
+规格：100GB
+购买时长：1个月
+应付费用：¥49.00
+当前决策：暂不下单，只记录备忘
+```
+
+使用判断：
+
+```text
+下行流量包用于抵扣“用户通过互联网浏览或下载 OSS 数据”产生的外网流出流量。
+本包不是存储容量包，也不是 CDN。
+
+当前建议：
+- 存储容量包可以买：华东1（杭州）/ 标准本地冗余 / 500GB / 6个月 / ¥268.92
+- 下行流量包先不买；后续如果用户下载视频产生明显 OSS 外网流出费用，再回到本页购买国内通用 / 100GB / 1个月 / ¥49.00 起步
+- 不建议一开始买 500GB / 6个月下行流量包；页面价格为 ¥1,230.06，初期下载量未验证前容易浪费
+
+如果后续用户下载量起来：
+- 优先接 CDN + 自定义域名，例如 media.ba-ba-ke.com
+- CDN 不是普通 DNS 解析；它需要在 CDN 控制台配置加速域名、源站指向 OSS，再到 DNS 做 CNAME
+- CDN 计费和 OSS 外网下行包不是一回事，需要单独按 CDN 流量/带宽计费或购买 CDN 流量包
+```
+
+人工下单前重点检查：
+
+```text
+两个 OSS 资源包是两类商品：
+1. 标准 - 本地冗余存储：抵扣对象存储容量
+2. 下行流量：抵扣用户从互联网下载/浏览 OSS 对象的流量
+
+如果预算敏感，也可以暂时不买下行流量包，先按量付费观察真实下载量。
+本轮用户已决定：下行流量包先不下单，只记录入口、配置和价格。
+```
+
+### 10.5 多项目共用资源判断
 
 ```text
 可以在同一台 8核16G ECS 上挂多个项目，但建议只作为早期/低并发阶段方案。
@@ -377,4 +429,5 @@ ba-ba-ke.com 可以用不同二级域名挂不同项目。
 docs/handoff/assets/2026-05-18-aliyun-phase1-ecs-final.png
 docs/handoff/assets/2026-05-18-aliyun-phase1-rds-final.png
 docs/handoff/assets/2026-05-18-aliyun-phase1-oss-final.png
+docs/handoff/assets/2026-05-18-aliyun-phase1-oss-downlink-final.png
 ```
