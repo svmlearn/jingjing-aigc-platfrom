@@ -183,3 +183,99 @@ CORS 已创建 1 条规则。控制台提示跨域规则可能在设置成功后
 2. 后续如应用需要 OSS 凭证，用户需要为 RAM 用户 `jingjing-domestic-oss-phase1` 自行创建 AccessKey，并把 Secret 仅保存到本地 / 服务器安全 env；不要发到聊天或提交到 Git。
 3. 备案域名可用后，补充 OSS CORS Origin：`app.ba-ba-ke.com` 对应协议域名。
 4. 下一轮再执行 RDS migration、OSS roundtrip / signed PUT 验证和 app / worker 部署；本轮未做这些验证。
+
+## ECS / RDS / OSS 真实验证记录（2026-05-18 23:13 CST）
+
+执行范围：只做 ECS 基础环境、RDS 私网连接与 schema migration、Aliyun OSS roundtrip、signed PUT 验证。未部署 app / worker，未修改 DNS，未提交 ICP，未开启 RDS 公网访问，未把 OSS Bucket 改公开，未 merge `main`，未写 `DOMESTIC_PHASE1_E2E_PASS`，未标记 long-task complete。
+
+### ECS 基础环境
+
+- SSH：`ubuntu@8.154.28.41` 可连接，`sudo -n true` 通过。
+- 已安装基础包：`ca-certificates`、`curl`、`git`、`jq`、`unzip`、`nginx`、`postgresql-client`、`docker.io`、`docker-compose`。
+- Docker：`Docker version 29.1.3`
+- Docker Compose：Ubuntu 源未提供 `docker compose` v2 plugin，已安装可用降级 `docker-compose version 1.29.2`。
+- Nginx：`nginx/1.18.0 (Ubuntu)`，服务状态 `active`
+- PostgreSQL client：`psql 14.22`
+- Docker 服务状态：`active`
+- 目录已创建：
+  - `/srv/jingjing-domestic/releases`
+  - `/srv/jingjing-domestic/shared/env`
+  - `/srv/jingjing-domestic/logs`
+  - `/srv/jingjing-domestic/backups`
+- `/srv/jingjing-domestic/shared/env` 权限：`700`
+- RDS env 已放入 `/srv/jingjing-domestic/shared/env/app.env`，权限 `600`；未打印或记录密码。
+
+### RDS 私网连接与迁移
+
+- 私网端口验证：从 ECS 执行 `pg_isready -h pgm-bp1p28yc1u41re78.pg.rds.aliyuncs.com -p 5432 -U jingjing_app -d jingjing_domestic`，结果为 accepting connections。
+- SQL 连接：RDS 当前不支持 `sslmode=require`，连接串要求 SSL 时返回 `server does not support SSL, but SSL was required`。
+- 验证和迁移均在 ECS 内网临时使用 `sslmode=disable` 连接完成；未打开 RDS 公网访问。
+- RDS 版本：PostgreSQL 18.3
+- 当前数据库 / 用户：`jingjing_domestic` / `jingjing_app`
+- `pg_available_extensions` 显示 `vector` 可用版本 `0.8.1.2`，但业务账号无权 `create extension vector`；optional pgvector migration 已安全降级，保留 `embedding_json` fallback。
+- 已应用 migrations：
+  - `202605130001_domestic_core_baseline.sql`
+  - `202605160001_selfhost_p0_foundation.sql`
+  - `202605160002_selfhost_pgvector_optional.sql`（降级 fallback）
+  - `202605170001_selfhost_merchant_credits_usage.sql`
+  - `202605170002_selfhost_storage_provider_aliyun_oss.sql`
+- 迁移后 public base table count：45
+- 关键表检查通过：`app_users`、`merchant_profiles`、`asset_objects`、`knowledge_documents`、`knowledge_chunks`、`merchant_credit_accounts`
+- storage provider 字段检查通过：`asset_objects` 与 `knowledge_documents` 均有 `storage_provider`、`bucket_name`、`storage_key`
+
+后续部署前需要把 RDS env 中的 `APP_DATABASE_URL` 改为 `sslmode=disable`，或先在 RDS 侧确认并启用 SSL 后再使用 `sslmode=require`。
+
+### Aliyun OSS 验证
+
+迁移 worktree：`/Users/wy/Desktop/静境/静境4.0/jingjing-domestic-infra-migration`，branch `codex/domestic-infra-migration`。
+
+Server roundtrip 命令：
+
+```bash
+node app/scripts/check-domestic-storage-provider-smoke.mjs --env-file /tmp/jingjing-aliyun-oss-validation.env --provider aliyun_oss --roundtrip
+```
+
+结果：
+
+- `status=ok`
+- `provider=aliyun_oss`
+- bucket：`jingjing-domestic-phase1-hz`
+- region：`oss-cn-hangzhou`
+- endpoint：`oss-cn-hangzhou.aliyuncs.com`
+- `signedDownloadStatus=200`
+- `signedDownloadMatched=true`
+- `deleted=true`
+
+Signed PUT 验证新增脚本：
+
+```bash
+node app/scripts/check-aliyun-oss-signed-put-smoke.mjs --env-file /tmp/jingjing-aliyun-oss-validation.env --origin <origin>
+```
+
+已验证 Origins：
+
+- `http://127.0.0.1:3000`
+- `http://8.154.28.41`
+- `http://43.160.208.189`
+
+三组结果均为：
+
+- `status=ok`
+- CORS preflight status：200
+- allow methods：GET, PUT, HEAD
+- allow headers：content-type
+- PUT status：200
+- signed GET status：200
+- `signedDownloadMatched=true`
+- `deleted=true`
+
+### 结论 / 下一步
+
+- ECS 基础环境：通过；Docker Compose 当前是 v1 fallback。
+- RDS 私网连接：通过；注意 env 需改为 `sslmode=disable` 或先启用 RDS SSL。
+- RDS migrations：已完成；pgvector optional 已降级 fallback。
+- Aliyun OSS roundtrip：通过。
+- Aliyun signed PUT：通过，3 个已配置 Origin 均验证成功。
+- app deploy：技术前置基本具备，但本轮未部署；部署前先修正 RDS env SSL 参数并做 clean release。
+- worker Batch 9C：app 侧 Aliyun OSS roundtrip 与 signed PUT 已通过，可以进入下一批 worker storage 迁移评估；本轮未启动。
+- push / merge：未 push，未 merge。
