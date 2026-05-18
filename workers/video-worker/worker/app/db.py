@@ -231,7 +231,7 @@ class VideoJobRepository:
                         "content_variant",
                         job.content_variant_id,
                         asset.asset_type,
-                        "tencent_cos",
+                        asset.storage_provider,
                         asset.bucket_name,
                         asset.storage_key,
                         asset.mime_type,
@@ -244,7 +244,7 @@ class VideoJobRepository:
                     {
                         "asset_id": str(record.get("id") or ""),
                         "asset_type": asset.asset_type,
-                        "storage_provider": "tencent_cos",
+                        "storage_provider": asset.storage_provider,
                         "bucket_name": asset.bucket_name,
                         "storage_key": asset.storage_key,
                         "mime_type": asset.mime_type,

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import Settings
-from .cos_client import TencentCosClient
+from .cos_client import ObjectStorageClient
 from .db import VideoJobRepository
 from .directive import DirectiveValidationError, build_production_directive
 from .models import EngineRunResult, InputAssetContractError, UploadedAsset, VideoJob
@@ -316,7 +316,7 @@ class JobProcessor:
         self,
         settings: Settings,
         repository: VideoJobRepository,
-        cos_client: TencentCosClient,
+        cos_client: ObjectStorageClient,
         openstoryline_client: OpenStorylineClient,
     ) -> None:
         self._settings = settings
@@ -334,19 +334,26 @@ class JobProcessor:
 
     def _download_inputs(self, job: VideoJob, input_dir: Path) -> list[dict[str, str]]:
         downloaded_assets: list[dict[str, str]] = []
-        for asset in job.input_assets(self._settings.cos_bucket):
+        default_buckets = getattr(
+            self._settings,
+            "default_input_buckets",
+            getattr(self._settings, "cos_bucket", ""),
+        )
+        for asset in job.input_assets(default_buckets):
             local_path = input_dir / asset.file_name
             try:
                 self._cos_client.download_file(
                     storage_key=asset.storage_key,
                     destination=local_path,
                     bucket_name=asset.bucket_name,
+                    storage_provider=asset.storage_provider,
                 )
             except Exception as exc:
                 raise InputDownloadError(asset.storage_key, exc) from exc
             downloaded_assets.append(
                 {
                     "asset_type": asset.asset_type,
+                    "storage_provider": asset.storage_provider,
                     "file_name": asset.file_name,
                     "local_path": str(local_path),
                 }
@@ -364,13 +371,14 @@ class JobProcessor:
         def upload(local_path: Path, asset_type: str) -> UploadedAsset:
             storage_key = job.output_object_key(
                 asset_type,
-                self._settings.cos_result_prefix,
+                getattr(self._settings, "storage_result_prefix", self._settings.cos_result_prefix),
             )
             try:
                 return self._cos_client.upload_file(
                     local_path=local_path,
                     storage_key=storage_key,
                     asset_type=asset_type,
+                    storage_provider=getattr(self._settings, "storage_provider", "tencent_cos"),
                 )
             except Exception as exc:
                 raise OutputUploadError(storage_key, exc) from exc
@@ -410,7 +418,13 @@ class JobProcessor:
             raise OutputValidationError(missing_outputs)
 
     def _cos_output_configured(self) -> bool:
-        return bool(getattr(self._settings, "cos_output_configured", True))
+        return bool(
+            getattr(
+                self._settings,
+                "output_storage_configured",
+                getattr(self._settings, "cos_output_configured", True),
+            )
+        )
 
     def _local_outputs_payload(self, run_result: EngineRunResult) -> dict[str, str | None]:
         return {
@@ -443,7 +457,7 @@ class JobProcessor:
             {
                 "asset_type": asset.asset_type,
                 "bucket_name": asset.bucket_name,
-                "storage_provider": "tencent_cos",
+                "storage_provider": asset.storage_provider,
                 "storage_key": asset.storage_key,
                 "mime_type": asset.mime_type,
                 "etag": asset.etag,
@@ -680,7 +694,7 @@ class JobProcessor:
                     record_timing("asset_objects_persistence", stage_started_at)
                 except Exception as exc:
                     raise OutputAssetPersistenceError(exc) from exc
-                upload_mode = "tencent_cos"
+                upload_mode = getattr(self._settings, "storage_provider", "tencent_cos")
                 log_payload["steps"].append(
                     {
                         "stage": "uploading_outputs",
@@ -693,7 +707,7 @@ class JobProcessor:
                     {
                         "stage": "uploading_outputs",
                         "status": "skipped",
-                        "reason": "cos_not_configured",
+                        "reason": "object_storage_not_configured",
                         "local_outputs": local_outputs,
                     }
                 )

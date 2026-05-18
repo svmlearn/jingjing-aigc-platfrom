@@ -16,7 +16,10 @@ const baseUrl = normalizeBaseUrl(
 );
 const email = getArgValue("--email") || process.env.DOMESTIC_SMOKE_EMAIL || "";
 const password = getArgValue("--password") || process.env.DOMESTIC_SMOKE_PASSWORD || "";
-const bucketName = getArgValue("--bucket") || process.env.COS_BUCKET || "";
+const provider = normalizeStorageProvider(
+  getArgValue("--provider") || process.env.STORAGE_PROVIDER?.trim() || "tencent_cos",
+);
+const bucketName = getArgValue("--bucket") || defaultBucketForProvider(provider);
 const fileName = getArgValue("--file-name") || "codex-domestic-api-smoke.mp4";
 const withUploadIntent =
   hasFlag("--with-upload-intent") ||
@@ -40,7 +43,11 @@ if (missing.length > 0) {
         baseUrl: ["--base-url", "DOMESTIC_APP_BASE_URL", "APP_BASE_URL"],
         email: ["--email", "DOMESTIC_SMOKE_EMAIL"],
         password: ["--password", "DOMESTIC_SMOKE_PASSWORD"],
-        bucket: ["--bucket", "COS_BUCKET"],
+        bucket:
+          provider === "aliyun_oss"
+            ? ["--bucket", "ALIYUN_OSS_BUCKET"]
+            : ["--bucket", "COS_BUCKET"],
+        provider: ["--provider", "STORAGE_PROVIDER"],
       },
     },
     2,
@@ -87,16 +94,23 @@ try {
       })
     : null;
   const uploadIntentPayload = uploadIntent?.body?.uploadIntent ?? null;
-  const uploadIntentShape = inspectUploadIntentShape(uploadIntentPayload);
+  const uploadIntentShape = inspectUploadIntentShape(uploadIntentPayload, provider);
+  const signedPut = await performSignedPutIfAvailable({
+    uploadIntent: uploadIntentPayload,
+    provider,
+  });
   const storageKey =
-    typeof uploadIntentPayload?.cosKey === "string"
-      ? uploadIntentPayload.cosKey
-      : [
-          "draft-inputs",
-          draft.merchantId,
-          draft.id,
-          `${Date.now()}-${sanitizeFileName(fileName)}`,
-        ].join("/");
+    firstString(
+      uploadIntentPayload?.storageKey,
+      uploadIntentPayload?.uploadKey,
+      uploadIntentPayload?.cosKey,
+    ) ??
+    [
+      "draft-inputs",
+      draft.merchantId,
+      draft.id,
+      `${Date.now()}-${sanitizeFileName(fileName)}`,
+    ].join("/");
   const resolvedBucket =
     typeof uploadIntentPayload?.bucket === "string" ? uploadIntentPayload.bucket : bucketName;
   const mediaComplete = await postJson({
@@ -107,12 +121,12 @@ try {
       ownerType: "content_draft",
       ownerId: draft.id,
       assetType: "video",
-      storageProvider: "tencent_cos",
+      storageProvider: provider,
       bucketName: resolvedBucket,
       storageKey,
       mimeType: "video/mp4",
       sizeBytes: 1024,
-      etag: "domestic-api-smoke-etag",
+      etag: signedPut.etag ?? "domestic-api-smoke-etag",
       sortOrder: 0,
     },
   });
@@ -137,6 +151,7 @@ try {
     login.status === 303 &&
     testDraft.status === 201 &&
     (!withUploadIntent || (uploadIntent?.status === 201 && uploadIntentShape.complete)) &&
+    (!signedPut.attempted || signedPut.status === 200) &&
     mediaComplete.status === 201 &&
     jobCreate.status === 201 &&
     job?.status === "pending" &&
@@ -147,10 +162,12 @@ try {
     {
       status: passed ? "ok" : "failed",
       baseUrl,
+      provider,
       loginStatus: login.status,
       testDraftStatus: testDraft.status,
       uploadIntentStatus: uploadIntent?.status ?? "skipped",
       uploadIntentCredentialsPresent: withUploadIntent ? uploadIntentShape.credentialsPresent : null,
+      signedPutStatus: signedPut.attempted ? signedPut.status : "skipped",
       mediaCompleteStatus: mediaComplete.status,
       jobCreateStatus: jobCreate.status,
       draftId: draft.id,
@@ -161,8 +178,7 @@ try {
       renderMode,
       inputAssetCount: inputAssets.length,
       persistedJobPayloadInspected: persistedJobPayload.inspected,
-      uploadIntentKey:
-        typeof uploadIntentPayload?.cosKey === "string" ? uploadIntentPayload.cosKey : null,
+      uploadIntentKey: storageKey,
       uploadIntentMissingFields: withUploadIntent ? uploadIntentShape.missingFields : [],
       errorCodes: compact([
         testDraft.body?.error?.code,
@@ -171,8 +187,8 @@ try {
         jobCreate.body?.error?.code,
       ]),
       note: withUploadIntent
-        ? "API smoke with upload-intent check. It does not upload bytes to COS, run worker, verify final.mp4, or replace mobile browser e2e."
-        : "API smoke only. It does not upload bytes to COS, run worker, verify final.mp4, or replace mobile browser e2e.",
+        ? "API smoke with upload-intent check. Aliyun OSS uses signed PUT; Tencent COS validates STS shape. It does not run worker, verify final.mp4, or replace mobile browser e2e."
+        : "API smoke only. It does not upload bytes, run worker, verify final.mp4, or replace mobile browser e2e.",
     },
     passed ? 0 : 1,
   );
@@ -299,7 +315,7 @@ function extractCookieHeader(response) {
     .join("; ");
 }
 
-function inspectUploadIntentShape(uploadIntent) {
+function inspectUploadIntentShape(uploadIntent, selectedProvider) {
   if (!uploadIntent || typeof uploadIntent !== "object") {
     return {
       complete: false,
@@ -308,27 +324,100 @@ function inspectUploadIntentShape(uploadIntent) {
     };
   }
 
-  const requiredFields = [
-    "bucket",
-    "region",
-    "cosKey",
-    "TmpSecretId",
-    "TmpSecretKey",
-    "Token",
-    "expiredTime",
-  ];
-  const missingFields = requiredFields.filter((field) => {
-    const value = uploadIntent[field];
-    return value === null || value === undefined || value === "";
-  });
+  const commonFields = ["bucket", "region", "expiredTime"];
+  const providerFields =
+    selectedProvider === "aliyun_oss"
+      ? ["uploadUrl", "uploadMethod"]
+      : ["cosKey", "TmpSecretId", "TmpSecretKey", "Token"];
+  const missingFields = [...commonFields, ...providerFields].filter((field) =>
+    isMissingUploadIntentField(uploadIntent, field),
+  );
+  if (
+    selectedProvider === "aliyun_oss" &&
+    !firstString(uploadIntent.storageKey, uploadIntent.uploadKey, uploadIntent.cosKey)
+  ) {
+    missingFields.push("storageKey|uploadKey|cosKey");
+  }
 
   return {
     complete: missingFields.length === 0,
-    credentialsPresent: ["TmpSecretId", "TmpSecretKey", "Token"].every(
-      (field) => typeof uploadIntent[field] === "string" && uploadIntent[field].length > 0,
-    ),
+    credentialsPresent:
+      selectedProvider === "aliyun_oss"
+        ? typeof uploadIntent.uploadUrl === "string" &&
+          uploadIntent.uploadUrl.length > 0 &&
+          uploadIntent.uploadMethod === "PUT"
+        : ["TmpSecretId", "TmpSecretKey", "Token"].every(
+            (field) => typeof uploadIntent[field] === "string" && uploadIntent[field].length > 0,
+          ),
     missingFields,
   };
+}
+
+async function performSignedPutIfAvailable(input) {
+  if (input.provider !== "aliyun_oss" || !input.uploadIntent?.uploadUrl) {
+    return {
+      attempted: false,
+      status: null,
+      etag: null,
+    };
+  }
+
+  const headers = {
+    ...(typeof input.uploadIntent.uploadHeaders === "object" && input.uploadIntent.uploadHeaders
+      ? input.uploadIntent.uploadHeaders
+      : {}),
+  };
+  headers["Content-Type"] = headers["Content-Type"] || "video/mp4";
+
+  const response = await fetch(input.uploadIntent.uploadUrl, {
+    method: input.uploadIntent.uploadMethod || "PUT",
+    headers,
+    body: Buffer.alloc(1024, 0),
+  });
+
+  return {
+    attempted: true,
+    status: response.status,
+    etag: response.headers.get("etag"),
+  };
+}
+
+function isMissingUploadIntentField(uploadIntent, field) {
+  const value = uploadIntent[field];
+  return value === null || value === undefined || value === "";
+}
+
+function normalizeStorageProvider(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (normalized === "tencent_cos" || normalized === "aliyun_oss") {
+    return normalized;
+  }
+
+  writeReport(
+    {
+      status: "invalid_provider",
+      provider: value,
+      message: "Provider must be tencent_cos or aliyun_oss.",
+    },
+    2,
+  );
+}
+
+function defaultBucketForProvider(selectedProvider) {
+  return selectedProvider === "aliyun_oss"
+    ? process.env.ALIYUN_OSS_BUCKET || ""
+    : process.env.COS_BUCKET || "";
+}
+
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
 }
 
 function normalizeBaseUrl(value) {

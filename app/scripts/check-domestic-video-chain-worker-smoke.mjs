@@ -20,6 +20,9 @@ const baseUrl = normalizeBaseUrl(
 );
 const email = getArgValue("--email") || process.env.DOMESTIC_SMOKE_EMAIL || "";
 const password = getArgValue("--password") || process.env.DOMESTIC_SMOKE_PASSWORD || "";
+const provider = normalizeStorageProvider(
+  getArgValue("--provider") || process.env.STORAGE_PROVIDER?.trim() || "tencent_cos",
+);
 const filePath = getArgValue("--file") || "";
 const timeoutSeconds = parsePositiveInt(getArgValue("--timeout-seconds"), 900);
 const pollSeconds = parsePositiveInt(getArgValue("--poll-seconds"), 5);
@@ -94,11 +97,17 @@ try {
     },
   });
   const uploadIntentPayload = uploadIntent.body?.uploadIntent ?? null;
-  assertUploadIntent(uploadIntentPayload);
+  assertUploadIntent(uploadIntentPayload, provider);
   const putResult = await putObjectWithUploadIntent({
     uploadIntent: uploadIntentPayload,
     body,
+    provider,
   });
+  const storageKey = firstString(
+    uploadIntentPayload.storageKey,
+    uploadIntentPayload.uploadKey,
+    uploadIntentPayload.cosKey,
+  );
   const mediaComplete = await postJson({
     baseUrl,
     path: "/api/media/complete",
@@ -107,9 +116,9 @@ try {
       ownerType: "content_draft",
       ownerId: draft.id,
       assetType: "video",
-      storageProvider: "tencent_cos",
+      storageProvider: provider,
       bucketName: uploadIntentPayload.bucket,
-      storageKey: uploadIntentPayload.cosKey,
+      storageKey,
       mimeType: "video/mp4",
       sizeBytes: body.length,
       etag: putResult.etag,
@@ -176,6 +185,7 @@ try {
     {
       status: passed ? "ok" : "failed",
       baseUrl,
+      provider,
       loginStatus: login.status,
       testDraftStatus: testDraft.status,
       uploadIntentStatus: uploadIntent.status,
@@ -191,7 +201,7 @@ try {
       previewStatus: preview?.status ?? null,
       previewBytes: preview?.bytes ?? null,
       failureReason: finalJob.failureReason ?? null,
-      uploadIntentKey: uploadIntentPayload.cosKey,
+      uploadIntentKey: storageKey,
       selfHostedFastPath,
       productionConfigProvided: Boolean(productionConfig),
     },
@@ -388,29 +398,50 @@ async function fetchPreview(input) {
   };
 }
 
-function assertUploadIntent(uploadIntent) {
-  const missing = [
-    "bucket",
-    "region",
-    "cosKey",
-    "TmpSecretId",
-    "TmpSecretKey",
-    "Token",
-  ].filter((field) => !uploadIntent?.[field]);
+function assertUploadIntent(uploadIntent, selectedProvider) {
+  const requiredFields =
+    selectedProvider === "aliyun_oss"
+      ? ["bucket", "region", "uploadUrl", "uploadMethod", "expiredTime"]
+      : ["bucket", "region", "cosKey", "TmpSecretId", "TmpSecretKey", "Token"];
+  const missing = requiredFields.filter((field) => !uploadIntent?.[field]);
+  if (
+    selectedProvider === "aliyun_oss" &&
+    !firstString(uploadIntent?.storageKey, uploadIntent?.uploadKey, uploadIntent?.cosKey)
+  ) {
+    missing.push("storageKey|uploadKey|cosKey");
+  }
 
   if (missing.length > 0) {
     throw new Error(`Upload intent missing fields: ${missing.join(", ")}`);
   }
 }
 
-function putObjectWithUploadIntent(input) {
+async function putObjectWithUploadIntent(input) {
+  if (input.provider === "aliyun_oss") {
+    const headers = {
+      ...(typeof input.uploadIntent.uploadHeaders === "object" && input.uploadIntent.uploadHeaders
+        ? input.uploadIntent.uploadHeaders
+        : {}),
+    };
+    headers["Content-Type"] = headers["Content-Type"] || "video/mp4";
+    const response = await fetch(input.uploadIntent.uploadUrl, {
+      method: input.uploadIntent.uploadMethod || "PUT",
+      headers,
+      body: input.body,
+    });
+    if (!response.ok) {
+      throw new Error(`Aliyun OSS signed PUT failed. status=${response.status}`);
+    }
+    return { etag: response.headers.get("etag") };
+  }
+
   const client = new COS({
     SecretId: input.uploadIntent.TmpSecretId,
     SecretKey: input.uploadIntent.TmpSecretKey,
     SecurityToken: input.uploadIntent.Token,
   });
 
-  return new Promise((resolve, reject) => {
+  return await new Promise((resolve, reject) => {
     client.putObject(
       {
         Bucket: input.uploadIntent.bucket,
@@ -429,6 +460,33 @@ function putObjectWithUploadIntent(input) {
       },
     );
   });
+}
+
+function normalizeStorageProvider(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (normalized === "tencent_cos" || normalized === "aliyun_oss") {
+    return normalized;
+  }
+
+  writeReport(
+    {
+      status: "invalid_provider",
+      provider: value,
+      message: "Provider must be tencent_cos or aliyun_oss.",
+    },
+    2,
+  );
+}
+
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return "";
 }
 
 function extractCookieHeader(response) {

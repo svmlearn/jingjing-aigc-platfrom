@@ -4,6 +4,12 @@ import sys
 import types
 from pathlib import Path
 
+httpx = types.ModuleType("httpx")
+httpx.get = object()
+httpx.post = object()
+httpx.stream = object()
+sys.modules.setdefault("httpx", httpx)
+
 qcloud_cos = types.ModuleType("qcloud_cos")
 qcloud_cos.CosConfig = object
 qcloud_cos.CosS3Client = object
@@ -27,12 +33,27 @@ from worker.app.processor import JobProcessor
 
 
 class Settings:
+    storage_provider = "tencent_cos"
     cos_bucket = "default-bucket"
     cos_result_prefix = "video-results"
+    storage_result_prefix = "video-results"
+    default_input_buckets = {
+        "tencent_cos": "default-bucket",
+        "aliyun_oss": "default-aliyun-bucket",
+    }
 
     def __init__(self, root: Path) -> None:
         self.worker_temp_root = root / "tmp"
         self.worker_output_root = root / "outputs"
+
+
+class AliyunSettings(Settings):
+    storage_provider = "aliyun_oss"
+    storage_result_prefix = "video-results"
+    default_input_buckets = {
+        "tencent_cos": "default-bucket",
+        "aliyun_oss": "default-aliyun-bucket",
+    }
 
 
 def make_job(input_payload=None):
@@ -100,6 +121,7 @@ class FakeRepository:
             {
                 "asset_id": f"asset_{asset.asset_type}_1",
                 "asset_type": asset.asset_type,
+                "storage_provider": asset.storage_provider,
                 "bucket_name": asset.bucket_name,
                 "storage_key": asset.storage_key,
                 "mime_type": asset.mime_type,
@@ -117,12 +139,13 @@ class FakeCosClient:
         self.fail_download = fail_download
         self.fail_upload_asset_type = fail_upload_asset_type
 
-    def download_file(self, storage_key, destination, bucket_name=None):
+    def download_file(self, storage_key, destination, bucket_name=None, storage_provider="tencent_cos"):
         self.downloads.append(
             {
                 "storage_key": storage_key,
                 "destination": destination,
                 "bucket_name": bucket_name,
+                "storage_provider": storage_provider,
             }
         )
         if self.fail_download:
@@ -131,19 +154,28 @@ class FakeCosClient:
         destination.write_bytes(b"input")
         return destination
 
-    def upload_file(self, local_path, storage_key, asset_type, bucket_name=None):
+    def upload_file(
+        self,
+        local_path,
+        storage_key,
+        asset_type,
+        bucket_name=None,
+        storage_provider=None,
+    ):
         self.uploads.append(
             {
                 "local_path": local_path,
                 "storage_key": storage_key,
                 "asset_type": asset_type,
                 "bucket_name": bucket_name,
+                "storage_provider": storage_provider or "tencent_cos",
             }
         )
         if self.fail_upload_asset_type == asset_type:
             raise RuntimeError(f"upload failed for {storage_key}")
         return UploadedAsset(
             asset_type=asset_type,
+            storage_provider=storage_provider or "tencent_cos",
             bucket_name=bucket_name or "output-bucket",
             storage_key=storage_key,
             mime_type="video/mp4" if asset_type == "video" else "application/octet-stream",
@@ -523,6 +555,54 @@ class ProcessorContractTests(unittest.TestCase):
                 item["key"] == "render" and item["label"] == "合成渲染"
                 for item in result_payload["progress_modules"]
             )
+        )
+
+    def test_aliyun_input_and_output_provider_are_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                AliyunSettings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+            job = make_job(
+                {
+                    "source": "video_workbench",
+                    "executionMode": "staging_worker",
+                    "script": {
+                        "text": "固定脚本，不允许制作层改写。",
+                        "locked": True,
+                        "variantId": "variant_1",
+                    },
+                    "productionDirective": {
+                        "targetPlatform": "douyin",
+                        "aspectRatio": "9:16",
+                        "desiredOutputs": ["final_video"],
+                        "lockedFields": ["script", "cta"],
+                    },
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_provider": "aliyun_oss",
+                            "bucket_name": "jingjing-domestic-phase1-hz",
+                            "storage_key": "draft-inputs/demo.mp4",
+                            "file_name": "demo.mp4",
+                        }
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertEqual("aliyun_oss", cos_client.downloads[0]["storage_provider"])
+        self.assertEqual("aliyun_oss", cos_client.uploads[0]["storage_provider"])
+        result_payload = repository.succeeded["result_payload"]
+        self.assertEqual("aliyun_oss", result_payload["upload_mode"])
+        self.assertEqual(
+            "aliyun_oss",
+            result_payload["uploaded_assets"][0]["storage_provider"],
         )
 
     def test_stage_updates_include_progress_modules(self):

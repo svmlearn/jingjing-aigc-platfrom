@@ -156,6 +156,31 @@ test("toPublicVideoEditJob maps worker uploaded assets to top-level result asset
   assert.equal(publicJob.resultAssets[0]?.storageKey, "outputs/final.mp4");
 });
 
+test("toPublicVideoEditJob preserves Aliyun OSS worker uploaded assets", () => {
+  const publicJob = toPublicVideoEditJob({
+    ...baseJob,
+    resultPayload: {
+      uploaded_assets: [
+        {
+          asset_id: "asset-video-aliyun-1",
+          asset_type: "video",
+          bucket_name: "jingjing-domestic-phase1-hz",
+          storage_provider: "aliyun_oss",
+          storage_key: "video-results/final.mp4",
+          mime_type: "video/mp4",
+          etag: "etag",
+          file_size_bytes: 1024,
+        },
+      ],
+    },
+  });
+
+  assert.equal(publicJob.resultAssets.length, 1);
+  assert.equal(publicJob.resultAssets[0]?.storageProvider, "aliyun_oss");
+  assert.equal(publicJob.resultAssets[0]?.bucketName, "jingjing-domestic-phase1-hz");
+  assert.equal(publicJob.resultAssets[0]?.storageKey, "video-results/final.mp4");
+});
+
 test("toPublicVideoEditJob keeps explicit result assets before payload assets", () => {
   const publicJob = toPublicVideoEditJob({
     ...baseJob,
