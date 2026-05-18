@@ -162,3 +162,160 @@ docs/handoff/2026-05-18-aliyun-phase1-procurement-selection-handoff.md
 未 merge main
 未写 completion marker
 ```
+
+## 10. Chrome 购买页配置记录（2026-05-18 补充）
+
+用户要求按 `a82428e` 的采购选型文档，在 Chrome 中把阿里云购买页配置到推荐选项，停在确认下单 / 支付前。
+
+本轮实际执行：
+
+```text
+已打开 ECS / RDS PostgreSQL / OSS 资源包购买页
+已配置到推荐规格
+未点击确认下单
+未点击立即购买
+未点击支付
+未改 DNS
+未提交 ICP
+未创建或展示 AccessKey
+```
+
+### 10.1 ECS 页面
+
+截图：
+
+![ECS final](assets/2026-05-18-aliyun-phase1-ecs-final.png)
+
+页面 URL：
+
+```text
+https://ecs-buy.aliyun.com/ecs#/custom/prepay/cn-hangzhou
+```
+
+页面最终摘要：
+
+```text
+付费类型：包年包月
+地域：华东1（杭州）
+可用区：随机分配可用区
+网络：默认专有网络 / 默认交换机
+实例规格：计算型 c9i / ecs.c9i.2xlarge，8 vCPU / 16 GiB
+镜像：Ubuntu 22.04 64位（安全加固）
+系统盘：ESSD 云盘 100GiB，PL0，随实例释放
+公网带宽：按使用流量 5Mbps
+登录凭证：创建后设置
+购买实例数量：1
+购买时长：1 个月
+配置费用：¥793.64
+其他后付费项：1 项，主要是公网流量
+```
+
+人工下单前重点检查：
+
+```text
+页面摘要仍显示“更多安全防护选择 / 主机病毒防护”。
+当前配置费用仍为 ¥793.64，但下单前建议人工确认是否保留该安全防护项。
+
+安全组摘要显示“默认安全组”。
+页面端口已按本轮目标调整为 SSH 22 / HTTP 80 / HTTPS 443 / ICMP，RDP 3389 已关闭；
+如果必须新建安全组，请下单前再手动确认安全组页签是否为“新建安全组”。
+
+如果这台 ECS 要直接用于 ICP，购买时长应从 1 个月改为 3 个月及以上。
+```
+
+### 10.2 RDS PostgreSQL 页面
+
+截图：
+
+![RDS PostgreSQL final](assets/2026-05-18-aliyun-phase1-rds-final.png)
+
+页面 URL：
+
+```text
+https://rdsbuy.console.aliyun.com/newCreate/rds/PostgreSQL
+```
+
+页面最终摘要：
+
+```text
+计费方式：包年包月
+地域：华东 1（杭州）
+引擎：PostgreSQL 18.0
+产品系列：基础系列
+存储类型：高性能云盘
+网络类型：专有网络
+VPC：自动创建
+加入白名单：是
+主可用区：杭州 可用区K
+部署方案：单可用区部署
+实例规格：pg.n2e.2c.1m，2核 / 4GB
+存储空间：100GB
+存储空间自动扩展：关闭
+数据库端口：5432
+参数模板：pgsql_18.0_基础系列_默认参数模版
+时区：Asia/Shanghai
+小版本升级策略：自动升级
+购买时长：1个月
+配置费用：¥168.00
+```
+
+人工下单前重点检查：
+
+```text
+页面底部提示：SLR未授权，请在服务协议处勾选授权，以打通 RDS 实例的网络链路。
+该授权/协议需要人工确认后再下单。
+
+自动续费未主动勾选；下单前再确认“启用自动续费”不要勾选。
+RDS 页面未打开公网访问入口，保持内网 / VPC 访问。
+```
+
+### 10.3 OSS 资源包页面
+
+截图：
+
+![OSS resource package final](assets/2026-05-18-aliyun-phase1-oss-final.png)
+
+页面 URL：
+
+```text
+https://common-buy.aliyun.com/?commodityCode=ossbag#/buy
+```
+
+页面最终摘要：
+
+```text
+商品类型：OSS 资源包
+资源包类型：标准 - 本地冗余存储
+地域：中国内地通用
+规格：100GB
+购买时长：1个月
+应付费用：¥54.78
+```
+
+页面风险提示：
+
+```text
+该商品在同一时段只能购买1次，您可以选择续费或者升级当前的商品订购。
+```
+
+人工下单前重点检查：
+
+```text
+本页只是 OSS 存储资源包购买页，不会创建 Bucket。
+即使买资源包，仍需在 OSS 控制台创建杭州私有 Bucket。
+Bucket 仍需配置：
+- 私有读写
+- 阻止公共访问开启
+- CORS
+- RAM 最小权限
+
+如果想按低阻塞方案走，也可以不买资源包，直接创建私有 Bucket 后按量付费。
+```
+
+## 11. 本轮新增截图文件
+
+```text
+docs/handoff/assets/2026-05-18-aliyun-phase1-ecs-final.png
+docs/handoff/assets/2026-05-18-aliyun-phase1-rds-final.png
+docs/handoff/assets/2026-05-18-aliyun-phase1-oss-final.png
+```
