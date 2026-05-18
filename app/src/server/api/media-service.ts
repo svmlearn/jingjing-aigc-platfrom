@@ -49,7 +49,10 @@ export async function createMediaUploadIntentForUser(input: {
       fileName: input.request.fileName,
     });
 
-    return storage.issueBrowserUploadIntent({ storageKey });
+    return storage.issueBrowserUploadIntent({
+      storageKey,
+      contentType: input.request.mimeType,
+    });
   }
 
   await assertMediaOwnerAccess({
@@ -66,7 +69,10 @@ export async function createMediaUploadIntentForUser(input: {
     fileName: input.request.fileName,
   });
 
-  return storage.issueBrowserUploadIntent({ storageKey });
+  return storage.issueBrowserUploadIntent({
+    storageKey,
+    contentType: input.request.mimeType,
+  });
 }
 
 export async function completeMediaUploadForUser(input: {

@@ -60,12 +60,19 @@ export type UploadIntentRequest = {
 };
 
 export type UploadIntent = {
+  provider: "tencent_cos" | "aliyun_oss";
   bucket: string;
   region: string;
+  endpoint?: string | null;
+  storageKey: string;
+  uploadKey: string;
   cosKey: string;
-  tmpSecretId: string;
-  tmpSecretKey: string;
-  token: string;
+  tmpSecretId?: string;
+  tmpSecretKey?: string;
+  token?: string;
+  uploadUrl?: string;
+  uploadMethod?: "PUT";
+  uploadHeaders?: Record<string, string>;
   expiredTime: number;
 };
 
@@ -191,6 +198,22 @@ function readNestedRecord(record: JsonRecord, ...keys: string[]) {
   }
 
   return null;
+}
+
+function readStringRecord(record: JsonRecord | null) {
+  const output: Record<string, string> = {};
+
+  if (!record) {
+    return output;
+  }
+
+  for (const [key, value] of Object.entries(record)) {
+    if (typeof value === "string") {
+      output[key] = value;
+    }
+  }
+
+  return output;
 }
 
 function extractErrorMessage(payload: unknown) {
@@ -421,13 +444,17 @@ async function uploadToCos(params: {
   file: File;
   onProgress?: (progress: UploadProgress) => void;
 }) {
+  if (!params.intent.tmpSecretId || !params.intent.tmpSecretKey || !params.intent.token) {
+    throw new Error("上传意图返回不完整，缺少 COS 临时凭证。");
+  }
+
   const Cos = await loadCosSdk();
   const cosClient = new Cos({
     getAuthorization(_, callback) {
       callback({
-        TmpSecretId: params.intent.tmpSecretId,
-        TmpSecretKey: params.intent.tmpSecretKey,
-        SecurityToken: params.intent.token,
+        TmpSecretId: params.intent.tmpSecretId ?? "",
+        TmpSecretKey: params.intent.tmpSecretKey ?? "",
+        SecurityToken: params.intent.token ?? "",
         ExpiredTime: params.intent.expiredTime,
       });
     },
@@ -535,6 +562,56 @@ async function uploadToCos(params: {
   });
 }
 
+async function uploadToAliyunOss(params: {
+  intent: UploadIntent;
+  file: File;
+  onProgress?: (progress: UploadProgress) => void;
+}) {
+  if (!params.intent.uploadUrl) {
+    throw new Error("上传意图返回不完整，缺少 OSS 上传地址。");
+  }
+
+  params.onProgress?.({
+    loaded: 0,
+    total: params.file.size,
+    percent: 0,
+  });
+
+  const response = await fetch(params.intent.uploadUrl, {
+    method: params.intent.uploadMethod ?? "PUT",
+    headers: params.intent.uploadHeaders ?? {},
+    body: params.file,
+  });
+
+  if (!response.ok) {
+    throw new Error(`素材上传到 OSS 失败：${response.status} ${response.statusText}`);
+  }
+
+  params.onProgress?.({
+    loaded: params.file.size,
+    total: params.file.size,
+    percent: 1,
+  });
+
+  return {
+    etag:
+      stripEtagQuotes(response.headers.get("etag") ?? "") ||
+      `${params.intent.storageKey}-${params.file.size}`,
+  };
+}
+
+async function uploadToObjectStorage(params: {
+  intent: UploadIntent;
+  file: File;
+  onProgress?: (progress: UploadProgress) => void;
+}) {
+  if (params.intent.provider === "aliyun_oss") {
+    return uploadToAliyunOss(params);
+  }
+
+  return uploadToCos(params);
+}
+
 function assetTypeFromMimeType(mimeType: string, fileName?: string): UploadableMediaAssetType {
   if (mimeType.startsWith("video/") || /\.(m4v|mov|mp4|webm)$/i.test(fileName ?? "")) {
     return "video";
@@ -562,25 +639,54 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
   });
 
   const source = readNestedRecord(response, "uploadIntent", "intent", "credentials") ?? response;
+  const provider = readString(source, "provider", "storageProvider") ?? "tencent_cos";
   const bucket = readString(source, "bucket");
   const region = readString(source, "region");
+  const endpoint = readString(source, "endpoint");
   const cosKey = readString(source, "cosKey", "cos_key", "storageKey", "uploadKey", "key");
+  const storageKey = readString(source, "storageKey", "storage_key", "uploadKey", "cosKey", "key");
+  const uploadKey = readString(source, "uploadKey", "upload_key", "storageKey", "cosKey", "key");
+  const uploadUrl = readString(source, "uploadUrl", "upload_url");
+  const uploadMethod = readString(source, "uploadMethod", "upload_method");
+  const uploadHeaders = readStringRecord(readNestedRecord(source, "uploadHeaders", "upload_headers"));
   const tmpSecretId = readString(source, "TmpSecretId", "tmpSecretId", "tmp_secret_id");
   const tmpSecretKey = readString(source, "TmpSecretKey", "tmpSecretKey", "tmp_secret_key");
   const token = readString(source, "Token", "token", "SecurityToken", "securityToken");
   const expiredTime = readNumber(source, "expiredTime", "expired_time", "ExpiredTime");
 
-  if (!bucket || !region || !cosKey || !tmpSecretId || !tmpSecretKey || !token || expiredTime === null) {
+  if (provider !== "tencent_cos" && provider !== "aliyun_oss") {
+    throw new Error("上传意图返回了暂不支持的存储 provider。");
+  }
+
+  if (!bucket || !region || !cosKey || !storageKey || !uploadKey || expiredTime === null) {
+    throw new Error("上传意图返回不完整，缺少对象存储目标。");
+  }
+
+  if (
+    provider === "tencent_cos" &&
+    (!tmpSecretId || !tmpSecretKey || !token)
+  ) {
     throw new Error("上传意图返回不完整，缺少 COS 临时凭证。");
   }
 
+  if (provider === "aliyun_oss" && !uploadUrl) {
+    throw new Error("上传意图返回不完整，缺少 OSS 上传地址。");
+  }
+
   return {
+    provider,
     bucket,
     region,
+    endpoint,
+    storageKey,
+    uploadKey,
     cosKey,
-    tmpSecretId,
-    tmpSecretKey,
-    token,
+    tmpSecretId: tmpSecretId ?? undefined,
+    tmpSecretKey: tmpSecretKey ?? undefined,
+    token: token ?? undefined,
+    uploadUrl: uploadUrl ?? undefined,
+    uploadMethod: uploadMethod === "PUT" ? "PUT" : undefined,
+    uploadHeaders,
     expiredTime,
   } satisfies UploadIntent;
 }
@@ -633,7 +739,7 @@ export async function uploadMediaFileForOwner(params: {
   });
 
   params.onStageChange?.("uploading");
-  const uploadResult = await uploadToCos({
+  const uploadResult = await uploadToObjectStorage({
     intent,
     file: params.file,
     onProgress: params.onProgress,
@@ -643,9 +749,9 @@ export async function uploadMediaFileForOwner(params: {
     ownerType: params.ownerType,
     ownerId: params.ownerId,
     assetType,
-    storageProvider: "tencent_cos",
+    storageProvider: intent.provider,
     bucketName: intent.bucket,
-    storageKey: intent.cosKey,
+    storageKey: intent.storageKey,
     mimeType,
     sizeBytes: params.file.size,
     etag: uploadResult.etag,
@@ -656,13 +762,13 @@ export async function uploadMediaFileForOwner(params: {
   const completedAsset =
     (await completeMediaUpload(completePayload)) ??
     ({
-      id: intent.cosKey,
+      id: intent.storageKey,
       ownerType: params.ownerType,
       ownerId: params.ownerId,
       assetType,
-      storageProvider: "tencent_cos",
+      storageProvider: intent.provider,
       bucketName: intent.bucket,
-      storageKey: intent.cosKey,
+      storageKey: intent.storageKey,
       mimeType,
       fileSizeBytes: params.file.size,
       etag: uploadResult.etag,

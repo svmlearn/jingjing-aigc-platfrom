@@ -2,6 +2,8 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import OSS from "ali-oss";
+
 import { ApiError } from "@/server/api/errors";
 import {
   assertObjectRefMatchesPrefix,
@@ -21,7 +23,7 @@ export type AliyunOssConfig = ObjectStorageConfig & {
   accessKeyId: string;
   accessKeySecret: string;
   endpoint: string;
-  stsRoleArn: string;
+  stsRoleArn?: string | null;
 };
 
 const requiredAliyunOssEnv = [
@@ -30,7 +32,6 @@ const requiredAliyunOssEnv = [
   "ALIYUN_OSS_BUCKET",
   "ALIYUN_OSS_REGION",
   "ALIYUN_OSS_ENDPOINT",
-  "ALIYUN_OSS_STS_ROLE_ARN",
 ] as const;
 
 export function getMissingAliyunOssEnv() {
@@ -55,8 +56,8 @@ export function getAliyunOssConfig(): AliyunOssConfig {
     accessKeySecret: process.env.ALIYUN_OSS_ACCESS_KEY_SECRET?.trim() ?? "",
     bucket: process.env.ALIYUN_OSS_BUCKET?.trim() ?? "",
     region: process.env.ALIYUN_OSS_REGION?.trim() ?? "",
-    endpoint: process.env.ALIYUN_OSS_ENDPOINT?.trim() ?? "",
-    stsRoleArn: process.env.ALIYUN_OSS_STS_ROLE_ARN?.trim() ?? "",
+    endpoint: normalizeEndpoint(process.env.ALIYUN_OSS_ENDPOINT?.trim() ?? ""),
+    stsRoleArn: process.env.ALIYUN_OSS_STS_ROLE_ARN?.trim() || null,
     stsDurationSeconds: parsePositiveInt(
       process.env.ALIYUN_OSS_STS_DURATION_SECONDS,
       defaultStsDurationSeconds,
@@ -110,31 +111,64 @@ export const aliyunOssProvider: ObjectStorageProvider = {
     return buildStandardKnowledgeUploadKey(input);
   },
 
-  async issueBrowserUploadIntent() {
-    getAliyunOssConfig();
-    throw new ApiError(
-      501,
-      "ALIYUN_OSS_BROWSER_UPLOAD_PENDING",
-      "Aliyun OSS browser upload intent is pending SDK wiring in a later storage batch.",
-    );
+  async issueBrowserUploadIntent(input) {
+    const config = getAliyunOssConfig();
+    const expiresAt = new Date(Date.now() + config.stsDurationSeconds * 1000);
+    const contentType = input.contentType?.trim() || "application/octet-stream";
+    const client = createAliyunOssClient(config);
+    const uploadUrl = client.signatureUrl(input.storageKey, {
+      expires: config.stsDurationSeconds,
+      method: "PUT",
+      "Content-Type": contentType,
+    });
+
+    return {
+      provider: "aliyun_oss",
+      bucket: config.bucket,
+      region: config.region,
+      endpoint: config.endpoint,
+      storageKey: input.storageKey,
+      uploadKey: input.storageKey,
+      uploadUrl: ensureHttpsUrl(uploadUrl),
+      uploadMethod: "PUT",
+      uploadHeaders: {
+        "Content-Type": contentType,
+      },
+      cosKey: input.storageKey,
+      expiredTime: Math.floor(expiresAt.getTime() / 1000),
+      expiresAt: expiresAt.toISOString(),
+      credentials: {
+        provider: "aliyun_oss",
+        method: "signed_put_url",
+        expiresAt: expiresAt.toISOString(),
+      },
+    };
   },
 
-  async putObject() {
-    getAliyunOssConfig();
-    throw new ApiError(
-      501,
-      "ALIYUN_OSS_SERVER_UPLOAD_PENDING",
-      "Aliyun OSS server-side object upload is pending SDK wiring in a later storage batch.",
-    );
+  async putObject(input) {
+    const config = getAliyunOssConfig();
+    const client = createAliyunOssClient(config);
+    const result = await client.put(input.key, input.body, {
+      mime: input.contentType ?? undefined,
+    });
+
+    return {
+      provider: "aliyun_oss",
+      bucketName: config.bucket,
+      storageKey: input.key,
+      etag: readHeader(result.res.headers, "etag"),
+    };
   },
 
-  createSignedReadUrl() {
-    getAliyunOssConfig();
-    throw new ApiError(
-      501,
-      "ALIYUN_OSS_SIGNED_URL_PENDING",
-      "Aliyun OSS signed read URL is pending SDK wiring in a later storage batch.",
-    );
+  createSignedReadUrl(input) {
+    const config = getAliyunOssConfig();
+    const client = createAliyunOssClient(config);
+    const signedUrl = client.signatureUrl(input.storageKey, {
+      expires: input.expiresInSeconds ?? config.readUrlTtlSeconds,
+      method: "GET",
+    });
+
+    return ensureHttpsUrl(signedUrl);
   },
 
   assertWritableObjectRef(input) {
@@ -150,3 +184,33 @@ export const aliyunOssProvider: ObjectStorageProvider = {
     });
   },
 };
+
+function createAliyunOssClient(config: AliyunOssConfig) {
+  return new OSS({
+    region: config.region,
+    accessKeyId: config.accessKeyId,
+    accessKeySecret: config.accessKeySecret,
+    bucket: config.bucket,
+    endpoint: config.endpoint,
+    secure: true,
+  });
+}
+
+function normalizeEndpoint(endpoint: string) {
+  return endpoint.replace(/^https?:\/\//i, "");
+}
+
+function ensureHttpsUrl(url: string) {
+  return url.replace(/^http:\/\//i, "https://");
+}
+
+function readHeader(headers: object, name: string) {
+  const normalizedName = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers as Record<string, unknown>)) {
+    if (key.toLowerCase() === normalizedName && typeof value === "string") {
+      return value;
+    }
+  }
+
+  return null;
+}

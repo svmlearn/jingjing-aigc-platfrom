@@ -13,7 +13,6 @@ const requiredAliyunOssEnv = [
   "ALIYUN_OSS_BUCKET",
   "ALIYUN_OSS_REGION",
   "ALIYUN_OSS_ENDPOINT",
-  "ALIYUN_OSS_STS_ROLE_ARN",
 ];
 const requiredTables = [
   "app_users",

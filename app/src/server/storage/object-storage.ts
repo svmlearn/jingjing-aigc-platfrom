@@ -52,7 +52,10 @@ export type ObjectStorageProvider = {
     documentId: string;
     fileName: string;
   }): string;
-  issueBrowserUploadIntent(input: { storageKey: string }): Promise<MediaUploadIntentDto>;
+  issueBrowserUploadIntent(input: {
+    storageKey: string;
+    contentType?: string | null;
+  }): Promise<MediaUploadIntentDto>;
   putObject(input: {
     key: string;
     body: Buffer;
