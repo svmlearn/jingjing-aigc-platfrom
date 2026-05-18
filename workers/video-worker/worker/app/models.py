@@ -21,6 +21,11 @@ class InputAsset:
     bucket_name: str
     storage_key: str
     file_name: str
+    role: str | None = None
+    scene_type: str | None = None
+    tags: tuple[str, ...] = ()
+    labels: tuple[str, ...] = ()
+    metadata: dict[str, Any] | None = None
 
     @classmethod
     def from_payload(
@@ -37,6 +42,13 @@ class InputAsset:
             bucket_name=_bucket_name(payload, default_buckets, storage_provider),
             storage_key=storage_key,
             file_name=file_name,
+            role=_optional_string(payload.get("role")),
+            scene_type=_optional_string(
+                payload.get("scene_type") or payload.get("sceneType")
+            ),
+            tags=_string_tuple(payload.get("tags")),
+            labels=_string_tuple(payload.get("labels")),
+            metadata=_metadata_dict(payload.get("metadata")),
         )
 
 
@@ -167,3 +179,23 @@ def _safe_file_name(value: Any) -> str:
     ):
         raise InputAssetContractError("input asset file_name must not contain a path")
     return file_name
+
+
+def _optional_string(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _string_tuple(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, list | tuple):
+        return ()
+    return tuple(
+        str(item).strip()
+        for item in value
+        if str(item).strip()
+    )
+
+
+def _metadata_dict(value: Any) -> dict[str, Any] | None:
+    return dict(value) if isinstance(value, dict) else None

@@ -18,17 +18,23 @@ class Settings:
     fire_red_stream_idle_timeout_seconds: int = 180
     fire_red_provider_key_configured: bool = False
     fire_red_provider_key: str = ""
+    private_pexels_base_url: str = ""
+    private_pexels_api_key: str = ""
     tts_provider: str = "bytedance_bigtts"
     tts_302_base_url: str = "https://api.302.ai"
     tts_302_api_key: str = ""
     tts_minimax_base_url: str = "https://api.minimax.io"
     tts_minimax_api_key: str = ""
+    tts_runninghub_base_url: str = "https://www.runninghub.cn"
+    tts_runninghub_api_key: str = ""
     tts_bytedance_bigtts_base_url: str = "https://openspeech.bytedance.com"
     tts_bytedance_bigtts_uid: str = "openstoryline"
     tts_bytedance_bigtts_appid: str = ""
     tts_bytedance_bigtts_access_key: str = ""
     tts_bytedance_bigtts_resource_id: str = ""
     tts_bytedance_bigtts_speaker: str = ""
+    tts_pixelle_clone_base_url: str = ""
+    tts_pixelle_clone_api_key: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -68,6 +74,16 @@ class Settings:
                 os.getenv("FIRERED_PROVIDER_KEY", "").strip()
             ),
             fire_red_provider_key=os.getenv("FIRERED_PROVIDER_KEY", "").strip(),
+            private_pexels_base_url=(
+                os.getenv("PRIVATE_PEXELS_BASE_URL", "")
+                or os.getenv("PEXELS_BASE_URL", "")
+            )
+            .strip()
+            .rstrip("/"),
+            private_pexels_api_key=(
+                os.getenv("PRIVATE_PEXELS_API_KEY", "")
+                or os.getenv("PEXELS_API_KEY", "")
+            ).strip(),
             tts_provider=os.getenv(
                 "OPENSTORYLINE_TTS_PROVIDER",
                 "bytedance_bigtts",
@@ -82,6 +98,14 @@ class Settings:
                 "https://api.minimax.io",
             ).strip(),
             tts_minimax_api_key=os.getenv("TTS_MINIMAX_API_KEY", "").strip(),
+            tts_runninghub_base_url=(
+                os.getenv("TTS_RUNNINGHUB_BASE_URL", "https://www.runninghub.cn")
+                or "https://www.runninghub.cn"
+            ).strip(),
+            tts_runninghub_api_key=(
+                os.getenv("TTS_RUNNINGHUB_API_KEY", "")
+                or os.getenv("RUNNINGHUB_API_KEY", "")
+            ).strip(),
             tts_bytedance_bigtts_base_url=os.getenv(
                 "TTS_BYTEDANCE_BIGTTS_BASE_URL",
                 "https://openspeech.bytedance.com",
@@ -104,6 +128,14 @@ class Settings:
             ).strip(),
             tts_bytedance_bigtts_speaker=os.getenv(
                 "TTS_BYTEDANCE_BIGTTS_SPEAKER",
+                "",
+            ).strip(),
+            tts_pixelle_clone_base_url=os.getenv(
+                "TTS_PIXELLE_CLONE_BASE_URL",
+                "",
+            ).strip(),
+            tts_pixelle_clone_api_key=os.getenv(
+                "TTS_PIXELLE_CLONE_API_KEY",
                 "",
             ).strip(),
         )

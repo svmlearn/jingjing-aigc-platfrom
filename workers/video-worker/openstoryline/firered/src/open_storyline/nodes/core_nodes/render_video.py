@@ -826,6 +826,9 @@ class RenderVideoPipeline:
                 "output_basename": output_name,
                 "duration_s": float(final_duration_s),
                 "output_size": {"width": int(output_canvas_size[0]), "height": int(output_canvas_size[1])},
+                "audio_policy": inputs.get("audio_policy"),
+                "include_video_audio": bool(include_video_audio),
+                "video_volume_scale": float(video_volume_scale or 0),
             }
 
         finally:

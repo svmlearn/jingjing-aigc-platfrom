@@ -8,7 +8,11 @@ from typing import Any
 from .config import Settings
 from .cos_client import ObjectStorageClient
 from .db import VideoJobRepository
-from .directive import DirectiveValidationError, build_production_directive
+from .directive import (
+    DirectiveValidationError,
+    ProductionDirective,
+    build_production_directive,
+)
 from .models import EngineRunResult, InputAssetContractError, UploadedAsset, VideoJob
 from .openstoryline_client import OpenStorylineClient
 
@@ -31,6 +35,30 @@ class InputDownloadError(RuntimeError):
     def __init__(self, storage_key: str, original_error: Exception) -> None:
         self.storage_key = storage_key
         super().__init__(f"failed to download input asset {storage_key}: {original_error}")
+
+
+class VoiceProfileReferenceError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_code: str = "voice_profile_reference_invalid",
+    ) -> None:
+        self.failure_code = failure_code
+        super().__init__(message)
+
+
+class VoiceoverArtifactValidationError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_code: str,
+        failure_status: str = "failed_manual",
+    ) -> None:
+        self.failure_code = failure_code
+        self.failure_status = failure_status
+        super().__init__(message)
 
 
 class EngineRunError(RuntimeError):
@@ -104,6 +132,8 @@ OPENSTORYLINE_TOOL_MODULE_TOKENS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "plan_timeline",
             "timeline",
             "generate_script",
+            "local_asr",
+            "asr",
         ),
     ),
     (
@@ -292,10 +322,7 @@ def _openstoryline_result_payload(
         "selected_bgm",
         "bgm",
     )
-    voiceover = _nested_dict(openstoryline, "voiceover") or _nested_dict(
-        fire_red,
-        "voiceover",
-    )
+    voiceover = _extract_voiceover_payload(raw_response)
     production_config_used = _dict_or_empty(
         openstoryline.get("production_config_used")
     ) or production_config
@@ -309,6 +336,98 @@ def _openstoryline_result_payload(
         "selected_bgm": selected_bgm,
         "voiceover": voiceover,
     }
+
+
+def _voiceover_artifacts_summary(
+    raw_response: dict[str, Any],
+    production_config: dict[str, Any],
+) -> dict[str, Any]:
+    voiceover_config = _nested_dict(production_config, "voiceover")
+    voiceover = _extract_voiceover_payload(raw_response)
+    segments = voiceover.get("voiceover")
+    if not isinstance(segments, list):
+        segments = []
+    total_duration_ms = 0
+    providers: list[str] = []
+    for segment in segments:
+        if isinstance(segment, dict) and isinstance(segment.get("duration"), int | float):
+            total_duration_ms += int(segment["duration"])
+        if isinstance(segment, dict):
+            provider = str(segment.get("provider") or "").strip()
+            if provider and provider not in providers:
+                providers.append(provider)
+
+    provider = voiceover.get("provider") or voiceover_config.get("provider")
+    if not providers and provider:
+        providers.append(str(provider))
+
+    return {
+        "provider": provider,
+        "providers": providers,
+        "mode": voiceover_config.get("mode", "system"),
+        "clone_enabled": bool(voiceover_config.get("clone_enabled")),
+        "voice_profile_id": voiceover_config.get("voice_profile_id"),
+        "ref_audio_asset_id": voiceover_config.get("ref_audio_asset_id"),
+        "segment_count": len(segments),
+        "total_duration_ms": total_duration_ms,
+        "error_summary": None,
+    }
+
+
+def _extract_voiceover_payload(raw_response: dict[str, Any]) -> dict[str, Any]:
+    candidates = (
+        ("openstoryline", "voiceover"),
+        ("fire_red", "voiceover"),
+        ("fire_red", "raw_response", "generate_voiceover"),
+        ("fire_red_raw_response", "generate_voiceover"),
+        ("generate_voiceover",),
+        ("fire_red", "generate_voiceover"),
+    )
+    for path in candidates:
+        cur: Any = raw_response
+        for key in path:
+            if not isinstance(cur, dict):
+                cur = None
+                break
+            cur = cur.get(key)
+        if isinstance(cur, dict) and cur:
+            return cur
+    return {}
+
+
+def _is_clone_voiceover_summary(summary: dict[str, Any]) -> bool:
+    provider_values = [
+        str(summary.get("provider") or ""),
+        *[str(item or "") for item in summary.get("providers", [])],
+    ]
+    return any(
+        "clone" in value.strip().lower() or value.strip().lower() == "pixelle_clone"
+        for value in provider_values
+    )
+
+
+def _validate_voiceover_artifacts_for_directive(
+    summary: dict[str, Any],
+    production_config: dict[str, Any],
+) -> None:
+    voiceover_config = _nested_dict(production_config, "voiceover")
+    if voiceover_config.get("enabled") is False:
+        return
+    if not bool(voiceover_config.get("clone_enabled")):
+        return
+    if _nested_dict(production_config, "render").get("preserve_talking_head_original_audio"):
+        if _is_clone_voiceover_summary(summary):
+            return
+    if int(summary.get("segment_count") or 0) <= 0 or int(summary.get("total_duration_ms") or 0) <= 0:
+        raise VoiceoverArtifactValidationError(
+            "clone voiceover produced no measurable voiceover segments",
+            failure_code="voiceover_clone_artifacts_missing",
+        )
+    if not _is_clone_voiceover_summary(summary):
+        raise VoiceoverArtifactValidationError(
+            "voice_profile job did not use clone voiceover provider",
+            failure_code="voiceover_clone_provider_not_used",
+        )
 
 
 class JobProcessor:
@@ -332,8 +451,8 @@ class JobProcessor:
         output_dir.mkdir(parents=True, exist_ok=True)
         return job_temp_dir, input_dir, output_dir
 
-    def _download_inputs(self, job: VideoJob, input_dir: Path) -> list[dict[str, str]]:
-        downloaded_assets: list[dict[str, str]] = []
+    def _download_inputs(self, job: VideoJob, input_dir: Path) -> list[dict[str, Any]]:
+        downloaded_assets: list[dict[str, Any]] = []
         default_buckets = getattr(
             self._settings,
             "default_input_buckets",
@@ -350,15 +469,68 @@ class JobProcessor:
                 )
             except Exception as exc:
                 raise InputDownloadError(asset.storage_key, exc) from exc
-            downloaded_assets.append(
-                {
-                    "asset_type": asset.asset_type,
-                    "storage_provider": asset.storage_provider,
-                    "file_name": asset.file_name,
-                    "local_path": str(local_path),
-                }
-            )
+            downloaded: dict[str, Any] = {
+                "asset_type": asset.asset_type,
+                "storage_provider": asset.storage_provider,
+                "file_name": asset.file_name,
+                "local_path": str(local_path),
+            }
+            if asset.role:
+                downloaded["role"] = asset.role
+            if asset.scene_type:
+                downloaded["scene_type"] = asset.scene_type
+            if asset.tags:
+                downloaded["tags"] = list(asset.tags)
+            if asset.labels:
+                downloaded["labels"] = list(asset.labels)
+            if asset.metadata:
+                downloaded["metadata"] = asset.metadata
+            downloaded_assets.append(downloaded)
         return downloaded_assets
+
+    def _prepare_voice_profile_reference(
+        self,
+        production_config: dict[str, Any],
+        input_dir: Path,
+    ) -> dict[str, Any]:
+        voiceover = _nested_dict(production_config, "voiceover")
+        if voiceover.get("mode") != "voice_profile":
+            return production_config
+        ref_audio_asset = _nested_dict(voiceover, "ref_audio_asset", "refAudioAsset")
+        storage_key = str(
+            ref_audio_asset.get("storage_key") or ref_audio_asset.get("storageKey") or ""
+        ).strip()
+        if not storage_key:
+            raise VoiceProfileReferenceError(
+                "voice_profile voiceover requires ref_audio_asset.storage_key"
+            )
+        bucket_name = str(
+            ref_audio_asset.get("bucket_name") or ref_audio_asset.get("bucketName") or ""
+        ).strip()
+        storage_provider = str(
+            ref_audio_asset.get("storage_provider")
+            or ref_audio_asset.get("storageProvider")
+            or getattr(self._settings, "storage_provider", "tencent_cos")
+        ).strip()
+
+        local_path = input_dir / "voice_profile_ref_audio" / Path(storage_key).name
+        try:
+            self._cos_client.download_file(
+                storage_key=storage_key,
+                destination=local_path,
+                bucket_name=bucket_name or None,
+                storage_provider=storage_provider,
+            )
+        except Exception as exc:
+            raise InputDownloadError(storage_key, exc) from exc
+
+        return {
+            **production_config,
+            "voiceover": {
+                **voiceover,
+                "ref_audio": str(local_path),
+            },
+        }
 
     def _upload_outputs(
         self,
@@ -546,11 +718,33 @@ class JobProcessor:
         try:
             stage_started_at = time.monotonic()
             input_assets = self._download_inputs(job, input_dir)
+            directive_production_config = self._prepare_voice_profile_reference(
+                directive.production_config,
+                input_dir,
+            )
+            if directive_production_config is not directive.production_config:
+                directive = ProductionDirective(
+                    job_id=directive.job_id,
+                    execution_mode=directive.execution_mode,
+                    script_text=directive.script_text,
+                    script_locked=directive.script_locked,
+                    target_platform=directive.target_platform,
+                    aspect_ratio=directive.aspect_ratio,
+                    desired_outputs=directive.desired_outputs,
+                    locked_fields=directive.locked_fields,
+                    source=directive.source,
+                    material_context=directive.material_context,
+                    production_config=directive_production_config,
+                )
             record_timing("downloading_inputs", stage_started_at)
             log_payload["steps"].append(
                 {
                     "stage": "downloading_inputs",
                     "inputs_downloaded": len(input_assets),
+                    "voice_profile_ref_audio_prepared": (
+                        directive.production_config.get("voiceover", {}).get("mode")
+                        == "voice_profile"
+                    ),
                 }
             )
             self._repository.update_stage(
@@ -646,8 +840,17 @@ class JobProcessor:
                     "metadata_path": str(run_result.metadata_path),
                 }
             )
+            stage_started_at = time.monotonic()
             self._validate_outputs(directive.desired_outputs, run_result)
-            record_timing("output_validation", time.monotonic())
+            voiceover_artifacts = _voiceover_artifacts_summary(
+                run_result.raw_response,
+                directive.production_config,
+            )
+            _validate_voiceover_artifacts_for_directive(
+                voiceover_artifacts,
+                directive.production_config,
+            )
+            record_timing("output_validation", stage_started_at)
             log_payload["steps"].append(
                 {
                     "stage": "output_validation",
@@ -740,6 +943,7 @@ class JobProcessor:
                         run_result.raw_response,
                         directive.production_config,
                     ),
+                    "voiceover_artifacts": voiceover_artifacts,
                     "engine_response": run_result.raw_response,
                 },
                 log_payload=log_payload,
@@ -815,6 +1019,52 @@ class JobProcessor:
                 status="failed_retryable",
             )
             raise
+        except VoiceProfileReferenceError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "voice_profile_reference",
+                    "status": "failed",
+                    "failure_code": exc.failure_code,
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="voice_profile_reference_failed",
+                failure_reason=f"{exc.failure_code}: {exc}",
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key="voiceover",
+                        production_config=directive.production_config,
+                    ),
+                },
+                status="failed_manual",
+            )
+            return
+        except VoiceoverArtifactValidationError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "voiceover_artifact_validation",
+                    "status": "failed",
+                    "failure_code": exc.failure_code,
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="voiceover_artifact_validation_failed",
+                failure_reason=f"{exc.failure_code}: {exc}",
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key="voiceover",
+                        production_config=directive.production_config,
+                    ),
+                },
+                status=exc.failure_status,
+            )
+            return
         except EngineRunError as exc:
             failed_module_key = _openstoryline_failure_module_key(exc)
             log_payload["steps"].append(

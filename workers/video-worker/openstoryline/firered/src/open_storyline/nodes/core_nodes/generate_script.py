@@ -28,6 +28,13 @@ class GenerateScriptNode(BaseNode):
         node_state: NodeState,
         inputs: Dict[str, Any],
     ) -> Any:
+        custom_script = inputs.get("custom_script", {})
+        if isinstance(custom_script, dict) and custom_script:
+            custom_output = _normalize_custom_script(custom_script)
+            node_state.node_summary.info_for_user(
+                f"Using locked custom script for {len(custom_output.get('group_scripts', []))} group(s)"
+            )
+            return custom_output
         return {
             "group_scripts": [],
             "title": "",
@@ -60,26 +67,11 @@ class GenerateScriptNode(BaseNode):
         if len(custom_script) > 0:
             try:
                 custom_script = _normalize_custom_script_payload(custom_script, groups)
-                group_scripts = []
-                subtitle_index = 1
-
-                validate_subtitle_format(custom_script)
-                edit_group_scripts = custom_script['group_scripts']
-                # fill subtitle_units
-                for i in range(len(edit_group_scripts)):
-                    raw_text = edit_group_scripts[i]['raw_text']
-                    units, subtitle_index = _make_subtitle_units(
-                        raw_text=raw_text,
-                        subtitle_start_index=subtitle_index,
-                    )
-                    group_scripts.append({
-                        "group_id": edit_group_scripts[i]['group_id'],
-                        "raw_text": raw_text,
-                        "subtitle_units": units
-                    })
-
-                custom_script = {"group_scripts": group_scripts, "title": custom_script.get('title', '')}
-                return custom_script
+                custom_output = _normalize_custom_script(custom_script)
+                node_state.node_summary.info_for_user(
+                    f"Using locked custom script for {len(custom_output.get('group_scripts', []))} group(s)"
+                )
+                return custom_output
             except Exception as e:
                 node_state.node_summary.info_for_llm(f"generate script failed: {type(e).__name__}: {e}")
                 node_state.node_summary.info_for_user("custom_script format is invalid, fallback to auto generation.")
@@ -482,6 +474,42 @@ def _make_subtitle_units(
         )
         cur += 1
     return units, cur
+
+def _normalize_custom_script(custom_script: dict[str, Any]) -> dict[str, Any]:
+    group_scripts = []
+    subtitle_index = 1
+    preserved_keys = {
+        "skip_voiceover",
+        "voiceover_enabled",
+        "audio_source",
+        "subtitle_source",
+        "source_clip_ids",
+        "source_duration_ms",
+        "preserve_clip_duration",
+    }
+
+    validate_subtitle_format(custom_script)
+    edit_group_scripts = custom_script["group_scripts"]
+    for item in edit_group_scripts:
+        raw_text = item["raw_text"]
+        units, subtitle_index = _make_subtitle_units(
+            raw_text=raw_text,
+            subtitle_start_index=subtitle_index,
+        )
+        normalized_item = {
+            "group_id": item["group_id"],
+            "raw_text": raw_text,
+            "subtitle_units": units,
+        }
+        for key in preserved_keys:
+            if key in item:
+                normalized_item[key] = item[key]
+        group_scripts.append(normalized_item)
+
+    return {
+        "group_scripts": group_scripts,
+        "title": custom_script.get("title", ""),
+    }
 
 def validate_subtitle_format(data: dict[str, Any]):
     if "group_scripts" not in data:

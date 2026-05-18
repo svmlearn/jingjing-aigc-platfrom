@@ -194,6 +194,43 @@ class DirectiveContractTests(unittest.TestCase):
         self.assertEqual({"mood": "warm"}, directive.production_config["bgm"]["include"])
         self.assertEqual(0.35, directive.production_config["bgm"]["volume"])
         self.assertTrue(directive.production_config["render"]["include_original_audio"])
+        self.assertEqual("script", directive.production_config["subtitles"]["talking_head_source"])
+
+    def test_directive_normalizes_talking_head_original_audio_subtitles(self):
+        job = make_job(
+            {
+                "executionMode": "staging_worker",
+                "script": {
+                    "text": "locked script",
+                    "locked": True,
+                },
+                "productionConfig": {
+                    "subtitles": {
+                        "enabled": True,
+                        "style": "platform_default",
+                        "talkingHeadSource": "asr_original_audio",
+                    },
+                    "render": {
+                        "preserveTalkingHeadOriginalAudio": True,
+                    },
+                },
+                "productionDirective": {
+                    "targetPlatform": "douyin",
+                    "desiredOutputs": ["final_video"],
+                },
+            }
+        )
+
+        directive = build_production_directive(job)
+
+        self.assertEqual(
+            "asr_original_audio",
+            directive.production_config["subtitles"]["talking_head_source"],
+        )
+        self.assertTrue(
+            directive.production_config["render"]["preserve_talking_head_original_audio"]
+        )
+        self.assertTrue(directive.production_config["render"]["include_video_audio"])
 
     def test_directive_rejects_unsupported_voiceover_provider(self):
         job = make_job(

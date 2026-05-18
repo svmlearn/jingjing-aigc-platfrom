@@ -429,6 +429,9 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertEqual("minimax", payload["production_config"]["voiceover"]["provider"])
             self.assertEqual("light upbeat", payload["production_config"]["bgm"]["user_request"])
             self.assertEqual("minimax", payload["service_config"]["tts"]["provider"])
+            self.assertIn("unattended background worker run", payload["prompt"])
+            self.assertIn("Approval to execute has already been granted", payload["prompt"])
+            self.assertIn("Do not ask for confirmation", payload["prompt"])
             self.assertIn("Use generate_voiceover when voiceover.enabled is true.", payload["prompt"])
             self.assertIn("Use select_bgm when bgm.enabled is true.", payload["prompt"])
             self.assertEqual(
@@ -561,6 +564,119 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertTrue(payload["service_config"]["worker_rehearsal_fast_path"])
             self.assertEqual("self_hosted_rehearsal_fast_path", payload["execution_mode"])
 
+    def test_fire_red_private_pexels_base_url_can_run_without_real_pexels_key(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            private_pexels_base_url="https://app.example.com/api/private-media/pexels",
+            private_pexels_api_key="",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {"engine": "fire_red-openstoryline"},
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                )
+            )
+
+            pexels = post.call_args.kwargs["json"]["service_config"]["search_media"]["pexels"]
+            self.assertEqual("custom", pexels["mode"])
+            self.assertEqual(
+                "https://app.example.com/api/private-media/pexels",
+                pexels["base_url"],
+            )
+            self.assertNotIn("api_key", pexels)
+
+    def test_fire_red_clone_voiceover_uses_runninghub_clone_legacy_pixelle_adapter_name(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            tts_pixelle_clone_base_url="https://pixelle.example",
+            tts_pixelle_clone_api_key="pixelle-secret",
+            tts_runninghub_base_url="https://www.runninghub.cn",
+            tts_runninghub_api_key="runninghub-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {"engine": "fire_red-openstoryline"},
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                    production_config={
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                            "clone_enabled": True,
+                            "voice_profile_id": "profile-1",
+                            "ref_audio_asset_id": "asset-1",
+                            "ref_audio": str(Path(tmp) / "ref.wav"),
+                        },
+                    },
+                )
+            )
+
+            tts = post.call_args.kwargs["json"]["service_config"]["tts"]
+            self.assertEqual("pixelle_clone", tts["provider"])
+            self.assertEqual(str(Path(tmp) / "ref.wav"), tts["ref_audio"])
+            self.assertEqual(str(Path(tmp) / "ref.wav"), tts["pixelle_clone"]["ref_audio"])
+            self.assertEqual("pixelle-secret", tts["pixelle_clone"]["api_key"])
+
     def test_fire_red_stream_payload_marks_self_hosted_rehearsal_fast_path(self):
         settings = Settings(
             host="127.0.0.1",
@@ -630,6 +746,172 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             payload = stream.call_args.kwargs["json"]
             self.assertTrue(payload["service_config"]["worker_rehearsal_fast_path"])
             self.assertEqual("self_hosted_rehearsal_fast_path", payload["execution_mode"])
+
+    def test_fire_red_minimax_voiceover_configures_runninghub_ordinary_tts_fallback(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            tts_minimax_base_url="https://api.minimax.io",
+            tts_minimax_api_key="minimax-secret",
+            tts_runninghub_base_url="https://www.runninghub.cn",
+            tts_runninghub_api_key="runninghub-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {"engine": "fire_red-openstoryline"},
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={"script_locked": True, "desired_outputs": ["final_video"]},
+                    production_config={"voiceover": {"enabled": True, "provider": "minimax"}},
+                )
+            )
+
+            tts = post.call_args.kwargs["json"]["service_config"]["tts"]
+            self.assertEqual("minimax", tts["provider"])
+            self.assertEqual("runninghub", tts["fallback_provider"])
+            self.assertEqual("runninghub-secret", tts["runninghub"]["api_key"])
+
+    def test_fire_red_talking_head_voiceover_mutes_original_video_audio(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {"engine": "fire_red-openstoryline"},
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="场景：真人开头口播\n台词/字幕：欢迎来看这家店",
+                    input_assets=[
+                        {
+                            "local_path": str(Path(tmp) / "inputs" / "clip.mp4"),
+                            "asset_type": "video",
+                            "file_name": "clip.mp4",
+                            "tags": ["talking_head"],
+                        }
+                    ],
+                    production_directive={"script_locked": True, "desired_outputs": ["final_video"]},
+                    production_config={
+                        "voiceover": {"enabled": True, "provider": "minimax"},
+                        "render": {"include_original_audio": True},
+                    },
+                )
+            )
+
+            render = post.call_args.kwargs["json"]["production_config"]["render"]
+            self.assertFalse(render["include_original_audio"])
+            self.assertFalse(render["include_video_audio"])
+            self.assertEqual(0, render["video_volume_scale"])
+            self.assertEqual("mute_source_for_talking_head_voiceover", render["audio_policy"])
+
+    def test_fire_red_talking_head_preserve_original_audio_policy(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {"engine": "fire_red-openstoryline"},
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="场景：真人开头口播\n台词/字幕：欢迎来看这家店",
+                    input_assets=[
+                        {
+                            "local_path": str(Path(tmp) / "inputs" / "clip.mp4"),
+                            "asset_type": "video",
+                            "file_name": "clip.mp4",
+                            "tags": ["talking_head"],
+                        }
+                    ],
+                    production_directive={"script_locked": True, "desired_outputs": ["final_video"]},
+                    production_config={
+                        "voiceover": {"enabled": True, "provider": "minimax"},
+                        "render": {
+                            "include_original_audio": True,
+                            "preserve_talking_head_original_audio": True,
+                        },
+                    },
+                )
+            )
+
+            render = post.call_args.kwargs["json"]["production_config"]["render"]
+            self.assertTrue(render["include_original_audio"])
+            self.assertTrue(render["include_video_audio"])
+            self.assertEqual(1, render["video_volume_scale"])
+            self.assertEqual(
+                "preserve_talking_head_original_audio_with_voiceover",
+                render["audio_policy"],
+            )
 
     def test_fire_red_stream_proxies_progress_and_maps_final_result(self):
         settings = Settings(
