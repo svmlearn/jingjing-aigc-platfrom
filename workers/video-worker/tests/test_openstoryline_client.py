@@ -4,9 +4,12 @@ import types
 from pathlib import Path
 from unittest.mock import patch
 
-httpx = types.ModuleType("httpx")
-httpx.get = object()
-sys.modules.setdefault("httpx", httpx)
+try:
+    import httpx  # noqa: F401
+except ModuleNotFoundError:
+    httpx = types.ModuleType("httpx")
+    httpx.get = object()
+    sys.modules.setdefault("httpx", httpx)
 
 from worker.app.config import Settings
 from worker.app.openstoryline_client import OpenStorylineClient

@@ -28,6 +28,7 @@ const timeoutSeconds = parsePositiveInt(getArgValue("--timeout-seconds"), 900);
 const pollSeconds = parsePositiveInt(getArgValue("--poll-seconds"), 5);
 const selfHostedFastPath = hasFlag("--self-hosted-fast-path");
 const instructionText = getArgValue("--instruction-text") || "domestic worker smoke job";
+const expectedResultPrefix = normalizeStoragePrefix(getArgValue("--expect-result-prefix"));
 const productionConfigJson = getArgValue("--production-config-json");
 const productionConfig = productionConfigJson ? parseJsonObjectArg({
   name: "--production-config-json",
@@ -163,6 +164,10 @@ try {
   const resultAsset = (finalJob.resultAssets ?? []).find((asset) => asset.assetType === "video") ??
     (finalJob.resultAssets ?? [])[0] ??
     null;
+  const resultAssetStorageKey = firstString(resultAsset?.storageKey, resultAsset?.storage_key);
+  const expectedResultPrefixMatched = expectedResultPrefix
+    ? resultAssetStorageKey.startsWith(expectedResultPrefix)
+    : null;
   const preview = resultAsset?.signedPreviewUrl
     ? await fetchPreview({
         baseUrl,
@@ -178,6 +183,7 @@ try {
     jobCreate.status === 201 &&
     finalJob.status === "succeeded" &&
     Boolean(resultAsset?.id) &&
+    (!expectedResultPrefix || expectedResultPrefixMatched === true) &&
     Boolean(preview?.ok) &&
     (preview?.bytes ?? 0) > 0;
 
@@ -198,6 +204,13 @@ try {
       finalJobStatus: finalJob.status,
       finalStage: finalJob.currentStage ?? null,
       resultAssetCount: finalJob.resultAssets?.length ?? 0,
+      resultAssetId: resultAsset?.id ?? null,
+      resultAssetType: resultAsset?.assetType ?? null,
+      resultAssetStorageProvider: resultAsset?.storageProvider ?? null,
+      resultAssetBucketName: resultAsset?.bucketName ?? null,
+      resultAssetStorageKey,
+      expectedResultPrefix: expectedResultPrefix || null,
+      expectedResultPrefixMatched,
       previewStatus: preview?.status ?? null,
       previewBytes: preview?.bytes ?? null,
       failureReason: finalJob.failureReason ?? null,
@@ -519,6 +532,11 @@ function hasFlag(name) {
 
 function normalizeBaseUrl(value) {
   return value.trim().replace(/\/+$/g, "");
+}
+
+function normalizeStoragePrefix(value) {
+  const trimmed = String(value || "").trim().replace(/^\/+|\/+$/g, "");
+  return trimmed ? `${trimmed}/` : "";
 }
 
 function parsePositiveInt(value, fallback) {
