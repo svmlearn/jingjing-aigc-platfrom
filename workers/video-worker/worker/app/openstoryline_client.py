@@ -25,7 +25,7 @@ class OpenStorylineClient:
         self,
         job: VideoJob,
         directive: ProductionDirective,
-        input_assets: list[dict[str, str]],
+        input_assets: list[dict[str, Any]],
         workspace_dir: Path,
         output_dir: Path,
         progress_callback: Callable[[dict[str, Any]], None] | None = None,
@@ -38,7 +38,23 @@ class OpenStorylineClient:
             output_dir=output_dir,
         )
         if progress_callback is not None:
-            return self._run_job_stream(payload, progress_callback)
+            try:
+                return self._run_job_stream(payload, progress_callback)
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code != 404:
+                    raise
+            except RuntimeError as exc:
+                message = str(exc)
+                stream_transport_failed = (
+                    "RemoteProtocolError" in message
+                    or "incomplete chunked read" in message
+                    or "stream ended without a result event" in message
+                )
+                if (
+                    ("404 Not Found" not in message or "/runs/stream" not in message)
+                    and not stream_transport_failed
+                ):
+                    raise
 
         response = httpx.post(
             f"{self._base_url}/v1/runs",
@@ -53,7 +69,7 @@ class OpenStorylineClient:
         *,
         job: VideoJob,
         directive: ProductionDirective,
-        input_assets: list[dict[str, str]],
+        input_assets: list[dict[str, Any]],
         workspace_dir: Path,
         output_dir: Path,
     ) -> dict[str, Any]:

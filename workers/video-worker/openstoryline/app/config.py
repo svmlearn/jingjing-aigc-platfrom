@@ -25,6 +25,8 @@ class Settings:
     tts_302_api_key: str = ""
     tts_minimax_base_url: str = "https://api.minimax.io"
     tts_minimax_api_key: str = ""
+    tts_runninghub_base_url: str = "https://www.runninghub.cn"
+    tts_runninghub_api_key: str = ""
     tts_bytedance_bigtts_base_url: str = "https://openspeech.bytedance.com"
     tts_bytedance_bigtts_uid: str = "openstoryline"
     tts_bytedance_bigtts_appid: str = ""
@@ -96,6 +98,14 @@ class Settings:
                 "https://api.minimax.io",
             ).strip(),
             tts_minimax_api_key=os.getenv("TTS_MINIMAX_API_KEY", "").strip(),
+            tts_runninghub_base_url=(
+                os.getenv("TTS_RUNNINGHUB_BASE_URL", "https://www.runninghub.cn")
+                or "https://www.runninghub.cn"
+            ).strip(),
+            tts_runninghub_api_key=(
+                os.getenv("TTS_RUNNINGHUB_API_KEY", "")
+                or os.getenv("RUNNINGHUB_API_KEY", "")
+            ).strip(),
             tts_bytedance_bigtts_base_url=os.getenv(
                 "TTS_BYTEDANCE_BIGTTS_BASE_URL",
                 "https://openspeech.bytedance.com",

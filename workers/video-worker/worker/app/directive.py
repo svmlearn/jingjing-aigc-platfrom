@@ -10,6 +10,7 @@ ALLOWED_DESIRED_OUTPUTS = frozenset({"final_video", "cover", "subtitles"})
 ALLOWED_VOICEOVER_PROVIDERS = frozenset({"bytedance_bigtts", "minimax", "302", "pixelle_clone"})
 ALLOWED_VOICEOVER_MODES = frozenset({"system", "voice_profile"})
 ALLOWED_SUBTITLE_STYLES = frozenset({"platform_default", "bold_caption"})
+ALLOWED_TALKING_HEAD_SUBTITLE_SOURCES = frozenset({"script", "asr_original_audio"})
 ALLOWED_BGM_FILTER_KEYS = frozenset({"mood", "scene", "genre", "lang", "id"})
 
 
@@ -147,6 +148,12 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
     subtitle_style = _string_value(subtitles, "style") or "platform_default"
     if subtitle_style not in ALLOWED_SUBTITLE_STYLES:
         _raise_invalid_production_config("unsupported subtitle style")
+    talking_head_source = (
+        _string_value(subtitles, "talkingHeadSource", "talking_head_source")
+        or "script"
+    )
+    if talking_head_source not in ALLOWED_TALKING_HEAD_SUBTITLE_SOURCES:
+        _raise_invalid_production_config("unsupported talking head subtitle source")
 
     aspect_ratio = _string_value(render, "aspectRatio", "aspect_ratio") or "9:16"
     if aspect_ratio != "9:16":
@@ -205,6 +212,27 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
             default=False,
         ),
     }
+    preserve_talking_head_original_audio = _optional_bool_value(
+        render,
+        "preserveTalkingHeadOriginalAudio",
+        "preserve_talking_head_original_audio",
+        default=False,
+    )
+    if preserve_talking_head_original_audio:
+        normalized_render["preserve_talking_head_original_audio"] = True
+        normalized_render["include_video_audio"] = True
+        normalized_render["video_volume_scale"] = _optional_number_value(
+            render,
+            "videoVolumeScale",
+            "video_volume_scale",
+            default=1,
+            min_value=0,
+            max_value=3,
+        )
+        audio_policy = _string_value(render, "audioPolicy", "audio_policy")
+        normalized_render["audio_policy"] = (
+            audio_policy or "preserve_talking_head_original_audio_with_voiceover"
+        )
     max_duration_seconds = _optional_number_value(
         render,
         "maxDurationSeconds",
@@ -235,6 +263,7 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
         "subtitles": {
             "enabled": _optional_bool_value(subtitles, "enabled", default=True),
             "style": subtitle_style,
+            "talking_head_source": talking_head_source,
         },
         "render": normalized_render,
     }

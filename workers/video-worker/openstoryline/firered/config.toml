@@ -11,12 +11,12 @@ outputs_dir = "./outputs"
 
 # ============= 模型配置 for user / Model Config for User =============
 [llm]
-model = "${OPENSTORYLINE_LLM_MODEL:-glm-4.6v}"
+model = "${OPENSTORYLINE_LLM_MODEL:-glm-4.6}"
 base_url = "${OPENSTORYLINE_LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4/}"
 api_key = "${OPENSTORYLINE_LLM_API_KEY:-}"
-timeout = 30.0
 temperature = 0.1
-max_retries = 2
+timeout = 420.0
+max_retries = 0
 
 [vlm]
 model = "${OPENSTORYLINE_VLM_MODEL:-glm-4.6v}"
@@ -117,11 +117,18 @@ speaker = "${TTS_BYTEDANCE_BIGTTS_SPEAKER:-}"
 base_url = "${TTS_MINIMAX_BASE_URL:-https://api.minimax.io}"
 api_key = "${TTS_MINIMAX_API_KEY:-}"
 
+[generate_voiceover.providers.runninghub]
+base_url = "${TTS_RUNNINGHUB_BASE_URL:-https://www.runninghub.cn}"
+api_key = "${TTS_RUNNINGHUB_API_KEY:-}"
+workflow_id = "${RUNNINGHUB_TTS_EDGE_WORKFLOW_ID:-1983513964837543938}"
+
 
 # ============= AI 转场生成 / AI transition generation ===================
 [generate_voiceover.providers.pixelle_clone]
-base_url = "${TTS_PIXELLE_CLONE_BASE_URL:-}"
+base_url = "${TTS_PIXELLE_CLONE_BASE_URL:-https://www.runninghub.cn}"
 api_key = "${TTS_PIXELLE_CLONE_API_KEY:-}"
+workflow_id = "${RUNNINGHUB_TTS_CLONE_WORKFLOW_ID:-1983718528991862786}"
+timeout_seconds = 300
 ref_audio = ""
 
 [generate_ai_transition]

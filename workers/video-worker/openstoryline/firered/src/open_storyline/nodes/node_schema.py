@@ -285,6 +285,14 @@ class GenerateVoiceoverInput(BaseInput):
         description="auto: Generate appropriate voiceover based on media content and user's voice requirements; skip: Skip voiceover; default: Use default voiceover"
     )
     user_request: Annotated[str, Field(default="", description="User's requirements for voiceover.")]
+    provider: Annotated[str | None, Field(default=None, description="Explicit TTS provider override.")]
+    fallback_provider: Annotated[str | None, Field(default=None, description="Optional fallback provider for non-clone TTS.")]
+    provider_keys: Annotated[Dict[str, Any] | None, Field(default=None, description="Runtime provider secrets/config.")]
+    base_url: Annotated[str | None, Field(default=None, description="Runtime provider base URL.")]
+    api_key: Annotated[str | None, Field(default=None, description="Runtime provider API key.")]
+    ref_audio: Annotated[str | None, Field(default=None, description="Reference audio path for clone voiceover.")]
+    runninghub: Annotated[Dict[str, Any] | None, Field(default=None, description="RunningHub ordinary TTS runtime config.")]
+    pixelle_clone: Annotated[Dict[str, Any] | None, Field(default=None, description="RunningHub clone runtime config.")]
 
 class RecommendScriptTemplateInput(BaseInput):
     mode: Literal["auto", "skip", "default"] = Field(
@@ -510,4 +518,8 @@ class RenderVideoInput(BaseInput):
     video_volume_scale: Annotated[float, Field(
         default=1.0,
         description="Original video audio volume multiplier, range 0.0–3.0 (1.0 = default volume)"
+    )]
+    audio_policy: Annotated[str | None, Field(
+        default=None,
+        description="Worker audio policy marker."
     )]

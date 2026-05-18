@@ -201,7 +201,14 @@ def _parse_provider_runtime_config(service_cfg: Any, key_name: str) -> Dict[str,
     if not isinstance(provider_block, dict):
         provider_block = {}
 
-    return {"provider": provider, provider: provider_block}
+    out: Dict[str, Any] = {"provider": provider, provider: provider_block}
+    fallback_provider = _s(cfg.get("fallback_provider")).lower()
+    if fallback_provider:
+        out["fallback_provider"] = fallback_provider
+        fallback_block = cfg.get(fallback_provider)
+        if isinstance(fallback_block, dict):
+            out[fallback_provider] = fallback_block
+    return out
 
 def _parse_service_config(service_cfg: Any) -> Tuple[
     Optional[Dict[str, Any]],
@@ -2010,7 +2017,6 @@ class ChatSession:
                 tts_config=(self.tts_config or None),
                 ai_transition_config=(self.ai_transition_config or None),
                 pexels_api_key=None,
-                pexels_base_url=None,
                 lang=self.lang,
             )
         else:
@@ -2814,6 +2820,25 @@ async def _register_worker_input_assets(
     return metas
 
 
+def _worker_input_assets_with_store_names(
+    input_assets: Any,
+    metas: List[MediaMeta],
+) -> Any:
+    if not isinstance(input_assets, list):
+        return input_assets
+    out: list[Any] = []
+    for index, asset in enumerate(input_assets):
+        if not isinstance(asset, dict):
+            out.append(asset)
+            continue
+        enriched = dict(asset)
+        if index < len(metas):
+            enriched["store_file_name"] = os.path.basename(metas[index].path or "")
+            enriched["media_id"] = metas[index].id
+        out.append(enriched)
+    return out
+
+
 def _merge_worker_lc_messages(messages: List[BaseMessage]) -> List[BaseMessage]:
     system_parts: List[str] = []
     non_system: List[BaseMessage] = []
@@ -2834,6 +2859,7 @@ async def _run_worker_session_prompt(
     *,
     prompt: str,
     service_config: Any = None,
+    worker_payload: Any = None,
     event_sink: Any = None,
 ) -> str:
     async with sess.chat_lock:
@@ -2844,6 +2870,8 @@ async def _run_worker_session_prompt(
 
         await sess.ensure_agent()
         sess._ensure_system_prompt()
+        if sess.client_context is not None:
+            sess.client_context.worker_payload = worker_payload if isinstance(worker_payload, dict) else None
 
         attachments = await sess.take_pending_media_for_message(None)
         stats = {
@@ -2937,6 +2965,77 @@ def _latest_render_video_result(session_id: str) -> Tuple[ArtifactStore, Any, Di
     return artifact_store, render_path, data
 
 
+def _latest_node_payload(session_id: str, node_id: str) -> Dict[str, Any]:
+    artifact_store = ArtifactStore(app.state.cfg.project.outputs_dir, session_id=session_id)
+    meta = artifact_store.get_latest_meta(node_id=node_id, session_id=session_id)
+    if meta is None:
+        return {}
+    try:
+        _loaded_meta, data = artifact_store.load_result(meta.artifact_id)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _extract_node_payload(data: Dict[str, Any], node_id: str) -> Dict[str, Any]:
+    payload = data.get("payload") if isinstance(data, dict) else None
+    if isinstance(payload, dict):
+        nested = payload.get(node_id)
+        if isinstance(nested, dict):
+            return nested
+        return payload
+    return {}
+
+
+def _is_clone_voiceover_required(payload: Dict[str, Any]) -> bool:
+    production_config = payload.get("production_config")
+    if not isinstance(production_config, dict):
+        return False
+    voiceover = production_config.get("voiceover")
+    if not isinstance(voiceover, dict) or voiceover.get("enabled") is False:
+        return False
+    provider = _s(voiceover.get("provider")).lower()
+    return bool(
+        voiceover.get("clone_enabled")
+        or voiceover.get("cloneEnabled")
+        or "clone" in provider
+    )
+
+
+def _latest_voiceover_tool_failure(sess: ChatSession) -> Optional[Dict[str, Any]]:
+    for rec in reversed(sess.history or []):
+        if not isinstance(rec, dict):
+            continue
+        if str(rec.get("role") or "") != "tool":
+            continue
+        if str(rec.get("state") or "") != "error":
+            continue
+        if "voiceover" not in str(rec.get("name") or "").lower():
+            continue
+        return _mask_tool_history_record(
+            {
+                "server": rec.get("server"),
+                "name": rec.get("name"),
+                "state": rec.get("state"),
+                "message": rec.get("message"),
+                "summary": rec.get("summary"),
+            }
+        )
+    return None
+
+
+def _raise_if_required_clone_voiceover_failed(payload: Dict[str, Any], sess: ChatSession) -> None:
+    if not _is_clone_voiceover_required(payload):
+        return
+    failure = _latest_voiceover_tool_failure(sess)
+    if not failure:
+        return
+    raise RuntimeError(
+        "clone voiceover failed before render completion: "
+        + json.dumps(failure, ensure_ascii=False, default=str)
+    )
+
+
 def _copy_worker_final_video(render_path: str, output_dir: Path) -> Path:
     source = Path(render_path)
     if not source.is_absolute():
@@ -2959,6 +3058,7 @@ def _write_worker_run_metadata(
     session_id: str,
     final_text: str,
     render_payload: Dict[str, Any],
+    voiceover_payload: Dict[str, Any],
     final_video_path: Path,
 ) -> None:
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2971,6 +3071,7 @@ def _write_worker_run_metadata(
                 "final_video_path": str(final_video_path),
                 "assistant_text": final_text,
                 "render_video": render_payload,
+                "generate_voiceover": voiceover_payload,
             },
             ensure_ascii=False,
             indent=2,
@@ -3003,6 +3104,7 @@ def _worker_run_response_payload(
     final_video_path: Path,
     metadata_path: Path,
     render_payload: Dict[str, Any],
+    voiceover_payload: Dict[str, Any],
 ) -> Dict[str, Any]:
     return {
         "job_id": payload.get("job_id"),
@@ -3012,7 +3114,9 @@ def _worker_run_response_payload(
         "raw_response": {
             "engine": "fire_red-openstoryline",
             "render_video": render_payload,
+            "generate_voiceover": voiceover_payload,
         },
+        "voiceover": voiceover_payload,
     }
 
 
@@ -3054,15 +3158,25 @@ async def run_worker_video_job(request: Request):
     store: SessionStore = app.state.sessions
     sess = await store.create()
     try:
-        await _register_worker_input_assets(sess, payload.get("input_assets") or [])
+        metas = await _register_worker_input_assets(sess, payload.get("input_assets") or [])
+        payload["input_assets"] = _worker_input_assets_with_store_names(
+            payload.get("input_assets") or [],
+            metas,
+        )
         prompt = _s(payload.get("prompt")) or _fallback_worker_prompt(payload)
         final_text = await _run_worker_session_prompt(
             store,
             sess,
             prompt=prompt,
             service_config=payload.get("service_config"),
+            worker_payload=payload,
         )
+        _raise_if_required_clone_voiceover_failed(payload, sess)
         _artifact_store, render_path, render_payload = _latest_render_video_result(sess.session_id)
+        voiceover_payload = _extract_node_payload(
+            _latest_node_payload(sess.session_id, "generate_voiceover"),
+            "generate_voiceover",
+        )
         final_video_path = _copy_worker_final_video(render_path, output_dir)
         metadata_path = output_dir / "firered-run-metadata.json"
         _write_worker_run_metadata(
@@ -3071,6 +3185,7 @@ async def run_worker_video_job(request: Request):
             session_id=sess.session_id,
             final_text=final_text,
             render_payload=render_payload,
+            voiceover_payload=voiceover_payload,
             final_video_path=final_video_path,
         )
         return JSONResponse(
@@ -3080,6 +3195,7 @@ async def run_worker_video_job(request: Request):
                 final_video_path=final_video_path,
                 metadata_path=metadata_path,
                 render_payload=render_payload,
+                voiceover_payload=voiceover_payload,
             )
         )
     except HTTPException:
@@ -3156,16 +3272,26 @@ async def stream_worker_video_job(request: Request):
             store: SessionStore = app.state.sessions
             sess = await store.create()
             sess_holder["session"] = sess
-            await _register_worker_input_assets(sess, payload.get("input_assets") or [])
+            metas = await _register_worker_input_assets(sess, payload.get("input_assets") or [])
+            payload["input_assets"] = _worker_input_assets_with_store_names(
+                payload.get("input_assets") or [],
+                metas,
+            )
             prompt = _s(payload.get("prompt")) or _fallback_worker_prompt(payload)
             final_text = await _run_worker_session_prompt(
                 store,
                 sess,
                 prompt=prompt,
                 service_config=payload.get("service_config"),
+                worker_payload=payload,
                 event_sink=enqueue_event,
             )
+            _raise_if_required_clone_voiceover_failed(payload, sess)
             _artifact_store, render_path, render_payload = _latest_render_video_result(sess.session_id)
+            voiceover_payload = _extract_node_payload(
+                _latest_node_payload(sess.session_id, "generate_voiceover"),
+                "generate_voiceover",
+            )
             final_video_path = _copy_worker_final_video(render_path, output_dir)
             metadata_path = output_dir / "firered-run-metadata.json"
             _write_worker_run_metadata(
@@ -3174,6 +3300,7 @@ async def stream_worker_video_job(request: Request):
                 session_id=sess.session_id,
                 final_text=final_text,
                 render_payload=render_payload,
+                voiceover_payload=voiceover_payload,
                 final_video_path=final_video_path,
             )
             await queue.put(
@@ -3185,6 +3312,7 @@ async def stream_worker_video_job(request: Request):
                         final_video_path=final_video_path,
                         metadata_path=metadata_path,
                         render_payload=render_payload,
+                        voiceover_payload=voiceover_payload,
                     ),
                 }
             )

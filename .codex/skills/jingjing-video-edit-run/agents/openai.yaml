@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jingjing Video Edit Run"
+  short_description: "Run Jingjing video edits without fallback"
+  default_prompt: "Use $jingjing-video-edit-run to run a Jingjing video-edit job from a documented test case through cloud Supabase, server worker, COS upload, and local artifact package."

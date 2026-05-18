@@ -214,6 +214,39 @@ class OpenStorylineContractPayloadTests(unittest.TestCase):
                     progress_callback=lambda _event: None,
                 )
 
+    def test_run_job_stream_preserves_structured_voiceover_error_detail(self):
+        def fake_stream(method, url, json, timeout):
+            return FakeStreamResponse(
+                [
+                    '{"type":"error","error":{'
+                    '"message":"worker run failed: RuntimeError: clone voiceover failed before render completion",'
+                    '"root_cause":"RuntimeError: clone voiceover failed before render completion: errorCode 1014",'
+                    '"last_event":{"type":"tool_end","name":"generate_voiceover"},'
+                    '"last_tool":{"name":"generate_voiceover","summary":"runninghub submit returned no task id or audio: errorCode 1014"}}}'
+                ]
+            )
+
+        job = make_job()
+        directive = build_production_directive(job)
+        client = OpenStorylineClient(Settings())
+
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "worker.app.openstoryline_client.httpx.stream",
+            side_effect=fake_stream,
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "clone voiceover.*generate_voiceover.*errorCode 1014",
+            ):
+                client.run_job(
+                    job=job,
+                    directive=directive,
+                    input_assets=[],
+                    workspace_dir=Path(tmp) / "workspace",
+                    output_dir=Path(tmp) / "outputs",
+                    progress_callback=lambda _event: None,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
