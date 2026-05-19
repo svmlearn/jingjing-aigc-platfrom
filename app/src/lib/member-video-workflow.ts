@@ -3,6 +3,7 @@ import type { VideoEditJobStatus } from "../contracts/video.ts";
 export type MemberVideoResultAssetLike = {
   assetType?: string | null;
   signedPreviewUrl?: string | null;
+  signedDownloadUrl?: string | null;
   originUrl?: string | null;
 };
 
@@ -27,11 +28,23 @@ export function getMemberVideoResultUrl(job: MemberVideoEditJobLike | null) {
   return resultAsset?.signedPreviewUrl ?? resultAsset?.originUrl ?? null;
 }
 
+export function getMemberVideoDownloadUrl(job: MemberVideoEditJobLike | null) {
+  const resultAsset = job?.resultAssets?.find((asset) => asset.assetType === "video");
+
+  return (
+    resultAsset?.signedDownloadUrl ??
+    resultAsset?.signedPreviewUrl ??
+    resultAsset?.originUrl ??
+    null
+  );
+}
+
 export function summarizeMemberVideoEditState(input: {
   uploadedFileCount: number;
   job: MemberVideoEditJobLike | null;
 }) {
   const previewUrl = getMemberVideoResultUrl(input.job);
+  const downloadUrl = getMemberVideoDownloadUrl(input.job);
   const stage = getMemberVideoEditStage(input);
 
   return {
@@ -39,6 +52,7 @@ export function summarizeMemberVideoEditState(input: {
     canStartEdit: input.uploadedFileCount > 0 && !input.job,
     canPreviewDownload: stage === "succeeded" && Boolean(previewUrl),
     previewUrl,
+    downloadUrl,
   };
 }
 

@@ -163,9 +163,20 @@ export const aliyunOssProvider: ObjectStorageProvider = {
   createSignedReadUrl(input) {
     const config = getAliyunOssConfig();
     const client = createAliyunOssClient(config);
+    const response: Record<string, string> = {};
+
+    if (input.responseContentDisposition) {
+      response["content-disposition"] = input.responseContentDisposition;
+    }
+
+    if (input.responseContentType) {
+      response["content-type"] = input.responseContentType;
+    }
+
     const signedUrl = client.signatureUrl(input.storageKey, {
       expires: input.expiresInSeconds ?? config.readUrlTtlSeconds,
       method: "GET",
+      ...(Object.keys(response).length > 0 ? { response } : {}),
     });
 
     return ensureHttpsUrl(signedUrl);

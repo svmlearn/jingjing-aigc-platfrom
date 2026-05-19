@@ -465,6 +465,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
     job,
   });
   const resultUrl = editState.previewUrl;
+  const resultDownloadUrl = editState.downloadUrl;
 
   async function startAiEdit() {
     const currentTask = task;
@@ -685,6 +686,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           busyState={busyState}
           job={job}
           resultUrl={resultUrl}
+          downloadUrl={resultDownloadUrl}
         />
         {actionError ? <StatusLine tone="danger" icon={<AlertCircle className="size-4" />} text={actionError} /> : null}
       </section>
@@ -1250,10 +1252,12 @@ function AiEditProgressStatus({
   busyState,
   job,
   resultUrl,
+  downloadUrl,
 }: {
   busyState: AiEditBusyState | null;
   job: VideoEditJob | null;
   resultUrl: string | null;
+  downloadUrl: string | null;
 }) {
   const progress = busyState ? getBusyProgressView(busyState) : job ? getJobProgressView(job) : null;
 
@@ -1315,14 +1319,23 @@ function AiEditProgressStatus({
       ) : null}
       {progress.failureReason ? <p className="mt-2 text-xs leading-5 text-red-700">{progress.failureReason}</p> : null}
       {resultUrl ? (
+        <div className="mt-3 overflow-hidden rounded-lg border border-black/10 bg-black">
+          <video
+            className="aspect-video w-full bg-black object-contain"
+            controls
+            playsInline
+            preload="metadata"
+            src={resultUrl}
+          />
+        </div>
+      ) : null}
+      {downloadUrl ? (
         <a
-          href={resultUrl}
-          target="_blank"
-          rel="noreferrer"
+          href={downloadUrl}
           className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#171717] px-3 py-2 text-sm font-medium text-white"
         >
           <Download className="size-4" aria-hidden="true" />
-          预览 / 下载成片
+          下载成片
         </a>
       ) : null}
     </div>

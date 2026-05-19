@@ -65,6 +65,8 @@ export type ObjectStorageProvider = {
     storageKey: string;
     bucketName?: string | null;
     expiresInSeconds?: number;
+    responseContentDisposition?: "inline" | "attachment";
+    responseContentType?: string | null;
   }): string;
   assertWritableObjectRef(input: {
     bucketName?: string | null;

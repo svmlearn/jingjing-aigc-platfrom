@@ -100,6 +100,35 @@ test("toPublicVideoEditJob exposes result assets at the top level", () => {
   assert.equal(publicJob.resultAssets?.[0]?.signedPreviewUrl, "https://example.com/final.mp4");
 });
 
+test("toPublicVideoEditJob preserves explicit result asset download URL", () => {
+  const publicJob = toPublicVideoEditJob({
+    ...baseJob,
+    resultPayload: {
+      resultAssets: [
+        {
+          id: "asset-1",
+          ownerId: "variant-1",
+          assetType: "video",
+          storageProvider: "tencent_cos",
+          bucketName: "bucket",
+          storageKey: "outputs/final.mp4",
+          signedPreviewUrl: "/api/video-edit-jobs/job-1/result/asset-1?disposition=inline",
+          signedDownloadUrl: "/api/video-edit-jobs/job-1/result/asset-1?disposition=attachment",
+        },
+      ],
+    },
+  });
+
+  assert.equal(
+    publicJob.resultAssets?.[0]?.signedPreviewUrl,
+    "/api/video-edit-jobs/job-1/result/asset-1?disposition=inline",
+  );
+  assert.equal(
+    publicJob.resultAssets?.[0]?.signedDownloadUrl,
+    "/api/video-edit-jobs/job-1/result/asset-1?disposition=attachment",
+  );
+});
+
 test("toPublicVideoEditJob keeps payload result asset types intact", () => {
   const publicJob = toPublicVideoEditJob({
     ...baseJob,

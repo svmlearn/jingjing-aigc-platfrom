@@ -20,6 +20,7 @@ export type MediaAssetDto = {
   createdAt: string;
   updatedAt?: string | null;
   signedPreviewUrl?: string | null;
+  signedDownloadUrl?: string | null;
 };
 
 export type MediaUploadIntentRequest = {
