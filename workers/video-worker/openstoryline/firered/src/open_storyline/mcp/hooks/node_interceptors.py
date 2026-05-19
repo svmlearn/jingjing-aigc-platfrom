@@ -1028,7 +1028,7 @@ class ToolInterceptor:
                             for key, value in provider_cfg.items():
                                 if value is None:
                                     continue
-                                normalized = str(value).strip()
+                                normalized = value.strip() if isinstance(value, str) else value
                                 args.setdefault(key, normalized)
                                 provider_keys.setdefault(key, normalized)
                         fallback_provider = str(
@@ -1070,6 +1070,20 @@ class ToolInterceptor:
             handler,
             tool_name_keyword="generate_ai_transition",
             context_attr="ai_transition_config",
+        )
+
+    @staticmethod
+    async def inject_asr_config(request: MCPToolCallRequest, handler):
+        """
+        Interceptor: Injects runtime.context.asr_config parameters into request.args
+        before invoking the ASR node.
+        - asr_config: {"provider": "aliyun_paraformer", "aliyun_paraformer": {...}}
+        """
+        return await ToolInterceptor._inject_provider_config(
+            request,
+            handler,
+            tool_name_keyword="local_asr",
+            context_attr="asr_config",
         )
 
     @staticmethod
