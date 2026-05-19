@@ -7,11 +7,11 @@
 ## 已完成
 
 - 前端成员端 Dify draft/variant 复用逻辑已提交。
-- 成员端视频任务页已补声音克隆入口：成员可上传 MP3/音频，生成 ready `voice_profile` 后，AI 剪辑会使用该 voice profile 配音；没有 ready 音色时继续走 no-voiceover。
+- 成员端视频任务页已补声音克隆入口：成员可上传 MP3/M4A/音频，生成 ready `voice_profile` 后，AI 剪辑会使用该 voice profile 配音；没有 ready 音色时走默认系统配音，不再走 no-voiceover。
 - 已补 `/api/voice-profiles`、`voice_profiles` PostgreSQL migration、`voice-profiles/*` 上传 prefix、`audio` asset type、worker payload 的 ref audio asset 引用。
 - 服务端 `/api/content/video-workbench-agent` 已增加 Dify daily task 复用保护，防止旧前端 bundle 误打接口后调用脚本 Agent。
 - worker/OpenStoryline/FireRed 已同步新加坡运行容器中的 provider-neutral runtime 差异，同时保留阿里云 OSS/PostgreSQL 差异。
-- 一条真实阿里云 AI 剪辑链路已跑通，产物在 `video-results/*`，preview/download 都是 200。
+- 一条真实阿里云 no-voiceover 基线 AI 剪辑链路已跑通，产物在 `video-results/*`，preview/download 都是 200；后续产品口径已调整为默认配音 / 克隆配音，不再继续使用 no-voiceover。
 - 已下载最终 MP4 到本地 `artifacts/aliyun-member-dify-script-to-video-e2e/`，该目录已加入 `.gitignore`。
 
 ## 关键 ID
@@ -27,6 +27,7 @@
 ## 改动文件
 
 - `app/src/components/member/member-workspace.tsx`
+- `app/src/lib/ui/video-workflow.ts`
 - `app/src/app/api/voice-profiles/route.ts`
 - `app/src/contracts/media.ts`
 - `app/src/contracts/video.ts`
@@ -57,11 +58,14 @@
 
 1. 推送 `codex/domestic-infra-migration` 到 `gitee/codex/domestic-infra-migration`。
 2. 从最终 HEAD 部署 clean release 到 ECS。
-3. 验证 `/api/health`、provider、storage provider、worker/FireRed/OpenStoryline 服务状态。
-4. 如用户继续在网页端点 AI 剪辑，观察 nginx/app 日志，确认当前 bundle 不再发起旧 Agent；即使发起，服务端也应返回 `trace.mode=dify_daily_task_reuse`。
+3. 补齐阿里云 worker env 的 ASR/TTS provider 变量，只保留阿里云 OSS/PostgreSQL 当前变量。
+4. 验证 `/api/health`、provider、storage provider、worker/FireRed/OpenStoryline 服务状态。
+5. 如用户继续在网页端点 AI 剪辑，观察 nginx/app 日志，确认当前 bundle 不再发起旧 Agent；即使发起，服务端也应返回 `trace.mode=dify_daily_task_reuse`。
+6. 用一条成员端任务分别优先验证默认 `minimax` 配音；有成员音色时再验证 `voice_profile` 克隆配音。
 
 ## 残余风险
 
 - 浏览器缓存/旧 tab 可能仍加载旧 bundle；服务端 guard 已兜底，但最好刷新页面后再操作。
 - 本次只验证了一条真实 Dify job，符合用户要求；没有扩展成多任务批量回归。
-- 阿里云 normal no-voiceover 已跑通；本次补了成员端 voice profile 上传和 job payload，仍需用真实 MP3 触发一条 voice clone AI 剪辑做端到端验收。
+- 阿里云 normal no-voiceover 已跑通但后续不再作为产品主链路；默认配音和 voice clone 仍需真实成片端到端验收。
+- `cos素材库入库包_20260515.rar` 应映射到 `静境阿里云验收商家`，但当前 RDS 缺 `merchant_media_assets` / `merchant_media_clips` 表，未导入素材库。

@@ -789,7 +789,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           <div>
             <p className="text-sm font-semibold">声音克隆</p>
             <p className="mt-1 text-xs leading-5 text-black/50">
-              {selectedVoiceProfile ? `当前音色：${selectedVoiceProfile.displayName}` : "可上传本人音频用于 AI 配音。"}
+              {selectedVoiceProfile ? `当前音色：${selectedVoiceProfile.displayName}` : "可上传本人音频用于 AI 配音；不上传则使用默认音色。"}
             </p>
           </div>
           <span className="rounded-lg bg-[#ece8dc] px-2 py-1 text-[11px] text-black/55">可选</span>
@@ -856,7 +856,11 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           <button
             type="button"
             onClick={() => void startAiEdit()}
-            disabled={Boolean(busyState) || voiceProfileBusy || Boolean(job && isVideoEditJobInFlightStatus(job.status))}
+            disabled={
+              Boolean(busyState) ||
+              voiceProfileBusy ||
+              Boolean(job && isVideoEditJobInFlightStatus(job.status))
+            }
             className="inline-flex items-center gap-2 rounded-lg bg-[#171717] px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
           >
             {busyState || (job && isVideoEditJobInFlightStatus(job.status)) ? (
@@ -1205,15 +1209,18 @@ function buildMemberVideoProductionConfig(input: {
 
   return {
     voiceover: {
-      enabled: false,
+      enabled: true,
+      mode: "system",
+      provider: "minimax",
+      includeOriginalAudio: false,
     },
     render: {
       aspectRatio: "9:16",
       maxDurationSeconds: input.script.targetDurationSeconds,
-      includeOriginalAudio: true,
+      includeOriginalAudio: false,
     },
     subtitles: {
-      enabled: false,
+      enabled: true,
       style: "platform_default",
     },
     bgm: {
