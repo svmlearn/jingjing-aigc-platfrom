@@ -325,7 +325,7 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
             ? buildStableVideoResultAssetUrl(job.id, asset.id, "inline")
             : null,
         signedDownloadUrl:
-          asset.storageProvider === "tencent_cos"
+          asset.storageProvider === "tencent_cos" || asset.storageProvider === "aliyun_oss"
             ? buildStableVideoResultAssetUrl(job.id, asset.id, "attachment")
             : asset.signedDownloadUrl ?? asset.signedPreviewUrl ?? asset.originUrl ?? null,
       })),

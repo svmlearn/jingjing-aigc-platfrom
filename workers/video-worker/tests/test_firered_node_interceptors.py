@@ -180,6 +180,29 @@ class TalkingHeadContext:
     }
 
 
+class TalkingHeadAsrContext:
+    tts_config = {}
+    pexels_api_key = ""
+    pexels_base_url = ""
+    asr_config = {
+        "provider": "aliyun_paraformer",
+        "aliyun_paraformer": {"api_key": "asr-key", "model": "paraformer-realtime-v2"},
+    }
+    worker_payload = {
+        "production_config": {
+            "subtitles": {"talking_head_source": "asr_original_audio"}
+        },
+    }
+
+
+class LocalFunasrTalkingHeadAsrContext(TalkingHeadAsrContext):
+    asr_config = {"provider": "local_funasr"}
+
+
+class MissingKeyTalkingHeadAsrContext(TalkingHeadAsrContext):
+    asr_config = {"provider": "aliyun_paraformer", "aliyun_paraformer": {}}
+
+
 class Runtime:
     context = Context()
 
@@ -549,6 +572,35 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
         )
 
         self.assertEqual(["split_shots", "group_clips", "asr"], require_kind)
+
+    def test_original_audio_asr_injection_accepts_aliyun_paraformer(self):
+        request = Request("local_asr", {}, context=TalkingHeadAsrContext())
+
+        async def handler(req):
+            return dict(req.args)
+
+        result = asyncio.run(self.ToolInterceptor.inject_asr_config(request, handler))
+
+        self.assertEqual("aliyun_paraformer", result["provider"])
+        self.assertEqual("asr-key", result["api_key"])
+
+    def test_original_audio_asr_rejects_local_funasr(self):
+        request = Request("local_asr", {}, context=LocalFunasrTalkingHeadAsrContext())
+
+        async def handler(req):
+            return dict(req.args)
+
+        with self.assertRaisesRegex(Exception, "local FunASR fallback is disabled"):
+            asyncio.run(self.ToolInterceptor.inject_asr_config(request, handler))
+
+    def test_original_audio_asr_rejects_missing_key(self):
+        request = Request("local_asr", {}, context=MissingKeyTalkingHeadAsrContext())
+
+        async def handler(req):
+            return dict(req.args)
+
+        with self.assertRaisesRegex(Exception, "ALIYUN_ASR_API_KEY or DASHSCOPE_API_KEY"):
+            asyncio.run(self.ToolInterceptor.inject_asr_config(request, handler))
 
     def test_locked_worker_script_marks_no_voiceover_groups_for_original_audio(self):
         module = sys.modules["firered_node_interceptors_under_test"]

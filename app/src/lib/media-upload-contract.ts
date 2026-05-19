@@ -22,13 +22,13 @@ export type MediaUploadCompleteContractResult =
 export function validateMediaUploadCompleteContract(
   input: MediaUploadCompleteContractInput,
 ): MediaUploadCompleteContractResult {
-  if (input.storageProvider !== "tencent_cos") {
-    return failure("MEDIA_STORAGE_PROVIDER_UNSUPPORTED", "New media uploads must use Tencent COS.");
+  if (input.storageProvider !== "aliyun_oss") {
+    return failure("MEDIA_STORAGE_PROVIDER_UNSUPPORTED", "New media uploads must use Aliyun OSS.");
   }
 
   const actualBucket = input.bucketName ?? input.expectedBucket;
   if (actualBucket !== input.expectedBucket) {
-    return failure("MEDIA_BUCKET_MISMATCH", "Uploaded media must target the configured Tencent COS bucket.");
+    return failure("MEDIA_BUCKET_MISMATCH", "Uploaded media must target the configured object storage bucket.");
   }
 
   const expectedPrefix = getUploadKeyPrefix(input);

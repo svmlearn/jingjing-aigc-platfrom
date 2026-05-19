@@ -9,7 +9,7 @@ import { loadEnvFileFromArgs } from "./lib/env-file.mjs";
 
 loadEnvFileFromArgs();
 
-const provider = getArgValue("--provider") || process.env.STORAGE_PROVIDER?.trim() || "tencent_cos";
+const provider = getArgValue("--provider") || process.env.STORAGE_PROVIDER?.trim() || "aliyun_oss";
 const runRoundtrip = process.argv.includes("--roundtrip");
 
 if (provider === "tencent_cos") {
@@ -68,7 +68,7 @@ async function smokeTencentCos() {
       provider: "tencent_cos",
       bucket,
       region,
-      storageProviderDefault: process.env.STORAGE_PROVIDER?.trim() || "tencent_cos",
+      storageProviderDefault: process.env.STORAGE_PROVIDER?.trim() || "aliyun_oss",
       keyPrefixCompatible: sample.mediaStorageKey.startsWith(`${sample.mediaPrefix}/`),
       signedReadUrlGenerated: /^https:\/\//.test(signedUrl),
       roundtrip: "skipped",

@@ -355,7 +355,7 @@ create table if not exists public.asset_objects (
   owner_type text not null,
   owner_id uuid not null,
   asset_type text not null,
-  storage_provider text not null default 'tencent_cos',
+  storage_provider text not null default 'aliyun_oss',
   bucket_name text,
   storage_key text not null,
   origin_url text,

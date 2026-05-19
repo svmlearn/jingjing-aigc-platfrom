@@ -478,6 +478,7 @@ const productionConfigSchema = z
       .object({
         enabled: z.boolean().optional(),
         style: z.enum(["platform_default", "bold_caption"]).optional(),
+        talkingHeadSource: z.enum(["script", "asr_original_audio"]).optional(),
       })
       .strict()
       .optional(),
@@ -486,6 +487,7 @@ const productionConfigSchema = z
         aspectRatio: z.literal("9:16").optional(),
         maxDurationSeconds: z.number().int().min(15).max(180).nullish(),
         includeOriginalAudio: z.boolean().optional(),
+        preserveTalkingHeadOriginalAudio: z.boolean().optional(),
       })
       .strict()
       .optional(),

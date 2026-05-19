@@ -458,7 +458,11 @@ class JobProcessor:
             "default_input_buckets",
             getattr(self._settings, "cos_bucket", ""),
         )
-        for asset in job.input_assets(default_buckets):
+        default_storage_provider = getattr(self._settings, "storage_provider", "aliyun_oss")
+        for asset in job.input_assets(
+            default_buckets,
+            default_storage_provider=default_storage_provider,
+        ):
             local_path = input_dir / asset.file_name
             try:
                 self._cos_client.download_file(
@@ -510,7 +514,7 @@ class JobProcessor:
         storage_provider = str(
             ref_audio_asset.get("storage_provider")
             or ref_audio_asset.get("storageProvider")
-            or getattr(self._settings, "storage_provider", "tencent_cos")
+            or getattr(self._settings, "storage_provider", "aliyun_oss")
         ).strip()
 
         local_path = input_dir / "voice_profile_ref_audio" / Path(storage_key).name
@@ -550,7 +554,7 @@ class JobProcessor:
                     local_path=local_path,
                     storage_key=storage_key,
                     asset_type=asset_type,
-                    storage_provider=getattr(self._settings, "storage_provider", "tencent_cos"),
+                    storage_provider=getattr(self._settings, "storage_provider", "aliyun_oss"),
                 )
             except Exception as exc:
                 raise OutputUploadError(storage_key, exc) from exc
@@ -897,7 +901,7 @@ class JobProcessor:
                     record_timing("asset_objects_persistence", stage_started_at)
                 except Exception as exc:
                     raise OutputAssetPersistenceError(exc) from exc
-                upload_mode = getattr(self._settings, "storage_provider", "tencent_cos")
+                upload_mode = getattr(self._settings, "storage_provider", "aliyun_oss")
                 log_payload["steps"].append(
                     {
                         "stage": "uploading_outputs",

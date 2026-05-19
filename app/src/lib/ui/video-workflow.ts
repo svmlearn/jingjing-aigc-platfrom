@@ -262,7 +262,7 @@ function normalizeAsset(input: unknown): DraftMediaAsset | null {
   const ownerType = readString(input, "ownerType", "owner_type");
   const ownerId = readString(input, "ownerId", "owner_id");
   const assetType = readString(input, "assetType", "asset_type");
-  const storageProvider = readString(input, "storageProvider", "storage_provider") ?? "tencent_cos";
+  const storageProvider = readString(input, "storageProvider", "storage_provider") ?? "aliyun_oss";
   const bucketName = readString(input, "bucketName", "bucket_name") ?? "";
   const storageKey = readString(input, "storageKey", "storage_key") ?? "";
   const mimeType = readString(input, "mimeType", "mime_type") ?? "application/octet-stream";
@@ -647,7 +647,7 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
   });
 
   const source = readNestedRecord(response, "uploadIntent", "intent", "credentials") ?? response;
-  const provider = readString(source, "provider", "storageProvider") ?? "tencent_cos";
+  const provider = readString(source, "provider", "storageProvider") ?? "aliyun_oss";
   const bucket = readString(source, "bucket");
   const region = readString(source, "region");
   const endpoint = readString(source, "endpoint");

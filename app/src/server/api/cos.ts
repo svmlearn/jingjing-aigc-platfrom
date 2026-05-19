@@ -25,7 +25,7 @@ export function assertSupportedMediaStorageProvider(storageProvider: MediaStorag
     throw new ApiError(
       400,
       "MEDIA_STORAGE_PROVIDER_UNSUPPORTED",
-      "New media uploads must use Tencent COS.",
+      "Tencent COS is only available for explicit legacy/reference operations.",
     );
   }
 }

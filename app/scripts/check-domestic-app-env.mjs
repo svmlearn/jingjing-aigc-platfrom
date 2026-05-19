@@ -39,7 +39,7 @@ checks.push({
   source: databaseUrl.name,
 });
 
-const storageProvider = process.env.STORAGE_PROVIDER?.trim() || "tencent_cos";
+const storageProvider = process.env.STORAGE_PROVIDER?.trim() || "aliyun_oss";
 checks.push({
   name: "STORAGE_PROVIDER",
   status: storageProvider === "tencent_cos" || storageProvider === "aliyun_oss" ? "ok" : "missing",

@@ -161,7 +161,7 @@ export async function assertVoiceProfileAudioAsset(input: {
     .eq("owner_type", "voice_profile")
     .eq("owner_id", input.voiceProfileId)
     .eq("asset_type", "audio")
-    .eq("storage_provider", "tencent_cos")
+    .in("storage_provider", ["tencent_cos", "aliyun_oss"])
     .maybeSingle();
 
   if (error) {

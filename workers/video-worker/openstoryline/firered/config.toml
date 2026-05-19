@@ -74,7 +74,7 @@ transnet_weights = ".storyline/models/transnetv2-pytorch-weights.pth"
 transnet_device = "cpu"
 
 [asr]
-provider = "${OPENSTORYLINE_ASR_PROVIDER:-local_funasr}"
+provider = "${OPENSTORYLINE_ASR_PROVIDER:-aliyun_paraformer}"
 model = "${ALIYUN_ASR_MODEL:-paraformer-realtime-v2}"
 api_key = "${ALIYUN_ASR_API_KEY:-}"
 workspace = "${ALIYUN_ASR_WORKSPACE:-}"

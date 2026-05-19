@@ -32,8 +32,12 @@ class InputAsset:
         cls,
         payload: dict[str, Any],
         default_buckets: str | Mapping[str, str],
+        default_storage_provider: str = "aliyun_oss",
     ) -> "InputAsset":
-        storage_provider = _storage_provider(payload.get("storage_provider"))
+        storage_provider = _storage_provider(
+            payload.get("storage_provider"),
+            default_storage_provider=default_storage_provider,
+        )
         storage_key = _required_string(payload, "storage_key")
         file_name = _safe_file_name(payload.get("file_name") or Path(storage_key).name)
         return cls(
@@ -104,6 +108,7 @@ class VideoJob:
     def input_assets(
         self,
         default_buckets: str | Mapping[str, str],
+        default_storage_provider: str = "aliyun_oss",
     ) -> list[InputAsset]:
         if not isinstance(self.input_payload, dict):
             raise InputAssetContractError("input_payload must be an object")
@@ -117,7 +122,14 @@ class VideoJob:
         for item in raw_assets:
             if not isinstance(item, dict):
                 raise InputAssetContractError("each input asset must be an object")
-        return [InputAsset.from_payload(item, default_buckets) for item in raw_assets]
+        return [
+            InputAsset.from_payload(
+                item,
+                default_buckets,
+                default_storage_provider=default_storage_provider,
+            )
+            for item in raw_assets
+        ]
 
     def output_object_key(self, asset_type: str, result_prefix: str = "video-results") -> str:
         root = result_prefix.strip("/") or "video-results"
@@ -136,9 +148,12 @@ def _required_string(payload: dict[str, Any], key: str) -> str:
     return value.strip()
 
 
-def _storage_provider(value: Any) -> str:
+def _storage_provider(value: Any, *, default_storage_provider: str = "aliyun_oss") -> str:
     if value is None:
-        return "tencent_cos"
+        normalized_default = str(default_storage_provider or "aliyun_oss").strip().lower()
+        if normalized_default in SUPPORTED_STORAGE_PROVIDERS:
+            return normalized_default
+        return "aliyun_oss"
     if not isinstance(value, str):
         raise InputAssetContractError(
             "input asset storage_provider must be tencent_cos or aliyun_oss"

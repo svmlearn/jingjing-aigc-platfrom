@@ -77,7 +77,7 @@ export type ObjectStorageProvider = {
   }): { bucketName: string; storageKey: string };
 };
 
-export const defaultStorageProviderName: AppObjectStorageProviderName = "tencent_cos";
+export const defaultStorageProviderName: AppObjectStorageProviderName = "aliyun_oss";
 export const defaultStsDurationSeconds = 1800;
 export const defaultReadUrlTtlSeconds = 3600;
 export const defaultMediaUploadMaxBytes = 1024 * 1024 * 1024;

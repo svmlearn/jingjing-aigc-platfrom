@@ -566,6 +566,82 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertEqual(16000, asr["aliyun_paraformer"]["sample_rate"])
             self.assertEqual(["zh", "en"], asr["aliyun_paraformer"]["language_hints"])
 
+    def test_fire_red_original_audio_asr_rejects_local_funasr_provider(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            asr_provider="local_funasr",
+            aliyun_asr_api_key="asr-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(UnsupportedEngineAdapterError, "aliyun_paraformer"):
+                adapter.run(
+                    RunRequest(
+                        job_id="fire-red-job",
+                        merchant_id="merchant-1",
+                        draft_id="draft-1",
+                        content_variant_id="variant-1",
+                        workspace_dir=str(Path(tmp) / "workspace"),
+                        output_dir=str(Path(tmp) / "outputs"),
+                        script_text="locked script",
+                        production_directive={
+                            "script_locked": True,
+                            "desired_outputs": ["final_video"],
+                        },
+                        production_config={
+                            "subtitles": {"talking_head_source": "asr_original_audio"},
+                        },
+                    )
+                )
+
+    def test_fire_red_original_audio_asr_rejects_missing_aliyun_key(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            asr_provider="aliyun_paraformer",
+            aliyun_asr_api_key="",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(UnsupportedEngineAdapterError, "ALIYUN_ASR_API_KEY"):
+                adapter.run(
+                    RunRequest(
+                        job_id="fire-red-job",
+                        merchant_id="merchant-1",
+                        draft_id="draft-1",
+                        content_variant_id="variant-1",
+                        workspace_dir=str(Path(tmp) / "workspace"),
+                        output_dir=str(Path(tmp) / "outputs"),
+                        script_text="locked script",
+                        production_directive={
+                            "script_locked": True,
+                            "desired_outputs": ["final_video"],
+                        },
+                        production_config={
+                            "subtitles": {"talking_head_source": "asr_original_audio"},
+                        },
+                    )
+                )
+
     def test_fire_red_payload_marks_self_hosted_rehearsal_fast_path(self):
         settings = Settings(
             host="127.0.0.1",
