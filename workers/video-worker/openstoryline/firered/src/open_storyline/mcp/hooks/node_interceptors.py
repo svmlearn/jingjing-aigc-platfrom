@@ -296,6 +296,37 @@ def _with_required_original_audio_asr(
     return result
 
 
+def _worker_payload_bgm_enabled(worker_payload: Any) -> bool:
+    if not isinstance(worker_payload, dict):
+        return False
+    production_config = worker_payload.get("production_config")
+    if not isinstance(production_config, dict):
+        return True
+    bgm = production_config.get("bgm")
+    return not (isinstance(bgm, dict) and bgm.get("enabled") is False)
+
+
+def _with_disabled_optional_kinds_removed(
+    require_kind: Any,
+    node_id: str,
+    context: Any,
+) -> list[str]:
+    result = _with_required_original_audio_asr(require_kind, node_id, context)
+    if node_id not in {"plan_timeline", "plan_timeline_pro"}:
+        return result
+
+    worker_payload = getattr(context, "worker_payload", None)
+    disabled_kinds: set[str] = set()
+    if not _worker_payload_voiceover_enabled(worker_payload):
+        disabled_kinds.add("tts")
+    if not _worker_payload_bgm_enabled(worker_payload):
+        disabled_kinds.add("music_rec")
+
+    if not disabled_kinds:
+        return result
+    return [kind for kind in result if kind not in disabled_kinds]
+
+
 def _group_ids_from_groups(groups: Any) -> list[str]:
     group_ids: list[str] = []
     if isinstance(groups, list):
@@ -440,6 +471,7 @@ def _build_custom_script_from_worker_payload(
     asr_infos = _get_nested_value(asr, "asr_infos")
     clip_lookup = _clip_lookup_from_split_shots(split_shots)
     payload_assets_by_media_id = _payload_asset_by_media_id(payload)
+    voiceover_enabled = _worker_payload_voiceover_enabled(payload)
 
     group_scripts = []
     for index, group_id in enumerate(group_ids):
@@ -459,8 +491,16 @@ def _build_custom_script_from_worker_payload(
             "source_clip_ids": group_clip_ids,
             "source_duration_ms": source_duration_ms,
             "subtitle_source": "locked_script",
-            "audio_source": "voiceover",
+            "audio_source": "voiceover" if voiceover_enabled else _ORIGINAL_VIDEO_AUDIO_SOURCE,
         }
+        if not voiceover_enabled:
+            group_script.update(
+                {
+                    "skip_voiceover": True,
+                    "voiceover_enabled": False,
+                    "preserve_clip_duration": True,
+                }
+            )
         if use_asr_for_talking_head and is_talking_head_group:
             asr_text = _asr_text_for_group(group, asr_infos)
             if not asr_text:
@@ -560,7 +600,7 @@ def _worker_payload_voiceover_enabled(worker_payload: Any) -> bool:
         return False
     production_config = worker_payload.get("production_config")
     if not isinstance(production_config, dict):
-        return False
+        return True
     voiceover = production_config.get("voiceover")
     return not (isinstance(voiceover, dict) and voiceover.get("enabled") is False)
 
@@ -750,7 +790,7 @@ class ToolInterceptor:
                     if is_skip_mode
                     else meta_collector.id_to_require_prior_kind[node_id]
                 )
-                require_kind = _with_required_original_audio_asr(require_kind, node_id, context)
+                require_kind = _with_disabled_optional_kinds_removed(require_kind, node_id, context)
 
                 # 2. Check if node is executable
                 collect_result = meta_collector.check_excutable(session_id, store, require_kind)
@@ -845,7 +885,7 @@ class ToolInterceptor:
                         }
 
                         # Verify dependencies for this node
-                        default_require = _with_required_original_audio_asr(
+                        default_require = _with_disabled_optional_kinds_removed(
                             meta_collector.id_to_default_require_prior_kind[miss_id],
                             miss_id,
                             context,

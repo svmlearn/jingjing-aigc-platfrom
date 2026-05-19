@@ -403,6 +403,54 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
 
         self.assertEqual(["split_shots", "group_clips", "asr"], require_kind)
 
+    def test_locked_worker_script_marks_no_voiceover_groups_for_original_audio(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": (
+                "1\n00:00-00:05\n台词/字幕：第一段锁定脚本\n"
+                "2\n00:05-00:12\n台词/字幕：第二段锁定脚本\n"
+            ),
+            "production_directive": {"script_locked": True},
+            "production_config": {
+                "voiceover": {"enabled": False},
+                "bgm": {"enabled": False},
+            },
+        }
+        groups = [
+            {"group_id": "group_0001", "clip_ids": ["clip_0001"]},
+            {"group_id": "group_0002", "clip_ids": ["clip_0002"]},
+        ]
+
+        custom_script = module._build_custom_script_from_worker_payload(payload, groups)
+
+        for group_script in custom_script["group_scripts"]:
+            self.assertTrue(group_script["skip_voiceover"])
+            self.assertFalse(group_script["voiceover_enabled"])
+            self.assertEqual("original_video_audio", group_script["audio_source"])
+            self.assertTrue(group_script["preserve_clip_duration"])
+
+    def test_plan_timeline_drops_disabled_voiceover_and_bgm_dependencies(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(
+            worker_payload={
+                "production_config": {
+                    "voiceover": {"enabled": False},
+                    "bgm": {"enabled": False},
+                }
+            }
+        )
+
+        require_kind = module._with_disabled_optional_kinds_removed(
+            ["load_media", "split_shots", "group_clips", "generate_script", "tts", "music_rec"],
+            "plan_timeline",
+            context,
+        )
+
+        self.assertEqual(
+            ["load_media", "split_shots", "group_clips", "generate_script"],
+            require_kind,
+        )
+
     def test_locked_worker_script_expands_dialogues_to_match_more_groups(self):
         module = sys.modules["firered_node_interceptors_under_test"]
         payload = {
