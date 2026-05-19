@@ -12,6 +12,8 @@ import { createDraftWithVariants, createManualSourceItem } from "@/lib/db/conten
 import {
   claimNextContentGenerationJob,
   createContentGenerationBatch,
+  getContentGenerationBatchById,
+  listContentGenerationJobsByBatchId,
   markContentGenerationJobFailed,
   markContentGenerationJobSucceeded,
 } from "@/lib/db/content-generation-repository";
@@ -31,11 +33,17 @@ import {
 } from "@/server/api/dify-final-json-mapper";
 import { runDifyWorkflow } from "@/server/api/dify-workflow-client";
 import { getDailyContentWorkspaceForUser } from "@/server/api/daily-content-task-service";
+import { ApiError } from "@/server/api/errors";
 import { getObjectStorageProvider } from "@/server/storage";
 
 type BatchMemberScope = "self" | "active_members";
 
 type CreateBatchResult = {
+  batch: ContentGenerationBatchDto;
+  jobs: ContentGenerationJobDto[];
+};
+
+type BatchStatusResult = {
   batch: ContentGenerationBatchDto;
   jobs: ContentGenerationJobDto[];
 };
@@ -159,6 +167,29 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
   }
 
   return result;
+}
+
+export async function getDifyContentGenerationBatchStatusForUser(input: {
+  userId: string;
+  batchId: string;
+}): Promise<BatchStatusResult> {
+  const workspace = await getOperationalMerchantWorkspaceByUserId(input.userId);
+  const batch = await getContentGenerationBatchById(input.batchId);
+
+  if (batch.merchantId !== workspace.merchantProfile.id) {
+    throw new ApiError(404, "CONTENT_GENERATION_BATCH_NOT_FOUND", "生成批次不存在。");
+  }
+
+  const jobs = await listContentGenerationJobsByBatchId(batch.id);
+
+  if (workspace.role === "owner" || batch.createdByUserId === input.userId) {
+    return { batch, jobs };
+  }
+
+  return {
+    batch,
+    jobs: jobs.filter((job) => job.memberUserId === input.userId),
+  };
 }
 
 export async function runNextDifyContentGenerationJob(): Promise<RunNextJobResult> {
