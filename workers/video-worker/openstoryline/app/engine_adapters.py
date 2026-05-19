@@ -380,6 +380,12 @@ def _build_fire_red_run_payload(
         production_config,
         request,
     )
+    service_config = _build_fire_red_service_config(settings, production_config)
+    if _is_worker_rehearsal_fast_path(request):
+        service_config = {
+            **service_config,
+            "worker_rehearsal_fast_path": True,
+        }
     payload = {
         "job_id": request.job_id,
         "merchant_id": request.merchant_id,
@@ -392,7 +398,7 @@ def _build_fire_red_run_payload(
         "script_text": request.script_text,
         "production_directive": directive,
         "production_config": production_config,
-        "service_config": _build_fire_red_service_config(settings, production_config),
+        "service_config": service_config,
         "runtime_payload": request.runtime_payload,
         "desired_outputs": desired_outputs,
         "input_assets": [
@@ -401,6 +407,12 @@ def _build_fire_red_run_payload(
         "prompt": _build_fire_red_prompt(request, desired_outputs, production_config),
     }
     return payload
+
+
+def _is_worker_rehearsal_fast_path(request: RunRequest) -> bool:
+    if request.execution_mode == "self_hosted_rehearsal_fast_path":
+        return True
+    return request.runtime_payload.get("self_hosted_rehearsal_fast_path") is True
 
 
 def _build_fire_red_service_config(
@@ -511,9 +523,9 @@ def _build_fire_red_service_config(
         fallback_config = {}
 
     service_config["tts"] = {
-            "provider": provider,
-            provider: provider_config,
-        }
+        "provider": provider,
+        provider: provider_config,
+    }
     if provider == "minimax" and fallback_config:
         service_config["tts"]["fallback_provider"] = "runninghub"
         service_config["tts"]["runninghub"] = fallback_config
@@ -662,9 +674,9 @@ def _build_fire_red_prompt(
     return "\n".join(
         [
             "You are the FireRed OpenStoryline production engine for a locked worker job.",
-            "This is an unattended background worker run, not an interactive chat.",
-            "Approval to execute has already been granted by the caller.",
-            "Do not ask for confirmation and do not stop after presenting a plan.",
+            "This is an unattended background worker run.",
+            "Approval to execute has already been granted by the platform.",
+            "Do not ask for confirmation; execute the required production tools directly.",
             "Use the uploaded media in this session and render a final video.",
             "Do not rewrite the locked script unless ProductionDirective explicitly allows it.",
             "The final step must produce a render_video artifact.",

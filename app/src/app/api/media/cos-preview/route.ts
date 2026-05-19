@@ -1,6 +1,6 @@
 import { getAuthenticatedUser } from "@/lib/auth/current-user";
-import { createCosSignedPreviewUrl, getCosConfig } from "@/server/api/cos";
 import { ApiError, handleApiError } from "@/server/api/errors";
+import { getObjectStorageProvider, type AppObjectStorageProviderName } from "@/server/storage";
 
 export const runtime = "nodejs";
 
@@ -18,15 +18,25 @@ export async function GET(request: Request) {
       return Response.redirect(rawPath, 302);
     }
 
-    const signedUrl = createCosSignedPreviewUrl(parseDifyCosPath(rawPath));
+    const parsedPath = parseDifyStoragePath(rawPath);
+    const signedUrl = getObjectStorageProvider(parsedPath.provider).createSignedReadUrl(parsedPath);
     return Response.redirect(signedUrl, 302);
   } catch (error) {
     return handleApiError(error);
   }
 }
 
-function parseDifyCosPath(rawPath: string): { storageKey: string; bucketName?: string | null } {
-  const value = rawPath.replace(/^cos:\/\//i, "").replace(/^\/+/, "");
+function parseDifyStoragePath(rawPath: string): {
+  provider?: AppObjectStorageProviderName;
+  storageKey: string;
+  bucketName?: string | null;
+} {
+  const provider = /^oss:\/\//i.test(rawPath)
+    ? "aliyun_oss"
+    : /^cos:\/\//i.test(rawPath)
+      ? "tencent_cos"
+      : undefined;
+  const value = rawPath.replace(/^(cos|oss):\/\//i, "").replace(/^\/+/, "");
 
   if (!value) {
     throw new ApiError(400, "COS_PREVIEW_PATH_INVALID", "图片路径无效。");
@@ -34,21 +44,24 @@ function parseDifyCosPath(rawPath: string): { storageKey: string; bucketName?: s
 
   const segments = value.split("/").filter(Boolean);
 
-  if (rawPath.startsWith("cos://") && segments.length > 1) {
+  if (provider && segments.length > 1) {
     const [bucketOrPrefix, ...rest] = segments;
-    const defaultBucket = safeGetDefaultBucket();
+    const defaultBucket = safeGetDefaultBucket(provider);
 
-    if (bucketOrPrefix && defaultBucket && bucketOrPrefix === defaultBucket) {
+    if (
+      provider === "aliyun_oss" ||
+      (bucketOrPrefix && defaultBucket && bucketOrPrefix === defaultBucket)
+    ) {
       return { bucketName: bucketOrPrefix, storageKey: rest.join("/") };
     }
   }
 
-  return { storageKey: value };
+  return { provider, storageKey: value };
 }
 
-function safeGetDefaultBucket() {
+function safeGetDefaultBucket(provider: AppObjectStorageProviderName) {
   try {
-    return getCosConfig().bucket;
+    return getObjectStorageProvider(provider).getConfig().bucket;
   } catch {
     return null;
   }

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { isDomesticSessionEnabled, signInDomesticUser } from "@/lib/auth/domestic-session";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import {
   createSupabaseServerClient,
@@ -31,6 +32,21 @@ export async function signInToMerchant(formData: FormData) {
 
   if (!email || !password) {
     redirect(`/login?error=invalid-credentials&next=${encodeURIComponent(next)}`);
+  }
+
+  if (isDomesticSessionEnabled()) {
+    try {
+      const user = await signInDomesticUser({ email, password });
+      await getOperationalMerchantProfileByOwnerUserId(user.id);
+    } catch {
+      redirect(`/login?error=invalid-credentials&next=${encodeURIComponent(next)}`);
+    }
+
+    redirect(next);
+  }
+
+  if (!isSupabasePublicConfigured()) {
+    redirect("/dashboard");
   }
 
   const supabase = await createSupabaseServerClient();

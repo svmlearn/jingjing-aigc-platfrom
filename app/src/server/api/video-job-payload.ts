@@ -157,8 +157,11 @@ const allowedVoiceoverProviders = new Set<VoiceoverProvider>([
   "minimax",
   "302",
 ]);
+const allowedWorkerInputStorageProviders = new Set(["tencent_cos", "aliyun_oss"] as const);
 const allowedSubtitleStyles = new Set(["platform_default", "bold_caption"]);
 const allowedBgmFilterKeys = new Set(["mood", "scene", "genre", "lang", "id"]);
+
+type WorkerInputStorageProvider = "tencent_cos" | "aliyun_oss";
 
 type NormalizedProductionConfig = {
   voiceover:
@@ -666,17 +669,9 @@ export function assertApprovedScript(variant: VideoJobPayloadVariant) {
 }
 
 function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
-  const storageProvider = asset.storageProvider.trim();
+  const storageProvider = normalizeWorkerInputStorageProvider(asset.storageProvider);
   const storageKey = asset.storageKey.trim();
   const bucketName = asset.bucketName?.trim() ?? "";
-
-  if (storageProvider !== "tencent_cos") {
-    throw new VideoJobPayloadValidationError(
-      409,
-      "VIDEO_INPUT_ASSET_PROVIDER_UNSUPPORTED",
-      "Video worker input assets must use tencent_cos storage.",
-    );
-  }
 
   if (!storageKey) {
     throw new VideoJobPayloadValidationError(
@@ -690,14 +685,14 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
     throw new VideoJobPayloadValidationError(
       409,
       "VIDEO_INPUT_ASSET_BUCKET_REQUIRED",
-      "COS 素材缺少 bucket_name，无法交给 worker 执行。",
+      "素材缺少 bucket_name，无法交给 worker 执行。",
     );
   }
 
   return {
     asset_id: asset.id,
     asset_type: asset.assetType,
-    storage_provider: "tencent_cos",
+    storage_provider: storageProvider,
     bucket_name: bucketName,
     storage_key: storageKey,
     mime_type: asset.mimeType ?? null,
@@ -705,6 +700,20 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
     etag: asset.etag ?? null,
     sort_order: asset.sortOrder,
   };
+}
+
+function normalizeWorkerInputStorageProvider(value: string): WorkerInputStorageProvider {
+  const normalized = value.trim().toLowerCase();
+
+  if (allowedWorkerInputStorageProviders.has(normalized as WorkerInputStorageProvider)) {
+    return normalized as WorkerInputStorageProvider;
+  }
+
+  throw new VideoJobPayloadValidationError(
+    409,
+    "VIDEO_INPUT_ASSET_PROVIDER_UNSUPPORTED",
+    "Video worker input assets must use tencent_cos or aliyun_oss storage.",
+  );
 }
 
 function extractSceneAssetQueriesFromScript(

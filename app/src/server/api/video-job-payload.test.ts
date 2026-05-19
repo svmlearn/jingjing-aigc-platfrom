@@ -269,6 +269,37 @@ test("buildVideoEditJobInputPayload marks intro/outro scenes as user talking hea
   );
 });
 
+test("buildVideoEditJobInputPayload accepts Aliyun OSS input assets", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [
+      {
+        id: "reference-1",
+        materialItemId: "material-1",
+      },
+    ],
+    assets: [
+      {
+        id: "asset-aliyun-1",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/demo.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+      },
+    ],
+    now: "2026-05-18T00:00:00.000Z",
+  });
+
+  assert.equal(payload.input_assets[0]?.storage_provider, "aliyun_oss");
+  assert.equal(payload.input_assets[0]?.bucket_name, "jingjing-domestic-phase1-hz");
+  assert.equal(payload.render_mode, "asset_driven");
+});
+
 test("buildVideoEditJobInputPayload normalizes production config overrides", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",
@@ -430,7 +461,7 @@ test("buildVideoEditJobInputPayload rejects bad COS input assets", () => {
   );
 });
 
-test("buildVideoEditJobInputPayload rejects non-COS input assets", () => {
+test("buildVideoEditJobInputPayload rejects unsupported input asset providers", () => {
   assert.throws(
     () =>
       buildVideoEditJobInputPayload({

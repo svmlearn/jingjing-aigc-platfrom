@@ -552,6 +552,9 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
                         "script_locked": True,
                         "desired_outputs": ["final_video"],
                     },
+                    production_config={
+                        "voiceover": {"enabled": False},
+                    },
                 )
             )
 
@@ -562,6 +565,67 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertEqual("workspace-1", asr["aliyun_paraformer"]["workspace"])
             self.assertEqual(16000, asr["aliyun_paraformer"]["sample_rate"])
             self.assertEqual(["zh", "en"], asr["aliyun_paraformer"]["language_hints"])
+
+    def test_fire_red_payload_marks_self_hosted_rehearsal_fast_path(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "worker_rehearsal_fast_path",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {
+                        "engine": "fire_red-openstoryline",
+                        "worker_rehearsal_fast_path": True,
+                    },
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="selfhost-fast-path-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    input_assets=[
+                        {
+                            "local_path": str(Path(tmp) / "inputs" / "clip.mp4"),
+                            "asset_type": "video",
+                            "file_name": "clip.mp4",
+                        }
+                    ],
+                    execution_mode="self_hosted_rehearsal_fast_path",
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                    production_config={
+                        "voiceover": {"enabled": False},
+                        "bgm": {"enabled": False},
+                        "subtitles": {"enabled": False},
+                    },
+                )
+            )
+
+            payload = post.call_args.kwargs["json"]
+            self.assertTrue(payload["service_config"]["worker_rehearsal_fast_path"])
+            self.assertEqual("self_hosted_rehearsal_fast_path", payload["execution_mode"])
 
     def test_fire_red_private_pexels_base_url_can_run_without_real_pexels_key(self):
         settings = Settings(
@@ -675,6 +739,76 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertEqual(str(Path(tmp) / "ref.wav"), tts["ref_audio"])
             self.assertEqual(str(Path(tmp) / "ref.wav"), tts["pixelle_clone"]["ref_audio"])
             self.assertEqual("pixelle-secret", tts["pixelle_clone"]["api_key"])
+
+    def test_fire_red_stream_payload_marks_self_hosted_rehearsal_fast_path(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.stream",
+            return_value=MockHttpStreamResponse(
+                [
+                    json.dumps(
+                        {
+                            "type": "result",
+                            "data": {
+                                "session_id": "worker_rehearsal_fast_path",
+                                "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                                "raw_response": {
+                                    "engine": "fire_red-openstoryline",
+                                    "worker_rehearsal_fast_path": True,
+                                },
+                            },
+                        }
+                    )
+                ]
+            ),
+        ) as stream:
+            list(
+                adapter.stream(
+                    RunRequest(
+                        job_id="selfhost-fast-path-stream-job",
+                        merchant_id="merchant-1",
+                        draft_id="draft-1",
+                        content_variant_id="variant-1",
+                        workspace_dir=str(Path(tmp) / "workspace"),
+                        output_dir=str(Path(tmp) / "outputs"),
+                        input_assets=[
+                            {
+                                "local_path": str(Path(tmp) / "inputs" / "clip.mp4"),
+                                "asset_type": "video",
+                                "file_name": "clip.mp4",
+                            }
+                        ],
+                        execution_mode="self_hosted_rehearsal_fast_path",
+                        script_text="locked script",
+                        production_directive={
+                            "script_locked": True,
+                            "desired_outputs": ["final_video"],
+                        },
+                        production_config={
+                            "voiceover": {"enabled": False},
+                            "bgm": {"enabled": False},
+                            "subtitles": {"enabled": False},
+                        },
+                    )
+                )
+            )
+
+            payload = stream.call_args.kwargs["json"]
+            self.assertTrue(payload["service_config"]["worker_rehearsal_fast_path"])
+            self.assertEqual("self_hosted_rehearsal_fast_path", payload["execution_mode"])
 
     def test_fire_red_minimax_voiceover_configures_runninghub_ordinary_tts_fallback(self):
         settings = Settings(

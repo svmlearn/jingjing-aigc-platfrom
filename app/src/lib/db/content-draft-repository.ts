@@ -2,6 +2,23 @@ import "server-only";
 
 import type { ContentDraftBundleDto, ContentDraftDto, ContentVariantDto } from "@/contracts/draft";
 import type { Platform } from "@/contracts/import";
+import {
+  isLocalRealChainEnabled,
+  upsertLocalRealChainDraftBundle,
+  upsertLocalRealChainSourceItem,
+} from "@/lib/db/local-real-chain-repository";
+import {
+  isPostgresVideoChainEnabled,
+  pgAppendContentDraftRevisionTrace,
+  pgAppendContentVariantToDraft,
+  pgApproveContentVariant,
+  pgAssertContentVariantAccess,
+  pgCreateDraftWithVariants,
+  pgCreateManualSourceItem,
+  pgGetDraftBundleByMerchant,
+  pgListDraftBundlesByMerchant,
+  pgUpdateContentVariantScript,
+} from "@/lib/db/postgres-video-chain-repository";
 import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
@@ -62,6 +79,10 @@ export async function createManualSourceItem(input: {
   scriptText?: string | null;
   tracePayload?: Record<string, unknown>;
 }) {
+  if (isPostgresVideoChainEnabled()) {
+    return pgCreateManualSourceItem(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     throw cloudSupabaseRequiredError();
   }
@@ -111,6 +132,10 @@ export async function createDraftWithVariants(input: {
     reviewStatus?: ContentVariantDto["reviewStatus"];
   }>;
 }): Promise<ContentDraftBundleDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgCreateDraftWithVariants(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     throw cloudSupabaseRequiredError();
   }
@@ -195,6 +220,10 @@ export async function listDraftBundlesByMerchant(input: {
   createdByUserId?: string | null;
   limit?: number;
 }): Promise<ContentDraftBundleDto[]> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgListDraftBundlesByMerchant(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     throw cloudSupabaseRequiredError();
   }
@@ -263,6 +292,10 @@ export async function getDraftBundleByMerchant(input: {
   draftId: string;
   createdByUserId?: string | null;
 }): Promise<ContentDraftBundleDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgGetDraftBundleByMerchant(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     throw cloudSupabaseRequiredError();
   }
@@ -310,6 +343,10 @@ export async function approveContentVariant(input: {
   createdByUserId?: string | null;
   contentVariantId: string;
 }): Promise<ContentVariantDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgApproveContentVariant(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     throw cloudSupabaseRequiredError();
   }
@@ -398,6 +435,10 @@ export async function appendContentVariantToDraft(input: {
   productionScenes?: ContentVariantDto["productionScenes"];
   reviewStatus?: ContentVariantDto["reviewStatus"];
 }): Promise<ContentVariantDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgAppendContentVariantToDraft(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     throw cloudSupabaseRequiredError();
   }
@@ -490,6 +531,10 @@ export async function updateContentVariantScript(input: {
   ctaText?: string | null;
   reviewStatus?: ContentVariantDto["reviewStatus"];
 }): Promise<ContentVariantDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgUpdateContentVariantScript(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     throw cloudSupabaseRequiredError();
   }
@@ -562,6 +607,10 @@ export async function assertContentVariantAccess(input: {
   reviewStatus: ContentVariantDto["reviewStatus"];
   inputSnapshot: Record<string, unknown> | null;
 }> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgAssertContentVariantAccess(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     throw cloudSupabaseRequiredError();
   }
@@ -624,6 +673,10 @@ export async function appendContentDraftRevisionTrace(input: {
   draftId: string;
   trace: Record<string, unknown>;
 }) {
+  if (isPostgresVideoChainEnabled()) {
+    return pgAppendContentDraftRevisionTrace(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     throw cloudSupabaseRequiredError();
   }

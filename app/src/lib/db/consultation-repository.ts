@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import type {
   ConsultationEventDto,
   ConsultationMessageDto,
@@ -8,9 +10,15 @@ import type {
   ConsultationToolCardDto,
   StrategySnapshotDto,
 } from "@/contracts/consultation";
+import {
+  isAppPostgresConfigured,
+  isAppPostgresPreferred,
+  mapPostgresError,
+  queryAppDb,
+  withAppDbTransaction,
+} from "@/lib/server-db/postgres";
 import { emptyStrategySnapshot, toStrategySnapshot } from "@/lib/strategy-snapshot";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
-import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { ApiError } from "@/server/api/errors";
 
 type ConsultationSessionRow = {
@@ -21,9 +29,9 @@ type ConsultationSessionRow = {
   current_stage: string | null;
   strategy_snapshot: unknown;
   summary_text: string | null;
-  last_message_at: string;
-  created_at: string;
-  updated_at: string;
+  last_message_at: string | Date;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 type ConsultationMessageRow = {
@@ -34,7 +42,7 @@ type ConsultationMessageRow = {
   stage_label: string | null;
   tool_cards: unknown;
   visible_summary: unknown;
-  created_at: string;
+  created_at: string | Date;
 };
 
 type ConsultationEventRow = {
@@ -43,14 +51,52 @@ type ConsultationEventRow = {
   event_type: string;
   stage_label: string | null;
   payload: unknown;
-  created_at: string;
+  created_at: string | Date;
 };
+
+const demoConsultationSessions = new Map<string, ConsultationSessionSummaryDto>();
+const demoConsultationMessages = new Map<string, ConsultationMessageDto[]>();
+const demoConsultationEvents = new Map<string, ConsultationEventDto[]>();
 
 export async function listConsultationSessions(
   merchantId: string,
 ): Promise<ConsultationSessionSummaryDto[]> {
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<ConsultationSessionRow>(
+        `
+        select ${consultationSessionSelect}
+        from public.consultation_sessions
+        where merchant_id = $1
+        order by last_message_at desc, created_at desc
+        `,
+        [merchantId],
+      );
+      const sessions = result.rows.map(mapConsultationSessionSummary);
+      const previews = await listLatestMessagePreviewBySessionIds(
+        sessions.map((session) => session.id),
+      );
+
+      return sessions.map((session) => ({
+        ...session,
+        latestMessagePreview: previews.get(session.id) ?? null,
+      }));
+    } catch (error) {
+      throw mapPostgresError(error, "CONSULTATION_SESSIONS_LIST_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
+    return Array.from(demoConsultationSessions.values())
+      .filter((session) => session.merchantId === merchantId)
+      .sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt))
+      .map((session) => ({
+        ...session,
+        latestMessagePreview:
+          demoConsultationMessages.get(session.id)?.at(-1)?.content ??
+          session.latestMessagePreview ??
+          null,
+      }));
   }
 
   const supabase = createSupabaseAdminClient();
@@ -83,8 +129,57 @@ export async function createConsultationSession(input: {
   strategySnapshot?: StrategySnapshotDto;
   summaryText?: string | null;
 }): Promise<ConsultationSessionSummaryDto> {
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<ConsultationSessionRow>(
+        `
+        insert into public.consultation_sessions (
+          merchant_id,
+          title,
+          status,
+          current_stage,
+          strategy_snapshot,
+          summary_text
+        ) values ($1, $2, $3, $4, $5::jsonb, $6)
+        returning ${consultationSessionSelect}
+        `,
+        [
+          input.merchantId,
+          input.title ?? null,
+          input.status ?? "active",
+          input.currentStage ?? null,
+          JSON.stringify(input.strategySnapshot ?? emptyStrategySnapshot),
+          input.summaryText ?? null,
+        ],
+      );
+
+      return mapConsultationSessionSummary(result.rows[0]);
+    } catch (error) {
+      throw mapPostgresError(error, "CONSULTATION_SESSION_CREATE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
+    const now = new Date().toISOString();
+    const session: ConsultationSessionSummaryDto = {
+      id: randomUUID(),
+      merchantId: input.merchantId,
+      title: input.title ?? null,
+      status: input.status ?? "active",
+      currentStage: input.currentStage ?? null,
+      strategySnapshot: input.strategySnapshot ?? emptyStrategySnapshot,
+      summaryText: input.summaryText ?? null,
+      latestMessagePreview: null,
+      lastMessageAt: now,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    demoConsultationSessions.set(session.id, session);
+    demoConsultationMessages.set(session.id, []);
+    demoConsultationEvents.set(session.id, []);
+
+    return session;
   }
 
   const supabase = createSupabaseAdminClient();
@@ -112,8 +207,55 @@ export async function getConsultationSessionDetail(input: {
   merchantId: string;
   sessionId: string;
 }): Promise<ConsultationSessionDetailDto> {
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<ConsultationSessionRow>(
+        `
+        select ${consultationSessionSelect}
+        from public.consultation_sessions
+        where id = $1
+          and merchant_id = $2
+        limit 1
+        `,
+        [input.sessionId, input.merchantId],
+      );
+      const sessionRow = result.rows[0];
+
+      if (!sessionRow) {
+        throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+      }
+
+      const [messages, events] = await Promise.all([
+        listConsultationMessages(input.sessionId),
+        listConsultationEvents(input.sessionId),
+      ]);
+      const summary = mapConsultationSessionSummary(sessionRow);
+
+      return {
+        ...summary,
+        latestMessagePreview: messages.at(-1)?.content ?? null,
+        messages,
+        events,
+      };
+    } catch (error) {
+      throw mapPostgresError(error, "CONSULTATION_SESSION_FETCH_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
+    const session = demoConsultationSessions.get(input.sessionId);
+
+    if (!session || session.merchantId !== input.merchantId) {
+      throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+    }
+
+    const messages = demoConsultationMessages.get(input.sessionId) ?? [];
+    return {
+      ...session,
+      latestMessagePreview: messages.at(-1)?.content ?? null,
+      messages,
+      events: demoConsultationEvents.get(input.sessionId) ?? [],
+    };
   }
 
   const supabase = createSupabaseAdminClient();
@@ -153,8 +295,82 @@ export async function createConsultationMessage(input: {
   visibleSummary?: Record<string, unknown>;
   touchLastMessageAt?: string;
 }): Promise<ConsultationMessageDto> {
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
+  if (shouldUseAppPostgres()) {
+    try {
+      return await withAppDbTransaction(async (client) => {
+        const messageResult = await client.query<ConsultationMessageRow>(
+          `
+          insert into public.consultation_messages (
+            session_id,
+            role,
+            content,
+            stage_label,
+            tool_cards,
+            visible_summary
+          ) values ($1, $2, $3, $4, $5::jsonb, $6::jsonb)
+          returning ${consultationMessageSelect}
+          `,
+          [
+            input.sessionId,
+            input.role,
+            input.content,
+            input.stageLabel ?? null,
+            JSON.stringify(input.toolCards ?? []),
+            JSON.stringify(input.visibleSummary ?? {}),
+          ],
+        );
+        const createdMessage = mapConsultationMessage(messageResult.rows[0]);
+        const touchedAt = input.touchLastMessageAt ?? createdMessage.createdAt;
+        const touchResult = await client.query(
+          `
+          update public.consultation_sessions
+          set last_message_at = $2,
+              updated_at = timezone('utc', now())
+          where id = $1
+          `,
+          [input.sessionId, touchedAt],
+        );
+
+        if (touchResult.rowCount === 0) {
+          throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+        }
+
+        return createdMessage;
+      });
+    } catch (error) {
+      throw mapPostgresError(error, "CONSULTATION_MESSAGE_CREATE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
+    const session = demoConsultationSessions.get(input.sessionId);
+
+    if (!session) {
+      throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+    }
+
+    const now = new Date().toISOString();
+    const message: ConsultationMessageDto = {
+      id: randomUUID(),
+      sessionId: input.sessionId,
+      role: input.role,
+      content: input.content,
+      stageLabel: input.stageLabel ?? null,
+      toolCards: input.toolCards ?? [],
+      visibleSummary: input.visibleSummary ?? {},
+      createdAt: now,
+    };
+    const messages = demoConsultationMessages.get(input.sessionId) ?? [];
+    messages.push(message);
+    demoConsultationMessages.set(input.sessionId, messages);
+    demoConsultationSessions.set(input.sessionId, {
+      ...session,
+      latestMessagePreview: message.content,
+      lastMessageAt: input.touchLastMessageAt ?? message.createdAt,
+      updatedAt: now,
+    });
+
+    return message;
   }
 
   const supabase = createSupabaseAdminClient();
@@ -197,8 +413,50 @@ export async function createConsultationEvent(input: {
   stageLabel?: string | null;
   payload?: Record<string, unknown>;
 }): Promise<ConsultationEventDto> {
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<ConsultationEventRow>(
+        `
+        insert into public.consultation_events (
+          session_id,
+          event_type,
+          stage_label,
+          payload
+        ) values ($1, $2, $3, $4::jsonb)
+        returning ${consultationEventSelect}
+        `,
+        [
+          input.sessionId,
+          input.eventType,
+          input.stageLabel ?? null,
+          JSON.stringify(input.payload ?? {}),
+        ],
+      );
+
+      return mapConsultationEvent(result.rows[0]);
+    } catch (error) {
+      throw mapPostgresError(error, "CONSULTATION_EVENT_CREATE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
+    if (!demoConsultationSessions.has(input.sessionId)) {
+      throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+    }
+
+    const event: ConsultationEventDto = {
+      id: randomUUID(),
+      sessionId: input.sessionId,
+      eventType: input.eventType,
+      stageLabel: input.stageLabel ?? null,
+      payload: input.payload ?? {},
+      createdAt: new Date().toISOString(),
+    };
+    const events = demoConsultationEvents.get(input.sessionId) ?? [];
+    events.push(event);
+    demoConsultationEvents.set(input.sessionId, events);
+
+    return event;
   }
 
   const supabase = createSupabaseAdminClient();
@@ -230,8 +488,62 @@ export async function updateConsultationSession(input: {
   summaryText?: string | null;
   lastMessageAt?: string;
 }): Promise<ConsultationSessionSummaryDto> {
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
+  if (shouldUseAppPostgres()) {
+    try {
+      const patch = buildConsultationSessionPostgresPatch(input);
+
+      if (patch.assignments.length === 0) {
+        return getConsultationSessionDetail({
+          merchantId: input.merchantId,
+          sessionId: input.sessionId,
+        });
+      }
+
+      const result = await queryAppDb<ConsultationSessionRow>(
+        `
+        update public.consultation_sessions
+        set ${patch.assignments.join(", ")},
+            updated_at = timezone('utc', now())
+        where id = $${patch.values.length + 1}
+          and merchant_id = $${patch.values.length + 2}
+        returning ${consultationSessionSelect}
+        `,
+        [...patch.values, input.sessionId, input.merchantId],
+      );
+      const sessionRow = result.rows[0];
+
+      if (!sessionRow) {
+        throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+      }
+
+      return mapConsultationSessionSummary(sessionRow);
+    } catch (error) {
+      throw mapPostgresError(error, "CONSULTATION_SESSION_UPDATE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
+    const current = demoConsultationSessions.get(input.sessionId);
+
+    if (!current || current.merchantId !== input.merchantId) {
+      throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+    }
+
+    const updated: ConsultationSessionSummaryDto = {
+      ...current,
+      title: input.title !== undefined ? input.title : current.title,
+      status: input.status ?? current.status,
+      currentStage:
+        input.currentStage !== undefined ? input.currentStage : current.currentStage,
+      strategySnapshot: input.strategySnapshot ?? current.strategySnapshot,
+      summaryText: input.summaryText !== undefined ? input.summaryText : current.summaryText,
+      lastMessageAt: input.lastMessageAt ?? current.lastMessageAt,
+      updatedAt: new Date().toISOString(),
+    };
+
+    demoConsultationSessions.set(input.sessionId, updated);
+
+    return updated;
   }
 
   const supabase = createSupabaseAdminClient();
@@ -263,8 +575,39 @@ export async function deleteConsultationSession(input: {
   merchantId: string;
   sessionId: string;
 }) {
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<{ id: string }>(
+        `
+        delete from public.consultation_sessions
+        where id = $1
+          and merchant_id = $2
+        returning id
+        `,
+        [input.sessionId, input.merchantId],
+      );
+
+      if (!result.rows[0]) {
+        throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+      }
+
+      return;
+    } catch (error) {
+      throw mapPostgresError(error, "CONSULTATION_SESSION_DELETE_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
+    const current = demoConsultationSessions.get(input.sessionId);
+
+    if (!current || current.merchantId !== input.merchantId) {
+      throw new ApiError(404, "CONSULTATION_SESSION_NOT_FOUND", "Consultation session not found.");
+    }
+
+    demoConsultationSessions.delete(input.sessionId);
+    demoConsultationMessages.delete(input.sessionId);
+    demoConsultationEvents.delete(input.sessionId);
+    return;
   }
 
   const supabase = createSupabaseAdminClient();
@@ -284,6 +627,24 @@ export async function deleteConsultationSession(input: {
 }
 
 async function listConsultationMessages(sessionId: string): Promise<ConsultationMessageDto[]> {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<ConsultationMessageRow>(
+        `
+        select ${consultationMessageSelect}
+        from public.consultation_messages
+        where session_id = $1
+        order by created_at asc, id asc
+        `,
+        [sessionId],
+      );
+
+      return result.rows.map(mapConsultationMessage);
+    } catch (error) {
+      throw mapPostgresError(error, "CONSULTATION_MESSAGES_LIST_FAILED");
+    }
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("consultation_messages")
@@ -299,6 +660,24 @@ async function listConsultationMessages(sessionId: string): Promise<Consultation
 }
 
 async function listConsultationEvents(sessionId: string): Promise<ConsultationEventDto[]> {
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<ConsultationEventRow>(
+        `
+        select ${consultationEventSelect}
+        from public.consultation_events
+        where session_id = $1
+        order by created_at asc, id asc
+        `,
+        [sessionId],
+      );
+
+      return result.rows.map(mapConsultationEvent);
+    } catch (error) {
+      throw mapPostgresError(error, "CONSULTATION_EVENTS_LIST_FAILED");
+    }
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("consultation_events")
@@ -318,6 +697,33 @@ async function listLatestMessagePreviewBySessionIds(sessionIds: string[]) {
 
   if (sessionIds.length === 0) {
     return previews;
+  }
+
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<{
+        session_id: string;
+        content: string;
+      }>(
+        `
+        select distinct on (session_id)
+          session_id,
+          content
+        from public.consultation_messages
+        where session_id = any($1::uuid[])
+        order by session_id, created_at desc, id desc
+        `,
+        [sessionIds],
+      );
+
+      for (const row of result.rows) {
+        previews.set(row.session_id, row.content);
+      }
+
+      return previews;
+    } catch (error) {
+      throw mapPostgresError(error, "CONSULTATION_MESSAGE_PREVIEW_FETCH_FAILED");
+    }
   }
 
   const supabase = createSupabaseAdminClient();
@@ -356,9 +762,9 @@ function mapConsultationSessionSummary(
     strategySnapshot: toStrategySnapshot(row.strategy_snapshot),
     summaryText: row.summary_text,
     latestMessagePreview: null,
-    lastMessageAt: row.last_message_at,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    lastMessageAt: toIsoString(row.last_message_at),
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
   };
 }
 
@@ -371,7 +777,7 @@ function mapConsultationMessage(row: ConsultationMessageRow): ConsultationMessag
     stageLabel: row.stage_label,
     toolCards: toToolCards(row.tool_cards),
     visibleSummary: toRecord(row.visible_summary),
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
 }
 
@@ -382,8 +788,48 @@ function mapConsultationEvent(row: ConsultationEventRow): ConsultationEventDto {
     eventType: row.event_type,
     stageLabel: row.stage_label,
     payload: toRecord(row.payload),
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
+}
+
+function buildConsultationSessionPostgresPatch(input: {
+  title?: string | null;
+  status?: ConsultationSessionSummaryDto["status"];
+  currentStage?: string | null;
+  strategySnapshot?: StrategySnapshotDto;
+  summaryText?: string | null;
+  lastMessageAt?: string;
+}) {
+  const assignments: string[] = [];
+  const values: unknown[] = [];
+
+  function add(column: string, value: unknown, cast = "") {
+    values.push(value);
+    assignments.push(`${column} = $${values.length}${cast}`);
+  }
+
+  if (input.title !== undefined) add("title", input.title);
+  if (input.status !== undefined) add("status", input.status);
+  if (input.currentStage !== undefined) add("current_stage", input.currentStage);
+  if (input.strategySnapshot !== undefined) {
+    add("strategy_snapshot", JSON.stringify(input.strategySnapshot), "::jsonb");
+  }
+  if (input.summaryText !== undefined) add("summary_text", input.summaryText);
+  if (input.lastMessageAt !== undefined) add("last_message_at", input.lastMessageAt);
+
+  return { assignments, values };
+}
+
+function shouldUseAppPostgres() {
+  return isAppPostgresConfigured() && isAppPostgresPreferred();
+}
+
+function shouldUseDemoFallback() {
+  return !shouldUseAppPostgres() && !isSupabaseAdminConfigured();
+}
+
+function toIsoString(value: string | Date) {
+  return value instanceof Date ? value.toISOString() : value;
 }
 
 function toToolCards(value: unknown): ConsultationToolCardDto[] {
