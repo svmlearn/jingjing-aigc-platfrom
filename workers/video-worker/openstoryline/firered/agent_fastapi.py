@@ -216,14 +216,15 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
     Dict[str, Any],
     Dict[str, Any],
     Dict[str, Any],
+    Dict[str, Any],
     Optional[str]]:
     """
-    返回 (custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, pexels, err)
+    Returns (custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, asr_cfg, pexels, err).
     - custom_llm/custom_vlm: {"model","base_url","api_key"} 或 None（允许只传 llm 或只传 vlm）
     - tts_cfg: dict（可能为空）
     """
     if not isinstance(service_cfg, dict):
-        return None, None, {}, {}, {}, None
+        return None, None, {}, {}, {}, {}, None
 
     # ---- custom models ----
     custom_llm = None
@@ -232,7 +233,7 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
 
     if custom_models is not None:
         if not isinstance(custom_models, dict):
-            return None, None, {}, {}, {}, "service_config.custom_models 必须是对象"
+            return None, None, {}, {}, {}, {}, "service_config.custom_models 必须是对象"
 
         def _pick(m: Any, label: str) -> Tuple[Optional[Dict[str, str]], Optional[str]]:
             if m is None:
@@ -252,15 +253,16 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
 
         custom_llm, err1 = _pick(custom_models.get("llm"), "llm")
         if err1:
-            return None, None, {}, {}, {}, err1
+            return None, None, {}, {}, {}, {}, err1
 
         custom_vlm, err2 = _pick(custom_models.get("vlm"), "vlm")
         if err2:
-            return None, None, {}, {}, {}, err2
+            return None, None, {}, {}, {}, {}, err2
 
     # ---- provider runtime config ----
     tts_cfg = _parse_provider_runtime_config(service_cfg, "tts")
     ai_transition_cfg = _parse_provider_runtime_config(service_cfg, "ai_transition")
+    asr_cfg = _parse_provider_runtime_config(service_cfg, "asr")
 
     # ---- pexels ----
     pexels_cfg: Dict[str, Any] = {}
@@ -285,7 +287,7 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
             base_url = _s(search_media.get("base_url") or search_media.get("pexels_base_url") or search_media.get("private_base_url"))
             pexels_cfg = {"mode": mode, "api_key": api_key, "base_url": base_url}
 
-    return custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, pexels_cfg, None
+    return custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, asr_cfg, pexels_cfg, None
 
 def is_developer_mode(cfg: Settings) -> bool:
     try:
@@ -1346,6 +1348,7 @@ class ChatSession:
         self.custom_vlm_config: Optional[Dict[str, Any]] = None
         self.tts_config: Dict[str, Any] = {}
         self.ai_transition_config: Dict[str, Any] = {}
+        self.asr_config: Dict[str, Any] = {}
         self._agent_build_key: Optional[Tuple[Any, ...]] = None
 
         self.pexels_key_mode: str = "default"   # "default" | "custom"
@@ -1922,7 +1925,7 @@ class ChatSession:
 
 
     def apply_service_config(self, service_cfg: Any) -> Tuple[bool, Optional[str]]:
-        llm, vlm, tts, ai_transition, pexels, err = _parse_service_config(service_cfg)
+        llm, vlm, tts, ai_transition, asr, pexels, err = _parse_service_config(service_cfg)
         if err:
             return False, err
 
@@ -1937,6 +1940,9 @@ class ChatSession:
 
         if isinstance(ai_transition, dict) and ai_transition:
             self.ai_transition_config = ai_transition
+
+        if isinstance(asr, dict) and asr:
+            self.asr_config = asr
 
         # ---- pexels ----
         if isinstance(pexels, dict) and pexels:
@@ -1997,6 +2003,7 @@ class ChatSession:
                     ToolInterceptor.save_media_content_after,
                     ToolInterceptor.inject_tts_config,
                     ToolInterceptor.inject_ai_transition_config,
+                    ToolInterceptor.inject_asr_config,
                     ToolInterceptor.inject_pexels_api_key,
                 ],
                 llm_override=llm_override,
@@ -2016,6 +2023,7 @@ class ChatSession:
                 vlm_model_key=self.vlm_model_key,
                 tts_config=(self.tts_config or None),
                 ai_transition_config=(self.ai_transition_config or None),
+                asr_config=(self.asr_config or None),
                 pexels_api_key=None,
                 lang=self.lang,
             )
@@ -2024,6 +2032,7 @@ class ChatSession:
             self.client_context.vlm_model_key = self.vlm_model_key
             self.client_context.tts_config = (self.tts_config or None)
             self.client_context.ai_transition_config = (self.ai_transition_config or None)
+            self.client_context.asr_config = (self.asr_config or None)
             self.client_context.lang = self.lang
 
         # ---- resolve pexels_api_key for runtime context ----
@@ -2872,6 +2881,7 @@ async def _run_worker_session_prompt(
         sess._ensure_system_prompt()
         if sess.client_context is not None:
             sess.client_context.worker_payload = worker_payload if isinstance(worker_payload, dict) else None
+            sess.client_context.asr_config = sess.asr_config if isinstance(sess.asr_config, dict) and sess.asr_config else None
 
         attachments = await sess.take_pending_media_for_message(None)
         stats = {

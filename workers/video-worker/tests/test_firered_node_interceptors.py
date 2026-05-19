@@ -160,6 +160,22 @@ class RunninghubFallbackContext:
     worker_payload = None
 
 
+class AsrContext:
+    tts_config = {}
+    asr_config = {
+        "provider": "aliyun_paraformer",
+        "aliyun_paraformer": {
+            "api_key": "asr-key",
+            "model": "paraformer-realtime-v2",
+            "sample_rate": 16000,
+            "language_hints": ["zh", "en"],
+        },
+    }
+    pexels_api_key = ""
+    pexels_base_url = ""
+    worker_payload = None
+
+
 class TalkingHeadContext:
     tts_config = {}
     pexels_api_key = ""
@@ -246,6 +262,23 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
         self.assertEqual("minimax", result["provider"])
         self.assertEqual("runninghub", result["fallback_provider"])
         self.assertEqual("runninghub-key", result["runninghub"]["api_key"])
+
+    def test_asr_provider_injection_flattens_runtime_config(self):
+        request = Request("local_asr", {}, context=AsrContext())
+
+        async def handler(req):
+            return dict(req.args)
+
+        result = asyncio.run(
+            self.ToolInterceptor.inject_asr_config(request, handler)
+        )
+
+        self.assertEqual("aliyun_paraformer", result["provider"])
+        self.assertEqual("asr-key", result["api_key"])
+        self.assertEqual("paraformer-realtime-v2", result["model"])
+        self.assertEqual(16000, result["sample_rate"])
+        self.assertEqual(["zh", "en"], result["language_hints"])
+        self.assertEqual("asr-key", result["provider_keys"]["api_key"])
 
     def test_render_video_mutes_source_audio_for_talking_head_voiceover(self):
         module = sys.modules["firered_node_interceptors_under_test"]
