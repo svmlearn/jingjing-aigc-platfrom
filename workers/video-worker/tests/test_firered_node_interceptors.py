@@ -377,12 +377,108 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
 
         first, second = custom_script["group_scripts"]
         self.assertEqual("这是从真人原声识别出来的话", first["raw_text"])
+        self.assertNotIn("skip_voiceover", first)
+        self.assertTrue(first["voiceover_enabled"])
+        self.assertEqual("voiceover", first["audio_source"])
+        self.assertEqual("asr_original_audio", first["subtitle_source"])
+        self.assertEqual(5000, first["source_duration_ms"])
+        self.assertEqual("中段仍使用锁定脚本", second["raw_text"])
+        self.assertEqual("voiceover", second["audio_source"])
+
+    def test_locked_worker_script_uses_asr_but_skips_voiceover_when_voiceover_disabled(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": "1\n00:00-00:05\n台词/字幕：脚本文案\n",
+            "production_directive": {"script_locked": True},
+            "production_config": {
+                "voiceover": {"enabled": False},
+                "subtitles": {"talking_head_source": "asr_original_audio"},
+            },
+        }
+        groups = [{"group_id": "group_0001", "clip_ids": ["clip_0001"]}]
+        split_shots = {
+            "clips": [
+                {
+                    "clip_id": "clip_0001",
+                    "source_ref": {
+                        "media_id": "media_0001",
+                        "duration": 5000,
+                        "tags": ["talking_head"],
+                    },
+                },
+            ]
+        }
+        asr = {"asr_infos": [{"clip_id": "clip_0001", "asr_text": "ASR 原声文本"}]}
+
+        custom_script = module._build_custom_script_from_worker_payload(
+            payload,
+            groups,
+            asr,
+            split_shots,
+        )
+
+        first = custom_script["group_scripts"][0]
+        self.assertEqual("ASR 原声文本", first["raw_text"])
         self.assertTrue(first["skip_voiceover"])
         self.assertFalse(first["voiceover_enabled"])
         self.assertEqual("original_video_audio", first["audio_source"])
         self.assertEqual("asr_original_audio", first["subtitle_source"])
-        self.assertEqual(5000, first["source_duration_ms"])
-        self.assertEqual("中段仍使用锁定脚本", second["raw_text"])
+
+    def test_locked_worker_script_uses_asr_for_unlabeled_member_upload_candidates(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": (
+                "1\n00:00-00:05\n场景：成员真人口播\n台词/字幕：脚本文案不应覆盖ASR\n"
+                "2\n00:05-00:10\n场景：团队素材\n台词/字幕：团队素材仍使用脚本\n"
+            ),
+            "production_directive": {"script_locked": True},
+            "production_config": {
+                "subtitles": {"talking_head_source": "asr_original_audio"}
+            },
+        }
+        groups = [
+            {"group_id": "group_0001", "clip_ids": ["clip_0001"]},
+            {"group_id": "group_0002", "clip_ids": ["clip_0002"]},
+        ]
+        split_shots = {
+            "clips": [
+                {
+                    "clip_id": "clip_0001",
+                    "source_ref": {
+                        "media_id": "media_0001",
+                        "duration": 5000,
+                    },
+                },
+                {
+                    "clip_id": "clip_0002",
+                    "source_ref": {
+                        "media_id": "media_0002",
+                        "duration": 5000,
+                        "role": "project_material",
+                        "scene_type": "merchant_material_library",
+                    },
+                },
+            ]
+        }
+        asr = {
+            "asr_infos": [
+                {"clip_id": "clip_0001", "asr_text": "成员上传口播识别结果"},
+                {"clip_id": "clip_0002", "asr_text": "团队素材环境声"},
+            ]
+        }
+
+        custom_script = module._build_custom_script_from_worker_payload(
+            payload,
+            groups,
+            asr,
+            split_shots,
+        )
+
+        first, second = custom_script["group_scripts"]
+        self.assertEqual("成员上传口播识别结果", first["raw_text"])
+        self.assertEqual("voiceover", first["audio_source"])
+        self.assertEqual("asr_original_audio", first["subtitle_source"])
+        self.assertEqual("团队素材仍使用脚本", second["raw_text"])
         self.assertEqual("voiceover", second["audio_source"])
 
     def test_generate_script_requires_asr_when_original_talking_head_subtitles_requested(self):

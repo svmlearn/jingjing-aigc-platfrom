@@ -1199,6 +1199,7 @@ function buildMemberVideoProductionConfig(input: {
       subtitles: {
         enabled: true,
         style: "platform_default",
+        talkingHeadSource: "asr_original_audio",
       },
       bgm: {
         enabled: false,
@@ -1222,6 +1223,7 @@ function buildMemberVideoProductionConfig(input: {
     subtitles: {
       enabled: true,
       style: "platform_default",
+      talkingHeadSource: "script",
     },
     bgm: {
       enabled: false,

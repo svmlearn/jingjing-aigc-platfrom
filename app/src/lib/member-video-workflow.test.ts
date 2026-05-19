@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   getMemberVideoDownloadUrl,
   getMemberVideoResultUrl,
+  normalizeVoiceProfileAudioMimeType,
   summarizeMemberVideoEditState,
 } from "./member-video-workflow.ts";
 
@@ -78,4 +79,17 @@ test("member video workflow returns preview and download URL after succeeded job
   assert.equal(state.canPreviewDownload, true);
   assert.equal(state.previewUrl, "https://example.com/member-video.mp4");
   assert.equal(state.downloadUrl, "https://example.com/member-video-download.mp4");
+});
+
+test("voice profile upload normalizes mobile m4a mime types to audio/mp4", () => {
+  assert.equal(
+    normalizeVoiceProfileAudioMimeType(
+      new File(["audio"], "voice.m4a", { type: "video/mp4" }),
+    ),
+    "audio/mp4",
+  );
+  assert.equal(
+    normalizeVoiceProfileAudioMimeType(new File(["audio"], "voice.m4a", { type: "" })),
+    "audio/mp4",
+  );
 });

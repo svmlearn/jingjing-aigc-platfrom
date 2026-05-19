@@ -55,7 +55,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
   assert.deepEqual(payload.productionConfig, {
     voiceover: { enabled: true, provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
-    subtitles: { enabled: true, style: "platform_default" },
+    subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
   });
   assert.deepEqual(payload.materialContext, {
@@ -99,7 +99,7 @@ test("buildVideoEditJobInputPayload adds default production config", () => {
   assert.deepEqual(payload.productionConfig, {
     voiceover: { enabled: true, provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
-    subtitles: { enabled: true, style: "platform_default" },
+    subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
   });
 });
@@ -174,7 +174,7 @@ test("buildVideoEditJobInputPayload normalizes production config overrides", () 
       exclude: {},
       volume: 0.18,
     },
-    subtitles: { enabled: true, style: "platform_default" },
+    subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     render: {
       aspectRatio: "9:16",
       maxDurationSeconds: 45,
@@ -200,6 +200,9 @@ test("buildVideoEditJobInputPayload accepts voice profile production config", ()
       render: {
         includeOriginalAudio: true,
       },
+      subtitles: {
+        talkingHeadSource: "asr_original_audio",
+      },
     },
   });
 
@@ -211,6 +214,7 @@ test("buildVideoEditJobInputPayload accepts voice profile production config", ()
     volume: 2,
   });
   assert.equal(payload.productionConfig.render.includeOriginalAudio, false);
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "asr_original_audio");
 });
 
 test("buildVideoEditJobInputPayload rejects invalid production config provider", () => {

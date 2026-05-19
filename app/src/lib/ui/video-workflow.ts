@@ -1,6 +1,7 @@
 "use client";
 
 import type { VideoEditProgressModuleDto } from "@/contracts/video";
+import { normalizeVoiceProfileAudioMimeType } from "@/lib/member-video-workflow";
 import { normalizeVideoProgressModules } from "@/lib/ui/video-progress-modules";
 
 export type MediaOwnerType = "source_item" | "content_draft" | "content_variant" | "voice_profile";
@@ -725,12 +726,13 @@ export async function uploadMediaFileForOwner(params: {
   ownerId: string;
   file: File;
   assetTypeOverride?: UploadableMediaAssetType;
+  mimeTypeOverride?: string;
   sortOrder?: number;
   onProgress?: (progress: UploadProgress) => void;
   onStageChange?: (stage: DraftMediaUploadStage) => void;
 }) {
   const assetType = params.assetTypeOverride ?? assetTypeFromMimeType(params.file.type, params.file.name);
-  const mimeType = params.file.type || "application/octet-stream";
+  const mimeType = params.mimeTypeOverride?.trim() || params.file.type || "application/octet-stream";
 
   params.onStageChange?.("preparing");
   const intent = await createUploadIntent({
@@ -812,6 +814,7 @@ export async function uploadVoiceProfileAudioFile(params: {
     ownerId: params.voiceProfileId,
     file: params.file,
     assetTypeOverride: "audio",
+    mimeTypeOverride: normalizeVoiceProfileAudioMimeType(params.file),
     onProgress: params.onProgress,
     onStageChange: params.onStageChange,
   });

@@ -127,6 +127,7 @@ const allowedVoiceoverProviders = new Set<VoiceoverProvider>([
 ]);
 const allowedWorkerInputStorageProviders = new Set(["tencent_cos", "aliyun_oss"] as const);
 const allowedSubtitleStyles = new Set(["platform_default", "bold_caption"]);
+const allowedTalkingHeadSubtitleSources = new Set(["script", "asr_original_audio"] as const);
 const allowedBgmFilterKeys = new Set(["mood", "scene", "genre", "lang", "id"]);
 
 type WorkerInputStorageProvider = "tencent_cos" | "aliyun_oss";
@@ -160,6 +161,7 @@ type NormalizedProductionConfig = {
   subtitles: {
     enabled: boolean;
     style: "platform_default" | "bold_caption";
+    talkingHeadSource: "script" | "asr_original_audio";
   };
   render: {
     aspectRatio: "9:16";
@@ -330,6 +332,10 @@ function normalizeProductionConfig(
   if (!allowedSubtitleStyles.has(subtitleStyle)) {
     throwInvalidProductionConfig("Unsupported subtitle style.");
   }
+  const talkingHeadSource = subtitles.talkingHeadSource ?? "script";
+  if (!allowedTalkingHeadSubtitleSources.has(talkingHeadSource)) {
+    throwInvalidProductionConfig("Unsupported talking head subtitle source.");
+  }
 
   const render = input?.render ?? {};
   const normalizedRender: NormalizedProductionConfig["render"] = {
@@ -368,6 +374,7 @@ function normalizeProductionConfig(
     subtitles: {
       enabled: subtitles.enabled ?? true,
       style: subtitleStyle,
+      talkingHeadSource,
     },
     render: normalizedRender,
   };

@@ -428,6 +428,7 @@ const productionConfigSchema = z
       .object({
         enabled: z.boolean().optional(),
         style: z.enum(["platform_default", "bold_caption"]).optional(),
+        talkingHeadSource: z.enum(["script", "asr_original_audio"]).optional(),
       })
       .strict()
       .optional(),
