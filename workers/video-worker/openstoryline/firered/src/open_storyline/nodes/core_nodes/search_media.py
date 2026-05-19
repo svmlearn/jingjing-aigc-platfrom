@@ -51,6 +51,11 @@ class SearchMediaNode(BaseNode):
 
     async def process(self, node_state: NodeState, inputs: Dict[str, Any]) -> Dict[str, Any]:
         pexels_api_key = inputs.get("pexels_api_key", "")
+        pexels_base_url = str(
+            inputs.get("pexels_base_url")
+            or getattr(self.server_cfg.search_media, "pexels_base_url", "")
+            or ""
+        ).strip().rstrip("/")
         video_saved_paths = []
         image_saved_paths = []
 
@@ -81,6 +86,7 @@ class SearchMediaNode(BaseNode):
                 orientation=orientation,
                 min_video_duration=min_video_duration,
                 max_video_duration=max_video_duration,
+                pexels_base_url=pexels_base_url,
             )
             node_state.node_summary.info_for_user(f"search media successfully, found {len(video_preview_urls)} videos", preview_urls=video_preview_urls)
 
@@ -91,6 +97,7 @@ class SearchMediaNode(BaseNode):
                 media_dir=media_dir,
                 photo_number=photo_number,
                 orientation=orientation,
+                pexels_base_url=pexels_base_url,
             )
             node_state.node_summary.info_for_user(f"search media successfully, found {len(image_preview_urls)} photos", preview_urls=image_preview_urls)
         return {"search_media": video_saved_paths + image_saved_paths}
@@ -118,8 +125,12 @@ def download_video(url: str, out_path: Path) -> None:
             logger.error(f"Download video failed due to non-network error: {e}")
             raise
 
-def search_videos(pexels_api_key: str, query: str, per_page, page) -> dict[str, Any]:
-    url = "https://api.pexels.com/videos/search"
+def _pexels_api_url(base_url: str, path: str) -> str:
+    base_url = (base_url or "https://api.pexels.com").strip().rstrip("/")
+    return f"{base_url}/{path.lstrip('/')}"
+
+def search_videos(pexels_api_key: str, query: str, per_page, page, pexels_base_url: str = "") -> dict[str, Any]:
+    url = _pexels_api_url(pexels_base_url, "/videos/search")
     headers = {"Authorization": pexels_api_key}
     params = {"query": query, "per_page": per_page, "page": page}
 
@@ -200,7 +211,8 @@ def get_video_media_from_pexels(
         video_number: int,
         orientation: str,
         min_video_duration: int,
-        max_video_duration: int
+        max_video_duration: int,
+        pexels_base_url: str = "",
     ) -> Tuple[list[str], List[Dict[str, Any]]]:
 
     if video_number <= 0:
@@ -218,6 +230,7 @@ def get_video_media_from_pexels(
             query=query,
             per_page=DEFAULT_RESULT_NUMBER_PER_PAGE,
             page=page,
+            pexels_base_url=pexels_base_url,
         )
 
         batch = filter_videos(
@@ -317,8 +330,8 @@ def download_photo(url: str, out_path: Path) -> None:
             logger.error(f"Download photo failed due to non-network error: {e}")
             raise
 
-def search_photos(pexels_api_key: str, query: str, per_page, page) -> dict[str, Any]:
-    url = "https://api.pexels.com/v1/search"
+def search_photos(pexels_api_key: str, query: str, per_page, page, pexels_base_url: str = "") -> dict[str, Any]:
+    url = _pexels_api_url(pexels_base_url, "/v1/search")
     headers = {"Authorization": pexels_api_key}
     params = {"query": query, "per_page": per_page, "page": page}
 
@@ -396,6 +409,7 @@ def get_photo_media_from_pexels(
         media_dir: Path,
         photo_number: int,
         orientation: str,
+        pexels_base_url: str = "",
     ) -> tuple[list[str], list[str]]:
 
     if photo_number <= 0:
@@ -413,6 +427,7 @@ def get_photo_media_from_pexels(
             query=query,
             per_page=DEFAULT_RESULT_NUMBER_PER_PAGE,
             page=page,
+            pexels_base_url=pexels_base_url,
         )
 
         batch = filter_photos(

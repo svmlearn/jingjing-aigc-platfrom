@@ -216,14 +216,15 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
     Dict[str, Any],
     Dict[str, Any],
     Dict[str, Any],
+    Dict[str, Any],
     Optional[str]]:
     """
-    返回 (custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, pexels, err)
+    Returns (custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, asr_cfg, pexels, err).
     - custom_llm/custom_vlm: {"model","base_url","api_key"} 或 None（允许只传 llm 或只传 vlm）
     - tts_cfg: dict（可能为空）
     """
     if not isinstance(service_cfg, dict):
-        return None, None, {}, {}, {}, None
+        return None, None, {}, {}, {}, {}, None
 
     # ---- custom models ----
     custom_llm = None
@@ -232,7 +233,7 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
 
     if custom_models is not None:
         if not isinstance(custom_models, dict):
-            return None, None, {}, {}, {}, "service_config.custom_models 必须是对象"
+            return None, None, {}, {}, {}, {}, "service_config.custom_models 必须是对象"
 
         def _pick(m: Any, label: str) -> Tuple[Optional[Dict[str, str]], Optional[str]]:
             if m is None:
@@ -252,15 +253,16 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
 
         custom_llm, err1 = _pick(custom_models.get("llm"), "llm")
         if err1:
-            return None, None, {}, {}, {}, err1
+            return None, None, {}, {}, {}, {}, err1
 
         custom_vlm, err2 = _pick(custom_models.get("vlm"), "vlm")
         if err2:
-            return None, None, {}, {}, {}, err2
+            return None, None, {}, {}, {}, {}, err2
 
     # ---- provider runtime config ----
     tts_cfg = _parse_provider_runtime_config(service_cfg, "tts")
     ai_transition_cfg = _parse_provider_runtime_config(service_cfg, "ai_transition")
+    asr_cfg = _parse_provider_runtime_config(service_cfg, "asr")
 
     # ---- pexels ----
     pexels_cfg: Dict[str, Any] = {}
@@ -275,15 +277,17 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
             if mode not in ("default", "custom"):
                 mode = "default"
             api_key = _s(p.get("api_key") or p.get("pexels_api_key") or p.get("pexels_api_key"))
-            pexels_cfg = {"mode": mode, "api_key": api_key}
+            base_url = _s(p.get("base_url") or p.get("pexels_base_url") or p.get("private_base_url"))
+            pexels_cfg = {"mode": mode, "api_key": api_key, "base_url": base_url}
         else:
             mode = _s(search_media.get("mode") or search_media.get("pexels_mode") or search_media.get("pexels_mode")).lower()
             if mode not in ("default", "custom"):
                 mode = "default"
             api_key = _s(search_media.get("pexels_api_key") or search_media.get("pexels_api_key"))
-            pexels_cfg = {"mode": mode, "api_key": api_key}
+            base_url = _s(search_media.get("base_url") or search_media.get("pexels_base_url") or search_media.get("private_base_url"))
+            pexels_cfg = {"mode": mode, "api_key": api_key, "base_url": base_url}
 
-    return custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, pexels_cfg, None
+    return custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, asr_cfg, pexels_cfg, None
 
 def is_developer_mode(cfg: Settings) -> bool:
     try:
@@ -1344,10 +1348,12 @@ class ChatSession:
         self.custom_vlm_config: Optional[Dict[str, Any]] = None
         self.tts_config: Dict[str, Any] = {}
         self.ai_transition_config: Dict[str, Any] = {}
+        self.asr_config: Dict[str, Any] = {}
         self._agent_build_key: Optional[Tuple[Any, ...]] = None
 
         self.pexels_key_mode: str = "default"   # "default" | "custom"
         self.pexels_custom_key: str = ""
+        self.pexels_base_url: str = ""
 
         self._media_seq_inited = False
         self._media_seq_next = 1
@@ -1589,6 +1595,7 @@ class ChatSession:
             "pending_media_ids": [str(x) for x in (self.pending_media_ids or [])],
             "lc_messages_serialized": self._serialize_lc_messages(),
             "pexels_key_mode": self.pexels_key_mode,
+            "pexels_base_url": self.pexels_base_url,
             "sent_media_total": int(getattr(self, "sent_media_total", 0) or 0),
             # Primary boundary: never persist raw API keys for configs.
             "custom_llm_config": self._sanitize_custom_model_cfg_for_state(self.custom_llm_config),
@@ -1779,6 +1786,7 @@ class ChatSession:
         if sess.pexels_key_mode not in ("default", "custom"):
             sess.pexels_key_mode = "default"
         sess.pexels_custom_key = ""
+        sess.pexels_base_url = _s(data.get("pexels_base_url"))
 
         llm_cfg = data.get("custom_llm_config")
         sess.custom_llm_config = llm_cfg if isinstance(llm_cfg, dict) else None
@@ -1814,7 +1822,7 @@ class ChatSession:
                 missing.append("custom_vlm")
 
         if (self.pexels_key_mode or "").lower() == "custom":
-            if _is_missing(self.pexels_custom_key):
+            if _is_missing(self.pexels_custom_key) and _is_missing(self.pexels_base_url):
                 missing.append("pexels_custom")
 
         tts_cfg = self.tts_config if isinstance(self.tts_config, dict) else {}
@@ -1917,7 +1925,7 @@ class ChatSession:
 
 
     def apply_service_config(self, service_cfg: Any) -> Tuple[bool, Optional[str]]:
-        llm, vlm, tts, ai_transition, pexels, err = _parse_service_config(service_cfg)
+        llm, vlm, tts, ai_transition, asr, pexels, err = _parse_service_config(service_cfg)
         if err:
             return False, err
 
@@ -1933,15 +1941,20 @@ class ChatSession:
         if isinstance(ai_transition, dict) and ai_transition:
             self.ai_transition_config = ai_transition
 
+        if isinstance(asr, dict) and asr:
+            self.asr_config = asr
+
         # ---- pexels ----
         if isinstance(pexels, dict) and pexels:
             mode = _s(pexels.get("mode")).lower()
-            if mode == "custom":
+            self.pexels_base_url = _s(pexels.get("base_url") or pexels.get("pexels_base_url"))
+            if mode == "custom" or self.pexels_base_url:
                 self.pexels_key_mode = "custom"
                 self.pexels_custom_key = _s(pexels.get("api_key"))
             else:
                 self.pexels_key_mode = "default"
                 self.pexels_custom_key = ""
+                self.pexels_base_url = ""
 
         return True, None
 
@@ -1990,6 +2003,7 @@ class ChatSession:
                     ToolInterceptor.save_media_content_after,
                     ToolInterceptor.inject_tts_config,
                     ToolInterceptor.inject_ai_transition_config,
+                    ToolInterceptor.inject_asr_config,
                     ToolInterceptor.inject_pexels_api_key,
                 ],
                 llm_override=llm_override,
@@ -2009,6 +2023,7 @@ class ChatSession:
                 vlm_model_key=self.vlm_model_key,
                 tts_config=(self.tts_config or None),
                 ai_transition_config=(self.ai_transition_config or None),
+                asr_config=(self.asr_config or None),
                 pexels_api_key=None,
                 lang=self.lang,
             )
@@ -2017,6 +2032,7 @@ class ChatSession:
             self.client_context.vlm_model_key = self.vlm_model_key
             self.client_context.tts_config = (self.tts_config or None)
             self.client_context.ai_transition_config = (self.ai_transition_config or None)
+            self.client_context.asr_config = (self.asr_config or None)
             self.client_context.lang = self.lang
 
         # ---- resolve pexels_api_key for runtime context ----
@@ -2027,6 +2043,8 @@ class ChatSession:
             pexels_api_key = _get_default_pexels_api_key(self.cfg)  # from config.toml
 
         self.client_context.pexels_api_key = (pexels_api_key or None)
+        pexels_base_url = self.pexels_base_url or _get_default_pexels_base_url(self.cfg)
+        self.client_context.pexels_base_url = (pexels_base_url or None)
 
     # ---- DTO / public mapping ----
     def public_media(self, meta: MediaMeta) -> Dict[str, Any]:
@@ -2559,6 +2577,14 @@ def _get_default_pexels_api_key(cfg: Settings) -> str:
     except Exception:
         return ""
 
+def _get_default_pexels_base_url(cfg: Settings) -> str:
+    try:
+        search_media = getattr(cfg, "search_media", None)
+        pexels_base_url = _s(getattr(search_media, "pexels_base_url", None) if search_media else None)
+        return pexels_base_url.rstrip("/") if pexels_base_url else ""
+    except Exception:
+        return ""
+
 def _normalize_field_item(item) -> dict | None:
     """
     item 支持：
@@ -2860,6 +2886,7 @@ async def _run_worker_session_prompt(
         sess._ensure_system_prompt()
         if sess.client_context is not None:
             sess.client_context.worker_payload = worker_payload if isinstance(worker_payload, dict) else None
+            sess.client_context.asr_config = sess.asr_config if isinstance(sess.asr_config, dict) and sess.asr_config else None
 
         attachments = await sess.take_pending_media_for_message(None)
         stats = {

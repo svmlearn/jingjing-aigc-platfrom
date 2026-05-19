@@ -35,6 +35,10 @@ class Settings:
     tts_bytedance_bigtts_speaker: str = ""
     tts_pixelle_clone_base_url: str = ""
     tts_pixelle_clone_api_key: str = ""
+    asr_provider: str = "aliyun_paraformer"
+    aliyun_asr_model: str = "paraformer-realtime-v2"
+    aliyun_asr_api_key: str = ""
+    aliyun_asr_workspace: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -138,4 +142,17 @@ class Settings:
                 "TTS_PIXELLE_CLONE_API_KEY",
                 "",
             ).strip(),
+            asr_provider=os.getenv(
+                "OPENSTORYLINE_ASR_PROVIDER",
+                "aliyun_paraformer",
+            ).strip() or "aliyun_paraformer",
+            aliyun_asr_model=os.getenv(
+                "ALIYUN_ASR_MODEL",
+                "paraformer-realtime-v2",
+            ).strip() or "paraformer-realtime-v2",
+            aliyun_asr_api_key=(
+                os.getenv("ALIYUN_ASR_API_KEY", "")
+                or os.getenv("DASHSCOPE_API_KEY", "")
+            ).strip(),
+            aliyun_asr_workspace=os.getenv("ALIYUN_ASR_WORKSPACE", "").strip(),
         )

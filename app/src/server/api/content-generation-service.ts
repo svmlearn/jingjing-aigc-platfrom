@@ -589,6 +589,32 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
         dailyTaskId: resolvedDailyTaskId,
       })
     : null;
+  const difyDailyTaskVideoDraft =
+    dailyTask && input.intent !== "revise"
+      ? await resolveDifyDailyTaskVideoDraftBundle({
+          merchantId: merchant.id,
+          createdByUserId: input.userId,
+          dailyTask,
+        })
+      : null;
+
+  if (difyDailyTaskVideoDraft && dailyTask) {
+    return {
+      assistantMessage: "已复用内容日历 Dify 生成的视频脚本草稿。",
+      draftBundle: difyDailyTaskVideoDraft.draftBundle,
+      selectedVariant: difyDailyTaskVideoDraft.selectedVariant,
+      toolApplied: true,
+      toolMode: "create",
+      changeSummary: "复用 Dify daily task 视频脚本，未调用视频脚本制作 Agent。",
+      trace: {
+        mode: "dify_daily_task_reuse",
+        dailyTaskId: dailyTask.id,
+        contentDraftId: dailyTask.videoTask.contentDraftId,
+        contentVariantId: dailyTask.videoTask.contentVariantId,
+      },
+    };
+  }
+
   const materialContext = await resolveMaterialContext({
     merchantId: merchant.id,
     materialId: input.materialId,
@@ -938,6 +964,56 @@ export async function runVideoWorkbenchScriptAgentForUser(input: {
     toolMode: result.toolMode,
     changeSummary: result.changeSummary,
     trace: result.trace,
+  };
+}
+
+async function resolveDifyDailyTaskVideoDraftBundle(input: {
+  merchantId: string;
+  createdByUserId: string;
+  dailyTask: DailyContentTaskDto;
+}): Promise<{
+  draftBundle: ContentDraftBundleDto;
+  selectedVariant: NonNullable<ContentDraftBundleDto["selectedVariant"]>;
+} | null> {
+  const videoTask = input.dailyTask.videoTask;
+  const contentDraftId = videoTask.contentDraftId?.trim();
+  const contentVariantId = videoTask.contentVariantId?.trim();
+
+  if (!videoTask.generatedVideoScript || !contentDraftId || !contentVariantId) {
+    return null;
+  }
+
+  const draftBundle = await getDraftBundleByMerchant({
+    merchantId: input.merchantId,
+    createdByUserId: input.createdByUserId,
+    draftId: contentDraftId,
+  });
+  const selectedVariant = draftBundle.variants.find(
+    (variant) => variant.id === contentVariantId,
+  );
+
+  if (!selectedVariant) {
+    throw new ApiError(
+      409,
+      "DIFY_VIDEO_SCRIPT_VARIANT_NOT_FOUND",
+      "Dify 视频脚本版本不存在，无法复用生成结果。",
+    );
+  }
+
+  if (selectedVariant.variantType !== "video_script") {
+    throw new ApiError(
+      409,
+      "DIFY_VIDEO_SCRIPT_VARIANT_INVALID",
+      "Dify 写回的内容版本不是视频脚本，无法发起 AI 剪辑。",
+    );
+  }
+
+  return {
+    draftBundle: {
+      ...draftBundle,
+      selectedVariant,
+    },
+    selectedVariant,
   };
 }
 

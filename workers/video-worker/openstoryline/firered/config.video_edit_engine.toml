@@ -76,11 +76,21 @@ skill_dir = "./.storyline/skills"
 # =========== pexels ==========
 [search_media]
 pexels_api_key = "${PEXELS_API_KEY:-}"
+pexels_base_url = "${PRIVATE_PEXELS_BASE_URL:-}"
 
 # ============= 镜头分割 / Shot Segmentation =============
 [split_shots]
 transnet_weights = ".storyline/models/transnetv2-pytorch-weights.pth"
 transnet_device = "cpu"
+
+[asr]
+provider = "${OPENSTORYLINE_ASR_PROVIDER:-local_funasr}"
+model = "${ALIYUN_ASR_MODEL:-paraformer-realtime-v2}"
+api_key = "${ALIYUN_ASR_API_KEY:-}"
+workspace = "${ALIYUN_ASR_WORKSPACE:-}"
+format = "wav"
+sample_rate = 16000
+language_hints = ["zh", "en"]
 
 # ============= 视频视觉理解 / Video Visual Understanding =============
 [understand_clips]
