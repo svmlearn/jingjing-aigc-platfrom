@@ -10,7 +10,7 @@ export type AppObjectStorageProviderName = Extract<
   "tencent_cos" | "aliyun_oss"
 >;
 
-export type BrowserUploadOwnerType = "source_item" | "content_draft";
+export type BrowserUploadOwnerType = "source_item" | "content_draft" | "voice_profile";
 
 export type KnowledgeUploadScope = "platform" | "merchant";
 
@@ -181,6 +181,10 @@ export function buildStandardMediaUploadKeyPrefix(input: {
 }) {
   if (input.ownerType === "source_item") {
     return `source-assets/${input.merchantId}/${input.ownerId}`;
+  }
+
+  if (input.ownerType === "voice_profile") {
+    return `voice-profiles/${input.merchantId}/${input.ownerId}`;
   }
 
   return `draft-inputs/${input.merchantId}/${input.ownerId}`;

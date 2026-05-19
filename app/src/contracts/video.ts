@@ -91,6 +91,7 @@ export type PublicVideoEditJobDto = Pick<
 };
 
 export type VoiceoverProvider = "bytedance_bigtts" | "minimax" | "302";
+export type VoiceoverMode = "system" | "voice_profile";
 
 export type BgmFilterKey = "mood" | "scene" | "genre" | "lang" | "id";
 export type BgmFilter = Partial<Record<BgmFilterKey, Array<string | number>>>;
@@ -98,8 +99,13 @@ export type BgmFilter = Partial<Record<BgmFilterKey, Array<string | number>>>;
 export type ProductionConfig = {
   voiceover?: {
     enabled?: boolean;
+    mode?: VoiceoverMode;
     provider?: VoiceoverProvider;
+    speaker?: string | null;
     voiceStyle?: string | null;
+    voiceProfileId?: string;
+    refAudioAssetId?: string;
+    includeOriginalAudio?: boolean;
     speed?: number | null;
     volume?: number | null;
   };

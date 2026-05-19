@@ -132,13 +132,24 @@ const allowedBgmFilterKeys = new Set(["mood", "scene", "genre", "lang", "id"]);
 type WorkerInputStorageProvider = "tencent_cos" | "aliyun_oss";
 
 type NormalizedProductionConfig = {
-  voiceover: {
-    enabled: boolean;
-    provider: VoiceoverProvider;
-    voiceStyle?: string;
-    speed?: number;
-    volume: number;
-  };
+  voiceover:
+    | {
+        enabled: boolean;
+        mode?: "system";
+        provider: VoiceoverProvider;
+        speaker?: string;
+        voiceStyle?: string;
+        speed?: number;
+        volume: number;
+      }
+    | {
+        enabled: boolean;
+        mode: "voice_profile";
+        voiceProfileId: string;
+        refAudioAssetId: string;
+        speed?: number;
+        volume: number;
+      };
   bgm: {
     enabled: boolean;
     userRequest: string;
@@ -309,9 +320,9 @@ function normalizeProductionConfig(
   input: ProductionConfig | null | undefined,
 ): NormalizedProductionConfig {
   const voiceover = input?.voiceover ?? {};
-  const provider = voiceover.provider ?? "bytedance_bigtts";
-  if (!allowedVoiceoverProviders.has(provider)) {
-    throwInvalidProductionConfig("Unsupported voiceover provider.");
+  const voiceoverMode = voiceover.mode ?? "system";
+  if (voiceoverMode !== "system" && voiceoverMode !== "voice_profile") {
+    throwInvalidProductionConfig("Unsupported voiceover mode.");
   }
 
   const subtitles = input?.subtitles ?? {};
@@ -323,7 +334,10 @@ function normalizeProductionConfig(
   const render = input?.render ?? {};
   const normalizedRender: NormalizedProductionConfig["render"] = {
     aspectRatio: render.aspectRatio ?? "9:16",
-    includeOriginalAudio: render.includeOriginalAudio ?? false,
+    includeOriginalAudio:
+      "includeOriginalAudio" in voiceover && typeof voiceover.includeOriginalAudio === "boolean"
+        ? voiceover.includeOriginalAudio
+        : render.includeOriginalAudio ?? false,
   };
   if (normalizedRender.aspectRatio !== "9:16") {
     throwInvalidProductionConfig("Unsupported render aspect ratio.");
@@ -340,19 +354,7 @@ function normalizeProductionConfig(
   }
 
   const bgm = input?.bgm ?? {};
-  const normalizedVoiceover: NormalizedProductionConfig["voiceover"] = {
-    enabled: voiceover.enabled ?? true,
-    provider,
-    volume: normalizeOptionalNumber(voiceover.volume, "voiceover.volume", 0, 3) ?? 2,
-  };
-  const voiceStyle = normalizeOptionalString(voiceover.voiceStyle);
-  if (voiceStyle) {
-    normalizedVoiceover.voiceStyle = voiceStyle;
-  }
-  const speed = normalizeOptionalNumber(voiceover.speed, "voiceover.speed", 0.5, 2);
-  if (speed !== undefined) {
-    normalizedVoiceover.speed = speed;
-  }
+  const normalizedVoiceover = normalizeVoiceover(voiceover, voiceoverMode);
 
   return {
     voiceover: normalizedVoiceover,
@@ -369,6 +371,58 @@ function normalizeProductionConfig(
     },
     render: normalizedRender,
   };
+}
+
+function normalizeVoiceover(
+  voiceover: NonNullable<ProductionConfig["voiceover"]> | Record<string, never>,
+  mode: "system" | "voice_profile",
+): NormalizedProductionConfig["voiceover"] {
+  const speed = normalizeOptionalNumber(voiceover.speed, "voiceover.speed", 0.5, 2);
+  const volume = normalizeOptionalNumber(voiceover.volume, "voiceover.volume", 0, 3) ?? 2;
+
+  if (mode === "voice_profile") {
+    const voiceProfileId = normalizeOptionalString(voiceover.voiceProfileId);
+    const refAudioAssetId = normalizeOptionalString(voiceover.refAudioAssetId);
+
+    if (!voiceProfileId || !refAudioAssetId) {
+      throwInvalidProductionConfig("voice_profile voiceover requires voiceProfileId and refAudioAssetId.");
+    }
+
+    const normalized: NormalizedProductionConfig["voiceover"] = {
+      enabled: voiceover.enabled ?? true,
+      mode: "voice_profile",
+      voiceProfileId,
+      refAudioAssetId,
+      volume,
+    };
+    if (speed !== undefined) {
+      normalized.speed = speed;
+    }
+    return normalized;
+  }
+
+  const provider = voiceover.provider ?? "bytedance_bigtts";
+  if (!allowedVoiceoverProviders.has(provider)) {
+    throwInvalidProductionConfig("Unsupported voiceover provider.");
+  }
+
+  const normalized: NormalizedProductionConfig["voiceover"] = {
+    enabled: voiceover.enabled ?? true,
+    provider,
+    volume,
+  };
+  const speaker = normalizeOptionalString(voiceover.speaker);
+  if (speaker) {
+    normalized.speaker = speaker;
+  }
+  const voiceStyle = normalizeOptionalString(voiceover.voiceStyle);
+  if (voiceStyle) {
+    normalized.voiceStyle = voiceStyle;
+  }
+  if (speed !== undefined) {
+    normalized.speed = speed;
+  }
+  return normalized;
 }
 
 function normalizeOptionalString(value: string | null | undefined) {

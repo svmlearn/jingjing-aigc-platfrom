@@ -3,9 +3,9 @@
 import type { VideoEditProgressModuleDto } from "@/contracts/video";
 import { normalizeVideoProgressModules } from "@/lib/ui/video-progress-modules";
 
-export type MediaOwnerType = "source_item" | "content_draft" | "content_variant";
-export type MediaAssetType = "image" | "video" | "cover" | "subtitle";
-export type UploadableMediaAssetType = Extract<MediaAssetType, "image" | "video">;
+export type MediaOwnerType = "source_item" | "content_draft" | "content_variant" | "voice_profile";
+export type MediaAssetType = "image" | "video" | "cover" | "subtitle" | "audio";
+export type UploadableMediaAssetType = Extract<MediaAssetType, "image" | "video" | "audio">;
 export type VideoEditJobStatus =
   | "pending"
   | "queued"
@@ -613,6 +613,9 @@ async function uploadToObjectStorage(params: {
 }
 
 function assetTypeFromMimeType(mimeType: string, fileName?: string): UploadableMediaAssetType {
+  if (mimeType.startsWith("audio/") || /\.(aac|flac|m4a|mp3|ogg|opus|wav|webm)$/i.test(fileName ?? "")) {
+    return "audio";
+  }
   if (mimeType.startsWith("video/") || /\.(m4v|mov|mp4|webm)$/i.test(fileName ?? "")) {
     return "video";
   }
@@ -718,7 +721,7 @@ export async function completeMediaUpload(payload: {
 }
 
 export async function uploadMediaFileForOwner(params: {
-  ownerType: Extract<MediaOwnerType, "source_item" | "content_draft">;
+  ownerType: Extract<MediaOwnerType, "source_item" | "content_draft" | "voice_profile">;
   ownerId: string;
   file: File;
   sortOrder?: number;
@@ -792,6 +795,21 @@ export async function uploadDraftMediaFile(params: {
     ownerId: params.draftId,
     file: params.file,
     sortOrder: params.sortOrder,
+    onProgress: params.onProgress,
+    onStageChange: params.onStageChange,
+  });
+}
+
+export async function uploadVoiceProfileAudioFile(params: {
+  voiceProfileId: string;
+  file: File;
+  onProgress?: (progress: UploadProgress) => void;
+  onStageChange?: (stage: DraftMediaUploadStage) => void;
+}) {
+  return uploadMediaFileForOwner({
+    ownerType: "voice_profile",
+    ownerId: params.voiceProfileId,
+    file: params.file,
     onProgress: params.onProgress,
     onStageChange: params.onStageChange,
   });

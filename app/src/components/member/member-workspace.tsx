@@ -36,6 +36,7 @@ import type {
 import type { ContentDraftBundleDto, ContentVariantDto } from "@/contracts/draft";
 import type { PublicVideoEditJobDto, VideoEditProgressModuleDto } from "@/contracts/video";
 import { isVideoEditJobInFlightStatus } from "@/contracts/video";
+import type { VoiceProfileDto } from "@/contracts/voice";
 import { summarizeMemberVideoEditState } from "@/lib/member-video-workflow";
 import { getVideoJobStageLabel } from "@/lib/ui/video-job-display";
 import {
@@ -44,6 +45,7 @@ import {
   getVideoEditJobDetail,
   type VideoEditJob,
   uploadDraftMediaFile,
+  uploadVoiceProfileAudioFile,
 } from "@/lib/ui/video-workflow";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +65,14 @@ type MemberHistoryPayload = ApiErrorPayload & {
   videoJobs?: PublicVideoEditJobDto[];
 };
 
+type VoiceProfilesPayload = ApiErrorPayload & {
+  voiceProfiles?: VoiceProfileDto[];
+};
+
+type VoiceProfilePayload = ApiErrorPayload & {
+  voiceProfile?: VoiceProfileDto;
+};
+
 type AiEditBusyStage = "preparing_script" | "confirming_script" | "uploading_media" | "creating_job";
 
 type AiEditBusyState = {
@@ -71,6 +81,17 @@ type AiEditBusyState = {
   uploadTotal?: number;
   uploadPercent?: number;
   uploadStage?: DraftMediaUploadStage;
+};
+
+type VoiceProfileCreateState = {
+  displayName: string;
+  authorizationAccepted: boolean;
+  fileName?: string;
+  status: "idle" | "uploading" | "creating" | "ready" | "failed";
+  progressPct: number;
+  stage?: DraftMediaUploadStage;
+  error?: string;
+  profile?: VoiceProfileDto | null;
 };
 
 type AiEditProgressView = {
@@ -430,6 +451,13 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
   const [job, setJob] = useState<VideoEditJob | null>(null);
   const [busyState, setBusyState] = useState<AiEditBusyState | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [voiceProfileCreate, setVoiceProfileCreate] = useState<VoiceProfileCreateState>({
+    displayName: "",
+    authorizationAccepted: false,
+    status: "idle",
+    progressPct: 0,
+    profile: null,
+  });
 
   useEffect(() => {
     if (!job || isTerminalJob(job.status)) {
@@ -449,6 +477,21 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
     return () => window.clearInterval(timer);
   }, [job]);
 
+  useEffect(() => {
+    void requestJson<VoiceProfilesPayload>("/api/voice-profiles")
+      .then((data) => {
+        const profile = data.voiceProfiles?.find((item) => item.status === "ready") ?? null;
+        if (profile) {
+          setVoiceProfileCreate((current) => ({
+            ...current,
+            status: current.status === "idle" ? "ready" : current.status,
+            profile,
+          }));
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
   if (loading) {
     return <MemberLoading label="正在打开视频镜头脚本" />;
   }
@@ -466,6 +509,9 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
   });
   const resultUrl = editState.previewUrl;
   const resultDownloadUrl = editState.downloadUrl;
+  const selectedVoiceProfile = voiceProfileCreate.profile ?? null;
+  const voiceProfileBusy =
+    voiceProfileCreate.status === "uploading" || voiceProfileCreate.status === "creating";
 
   async function startAiEdit() {
     const currentTask = task;
@@ -477,6 +523,11 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
 
     if (!currentTask) {
       setActionError("任务加载完成后才能发起 AI 剪辑。");
+      return;
+    }
+
+    if (voiceProfileBusy) {
+      setActionError("克隆音色还在上传，请等待声音准备完成后再发起 AI 剪辑。");
       return;
     }
 
@@ -557,24 +608,10 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         draftId: bundle.draft.id,
         contentVariantId: approvedVariant.id,
         instructionText: `成员端 AI 剪辑：${script.title}`,
-        productionConfig: {
-          voiceover: {
-            enabled: false,
-          },
-          render: {
-            aspectRatio: "9:16",
-            maxDurationSeconds: script.targetDurationSeconds,
-            includeOriginalAudio: true,
-          },
-          subtitles: {
-            enabled: false,
-            style: "platform_default",
-          },
-          bgm: {
-            enabled: false,
-            userRequest: "",
-          },
-        },
+        productionConfig: buildMemberVideoProductionConfig({
+          script,
+          voiceProfile: selectedVoiceProfile,
+        }),
       });
 
       setJob(nextJob);
@@ -582,6 +619,94 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
       setActionError(requestError instanceof Error ? requestError.message : "AI 剪辑任务创建失败");
     } finally {
       setBusyState(null);
+    }
+  }
+
+  async function createVoiceProfileFromFile(file: File) {
+    if (!isSupportedVoiceProfileAudioFile(file)) {
+      setActionError("克隆音色参考音频仅支持 wav、mp3、m4a、aac、ogg、opus、webm 音频文件。");
+      return;
+    }
+
+    if (!voiceProfileCreate.authorizationAccepted) {
+      setActionError("请先确认已获得声音克隆授权。");
+      return;
+    }
+
+    const voiceProfileId = crypto.randomUUID();
+    const displayName = voiceProfileCreate.displayName.trim() || file.name.replace(/\.[^.]+$/, "");
+
+    setActionError(null);
+    setVoiceProfileCreate((current) => ({
+      ...current,
+      displayName,
+      fileName: file.name,
+      status: "uploading",
+      stage: "preparing",
+      progressPct: 0,
+      error: undefined,
+    }));
+
+    try {
+      const audioAsset = await uploadVoiceProfileAudioFile({
+        voiceProfileId,
+        file,
+        onStageChange(stage) {
+          setVoiceProfileCreate((current) => ({
+            ...current,
+            status: "uploading",
+            stage,
+            progressPct: stage === "finalizing" ? 100 : current.progressPct,
+          }));
+        },
+        onProgress(progress) {
+          setVoiceProfileCreate((current) => ({
+            ...current,
+            status: "uploading",
+            stage: "uploading",
+            progressPct: normalizeUploadPercent(progress.percent),
+          }));
+        },
+      });
+
+      setVoiceProfileCreate((current) => ({
+        ...current,
+        status: "creating",
+        stage: "finalizing",
+        progressPct: 100,
+      }));
+
+      const data = await requestJson<VoiceProfilePayload>("/api/voice-profiles", {
+        method: "POST",
+        headers: taskFetchHeaders,
+        body: JSON.stringify({
+          id: voiceProfileId,
+          displayName,
+          refAudioAssetId: audioAsset.id,
+          authorizationAccepted: true,
+        }),
+      });
+
+      if (!data.voiceProfile) {
+        throw new Error("克隆音色创建失败");
+      }
+
+      setVoiceProfileCreate({
+        displayName: "",
+        authorizationAccepted: false,
+        fileName: file.name,
+        status: "ready",
+        progressPct: 100,
+        profile: data.voiceProfile,
+      });
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : "克隆音色创建失败";
+      setVoiceProfileCreate((current) => ({
+        ...current,
+        status: "failed",
+        error: message,
+      }));
+      setActionError(message);
     }
   }
 
@@ -660,6 +785,67 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
       </section>
 
       <section className="rounded-lg border border-black/10 bg-white p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">声音克隆</p>
+            <p className="mt-1 text-xs leading-5 text-black/50">
+              {selectedVoiceProfile ? `当前音色：${selectedVoiceProfile.displayName}` : "可上传本人音频用于 AI 配音。"}
+            </p>
+          </div>
+          <span className="rounded-lg bg-[#ece8dc] px-2 py-1 text-[11px] text-black/55">可选</span>
+        </div>
+
+        <label className="mt-3 flex items-start gap-2 rounded-lg border border-black/10 bg-[#f7f4ea] px-3 py-3 text-xs leading-5 text-black/65">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 shrink-0 accent-[#1f6f68]"
+            checked={voiceProfileCreate.authorizationAccepted}
+            onChange={(event) => {
+              setVoiceProfileCreate((current) => ({
+                ...current,
+                authorizationAccepted: event.target.checked,
+              }));
+            }}
+          />
+          <span>我确认已获得该声音用于克隆和视频配音的授权。</span>
+        </label>
+
+        <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-black/20 bg-[#f7f4ea] px-3 py-3 text-sm">
+          <span className="min-w-0 truncate">
+            {voiceProfileCreate.fileName ?? selectedVoiceProfile?.refAudioAsset?.storageKey.split("/").pop() ?? "上传 MP3 / 音频"}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[#1f6f68]">
+            {voiceProfileBusy ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Upload className="size-4" aria-hidden="true" />
+            )}
+            {voiceProfileBusy ? `${voiceProfileCreate.progressPct}%` : "上传"}
+          </span>
+          <input
+            type="file"
+            accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm"
+            className="sr-only"
+            disabled={voiceProfileBusy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.currentTarget.value = "";
+              if (file) {
+                void createVoiceProfileFromFile(file);
+              }
+            }}
+          />
+        </label>
+
+        {voiceProfileCreate.status === "ready" && selectedVoiceProfile ? (
+          <StatusLine icon={<Check className="size-4" />} text="克隆音色已准备好，本次 AI 剪辑将使用该声音配音。" />
+        ) : null}
+        {voiceProfileCreate.status === "failed" && voiceProfileCreate.error ? (
+          <StatusLine tone="danger" icon={<AlertCircle className="size-4" />} text={voiceProfileCreate.error} />
+        ) : null}
+      </section>
+
+      <section className="rounded-lg border border-black/10 bg-white p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold">AI 剪辑</p>
@@ -670,7 +856,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           <button
             type="button"
             onClick={() => void startAiEdit()}
-            disabled={Boolean(busyState) || Boolean(job && isVideoEditJobInFlightStatus(job.status))}
+            disabled={Boolean(busyState) || voiceProfileBusy || Boolean(job && isVideoEditJobInFlightStatus(job.status))}
             className="inline-flex items-center gap-2 rounded-lg bg-[#171717] px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
           >
             {busyState || (job && isVideoEditJobInFlightStatus(job.status)) ? (
@@ -986,6 +1172,63 @@ async function createVideoDraftFromTask(
   }
 
   return data.draftBundle;
+}
+
+function buildMemberVideoProductionConfig(input: {
+  script: DailyVideoScriptPackageDto;
+  voiceProfile: VoiceProfileDto | null;
+}) {
+  if (input.voiceProfile) {
+    return {
+      voiceover: {
+        enabled: true,
+        mode: "voice_profile",
+        voiceProfileId: input.voiceProfile.id,
+        refAudioAssetId: input.voiceProfile.refAudioAssetId,
+        includeOriginalAudio: false,
+      },
+      render: {
+        aspectRatio: "9:16",
+        maxDurationSeconds: input.script.targetDurationSeconds,
+        includeOriginalAudio: false,
+      },
+      subtitles: {
+        enabled: true,
+        style: "platform_default",
+      },
+      bgm: {
+        enabled: false,
+        userRequest: "",
+      },
+    };
+  }
+
+  return {
+    voiceover: {
+      enabled: false,
+    },
+    render: {
+      aspectRatio: "9:16",
+      maxDurationSeconds: input.script.targetDurationSeconds,
+      includeOriginalAudio: true,
+    },
+    subtitles: {
+      enabled: false,
+      style: "platform_default",
+    },
+    bgm: {
+      enabled: false,
+      userRequest: "",
+    },
+  };
+}
+
+function isSupportedVoiceProfileAudioFile(file: File) {
+  if (file.type.startsWith("audio/")) {
+    return true;
+  }
+
+  return /\.(aac|flac|m4a|mp3|ogg|opus|wav|webm)$/i.test(file.name);
 }
 
 function getDifyVideoDraftReference(task: DailyContentTaskDto) {

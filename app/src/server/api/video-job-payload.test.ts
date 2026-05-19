@@ -183,6 +183,36 @@ test("buildVideoEditJobInputPayload normalizes production config overrides", () 
   });
 });
 
+test("buildVideoEditJobInputPayload accepts voice profile production config", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [],
+    productionConfig: {
+      voiceover: {
+        enabled: true,
+        mode: "voice_profile",
+        voiceProfileId: "11111111-1111-4111-8111-111111111111",
+        refAudioAssetId: "22222222-2222-4222-8222-222222222222",
+        includeOriginalAudio: false,
+      },
+      render: {
+        includeOriginalAudio: true,
+      },
+    },
+  });
+
+  assert.deepEqual(payload.productionConfig.voiceover, {
+    enabled: true,
+    mode: "voice_profile",
+    voiceProfileId: "11111111-1111-4111-8111-111111111111",
+    refAudioAssetId: "22222222-2222-4222-8222-222222222222",
+    volume: 2,
+  });
+  assert.equal(payload.productionConfig.render.includeOriginalAudio, false);
+});
+
 test("buildVideoEditJobInputPayload rejects invalid production config provider", () => {
   assert.throws(
     () =>

@@ -36,6 +36,10 @@ import {
   buildVideoEditJobInputPayload,
   type VideoJobPayloadVariant,
 } from "@/server/api/video-job-payload";
+import {
+  assertVoiceProfileAccess,
+  assertVoiceProfileAudioAsset,
+} from "@/lib/db/voice-profile-repository";
 import { extractPayloadResultAssets, toPublicVideoEditJob } from "@/server/api/video-job-public-dto";
 import { ApiError } from "@/server/api/errors";
 import { getObjectStorageProvider } from "@/server/storage";
@@ -70,6 +74,7 @@ export async function createVideoEditJobForUser(input: {
   }
 
   const inputPayload = await buildServerManagedInputPayload({
+    userId: input.userId,
     merchantId: variant.merchantId,
     draftId: variant.draftId,
     variant,
@@ -78,7 +83,10 @@ export async function createVideoEditJobForUser(input: {
   const runtimePayload = {
     engine_adapter: "fire_red",
     provider_settings_source: "env",
-    tts_provider: inputPayload.productionConfig.voiceover.provider,
+    tts_provider:
+      inputPayload.productionConfig.voiceover.mode === "voice_profile"
+        ? "pixelle_clone"
+        : inputPayload.productionConfig.voiceover.provider,
   };
 
   const job = await createVideoEditJob({
@@ -317,6 +325,7 @@ function getPreviewContentType(asset: MediaAssetDto) {
 }
 
 async function buildServerManagedInputPayload(input: {
+  userId: string;
   merchantId: string;
   draftId: string;
   variant: VideoJobPayloadVariant;
@@ -333,12 +342,17 @@ async function buildServerManagedInputPayload(input: {
           ownerId: input.draftId,
         });
 
-    return buildVideoEditJobPayloadOrThrow({
+    const payload = buildVideoEditJobPayloadOrThrow({
       draftId: input.draftId,
       variant: input.variant,
       materialReferences: [],
       assets,
       productionConfig: input.productionConfig,
+    });
+    return attachVoiceProfileReference({
+      userId: input.userId,
+      merchantId: input.merchantId,
+      payload,
     });
   }
 
@@ -359,7 +373,7 @@ async function buildServerManagedInputPayload(input: {
     references: materialReferences,
   });
 
-  return buildVideoEditJobPayloadOrThrow({
+  const payload = buildVideoEditJobPayloadOrThrow({
     draftId: input.draftId,
     variant: input.variant,
     materialReferences: videoEditMaterialReferences.map((reference) => ({
@@ -369,6 +383,63 @@ async function buildServerManagedInputPayload(input: {
     assets,
     productionConfig: input.productionConfig,
   });
+  return attachVoiceProfileReference({
+    userId: input.userId,
+    merchantId: input.merchantId,
+    payload,
+  });
+}
+
+async function attachVoiceProfileReference(input: {
+  userId: string;
+  merchantId: string;
+  payload: ReturnType<typeof buildVideoEditJobInputPayload>;
+}) {
+  const voiceover = input.payload.productionConfig.voiceover;
+  if (voiceover.mode !== "voice_profile") {
+    return input.payload;
+  }
+
+  const voiceProfile = await assertVoiceProfileAccess({
+    merchantId: input.merchantId,
+    createdByUserId: input.userId,
+    voiceProfileId: voiceover.voiceProfileId,
+  });
+  const refAudioAsset = await assertVoiceProfileAudioAsset({
+    merchantId: input.merchantId,
+    createdByUserId: input.userId,
+    voiceProfileId: voiceover.voiceProfileId,
+    assetId: voiceover.refAudioAssetId,
+  });
+
+  return {
+    ...input.payload,
+    productionConfig: {
+      ...input.payload.productionConfig,
+      voiceover: {
+        ...voiceover,
+        voiceProfile: {
+          id: voiceProfile.id,
+          displayName: voiceProfile.displayName,
+          provider: voiceProfile.provider,
+          externalVoiceId: voiceProfile.externalVoiceId,
+          externalModelId: voiceProfile.externalModelId,
+        },
+        refAudioAsset: {
+          assetId: refAudioAsset.id,
+          assetType: refAudioAsset.assetType,
+          ownerType: refAudioAsset.ownerType,
+          ownerId: refAudioAsset.ownerId,
+          storageProvider: refAudioAsset.storageProvider,
+          bucketName: refAudioAsset.bucketName,
+          storageKey: refAudioAsset.storageKey,
+          mimeType: refAudioAsset.mimeType,
+          fileSizeBytes: refAudioAsset.fileSizeBytes,
+          etag: refAudioAsset.etag,
+        },
+      },
+    },
+  };
 }
 
 async function filterVideoEditMaterialReferences(input: {

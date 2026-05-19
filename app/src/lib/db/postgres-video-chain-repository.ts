@@ -1106,6 +1106,45 @@ export async function pgAssertMediaOwnerAccess(input: {
     };
   }
 
+  if (input.ownerType === "voice_profile") {
+    const params: unknown[] = [input.ownerId, input.merchantId];
+    const creatorSql = input.createdByUserId ? "and created_by_user_id = $3" : "";
+    if (input.createdByUserId) {
+      params.push(input.createdByUserId);
+    }
+    const result = await queryAppDb<{
+      id: string;
+      merchant_id: string;
+      created_by_user_id: string;
+    }>(
+      `
+      select id, merchant_id, created_by_user_id
+      from public.voice_profiles
+      where id = $1 and merchant_id = $2
+      ${creatorSql}
+      limit 1
+      `,
+      params,
+    );
+    const row = result.rows[0];
+
+    if (!row) {
+      return {
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        merchantId: input.merchantId,
+        createdByUserId: input.createdByUserId ?? null,
+      };
+    }
+
+    return {
+      ownerType: input.ownerType,
+      ownerId: row.id,
+      merchantId: row.merchant_id,
+      createdByUserId: row.created_by_user_id,
+    };
+  }
+
   const variant = await pgAssertContentVariantAccess({
     merchantId: input.merchantId,
     createdByUserId: input.createdByUserId,
