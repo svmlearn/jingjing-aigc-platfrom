@@ -680,6 +680,47 @@ export async function getContentGenerationBatchById(
   return mapBatch(data as unknown as ContentGenerationBatchRow);
 }
 
+export async function listContentGenerationJobsByBatchId(
+  batchId: string,
+): Promise<ContentGenerationJobDto[]> {
+  if (isPostgresContentGenerationEnabled()) {
+    const result = await queryAppDb<ContentGenerationJobRow>(
+      `
+      select ${jobSelect}
+      from public.content_generation_jobs
+      where batch_id = $1
+      order by task_date asc, created_at asc
+      `,
+      [batchId],
+    );
+
+    return result.rows.map(mapJob);
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    return Array.from(demoStore.jobs.values())
+      .filter((job) => job.batchId === batchId)
+      .sort((a, b) => {
+        const taskDateOrder = a.taskDate.localeCompare(b.taskDate);
+        return taskDateOrder || a.createdAt.localeCompare(b.createdAt);
+      });
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("content_generation_jobs")
+    .select(jobSelect)
+    .eq("batch_id", batchId)
+    .order("task_date", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new ApiError(500, "CONTENT_GENERATION_JOBS_LIST_FAILED", error.message);
+  }
+
+  return ((data ?? []) as unknown as ContentGenerationJobRow[]).map(mapJob);
+}
+
 async function recomputeContentGenerationBatch(batchId: string) {
   if (isPostgresContentGenerationEnabled()) {
     const result = await queryAppDb<{ status: ContentGenerationJobStatus }>(

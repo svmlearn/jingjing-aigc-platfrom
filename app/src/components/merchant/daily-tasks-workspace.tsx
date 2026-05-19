@@ -76,7 +76,9 @@ export function DailyTasksWorkspace() {
         throw new Error(data?.error?.message ?? "Dify 批量生成任务创建失败");
       }
 
-      setGenerationNotice(`已创建 ${data.jobs?.length ?? data.batch.totalJobs} 个 Dify 生成任务。`);
+      setGenerationNotice(
+        `已创建 ${data.jobs?.length ?? data.batch.totalJobs} 个 Dify 生成任务，可刷新查看生成状态。`,
+      );
       await loadWorkspace();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Dify 批量生成任务创建失败");
@@ -122,6 +124,14 @@ export function DailyTasksWorkspace() {
   }
 
   const today = workspace.today;
+  const articleHref =
+    workspace.role === "owner"
+      ? `/dashboard/article?source=daily_task&dailyTaskId=${today.id}`
+      : `/member/article/${today.id}`;
+  const videoHref =
+    workspace.role === "owner"
+      ? `/dashboard/video?source=daily_task&dailyTaskId=${today.id}`
+      : `/member/video/${today.id}`;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -154,7 +164,7 @@ export function DailyTasksWorkspace() {
             ) : (
               <Sparkles className="h-3.5 w-3.5" />
             )}
-            生成本周
+            {workspace.role === "owner" ? "生成团队本周内容" : "生成本周"}
           </button>
           <button
             type="button"
@@ -203,7 +213,7 @@ export function DailyTasksWorkspace() {
             summary={today.articleTask.summary}
             materialHints={today.articleTask.materialHints}
             generationStatus={today.articleTask.generationStatus}
-            href={`/dashboard/article?source=daily_task&dailyTaskId=${today.id}`}
+            href={articleHref}
             actionLabel="生成图文"
           />
           <TaskCard
@@ -213,7 +223,7 @@ export function DailyTasksWorkspace() {
             summary={today.videoTask.summary}
             materialHints={today.videoTask.materialHints}
             generationStatus={today.videoTask.generationStatus}
-            href={`/dashboard/video?source=daily_task&dailyTaskId=${today.id}`}
+            href={videoHref}
             actionLabel="看脚本并上传素材"
           />
         </div>
