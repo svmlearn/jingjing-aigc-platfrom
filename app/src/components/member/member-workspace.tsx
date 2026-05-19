@@ -492,12 +492,29 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
     setBusyState({ stage: "preparing_script" });
 
     try {
-      const bundle = draftBundle ?? (await createVideoDraftFromTask(currentTask, script));
+      const difyDraftReference = getDifyVideoDraftReference(currentTask);
+      let bundle = draftBundle;
+
+      if (difyDraftReference) {
+        if (!bundle || bundle.draft.id !== difyDraftReference.contentDraftId) {
+          bundle = await getContentDraftBundle(difyDraftReference.contentDraftId);
+        }
+      } else {
+        bundle = bundle ?? (await createVideoDraftFromTask(currentTask, script));
+      }
+
       setDraftBundle(bundle);
-      const selectedVariant = bundle.selectedVariant ?? bundle.variants[0] ?? null;
+      const selectedVariant = selectVideoVariantForEdit(
+        bundle,
+        difyDraftReference?.contentVariantId ?? null,
+      );
 
       if (!selectedVariant) {
         throw new Error("视频脚本草稿缺少候选版本。");
+      }
+
+      if (selectedVariant.variantType !== "video_script") {
+        throw new Error("视频脚本草稿缺少可剪辑的视频版本。");
       }
 
       setBusyState({ stage: "confirming_script" });
@@ -964,6 +981,57 @@ async function createVideoDraftFromTask(
   }
 
   return data.draftBundle;
+}
+
+function getDifyVideoDraftReference(task: DailyContentTaskDto) {
+  const contentDraftId = task.videoTask.contentDraftId?.trim();
+  const contentVariantId = task.videoTask.contentVariantId?.trim();
+
+  if (!task.videoTask.generatedVideoScript || !contentDraftId || !contentVariantId) {
+    return null;
+  }
+
+  return {
+    contentDraftId,
+    contentVariantId,
+  };
+}
+
+async function getContentDraftBundle(draftId: string) {
+  const response = await fetch(`/api/content/records/${encodeURIComponent(draftId)}`, {
+    method: "GET",
+    headers: taskFetchHeaders,
+  });
+  const data = (await response.json().catch(() => null)) as
+    | ({ draftBundle?: ContentDraftBundleDto } & ApiErrorPayload)
+    | null;
+
+  if (!response.ok || !data?.draftBundle) {
+    throw new Error(data?.error?.message ?? "Dify 视频脚本草稿读取失败");
+  }
+
+  return data.draftBundle;
+}
+
+function selectVideoVariantForEdit(
+  bundle: ContentDraftBundleDto,
+  expectedVariantId?: string | null,
+) {
+  if (expectedVariantId) {
+    const expectedVariant = bundle.variants.find((variant) => variant.id === expectedVariantId);
+
+    if (!expectedVariant) {
+      throw new Error("Dify 视频脚本版本不存在，无法发起 AI 剪辑。");
+    }
+
+    return expectedVariant;
+  }
+
+  if (bundle.selectedVariant?.variantType === "video_script") {
+    return bundle.selectedVariant;
+  }
+
+  return bundle.variants.find((variant) => variant.variantType === "video_script") ?? null;
 }
 
 async function approveVariantIfNeeded(variant: ContentVariantDto) {
