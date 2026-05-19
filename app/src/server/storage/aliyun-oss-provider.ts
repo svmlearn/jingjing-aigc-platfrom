@@ -169,9 +169,8 @@ export const aliyunOssProvider: ObjectStorageProvider = {
       response["content-disposition"] = input.responseContentDisposition;
     }
 
-    if (input.responseContentType) {
-      response["content-type"] = input.responseContentType;
-    }
+    // OSS rejects signed GET URLs that try to override response content-type.
+    // Preserve the object's stored Content-Type and only override disposition.
 
     const signedUrl = client.signatureUrl(input.storageKey, {
       expires: input.expiresInSeconds ?? config.readUrlTtlSeconds,
