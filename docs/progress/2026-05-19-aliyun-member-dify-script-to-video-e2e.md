@@ -179,3 +179,45 @@ owner 生成团队本周内容 -> Dify 写回 daily task 视频脚本 -> 成员�
   - `pnpm --dir app lint`: pass
   - `pnpm --dir app build`: pass
   - `git diff --check`: pass
+
+## 2026-05-19 成员端 M4A 与 ASR->TTS 克隆链路修正
+
+- 问题判断：
+  - Dify 生成的视频脚本与当前团队素材/成员上传素材不完全匹配，worker 虽然能检索素材库，但成片语义仍可能怪。
+  - 成员端声音克隆入口对 M4A 的浏览器 MIME 处理不稳定，移动端可能把 `.m4a` 标成 `video/mp4` 或空类型，后续克隆服务容易不接受。
+  - 成员端创建 job 时未把 `subtitles.talkingHeadSource=asr_original_audio` 传入 production config，FireRed 不会按“口播素材先 ASR，再交给 TTS/clone TTS 读”的目标链路执行。
+- 修复：
+  - `uploadVoiceProfileAudioFile` 对 `.m4a/.mp4` 音频统一使用 `audio/mp4` 发起上传签名和 asset 记录。
+  - `ProductionConfig`、API schema、`buildVideoEditJobInputPayload` 支持 `subtitles.talkingHeadSource`。
+  - 成员端有 ready `voice_profile` 时，创建 `video_edit_job` 传入 `talkingHeadSource: "asr_original_audio"`；无音色时仍默认 `script`，走系统配音。
+  - FireRed locked custom script 注入逻辑改为：口播分镜的成员上传素材优先使用 ASR 文本作为字幕/配音文案，并继续进入 voiceover/TTS；不再默认跳过 TTS 保留原声。
+  - 商家素材库素材带 `project_material` / `merchant_material_library` 标记时，不被口播 ASR 逻辑误覆盖。
+  - 对未显式打 talking_head 标签但分镜文本包含“真人口播/出镜讲解/口播”的成员上传素材，允许使用 ASR 文本；如果 ASR 文本为空且只是候选口播，则回退锁定脚本，不直接失败。
+- deployed release: `/srv/jingjing-domestic/releases/20260519233829-2b32908`
+- HEAD: `2b32908`
+- deployment health:
+  - `jingjing-domestic-app.service`: active
+  - `jingjing-firered-openstoryline.service`: active
+  - `jingjing-video-worker.service`: active
+  - `/api/health`: ok, DB `postgres`, storage `aliyun_oss`
+- M4A upload intent check:
+  - endpoint: `/api/media/upload-intents`
+  - ownerType: `voice_profile`
+  - assetType: `audio`
+  - fileName: `codex-upload-check.m4a`
+  - mimeType: `audio/mp4`
+  - result: HTTP 201
+  - provider: `aliyun_oss`
+  - upload header `Content-Type`: `audio/mp4`
+  - key prefix: `voice-profiles/5bb8381f-1a72-48bc-ab87-d7bbf2740e7c/<voiceProfileId>/...`
+- validation:
+  - `pnpm --dir app typecheck`: pass
+  - `pnpm --dir app lint`: pass
+  - `pnpm --dir app build`: pass
+  - `node --test src/server/api/video-job-payload.test.ts src/lib/member-video-workflow.test.ts`: pass, 19 tests
+  - `PYTHONPATH=workers/video-worker python3 -m unittest workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_directive_contract.py`: pass, 23 tests
+  - `PYTHONPATH=workers/video-worker uv run python -m unittest discover -s workers/video-worker/tests`: pass, 107 tests
+  - `python3 -m py_compile workers/video-worker/openstoryline/firered/src/open_storyline/mcp/hooks/node_interceptors.py`: pass
+  - `git diff --check`: pass
+- not yet rerun:
+  - 未重新跑一条真实 voice clone 成片。下一条用户上传 M4A 并点击 AI 剪辑后，应重点观察 FireRed 是否出现 `local_asr` -> `generate_script` 使用 ASR 文本 -> `generate_voiceover` 使用 `pixelle_clone`。

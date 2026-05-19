@@ -4,11 +4,11 @@
 
 完成国内化迁移分支最后一段产品链路修复：成员端已拥有 Dify 写回的视频脚本和 draft/variant 时，AI 剪辑直接创建 `video_edit_job`，不再重新调用旧视频脚本制作 Agent。
 
-## 最新状态（2026-05-19 23:15）
+## 最新状态（2026-05-19 23:45）
 
-- 最新 HEAD: `60e0a29`
+- 最新 HEAD: `2b32908`
 - 最新 pushed remote: `gitee/codex/domestic-infra-migration`
-- 当前 ECS release: `/srv/jingjing-domestic/releases/20260519225312-60e0a29`
+- 当前 ECS release: `/srv/jingjing-domestic/releases/20260519233829-2b32908`
 - 成员端默认系统配音真实成片已跑通：`58205b68-db35-4d10-afe8-66dd7f93e4cb`
 - final asset id: `d46c3011-1c75-478a-bdd7-ded911763d76`
 - final object key: `video-results/5bb8381f-1a72-48bc-ab87-d7bbf2740e7c/58205b68-db35-4d10-afe8-66dd7f93e4cb/final.mp4`
@@ -21,6 +21,9 @@
 - latest final object key: `video-results/5bb8381f-1a72-48bc-ab87-d7bbf2740e7c/cfb03f5c-d1a0-422b-8840-047592008a48/final.mp4`
 - latest 本地下载文件：`tmp/video-results/cfb03f5c-d1a0-422b-8840-047592008a48-final.mp4`
 - latest preview/download: app API preview 200, app API download 200。
+- 成员端 M4A 音色上传已修：`.m4a/.mp4` 音频上传强制使用 `audio/mp4`，阿里云 upload intent 验证 HTTP 201。
+- 有 ready `voice_profile` 时，成员端创建 job 会带 `subtitles.talkingHeadSource=asr_original_audio`。
+- FireRed 口播分镜逻辑已改为：成员上传口播素材先 ASR，ASR 文本继续交给 TTS/clone TTS；商家素材库素材不被 ASR 口播逻辑覆盖。
 
 ## 已完成
 
@@ -95,6 +98,9 @@
 - `workers/video-worker/worker/app/db.py`
 - `workers/video-worker/worker/app/processor.py`
 - `workers/video-worker/tests/test_processor_contract.py`
+- `app/src/lib/member-video-workflow.ts`
+- `app/src/lib/member-video-workflow.test.ts`
+- `workers/video-worker/tests/test_firered_node_interceptors.py`
 - `.gitignore`
 - `app/src/server/storage/aliyun-oss-provider.ts`
 
@@ -117,16 +123,24 @@
 - Material library evidence: persisted app input assets `7`，worker runtime assets `11`，material library inputs downloaded `4`。
 - App API preview/download for latest final video: preview 200, download 200, `Content-Type=video/mp4`。
 - RDS `merchant_media_*` table count: `0`。
+- Latest ASR/voice clone contract validation:
+  - `pnpm --dir app typecheck`: pass
+  - `pnpm --dir app lint`: pass
+  - `pnpm --dir app build`: pass
+  - `node --test src/server/api/video-job-payload.test.ts src/lib/member-video-workflow.test.ts`: pass, `19` tests
+  - `PYTHONPATH=workers/video-worker python3 -m unittest workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_directive_contract.py`: pass, `23` tests
+  - `PYTHONPATH=workers/video-worker uv run python -m unittest discover -s workers/video-worker/tests`: pass, `107` tests
+  - M4A upload intent on Aliyun: HTTP 201, provider `aliyun_oss`, upload `Content-Type=audio/mp4`
 
 ## 下一步
 
-1. 用户在页面确认下载按钮不再返回 OSS XML。
-2. 有成员音色时再验证 `voice_profile` 克隆配音。
+1. 用户刷新页面后重新上传 M4A 音色并点击 AI 剪辑。
+2. 盯 FireRed 日志确认 `local_asr` 先识别口播素材，`generate_script` 使用 ASR 文本，`generate_voiceover` 使用 `pixelle_clone`。
 3. 如需继续扩展素材库，沿用 `source_items + asset_objects`，不要补 `merchant_media_*` 历史表。
 
 ## 残余风险
 
 - 浏览器缓存/旧 tab 可能仍加载旧 bundle；服务端 guard 已兜底，但最好刷新页面后再操作。
 - 本次只验证了一条真实 Dify job，符合用户要求；没有扩展成多任务批量回归。
-- 阿里云 normal no-voiceover 已跑通但后续不再作为产品主链路；默认配音已真实跑通，voice clone 仍需真实成片端到端验收。
+- 阿里云 normal no-voiceover 已跑通但后续不再作为产品主链路；默认配音已真实跑通，voice clone 的 ASR->clone TTS 已做契约修复和上传意图验证，仍需真实成片端到端验收。
 - 商家素材库检索已通过一条真实 job 验证，但素材检索打分目前是轻量关键词匹配，后续如要提升准确率，应继续在 `source_items.trace_payload.materialAnalysis` 和脚本素材查询字段上增强，不应回退到 `merchant_media_*`。
