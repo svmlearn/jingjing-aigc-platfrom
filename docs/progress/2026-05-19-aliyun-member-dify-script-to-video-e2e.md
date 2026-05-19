@@ -11,6 +11,8 @@ owner 生成团队本周内容 -> Dify 写回 daily task 视频脚本 -> 成员�
 - 成员端已有 Dify `generatedVideoScript`、`contentDraftId`、`contentVariantId` 时，直接读取 draft bundle、确认 exact variant、创建 `video_edit_job`，不走旧 `/api/content/video-workbench-agent`。
 - `/api/content/video-workbench-agent` 增加服务端防护：如果收到带 Dify 脚本和 draft/variant 的 daily task，返回已有 Dify draft bundle，`trace.mode=dify_daily_task_reuse`，不调用视频脚本制作 Agent。
 - 成员端创建 AI 剪辑时固定 Dify no-voiceover 配置：`voiceover.enabled=false`、`bgm.enabled=false`、`subtitles.enabled=false`、`render.includeOriginalAudio=true`。
+- 追加成员端声音克隆入口：`/member/video/:taskId` 支持成员上传 MP3/音频生成 `voice_profile`；若本任务已有 ready 克隆音色，AI 剪辑会把 `voiceProfileId/refAudioAssetId` 写入 `productionConfig.voiceover`，否则继续走 no-voiceover。
+- 新增 `/api/voice-profiles`、`voice_profiles` PostgreSQL 表、`voice-profiles/*` OSS 上传 prefix、`audio` asset type，并在 video worker input payload 中附带 ref audio asset 引用。
 - FireRed 增加单素材 deterministic grouping fallback，避免单 clip 时卡在 LLM 分组。
 - 阿里云 release 下 FireRed `run.sh` 支持从 `VIDEO_WORKER_HOST_ROOT/firered` 软链 `.storyline`、`resource`、`outputs`，避免 release 切换后运行时模型和素材目录缺失。
 - 对比新加坡运行容器和“服务器环境”包后，同步了 ASR 配置透传、Pexels 私有 base URL 透传、LLM no-proxy client、`dashscope==1.25.17` 等 worker 运行差异；保留阿里云 OSS/PostgreSQL 适配和 `video-results/*` 输出前缀。
@@ -51,6 +53,7 @@ owner 生成团队本周内容 -> Dify 写回 daily task 视频脚本 -> 成员�
 - `pnpm --dir app typecheck` 通过
 - `pnpm --dir app lint` 通过
 - `pnpm --dir app build` 通过
+- `node --test src/server/api/video-job-payload.test.ts src/lib/member-video-workflow.test.ts src/server/api/video-job-public-dto.test.ts` 通过，覆盖 voice profile production config、成员端 preview/download 状态和 public DTO。
 - `bash -n workers/video-worker/openstoryline/firered/run.sh` 通过
 - `python3 -m py_compile ...` changed FireRed/OpenStoryline files 通过
 - `PYTHONPATH=workers/video-worker uv run ... python -m unittest discover -s workers/video-worker/tests` 通过，`104` tests

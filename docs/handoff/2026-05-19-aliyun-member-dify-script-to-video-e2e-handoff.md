@@ -7,6 +7,8 @@
 ## 已完成
 
 - 前端成员端 Dify draft/variant 复用逻辑已提交。
+- 成员端视频任务页已补声音克隆入口：成员可上传 MP3/音频，生成 ready `voice_profile` 后，AI 剪辑会使用该 voice profile 配音；没有 ready 音色时继续走 no-voiceover。
+- 已补 `/api/voice-profiles`、`voice_profiles` PostgreSQL migration、`voice-profiles/*` 上传 prefix、`audio` asset type、worker payload 的 ref audio asset 引用。
 - 服务端 `/api/content/video-workbench-agent` 已增加 Dify daily task 复用保护，防止旧前端 bundle 误打接口后调用脚本 Agent。
 - worker/OpenStoryline/FireRed 已同步新加坡运行容器中的 provider-neutral runtime 差异，同时保留阿里云 OSS/PostgreSQL 差异。
 - 一条真实阿里云 AI 剪辑链路已跑通，产物在 `video-results/*`，preview/download 都是 200。
@@ -25,6 +27,15 @@
 ## 改动文件
 
 - `app/src/components/member/member-workspace.tsx`
+- `app/src/app/api/voice-profiles/route.ts`
+- `app/src/contracts/media.ts`
+- `app/src/contracts/video.ts`
+- `app/src/contracts/voice.ts`
+- `app/src/lib/db/voice-profile-repository.ts`
+- `app/src/server/api/voice-profile-service.ts`
+- `app/src/server/api/video-job-payload.ts`
+- `app/src/server/api/video-edit-jobs-service.ts`
+- `app/db/migrations/202605190002_selfhost_voice_profiles.sql`
 - `app/src/server/api/content-generation-service.ts`
 - `workers/video-worker/openstoryline/app/config.py`
 - `workers/video-worker/openstoryline/app/engine_adapters.py`
@@ -36,6 +47,7 @@
 - `pnpm --dir app typecheck`: pass
 - `pnpm --dir app lint`: pass
 - `pnpm --dir app build`: pass
+- `node --test src/server/api/video-job-payload.test.ts src/lib/member-video-workflow.test.ts src/server/api/video-job-public-dto.test.ts`: pass
 - `bash -n workers/video-worker/openstoryline/firered/run.sh`: pass
 - changed Python `py_compile`: pass
 - `PYTHONPATH=workers/video-worker uv run ... python -m unittest discover -s workers/video-worker/tests`: pass, `104` tests
@@ -52,4 +64,4 @@
 
 - 浏览器缓存/旧 tab 可能仍加载旧 bundle；服务端 guard 已兜底，但最好刷新页面后再操作。
 - 本次只验证了一条真实 Dify job，符合用户要求；没有扩展成多任务批量回归。
-- 阿里云环境使用 no-voiceover 配置，已跑通 normal no-voiceover；voiceover/ASR 后续仍需单独验收。
+- 阿里云 normal no-voiceover 已跑通；本次补了成员端 voice profile 上传和 job payload，仍需用真实 MP3 触发一条 voice clone AI 剪辑做端到端验收。
