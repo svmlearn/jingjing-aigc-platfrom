@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/app/dashboard-shell";
+import { isDomesticSessionEnabled } from "@/lib/auth/domestic-session";
+import { getAuthenticatedUser } from "@/lib/auth/current-user";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import {
   createSupabaseServerClient,
@@ -18,8 +20,15 @@ export default async function DashboardLayout({
 }
 
 async function requireMerchantAccess() {
-  if (!isSupabasePublicConfigured()) {
-    redirect("/login?error=supabase-not-configured&next=/dashboard");
+  if (isDomesticSessionEnabled() || !isSupabasePublicConfigured()) {
+    try {
+      const user = await getAuthenticatedUser();
+      await getOperationalMerchantProfileByOwnerUserId(user.id);
+    } catch {
+      redirect("/login?error=unauthenticated&next=/dashboard");
+    }
+
+    return;
   }
 
   const supabase = await createSupabaseServerClient();

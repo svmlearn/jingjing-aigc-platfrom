@@ -193,7 +193,7 @@ class SplitShotsConfig(ConfigBaseModel):
 
 
 class ASRConfig(ConfigBaseModel):
-    provider: str = "local_funasr"
+    provider: str = "aliyun_paraformer"
     model: str = "paraformer-realtime-v2"
     api_key: str = ""
     workspace: str = ""

@@ -130,7 +130,7 @@ class LocalASRNode(BaseNode):
             inputs.get("provider")
             or os.getenv("OPENSTORYLINE_ASR_PROVIDER")
             or getattr(cfg, "provider", None)
-            or "local_funasr"
+            or "aliyun_paraformer"
         )
         return str(provider).strip().lower()
 

@@ -58,9 +58,15 @@ class GenerateScriptNode(BaseNode):
             node_state.node_summary.info_for_user("no available group, cannot generate script")
             return {"group_scripts": [], 'title': ""}
 
+        locked_script = _extract_locked_script_request(user_request)
+        if locked_script:
+            node_state.node_summary.info_for_user("Using locked script without LLM regeneration")
+            return _build_locked_script_result(locked_script, groups)
+
         custom_script = inputs.get("custom_script", {})
         if len(custom_script) > 0:
             try:
+                custom_script = _normalize_custom_script_payload(custom_script, groups)
                 custom_output = _normalize_custom_script(custom_script)
                 node_state.node_summary.info_for_user(
                     f"Using locked custom script for {len(custom_output.get('group_scripts', []))} group(s)"
@@ -300,6 +306,134 @@ def _extract_group_text_map(obj: Any, group_ids: list[str]) -> dict[str, str]:
         return out
 
     raise ValueError("Unable to recognize LLM output structure")
+
+
+_LOCKED_SCRIPT_MARKER = "Use the locked script:"
+
+
+def _extract_locked_script_request(user_request: Any) -> str:
+    if not isinstance(user_request, str):
+        return ""
+    marker_index = user_request.find(_LOCKED_SCRIPT_MARKER)
+    if marker_index < 0:
+        return ""
+    return user_request[marker_index + len(_LOCKED_SCRIPT_MARKER):].strip()
+
+
+def _build_locked_script_result(
+    locked_script: str,
+    groups: list[dict[str, Any]],
+) -> dict[str, Any]:
+    group_ids = [group.get("group_id", "") for group in groups or [] if group.get("group_id")]
+    if not group_ids or not locked_script.strip():
+        return {"group_scripts": [], "title": ""}
+
+    chunks = _split_locked_script_for_groups(locked_script, len(group_ids))
+    group_scripts: list[dict[str, Any]] = []
+    subtitle_index = 1
+
+    for index, group_id in enumerate(group_ids):
+        raw_text = chunks[index] if index < len(chunks) else locked_script
+        raw_text = raw_text.strip() or locked_script.strip()
+        units, subtitle_index = _make_subtitle_units(
+            raw_text=raw_text,
+            subtitle_start_index=subtitle_index,
+        )
+        group_scripts.append(
+            {
+                "group_id": group_id,
+                "raw_text": raw_text,
+                "subtitle_units": units,
+            }
+        )
+
+    return {
+        "group_scripts": group_scripts,
+        "title": _locked_script_title(locked_script),
+    }
+
+
+def _split_locked_script_for_groups(locked_script: str, group_count: int) -> list[str]:
+    if group_count <= 1:
+        return [locked_script.strip()]
+
+    scene_blocks = [
+        block.strip()
+        for block in re.split(r"(?=Scene\s+\d+\s*\|)", locked_script)
+        if block.strip()
+    ]
+    blocks = scene_blocks or [
+        block.strip()
+        for block in re.split(r"\n\s*\n+", locked_script)
+        if block.strip()
+    ]
+    if len(blocks) < group_count:
+        return [locked_script.strip() for _ in range(group_count)]
+
+    chunks = ["" for _ in range(group_count)]
+    for index, block in enumerate(blocks):
+        target_index = min(index, group_count - 1)
+        chunks[target_index] = "\n\n".join(
+            part for part in (chunks[target_index], block) if part
+        )
+    return chunks
+
+
+def _locked_script_title(locked_script: str) -> str:
+    first_line = next(
+        (line.strip() for line in locked_script.splitlines() if line.strip()),
+        "",
+    )
+    return first_line[:80]
+
+
+def _normalize_custom_script_payload(
+    custom_script: dict[str, Any],
+    groups: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if not isinstance(custom_script, dict) or "group_scripts" in custom_script:
+        return custom_script
+
+    subtitle_units = custom_script.get("subtitle_units")
+    if not isinstance(subtitle_units, list) or not subtitle_units:
+        return custom_script
+
+    raw_text = _subtitle_units_to_raw_text(subtitle_units)
+    if not raw_text:
+        return custom_script
+
+    return {
+        "title": str(custom_script.get("title") or ""),
+        "group_scripts": _group_scripts_from_raw_text(raw_text, groups),
+    }
+
+
+def _subtitle_units_to_raw_text(subtitle_units: list[Any]) -> str:
+    parts: list[str] = []
+    for unit in subtitle_units:
+        if not isinstance(unit, dict):
+            continue
+        text = unit.get("text") or unit.get("subtitle")
+        if isinstance(text, str) and text.strip():
+            parts.append(text.strip())
+    return "，".join(parts)
+
+
+def _group_scripts_from_raw_text(
+    raw_text: str,
+    groups: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    group_ids = [group.get("group_id", "") for group in groups or [] if group.get("group_id")]
+    if not group_ids:
+        return []
+    chunks = _split_locked_script_for_groups(raw_text, len(group_ids))
+    return [
+        {
+            "group_id": group_id,
+            "raw_text": (chunks[index] if index < len(chunks) else raw_text).strip() or raw_text,
+        }
+        for index, group_id in enumerate(group_ids)
+    ]
 
 
 _SPLIT_RE = re.compile(r"[，,。.！!?？]+")

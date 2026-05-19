@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from .config import Settings
-from .cos_client import TencentCosClient
+from .cos_client import ObjectStorageClient
 from .db import VideoJobRepository
 from .openstoryline_client import OpenStorylineClient
 from .poller import VideoWorkerPoller
@@ -33,8 +33,8 @@ def main() -> None:
             settings.worker_output_root,
         ]
     )
-    repository = VideoJobRepository(settings.supabase_db_url)
-    cos_client = TencentCosClient(settings)
+    repository = VideoJobRepository(settings.database_url, worker_id=settings.worker_id)
+    cos_client = ObjectStorageClient(settings)
     openstoryline_client = OpenStorylineClient(settings)
     logging.getLogger("video-worker").info(
         "OpenStoryline healthcheck: %s",

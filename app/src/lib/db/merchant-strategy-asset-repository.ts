@@ -1,9 +1,14 @@
 import "server-only";
 
 import type { MerchantStrategyAssetDto, StrategySnapshotDto } from "@/contracts/consultation";
+import {
+  isAppPostgresConfigured,
+  isAppPostgresPreferred,
+  mapPostgresError,
+  queryAppDb,
+} from "@/lib/server-db/postgres";
 import { emptyStrategySnapshot, toStrategySnapshot } from "@/lib/strategy-snapshot";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
-import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { ApiError } from "@/server/api/errors";
 
 type MerchantStrategyAssetRow = {
@@ -12,9 +17,11 @@ type MerchantStrategyAssetRow = {
   strategy_markdown: string | null;
   canonical_snapshot: Record<string, unknown> | null;
   compiled_context: Record<string, unknown> | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
+
+const demoMerchantStrategyAssets = new Map<string, MerchantStrategyAssetDto>();
 
 export async function getMerchantStrategyAsset(
   merchantId: string,
@@ -27,8 +34,26 @@ export async function getMerchantStrategyAsset(
 export async function getMerchantStrategyAssetDocument(
   merchantId: string,
 ): Promise<MerchantStrategyAssetDto | null> {
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
+  if (shouldUseAppPostgres()) {
+    try {
+      const result = await queryAppDb<MerchantStrategyAssetRow>(
+        `
+        select ${merchantStrategyAssetSelect}
+        from public.merchant_strategy_assets
+        where merchant_id = $1
+        limit 1
+        `,
+        [merchantId],
+      );
+
+      return result.rows[0] ? mapMerchantStrategyAsset(result.rows[0]) : null;
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_STRATEGY_ASSET_FETCH_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
+    return demoMerchantStrategyAssets.get(merchantId) ?? null;
   }
 
   const supabase = createSupabaseAdminClient();
@@ -64,8 +89,62 @@ export async function upsertMerchantStrategyAssetDocument(input: {
   canonicalSnapshot?: Record<string, unknown> | null;
   compiledContext?: Record<string, unknown> | null;
 }): Promise<MerchantStrategyAssetDto> {
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
+  if (shouldUseAppPostgres()) {
+    try {
+      const existing = await getMerchantStrategyAssetDocument(input.merchantId);
+      const strategyMarkdown =
+        normalizeStrategyMarkdown(input.strategyMarkdown) ||
+        existing?.strategyMarkdown ||
+        buildStrategyAssetMarkdown(input.strategySnapshot);
+      const compiledContext = input.compiledContext ?? existing?.compiledContext ?? null;
+      const result = await queryAppDb<MerchantStrategyAssetRow>(
+        `
+        insert into public.merchant_strategy_assets (
+          merchant_id,
+          strategy_snapshot,
+          strategy_markdown,
+          canonical_snapshot,
+          compiled_context
+        ) values ($1, $2::jsonb, $3, $4::jsonb, $5::jsonb)
+        on conflict (merchant_id) do update
+        set strategy_snapshot = excluded.strategy_snapshot,
+            strategy_markdown = excluded.strategy_markdown,
+            canonical_snapshot = excluded.canonical_snapshot,
+            compiled_context = excluded.compiled_context,
+            updated_at = timezone('utc', now())
+        returning ${merchantStrategyAssetSelect}
+        `,
+        [
+          input.merchantId,
+          JSON.stringify(input.strategySnapshot),
+          strategyMarkdown,
+          JSON.stringify(input.canonicalSnapshot ?? input.strategySnapshot),
+          compiledContext === null ? null : JSON.stringify(compiledContext),
+        ],
+      );
+
+      return mapMerchantStrategyAsset(result.rows[0]);
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_STRATEGY_ASSET_UPSERT_FAILED");
+    }
+  }
+
+  if (shouldUseDemoFallback()) {
+    const now = new Date().toISOString();
+    const current = demoMerchantStrategyAssets.get(input.merchantId);
+    const asset: MerchantStrategyAssetDto = {
+      merchantId: input.merchantId,
+      strategySnapshot: input.strategySnapshot,
+      strategyMarkdown:
+        normalizeStrategyMarkdown(input.strategyMarkdown) ||
+        current?.strategyMarkdown ||
+        buildStrategyAssetMarkdown(input.strategySnapshot),
+      canonicalSnapshot: input.canonicalSnapshot ?? input.strategySnapshot,
+      compiledContext: input.compiledContext ?? current?.compiledContext ?? null,
+      updatedAt: now,
+    };
+    demoMerchantStrategyAssets.set(input.merchantId, asset);
+    return asset;
   }
 
   const supabase = createSupabaseAdminClient();
@@ -159,7 +238,7 @@ function mapMerchantStrategyAsset(row: MerchantStrategyAssetRow): MerchantStrate
     strategyMarkdown,
     canonicalSnapshot: row.canonical_snapshot ?? strategySnapshot,
     compiledContext: row.compiled_context ?? null,
-    updatedAt: row.updated_at,
+    updatedAt: toIsoString(row.updated_at),
   };
 }
 
@@ -177,6 +256,18 @@ function normalizeStrategyMarkdown(value?: string | null) {
   const normalized = value?.replace(/\r\n/g, "\n").trim();
 
   return normalized ? normalized.slice(0, 24000) : "";
+}
+
+function shouldUseAppPostgres() {
+  return isAppPostgresConfigured() && isAppPostgresPreferred();
+}
+
+function shouldUseDemoFallback() {
+  return !shouldUseAppPostgres() && !isSupabaseAdminConfigured();
+}
+
+function toIsoString(value: string | Date) {
+  return value instanceof Date ? value.toISOString() : value;
 }
 
 function markdownSection(title: string, body: string) {

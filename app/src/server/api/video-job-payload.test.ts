@@ -69,7 +69,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     selectionMode: "user_confirmed",
     fallbackMode: null,
     excludedAssetIds: [],
-    userTalkingHeadAssetIds: ["asset-1"],
+    userTalkingHeadAssetIds: [],
     merchantMediaCandidateCount: 0,
     merchantMediaMatches: [],
     missingVideoAssetHints: [],
@@ -106,6 +106,28 @@ test("buildVideoEditJobInputPayload adds default production config", () => {
     subtitles: { enabled: true, style: "platform_default" },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
   });
+});
+
+test("buildVideoEditJobInputPayload keeps non-talking-head jobs on script subtitles", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      productionScenes: [
+        {
+          sceneNo: 1,
+          shotRequirement: "Project entrance with nearby shops",
+          visual: "Show entrance and shops",
+        },
+      ],
+    },
+    materialReferences: [],
+    assets: [],
+  });
+
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, undefined);
+  assert.equal(payload.productionConfig.render.preserveTalkingHeadOriginalAudio, undefined);
+  assert.equal(payload.productionConfig.render.includeOriginalAudio, false);
 });
 
 test("buildVideoEditJobInputPayload requires at least one user talking-head draft video when enabled", () => {
@@ -162,6 +184,17 @@ test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merch
 
   assert.deepEqual(payload.input_assets.map((asset) => asset.asset_id), ["user-head-1"]);
   assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["user-head-1"]);
+  assert.equal(payload.input_assets[0]?.role, "talking_head");
+  assert.deepEqual(payload.productionConfig.subtitles, {
+    enabled: true,
+    style: "platform_default",
+    talkingHeadSource: "asr_original_audio",
+  });
+  assert.deepEqual(payload.productionConfig.render, {
+    aspectRatio: "9:16",
+    includeOriginalAudio: true,
+    preserveTalkingHeadOriginalAudio: true,
+  });
   assert.equal(payload.materialContext.merchantMediaCandidateCount, 1);
   assert.deepEqual(payload.materialContext.merchantMediaMatches, [
     {
@@ -267,6 +300,110 @@ test("buildVideoEditJobInputPayload marks intro/outro scenes as user talking hea
       { sceneNo: 2, clipIds: ["merchant-clip-entrance"] },
     ],
   );
+});
+
+test("buildVideoEditJobInputPayload accepts Aliyun OSS input assets", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [
+      {
+        id: "reference-1",
+        materialItemId: "material-1",
+      },
+    ],
+    assets: [
+      {
+        id: "asset-aliyun-1",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/demo.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+      },
+    ],
+    now: "2026-05-18T00:00:00.000Z",
+  });
+
+  assert.equal(payload.input_assets[0]?.storage_provider, "aliyun_oss");
+  assert.equal(payload.input_assets[0]?.bucket_name, "jingjing-domestic-phase1-hz");
+  assert.equal(payload.render_mode, "asset_driven");
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, undefined);
+  assert.equal(payload.productionConfig.render.includeOriginalAudio, false);
+});
+
+test("buildVideoEditJobInputPayload accepts Aliyun OSS user talking-head assets", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [
+      {
+        id: "asset-aliyun-head-1",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/merchant-1/draft-1/opening-talking-head.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+      },
+    ],
+    requireUserTalkingHead: true,
+    now: "2026-05-18T00:00:00.000Z",
+  });
+
+  assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["asset-aliyun-head-1"]);
+  assert.equal(payload.input_assets[0]?.storage_provider, "aliyun_oss");
+  assert.equal(payload.input_assets[0]?.role, "talking_head");
+  assert.deepEqual(payload.input_assets[0]?.metadata, {
+    content_type: "talking_head",
+    audio_source: "original_video_audio",
+    subtitle_source: "asr_original_audio",
+  });
+  assert.deepEqual(payload.productionConfig.subtitles, {
+    enabled: true,
+    style: "platform_default",
+    talkingHeadSource: "asr_original_audio",
+  });
+  assert.deepEqual(payload.productionConfig.render, {
+    aspectRatio: "9:16",
+    includeOriginalAudio: true,
+    preserveTalkingHeadOriginalAudio: true,
+  });
+});
+
+test("buildVideoEditJobInputPayload defaults structured talking-head assets to original-audio ASR", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [
+      {
+        id: "asset-structured-head-1",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "source-assets/merchant-1/asset-structured-head-1/source.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+        role: "talking_head",
+      },
+    ],
+    now: "2026-05-18T00:00:00.000Z",
+  });
+
+  assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["asset-structured-head-1"]);
+  assert.equal(payload.input_assets[0]?.role, "talking_head");
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "asr_original_audio");
+  assert.equal(payload.productionConfig.render.preserveTalkingHeadOriginalAudio, true);
+  assert.equal(payload.productionConfig.render.includeOriginalAudio, true);
 });
 
 test("buildVideoEditJobInputPayload normalizes production config overrides", () => {
@@ -430,7 +567,7 @@ test("buildVideoEditJobInputPayload rejects bad COS input assets", () => {
   );
 });
 
-test("buildVideoEditJobInputPayload rejects non-COS input assets", () => {
+test("buildVideoEditJobInputPayload rejects unsupported input asset providers", () => {
   assert.throws(
     () =>
       buildVideoEditJobInputPayload({

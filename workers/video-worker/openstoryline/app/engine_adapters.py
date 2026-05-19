@@ -40,6 +40,9 @@ TALKING_HEAD_SCRIPT_TOKENS = (
     "出镜讲解",
     "人物讲解",
 )
+ALIYUN_ASR_PROVIDER = "aliyun_paraformer"
+ALIYUN_ASR_PROVIDER_ALIASES = {"aliyun", "aliyun_paraformer", "dashscope", "dashscope_paraformer"}
+LOCAL_ASR_PROVIDER_ALIASES = {"local", "local_funasr", "funasr"}
 
 
 class UnsupportedEngineAdapterError(RuntimeError):
@@ -380,6 +383,13 @@ def _build_fire_red_run_payload(
         production_config,
         request,
     )
+    _assert_original_audio_asr_ready(settings, production_config)
+    service_config = _build_fire_red_service_config(settings, production_config)
+    if _is_worker_rehearsal_fast_path(request):
+        service_config = {
+            **service_config,
+            "worker_rehearsal_fast_path": True,
+        }
     payload = {
         "job_id": request.job_id,
         "merchant_id": request.merchant_id,
@@ -392,7 +402,7 @@ def _build_fire_red_run_payload(
         "script_text": request.script_text,
         "production_directive": directive,
         "production_config": production_config,
-        "service_config": _build_fire_red_service_config(settings, production_config),
+        "service_config": service_config,
         "runtime_payload": request.runtime_payload,
         "desired_outputs": desired_outputs,
         "input_assets": [
@@ -401,6 +411,12 @@ def _build_fire_red_run_payload(
         "prompt": _build_fire_red_prompt(request, desired_outputs, production_config),
     }
     return payload
+
+
+def _is_worker_rehearsal_fast_path(request: RunRequest) -> bool:
+    if request.execution_mode == "self_hosted_rehearsal_fast_path":
+        return True
+    return request.runtime_payload.get("self_hosted_rehearsal_fast_path") is True
 
 
 def _build_fire_red_service_config(
@@ -420,7 +436,7 @@ def _build_fire_red_service_config(
         }
 
     if settings.asr_provider:
-        asr_provider = str(settings.asr_provider).strip()
+        asr_provider = _normalized_asr_provider(settings.asr_provider)
         asr_provider_config = _compact_dict(
             {
                 "model": settings.aliyun_asr_model,
@@ -511,13 +527,51 @@ def _build_fire_red_service_config(
         fallback_config = {}
 
     service_config["tts"] = {
-            "provider": provider,
-            provider: provider_config,
-        }
+        "provider": provider,
+        provider: provider_config,
+    }
     if provider == "minimax" and fallback_config:
         service_config["tts"]["fallback_provider"] = "runninghub"
         service_config["tts"]["runninghub"] = fallback_config
     return service_config
+
+
+def _assert_original_audio_asr_ready(
+    settings: Settings,
+    production_config: dict[str, object],
+) -> None:
+    if not _requires_original_audio_asr(production_config):
+        return
+
+    provider = _normalized_asr_provider(settings.asr_provider)
+    if provider != ALIYUN_ASR_PROVIDER:
+        raise UnsupportedEngineAdapterError(
+            "talking-head original-audio subtitles require OPENSTORYLINE_ASR_PROVIDER=aliyun_paraformer; "
+            f"got {provider or '(empty)'}."
+        )
+    if not str(settings.aliyun_asr_api_key or "").strip():
+        raise UnsupportedEngineAdapterError(
+            "talking-head original-audio subtitles require ALIYUN_ASR_API_KEY or DASHSCOPE_API_KEY."
+        )
+
+
+def _requires_original_audio_asr(production_config: dict[str, object]) -> bool:
+    subtitles = production_config.get("subtitles")
+    if not isinstance(subtitles, dict):
+        return False
+    source = (
+        subtitles.get("talking_head_source")
+        or subtitles.get("talkingHeadSource")
+        or subtitles.get("source")
+    )
+    return str(source or "").strip().lower() == "asr_original_audio"
+
+
+def _normalized_asr_provider(value: object) -> str:
+    provider = str(value or "").strip().lower()
+    if provider in {"aliyun", "dashscope", "dashscope_paraformer"}:
+        return ALIYUN_ASR_PROVIDER
+    return provider
 
 
 def _with_talking_head_audio_policy(
@@ -662,9 +716,9 @@ def _build_fire_red_prompt(
     return "\n".join(
         [
             "You are the FireRed OpenStoryline production engine for a locked worker job.",
-            "This is an unattended background worker run, not an interactive chat.",
-            "Approval to execute has already been granted by the caller.",
-            "Do not ask for confirmation and do not stop after presenting a plan.",
+            "This is an unattended background worker run.",
+            "Approval to execute has already been granted by the platform.",
+            "Do not ask for confirmation; execute the required production tools directly.",
             "Use the uploaded media in this session and render a final video.",
             "Do not rewrite the locked script unless ProductionDirective explicitly allows it.",
             "The final step must produce a render_video artifact.",

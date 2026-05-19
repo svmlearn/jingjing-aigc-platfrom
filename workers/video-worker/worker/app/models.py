@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
+
+
+SUPPORTED_STORAGE_PROVIDERS = frozenset({"tencent_cos", "aliyun_oss"})
 
 
 class InputAssetContractError(ValueError):
@@ -14,6 +17,7 @@ class InputAssetContractError(ValueError):
 @dataclass(frozen=True)
 class InputAsset:
     asset_type: str
+    storage_provider: str
     bucket_name: str
     storage_key: str
     file_name: str
@@ -24,13 +28,22 @@ class InputAsset:
     metadata: dict[str, Any] | None = None
 
     @classmethod
-    def from_payload(cls, payload: dict[str, Any], default_bucket: str) -> "InputAsset":
-        _validate_storage_provider(payload.get("storage_provider"))
+    def from_payload(
+        cls,
+        payload: dict[str, Any],
+        default_buckets: str | Mapping[str, str],
+        default_storage_provider: str = "aliyun_oss",
+    ) -> "InputAsset":
+        storage_provider = _storage_provider(
+            payload.get("storage_provider"),
+            default_storage_provider=default_storage_provider,
+        )
         storage_key = _required_string(payload, "storage_key")
         file_name = _safe_file_name(payload.get("file_name") or Path(storage_key).name)
         return cls(
             asset_type=str(payload.get("asset_type", "video")),
-            bucket_name=_bucket_name(payload, default_bucket),
+            storage_provider=storage_provider,
+            bucket_name=_bucket_name(payload, default_buckets, storage_provider),
             storage_key=storage_key,
             file_name=file_name,
             role=_optional_string(payload.get("role")),
@@ -46,6 +59,7 @@ class InputAsset:
 @dataclass(frozen=True)
 class UploadedAsset:
     asset_type: str
+    storage_provider: str
     bucket_name: str
     storage_key: str
     mime_type: str
@@ -91,7 +105,11 @@ class VideoJob:
             retry_count=int(record.get("retry_count") or 0),
         )
 
-    def input_assets(self, default_bucket: str) -> list[InputAsset]:
+    def input_assets(
+        self,
+        default_buckets: str | Mapping[str, str],
+        default_storage_provider: str = "aliyun_oss",
+    ) -> list[InputAsset]:
         if not isinstance(self.input_payload, dict):
             raise InputAssetContractError("input_payload must be an object")
         raw_assets = (
@@ -104,7 +122,14 @@ class VideoJob:
         for item in raw_assets:
             if not isinstance(item, dict):
                 raise InputAssetContractError("each input asset must be an object")
-        return [InputAsset.from_payload(item, default_bucket) for item in raw_assets]
+        return [
+            InputAsset.from_payload(
+                item,
+                default_buckets,
+                default_storage_provider=default_storage_provider,
+            )
+            for item in raw_assets
+        ]
 
     def output_object_key(self, asset_type: str, result_prefix: str = "video-results") -> str:
         root = result_prefix.strip("/") or "video-results"
@@ -123,18 +148,33 @@ def _required_string(payload: dict[str, Any], key: str) -> str:
     return value.strip()
 
 
-def _validate_storage_provider(value: Any) -> None:
+def _storage_provider(value: Any, *, default_storage_provider: str = "aliyun_oss") -> str:
     if value is None:
-        return
-    if not isinstance(value, str) or value.strip().lower() != "tencent_cos":
+        normalized_default = str(default_storage_provider or "aliyun_oss").strip().lower()
+        if normalized_default in SUPPORTED_STORAGE_PROVIDERS:
+            return normalized_default
+        return "aliyun_oss"
+    if not isinstance(value, str):
         raise InputAssetContractError(
-            "input asset storage_provider must be tencent_cos"
+            "input asset storage_provider must be tencent_cos or aliyun_oss"
         )
+    normalized = value.strip().lower()
+    if normalized in SUPPORTED_STORAGE_PROVIDERS:
+        return normalized
+    raise InputAssetContractError(
+        "input asset storage_provider must be tencent_cos or aliyun_oss"
+    )
 
 
-def _bucket_name(payload: dict[str, Any], default_bucket: str) -> str:
+def _bucket_name(
+    payload: dict[str, Any],
+    default_buckets: str | Mapping[str, str],
+    storage_provider: str,
+) -> str:
     if "bucket_name" not in payload or payload.get("bucket_name") is None:
-        return default_bucket
+        if isinstance(default_buckets, str):
+            return default_buckets
+        return str(default_buckets.get(storage_provider) or "")
     value = payload["bucket_name"]
     if not isinstance(value, str) or not value.strip():
         raise InputAssetContractError("input asset bucket_name must be a string")

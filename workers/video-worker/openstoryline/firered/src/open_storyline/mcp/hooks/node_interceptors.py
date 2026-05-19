@@ -46,6 +46,9 @@ _TALKING_HEAD_SCRIPT_TOKENS = (
 )
 _ASR_ORIGINAL_AUDIO_MODE = "asr_original_audio"
 _ORIGINAL_VIDEO_AUDIO_SOURCE = "original_video_audio"
+_ALIYUN_ASR_PROVIDER = "aliyun_paraformer"
+_ALIYUN_ASR_PROVIDER_ALIASES = {"aliyun", "aliyun-paraformer", "dashscope", "dashscope-paraformer"}
+_LOCAL_ASR_PROVIDER_ALIASES = {"local", "local-funasr", "funasr"}
 _ASSET_METADATA_KEYS = (
     "asset_id",
     "asset_type",
@@ -282,6 +285,61 @@ def _worker_payload_talking_head_subtitles_from_asr(worker_payload: Any) -> bool
     return str(source or "").strip().lower() == _ASR_ORIGINAL_AUDIO_MODE
 
 
+def _normalized_asr_provider(value: Any) -> str:
+    provider = _normalize_token(value)
+    if provider in _ALIYUN_ASR_PROVIDER_ALIASES:
+        return _ALIYUN_ASR_PROVIDER
+    return provider
+
+
+def _asr_config_provider(asr_config: Any) -> str:
+    if not isinstance(asr_config, dict):
+        return _normalized_asr_provider(os.getenv("OPENSTORYLINE_ASR_PROVIDER"))
+    return _normalized_asr_provider(
+        asr_config.get("provider") or os.getenv("OPENSTORYLINE_ASR_PROVIDER")
+    )
+
+
+def _asr_config_api_key(asr_config: Any) -> str:
+    if not isinstance(asr_config, dict):
+        return str(os.getenv("ALIYUN_ASR_API_KEY") or os.getenv("DASHSCOPE_API_KEY") or "").strip()
+
+    provider = _asr_config_provider(asr_config)
+    provider_cfg = asr_config.get(provider)
+    if not isinstance(provider_cfg, dict):
+        provider_cfg = asr_config.get(_ALIYUN_ASR_PROVIDER)
+    if not isinstance(provider_cfg, dict):
+        provider_cfg = {}
+    return str(
+        provider_cfg.get("api_key")
+        or asr_config.get("api_key")
+        or os.getenv("ALIYUN_ASR_API_KEY")
+        or os.getenv("DASHSCOPE_API_KEY")
+        or ""
+    ).strip()
+
+
+def _assert_original_audio_asr_config(context: Any) -> None:
+    worker_payload = getattr(context, "worker_payload", None)
+    if not _worker_payload_talking_head_subtitles_from_asr(worker_payload):
+        return
+
+    asr_config = getattr(context, "asr_config", None)
+    provider = _asr_config_provider(asr_config)
+    if provider in _LOCAL_ASR_PROVIDER_ALIASES:
+        raise ToolException(
+            "talking-head original-audio subtitles require aliyun_paraformer; local FunASR fallback is disabled"
+        )
+    if provider != _ALIYUN_ASR_PROVIDER:
+        raise ToolException(
+            f"talking-head original-audio subtitles require aliyun_paraformer; got {provider or '(empty)'}"
+        )
+    if not _asr_config_api_key(asr_config):
+        raise ToolException(
+            "talking-head original-audio subtitles require ALIYUN_ASR_API_KEY or DASHSCOPE_API_KEY"
+        )
+
+
 def _with_required_original_audio_asr(
     require_kind: Any,
     node_id: str,
@@ -294,6 +352,37 @@ def _with_required_original_audio_asr(
     if _worker_payload_talking_head_subtitles_from_asr(worker_payload) and "asr" not in result:
         result.append("asr")
     return result
+
+
+def _worker_payload_bgm_enabled(worker_payload: Any) -> bool:
+    if not isinstance(worker_payload, dict):
+        return False
+    production_config = worker_payload.get("production_config")
+    if not isinstance(production_config, dict):
+        return True
+    bgm = production_config.get("bgm")
+    return not (isinstance(bgm, dict) and bgm.get("enabled") is False)
+
+
+def _with_disabled_optional_kinds_removed(
+    require_kind: Any,
+    node_id: str,
+    context: Any,
+) -> list[str]:
+    result = _with_required_original_audio_asr(require_kind, node_id, context)
+    if node_id not in {"plan_timeline", "plan_timeline_pro"}:
+        return result
+
+    worker_payload = getattr(context, "worker_payload", None)
+    disabled_kinds: set[str] = set()
+    if not _worker_payload_voiceover_enabled(worker_payload):
+        disabled_kinds.add("tts")
+    if not _worker_payload_bgm_enabled(worker_payload):
+        disabled_kinds.add("music_rec")
+
+    if not disabled_kinds:
+        return result
+    return [kind for kind in result if kind not in disabled_kinds]
 
 
 def _group_ids_from_groups(groups: Any) -> list[str]:
@@ -440,6 +529,7 @@ def _build_custom_script_from_worker_payload(
     asr_infos = _get_nested_value(asr, "asr_infos")
     clip_lookup = _clip_lookup_from_split_shots(split_shots)
     payload_assets_by_media_id = _payload_asset_by_media_id(payload)
+    voiceover_enabled = _worker_payload_voiceover_enabled(payload)
 
     group_scripts = []
     for index, group_id in enumerate(group_ids):
@@ -459,8 +549,16 @@ def _build_custom_script_from_worker_payload(
             "source_clip_ids": group_clip_ids,
             "source_duration_ms": source_duration_ms,
             "subtitle_source": "locked_script",
-            "audio_source": "voiceover",
+            "audio_source": "voiceover" if voiceover_enabled else _ORIGINAL_VIDEO_AUDIO_SOURCE,
         }
+        if not voiceover_enabled:
+            group_script.update(
+                {
+                    "skip_voiceover": True,
+                    "voiceover_enabled": False,
+                    "preserve_clip_duration": True,
+                }
+            )
         if use_asr_for_talking_head and is_talking_head_group:
             asr_text = _asr_text_for_group(group, asr_infos)
             if not asr_text:
@@ -560,7 +658,7 @@ def _worker_payload_voiceover_enabled(worker_payload: Any) -> bool:
         return False
     production_config = worker_payload.get("production_config")
     if not isinstance(production_config, dict):
-        return False
+        return True
     voiceover = production_config.get("voiceover")
     return not (isinstance(voiceover, dict) and voiceover.get("enabled") is False)
 
@@ -750,7 +848,7 @@ class ToolInterceptor:
                     if is_skip_mode
                     else meta_collector.id_to_require_prior_kind[node_id]
                 )
-                require_kind = _with_required_original_audio_asr(require_kind, node_id, context)
+                require_kind = _with_disabled_optional_kinds_removed(require_kind, node_id, context)
 
                 # 2. Check if node is executable
                 collect_result = meta_collector.check_excutable(session_id, store, require_kind)
@@ -845,7 +943,7 @@ class ToolInterceptor:
                         }
 
                         # Verify dependencies for this node
-                        default_require = _with_required_original_audio_asr(
+                        default_require = _with_disabled_optional_kinds_removed(
                             meta_collector.id_to_default_require_prior_kind[miss_id],
                             miss_id,
                             context,
@@ -1028,7 +1126,7 @@ class ToolInterceptor:
                             for key, value in provider_cfg.items():
                                 if value is None:
                                     continue
-                                normalized = value.strip() if isinstance(value, str) else value
+                                normalized = str(value).strip()
                                 args.setdefault(key, normalized)
                                 provider_keys.setdefault(key, normalized)
                         fallback_provider = str(
@@ -1079,6 +1177,11 @@ class ToolInterceptor:
         before invoking the ASR node.
         - asr_config: {"provider": "aliyun_paraformer", "aliyun_paraformer": {...}}
         """
+        runtime = getattr(request, "runtime", None)
+        ctx = getattr(runtime, "context", None) if runtime else None
+        if ctx is not None:
+            _assert_original_audio_asr_config(ctx)
+
         return await ToolInterceptor._inject_provider_config(
             request,
             handler,

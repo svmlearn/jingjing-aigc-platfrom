@@ -377,7 +377,7 @@ export const mediaCompleteSchema = z.object({
   ownerType: mediaOwnerTypeSchema,
   ownerId: z.uuid(),
   assetType: mediaAssetTypeSchema,
-  storageProvider: z.enum(["tencent_cos", "supabase_storage"]),
+  storageProvider: z.enum(["tencent_cos", "aliyun_oss", "supabase_storage"]),
   bucketName: z.string().trim().max(120).nullish(),
   storageKey: z.string().trim().min(1).max(1000),
   mimeType: z.string().trim().max(200).nullish(),
@@ -478,6 +478,7 @@ const productionConfigSchema = z
       .object({
         enabled: z.boolean().optional(),
         style: z.enum(["platform_default", "bold_caption"]).optional(),
+        talkingHeadSource: z.enum(["script", "asr_original_audio"]).optional(),
       })
       .strict()
       .optional(),
@@ -486,6 +487,7 @@ const productionConfigSchema = z
         aspectRatio: z.literal("9:16").optional(),
         maxDurationSeconds: z.number().int().min(15).max(180).nullish(),
         includeOriginalAudio: z.boolean().optional(),
+        preserveTalkingHeadOriginalAudio: z.boolean().optional(),
       })
       .strict()
       .optional(),

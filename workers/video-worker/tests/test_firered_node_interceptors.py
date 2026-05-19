@@ -160,22 +160,6 @@ class RunninghubFallbackContext:
     worker_payload = None
 
 
-class AsrContext:
-    tts_config = {}
-    asr_config = {
-        "provider": "aliyun_paraformer",
-        "aliyun_paraformer": {
-            "api_key": "asr-key",
-            "model": "paraformer-realtime-v2",
-            "sample_rate": 16000,
-            "language_hints": ["zh", "en"],
-        },
-    }
-    pexels_api_key = ""
-    pexels_base_url = ""
-    worker_payload = None
-
-
 class TalkingHeadContext:
     tts_config = {}
     pexels_api_key = ""
@@ -194,6 +178,29 @@ class TalkingHeadContext:
             }
         ],
     }
+
+
+class TalkingHeadAsrContext:
+    tts_config = {}
+    pexels_api_key = ""
+    pexels_base_url = ""
+    asr_config = {
+        "provider": "aliyun_paraformer",
+        "aliyun_paraformer": {"api_key": "asr-key", "model": "paraformer-realtime-v2"},
+    }
+    worker_payload = {
+        "production_config": {
+            "subtitles": {"talking_head_source": "asr_original_audio"}
+        },
+    }
+
+
+class LocalFunasrTalkingHeadAsrContext(TalkingHeadAsrContext):
+    asr_config = {"provider": "local_funasr"}
+
+
+class MissingKeyTalkingHeadAsrContext(TalkingHeadAsrContext):
+    asr_config = {"provider": "aliyun_paraformer", "aliyun_paraformer": {}}
 
 
 class Runtime:
@@ -262,23 +269,6 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
         self.assertEqual("minimax", result["provider"])
         self.assertEqual("runninghub", result["fallback_provider"])
         self.assertEqual("runninghub-key", result["runninghub"]["api_key"])
-
-    def test_asr_provider_injection_flattens_runtime_config(self):
-        request = Request("local_asr", {}, context=AsrContext())
-
-        async def handler(req):
-            return dict(req.args)
-
-        result = asyncio.run(
-            self.ToolInterceptor.inject_asr_config(request, handler)
-        )
-
-        self.assertEqual("aliyun_paraformer", result["provider"])
-        self.assertEqual("asr-key", result["api_key"])
-        self.assertEqual("paraformer-realtime-v2", result["model"])
-        self.assertEqual(16000, result["sample_rate"])
-        self.assertEqual(["zh", "en"], result["language_hints"])
-        self.assertEqual("asr-key", result["provider_keys"]["api_key"])
 
     def test_render_video_mutes_source_audio_for_talking_head_voiceover(self):
         module = sys.modules["firered_node_interceptors_under_test"]
@@ -439,6 +429,226 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
         )
 
         self.assertEqual(["split_shots", "group_clips", "asr"], require_kind)
+
+    def test_locked_worker_script_expands_dialogues_to_match_more_groups(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": (
+                "1\n00:00-00:05\n"
+                "台词/字幕：如果你想找一个不吵、能坐一会儿的咖啡小院，可以看看这家。\n"
+                "2\n00:05-00:12\n"
+                "台词/字幕：它不是商场里一眼看完的店，更像是走进去以后才发现的安静角落。\n"
+            ),
+            "production_directive": {"script_locked": True},
+        }
+        groups = [
+            {"group_id": "group_0001"},
+            {"group_id": "group_0002"},
+            {"group_id": "group_0003"},
+        ]
+
+        custom_script = module._build_custom_script_from_worker_payload(payload, groups)
+
+        self.assertEqual(3, len(custom_script["group_scripts"]))
+        self.assertEqual("group_0003", custom_script["group_scripts"][2]["group_id"])
+        self.assertTrue(custom_script["group_scripts"][2]["raw_text"])
+
+    def test_locked_worker_script_builds_custom_script_for_groups(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": (
+                "1\n"
+                "00:00-00:05\n"
+                "场景：真人开头口播\n"
+                "台词/字幕：如果你想找一个不吵、能坐一会儿的咖啡小院，可以看看这家。\n"
+                "画面花字：楼群里的小院咖啡\n\n"
+                "2\n"
+                "00:05-00:12\n"
+                "场景：入口动线\n"
+                "台词/字幕：它不是商场里一眼看完的店，更像是走进去以后才发现的安静角落。\n"
+                "画面花字：走进去，才发现里面很安静\n"
+            ),
+            "production_directive": {"script_locked": True},
+        }
+        groups = [{"group_id": "group_0001"}, {"group_id": "group_0002"}]
+
+        custom_script = module._build_custom_script_from_worker_payload(payload, groups)
+
+        self.assertEqual(
+            [
+                {
+                    "group_id": "group_0001",
+                    "raw_text": "如果你想找一个不吵、能坐一会儿的咖啡小院，可以看看这家。",
+                    "source_clip_ids": [],
+                    "source_duration_ms": 0,
+                    "subtitle_source": "locked_script",
+                    "audio_source": "voiceover",
+                },
+                {
+                    "group_id": "group_0002",
+                    "raw_text": "它不是商场里一眼看完的店，更像是走进去以后才发现的安静角落。",
+                    "source_clip_ids": [],
+                    "source_duration_ms": 0,
+                    "subtitle_source": "locked_script",
+                    "audio_source": "voiceover",
+                },
+            ],
+            custom_script["group_scripts"],
+        )
+
+    def test_locked_worker_script_uses_asr_for_talking_head_groups(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": (
+                "1\n00:00-00:05\n场景：真人开头口播\n台词/字幕：脚本文案不应覆盖ASR\n"
+                "2\n00:05-00:12\n场景：入口动线\n台词/字幕：中段仍使用锁定脚本\n"
+            ),
+            "production_directive": {"script_locked": True},
+            "production_config": {
+                "subtitles": {"talking_head_source": "asr_original_audio"}
+            },
+        }
+        groups = [
+            {"group_id": "group_0001", "clip_ids": ["clip_0001"]},
+            {"group_id": "group_0002", "clip_ids": ["clip_0002"]},
+        ]
+        split_shots = {
+            "clips": [
+                {
+                    "clip_id": "clip_0001",
+                    "source_ref": {
+                        "media_id": "media_0001",
+                        "duration": 5000,
+                        "tags": ["talking_head"],
+                    },
+                },
+                {
+                    "clip_id": "clip_0002",
+                    "source_ref": {
+                        "media_id": "media_0002",
+                        "duration": 7000,
+                    },
+                },
+            ]
+        }
+        asr = {
+            "asr_infos": [
+                {"clip_id": "clip_0001", "asr_text": "这是从真人原声识别出来的话"},
+                {"clip_id": "clip_0002", "asr_text": "中段素材环境声"},
+            ]
+        }
+
+        custom_script = module._build_custom_script_from_worker_payload(
+            payload,
+            groups,
+            asr,
+            split_shots,
+        )
+
+        first, second = custom_script["group_scripts"]
+        self.assertEqual("这是从真人原声识别出来的话", first["raw_text"])
+        self.assertTrue(first["skip_voiceover"])
+        self.assertFalse(first["voiceover_enabled"])
+        self.assertEqual("original_video_audio", first["audio_source"])
+        self.assertEqual("asr_original_audio", first["subtitle_source"])
+        self.assertEqual(5000, first["source_duration_ms"])
+        self.assertEqual("中段仍使用锁定脚本", second["raw_text"])
+        self.assertEqual("voiceover", second["audio_source"])
+
+    def test_generate_script_requires_asr_when_original_talking_head_subtitles_requested(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(
+            worker_payload={
+                "production_config": {
+                    "subtitles": {"talking_head_source": "asr_original_audio"}
+                }
+            }
+        )
+
+        require_kind = module._with_required_original_audio_asr(
+            ["split_shots", "group_clips"],
+            "generate_script",
+            context,
+        )
+
+        self.assertEqual(["split_shots", "group_clips", "asr"], require_kind)
+
+    def test_original_audio_asr_injection_accepts_aliyun_paraformer(self):
+        request = Request("local_asr", {}, context=TalkingHeadAsrContext())
+
+        async def handler(req):
+            return dict(req.args)
+
+        result = asyncio.run(self.ToolInterceptor.inject_asr_config(request, handler))
+
+        self.assertEqual("aliyun_paraformer", result["provider"])
+        self.assertEqual("asr-key", result["api_key"])
+
+    def test_original_audio_asr_rejects_local_funasr(self):
+        request = Request("local_asr", {}, context=LocalFunasrTalkingHeadAsrContext())
+
+        async def handler(req):
+            return dict(req.args)
+
+        with self.assertRaisesRegex(Exception, "local FunASR fallback is disabled"):
+            asyncio.run(self.ToolInterceptor.inject_asr_config(request, handler))
+
+    def test_original_audio_asr_rejects_missing_key(self):
+        request = Request("local_asr", {}, context=MissingKeyTalkingHeadAsrContext())
+
+        async def handler(req):
+            return dict(req.args)
+
+        with self.assertRaisesRegex(Exception, "ALIYUN_ASR_API_KEY or DASHSCOPE_API_KEY"):
+            asyncio.run(self.ToolInterceptor.inject_asr_config(request, handler))
+
+    def test_locked_worker_script_marks_no_voiceover_groups_for_original_audio(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": (
+                "1\n00:00-00:05\n台词/字幕：第一段锁定脚本\n"
+                "2\n00:05-00:12\n台词/字幕：第二段锁定脚本\n"
+            ),
+            "production_directive": {"script_locked": True},
+            "production_config": {
+                "voiceover": {"enabled": False},
+                "bgm": {"enabled": False},
+            },
+        }
+        groups = [
+            {"group_id": "group_0001", "clip_ids": ["clip_0001"]},
+            {"group_id": "group_0002", "clip_ids": ["clip_0002"]},
+        ]
+
+        custom_script = module._build_custom_script_from_worker_payload(payload, groups)
+
+        for group_script in custom_script["group_scripts"]:
+            self.assertTrue(group_script["skip_voiceover"])
+            self.assertFalse(group_script["voiceover_enabled"])
+            self.assertEqual("original_video_audio", group_script["audio_source"])
+            self.assertTrue(group_script["preserve_clip_duration"])
+
+    def test_plan_timeline_drops_disabled_voiceover_and_bgm_dependencies(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(
+            worker_payload={
+                "production_config": {
+                    "voiceover": {"enabled": False},
+                    "bgm": {"enabled": False},
+                }
+            }
+        )
+
+        require_kind = module._with_disabled_optional_kinds_removed(
+            ["load_media", "split_shots", "group_clips", "generate_script", "tts", "music_rec"],
+            "plan_timeline",
+            context,
+        )
+
+        self.assertEqual(
+            ["load_media", "split_shots", "group_clips", "generate_script"],
+            require_kind,
+        )
 
     def test_locked_worker_script_expands_dialogues_to_match_more_groups(self):
         module = sys.modules["firered_node_interceptors_under_test"]

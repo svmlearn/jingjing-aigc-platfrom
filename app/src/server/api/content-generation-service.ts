@@ -58,6 +58,7 @@ import {
 } from "@/server/api/video-script-production-agent";
 import { assertVideoScriptVariantAccess } from "@/lib/db/video-edit-job-repository";
 import { buildVideoScriptContext, type VideoScriptScene } from "@/server/api/video-growth-context";
+import { buildVideoChainTestDraftFixture } from "@/server/api/video-chain-test-draft";
 import {
   formatSetVideoScriptForStorage,
   runVideoWorkbenchAgentRuntime,
@@ -1216,6 +1217,58 @@ export async function generateVideoScriptForUser(input: {
   }
 
   return result.draftBundle;
+}
+
+export async function createVideoChainTestDraftForUser(input: {
+  userId: string;
+}): Promise<ContentDraftBundleDto> {
+  const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  const fixture = buildVideoChainTestDraftFixture({
+    merchantName: merchant.name,
+    serviceItems: merchant.serviceItems,
+    defaultCta: merchant.defaultCta,
+    forbiddenWords: merchant.forbiddenWords,
+  });
+  const sourceItem = await createManualSourceItem({
+    merchantId: merchant.id,
+    platform: fixture.sourceItem.platform,
+    title: fixture.sourceItem.title,
+    scriptText: fixture.sourceItem.scriptText,
+    tracePayload: {
+      ...fixture.sourceItem.tracePayload,
+      merchant_id: merchant.id,
+      created_by_user_id: input.userId,
+    },
+  });
+
+  const draftBundle = await createDraftWithVariants({
+    merchantId: merchant.id,
+    createdByUserId: input.userId,
+    sourceItemId: sourceItem.id,
+    workingTitle: fixture.draft.workingTitle,
+    rewriteGoal: fixture.draft.rewriteGoal,
+    inputSnapshot: fixture.draft.inputSnapshot,
+    commentInsights: fixture.draft.commentInsights,
+    status: fixture.draft.status,
+    variants: [
+      {
+        platform: fixture.variant.platform,
+        variantType: fixture.variant.variantType,
+        title: fixture.variant.title,
+        scriptText: fixture.variant.scriptText,
+        hashtags: fixture.variant.hashtags,
+        ctaText: fixture.variant.ctaText,
+        productionScenes: fixture.variant.productionScenes,
+        reviewStatus: fixture.variant.reviewStatus,
+      },
+    ],
+  });
+
+  return attachProductionScenesToVariant(
+    draftBundle,
+    draftBundle.selectedVariant?.id ?? draftBundle.variants[0]?.id ?? null,
+    fixture.variant.productionScenes,
+  );
 }
 
 export async function reviseVideoScriptForUser(input: {

@@ -1,0 +1,26 @@
+[Unit]
+Description=Jingjing domestic Next.js app
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jingjing
+Group=jingjing
+WorkingDirectory=/srv/jingjing/app
+EnvironmentFile=/etc/jingjing/app.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/env bash -lc 'corepack enable >/dev/null 2>&1 || true; pnpm exec next start --hostname "${HOSTNAME:-127.0.0.1}" --port "${PORT:-3000}"'
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGINT
+SyslogIdentifier=jingjing-app
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/jingjing /tmp
+
+[Install]
+WantedBy=multi-user.target

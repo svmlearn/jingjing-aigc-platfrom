@@ -125,7 +125,9 @@ async function parseDifyStreamingResponse(response: Response): Promise<DifyWorkf
 
       const event = parseJsonRecord(data);
       workflowRunId = readString(event.workflow_run_id) || workflowRunId;
+      const eventName = readString(event.event);
       const eventData = toRecord(event.data);
+      const eventStatus = readString(eventData.status) || readString(event.status);
       const outputs = toRecord(eventData.outputs);
       const currentFinalJson = pickFinalResultJson(outputs, event);
 
@@ -135,6 +137,17 @@ async function parseDifyStreamingResponse(response: Response): Promise<DifyWorkf
 
       if (currentFinalJson !== undefined) {
         finalResultJson = currentFinalJson;
+      }
+
+      if (
+        finalResultJson !== undefined &&
+        isDifyStreamingTerminalEvent({ eventName, status: eventStatus })
+      ) {
+        return {
+          finalResultJson,
+          workflowRunId,
+          rawOutputs,
+        };
       }
     }
 
@@ -167,6 +180,19 @@ function pickFinalResultJson(
 
 function normalizeResponseMode(value: string | undefined): DifyWorkflowResponseMode {
   return value === "streaming" ? "streaming" : "blocking";
+}
+
+function isDifyStreamingTerminalEvent(input: {
+  eventName: string | null;
+  status: string | null;
+}) {
+  return (
+    input.eventName === "workflow_finished" ||
+    input.eventName === "message_end" ||
+    input.status === "succeeded" ||
+    input.status === "failed" ||
+    input.status === "stopped"
+  );
 }
 
 function parsePositiveInt(value: string | undefined, fallback: number) {

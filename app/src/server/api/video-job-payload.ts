@@ -12,6 +12,11 @@ export type VideoJobPayloadAsset = {
   fileSizeBytes?: number | null;
   etag?: string | null;
   sortOrder: number;
+  role?: string | null;
+  sceneType?: string | null;
+  tags?: string[] | null;
+  labels?: string[] | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type VideoJobPayloadMaterialReference = {
@@ -48,6 +53,11 @@ export type VideoEditJobInputAsset = {
   file_size_bytes: number | null;
   etag: string | null;
   sort_order: number;
+  role?: string;
+  scene_type?: string;
+  tags?: string[];
+  labels?: string[];
+  metadata?: Record<string, unknown>;
 };
 
 export type VideoEditJobSceneAssetQuery = {
@@ -157,8 +167,13 @@ const allowedVoiceoverProviders = new Set<VoiceoverProvider>([
   "minimax",
   "302",
 ]);
+const allowedWorkerInputStorageProviders = new Set(["tencent_cos", "aliyun_oss"] as const);
 const allowedSubtitleStyles = new Set(["platform_default", "bold_caption"]);
+const allowedTalkingHeadSubtitleSources = new Set(["script", "asr_original_audio"] as const);
 const allowedBgmFilterKeys = new Set(["mood", "scene", "genre", "lang", "id"]);
+
+type WorkerInputStorageProvider = "tencent_cos" | "aliyun_oss";
+type TalkingHeadSubtitleSource = "script" | "asr_original_audio";
 
 type NormalizedProductionConfig = {
   voiceover:
@@ -189,11 +204,13 @@ type NormalizedProductionConfig = {
   subtitles: {
     enabled: boolean;
     style: "platform_default" | "bold_caption";
+    talkingHeadSource?: TalkingHeadSubtitleSource;
   };
   render: {
     aspectRatio: "9:16";
     maxDurationSeconds?: number;
     includeOriginalAudio: boolean;
+    preserveTalkingHeadOriginalAudio?: boolean;
   };
 };
 
@@ -210,7 +227,7 @@ export function buildVideoEditJobInputPayload(input: {
   assertApprovedScript(input.variant);
 
   const excludedAssets = input.assets.filter((asset) => asset.assetType !== "video");
-  const inputAssets = input.assets
+  const rawInputAssets = input.assets
     .filter((asset) => asset.assetType === "video")
     .map(mapInputAsset)
     .sort(
@@ -221,13 +238,28 @@ export function buildVideoEditJobInputPayload(input: {
   const materialReferenceIds = uniqueStrings(input.materialReferences.map((item) => item.id));
   const materialIds = uniqueStrings(input.materialReferences.map((item) => item.materialItemId));
   const sceneAssetQueries = buildSceneAssetQueries(input.variant);
+  const shouldUseTalkingHeadDefaults =
+    input.requireUserTalkingHead === true ||
+    sceneAssetQueries.some((query) => query.sourceRole === "user_talking_head");
+  const userTalkingHeadAssetIds = rawInputAssets
+    .filter((asset) =>
+      isUserTalkingHeadAsset(asset, input.draftId, {
+        allowDraftInputHeuristic: shouldUseTalkingHeadDefaults,
+      }),
+    )
+    .map((asset) => asset.asset_id);
+  const userTalkingHeadAssetIdSet = new Set(userTalkingHeadAssetIds);
+  const shouldApplyTalkingHeadDefaults =
+    shouldUseTalkingHeadDefaults || userTalkingHeadAssetIds.length > 0;
+  const inputAssets = rawInputAssets.map((asset) =>
+    userTalkingHeadAssetIdSet.has(asset.asset_id) && shouldApplyTalkingHeadDefaults
+      ? markTalkingHeadInputAsset(asset)
+      : asset,
+  );
   const assetMatchPlan = buildAssetMatchPlan({
     sceneAssetQueries,
     inputAssets,
   });
-  const userTalkingHeadAssetIds = inputAssets
-    .filter((asset) => isUserTalkingHeadAsset(asset, input.draftId))
-    .map((asset) => asset.asset_id);
   const merchantMediaMatches = buildMerchantMediaMatches({
     sceneAssetQueries,
     merchantMediaClips: input.merchantMediaClips ?? [],
@@ -262,7 +294,10 @@ export function buildVideoEditJobInputPayload(input: {
       desiredOutputs: [...desiredOutputs],
       lockedFields: [...lockedFields],
     },
-    productionConfig: normalizeProductionConfig(input.productionConfig),
+    productionConfig: normalizeProductionConfig(input.productionConfig, {
+      defaultTalkingHeadOriginalAudio:
+        shouldApplyTalkingHeadDefaults && userTalkingHeadAssetIds.length > 0,
+    }),
     materialContext: {
       retrievalTarget: "video_edit_asset",
       assetPlanId: null,
@@ -486,6 +521,7 @@ function mapMerchantMediaClipForPayload(
 
 function normalizeProductionConfig(
   input: ProductionConfig | null | undefined,
+  options: { defaultTalkingHeadOriginalAudio?: boolean } = {},
 ): NormalizedProductionConfig {
   const voiceover = input?.voiceover ?? {};
   const voiceoverMode = voiceover.mode ?? "system";
@@ -498,15 +534,31 @@ function normalizeProductionConfig(
   if (!allowedSubtitleStyles.has(subtitleStyle)) {
     throwInvalidProductionConfig("Unsupported subtitle style.");
   }
+  const talkingHeadSource =
+    subtitles.talkingHeadSource ??
+    (options.defaultTalkingHeadOriginalAudio ? "asr_original_audio" : undefined);
+  if (
+    talkingHeadSource !== undefined &&
+    !allowedTalkingHeadSubtitleSources.has(talkingHeadSource)
+  ) {
+    throwInvalidProductionConfig("Unsupported talking-head subtitle source.");
+  }
 
   const render = input?.render ?? {};
+  const preserveTalkingHeadOriginalAudio =
+    render.preserveTalkingHeadOriginalAudio ?? talkingHeadSource === "asr_original_audio";
   const normalizedRender: NormalizedProductionConfig["render"] = {
     aspectRatio: render.aspectRatio ?? "9:16",
     includeOriginalAudio:
-      "includeOriginalAudio" in voiceover && typeof voiceover.includeOriginalAudio === "boolean"
+      preserveTalkingHeadOriginalAudio
+        ? true
+        : "includeOriginalAudio" in voiceover && typeof voiceover.includeOriginalAudio === "boolean"
         ? voiceover.includeOriginalAudio
         : render.includeOriginalAudio ?? false,
   };
+  if (preserveTalkingHeadOriginalAudio) {
+    normalizedRender.preserveTalkingHeadOriginalAudio = true;
+  }
   if (normalizedRender.aspectRatio !== "9:16") {
     throwInvalidProductionConfig("Unsupported render aspect ratio.");
   }
@@ -536,6 +588,7 @@ function normalizeProductionConfig(
     subtitles: {
       enabled: subtitles.enabled ?? true,
       style: subtitleStyle,
+      ...(talkingHeadSource ? { talkingHeadSource } : {}),
     },
     render: normalizedRender,
   };
@@ -666,17 +719,9 @@ export function assertApprovedScript(variant: VideoJobPayloadVariant) {
 }
 
 function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
-  const storageProvider = asset.storageProvider.trim();
+  const storageProvider = normalizeWorkerInputStorageProvider(asset.storageProvider);
   const storageKey = asset.storageKey.trim();
   const bucketName = asset.bucketName?.trim() ?? "";
-
-  if (storageProvider !== "tencent_cos") {
-    throw new VideoJobPayloadValidationError(
-      409,
-      "VIDEO_INPUT_ASSET_PROVIDER_UNSUPPORTED",
-      "Video worker input assets must use tencent_cos storage.",
-    );
-  }
 
   if (!storageKey) {
     throw new VideoJobPayloadValidationError(
@@ -690,21 +735,57 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
     throw new VideoJobPayloadValidationError(
       409,
       "VIDEO_INPUT_ASSET_BUCKET_REQUIRED",
-      "COS 素材缺少 bucket_name，无法交给 worker 执行。",
+      "素材缺少 bucket_name，无法交给 worker 执行。",
     );
   }
 
   return {
     asset_id: asset.id,
     asset_type: asset.assetType,
-    storage_provider: "tencent_cos",
+    storage_provider: storageProvider,
     bucket_name: bucketName,
     storage_key: storageKey,
     mime_type: asset.mimeType ?? null,
     file_size_bytes: asset.fileSizeBytes ?? null,
     etag: asset.etag ?? null,
     sort_order: asset.sortOrder,
+    ...normalizeInputAssetClassification(asset),
   };
+}
+
+function normalizeInputAssetClassification(
+  asset: VideoJobPayloadAsset,
+): Pick<VideoEditJobInputAsset, "role" | "scene_type" | "tags" | "labels" | "metadata"> {
+  const role = normalizeOptionalString(asset.role);
+  const sceneType = normalizeOptionalString(asset.sceneType);
+  const tags = Array.isArray(asset.tags) ? uniqueStrings(asset.tags) : [];
+  const labels = Array.isArray(asset.labels) ? uniqueStrings(asset.labels) : [];
+  const metadata =
+    asset.metadata && typeof asset.metadata === "object" && !Array.isArray(asset.metadata)
+      ? asset.metadata
+      : null;
+
+  return {
+    ...(role ? { role } : {}),
+    ...(sceneType ? { scene_type: sceneType } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
+    ...(labels.length > 0 ? { labels } : {}),
+    ...(metadata ? { metadata } : {}),
+  };
+}
+
+function normalizeWorkerInputStorageProvider(value: string): WorkerInputStorageProvider {
+  const normalized = value.trim().toLowerCase();
+
+  if (allowedWorkerInputStorageProviders.has(normalized as WorkerInputStorageProvider)) {
+    return normalized as WorkerInputStorageProvider;
+  }
+
+  throw new VideoJobPayloadValidationError(
+    409,
+    "VIDEO_INPUT_ASSET_PROVIDER_UNSUPPORTED",
+    "Video worker input assets must use tencent_cos or aliyun_oss storage.",
+  );
 }
 
 function extractSceneAssetQueriesFromScript(
@@ -793,12 +874,70 @@ function matchInputAssetsByQuery(
   });
 }
 
-function isUserTalkingHeadAsset(asset: VideoEditJobInputAsset, draftId: string) {
+function isUserTalkingHeadAsset(
+  asset: VideoEditJobInputAsset,
+  draftId: string,
+  options: { allowDraftInputHeuristic?: boolean } = {},
+) {
+  if (asset.asset_type !== "video") {
+    return false;
+  }
+  if (!allowedWorkerInputStorageProviders.has(asset.storage_provider as WorkerInputStorageProvider)) {
+    return false;
+  }
+  if (assetHasTalkingHeadClassification(asset)) {
+    return true;
+  }
   return (
-    asset.asset_type === "video" &&
-    asset.storage_provider === "tencent_cos" &&
+    options.allowDraftInputHeuristic === true &&
     asset.storage_key.startsWith("draft-inputs/") &&
     asset.storage_key.includes(`/${draftId}/`)
+  );
+}
+
+function markTalkingHeadInputAsset(asset: VideoEditJobInputAsset): VideoEditJobInputAsset {
+  return {
+    ...asset,
+    role: "talking_head",
+    scene_type: "talking_head",
+    tags: uniqueStrings([...(asset.tags ?? []), "talking_head"]),
+    labels: uniqueStrings([...(asset.labels ?? []), "talking_head"]),
+    metadata: {
+      ...(asset.metadata ?? {}),
+      content_type: "talking_head",
+      audio_source: "original_video_audio",
+      subtitle_source: "asr_original_audio",
+    },
+  };
+}
+
+function assetHasTalkingHeadClassification(asset: VideoEditJobInputAsset) {
+  const values = [
+    asset.role,
+    asset.scene_type,
+    ...(asset.tags ?? []),
+    ...(asset.labels ?? []),
+  ];
+  if (asset.metadata && typeof asset.metadata === "object") {
+    for (const key of ["role", "scene_type", "sceneType", "asset_type", "assetType", "content_type"]) {
+      const value = asset.metadata[key];
+      if (typeof value === "string") {
+        values.push(value);
+      }
+    }
+    for (const key of ["tags", "labels"]) {
+      const value = asset.metadata[key];
+      if (Array.isArray(value)) {
+        values.push(...value.map((item) => String(item)));
+      }
+    }
+  }
+
+  const normalized = values
+    .map((value) => String(value ?? "").trim().toLowerCase().replace(/_/g, "-"))
+    .filter(Boolean);
+  return normalized.some((value) =>
+    ["talking-head", "talkinghead", "user-talking-head", "真人口播", "口播", "出镜讲解", "人物讲解"].includes(value),
   );
 }
 

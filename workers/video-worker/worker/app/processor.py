@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
 from .config import Settings
-from .cos_client import TencentCosClient
+from .cos_client import ObjectStorageClient
 from .db import VideoJobRepository
 from .directive import (
     DirectiveValidationError,
@@ -434,7 +435,7 @@ class JobProcessor:
         self,
         settings: Settings,
         repository: VideoJobRepository,
-        cos_client: TencentCosClient,
+        cos_client: ObjectStorageClient,
         openstoryline_client: OpenStorylineClient,
     ) -> None:
         self._settings = settings
@@ -452,18 +453,29 @@ class JobProcessor:
 
     def _download_inputs(self, job: VideoJob, input_dir: Path) -> list[dict[str, Any]]:
         downloaded_assets: list[dict[str, Any]] = []
-        for asset in job.input_assets(self._settings.cos_bucket):
+        default_buckets = getattr(
+            self._settings,
+            "default_input_buckets",
+            getattr(self._settings, "cos_bucket", ""),
+        )
+        default_storage_provider = getattr(self._settings, "storage_provider", "aliyun_oss")
+        for asset in job.input_assets(
+            default_buckets,
+            default_storage_provider=default_storage_provider,
+        ):
             local_path = input_dir / asset.file_name
             try:
                 self._cos_client.download_file(
                     storage_key=asset.storage_key,
                     destination=local_path,
                     bucket_name=asset.bucket_name,
+                    storage_provider=asset.storage_provider,
                 )
             except Exception as exc:
                 raise InputDownloadError(asset.storage_key, exc) from exc
             downloaded: dict[str, Any] = {
                 "asset_type": asset.asset_type,
+                "storage_provider": asset.storage_provider,
                 "file_name": asset.file_name,
                 "local_path": str(local_path),
             }
@@ -502,12 +514,8 @@ class JobProcessor:
         storage_provider = str(
             ref_audio_asset.get("storage_provider")
             or ref_audio_asset.get("storageProvider")
-            or "tencent_cos"
+            or getattr(self._settings, "storage_provider", "aliyun_oss")
         ).strip()
-        if storage_provider != "tencent_cos":
-            raise VoiceProfileReferenceError(
-                "voice_profile reference audio must use tencent_cos"
-            )
 
         local_path = input_dir / "voice_profile_ref_audio" / Path(storage_key).name
         try:
@@ -515,6 +523,7 @@ class JobProcessor:
                 storage_key=storage_key,
                 destination=local_path,
                 bucket_name=bucket_name or None,
+                storage_provider=storage_provider,
             )
         except Exception as exc:
             raise InputDownloadError(storage_key, exc) from exc
@@ -538,13 +547,14 @@ class JobProcessor:
         def upload(local_path: Path, asset_type: str) -> UploadedAsset:
             storage_key = job.output_object_key(
                 asset_type,
-                self._settings.cos_result_prefix,
+                getattr(self._settings, "storage_result_prefix", self._settings.cos_result_prefix),
             )
             try:
                 return self._cos_client.upload_file(
                     local_path=local_path,
                     storage_key=storage_key,
                     asset_type=asset_type,
+                    storage_provider=getattr(self._settings, "storage_provider", "aliyun_oss"),
                 )
             except Exception as exc:
                 raise OutputUploadError(storage_key, exc) from exc
@@ -584,7 +594,13 @@ class JobProcessor:
             raise OutputValidationError(missing_outputs)
 
     def _cos_output_configured(self) -> bool:
-        return bool(getattr(self._settings, "cos_output_configured", True))
+        return bool(
+            getattr(
+                self._settings,
+                "output_storage_configured",
+                getattr(self._settings, "cos_output_configured", True),
+            )
+        )
 
     def _local_outputs_payload(self, run_result: EngineRunResult) -> dict[str, str | None]:
         return {
@@ -617,7 +633,7 @@ class JobProcessor:
             {
                 "asset_type": asset.asset_type,
                 "bucket_name": asset.bucket_name,
-                "storage_provider": "tencent_cos",
+                "storage_provider": asset.storage_provider,
                 "storage_key": asset.storage_key,
                 "mime_type": asset.mime_type,
                 "etag": asset.etag,
@@ -627,10 +643,23 @@ class JobProcessor:
         ]
 
     def process(self, job: VideoJob) -> None:
-        log_payload: dict[str, Any] = {"steps": []}
+        job_started_at = time.monotonic()
+        log_payload: dict[str, Any] = {
+            "steps": [],
+            "timings_ms": {},
+            "worker": {"id": getattr(self._settings, "worker_id", "video-worker")},
+        }
+
+        def record_timing(stage: str, started_at: float) -> None:
+            timings = _dict_or_empty(log_payload.get("timings_ms"))
+            timings[stage] = int((time.monotonic() - started_at) * 1000)
+            timings["total_elapsed"] = int((time.monotonic() - job_started_at) * 1000)
+            log_payload["timings_ms"] = timings
+
         try:
             directive = build_production_directive(job)
         except DirectiveValidationError as exc:
+            record_timing("directive_validation", job_started_at)
             log_payload["steps"].append(
                 {
                     "stage": "directive_validation",
@@ -649,6 +678,22 @@ class JobProcessor:
             return
 
         workspace_dir, input_dir, output_dir = self._workspace_for(job)
+        existing_runtime_payload = _dict_or_empty(job.runtime_payload)
+        self_hosted_fast_path = (
+            directive.execution_mode == "self_hosted_rehearsal_fast_path"
+            or existing_runtime_payload.get("self_hosted_rehearsal_fast_path") is True
+        )
+
+        def stage_runtime_payload(**payload: Any) -> dict[str, Any]:
+            runtime_payload = {
+                **payload,
+                "execution_mode": directive.execution_mode,
+            }
+            if self_hosted_fast_path:
+                runtime_payload["self_hosted_rehearsal_fast_path"] = True
+            return runtime_payload
+
+        record_timing("directive_validation", job_started_at)
         log_payload["steps"].append(
             {
                 "stage": "directive_validation",
@@ -663,18 +708,19 @@ class JobProcessor:
             status="preparing",
             current_stage="downloading_inputs",
             progress_pct=10,
-            runtime_payload={
-                "workspace_dir": str(workspace_dir),
-                "output_dir": str(output_dir),
-                "progress_modules": _progress_modules(
+            runtime_payload=stage_runtime_payload(
+                workspace_dir=str(workspace_dir),
+                output_dir=str(output_dir),
+                progress_modules=_progress_modules(
                     active_key="material_preparation",
                     production_config=directive.production_config,
                 ),
-            },
+            ),
             log_payload=log_payload,
         )
         run_result: EngineRunResult | None = None
         try:
+            stage_started_at = time.monotonic()
             input_assets = self._download_inputs(job, input_dir)
             directive_production_config = self._prepare_voice_profile_reference(
                 directive.production_config,
@@ -694,6 +740,7 @@ class JobProcessor:
                     material_context=directive.material_context,
                     production_config=directive_production_config,
                 )
+            record_timing("downloading_inputs", stage_started_at)
             log_payload["steps"].append(
                 {
                     "stage": "downloading_inputs",
@@ -709,15 +756,15 @@ class JobProcessor:
                 status="running",
                 current_stage="openstoryline_rendering",
                 progress_pct=50,
-                runtime_payload={
-                    "workspace_dir": str(workspace_dir),
-                    "output_dir": str(output_dir),
-                    "input_assets": input_assets,
-                    "progress_modules": _progress_modules(
+                runtime_payload=stage_runtime_payload(
+                    workspace_dir=str(workspace_dir),
+                    output_dir=str(output_dir),
+                    input_assets=input_assets,
+                    progress_modules=_progress_modules(
                         active_key="material_match",
                         production_config=directive.production_config,
                     ),
-                },
+                ),
                 log_payload=log_payload,
             )
 
@@ -759,22 +806,23 @@ class JobProcessor:
                     status="running",
                     current_stage=f"openstoryline_{module_key}",
                     progress_pct=int(progress_state["progress_pct"]),
-                    runtime_payload={
-                        "workspace_dir": str(workspace_dir),
-                        "output_dir": str(output_dir),
-                        "input_assets": input_assets,
-                        "openstoryline_progress": log_payload["openstoryline_progress"],
-                        "progress_modules": _progress_modules(
+                    runtime_payload=stage_runtime_payload(
+                        workspace_dir=str(workspace_dir),
+                        output_dir=str(output_dir),
+                        input_assets=input_assets,
+                        openstoryline_progress=log_payload["openstoryline_progress"],
+                        progress_modules=_progress_modules(
                             active_key=module_key,
                             active_progress_pct=active_progress,
                             active_detail=_openstoryline_event_detail(event, module_key),
                             production_config=directive.production_config,
                         ),
-                    },
+                    ),
                     log_payload=log_payload,
                 )
 
             try:
+                stage_started_at = time.monotonic()
                 run_result = self._openstoryline_client.run_job(
                     job=job,
                     directive=directive,
@@ -783,6 +831,7 @@ class JobProcessor:
                     output_dir=output_dir,
                     progress_callback=handle_openstoryline_progress,
                 )
+                record_timing("openstoryline_rendering", stage_started_at)
             except Exception as exc:
                 raise EngineRunError(
                     exc,
@@ -795,6 +844,7 @@ class JobProcessor:
                     "metadata_path": str(run_result.metadata_path),
                 }
             )
+            stage_started_at = time.monotonic()
             self._validate_outputs(directive.desired_outputs, run_result)
             voiceover_artifacts = _voiceover_artifacts_summary(
                 run_result.raw_response,
@@ -804,6 +854,7 @@ class JobProcessor:
                 voiceover_artifacts,
                 directive.production_config,
             )
+            record_timing("output_validation", stage_started_at)
             log_payload["steps"].append(
                 {
                     "stage": "output_validation",
@@ -821,17 +872,18 @@ class JobProcessor:
                     status="running",
                     current_stage="uploading_outputs",
                     progress_pct=80,
-                    runtime_payload={
-                        "workspace_dir": str(workspace_dir),
-                        "output_dir": str(output_dir),
-                        "input_assets": input_assets,
-                        "progress_modules": _progress_modules(
+                    runtime_payload=stage_runtime_payload(
+                        workspace_dir=str(workspace_dir),
+                        output_dir=str(output_dir),
+                        input_assets=input_assets,
+                        progress_modules=_progress_modules(
                             active_key="output_delivery",
                             production_config=directive.production_config,
                         ),
-                    },
+                    ),
                     log_payload=log_payload,
                 )
+                stage_started_at = time.monotonic()
                 uploaded_assets = self._upload_outputs(
                     job=job,
                     desired_outputs=directive.desired_outputs,
@@ -839,14 +891,17 @@ class JobProcessor:
                     cover_image_path=run_result.cover_image_path,
                     subtitle_path=run_result.subtitle_path,
                 )
+                record_timing("uploading_outputs", stage_started_at)
                 try:
+                    stage_started_at = time.monotonic()
                     persisted_assets = self._repository.insert_output_assets(
                         job,
                         uploaded_assets,
                     )
+                    record_timing("asset_objects_persistence", stage_started_at)
                 except Exception as exc:
                     raise OutputAssetPersistenceError(exc) from exc
-                upload_mode = "tencent_cos"
+                upload_mode = getattr(self._settings, "storage_provider", "aliyun_oss")
                 log_payload["steps"].append(
                     {
                         "stage": "uploading_outputs",
@@ -859,7 +914,7 @@ class JobProcessor:
                     {
                         "stage": "uploading_outputs",
                         "status": "skipped",
-                        "reason": "cos_not_configured",
+                        "reason": "object_storage_not_configured",
                         "local_outputs": local_outputs,
                     }
                 )

@@ -119,11 +119,13 @@ export type ProductionConfig = {
   subtitles?: {
     enabled?: boolean;
     style?: "platform_default" | "bold_caption";
+    talkingHeadSource?: "script" | "asr_original_audio";
   };
   render?: {
     aspectRatio?: "9:16";
     maxDurationSeconds?: number | null;
     includeOriginalAudio?: boolean;
+    preserveTalkingHeadOriginalAudio?: boolean;
   };
 };
 

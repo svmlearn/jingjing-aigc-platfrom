@@ -1,0 +1,22 @@
+[Unit]
+Description=Jingjing domestic video worker compose stack
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=jingjing
+Group=jingjing
+WorkingDirectory=/srv/jingjing/workers/video-worker
+EnvironmentFile=/etc/jingjing/worker.env
+ExecStartPre=/usr/bin/env bash -lc 'ln -sf /etc/jingjing/worker.env /srv/jingjing/workers/video-worker/.env'
+ExecStart=/usr/bin/env docker compose -f docker-compose.yml -f docker-compose.firered.yml --profile firered up -d --build
+ExecStop=/usr/bin/env docker compose -f docker-compose.yml -f docker-compose.firered.yml --profile firered down
+TimeoutStartSec=900
+TimeoutStopSec=120
+SyslogIdentifier=jingjing-worker-compose
+
+[Install]
+WantedBy=multi-user.target

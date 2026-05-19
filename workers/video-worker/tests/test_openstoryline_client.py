@@ -1,6 +1,15 @@
 import unittest
+import sys
+import types
 from pathlib import Path
 from unittest.mock import patch
+
+try:
+    import httpx  # noqa: F401
+except ModuleNotFoundError:
+    httpx = types.ModuleType("httpx")
+    httpx.get = object()
+    sys.modules.setdefault("httpx", httpx)
 
 from worker.app.config import Settings
 from worker.app.openstoryline_client import OpenStorylineClient
@@ -8,12 +17,19 @@ from worker.app.openstoryline_client import OpenStorylineClient
 
 def _settings() -> Settings:
     return Settings(
-        supabase_db_url="postgresql://example",
+        database_url="postgresql://example",
+        storage_provider="tencent_cos",
         cos_secret_id="",
         cos_secret_key="",
         cos_bucket="",
         cos_region="",
-        cos_result_prefix="video-results",
+        aliyun_oss_access_key_id="",
+        aliyun_oss_access_key_secret="",
+        aliyun_oss_bucket="",
+        aliyun_oss_region="",
+        aliyun_oss_endpoint="",
+        storage_result_prefix="video-results",
+        worker_id="test-worker",
         worker_poll_interval_seconds=10,
         worker_max_concurrency=1,
         video_job_stale_minutes=120,

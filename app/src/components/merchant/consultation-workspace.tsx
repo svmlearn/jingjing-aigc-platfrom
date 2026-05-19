@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Edit3,
   History,
+  Loader2,
   Plus,
   Send,
   Sparkles,
@@ -23,12 +24,39 @@ import type {
   ConsultationSessionDetailDto,
   ConsultationSessionSummaryDto,
 } from "@/contracts/consultation";
+import type {
+  ContentGenerationBatchDto,
+  ContentGenerationJobStatus,
+} from "@/contracts/content-generation";
 import { cn } from "@/lib/utils";
 
 type ApiErrorPayload = {
   error?: {
     message?: string;
   };
+};
+
+type ContentGenerationJobSummary = {
+  id: string;
+  status: ContentGenerationJobStatus;
+  currentStage?: string | null;
+  updatedAt: string;
+};
+
+type ContentGenerationBatchResponse = {
+  batch?: ContentGenerationBatchDto;
+  jobs?: ContentGenerationJobSummary[];
+} & ApiErrorPayload;
+
+type TeamGenerationStatus = {
+  batchId: string;
+  batchStatus: ContentGenerationBatchDto["status"];
+  totalJobs: number;
+  pendingJobs: number;
+  runningJobs: number;
+  succeededJobs: number;
+  failedJobs: number;
+  updatedAt: string;
 };
 
 export function ConsultationWorkspace() {
@@ -39,6 +67,11 @@ export function ConsultationWorkspace() {
   const [input, setInput] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [teamGenerationBusy, setTeamGenerationBusy] = useState(false);
+  const [teamGenerationError, setTeamGenerationError] = useState<string | null>(null);
+  const [teamGenerationStatus, setTeamGenerationStatus] = useState<TeamGenerationStatus | null>(
+    null,
+  );
   const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -212,6 +245,28 @@ export function ConsultationWorkspace() {
     await refreshPendingSession(nextSessionId);
   });
 
+  const refreshTeamGenerationStatusFromEffect = useEffectEvent(async (batchId: string) => {
+    try {
+      const response = await fetch(`/api/content-generation/batches/${batchId}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      const data = await readApiJson<ContentGenerationBatchResponse>(
+        response,
+        "团队内容生成状态刷新失败",
+      );
+
+      if (data.batch) {
+        setTeamGenerationStatus(summarizeTeamGeneration(data.batch, data.jobs ?? []));
+        setTeamGenerationError(null);
+      }
+    } catch (requestError) {
+      setTeamGenerationError(
+        requestError instanceof Error ? requestError.message : "团队内容生成状态刷新失败",
+      );
+    }
+  });
+
   const loadExpertsFromEffect = useEffectEvent(async () => {
     await loadExperts();
   });
@@ -267,6 +322,26 @@ export function ConsultationWorkspace() {
     };
   }, [assistantPending, sessionId]);
 
+  useEffect(() => {
+    if (
+      !teamGenerationStatus?.batchId ||
+      (teamGenerationStatus.batchStatus !== "pending" && teamGenerationStatus.batchStatus !== "running")
+    ) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshTeamGenerationStatusFromEffect(teamGenerationStatus.batchId);
+    }, 3000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [
+    teamGenerationStatus?.batchId,
+    teamGenerationStatus?.batchStatus,
+  ]);
+
   const latestAssistantMessage =
     [...(session?.messages ?? [])].reverse().find((message) => message.role === "assistant") ?? null;
   const toolCards = latestAssistantMessage?.toolCards ?? [];
@@ -306,6 +381,41 @@ export function ConsultationWorkspace() {
     }
 
     return `/dashboard/${item.contentType === "article" ? "article" : "video"}?${params.toString()}`;
+  }
+
+  async function startTeamWeekGeneration() {
+    setTeamGenerationBusy(true);
+    setTeamGenerationError(null);
+
+    try {
+      const response = await fetch("/api/content-generation/batches", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          days: 7,
+          memberScope: "active_members",
+        }),
+        credentials: "same-origin",
+      });
+      const data = await readApiJson<ContentGenerationBatchResponse>(
+        response,
+        "团队本周内容生成任务创建失败",
+      );
+
+      if (!data.batch) {
+        throw new Error("团队本周内容生成任务创建失败");
+      }
+
+      setTeamGenerationStatus(summarizeTeamGeneration(data.batch, data.jobs ?? []));
+    } catch (requestError) {
+      setTeamGenerationError(
+        requestError instanceof Error ? requestError.message : "团队本周内容生成任务创建失败",
+      );
+    } finally {
+      setTeamGenerationBusy(false);
+    }
   }
 
   function insertExpertMention(expert: ConsultationExpertRosterItemDto) {
@@ -551,7 +661,7 @@ export function ConsultationWorkspace() {
             className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm"
           />
           <div className="absolute inset-4 z-50 flex flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0a0a0a] shadow-[0_24px_90px_rgba(0,0,0,0.65)] md:inset-8">
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+            <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.25em] text-amber-500/80">
                   Content Marketing Calendar
@@ -560,25 +670,46 @@ export function ConsultationWorkspace() {
                   营销内容日历
                 </h2>
               </div>
-              <button
-                type="button"
-                onClick={() => setCalendarOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
-                aria-label="关闭内容日历"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void startTeamWeekGeneration();
+                  }}
+                  disabled={
+                    teamGenerationBusy || !session?.strategySnapshot.contentCalendarDraft.length
+                  }
+                  className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {teamGenerationBusy ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  生成团队本周内容
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCalendarOpen(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                  aria-label="关闭内容日历"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              <TeamGenerationStatusBanner
+                status={teamGenerationStatus}
+                error={teamGenerationError}
+              />
               {session?.strategySnapshot.contentCalendarDraft.length ? (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {session.strategySnapshot.contentCalendarDraft.map((item) => (
-                    <Link
+                    <article
                       key={item.id}
-                      href={getCalendarItemHref(item)}
-                      onClick={() => setCalendarOpen(false)}
-                      className="group flex min-h-44 flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition-colors hover:border-amber-500/40 hover:bg-amber-500/5"
+                      className="flex min-h-44 flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-4"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.22em] text-white/55">
@@ -600,11 +731,15 @@ export function ConsultationWorkspace() {
                       </p>
                       <h3 className="mt-2 text-sm font-medium leading-6 text-white">{item.title}</h3>
                       <p className="mt-2 line-clamp-3 text-xs leading-6 text-white/50">{item.summary}</p>
-                      <span className="mt-auto inline-flex items-center gap-1 pt-4 text-[10px] uppercase tracking-[0.22em] text-white/35 transition-colors group-hover:text-amber-500">
-                        去{item.contentType === "article" ? "图文" : "视频"}工作台生成
+                      <Link
+                        href={getCalendarItemHref(item)}
+                        onClick={() => setCalendarOpen(false)}
+                        className="mt-auto inline-flex items-center gap-1 pt-4 text-[10px] uppercase tracking-[0.22em] text-white/35 transition-colors hover:text-amber-500"
+                      >
+                        内测{item.contentType === "article" ? "图文" : "视频"}工作台
                         <ChevronRight className="h-3 w-3" />
-                      </span>
-                    </Link>
+                      </Link>
+                    </article>
                   ))}
                 </div>
               ) : (
@@ -829,7 +964,7 @@ export function ConsultationWorkspace() {
           </div>
 
           <div className="mt-auto border-t border-white/10 p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40">
                 <CalendarDays className="h-4 w-4 text-amber-500" />
                 营销内容日历
@@ -842,12 +977,31 @@ export function ConsultationWorkspace() {
                 查看全部内容
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                void startTeamWeekGeneration();
+              }}
+              disabled={teamGenerationBusy || !session?.strategySnapshot.contentCalendarDraft.length}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[10px] uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {teamGenerationBusy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              生成团队本周内容
+            </button>
+            <TeamGenerationStatusBanner
+              status={teamGenerationStatus}
+              error={teamGenerationError}
+              compact
+            />
             <div className="mt-4 space-y-3">
               {session?.strategySnapshot.contentCalendarDraft.map((item) => (
-                <Link
+                <article
                   key={item.id}
-                  href={getCalendarItemHref(item)}
-                  className="block rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-amber-500/40 hover:bg-amber-500/5"
+                  className="rounded-2xl border border-white/10 bg-white/5 p-4"
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -856,10 +1010,16 @@ export function ConsultationWorkspace() {
                       </p>
                       <p className="mt-2 text-sm text-white">{item.title}</p>
                       <p className="mt-2 text-xs leading-6 text-white/50">{item.summary}</p>
+                      <Link
+                        href={getCalendarItemHref(item)}
+                        className="mt-3 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.22em] text-white/35 transition-colors hover:text-amber-500"
+                      >
+                        内测入口
+                        <ChevronRight className="h-3 w-3" />
+                      </Link>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-white/30" />
                   </div>
-                </Link>
+                </article>
               ))}
             </div>
           </div>
@@ -867,6 +1027,93 @@ export function ConsultationWorkspace() {
       </div>
     </div>
   );
+}
+
+function TeamGenerationStatusBanner({
+  status,
+  error,
+  compact = false,
+}: {
+  status: TeamGenerationStatus | null;
+  error: string | null;
+  compact?: boolean;
+}) {
+  if (!status && !error) {
+    return null;
+  }
+
+  if (error) {
+    return (
+      <div
+        className={cn(
+          "rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-100/80",
+          compact ? "mt-3 text-xs" : "mb-4",
+        )}
+      >
+        {error}
+      </div>
+    );
+  }
+
+  if (!status) {
+    return null;
+  }
+
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm leading-6 text-emerald-100/80",
+        compact ? "mt-3 text-xs" : "mb-4",
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span>批次 {status.batchStatus}</span>
+        <span>任务 {status.totalJobs}</span>
+        <span>排队 {status.pendingJobs}</span>
+        <span>运行 {status.runningJobs}</span>
+        <span>成功 {status.succeededJobs}</span>
+        <span>失败 {status.failedJobs}</span>
+      </div>
+    </div>
+  );
+}
+
+function summarizeTeamGeneration(
+  batch: ContentGenerationBatchDto,
+  jobs: ContentGenerationJobSummary[],
+): TeamGenerationStatus {
+  const counts = jobs.reduce(
+    (acc, job) => {
+      if (job.status === "pending") {
+        acc.pendingJobs += 1;
+      } else if (job.status === "running") {
+        acc.runningJobs += 1;
+      } else if (job.status === "succeeded") {
+        acc.succeededJobs += 1;
+      } else {
+        acc.failedJobs += 1;
+      }
+
+      return acc;
+    },
+    {
+      pendingJobs: 0,
+      runningJobs: 0,
+      succeededJobs: 0,
+      failedJobs: 0,
+    },
+  );
+
+  return {
+    batchId: batch.id,
+    batchStatus: batch.status,
+    totalJobs: batch.totalJobs,
+    pendingJobs: counts.pendingJobs,
+    runningJobs: counts.runningJobs,
+    succeededJobs: counts.succeededJobs,
+    failedJobs: counts.failedJobs,
+    updatedAt: batch.updatedAt,
+  };
 }
 
 function getToolCardStatusLabel(status: ConsultationToolCardDto["status"]) {

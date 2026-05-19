@@ -48,10 +48,7 @@ export function extractPayloadResultAssets(
       ownerType: "content_variant",
       ownerId: String(asset.ownerId ?? asset.owner_id ?? fallbackOwnerId),
       assetType: normalizePayloadAssetType(asset),
-      storageProvider:
-        asset.storageProvider === "tencent_cos" || asset.storage_provider === "tencent_cos"
-          ? "tencent_cos"
-          : "supabase_storage",
+      storageProvider: normalizePayloadStorageProvider(asset),
       bucketName: readString(asset, "bucketName", "bucket_name"),
       storageKey: String(asset.storageKey ?? asset.storage_key ?? ""),
       originUrl: readString(asset, "originUrl", "origin_url"),
@@ -94,6 +91,16 @@ export function extractPayloadResultAssets(
                 : null,
     }))
     .filter((asset) => asset.id && asset.ownerId && asset.storageKey);
+}
+
+function normalizePayloadStorageProvider(asset: Record<string, unknown>): MediaAssetDto["storageProvider"] {
+  const storageProvider = asset.storageProvider ?? asset.storage_provider;
+
+  if (storageProvider === "tencent_cos" || storageProvider === "aliyun_oss") {
+    return storageProvider;
+  }
+
+  return "supabase_storage";
 }
 
 function normalizePayloadAssetType(asset: Record<string, unknown>): MediaAssetDto["assetType"] {
