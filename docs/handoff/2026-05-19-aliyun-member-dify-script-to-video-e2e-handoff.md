@@ -134,9 +134,10 @@
 
 ## 下一步
 
-1. 用户刷新页面后重新上传 M4A 音色并点击 AI 剪辑。
-2. 盯 FireRed 日志确认 `local_asr` 先识别口播素材，`generate_script` 使用 ASR 文本，`generate_voiceover` 使用 `pixelle_clone`。
-3. 如需继续扩展素材库，沿用 `source_items + asset_objects`，不要补 `merchant_media_*` 历史表。
+1. 用户刷新页面后重新上传 M4A/MP3 音色并点击 AI 剪辑。
+2. 盯新 job 的 payload，确认包含 `voice_profile`，且 `subtitles.talkingHeadSource=asr_original_audio`。
+3. 盯 FireRed 日志确认 `local_asr` 先识别口播素材，`generate_script` 使用 ASR 文本，`generate_voiceover` 使用 clone provider。
+4. 如需继续扩展素材库，沿用 `source_items + asset_objects`，不要补 `merchant_media_*` 历史表。
 
 ## 残余风险
 
@@ -144,3 +145,31 @@
 - 本次只验证了一条真实 Dify job，符合用户要求；没有扩展成多任务批量回归。
 - 阿里云 normal no-voiceover 已跑通但后续不再作为产品主链路；默认配音已真实跑通，voice clone 的 ASR->clone TTS 已做契约修复和上传意图验证，仍需真实成片端到端验收。
 - 商家素材库检索已通过一条真实 job 验证，但素材检索打分目前是轻量关键词匹配，后续如要提升准确率，应继续在 `source_items.trace_payload.materialAnalysis` 和脚本素材查询字段上增强，不应回退到 `merchant_media_*`。
+
+## 2026-05-20 补充交接：音色上传真实修复
+
+最新代码 HEAD：`a1c4ca1`
+
+最新部署 release：`/srv/jingjing-domestic/releases/20260520002517-a1c4ca1`
+
+服务状态：
+
+- `jingjing-domestic-app.service`: active
+- `jingjing-video-worker.service`: active
+- `jingjing-firered-openstoryline.service`: active
+- `/api/health`: ok, DB `postgres`, storage `aliyun_oss`
+
+本轮补充结论：
+
+- ASR 在最新真实成片 job `5cab7b08-d31a-417a-9e63-31c84e512aa2` 已经跑到，provider 为 `aliyun_paraformer`，输出 `16` 条 clip 识别信息，其中 `10` 条非空。
+- 但该 job 没有 `voice_profile`，`voiceover.provider=minimax`，所以它不是音色克隆链路，只能证明默认配音链路内的 ASR 节点可用。
+- 成员端音色上传失败的真实根因是浏览器 signed PUT 写 `voice-profiles/*` 被 OSS/RAM 策略拒绝，返回 403 `AccessDenied`。
+- 已改为服务端托管上传：`POST /api/voice-profiles/upload`。
+- 新音色对象 key 写入允许前缀：`draft-inputs/<merchantId>/<voiceProfileId>/voice-profile-audio/<file>`。
+- M4A 实测 HTTP 201，成功写入 ready `voice_profiles` 和 `asset_objects`，测试后已清理临时 DB 行。
+
+需要下一位接手重点看：
+
+1. 用户真实上传音色后，页面应显示 ready 音色，不能再为空。
+2. 新建 AI 剪辑 job 后，DB `video_edit_jobs.input_payload.production.voiceover` 应包含 `voice_profile`。
+3. FireRed 应从 `local_asr` 进入 clone voiceover，而不是默认 `minimax`。

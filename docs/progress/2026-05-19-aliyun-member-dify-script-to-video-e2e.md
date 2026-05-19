@@ -221,3 +221,82 @@ owner 生成团队本周内容 -> Dify 写回 daily task 视频脚本 -> 成员�
   - `git diff --check`: pass
 - not yet rerun:
   - 未重新跑一条真实 voice clone 成片。下一条用户上传 M4A 并点击 AI 剪辑后，应重点观察 FireRed 是否出现 `local_asr` -> `generate_script` 使用 ASR 文本 -> `generate_voiceover` 使用 `pixelle_clone`。
+
+## 2026-05-20 成员端音色上传真实修复与 ASR 证据补录
+
+- latest code HEAD: `a1c4ca1`
+- latest deployed release: `/srv/jingjing-domestic/releases/20260520002517-a1c4ca1`
+- service status:
+  - `jingjing-domestic-app.service`: active
+  - `jingjing-video-worker.service`: active
+  - `jingjing-firered-openstoryline.service`: active
+- `/api/health`: ok, DB `postgres`, storage `aliyun_oss`
+
+### ASR 是否用到
+
+- 最新真实成片 job `5cab7b08-d31a-417a-9e63-31c84e512aa2` 中，FireRed 已执行 `local_asr`。
+- `local_asr` provider: `aliyun_paraformer`
+- ASR 输出文件包含 `16` 条 clip 识别信息，其中 `10` 条非空。
+- 示例 ASR 文本：
+  - `clip_0004`: `知道具体位置或营业时间可以先收藏或者私信聊我。`
+  - `clip_0005`: `如果你想找一个不吵能坐一会儿的咖啡小院，不妨试试这一家。`
+- 结论：
+  - ASR 在上一条成片中已经被 OpenStoryline/FireRed 用到，主要用于 `speech_rough_cut`、字幕/时间线辅助。
+  - 但该 job 的 `voiceover` 为 `{ enabled: true, provider: "minimax" }`，没有 `voice_profile`，因此不是音色克隆链路。
+  - 要验证“上传成员音频 -> 音色克隆 -> ASR 原口播文本 -> clone TTS 配音”，必须先让成员端成功生成 ready `voice_profile`，再新建一条 video job。
+
+### 音色上传失败根因
+
+- 现象：
+  - 成员端上传音频后 UI 看起来为空。
+  - RDS 中 `voice_profiles` 行数为 `0`，`asset_objects owner_type='voice_profile'` 行数为 `0`。
+- 初始修复只让 M4A MIME 归一为 `audio/mp4`，并验证 `/api/media/upload-intents` 返回 HTTP 201。
+- 继续实测直传 OSS 发现真正失败点：
+  - signed PUT 到 `voice-profiles/*` 返回 HTTP 403。
+  - OSS XML 错误：`AccessDenied`，原因是当前阿里云 RAM/OSS 策略不允许写 `voice-profiles/*` prefix。
+- 因此 UI 为空不是单纯前端状态问题，而是浏览器直传对象没有成功落 OSS，后续 DB 记录也没有创建。
+
+### 修复
+
+- 新增服务端托管上传接口：`POST /api/voice-profiles/upload`
+  - 接收 multipart form data。
+  - 后端使用已有对象存储适配器写 OSS。
+  - 成功后一次性创建 `asset_objects` 和 `voice_profiles`。
+- 成员端不再对音色文件走浏览器 signed PUT。
+- 音色音频对象 key 改为当前策略已允许的正式上传前缀：
+  - `draft-inputs/<merchantId>/<voiceProfileId>/voice-profile-audio/<file>`
+- `voice_profiles` 仓储校验同时兼容：
+  - legacy `voice-profiles/<merchant>/<voiceProfileId>/`
+  - new `draft-inputs/<merchant>/<voiceProfileId>/voice-profile-audio/`
+- 成员端上传失败时显示明确错误，不再表现成“空白/没反应”。
+- `.m4a` / `.mp4` 音频仍统一规范为 `audio/mp4`。
+
+### 阿里云 M4A 实测
+
+- 测试用户：`e60fd946-c939-4807-ba7e-8d11facc158a`
+- 测试文件：临时生成的 `codex-m4a-upload-smoke.m4a`
+- `POST /api/voice-profiles/upload`: HTTP `201`
+- 创建结果：
+  - `voice_profile.id`: `4f463447-8699-4d27-b608-91c162cd5415`
+  - `asset_objects.id`: `e146492d-4729-48ca-bb8f-b6675fa7a049`
+  - `mime_type`: `audio/mp4`
+  - `storage_provider`: `aliyun_oss`
+  - `storage_key`: `draft-inputs/5bb8381f-1a72-48bc-ab87-d7bbf2740e7c/4f463447-8699-4d27-b608-91c162cd5415/voice-profile-audio/e485f8ac-0e2e-4254-881d-848aa6f26902-codex-m4a-upload-smoke.m4a`
+  - DB 校验：`voice_profiles.status=ready`
+- 测试完成后已删除临时 `voice_profiles` / `asset_objects` 行，避免污染用户真实音色数据。
+
+### 验证
+
+- `pnpm --dir app typecheck`: pass
+- `pnpm --dir app lint`: pass
+- `pnpm --dir app build`: pass
+- `pnpm --dir app exec node --test src/lib/member-video-workflow.test.ts src/server/api/video-job-payload.test.ts`: pass, `20` tests
+- `git diff --check`: pass
+
+### 下一步验证口径
+
+1. 用户刷新成员端页面，重新上传真实 M4A/MP3 音色。
+2. 页面应出现 ready 音色，不应再为空。
+3. 再点击 AI 剪辑，检查新 job 的 payload 是否包含 `voice_profile`。
+4. worker/FireRed 应出现 `local_asr`，并进入 clone voiceover 路径。
+5. 只有这条新 job 成片成功后，才能判定“音色克隆 + ASR 原口播文本 + clone TTS”完整链路通过。
