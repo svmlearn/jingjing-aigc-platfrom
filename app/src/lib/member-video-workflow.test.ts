@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   getMemberVideoDownloadUrl,
   getMemberVideoResultUrl,
+  isSupportedVoiceProfileAudioFile,
   normalizeVoiceProfileAudioMimeType,
   summarizeMemberVideoEditState,
 } from "./member-video-workflow.ts";
@@ -92,4 +93,15 @@ test("voice profile upload normalizes mobile m4a mime types to audio/mp4", () =>
     normalizeVoiceProfileAudioMimeType(new File(["audio"], "voice.m4a", { type: "" })),
     "audio/mp4",
   );
+});
+
+test("voice profile upload accepts common audio extensions even when browser mime is empty", () => {
+  assert.equal(isSupportedVoiceProfileAudioFile(new File(["audio"], "voice.m4a", { type: "" })), true);
+  assert.equal(
+    isSupportedVoiceProfileAudioFile(
+      new File(["audio"], "voice.m4a", { type: "application/octet-stream" }),
+    ),
+    true,
+  );
+  assert.equal(isSupportedVoiceProfileAudioFile(new File(["text"], "voice.txt", { type: "text/plain" })), false);
 });

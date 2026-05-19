@@ -184,7 +184,7 @@ export function buildStandardMediaUploadKeyPrefix(input: {
   }
 
   if (input.ownerType === "voice_profile") {
-    return `voice-profiles/${input.merchantId}/${input.ownerId}`;
+    return `draft-inputs/${input.merchantId}/${input.ownerId}/voice-profile-audio`;
   }
 
   return `draft-inputs/${input.merchantId}/${input.ownerId}`;

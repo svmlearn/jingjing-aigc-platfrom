@@ -446,7 +446,12 @@ function assertVoiceProfileAudioStorageKey(input: {
   merchantId: string;
   voiceProfileId: string;
 }, asset: Pick<MediaAssetDto, "storageKey">) {
-  if (!asset.storageKey.startsWith(`voice-profiles/${input.merchantId}/${input.voiceProfileId}/`)) {
+  const allowedPrefixes = [
+    `voice-profiles/${input.merchantId}/${input.voiceProfileId}/`,
+    `draft-inputs/${input.merchantId}/${input.voiceProfileId}/voice-profile-audio/`,
+  ];
+
+  if (!allowedPrefixes.some((prefix) => asset.storageKey.startsWith(prefix))) {
     throw new ApiError(
       400,
       "VOICE_PROFILE_AUDIO_ASSET_INVALID",

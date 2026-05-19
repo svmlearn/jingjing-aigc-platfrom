@@ -37,7 +37,10 @@ import type { ContentDraftBundleDto, ContentVariantDto } from "@/contracts/draft
 import type { PublicVideoEditJobDto, VideoEditProgressModuleDto } from "@/contracts/video";
 import { isVideoEditJobInFlightStatus } from "@/contracts/video";
 import type { VoiceProfileDto } from "@/contracts/voice";
-import { summarizeMemberVideoEditState } from "@/lib/member-video-workflow";
+import {
+  isSupportedVoiceProfileAudioFile,
+  summarizeMemberVideoEditState,
+} from "@/lib/member-video-workflow";
 import { getVideoJobStageLabel } from "@/lib/ui/video-job-display";
 import {
   createVideoEditJob,
@@ -67,10 +70,6 @@ type MemberHistoryPayload = ApiErrorPayload & {
 
 type VoiceProfilesPayload = ApiErrorPayload & {
   voiceProfiles?: VoiceProfileDto[];
-};
-
-type VoiceProfilePayload = ApiErrorPayload & {
-  voiceProfile?: VoiceProfileDto;
 };
 
 type AiEditBusyStage = "preparing_script" | "confirming_script" | "uploading_media" | "creating_job";
@@ -624,12 +623,26 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
 
   async function createVoiceProfileFromFile(file: File) {
     if (!isSupportedVoiceProfileAudioFile(file)) {
-      setActionError("克隆音色参考音频仅支持 wav、mp3、m4a、aac、ogg、opus、webm 音频文件。");
+      const message = "克隆音色参考音频仅支持 wav、mp3、m4a、aac、ogg、opus、webm 音频文件。";
+      setVoiceProfileCreate((current) => ({
+        ...current,
+        fileName: file.name,
+        status: "failed",
+        error: message,
+      }));
+      setActionError(message);
       return;
     }
 
     if (!voiceProfileCreate.authorizationAccepted) {
-      setActionError("请先确认已获得声音克隆授权。");
+      const message = "请先勾选声音克隆授权确认，再上传音频。";
+      setVoiceProfileCreate((current) => ({
+        ...current,
+        fileName: file.name,
+        status: "failed",
+        error: message,
+      }));
+      setActionError(message);
       return;
     }
 
@@ -648,8 +661,10 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
     }));
 
     try {
-      const audioAsset = await uploadVoiceProfileAudioFile({
+      const data = await uploadVoiceProfileAudioFile({
         voiceProfileId,
+        displayName,
+        authorizationAccepted: true,
         file,
         onStageChange(stage) {
           setVoiceProfileCreate((current) => ({
@@ -667,24 +682,6 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
             progressPct: normalizeUploadPercent(progress.percent),
           }));
         },
-      });
-
-      setVoiceProfileCreate((current) => ({
-        ...current,
-        status: "creating",
-        stage: "finalizing",
-        progressPct: 100,
-      }));
-
-      const data = await requestJson<VoiceProfilePayload>("/api/voice-profiles", {
-        method: "POST",
-        headers: taskFetchHeaders,
-        body: JSON.stringify({
-          id: voiceProfileId,
-          displayName,
-          refAudioAssetId: audioAsset.id,
-          authorizationAccepted: true,
-        }),
       });
 
       if (!data.voiceProfile) {
@@ -1230,22 +1227,6 @@ function buildMemberVideoProductionConfig(input: {
       userRequest: "",
     },
   };
-}
-
-function isSupportedVoiceProfileAudioFile(file: File) {
-  if (file.type.startsWith("audio/")) {
-    return true;
-  }
-
-  if (file.type === "video/mp4" && /\.(m4a|mp4)$/i.test(file.name)) {
-    return true;
-  }
-
-  if (file.type === "application/octet-stream" && /\.(aac|flac|m4a|mp3|ogg|opus|wav|webm)$/i.test(file.name)) {
-    return true;
-  }
-
-  return /\.(aac|flac|m4a|mp3|ogg|opus|wav|webm)$/i.test(file.name);
 }
 
 function getDifyVideoDraftReference(task: DailyContentTaskDto) {

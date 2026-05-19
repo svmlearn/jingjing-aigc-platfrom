@@ -118,3 +118,22 @@ export function normalizeVoiceProfileAudioMimeType(file: VoiceProfileAudioFileLi
 
   return browserType.startsWith("audio/") ? browserType : "application/octet-stream";
 }
+
+export function isSupportedVoiceProfileAudioFile(file: VoiceProfileAudioFileLike) {
+  if (file.type.startsWith("audio/")) {
+    return true;
+  }
+
+  if (file.type === "video/mp4" && /\.(m4a|mp4)$/i.test(file.name)) {
+    return true;
+  }
+
+  if (
+    file.type === "application/octet-stream" &&
+    /\.(aac|flac|m4a|mp3|ogg|opus|wav|webm)$/i.test(file.name)
+  ) {
+    return true;
+  }
+
+  return /\.(aac|flac|m4a|mp3|ogg|opus|wav|webm)$/i.test(file.name);
+}
