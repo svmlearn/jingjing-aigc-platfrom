@@ -557,18 +557,21 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         contentVariantId: approvedVariant.id,
         instructionText: `成员端 AI 剪辑：${script.title}`,
         productionConfig: {
+          voiceover: {
+            enabled: false,
+          },
           render: {
             aspectRatio: "9:16",
             maxDurationSeconds: script.targetDurationSeconds,
             includeOriginalAudio: true,
           },
           subtitles: {
-            enabled: true,
+            enabled: false,
             style: "platform_default",
           },
           bgm: {
-            enabled: true,
-            userRequest: "轻快但不要盖过口播的人居项目短视频背景音乐",
+            enabled: false,
+            userRequest: "",
           },
         },
       });
