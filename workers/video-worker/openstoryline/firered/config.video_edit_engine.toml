@@ -3,7 +3,7 @@
 developer_mode = true
 print_context = false # 在拦截器打印模型拿到的全部上下文，会很长 / Print full context in interceptor (output will be very long)
 
-# This local template enables the external `video_edit_engine` MCP server.
+# This template keeps the full local FireRed node set for the video worker.
 # It does not remove the normal OpenStoryline model requirement:
 # before chat can work, you still need valid LLM/VLM credentials via
 # `OPENSTORYLINE_LLM_*` and `OPENSTORYLINE_VLM_*`, or equivalent custom
@@ -59,14 +59,15 @@ available_nodes = [
     "PlanTimelineProNode", "PlanTimelineAITransitionNode", "RenderVideoNode"
 ]
 
-[[local_mcp_server.extra_mcp_servers]]
-server_name = "video_edit_engine"
-transport = "streamable-http"
-url = "${VIDEO_EDIT_ENGINE_MCP_URL:-http://127.0.0.1:9001/mcp}"
-timeout = 600
-sse_read_timeout = 1800
-forward_storyline_session_id = true
-# Optional dynamic headers example:
+# Optional external MCP server. Keep disabled in the domestic ECS worker unless
+# a separate video_edit_engine service is explicitly deployed on this host.
+# [[local_mcp_server.extra_mcp_servers]]
+# server_name = "video_edit_engine"
+# transport = "streamable-http"
+# url = "${VIDEO_EDIT_ENGINE_MCP_URL:-http://127.0.0.1:9001/mcp}"
+# timeout = 600
+# sse_read_timeout = 1800
+# forward_storyline_session_id = true
 # headers = { "Authorization" = "Bearer ${VIDEO_EDIT_ENGINE_API_KEY:-YOUR_VIDEO_EDIT_ENGINE_API_KEY}", "X-Upstream-Session" = "{{session_id}}" }
 
 # =========== skills ==========
