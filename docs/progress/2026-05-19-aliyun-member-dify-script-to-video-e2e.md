@@ -16,6 +16,7 @@ owner 生成团队本周内容 -> Dify 写回 daily task 视频脚本 -> 成员�
 - FireRed 增加单素材 deterministic grouping fallback，避免单 clip 时卡在 LLM 分组。
 - 阿里云 release 下 FireRed `run.sh` 支持从 `VIDEO_WORKER_HOST_ROOT/firered` 软链 `.storyline`、`resource`、`outputs`，避免 release 切换后运行时模型和素材目录缺失。
 - 对比新加坡运行容器和“服务器环境”包后，同步了 ASR 配置透传、Pexels 私有 base URL 透传、LLM no-proxy client、`dashscope==1.25.17` 等 worker 运行差异；保留阿里云 OSS/PostgreSQL 适配和 `video-results/*` 输出前缀。
+- 商家素材库保持现有 `source_items + asset_objects` 结构，不新建历史 `merchant_media_*` 表；App 侧 job 入参只保留成员/草稿素材，worker 运行期根据脚本素材需求从 `source_items + asset_objects` 检索商家视频素材，再传给 FireRed。
 
 ## 新加坡快照对比
 
@@ -81,4 +82,100 @@ owner 生成团队本周内容 -> Dify 写回 daily task 视频脚本 -> 成员�
 - 阿里云 FireRed systemd 已从 `config.aliyun-no-asr.toml` 切到 `config.video_edit_engine.toml`。
 - ASR 最小激活已通过：直接调用 FireRed ASR 节点返回 `provider=aliyun_paraformer`、`model=paraformer-realtime-v2`、`request_id_present=true`、`sentence_count=1`。
 - App release: `/srv/jingjing-domestic/releases/20260519210941-08f87d7`。
-- `cos素材库入库包_20260515.rar` 的占位 merchant `00000000-0000-4000-8000-000000000001` 应映射到阿里云验收商家 `5bb8381f-1a72-48bc-ab87-d7bbf2740e7c`（静境阿里云验收商家），上传用户映射到 `e60fd946-c939-4807-ba7e-8d11facc158a`。当前 RDS 未发现 `merchant_media_assets` / `merchant_media_clips` 表，因此尚未导入素材库。
+- `cos素材库入库包_20260515.rar` 的占位 merchant `00000000-0000-4000-8000-000000000001` 已映射到阿里云验收商家 `5bb8381f-1a72-48bc-ab87-d7bbf2740e7c`，上传用户映射到 `e60fd946-c939-4807-ba7e-8d11facc158a`。素材已导入现有 `source_items + asset_objects`：4 条 `source_items`、4 个视频 `asset_objects`、4 个缩略图 `asset_objects`；未创建 `merchant_media_*` 表。
+
+## 2026-05-19 默认配音真实成片验证
+
+- 修复 FireRed 运行配置：
+  - `worker.env` 曾覆盖 `OPENSTORYLINE_CONFIG` 到旧 `config.aliyun-no-asr.toml`，导致 `generate_voiceover` / `select_bgm` / `local_asr` 未注册，`plan_timeline` 缺依赖后循环。
+  - `workers/video-worker/openstoryline/firered/run.sh` 已兜底旧 no-ASR 配置，默认使用 `config.video_edit_engine.toml`。
+  - `config.video_edit_engine.toml` 已禁用未部署的外部 `video_edit_engine` MCP（`127.0.0.1:9001`），避免 `ConnectError: All connection attempts failed`。
+- 默认系统配音真实 job：
+  - failed pre-fix job: `e60d7114-6164-4f1a-9bfe-1de7aa1bbf92`
+  - successful video job id: `58205b68-db35-4d10-afe8-66dd7f93e4cb`
+  - member user id: `e60fd946-c939-4807-ba7e-8d11facc158a`
+  - daily task id: `da18e62a-99dd-4d0f-824e-2db4e6e19bbc`
+  - Dify draft id: `bce1e108-5b9a-4387-96bd-de155707ef0b`
+  - Dify video variant id: `3a228828-9506-4525-b013-f2d994213a38`
+  - final asset id: `d46c3011-1c75-478a-bdd7-ded911763d76`
+  - final object key: `video-results/5bb8381f-1a72-48bc-ab87-d7bbf2740e7c/58205b68-db35-4d10-afe8-66dd7f93e4cb/final.mp4`
+  - final size: `1623832` bytes
+  - result: `succeeded / completed / 100`
+- FireRed 路径事实：
+  - loaded media: 7 videos
+  - filtered clips: 6
+  - grouped clips: 2 groups
+  - script: `Using locked custom script for 2 group(s)`
+  - voiceover: `minimax`, 2 segments, total `10100ms`, `clone_enabled=false`
+  - ASR/speech rough cut: `local_asr` -> `speech_rough_cut` succeeded
+  - timeline: `plan_timeline_pro` succeeded
+  - render: MoviePy wrote final video, worker uploaded outputs to Aliyun OSS
+- Download fix:
+  - 前端下载曾返回 OSS XML：`Can not override response header on content-type`。
+  - `app/src/server/storage/aliyun-oss-provider.ts` 已修复：Aliyun signed read URL 不再覆盖 response `content-type`，只保留 `content-disposition`。
+  - Direct OSS signed GET verification after release: inline 200, attachment 200, object `Content-Type=video/mp4`。
+  - 本地下载文件：`tmp/video-results/58205b68-db35-4d10-afe8-66dd7f93e4cb-final.mp4`
+- Releases:
+  - FireRed config release: `/srv/jingjing-domestic/releases/20260519214702-d712324`
+  - Download fix app release: `/srv/jingjing-domestic/releases/20260519220300-00e6a71`
+  - `/api/health`: ok, DB `postgres`, storage `aliyun_oss`
+
+## 2026-05-19 商家素材库检索真实成片验证
+
+- 架构口径：
+  - 不创建 `merchant_media_assets` / `merchant_media_clips` 历史表。
+  - 素材库使用现有 `source_items + asset_objects`。
+  - `video_edit_jobs.input_payload.input_assets` 只保留成员上传/草稿素材。
+  - worker 在运行期根据 `materialContext.sceneAssetQueries`、缺失素材提示和脚本文本检索 `source_items + asset_objects`，把命中的商家视频素材作为本地运行期输入传给 FireRed。
+- 素材包导入：
+  - package: `cos素材库入库包_20260515.rar`
+  - merchant id: `5bb8381f-1a72-48bc-ab87-d7bbf2740e7c`
+  - created by user id: `e60fd946-c939-4807-ba7e-8d11facc158a`
+  - source items: 4
+  - video asset objects: 4
+  - thumbnail asset objects: 4
+  - object prefix: `source-assets/5bb8381f-1a72-48bc-ab87-d7bbf2740e7c/*`
+  - `merchant_media_*` table count: 0
+- worker 修复：
+  - `workers/video-worker/worker/app/db.py` 新增 `list_video_material_input_assets`，从 `source_items + asset_objects` 读取视频素材。
+  - `workers/video-worker/worker/app/processor.py` 下载成员输入后，再下载商家素材库命中的视频素材到 `inputs/merchant-materials`。
+  - 日志记录 `user_inputs_downloaded`、`material_library_inputs_downloaded`、`material_library_asset_ids`。
+- deployed release: `/srv/jingjing-domestic/releases/20260519225312-60e0a29`
+- latest HEAD: `60e0a29`
+- verification video job id: `cfb03f5c-d1a0-422b-8840-047592008a48`
+- member user id: `e60fd946-c939-4807-ba7e-8d11facc158a`
+- daily task id: `da18e62a-99dd-4d0f-824e-2db4e6e19bbc`
+- Dify draft id: `bce1e108-5b9a-4387-96bd-de155707ef0b`
+- Dify video variant id: `3a228828-9506-4525-b013-f2d994213a38`
+- final asset id: `ab1b5ce3-8aa4-4ae2-893a-35a2d94a2bbf`
+- final object key: `video-results/5bb8381f-1a72-48bc-ab87-d7bbf2740e7c/cfb03f5c-d1a0-422b-8840-047592008a48/final.mp4`
+- final size: `6169178` bytes
+- result: `succeeded / completed / 100`
+- material evidence:
+  - persisted `input_payload.input_assets`: 7
+  - worker `runtime_payload.input_assets`: 11
+  - user inputs downloaded: 7
+  - material library inputs downloaded: 4
+  - material library asset ids: `fa3b7b4a-cb4f-4282-a1e3-ff7063f478fd`, `753f9de3-03e2-492e-bc50-302dc883721f`, `f2d3b3ea-4750-44fd-99e2-bd9d5816647a`, `9eba31e8-9776-48e3-9a24-bbe2c21073c0`
+- FireRed evidence:
+  - `split_shots` output clips count: 14
+  - `understand_clips`: 14/14
+  - `generate_voiceover`: `minimax`
+  - `render_video`: succeeded
+- app logs:
+  - verification window 未发现 `/api/content/video-workbench-agent` 调用。
+- preview/download:
+  - app API preview: 200, `Content-Type=video/mp4`, `6169178` bytes
+  - app API download: 200, `Content-Type=video/mp4`, `6169178` bytes
+- 本地下载文件：`tmp/video-results/cfb03f5c-d1a0-422b-8840-047592008a48-final.mp4`
+- env cleanup:
+  - 阿里云 `/srv/jingjing-domestic/shared/env/worker.env` 已移除空的 `SUPABASE_DB_URL` key。
+  - worker database key 保持 `WORKER_DATABASE_URL`，不在 worker env 中保留 Supabase DB URL。
+- extra validation:
+  - `PYTHONPATH=workers/video-worker python3 -m unittest workers/video-worker/tests/test_processor_contract.py`: pass, 26 tests
+  - `PYTHONPATH=workers/video-worker uv run python -m unittest discover -s workers/video-worker/tests`: pass, 105 tests
+  - `python3 -m py_compile workers/video-worker/worker/app/db.py workers/video-worker/worker/app/processor.py`: pass
+  - `pnpm --dir app typecheck`: pass
+  - `pnpm --dir app lint`: pass
+  - `pnpm --dir app build`: pass
+  - `git diff --check`: pass
