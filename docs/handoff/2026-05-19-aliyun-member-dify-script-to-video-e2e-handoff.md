@@ -12,6 +12,7 @@
 - 服务端 `/api/content/video-workbench-agent` 已增加 Dify daily task 复用保护，防止旧前端 bundle 误打接口后调用脚本 Agent。
 - worker/OpenStoryline/FireRed 已同步新加坡运行容器中的 provider-neutral runtime 差异，同时保留阿里云 OSS/PostgreSQL 差异。
 - 一条真实阿里云 no-voiceover 基线 AI 剪辑链路已跑通，产物在 `video-results/*`，preview/download 都是 200；后续产品口径已调整为默认配音 / 克隆配音，不再继续使用 no-voiceover。
+- 阿里云 worker env 已补齐 ASR/TTS provider 变量；FireRed systemd 已切到 `config.video_edit_engine.toml`；ASR 最小激活通过。
 - 已下载最终 MP4 到本地 `artifacts/aliyun-member-dify-script-to-video-e2e/`，该目录已加入 `.gitignore`。
 
 ## 关键 ID
@@ -23,6 +24,8 @@
 - video job id: `c435fb7c-3e83-491f-9413-0195273f37e0`
 - final asset id: `bd0c1c3f-6114-43e9-a855-2f661f77a715`
 - final object key: `video-results/5bb8381f-1a72-48bc-ab87-d7bbf2740e7c/c435fb7c-3e83-491f-9413-0195273f37e0/final.mp4`
+- latest release: `/srv/jingjing-domestic/releases/20260519210941-08f87d7`
+- latest HEAD: `08f87d7`
 
 ## 改动文件
 
@@ -53,15 +56,15 @@
 - changed Python `py_compile`: pass
 - `PYTHONPATH=workers/video-worker uv run ... python -m unittest discover -s workers/video-worker/tests`: pass, `104` tests
 - `git diff --check`: pass
+- ASR minimal activation: pass, `provider=aliyun_paraformer`, `model=paraformer-realtime-v2`, `sentence_count=1`, request id present.
 
 ## 下一步
 
 1. 推送 `codex/domestic-infra-migration` 到 `gitee/codex/domestic-infra-migration`。
 2. 从最终 HEAD 部署 clean release 到 ECS。
-3. 补齐阿里云 worker env 的 ASR/TTS provider 变量，只保留阿里云 OSS/PostgreSQL 当前变量。
-4. 验证 `/api/health`、provider、storage provider、worker/FireRed/OpenStoryline 服务状态。
-5. 如用户继续在网页端点 AI 剪辑，观察 nginx/app 日志，确认当前 bundle 不再发起旧 Agent；即使发起，服务端也应返回 `trace.mode=dify_daily_task_reuse`。
-6. 用一条成员端任务分别优先验证默认 `minimax` 配音；有成员音色时再验证 `voice_profile` 克隆配音。
+3. 验证 `/api/health`、provider、storage provider、worker/FireRed/OpenStoryline 服务状态。
+4. 如用户继续在网页端点 AI 剪辑，观察 nginx/app 日志，确认当前 bundle 不再发起旧 Agent；即使发起，服务端也应返回 `trace.mode=dify_daily_task_reuse`。
+5. 用一条成员端任务优先验证默认 `minimax` 配音；有成员音色时再验证 `voice_profile` 克隆配音。
 
 ## 残余风险
 

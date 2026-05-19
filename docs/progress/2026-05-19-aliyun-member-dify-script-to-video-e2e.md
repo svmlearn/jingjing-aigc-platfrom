@@ -77,5 +77,8 @@ owner 生成团队本周内容 -> Dify 写回 daily task 视频脚本 -> 成员�
 - 成员端音色上传保持可选。
 - 无音色上传时，成员端创建 job 使用默认系统配音，provider 为 `minimax`，不再发送 `voiceover.enabled=false`。
 - 有音色上传且 `voice_profile` ready 时，成员端创建 job 使用 `voice_profile`，worker 会下载参考音频并走 `pixelle_clone`。
-- 阿里云 worker env 需要补齐 ASR provider key 和 TTS provider key；只保留阿里云 OSS/PostgreSQL 当前配置，不恢复 COS/Supabase。
+- 阿里云 worker env 已补齐 ASR provider key 和 TTS provider key；只保留阿里云 OSS/PostgreSQL 当前配置，未恢复 COS/Supabase。
+- 阿里云 FireRed systemd 已从 `config.aliyun-no-asr.toml` 切到 `config.video_edit_engine.toml`。
+- ASR 最小激活已通过：直接调用 FireRed ASR 节点返回 `provider=aliyun_paraformer`、`model=paraformer-realtime-v2`、`request_id_present=true`、`sentence_count=1`。
+- App release: `/srv/jingjing-domestic/releases/20260519210941-08f87d7`。
 - `cos素材库入库包_20260515.rar` 的占位 merchant `00000000-0000-4000-8000-000000000001` 应映射到阿里云验收商家 `5bb8381f-1a72-48bc-ab87-d7bbf2740e7c`（静境阿里云验收商家），上传用户映射到 `e60fd946-c939-4807-ba7e-8d11facc158a`。当前 RDS 未发现 `merchant_media_assets` / `merchant_media_clips` 表，因此尚未导入素材库。
