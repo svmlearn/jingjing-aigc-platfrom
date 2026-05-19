@@ -724,11 +724,12 @@ export async function uploadMediaFileForOwner(params: {
   ownerType: Extract<MediaOwnerType, "source_item" | "content_draft" | "voice_profile">;
   ownerId: string;
   file: File;
+  assetTypeOverride?: UploadableMediaAssetType;
   sortOrder?: number;
   onProgress?: (progress: UploadProgress) => void;
   onStageChange?: (stage: DraftMediaUploadStage) => void;
 }) {
-  const assetType = assetTypeFromMimeType(params.file.type, params.file.name);
+  const assetType = params.assetTypeOverride ?? assetTypeFromMimeType(params.file.type, params.file.name);
   const mimeType = params.file.type || "application/octet-stream";
 
   params.onStageChange?.("preparing");
@@ -810,6 +811,7 @@ export async function uploadVoiceProfileAudioFile(params: {
     ownerType: "voice_profile",
     ownerId: params.voiceProfileId,
     file: params.file,
+    assetTypeOverride: "audio",
     onProgress: params.onProgress,
     onStageChange: params.onStageChange,
   });

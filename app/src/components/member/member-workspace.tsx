@@ -824,7 +824,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           </span>
           <input
             type="file"
-            accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm"
+            accept="audio/*,audio/mp4,audio/x-m4a,video/mp4,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm"
             className="sr-only"
             disabled={voiceProfileBusy}
             onChange={(event) => {
@@ -1225,6 +1225,14 @@ function buildMemberVideoProductionConfig(input: {
 
 function isSupportedVoiceProfileAudioFile(file: File) {
   if (file.type.startsWith("audio/")) {
+    return true;
+  }
+
+  if (file.type === "video/mp4" && /\.(m4a|mp4)$/i.test(file.name)) {
+    return true;
+  }
+
+  if (file.type === "application/octet-stream" && /\.(aac|flac|m4a|mp3|ogg|opus|wav|webm)$/i.test(file.name)) {
     return true;
   }
 
