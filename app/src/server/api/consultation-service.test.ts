@@ -168,6 +168,14 @@ test("expert container can scope knowledge and runtime tool policy", () => {
   assert.match(consultationServiceAndRuntimeSource, /modelConfig\.retrievalTopK/);
 });
 
+test("llm runtime timeout respects platform settings for native tool calling", () => {
+  assert.match(platformAdminRepositorySource, /timeoutSeconds: getNumber\(record\.timeoutSeconds/);
+  assert.doesNotMatch(
+    platformAdminRepositorySource,
+    /timeoutSeconds: useSiliconFlowDefaults\s*\?\s*defaultLlmRuntime\.timeoutSeconds/,
+  );
+});
+
 test("consultation runtime uses progressive skill disclosure", () => {
   assert.match(consultationServiceAndRuntimeSource, /mode: "progressive_disclosure"/);
   assert.match(consultationServiceAndRuntimeSource, /buildSkillCatalogPrompt/);
