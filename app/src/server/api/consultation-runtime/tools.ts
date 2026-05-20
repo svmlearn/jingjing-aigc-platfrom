@@ -371,7 +371,7 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
     {
       key: "generate_article_brief",
       label: "生成图文任务草案",
-      purpose: "把咨询结论转成图文工作台可使用的 brief。",
+      purpose: "仅在用户明确要求图文工作台 brief 时，把咨询结论转成图文工作台可使用的 brief；团队内容日历直接生成链路不要用它作为前置。",
       writes: "strategySnapshot.articleBrief",
       parameters: merchantRoundParameters,
       validate: validateMerchantRoundArgs("generate_article_brief"),
@@ -379,7 +379,7 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
     {
       key: "generate_video_brief",
       label: "生成视频任务草案",
-      purpose: "把咨询结论转成视频工作台可使用的 brief。",
+      purpose: "仅在用户明确要求视频工作台 brief 时，把咨询结论转成视频工作台可使用的 brief；团队内容日历直接生成链路不要用它作为前置。",
       writes: "strategySnapshot.videoBrief",
       parameters: merchantRoundParameters,
       validate: validateMerchantRoundArgs("generate_video_brief"),

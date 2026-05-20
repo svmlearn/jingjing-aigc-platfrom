@@ -279,6 +279,10 @@ test("consultation runtime routes explicit knowledge reads through the retrieval
   assert.match(serviceSource, /必须由你根据用户目标和工具结果自行判断/);
   assert.match(serviceSource, /不要先写日历再补查依据/);
   assert.match(serviceSource, /availableTools 中仍有 update_content_calendar/);
+  assert.match(serviceSource, /内容日历 -> 生成团队内容 -> Dify/);
+  assert.match(serviceSource, /历史日历当成本轮已完成/);
+  assert.match(consultationServiceAndRuntimeSource, /仅在用户明确要求图文工作台 brief 时/);
+  assert.match(consultationServiceAndRuntimeSource, /仅在用户明确要求视频工作台 brief 时/);
   assert.match(serviceSource, /自己调用 update_content_calendar 写入可执行日历/);
   assert.match(serviceSource, /buildNativeStrategySnapshotSummary/);
   assert.match(serviceSource, /guidancePresence/);
