@@ -547,6 +547,49 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
             require_kind,
         )
 
+    def test_worker_filter_clips_rejects_skip_mode(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(worker_payload={"input_assets": []})
+
+        with self.assertRaisesRegex(module.ToolException, "must not run filter_clips"):
+            module._reject_worker_filter_clips_fallback(
+                "filter_clips",
+                {"mode": "skip"},
+                context,
+            )
+
+    def test_worker_filter_clips_rejects_default_mode(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(worker_payload={"input_assets": []})
+
+        with self.assertRaisesRegex(module.ToolException, "must not run filter_clips"):
+            module._reject_worker_filter_clips_fallback(
+                "filter_clips",
+                {"mode": "default"},
+                context,
+            )
+
+    def test_worker_filter_clips_allows_auto_and_non_worker_calls(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        worker_context = types.SimpleNamespace(worker_payload={"input_assets": []})
+        local_context = types.SimpleNamespace(worker_payload=None)
+
+        module._reject_worker_filter_clips_fallback(
+            "filter_clips",
+            {"mode": "auto"},
+            worker_context,
+        )
+        module._reject_worker_filter_clips_fallback(
+            "filter_clips",
+            {"mode": "skip"},
+            local_context,
+        )
+        module._reject_worker_filter_clips_fallback(
+            "group_clips",
+            {"mode": "default"},
+            worker_context,
+        )
+
     def test_locked_worker_script_expands_dialogues_to_match_more_groups(self):
         module = sys.modules["firered_node_interceptors_under_test"]
         payload = {
