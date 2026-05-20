@@ -222,7 +222,8 @@ test("consultation planner supports native tool calling with deterministic fallb
   assert.match(consultationServiceAndRuntimeSource, /buildNativeToolCallingMessages/);
   assert.match(consultationServiceAndRuntimeSource, /buildConsultationAiRuntimeTools/);
   assert.match(consultationServiceAndRuntimeSource, /parseNativeConsultationToolCall/);
-  assert.match(consultationServiceAndRuntimeSource, /toolChoice: "auto"/);
+  assert.match(consultationServiceAndRuntimeSource, /toolChoice: getNativeToolChoice/);
+  assert.match(consultationServiceAndRuntimeSource, /return "auto"/);
   assert.match(consultationServiceAndRuntimeSource, /agent\.tool\.requested/);
   assert.match(consultationServiceAndRuntimeSource, /source: "model_tool_calls"/);
   assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_fallback/);
@@ -239,9 +240,11 @@ test("consultation planner supports native tool calling with deterministic fallb
   assert.match(consultationServiceAndRuntimeSource, /plannerTrace/);
 });
 
-test("consultation runtime exposes knowledge retrieval as a model-selected tool", () => {
+test("consultation runtime routes explicit knowledge reads through the retrieval tool", () => {
   assert.match(consultationServiceAndRuntimeSource, /retrieve_knowledge_base/);
-  assert.match(consultationServiceAndRuntimeSource, /toolChoice: "auto"/);
+  assert.match(consultationRuntimeSource, /shouldOpenWithKnowledgeBaseTool/);
+  assert.match(consultationRuntimeSource, /isExplicitKnowledgeBaseReadRequest/);
+  assert.match(consultationRuntimeSource, /name: "retrieve_knowledge_base"/);
   assert.match(serviceSource, /请先调用 retrieve_knowledge_base 获取资料/);
   assert.match(serviceSource, /不要声称无法读取用户知识库/);
   assert.match(consultationRuntimeSource, /knowledgeMatches: \(result\.knowledgeMatches \?\? \[\]\)\.map/);

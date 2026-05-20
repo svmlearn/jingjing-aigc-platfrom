@@ -2,6 +2,8 @@ import {
   AiRuntimeError,
   createChatCompletion,
   getAiRuntimeApiKey,
+  type AiRuntimeTool,
+  type AiRuntimeToolChoice,
   type ChatMessage,
 } from "@/server/api/ai-runtime";
 import {
@@ -36,6 +38,7 @@ import type {
 } from "@/server/api/consultation-runtime/types";
 import {
   clipText,
+  isExplicitKnowledgeBaseReadRequest,
   uniqueStrings,
 } from "@/server/api/consultation-runtime/utils";
 
@@ -303,7 +306,12 @@ async function runNativeToolCallingLoop(input: {
         model: input.input.state.consultationAgent.model,
         messages,
         tools,
-        toolChoice: "auto",
+        toolChoice: getNativeToolChoice({
+          state: input.input.state,
+          toolResults: input.toolResults,
+          tools,
+          turn,
+        }),
       });
     } catch (error) {
       return buildNativeFallbackResult(formatAiRuntimeError(error));
@@ -474,6 +482,56 @@ function getNativeUnavailableToolNames(
         .map((result) => result.toolName),
     ),
   );
+}
+
+function getNativeToolChoice(input: {
+  state: ConsultationAgentLoopState;
+  toolResults: ConsultationAgentToolResult[];
+  tools: AiRuntimeTool[];
+  turn: number;
+}): AiRuntimeToolChoice {
+  if (
+    input.turn === 1 &&
+    shouldOpenWithKnowledgeBaseTool(input.state) &&
+    !hasToolResult(input.toolResults, "retrieve_knowledge_base") &&
+    input.tools.some((tool) => tool.function.name === "retrieve_knowledge_base")
+  ) {
+    return {
+      type: "function",
+      function: {
+        name: "retrieve_knowledge_base",
+      },
+    };
+  }
+
+  return "auto";
+}
+
+function shouldOpenWithKnowledgeBaseTool(state: ConsultationAgentLoopState) {
+  if (isExplicitKnowledgeBaseReadRequest(state.userContent)) {
+    return true;
+  }
+
+  const normalizedCurrent = state.userContent.replace(/\s+/g, "");
+
+  if (!/(工具.*读|读.*工具|可以读|能读|读不了|无法读|不能读)/.test(normalizedCurrent)) {
+    return false;
+  }
+
+  const recentUserText = state.session.messages
+    .filter((message) => message.role === "user")
+    .slice(-3)
+    .map((message) => message.content)
+    .join("\n");
+
+  return isExplicitKnowledgeBaseReadRequest(`${recentUserText}\n${state.userContent}`);
+}
+
+function hasToolResult(
+  toolResults: ConsultationAgentToolResult[],
+  toolName: ConsultationAgentToolKey,
+) {
+  return toolResults.some((result) => result.toolName === toolName);
 }
 
 function shouldStopAfterToolResult(result: ConsultationAgentToolResult) {
