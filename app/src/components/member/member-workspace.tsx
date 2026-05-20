@@ -657,7 +657,6 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
       return null;
     }
 
-    const voiceProfileId = crypto.randomUUID();
     const displayName = voiceProfileCreate.displayName.trim() || file.name.replace(/\.[^.]+$/, "");
 
     setActionError(null);
@@ -673,7 +672,6 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
 
     try {
       const data = await uploadVoiceProfileAudioFile({
-        voiceProfileId,
         displayName,
         authorizationAccepted: true,
         file,
@@ -830,7 +828,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
             ) : (
               <Upload className="size-4" aria-hidden="true" />
             )}
-            {voiceProfileBusy ? `${voiceProfileCreate.progressPct}%` : "上传"}
+            {voiceProfileBusy ? `${voiceProfileCreate.progressPct}%` : selectedVoiceAudioFile ? "更换" : "选择"}
           </span>
           <input
             type="file"

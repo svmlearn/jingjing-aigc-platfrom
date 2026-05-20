@@ -932,7 +932,7 @@ export async function uploadDraftMediaFile(params: {
 }
 
 export async function uploadVoiceProfileAudioFile(params: {
-  voiceProfileId: string;
+  voiceProfileId?: string;
   displayName: string;
   authorizationAccepted: boolean;
   file: File;
@@ -942,7 +942,9 @@ export async function uploadVoiceProfileAudioFile(params: {
   params.onStageChange?.("preparing");
 
   const formData = new FormData();
-  formData.set("voiceProfileId", params.voiceProfileId);
+  if (params.voiceProfileId) {
+    formData.set("voiceProfileId", params.voiceProfileId);
+  }
   formData.set("displayName", params.displayName);
   formData.set("authorizationAccepted", params.authorizationAccepted ? "true" : "false");
   formData.set("mimeType", normalizeVoiceProfileAudioMimeType(params.file));
