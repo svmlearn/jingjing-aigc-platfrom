@@ -446,6 +446,7 @@ export function MemberArticleTaskPage({ taskId }: { taskId: string }) {
 export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
   const { task, loading, error, reload } = useMemberTask(taskId);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
+  const [selectedVoiceAudioFile, setSelectedVoiceAudioFile] = useState<File | null>(null);
   const [draftBundle, setDraftBundle] = useState<ContentDraftBundleDto | null>(null);
   const [job, setJob] = useState<VideoEditJob | null>(null);
   const [busyState, setBusyState] = useState<AiEditBusyState | null>(null);
@@ -602,6 +603,16 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         });
       }
 
+      let voiceProfileForJob = selectedVoiceProfile;
+      if (selectedVoiceAudioFile) {
+        const uploadedVoiceProfile = await createVoiceProfileFromFile(selectedVoiceAudioFile);
+        if (!uploadedVoiceProfile) {
+          return;
+        }
+        voiceProfileForJob = uploadedVoiceProfile;
+        setSelectedVoiceAudioFile(null);
+      }
+
       setBusyState({ stage: "creating_job" });
       const nextJob = await createVideoEditJob({
         draftId: bundle.draft.id,
@@ -609,7 +620,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         instructionText: `成员端 AI 剪辑：${script.title}`,
         productionConfig: buildMemberVideoProductionConfig({
           script,
-          voiceProfile: selectedVoiceProfile,
+          voiceProfile: voiceProfileForJob,
         }),
       });
 
@@ -621,7 +632,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
     }
   }
 
-  async function createVoiceProfileFromFile(file: File) {
+  async function createVoiceProfileFromFile(file: File): Promise<VoiceProfileDto | null> {
     if (!isSupportedVoiceProfileAudioFile(file)) {
       const message = "克隆音色参考音频仅支持 wav、mp3、m4a、aac、ogg、opus、webm 音频文件。";
       setVoiceProfileCreate((current) => ({
@@ -631,7 +642,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         error: message,
       }));
       setActionError(message);
-      return;
+      return null;
     }
 
     if (!voiceProfileCreate.authorizationAccepted) {
@@ -643,7 +654,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         error: message,
       }));
       setActionError(message);
-      return;
+      return null;
     }
 
     const voiceProfileId = crypto.randomUUID();
@@ -696,6 +707,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         progressPct: 100,
         profile: data.voiceProfile,
       });
+      return data.voiceProfile;
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : "克隆音色创建失败";
       setVoiceProfileCreate((current) => ({
@@ -704,6 +716,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         error: message,
       }));
       setActionError(message);
+      return null;
     }
   }
 
@@ -807,34 +820,44 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           <span>我确认已获得该声音用于克隆和视频配音的授权。</span>
         </label>
 
-        <div className="mt-3 rounded-lg border border-dashed border-black/20 bg-[#f7f4ea] px-3 py-3 text-sm">
-          <div className="flex items-center justify-between gap-3">
-            <span className="min-w-0 truncate">
-              {voiceProfileCreate.fileName ?? selectedVoiceProfile?.refAudioAsset?.storageKey.split("/").pop() ?? "上传 MP3 / 音频"}
-            </span>
-            <span className="inline-flex items-center gap-1 text-[#1f6f68]">
-              {voiceProfileBusy ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Upload className="size-4" aria-hidden="true" />
-              )}
-              {voiceProfileBusy ? `${voiceProfileCreate.progressPct}%` : "上传"}
-            </span>
-          </div>
+        <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-black/20 bg-[#f7f4ea] px-3 py-3 text-sm">
+          <span className="min-w-0 truncate">
+            {selectedVoiceAudioFile?.name ?? voiceProfileCreate.fileName ?? selectedVoiceProfile?.refAudioAsset?.storageKey.split("/").pop() ?? "上传 MP3 / 音频"}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[#1f6f68]">
+            {voiceProfileBusy ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Upload className="size-4" aria-hidden="true" />
+            )}
+            {voiceProfileBusy ? `${voiceProfileCreate.progressPct}%` : "上传"}
+          </span>
           <input
             type="file"
             accept="audio/*,audio/mp4,audio/x-m4a,video/mp4,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm"
-            className="mt-3 block w-full cursor-pointer text-xs text-black/65 file:mr-3 file:rounded-lg file:border-0 file:bg-[#1f6f68] file:px-3 file:py-2 file:text-xs file:font-medium file:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="sr-only"
             disabled={voiceProfileBusy}
             onChange={(event) => {
               const file = event.target.files?.[0];
               event.currentTarget.value = "";
               if (file) {
-                void createVoiceProfileFromFile(file);
+                setSelectedVoiceAudioFile(file);
+                setVoiceProfileCreate((current) => ({
+                  ...current,
+                  fileName: file.name,
+                  status: "idle",
+                  progressPct: 0,
+                  error: undefined,
+                  profile: null,
+                }));
               }
             }}
           />
-        </div>
+        </label>
+
+        {selectedVoiceAudioFile && voiceProfileCreate.status === "idle" ? (
+          <StatusLine icon={<Upload className="size-4" />} text="已选择音频，点击 AI 剪辑时会先上传并创建克隆音色。" />
+        ) : null}
 
         {voiceProfileCreate.status === "ready" && selectedVoiceProfile ? (
           <StatusLine icon={<Check className="size-4" />} text="克隆音色已准备好，本次 AI 剪辑将使用该声音配音。" />
