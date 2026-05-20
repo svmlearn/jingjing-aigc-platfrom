@@ -246,7 +246,8 @@ test("consultation planner supports native tool calling with deterministic fallb
   assert.doesNotMatch(consultationRuntimeSource, /applyNativeRetrievalPlan/);
   assert.doesNotMatch(consultationRuntimeSource, /shouldForceNativeContentCalendarWrite/);
   assert.doesNotMatch(consultationRuntimeSource, /runtime 按用户显式多维资料需求/);
-  assert.doesNotMatch(consultationRuntimeSource, /toolChoice:/);
+  assert.match(consultationRuntimeSource, /toolChoice: "auto"/);
+  assert.doesNotMatch(consultationRuntimeSource, /toolChoice: \{/);
   assert.match(consultationRuntimeSource, /const nativeMaxToolTurns = 8/);
   assert.match(consultationServiceAndRuntimeSource, /agent\.tool\.requested/);
   assert.match(consultationServiceAndRuntimeSource, /source: "model_tool_calls"/);

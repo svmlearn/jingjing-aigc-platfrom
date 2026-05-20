@@ -304,6 +304,7 @@ async function runNativeToolCallingLoop(input: {
         model: input.input.state.consultationAgent.model,
         messages,
         tools,
+        toolChoice: "auto",
       });
     } catch (error) {
       return buildNativeFallbackResult(formatAiRuntimeError(error));
