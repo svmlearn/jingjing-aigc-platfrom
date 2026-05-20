@@ -233,8 +233,13 @@ test("consultation runtime exposes right panel assets through bounded business t
   assert.match(consultationServiceAndRuntimeSource, /strategySnapshot\.contentCalendarDraft/);
 });
 
-test("consultation planner supports native tool calling with deterministic fallback", () => {
-  assert.match(consultationServiceAndRuntimeSource, /plannerMode: "native_tool_calling"/);
+test("consultation planner supports Claude Code style JSON tool loop", () => {
+  assert.match(consultationServiceAndRuntimeSource, /plannerMode: "model_json_planner"/);
+  assert.match(consultationServiceAndRuntimeSource, /model_json_tool_loop_v1/);
+  assert.match(consultationServiceAndRuntimeSource, /buildJsonToolLoopMessages/);
+  assert.match(consultationServiceAndRuntimeSource, /tool_loop_state/);
+  assert.match(consultationServiceAndRuntimeSource, /tool_result/);
+  assert.match(consultationServiceAndRuntimeSource, /source: "model_json_tool_use"/);
   assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_loop_v1/);
   assert.match(consultationServiceAndRuntimeSource, /buildNativeToolCallingMessages/);
   assert.match(consultationServiceAndRuntimeSource, /buildConsultationAiRuntimeTools/);
@@ -249,10 +254,10 @@ test("consultation planner supports native tool calling with deterministic fallb
   assert.match(consultationRuntimeSource, /toolChoice: "auto"/);
   assert.doesNotMatch(consultationRuntimeSource, /toolChoice: \{/);
   assert.match(consultationRuntimeSource, /const nativeMaxToolTurns = 8/);
+  assert.match(consultationRuntimeSource, /const jsonToolLoopMaxTurns = 8/);
   assert.match(consultationServiceAndRuntimeSource, /agent\.tool\.requested/);
   assert.match(consultationServiceAndRuntimeSource, /source: "model_tool_calls"/);
   assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_fallback/);
-  assert.match(consultationServiceAndRuntimeSource, /fallback_deterministic/);
   assert.match(consultationServiceAndRuntimeSource, /tool_arguments_validation_failed/);
   assert.match(consultationServiceAndRuntimeSource, /planNextConsultationToolCall/);
   assert.match(consultationServiceAndRuntimeSource, /responseFormat: "json_object"/);

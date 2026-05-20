@@ -1,7 +1,10 @@
+import { randomUUID } from "node:crypto";
+
 import {
   AiRuntimeError,
   createChatCompletion,
   getAiRuntimeApiKey,
+  type AiRuntimeToolCall,
   type ChatMessage,
 } from "@/server/api/ai-runtime";
 import {
@@ -62,6 +65,7 @@ export type ConsultationRuntimeSnapshotRecord = {
 
 type ConsultationRuntimeDesign =
   | "bounded_business_tool_loop_v1"
+  | "model_json_tool_loop_v1"
   | "native_tool_calling_loop_v1";
 
 type ConsultationRuntimeTerminalReason =
@@ -91,6 +95,10 @@ type RunConsultationRuntimeInput = {
     state: ConsultationAgentLoopState;
     toolResults: ConsultationAgentToolResult[];
   }) => ChatMessage[];
+  buildJsonToolLoopMessages?: (input: {
+    state: ConsultationAgentLoopState;
+    toolResults: ConsultationAgentToolResult[];
+  }) => ChatMessage[];
 };
 
 type NativeToolCallingResult = {
@@ -101,6 +109,8 @@ type NativeToolCallingResult = {
 
 const nativeMaxToolTurns = 8;
 const nativeMaxToolCallsPerTurn = 2;
+const jsonToolLoopMaxTurns = 8;
+const jsonToolLoopMaxToolCallsPerTurn = 2;
 
 export async function runConsultationRuntime(input: RunConsultationRuntimeInput) {
   const toolResults: ConsultationAgentToolResult[] = [];
@@ -136,22 +146,31 @@ export async function runConsultationRuntime(input: RunConsultationRuntimeInput)
         mode: "native_tool_calling_fallback",
         status: "fallback",
         toolName: null,
-        reason: "原生 tool calling 未产出最终回复，切回确定性 planner。",
+        reason: "原生 tool calling 未产出最终回复，切回模型 JSON tool loop。",
         error: fallbackReason,
       });
-      terminalReason = "fallback_deterministic";
-      effectiveRuntimeDesign = "native_tool_calling_loop_v1";
+      terminalReason = "fallback_error";
+      effectiveRuntimeDesign = "model_json_tool_loop_v1";
     }
+  }
+
+  if (!assistantReply && requestedPlannerMode !== "deterministic") {
+    const jsonResult = await runModelJsonToolLoop({
+      input,
+      toolResults,
+    });
+
+    assistantReply = jsonResult.assistantReply;
+    fallbackReason = jsonResult.fallbackReason ?? fallbackReason;
+    terminalReason = jsonResult.terminalReason;
+    effectiveRuntimeDesign = "model_json_tool_loop_v1";
   }
 
   if (!assistantReply) {
     await runBoundedBusinessToolLoop({
       input,
       toolResults,
-      plannerMode:
-        requestedPlannerMode === "deterministic" || fallbackReason
-          ? "deterministic"
-          : "model_json_planner",
+      plannerMode: requestedPlannerMode === "deterministic" ? "deterministic" : "model_json_planner",
     });
 
     assistantReply = await input.buildAssistantReply({
@@ -265,6 +284,315 @@ async function runBoundedBusinessToolLoop(input: {
     if (shouldStopAfterToolResult(result)) {
       break;
     }
+  }
+}
+
+async function runModelJsonToolLoop(input: {
+  input: RunConsultationRuntimeInput;
+  toolResults: ConsultationAgentToolResult[];
+}): Promise<NativeToolCallingResult> {
+  if (!input.input.buildJsonToolLoopMessages) {
+    return buildNativeFallbackResult("json_tool_loop_message_builder_missing");
+  }
+
+  if (!getAiRuntimeApiKey()) {
+    return buildNativeFallbackResult("AI runtime API key 未配置。");
+  }
+
+  const messages = input.input.buildJsonToolLoopMessages({
+    state: input.input.state,
+    toolResults: input.toolResults,
+  });
+  let consecutiveInvalidTurns = 0;
+  let consecutiveSkippedToolTurns = 0;
+
+  for (let turn = 1; turn <= jsonToolLoopMaxTurns; turn += 1) {
+    const availableTools = buildConsultationAiRuntimeTools({
+      state: input.input.state,
+      unavailableToolNames: getNativeUnavailableToolNames(input.toolResults),
+    }).map((tool) => ({
+      name: tool.function.name,
+      description: tool.function.description ?? "",
+      inputSchema: tool.function.parameters,
+    }));
+
+    if (availableTools.length === 0) {
+      break;
+    }
+
+    const loopStateMessage: ChatMessage = {
+      role: "user",
+      content: JSON.stringify({
+        type: "tool_loop_state",
+        runtimeDesign: "model_json_tool_loop_v1",
+        turn,
+        maxTurns: jsonToolLoopMaxTurns,
+        availableTools,
+        completedTools: getPlannerCompletedToolNames(input.toolResults),
+        observations: input.toolResults.map((result) => ({
+          toolName: result.toolName,
+          rawToolName: result.rawToolName ?? null,
+          status: result.status,
+          summary: result.summary,
+        })),
+      }),
+    };
+
+    let response: Awaited<ReturnType<typeof createChatCompletion>>;
+
+    try {
+      response = await createChatCompletion({
+        runtime: input.input.state.llmRuntime,
+        model: input.input.state.consultationAgent.model,
+        messages: [...messages, loopStateMessage],
+        responseFormat: "json_object",
+      });
+    } catch (error) {
+      return buildNativeFallbackResult(formatAiRuntimeError(error));
+    }
+
+    const parsed = parseJsonToolLoopDecision(response.content);
+    messages.push(loopStateMessage);
+    messages.push({
+      role: "assistant",
+      content: response.content,
+    });
+
+    if (!parsed.ok) {
+      consecutiveInvalidTurns += 1;
+      input.input.state.plannerTrace.push({
+        turn,
+        mode: "model_tool_json",
+        status: "rejected",
+        toolName: null,
+        reason: "模型 JSON tool_use 未通过运行时解析。",
+        error: parsed.error,
+      });
+      messages.push({
+        role: "user",
+        content: buildJsonToolResultContent({
+          toolUseId: `invalid-${turn}`,
+          toolName: "unknown_tool",
+          result: {
+            callId: `invalid-${turn}`,
+            toolName: "unknown_tool",
+            status: "failed",
+            summary: `JSON tool_use 解析失败：${parsed.error}`,
+            payload: {
+              errorType: "json_tool_use_parse_failed",
+              error: parsed.error,
+              retryInstruction:
+                "请只输出 {\"action\":\"tool_use\",\"tool_use\":{\"name\":\"工具名\",\"input\":{}}} 或 {\"action\":\"final\",\"finalResponse\":\"...\"}。",
+            },
+          },
+        }),
+      });
+
+      if (consecutiveInvalidTurns >= 2) {
+        return buildNativeFallbackResult(parsed.error);
+      }
+
+      continue;
+    }
+
+    consecutiveInvalidTurns = 0;
+
+    if (parsed.decision.action === "final") {
+      const finalResponse = parsed.decision.finalResponse?.trim() ?? "";
+
+      if (!finalResponse) {
+        return buildNativeFallbackResult("模型 JSON finalResponse 为空。");
+      }
+
+      return {
+        assistantReply: {
+          content: finalResponse,
+          mode: "llm",
+          model: response.model,
+        },
+        fallbackReason: null,
+        terminalReason: "assistant_final",
+      };
+    }
+
+    const toolUses = parsed.decision.toolUses.slice(0, jsonToolLoopMaxToolCallsPerTurn);
+    const turnResultStartIndex = input.toolResults.length;
+
+    for (const toolUse of toolUses) {
+      await input.input.emitEvent({
+        eventType: "agent.tool.requested",
+        payload: {
+          source: "model_json_tool_use",
+          runtimeDesign: "model_json_tool_loop_v1",
+          toolCallId: toolUse.id,
+          toolName: toolUse.name,
+          rawArgumentsPreview: clipText(JSON.stringify(toolUse.input ?? {}), 600),
+        },
+      });
+
+      const parsedTool = parseNativeConsultationToolCall(
+        {
+          id: toolUse.id,
+          type: "function",
+          function: {
+            name: toolUse.name,
+            arguments: JSON.stringify(toolUse.input ?? {}),
+          },
+        } satisfies AiRuntimeToolCall,
+        input.input.state,
+      );
+
+      if (!parsedTool.ok) {
+        const planner: ConsultationPlannerTraceItem = {
+          turn,
+          mode: "model_tool_json",
+          status: "rejected",
+          toolName: isConsultationAgentToolKey(parsedTool.rawToolName)
+            ? parsedTool.rawToolName
+            : null,
+          reason: parsedTool.error,
+          error: parsedTool.rawToolName,
+        };
+        input.input.state.plannerTrace.push(planner);
+        const failedResult = buildNativeRejectedToolResult(parsedTool);
+        input.toolResults.push(failedResult);
+
+        await emitRejectedNativeToolEvent({
+          input: input.input,
+          result: failedResult,
+          planner,
+        });
+
+        messages.push({
+          role: "user",
+          content: buildJsonToolResultContent({
+            toolUseId: parsedTool.toolCallId,
+            toolName: parsedTool.rawToolName,
+            result: failedResult,
+          }),
+        });
+        continue;
+      }
+
+      const availableToolNames = new Set(availableTools.map((tool) => tool.name));
+
+      if (!availableToolNames.has(parsedTool.call.toolName)) {
+        const planner: ConsultationPlannerTraceItem = {
+          turn,
+          mode: "model_tool_json",
+          status: "rejected",
+          toolName: parsedTool.call.toolName,
+          reason: "模型请求了当前轮不可用的工具。",
+          error: parsedTool.call.toolName,
+        };
+        input.input.state.plannerTrace.push(planner);
+        const failedResult = buildNativeRejectedToolResult({
+          toolCallId: parsedTool.call.id,
+          rawToolName: parsedTool.call.toolName,
+          error: "该工具当前轮不可用；读类工具可重复调用，写类工具完成后不可重复写入。",
+        });
+        input.toolResults.push(failedResult);
+
+        await emitRejectedNativeToolEvent({
+          input: input.input,
+          result: failedResult,
+          planner,
+        });
+
+        messages.push({
+          role: "user",
+          content: buildJsonToolResultContent({
+            toolUseId: parsedTool.call.id,
+            toolName: parsedTool.call.toolName,
+            result: failedResult,
+          }),
+        });
+        continue;
+      }
+
+      const planner: ConsultationPlannerTraceItem = {
+        turn,
+        mode: "model_tool_json",
+        status: "planned",
+        toolName: parsedTool.call.toolName,
+        reason: clipText(toolUse.reason || "主模型通过 JSON tool_use 请求执行受控业务工具。", 180),
+      };
+      input.input.state.plannerTrace.push(planner);
+
+      const result = await dispatchToolWithRuntimeSafety({
+        input: input.input,
+        toolCall: parsedTool.call,
+      });
+      input.input.applyToolResultToState(input.input.state, result);
+      input.toolResults.push(result);
+
+      await emitCompletedToolEvents({
+        input: input.input,
+        toolCall: parsedTool.call,
+        result,
+        planner,
+      });
+
+      messages.push({
+        role: "user",
+        content: buildJsonToolResultContent({
+          toolUseId: parsedTool.call.id,
+          toolName: parsedTool.call.toolName,
+          result,
+        }),
+      });
+    }
+
+    const turnResults = input.toolResults.slice(turnResultStartIndex);
+
+    if (turnResults.length > 0 && turnResults.every((result) => result.status !== "completed")) {
+      consecutiveSkippedToolTurns += 1;
+    } else {
+      consecutiveSkippedToolTurns = 0;
+    }
+
+    if (consecutiveSkippedToolTurns >= 2) {
+      break;
+    }
+  }
+
+  try {
+    const finalResponse = await createChatCompletion({
+      runtime: input.input.state.llmRuntime,
+      model: input.input.state.consultationAgent.model,
+      messages: [
+        ...messages,
+        {
+          role: "user",
+          content: JSON.stringify({
+            type: "final_instruction",
+            instruction:
+              "请停止调用工具，基于已经返回的 tool_result 给用户一个中文自然语言回复。输出 JSON：{\"action\":\"final\",\"finalResponse\":\"...\"}。",
+          }),
+        },
+      ],
+      responseFormat: "json_object",
+    });
+    const parsed = parseJsonToolLoopDecision(finalResponse.content);
+    const content = parsed.ok && parsed.decision.action === "final"
+      ? parsed.decision.finalResponse?.trim() ?? ""
+      : "";
+
+    if (!content) {
+      return buildNativeFallbackResult("模型 JSON tool loop 强制最终回复为空。");
+    }
+
+    return {
+      assistantReply: {
+        content,
+        mode: "llm",
+        model: finalResponse.model,
+      },
+      fallbackReason: null,
+      terminalReason: "max_tool_turns",
+    };
+  } catch (error) {
+    return buildNativeFallbackResult(formatAiRuntimeError(error));
   }
 }
 
@@ -706,9 +1034,15 @@ export function buildConsultationRuntimeSnapshotRecord(input: {
 function resolveRuntimeDesign(
   plannerMode: ConsultationPlannerMode,
 ): ConsultationRuntimeDesign {
-  return plannerMode === "native_tool_calling"
-    ? "native_tool_calling_loop_v1"
-    : "bounded_business_tool_loop_v1";
+  if (plannerMode === "native_tool_calling") {
+    return "native_tool_calling_loop_v1";
+  }
+
+  if (plannerMode === "model_json_planner") {
+    return "model_json_tool_loop_v1";
+  }
+
+  return "bounded_business_tool_loop_v1";
 }
 
 function buildNativeFallbackResult(reason: string): NativeToolCallingResult {
@@ -736,6 +1070,126 @@ function buildNativeToolResultContent(result: ConsultationAgentToolResult) {
       content: clipText(match.content, 1200),
     })),
   });
+}
+
+function buildJsonToolResultContent(input: {
+  toolUseId: string;
+  toolName: string;
+  result: ConsultationAgentToolResult;
+}) {
+  return JSON.stringify({
+    type: "tool_result",
+    tool_use_id: input.toolUseId,
+    toolName: input.toolName,
+    result: JSON.parse(buildNativeToolResultContent(input.result)) as unknown,
+  });
+}
+
+type JsonToolLoopDecision =
+  | {
+      action: "tool_use";
+      toolUses: Array<{
+        id: string;
+        name: string;
+        input: Record<string, unknown>;
+        reason?: string | null;
+      }>;
+    }
+  | {
+      action: "final";
+      finalResponse: string;
+    };
+
+function parseJsonToolLoopDecision(value: string):
+  | { ok: true; decision: JsonToolLoopDecision }
+  | { ok: false; error: string } {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return { ok: false, error: "response is not valid JSON." };
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { ok: false, error: "response JSON must be an object." };
+  }
+
+  const record = parsed as Record<string, unknown>;
+  const action = record.action;
+
+  if (action === "final") {
+    const finalResponse = readString(record.finalResponse) ?? readString(record.final_response);
+
+    if (!finalResponse) {
+      return { ok: false, error: "final action requires finalResponse." };
+    }
+
+    return {
+      ok: true,
+      decision: {
+        action: "final",
+        finalResponse,
+      },
+    };
+  }
+
+  if (action !== "tool_use") {
+    return { ok: false, error: "action must be tool_use or final." };
+  }
+
+  const rawToolUses =
+    Array.isArray(record.tool_uses)
+      ? record.tool_uses
+      : Array.isArray(record.toolUses)
+        ? record.toolUses
+        : [record.tool_use ?? record.tool ?? record];
+  const toolUses = rawToolUses
+    .map((item) => normalizeJsonToolUse(item, record.reason))
+    .filter((item): item is NonNullable<ReturnType<typeof normalizeJsonToolUse>> => item !== null);
+
+  if (toolUses.length === 0) {
+    return { ok: false, error: "tool_use action requires tool_use.name and optional input object." };
+  }
+
+  return {
+    ok: true,
+    decision: {
+      action: "tool_use",
+      toolUses,
+    },
+  };
+}
+
+function normalizeJsonToolUse(value: unknown, fallbackReason: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const name = readString(record.name) ?? readString(record.toolName) ?? readString(record.tool_name);
+
+  if (!name) {
+    return null;
+  }
+
+  const input =
+    record.input && typeof record.input === "object" && !Array.isArray(record.input)
+      ? (record.input as Record<string, unknown>)
+      : record.args && typeof record.args === "object" && !Array.isArray(record.args)
+        ? (record.args as Record<string, unknown>)
+        : {};
+
+  return {
+    id: readString(record.id) ?? randomUUID(),
+    name,
+    input,
+    reason: readString(record.reason) ?? readString(fallbackReason) ?? null,
+  };
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function formatAiRuntimeError(error: unknown) {

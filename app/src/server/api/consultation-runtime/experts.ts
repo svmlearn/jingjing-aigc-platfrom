@@ -40,7 +40,7 @@ export async function resolveConsultationAgentRuntime(input: {
   const fallback = input.fallback ?? (await getPlatformSettings()).consultationAgent;
   const fallbackRuntime: ConsultationAgentRuntimeSettings = {
     ...fallback,
-    plannerMode: "native_tool_calling",
+    plannerMode: "model_json_planner",
     container: null,
     soulPrompt: null,
     skillCatalog: [],
@@ -171,7 +171,7 @@ function resolveAgentRuntimeOverrides(input: {
 
   return {
     ...input.fallback,
-    plannerMode: plannerMode ?? "native_tool_calling",
+    plannerMode: plannerMode ?? "model_json_planner",
     enabledTools: enabledTools.length > 0 ? enabledTools : input.fallback.enabledTools,
     maxRounds:
       typeof modelConfig.maxRounds === "number"

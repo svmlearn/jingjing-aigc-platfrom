@@ -1314,6 +1314,11 @@ async function runConsultationAgentLoop(input: {
         state: currentState,
         toolResults,
       }),
+    buildJsonToolLoopMessages: ({ state: currentState, toolResults }) =>
+      buildJsonToolLoopMessages({
+        state: currentState,
+        toolResults,
+      }),
   });
   const nextStage = resolveConsultationStageLabel({
     userContent: state.userContent,
@@ -1939,6 +1944,90 @@ function buildNativeToolCallingMessages(input: {
         })),
         toolResults: input.toolResults.map((result) => ({
           label: getConsultationToolDisplayLabel(result.toolName),
+          status: result.status,
+          summary: result.summary,
+          guardrail: result.payload.guardrail ?? null,
+        })),
+        skillDisclosure: buildSkillDisclosure(input.state.consultationAgent),
+      }),
+    },
+  ];
+}
+
+function buildJsonToolLoopMessages(input: {
+  state: ConsultationAgentLoopState;
+  toolResults: ConsultationAgentToolResult[];
+}): ChatMessage[] {
+  const contextInjection = buildConsultationContextInjection({
+    merchant: input.state.merchant,
+    round: input.state.nextRound,
+    userContent: input.state.userContent,
+    sessionSummary: input.state.session.summaryText ?? null,
+    strategySnapshot: input.state.strategySnapshot,
+    strategyMarkdown: input.state.strategyMarkdown,
+    consultationAgent: input.state.consultationAgent,
+    knowledgeMatches: input.state.knowledgeMatches,
+    toolResults: input.toolResults,
+    sharedConsultationState: input.state.sharedConsultationState,
+    expertTurnNotes: input.state.expertTurnNotes,
+  });
+  const strategySnapshot = buildNativeStrategySnapshotSummary(input.state.strategySnapshot);
+  const compactContextInjection = {
+    ...contextInjection,
+    sessionContext: {
+      ...contextInjection.sessionContext,
+      strategySnapshot,
+      strategyMarkdown: clipText(contextInjection.sessionContext.strategyMarkdown ?? "", 1200),
+    },
+  };
+
+  return [
+    {
+      role: "system",
+      content: [
+        input.state.consultationAgent.systemPrompt,
+        buildAgentSoulPrompt(input.state.consultationAgent),
+        buildExpertContainerPrompt(input.state.consultationAgent),
+        buildSkillCatalogPrompt(input.state.consultationAgent),
+        buildActiveSkillPrompt(input.state.consultationAgent.activeSkills),
+        buildSkillReferencePrompt(input.state.consultationAgent.activeSkills),
+        buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
+        buildContextInjectionSystemPrompt(contextInjection),
+        "你正在运行 model_json_tool_loop_v1：这是一套兼容 Claude Code tool_use/tool_result 思路的 JSON 工具循环。",
+        "你必须只输出 JSON object，不要输出 Markdown、表格、解释文本或代码块。",
+        "当你要调用工具时，输出：{\"action\":\"tool_use\",\"tool_use\":{\"name\":\"工具名\",\"input\":{...}},\"reason\":\"一句中文理由\"}。",
+        "当你认为已经足够回答用户时，输出：{\"action\":\"final\",\"finalResponse\":\"给用户看的中文自然语言回复\"}。",
+        "runtime 只负责校验、执行工具并把 tool_result 回填到下一轮上下文；是否调用 retrieve_knowledge_base、换什么 query、是否写 update_content_calendar，必须由你根据用户目标、availableTools 和 tool_result 自行判断。",
+        "retrieve_knowledge_base 是读类工具，可以多轮调用；如果一次检索只覆盖项目事实、方法论、话术或素材边界中的一部分，可以用新的具体 query 继续深挖。",
+        "写类工具要在信息足够后再调用；当用户要求生成内容日历、营销日历或团队选题时，你应在检索和判断足够后，自行调用 update_content_calendar 写入可执行日历，而不是只在 finalResponse 里承诺。",
+        "生成视频选题、脚本方向或日历隐藏上下文时，画面描述必须根据已返回的素材能力、用户确认的场景或可补拍方式来写；没有素材依据的镜头不要写成确定方案。",
+        "如果 tool_result 表示失败或不可用，你应读取错误内容并修正下一次 tool_use；不要声称失败工具已经完成。",
+        "只有寒暄、轻问答、流程说明或完全不需要受控上下文时，才可以直接输出 final。",
+      ]
+        .filter((item): item is string => Boolean(item))
+        .join("\n"),
+    },
+    {
+      role: "user",
+      content: JSON.stringify({
+        type: "initial_user_request",
+        merchant: {
+          name: input.state.merchant.name,
+          industry: input.state.merchant.industry,
+          serviceItems: input.state.merchant.serviceItems,
+          defaultCta: input.state.merchant.defaultCta,
+        },
+        userMessage: input.state.userContent,
+        round: input.state.nextRound,
+        contextInjection: compactContextInjection,
+        strategySnapshot,
+        knowledgeMatches: input.state.knowledgeMatches.map((match) => ({
+          title: match.documentTitle,
+          score: match.score,
+          content: match.content.slice(0, 600),
+        })),
+        priorToolResults: input.toolResults.map((result) => ({
+          toolName: result.toolName,
           status: result.status,
           summary: result.summary,
           guardrail: result.payload.guardrail ?? null,
