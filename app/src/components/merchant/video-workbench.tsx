@@ -2012,6 +2012,18 @@ function buildProductionConfig(input: {
         refAudioAssetId: profile.refAudioAssetId,
         includeOriginalAudio: input.includeOriginalAudio,
       },
+      subtitles: {
+        enabled: true,
+        style: "platform_default",
+        talkingHeadSource: "script_audio_alignment",
+      },
+      lipSync: {
+        enabled: true,
+        provider: "aliyun_videoretalk",
+        scope: "talking_head_segments",
+        subtitleSource: "script_audio_alignment",
+        requireVoiceProfile: true,
+      },
     };
   }
 

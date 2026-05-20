@@ -57,10 +57,40 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
     subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
+    lipSync: {
+      enabled: false,
+      provider: "aliyun_videoretalk",
+      scope: "talking_head_segments",
+      subtitleSource: "script",
+      requireVoiceProfile: true,
+      inputRequirements: {
+        audio: {
+          allowedExtensions: ["wav", "mp3", "aac"],
+          maxFileSizeBytes: 31457280,
+          minDurationSecondsExclusive: 2,
+          maxDurationSecondsExclusive: 120,
+          requiresCleanSpeech: true,
+        },
+        video: {
+          allowedExtensions: ["mp4", "avi", "mov"],
+          maxFileSizeBytes: 314572800,
+          minDurationSecondsExclusive: 2,
+          maxDurationSecondsExclusive: 120,
+          minFps: 15,
+          maxFps: 60,
+          allowedCodecs: ["h264", "h265"],
+          minSidePixels: 640,
+          maxSidePixels: 2048,
+          requiresClearFrontalFace: true,
+        },
+      },
+    },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
   });
   assert.deepEqual(payload.materialContext, {
     retrievalTarget: "video_edit_asset",
+    dailyTaskId: null,
+    memberUserId: null,
     assetPlanId: null,
     assetMatchReportId: null,
     scriptBindingId: "variant-1",
@@ -104,6 +134,34 @@ test("buildVideoEditJobInputPayload adds default production config", () => {
     voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
     subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
+    lipSync: {
+      enabled: false,
+      provider: "aliyun_videoretalk",
+      scope: "talking_head_segments",
+      subtitleSource: "script",
+      requireVoiceProfile: true,
+      inputRequirements: {
+        audio: {
+          allowedExtensions: ["wav", "mp3", "aac"],
+          maxFileSizeBytes: 31457280,
+          minDurationSecondsExclusive: 2,
+          maxDurationSecondsExclusive: 120,
+          requiresCleanSpeech: true,
+        },
+        video: {
+          allowedExtensions: ["mp4", "avi", "mov"],
+          maxFileSizeBytes: 314572800,
+          minDurationSecondsExclusive: 2,
+          maxDurationSecondsExclusive: 120,
+          minFps: 15,
+          maxFps: 60,
+          allowedCodecs: ["h264", "h265"],
+          minSidePixels: 640,
+          maxSidePixels: 2048,
+          requiresClearFrontalFace: true,
+        },
+      },
+    },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
   });
 });
@@ -188,12 +246,13 @@ test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merch
   assert.deepEqual(payload.productionConfig.subtitles, {
     enabled: true,
     style: "platform_default",
-    talkingHeadSource: "asr_original_audio",
+    talkingHeadSource: "script_audio_alignment",
   });
+  assert.equal(payload.productionConfig.lipSync.enabled, true);
+  assert.equal(payload.productionConfig.lipSync.subtitleSource, "script_audio_alignment");
   assert.deepEqual(payload.productionConfig.render, {
     aspectRatio: "9:16",
-    includeOriginalAudio: true,
-    preserveTalkingHeadOriginalAudio: true,
+    includeOriginalAudio: false,
   });
   assert.equal(payload.materialContext.merchantMediaCandidateCount, 1);
   assert.deepEqual(payload.materialContext.merchantMediaMatches, [
@@ -362,22 +421,43 @@ test("buildVideoEditJobInputPayload accepts Aliyun OSS user talking-head assets"
   assert.equal(payload.input_assets[0]?.role, "talking_head");
   assert.deepEqual(payload.input_assets[0]?.metadata, {
     content_type: "talking_head",
-    audio_source: "original_video_audio",
-    subtitle_source: "asr_original_audio",
+    audio_source: "clone_voiceover",
+    subtitle_source: "script_audio_alignment",
+    lip_sync_provider: "aliyun_videoretalk",
+    lip_sync_video_requirements: {
+      allowedExtensions: ["mp4", "avi", "mov"],
+      maxFileSizeBytes: 314572800,
+      minDurationSecondsExclusive: 2,
+      maxDurationSecondsExclusive: 120,
+      minFps: 15,
+      maxFps: 60,
+      allowedCodecs: ["h264", "h265"],
+      minSidePixels: 640,
+      maxSidePixels: 2048,
+      requiresClearFrontalFace: true,
+    },
   });
   assert.deepEqual(payload.productionConfig.subtitles, {
     enabled: true,
     style: "platform_default",
-    talkingHeadSource: "asr_original_audio",
+    talkingHeadSource: "script_audio_alignment",
+  });
+  assert.equal(payload.productionConfig.lipSync.enabled, true);
+  assert.equal(payload.productionConfig.lipSync.subtitleSource, "script_audio_alignment");
+  assert.deepEqual(payload.productionConfig.lipSync.inputRequirements.audio, {
+    allowedExtensions: ["wav", "mp3", "aac"],
+    maxFileSizeBytes: 31457280,
+    minDurationSecondsExclusive: 2,
+    maxDurationSecondsExclusive: 120,
+    requiresCleanSpeech: true,
   });
   assert.deepEqual(payload.productionConfig.render, {
     aspectRatio: "9:16",
-    includeOriginalAudio: true,
-    preserveTalkingHeadOriginalAudio: true,
+    includeOriginalAudio: false,
   });
 });
 
-test("buildVideoEditJobInputPayload defaults structured talking-head assets to original-audio ASR", () => {
+test("buildVideoEditJobInputPayload defaults structured talking-head assets to script-aligned lip sync", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",
     variant: approvedVariant,
@@ -401,9 +481,10 @@ test("buildVideoEditJobInputPayload defaults structured talking-head assets to o
 
   assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["asset-structured-head-1"]);
   assert.equal(payload.input_assets[0]?.role, "talking_head");
-  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "asr_original_audio");
-  assert.equal(payload.productionConfig.render.preserveTalkingHeadOriginalAudio, true);
-  assert.equal(payload.productionConfig.render.includeOriginalAudio, true);
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "script_audio_alignment");
+  assert.equal(payload.productionConfig.lipSync.enabled, true);
+  assert.equal(payload.productionConfig.render.preserveTalkingHeadOriginalAudio, undefined);
+  assert.equal(payload.productionConfig.render.includeOriginalAudio, false);
 });
 
 test("buildVideoEditJobInputPayload normalizes production config overrides", () => {
@@ -447,6 +528,34 @@ test("buildVideoEditJobInputPayload normalizes production config overrides", () 
       volume: 0.18,
     },
     subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
+    lipSync: {
+      enabled: false,
+      provider: "aliyun_videoretalk",
+      scope: "talking_head_segments",
+      subtitleSource: "script",
+      requireVoiceProfile: true,
+      inputRequirements: {
+        audio: {
+          allowedExtensions: ["wav", "mp3", "aac"],
+          maxFileSizeBytes: 31457280,
+          minDurationSecondsExclusive: 2,
+          maxDurationSecondsExclusive: 120,
+          requiresCleanSpeech: true,
+        },
+        video: {
+          allowedExtensions: ["mp4", "avi", "mov"],
+          maxFileSizeBytes: 314572800,
+          minDurationSecondsExclusive: 2,
+          maxDurationSecondsExclusive: 120,
+          minFps: 15,
+          maxFps: 60,
+          allowedCodecs: ["h264", "h265"],
+          minSidePixels: 640,
+          maxSidePixels: 2048,
+          requiresClearFrontalFace: true,
+        },
+      },
+    },
     render: {
       aspectRatio: "9:16",
       maxDurationSeconds: 45,
@@ -487,6 +596,33 @@ test("buildVideoEditJobInputPayload accepts voice profile production config", ()
   });
   assert.equal(payload.productionConfig.render.includeOriginalAudio, true);
   assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "asr_original_audio");
+  assert.equal(payload.productionConfig.lipSync.enabled, false);
+});
+
+test("buildVideoEditJobInputPayload defaults voice profile talking-head config to script-aligned lip sync", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [],
+    productionConfig: {
+      voiceover: {
+        enabled: true,
+        mode: "voice_profile",
+        voiceProfileId: "11111111-1111-4111-8111-111111111111",
+        refAudioAssetId: "22222222-2222-4222-8222-222222222222",
+      },
+      subtitles: {
+        talkingHeadSource: "script_audio_alignment",
+      },
+    },
+  });
+
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "script_audio_alignment");
+  assert.equal(payload.productionConfig.lipSync.enabled, true);
+  assert.equal(payload.productionConfig.lipSync.provider, "aliyun_videoretalk");
+  assert.equal(payload.productionConfig.lipSync.scope, "talking_head_segments");
+  assert.equal(payload.productionConfig.lipSync.requireVoiceProfile, true);
 });
 
 test("buildVideoEditJobInputPayload rejects invalid production config provider", () => {

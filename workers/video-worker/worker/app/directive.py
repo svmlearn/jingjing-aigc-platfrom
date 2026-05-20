@@ -10,7 +10,10 @@ ALLOWED_DESIRED_OUTPUTS = frozenset({"final_video", "cover", "subtitles"})
 ALLOWED_VOICEOVER_PROVIDERS = frozenset({"bytedance_bigtts", "minimax", "302", "pixelle_clone"})
 ALLOWED_VOICEOVER_MODES = frozenset({"system", "voice_profile"})
 ALLOWED_SUBTITLE_STYLES = frozenset({"platform_default", "bold_caption"})
-ALLOWED_TALKING_HEAD_SUBTITLE_SOURCES = frozenset({"script", "asr_original_audio"})
+ALLOWED_TALKING_HEAD_SUBTITLE_SOURCES = frozenset(
+    {"script", "script_audio_alignment", "asr_original_audio"}
+)
+ALLOWED_LIP_SYNC_PROVIDERS = frozenset({"aliyun_videoretalk"})
 ALLOWED_BGM_FILTER_KEYS = frozenset({"mood", "scene", "genre", "lang", "id"})
 
 
@@ -132,6 +135,7 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
     voiceover = _dict_value(payload, "voiceover")
     bgm = _dict_value(payload, "bgm")
     subtitles = _dict_value(payload, "subtitles")
+    lip_sync = _dict_value(payload, "lipSync", "lip_sync")
     render = _dict_value(payload, "render")
 
     mode = _string_value(voiceover, "mode") or "system"
@@ -154,6 +158,16 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
     )
     if talking_head_source not in ALLOWED_TALKING_HEAD_SUBTITLE_SOURCES:
         _raise_invalid_production_config("unsupported talking head subtitle source")
+
+    lip_sync_provider = _string_value(lip_sync, "provider") or "aliyun_videoretalk"
+    if lip_sync_provider not in ALLOWED_LIP_SYNC_PROVIDERS:
+        _raise_invalid_production_config("unsupported lip sync provider")
+    lip_sync_subtitle_source = (
+        _string_value(lip_sync, "subtitleSource", "subtitle_source")
+        or talking_head_source
+    )
+    if lip_sync_subtitle_source not in ALLOWED_TALKING_HEAD_SUBTITLE_SOURCES:
+        _raise_invalid_production_config("unsupported lip sync subtitle source")
 
     aspect_ratio = _string_value(render, "aspectRatio", "aspect_ratio") or "9:16"
     if aspect_ratio != "9:16":
@@ -264,6 +278,22 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
             "enabled": _optional_bool_value(subtitles, "enabled", default=True),
             "style": subtitle_style,
             "talking_head_source": talking_head_source,
+        },
+        "lip_sync": {
+            "enabled": _optional_bool_value(
+                lip_sync,
+                "enabled",
+                default=talking_head_source == "script_audio_alignment",
+            ),
+            "provider": lip_sync_provider,
+            "scope": "talking_head_segments",
+            "subtitle_source": lip_sync_subtitle_source,
+            "require_voice_profile": _optional_bool_value(
+                lip_sync,
+                "requireVoiceProfile",
+                "require_voice_profile",
+                default=True,
+            ),
         },
         "render": normalized_render,
     }

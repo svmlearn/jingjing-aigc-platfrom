@@ -1222,7 +1222,14 @@ function buildMemberVideoProductionConfig(input: {
       subtitles: {
         enabled: true,
         style: "platform_default",
-        talkingHeadSource: "asr_original_audio",
+        talkingHeadSource: "script_audio_alignment",
+      },
+      lipSync: {
+        enabled: true,
+        provider: "aliyun_videoretalk",
+        scope: "talking_head_segments",
+        subtitleSource: "script_audio_alignment",
+        requireVoiceProfile: true,
       },
       bgm: {
         enabled: true,
@@ -1247,6 +1254,13 @@ function buildMemberVideoProductionConfig(input: {
       enabled: true,
       style: "platform_default",
       talkingHeadSource: "script",
+    },
+    lipSync: {
+      enabled: false,
+      provider: "aliyun_videoretalk",
+      scope: "talking_head_segments",
+      subtitleSource: "script",
+      requireVoiceProfile: true,
     },
     bgm: {
       enabled: true,

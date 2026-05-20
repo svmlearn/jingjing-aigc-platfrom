@@ -21,6 +21,7 @@ class RunRequest(BaseModel):
     merchant_id: str
     draft_id: str
     content_variant_id: str
+    created_by_user_id: str | None = None
     instruction_text: str = ""
     workspace_dir: str
     output_dir: str

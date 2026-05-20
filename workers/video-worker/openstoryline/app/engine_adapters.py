@@ -409,6 +409,7 @@ def _build_fire_red_run_payload(
         "merchant_id": request.merchant_id,
         "draft_id": request.draft_id,
         "content_variant_id": request.content_variant_id,
+        "created_by_user_id": request.created_by_user_id,
         "instruction_text": request.instruction_text,
         "workspace_dir": request.workspace_dir,
         "output_dir": request.output_dir,

@@ -79,6 +79,7 @@ class OpenStorylineClient:
             "merchant_id": job.merchant_id,
             "draft_id": job.draft_id,
             "content_variant_id": job.content_variant_id,
+            "created_by_user_id": job.created_by_user_id,
             "instruction_text": job.instruction_text,
             "workspace_dir": str(workspace_dir),
             "output_dir": str(output_dir),

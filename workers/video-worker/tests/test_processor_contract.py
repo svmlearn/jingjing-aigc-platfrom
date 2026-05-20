@@ -97,6 +97,7 @@ def make_job(input_payload=None):
         merchant_id="merchant_1",
         draft_id="draft_1",
         content_variant_id="variant_1",
+        created_by_user_id="member_user_1",
         status="pending",
         current_stage=None,
         instruction_text="make a video",
@@ -242,6 +243,10 @@ class FakeOpenStorylineClient:
         cover_image_path = output_dir / "cover.jpg"
         subtitle_path = output_dir / "subtitles.srt"
         metadata_path = output_dir / "run-metadata.json"
+        voiceover_dir = output_dir / "voiceover"
+        voiceover_dir.mkdir(parents=True, exist_ok=True)
+        voiceover_audio_path = voiceover_dir / "voiceover_0001.wav"
+        voiceover_audio_path.write_bytes(b"riff")
 
         for name, path in {
             "final_video": final_video_path,
@@ -255,6 +260,10 @@ class FakeOpenStorylineClient:
         voiceover_payload = self.voiceover_payload
         if voiceover_payload is None:
             voiceover_payload = {"provider": "bytedance_bigtts"}
+        else:
+            for segment in voiceover_payload.get("voiceover", []):
+                if isinstance(segment, dict) and "path" not in segment:
+                    segment["path"] = str(voiceover_audio_path)
 
         return EngineRunResult(
             final_video_path=final_video_path,
@@ -516,6 +525,212 @@ class ProcessorContractTests(unittest.TestCase):
             ["pixelle_clone"],
             repository.succeeded["result_payload"]["voiceover_artifacts"]["providers"],
         )
+
+    def test_lip_sync_voice_profile_job_passes_with_script_aligned_clone_audio(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(
+                    voiceover_payload={
+                        "provider": "pixelle_clone",
+                        "voiceover": [
+                            {
+                                "duration": 3000,
+                                "duration_ms": 3000,
+                                "provider": "pixelle_clone",
+                                "clone": True,
+                            },
+                        ],
+                    }
+                ),
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "productionConfig": {
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                            "voiceProfileId": "profile-1",
+                            "refAudioAssetId": "asset-1",
+                            "refAudioAsset": {
+                                "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                "storage_provider": "tencent_cos",
+                            },
+                        },
+                        "subtitles": {
+                            "talkingHeadSource": "script_audio_alignment",
+                        },
+                        "lipSync": {
+                            "enabled": True,
+                            "provider": "aliyun_videoretalk",
+                        },
+                    },
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_provider": "tencent_cos",
+                            "storage_key": "draft-inputs/talking-head.mp4",
+                            "file_name": "talking-head.mp4",
+                            "role": "talking_head",
+                            "metadata": {
+                                "content_type": "talking_head",
+                                "durationSeconds": 8,
+                                "width": 1080,
+                                "height": 1920,
+                                "fps": 30,
+                                "codec": "h264",
+                            },
+                        },
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.failed)
+        self.assertIsNotNone(repository.succeeded)
+        self.assertEqual(
+            "voice_profile",
+            repository.succeeded["result_payload"]["voiceover_artifacts"]["mode"],
+        )
+
+    def test_lip_sync_voice_profile_job_fails_when_clone_audio_duration_is_out_of_range(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(
+                    voiceover_payload={
+                        "provider": "pixelle_clone",
+                        "voiceover": [
+                            {
+                                "duration": 1200,
+                                "duration_ms": 1200,
+                                "provider": "pixelle_clone",
+                                "clone": True,
+                            },
+                        ],
+                    }
+                ),
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "productionConfig": {
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                            "voiceProfileId": "profile-1",
+                            "refAudioAssetId": "asset-1",
+                            "refAudioAsset": {
+                                "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                "storage_provider": "tencent_cos",
+                            },
+                        },
+                        "subtitles": {
+                            "talkingHeadSource": "script_audio_alignment",
+                        },
+                        "lipSync": {
+                            "enabled": True,
+                            "provider": "aliyun_videoretalk",
+                        },
+                    },
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_provider": "tencent_cos",
+                            "storage_key": "draft-inputs/talking-head.mp4",
+                            "file_name": "talking-head.mp4",
+                            "role": "talking_head",
+                        },
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual("lip_sync_input_validation_failed", repository.failed["current_stage"])
+        self.assertIn("lip_sync_audio_duration_out_of_range", repository.failed["failure_reason"])
+        self.assertEqual("lip_sync", repository.failed["log_payload"]["failure_stage"])
+        self.assertEqual(
+            "lip_sync",
+            repository.failed["log_payload"]["failure_diagnostic"]["failure_stage"],
+        )
+
+    def test_lip_sync_voice_profile_job_fails_when_talking_head_video_is_unsupported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(
+                    voiceover_payload={
+                        "provider": "pixelle_clone",
+                        "voiceover": [
+                            {
+                                "duration": 3000,
+                                "duration_ms": 3000,
+                                "provider": "pixelle_clone",
+                                "clone": True,
+                            },
+                        ],
+                    }
+                ),
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "productionConfig": {
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                            "voiceProfileId": "profile-1",
+                            "refAudioAssetId": "asset-1",
+                            "refAudioAsset": {
+                                "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                "storage_provider": "tencent_cos",
+                            },
+                        },
+                        "subtitles": {
+                            "talkingHeadSource": "script_audio_alignment",
+                        },
+                        "lipSync": {
+                            "enabled": True,
+                            "provider": "aliyun_videoretalk",
+                        },
+                    },
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_provider": "tencent_cos",
+                            "storage_key": "draft-inputs/talking-head.webm",
+                            "file_name": "talking-head.webm",
+                            "role": "talking_head",
+                        },
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual("lip_sync_input_validation_failed", repository.failed["current_stage"])
+        self.assertIn("lip_sync_video_format_unsupported", repository.failed["failure_reason"])
+        self.assertEqual("lip_sync", repository.failed["log_payload"]["failure_stage"])
 
     def test_falsey_non_list_input_assets_marks_failed_manual_without_download(self):
         for input_assets in ("", 0, False):

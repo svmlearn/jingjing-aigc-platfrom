@@ -92,7 +92,33 @@ export type PublicVideoEditJobDto = Pick<
 
 export type VoiceoverProvider = "bytedance_bigtts" | "minimax" | "302";
 export type VoiceoverMode = "system" | "voice_profile";
-export type TalkingHeadSubtitleSource = "script" | "asr_original_audio";
+export type TalkingHeadSubtitleSource =
+  | "script"
+  | "script_audio_alignment"
+  | "asr_original_audio";
+export type LipSyncProvider = "aliyun_videoretalk";
+export type LipSyncScope = "talking_head_segments";
+export type LipSyncInputRequirements = {
+  audio: {
+    allowedExtensions: ["wav", "mp3", "aac"];
+    maxFileSizeBytes: number;
+    minDurationSecondsExclusive: number;
+    maxDurationSecondsExclusive: number;
+    requiresCleanSpeech: true;
+  };
+  video: {
+    allowedExtensions: ["mp4", "avi", "mov"];
+    maxFileSizeBytes: number;
+    minDurationSecondsExclusive: number;
+    maxDurationSecondsExclusive: number;
+    minFps: number;
+    maxFps: number;
+    allowedCodecs: ["h264", "h265"];
+    minSidePixels: number;
+    maxSidePixels: number;
+    requiresClearFrontalFace: true;
+  };
+};
 
 export type BgmFilterKey = "mood" | "scene" | "genre" | "lang" | "id";
 export type BgmFilter = Partial<Record<BgmFilterKey, Array<string | number>>>;
@@ -121,6 +147,14 @@ export type ProductionConfig = {
     enabled?: boolean;
     style?: "platform_default" | "bold_caption";
     talkingHeadSource?: TalkingHeadSubtitleSource;
+  };
+  lipSync?: {
+    enabled?: boolean;
+    provider?: LipSyncProvider;
+    scope?: LipSyncScope;
+    subtitleSource?: TalkingHeadSubtitleSource;
+    requireVoiceProfile?: boolean;
+    inputRequirements?: LipSyncInputRequirements;
   };
   render?: {
     aspectRatio?: "9:16";

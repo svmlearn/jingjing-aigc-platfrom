@@ -30,6 +30,7 @@ export type VideoJobPayloadVariant = {
   scriptText?: string | null;
   productionScenes?: VideoJobPayloadSceneInput[];
   reviewStatus: string;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type VideoJobPayloadSceneInput = {
@@ -122,6 +123,8 @@ export type VideoEditJobInputPayload = {
   productionConfig: NormalizedProductionConfig;
   materialContext: {
     retrievalTarget: "video_edit_asset";
+    dailyTaskId: string | null;
+    memberUserId: string | null;
     assetPlanId: string | null;
     assetMatchReportId: string | null;
     scriptBindingId: string;
@@ -169,11 +172,37 @@ const allowedVoiceoverProviders = new Set<VoiceoverProvider>([
 ]);
 const allowedWorkerInputStorageProviders = new Set(["tencent_cos", "aliyun_oss"] as const);
 const allowedSubtitleStyles = new Set(["platform_default", "bold_caption"]);
-const allowedTalkingHeadSubtitleSources = new Set(["script", "asr_original_audio"] as const);
+const allowedTalkingHeadSubtitleSources = new Set([
+  "script",
+  "script_audio_alignment",
+  "asr_original_audio",
+] as const);
+const allowedLipSyncProviders = new Set(["aliyun_videoretalk"] as const);
 const allowedBgmFilterKeys = new Set(["mood", "scene", "genre", "lang", "id"]);
+const lipSyncInputRequirements = {
+  audio: {
+    allowedExtensions: ["wav", "mp3", "aac"],
+    maxFileSizeBytes: 30 * 1024 * 1024,
+    minDurationSecondsExclusive: 2,
+    maxDurationSecondsExclusive: 120,
+    requiresCleanSpeech: true,
+  },
+  video: {
+    allowedExtensions: ["mp4", "avi", "mov"],
+    maxFileSizeBytes: 300 * 1024 * 1024,
+    minDurationSecondsExclusive: 2,
+    maxDurationSecondsExclusive: 120,
+    minFps: 15,
+    maxFps: 60,
+    allowedCodecs: ["h264", "h265"],
+    minSidePixels: 640,
+    maxSidePixels: 2048,
+    requiresClearFrontalFace: true,
+  },
+} as const;
 
 type WorkerInputStorageProvider = "tencent_cos" | "aliyun_oss";
-type TalkingHeadSubtitleSource = "script" | "asr_original_audio";
+type TalkingHeadSubtitleSource = "script" | "script_audio_alignment" | "asr_original_audio";
 
 type NormalizedProductionConfig = {
   voiceover:
@@ -205,6 +234,14 @@ type NormalizedProductionConfig = {
     enabled: boolean;
     style: "platform_default" | "bold_caption";
     talkingHeadSource: TalkingHeadSubtitleSource;
+  };
+  lipSync: {
+    enabled: boolean;
+    provider: "aliyun_videoretalk";
+    scope: "talking_head_segments";
+    subtitleSource: TalkingHeadSubtitleSource;
+    requireVoiceProfile: boolean;
+    inputRequirements: typeof lipSyncInputRequirements;
   };
   render: {
     aspectRatio: "9:16";
@@ -295,11 +332,13 @@ export function buildVideoEditJobInputPayload(input: {
       lockedFields: [...lockedFields],
     },
     productionConfig: normalizeProductionConfig(input.productionConfig, {
-      defaultTalkingHeadOriginalAudio:
+      defaultTalkingHeadScriptAudioAlignment:
         shouldApplyTalkingHeadDefaults && userTalkingHeadAssetIds.length > 0,
     }),
     materialContext: {
       retrievalTarget: "video_edit_asset",
+      dailyTaskId: null,
+      memberUserId: null,
       assetPlanId: null,
       assetMatchReportId: null,
       scriptBindingId: input.variant.contentVariantId,
@@ -521,7 +560,7 @@ function mapMerchantMediaClipForPayload(
 
 function normalizeProductionConfig(
   input: ProductionConfig | null | undefined,
-  options: { defaultTalkingHeadOriginalAudio?: boolean } = {},
+  options: { defaultTalkingHeadScriptAudioAlignment?: boolean } = {},
 ): NormalizedProductionConfig {
   const voiceover = input?.voiceover ?? {};
   const voiceoverMode = voiceover.mode ?? "system";
@@ -536,9 +575,19 @@ function normalizeProductionConfig(
   }
   const talkingHeadSource =
     subtitles.talkingHeadSource ??
-    (options.defaultTalkingHeadOriginalAudio ? "asr_original_audio" : "script");
+    (options.defaultTalkingHeadScriptAudioAlignment ? "script_audio_alignment" : "script");
   if (!allowedTalkingHeadSubtitleSources.has(talkingHeadSource)) {
     throwInvalidProductionConfig("Unsupported talking-head subtitle source.");
+  }
+
+  const lipSync = input?.lipSync ?? {};
+  const lipSyncProvider = lipSync.provider ?? "aliyun_videoretalk";
+  if (!allowedLipSyncProviders.has(lipSyncProvider)) {
+    throwInvalidProductionConfig("Unsupported lip-sync provider.");
+  }
+  const lipSyncSubtitleSource = lipSync.subtitleSource ?? talkingHeadSource;
+  if (!allowedTalkingHeadSubtitleSources.has(lipSyncSubtitleSource)) {
+    throwInvalidProductionConfig("Unsupported lip-sync subtitle source.");
   }
 
   const render = input?.render ?? {};
@@ -586,6 +635,17 @@ function normalizeProductionConfig(
       enabled: subtitles.enabled ?? true,
       style: subtitleStyle,
       talkingHeadSource,
+    },
+    lipSync: {
+      enabled:
+        lipSync.enabled ??
+        (options.defaultTalkingHeadScriptAudioAlignment ||
+          talkingHeadSource === "script_audio_alignment"),
+      provider: lipSyncProvider,
+      scope: "talking_head_segments",
+      subtitleSource: lipSyncSubtitleSource,
+      requireVoiceProfile: lipSync.requireVoiceProfile ?? true,
+      inputRequirements: lipSyncInputRequirements,
     },
     render: normalizedRender,
   };
@@ -902,8 +962,10 @@ function markTalkingHeadInputAsset(asset: VideoEditJobInputAsset): VideoEditJobI
     metadata: {
       ...(asset.metadata ?? {}),
       content_type: "talking_head",
-      audio_source: "original_video_audio",
-      subtitle_source: "asr_original_audio",
+      audio_source: "clone_voiceover",
+      subtitle_source: "script_audio_alignment",
+      lip_sync_provider: "aliyun_videoretalk",
+      lip_sync_video_requirements: lipSyncInputRequirements.video,
     },
   };
 }

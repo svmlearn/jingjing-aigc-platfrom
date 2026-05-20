@@ -83,6 +83,7 @@ class VideoJob:
     merchant_id: str
     draft_id: str
     content_variant_id: str
+    created_by_user_id: str | None
     status: str
     current_stage: str | None
     instruction_text: str
@@ -97,6 +98,11 @@ class VideoJob:
             merchant_id=str(record["merchant_id"]),
             draft_id=str(record["draft_id"]),
             content_variant_id=str(record["content_variant_id"]),
+            created_by_user_id=(
+                str(record["created_by_user_id"])
+                if record.get("created_by_user_id") is not None
+                else None
+            ),
             status=str(record["status"]),
             current_stage=record.get("current_stage"),
             instruction_text=str(record.get("instruction_text") or ""),

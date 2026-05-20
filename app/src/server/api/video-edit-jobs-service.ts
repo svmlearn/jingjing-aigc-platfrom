@@ -395,6 +395,8 @@ async function buildServerManagedInputPayload(input: {
       assets,
       productionConfig: input.productionConfig,
     });
+    payload.materialContext.dailyTaskId = firstString(input.variant.metadata?.dailyTaskId) ?? null;
+    payload.materialContext.memberUserId = input.userId;
     return attachVoiceProfileReference({
       userId: input.userId,
       merchantId: input.merchantId,
@@ -436,6 +438,8 @@ async function buildServerManagedInputPayload(input: {
     requireUserTalkingHead: true,
     productionConfig: input.productionConfig,
   });
+  payload.materialContext.dailyTaskId = firstString(input.variant.metadata?.dailyTaskId) ?? null;
+  payload.materialContext.memberUserId = input.userId;
   return attachVoiceProfileReference({
     userId: input.userId,
     merchantId: input.merchantId,

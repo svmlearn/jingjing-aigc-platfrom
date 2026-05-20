@@ -478,7 +478,22 @@ const productionConfigSchema = z
       .object({
         enabled: z.boolean().optional(),
         style: z.enum(["platform_default", "bold_caption"]).optional(),
-        talkingHeadSource: z.enum(["script", "asr_original_audio"]).optional(),
+        talkingHeadSource: z
+          .enum(["script", "script_audio_alignment", "asr_original_audio"])
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    lipSync: z
+      .object({
+        enabled: z.boolean().optional(),
+        provider: z.enum(["aliyun_videoretalk"]).optional(),
+        scope: z.literal("talking_head_segments").optional(),
+        subtitleSource: z
+          .enum(["script", "script_audio_alignment", "asr_original_audio"])
+          .optional(),
+        requireVoiceProfile: z.boolean().optional(),
+        inputRequirements: z.never().optional(),
       })
       .strict()
       .optional(),

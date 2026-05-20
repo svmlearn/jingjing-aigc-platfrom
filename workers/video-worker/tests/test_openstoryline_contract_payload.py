@@ -19,6 +19,7 @@ def make_job():
         merchant_id="merchant_1",
         draft_id="draft_1",
         content_variant_id="variant_1",
+        created_by_user_id="member_user_1",
         status="pending",
         current_stage=None,
         instruction_text="make it warmer",

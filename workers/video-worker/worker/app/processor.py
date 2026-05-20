@@ -186,6 +186,30 @@ OPENSTORYLINE_TOOL_MODULE_TOKENS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ),
 )
 
+FAILURE_STAGE_BY_PROGRESS_MODULE = {
+    "material_preparation": "upload",
+    "material_match": "timeline",
+    "voiceover": "clone_tts",
+    "subtitles": "timeline",
+    "render": "render",
+    "output_delivery": "oss",
+}
+
+FAILURE_STAGES = frozenset({"upload", "asr", "clone_tts", "lip_sync", "timeline", "render", "oss"})
+LIP_SYNC_AUDIO_ALLOWED_SUFFIXES = frozenset({".wav", ".mp3", ".aac"})
+LIP_SYNC_AUDIO_MAX_FILE_SIZE_BYTES = 30 * 1024 * 1024
+LIP_SYNC_AUDIO_MIN_DURATION_MS_EXCLUSIVE = 2_000
+LIP_SYNC_AUDIO_MAX_DURATION_MS_EXCLUSIVE = 120_000
+LIP_SYNC_VIDEO_ALLOWED_SUFFIXES = frozenset({".mp4", ".avi", ".mov"})
+LIP_SYNC_VIDEO_MAX_FILE_SIZE_BYTES = 300 * 1024 * 1024
+LIP_SYNC_VIDEO_MIN_DURATION_SECONDS_EXCLUSIVE = 2
+LIP_SYNC_VIDEO_MAX_DURATION_SECONDS_EXCLUSIVE = 120
+LIP_SYNC_VIDEO_MIN_FPS = 15
+LIP_SYNC_VIDEO_MAX_FPS = 60
+LIP_SYNC_VIDEO_ALLOWED_CODECS = frozenset({"h264", "h265", "hevc"})
+LIP_SYNC_VIDEO_MIN_SIDE_PIXELS = 640
+LIP_SYNC_VIDEO_MAX_SIDE_PIXELS = 2048
+
 
 def _optional_bool(source: dict[str, Any], *keys: str, default: bool = True) -> bool:
     for key in keys:
@@ -362,6 +386,201 @@ def _openstoryline_result_payload(
     }
 
 
+def _extract_fire_red_run_id(raw_response: dict[str, Any] | None) -> str | None:
+    if not isinstance(raw_response, dict):
+        return None
+    candidates: list[Any] = [
+        raw_response.get("run_id"),
+        raw_response.get("session_id"),
+    ]
+    for path in (
+        ("fire_red", "run_id"),
+        ("fire_red", "session_id"),
+        ("openstoryline", "run_id"),
+        ("openstoryline", "session_id"),
+        ("fire_red_raw_response", "run_id"),
+        ("fire_red_raw_response", "session_id"),
+    ):
+        cur: Any = raw_response
+        for key in path:
+            if not isinstance(cur, dict):
+                cur = None
+                break
+            cur = cur.get(key)
+        candidates.append(cur)
+    for value in candidates:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _failure_context_value(job: VideoJob, *keys: str) -> str | None:
+    for source in (job.input_payload, job.runtime_payload):
+        if not isinstance(source, dict):
+            continue
+        for key in keys:
+            value = source.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        material_context = source.get("materialContext") or source.get("material_context")
+        if isinstance(material_context, dict):
+            for key in keys:
+                value = material_context.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+    return None
+
+
+def _partial_artifacts_payload(
+    run_result: EngineRunResult | None,
+    uploaded_assets: list[UploadedAsset] | None = None,
+    persisted_assets: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    artifacts: dict[str, Any] = {}
+    if run_result is not None:
+        artifacts["local_outputs"] = {
+            "final_video_path": str(run_result.final_video_path),
+            "cover_image_path": str(run_result.cover_image_path) if run_result.cover_image_path else None,
+            "subtitle_path": str(run_result.subtitle_path) if run_result.subtitle_path else None,
+            "metadata_path": str(run_result.metadata_path),
+        }
+    if uploaded_assets:
+        artifacts["uploaded_objects"] = [
+            {
+                "asset_type": asset.asset_type,
+                "storage_provider": asset.storage_provider,
+                "bucket_name": asset.bucket_name,
+                "storage_key": asset.storage_key,
+            }
+            for asset in uploaded_assets
+        ]
+    if persisted_assets:
+        artifacts["persisted_assets"] = persisted_assets
+    return artifacts
+
+
+def _final_asset_reference(
+    uploaded_assets: list[UploadedAsset] | None = None,
+    persisted_assets: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    if persisted_assets:
+        final = next(
+            (asset for asset in persisted_assets if asset.get("asset_type") == "video"),
+            persisted_assets[0],
+        )
+        return {
+            "final_asset_id": final.get("asset_id"),
+            "object_key": final.get("storage_key"),
+        }
+    if uploaded_assets:
+        final_upload = next(
+            (asset for asset in uploaded_assets if asset.asset_type == "video"),
+            uploaded_assets[0],
+        )
+        return {
+            "final_asset_id": None,
+            "object_key": final_upload.storage_key,
+        }
+    return {"final_asset_id": None, "object_key": None}
+
+
+def _summarize_failure(error: Any, max_length: int = 800) -> str:
+    summary = str(error or "").strip()
+    if len(summary) > max_length:
+        return summary[:max_length] + "...<truncated>"
+    return summary
+
+
+def _number_value(source: dict[str, Any], *keys: str) -> float | None:
+    for key in keys:
+        value = source.get(key)
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int | float):
+            return float(value)
+    return None
+
+
+def _failure_stage_from_context(
+    *,
+    stage: str,
+    error: Any,
+    module_key: str | None = None,
+) -> str:
+    text = f"{stage} {module_key or ''} {error}".lower()
+    if "asr" in text or "local_asr" in text:
+        return "asr"
+    if "lip_sync" in text or "lipsync" in text or "videoretalk" in text or "retalk" in text:
+        return "lip_sync"
+    if stage in {"input_asset_validation", "downloading_inputs", "directive_validation"}:
+        return "upload"
+    if stage in {"voice_profile_reference", "voiceover_artifact_validation"}:
+        return "clone_tts"
+    if stage == "lip_sync_input_validation":
+        return "lip_sync"
+    if stage in {"uploading_outputs", "asset_objects_persistence"}:
+        return "oss"
+    if stage == "output_validation":
+        return "render"
+    if module_key:
+        mapped = FAILURE_STAGE_BY_PROGRESS_MODULE.get(module_key)
+        if mapped:
+            return mapped
+    return "timeline"
+
+
+def _annotate_failure_log(
+    log_payload: dict[str, Any],
+    *,
+    job: VideoJob,
+    stage: str,
+    error: Any,
+    module_key: str | None = None,
+    run_result: EngineRunResult | None = None,
+    uploaded_assets: list[UploadedAsset] | None = None,
+    persisted_assets: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    failure_stage = _failure_stage_from_context(
+        stage=stage,
+        error=error,
+        module_key=module_key,
+    )
+    if failure_stage not in FAILURE_STAGES:
+        failure_stage = "timeline"
+    partial_artifacts = _partial_artifacts_payload(
+        run_result,
+        uploaded_assets=uploaded_assets,
+        persisted_assets=persisted_assets,
+    )
+    final_asset = _final_asset_reference(
+        uploaded_assets=uploaded_assets,
+        persisted_assets=persisted_assets,
+    )
+    failure_record = {
+        "video_edit_job_id": job.id,
+        "daily_task_id": _failure_context_value(job, "dailyTaskId", "daily_task_id"),
+        "member_user_id": _failure_context_value(
+            job,
+            "memberUserId",
+            "member_user_id",
+            "createdByUserId",
+            "created_by_user_id",
+        )
+        or job.created_by_user_id,
+        "final_asset_id": final_asset["final_asset_id"],
+        "object_key": final_asset["object_key"],
+        "fire_red_run_id": _extract_fire_red_run_id(run_result.raw_response if run_result else None),
+        "failure_summary": _summarize_failure(error),
+        "failure_stage": failure_stage,
+        "partial_artifacts": partial_artifacts,
+    }
+    return {
+        **log_payload,
+        "failure_diagnostic": failure_record,
+        "failure_stage": failure_stage,
+    }
+
+
 def _voiceover_artifacts_summary(
     raw_response: dict[str, Any],
     production_config: dict[str, Any],
@@ -373,6 +592,7 @@ def _voiceover_artifacts_summary(
         segments = []
     total_duration_ms = 0
     providers: list[str] = []
+    normalized_segments: list[dict[str, Any]] = []
     for segment in segments:
         if isinstance(segment, dict) and isinstance(segment.get("duration"), int | float):
             total_duration_ms += int(segment["duration"])
@@ -380,6 +600,16 @@ def _voiceover_artifacts_summary(
             provider = str(segment.get("provider") or "").strip()
             if provider and provider not in providers:
                 providers.append(provider)
+            normalized_segments.append(
+                {
+                    "voiceover_id": segment.get("voiceover_id"),
+                    "group_id": segment.get("group_id"),
+                    "path": segment.get("path"),
+                    "duration_ms": segment.get("duration_ms") or segment.get("duration"),
+                    "provider": provider or None,
+                    "clone": segment.get("clone"),
+                }
+            )
 
     provider = voiceover.get("provider") or voiceover_config.get("provider")
     if not providers and provider:
@@ -394,6 +624,7 @@ def _voiceover_artifacts_summary(
         "ref_audio_asset_id": voiceover_config.get("ref_audio_asset_id"),
         "segment_count": len(segments),
         "total_duration_ms": total_duration_ms,
+        "segments": normalized_segments,
         "error_summary": None,
     }
 
@@ -452,6 +683,149 @@ def _validate_voiceover_artifacts_for_directive(
             "voice_profile job did not use clone voiceover provider",
             failure_code="voiceover_clone_provider_not_used",
         )
+
+
+def _validate_lip_sync_audio_inputs(summary: dict[str, Any]) -> None:
+    segments = summary.get("segments")
+    if not isinstance(segments, list):
+        segments = []
+    if not segments:
+        raise VoiceoverArtifactValidationError(
+            "lip_sync requires at least one cloned voiceover audio segment",
+            failure_code="lip_sync_audio_missing",
+        )
+
+    for segment in segments:
+        if not isinstance(segment, dict):
+            continue
+        path_value = segment.get("path")
+        if not isinstance(path_value, str) or not path_value.strip():
+            raise VoiceoverArtifactValidationError(
+                "lip_sync cloned audio segment is missing a local path",
+                failure_code="lip_sync_audio_path_missing",
+            )
+        audio_path = Path(path_value)
+        suffix = audio_path.suffix.lower()
+        if suffix not in LIP_SYNC_AUDIO_ALLOWED_SUFFIXES:
+            raise VoiceoverArtifactValidationError(
+                "lip_sync cloned audio must be wav, mp3, or aac",
+                failure_code="lip_sync_audio_format_unsupported",
+            )
+        if audio_path.exists() and audio_path.stat().st_size > LIP_SYNC_AUDIO_MAX_FILE_SIZE_BYTES:
+            raise VoiceoverArtifactValidationError(
+                "lip_sync cloned audio exceeds 30MB",
+                failure_code="lip_sync_audio_too_large",
+            )
+        duration_ms = _number_value(segment, "duration_ms", "duration")
+        if duration_ms is None:
+            raise VoiceoverArtifactValidationError(
+                "lip_sync cloned audio duration is missing",
+                failure_code="lip_sync_audio_duration_missing",
+            )
+        if not (
+            LIP_SYNC_AUDIO_MIN_DURATION_MS_EXCLUSIVE
+            < int(duration_ms)
+            < LIP_SYNC_AUDIO_MAX_DURATION_MS_EXCLUSIVE
+        ):
+            raise VoiceoverArtifactValidationError(
+                "lip_sync cloned audio duration must be greater than 2s and less than 120s",
+                failure_code="lip_sync_audio_duration_out_of_range",
+            )
+
+
+def _validate_lip_sync_video_inputs(input_assets: list[dict[str, Any]]) -> None:
+    talking_head_assets = [
+        asset
+        for asset in input_assets
+        if str(asset.get("role") or "").strip().lower() == "talking_head"
+        or str(asset.get("scene_type") or "").strip().lower() == "talking_head"
+        or "talking_head" in {str(item).strip().lower() for item in asset.get("tags", []) if str(item).strip()}
+        or str(_nested_dict(asset, "metadata").get("content_type") or "").strip().lower() == "talking_head"
+    ]
+    if not talking_head_assets:
+        raise VoiceoverArtifactValidationError(
+            "lip_sync requires a talking_head input video",
+            failure_code="lip_sync_video_missing",
+        )
+
+    for asset in talking_head_assets:
+        local_path_value = asset.get("local_path")
+        file_name = str(asset.get("file_name") or local_path_value or "").strip()
+        suffix = Path(file_name).suffix.lower()
+        if suffix not in LIP_SYNC_VIDEO_ALLOWED_SUFFIXES:
+            raise VoiceoverArtifactValidationError(
+                "lip_sync talking-head video must be mp4, avi, or mov",
+                failure_code="lip_sync_video_format_unsupported",
+            )
+        local_path = Path(str(local_path_value)) if isinstance(local_path_value, str) and local_path_value else None
+        if local_path and local_path.exists() and local_path.stat().st_size > LIP_SYNC_VIDEO_MAX_FILE_SIZE_BYTES:
+            raise VoiceoverArtifactValidationError(
+                "lip_sync talking-head video exceeds 300MB",
+                failure_code="lip_sync_video_too_large",
+            )
+        metadata = _nested_dict(asset, "metadata")
+        duration_seconds = _number_value(metadata, "durationSeconds", "duration_seconds", "duration")
+        if duration_seconds is not None and not (
+            LIP_SYNC_VIDEO_MIN_DURATION_SECONDS_EXCLUSIVE
+            < duration_seconds
+            < LIP_SYNC_VIDEO_MAX_DURATION_SECONDS_EXCLUSIVE
+        ):
+            raise VoiceoverArtifactValidationError(
+                "lip_sync talking-head video duration must be greater than 2s and less than 120s",
+                failure_code="lip_sync_video_duration_out_of_range",
+            )
+        file_size_bytes = _number_value(metadata, "fileSizeBytes", "file_size_bytes")
+        if file_size_bytes is not None and file_size_bytes > LIP_SYNC_VIDEO_MAX_FILE_SIZE_BYTES:
+            raise VoiceoverArtifactValidationError(
+                "lip_sync talking-head video exceeds 300MB",
+                failure_code="lip_sync_video_too_large",
+            )
+        width = _number_value(metadata, "width")
+        height = _number_value(metadata, "height")
+        if width is not None and height is not None:
+            if not (
+                LIP_SYNC_VIDEO_MIN_SIDE_PIXELS
+                <= width
+                <= LIP_SYNC_VIDEO_MAX_SIDE_PIXELS
+                and LIP_SYNC_VIDEO_MIN_SIDE_PIXELS
+                <= height
+                <= LIP_SYNC_VIDEO_MAX_SIDE_PIXELS
+            ):
+                raise VoiceoverArtifactValidationError(
+                    "lip_sync talking-head video width and height must each be 640-2048 pixels",
+                    failure_code="lip_sync_video_resolution_out_of_range",
+                )
+        fps = _number_value(metadata, "fps", "frameRate", "frame_rate")
+        if fps is not None and not (LIP_SYNC_VIDEO_MIN_FPS <= fps <= LIP_SYNC_VIDEO_MAX_FPS):
+            raise VoiceoverArtifactValidationError(
+                "lip_sync talking-head video fps must be 15-60",
+                failure_code="lip_sync_video_fps_out_of_range",
+            )
+        codec = str(metadata.get("codec") or metadata.get("videoCodec") or metadata.get("video_codec") or "").strip().lower()
+        if codec and codec not in LIP_SYNC_VIDEO_ALLOWED_CODECS:
+            raise VoiceoverArtifactValidationError(
+                "lip_sync talking-head video codec must be H.264 or H.265",
+                failure_code="lip_sync_video_codec_unsupported",
+            )
+
+
+def _validate_lip_sync_inputs_for_directive(
+    summary: dict[str, Any],
+    production_config: dict[str, Any],
+    input_assets: list[dict[str, Any]],
+) -> None:
+    lip_sync = _nested_dict(production_config, "lip_sync", "lipSync")
+    if lip_sync.get("enabled") is not True:
+        return
+    voiceover = _nested_dict(production_config, "voiceover")
+    if lip_sync.get("require_voice_profile", lip_sync.get("requireVoiceProfile", True)) is not False:
+        if voiceover.get("mode") != "voice_profile" or not _is_clone_voiceover_summary(summary):
+            raise VoiceoverArtifactValidationError(
+                "lip_sync requires a successfully cloned voice_profile voiceover",
+                failure_code="lip_sync_voice_profile_required",
+            )
+    _validate_lip_sync_audio_inputs(summary)
+    _validate_lip_sync_video_inputs(input_assets)
 
 
 class JobProcessor:
@@ -733,13 +1107,20 @@ class JobProcessor:
                 job.id,
                 current_stage="directive_validation_failed",
                 failure_reason=f"{exc.failure_code}: {exc}",
-                log_payload=log_payload,
+                log_payload=_annotate_failure_log(
+                    log_payload,
+                    job=job,
+                    stage="directive_validation",
+                    error=exc,
+                ),
                 status=exc.failure_status,
             )
             return
 
         workspace_dir, input_dir, output_dir = self._workspace_for(job)
         existing_runtime_payload = _dict_or_empty(job.runtime_payload)
+        uploaded_assets: list[UploadedAsset] = []
+        persisted_assets: list[dict[str, Any]] = []
         self_hosted_fast_path = (
             directive.execution_mode == "self_hosted_rehearsal_fast_path"
             or existing_runtime_payload.get("self_hosted_rehearsal_fast_path") is True
@@ -928,6 +1309,15 @@ class JobProcessor:
                 voiceover_artifacts,
                 directive.production_config,
             )
+            try:
+                _validate_lip_sync_inputs_for_directive(
+                    voiceover_artifacts,
+                    directive.production_config,
+                    input_assets,
+                )
+            except VoiceoverArtifactValidationError as exc:
+                exc.validation_stage = "lip_sync_input_validation"
+                raise
             record_timing("output_validation", stage_started_at)
             log_payload["steps"].append(
                 {
@@ -937,8 +1327,6 @@ class JobProcessor:
                 }
             )
             local_outputs = self._local_outputs_payload(run_result)
-            uploaded_assets: list[UploadedAsset] = []
-            persisted_assets: list[dict[str, Any]] = []
             upload_mode = "local_only"
             if self._cos_output_configured():
                 self._repository.update_stage(
@@ -1040,7 +1428,12 @@ class JobProcessor:
                 current_stage="input_asset_validation_failed",
                 failure_reason=f"{exc.failure_code}: {exc}",
                 log_payload={
-                    **log_payload,
+                    **_annotate_failure_log(
+                        log_payload,
+                        job=job,
+                        stage="input_asset_validation",
+                        error=exc,
+                    ),
                     "progress_modules": _progress_modules(
                         failed_key="material_preparation",
                         production_config=directive.production_config,
@@ -1064,7 +1457,13 @@ class JobProcessor:
                 current_stage="output_validation_failed",
                 failure_reason=f"{exc.failure_code}: {exc}",
                 log_payload={
-                    **log_payload,
+                    **_annotate_failure_log(
+                        log_payload,
+                        job=job,
+                        stage="output_validation",
+                        error=exc,
+                        run_result=run_result,
+                    ),
                     "progress_modules": _progress_modules(
                         failed_key="render",
                         production_config=directive.production_config,
@@ -1088,7 +1487,12 @@ class JobProcessor:
                 current_stage="downloading_inputs_failed",
                 failure_reason=f"input_download_failed: {exc}",
                 log_payload={
-                    **log_payload,
+                    **_annotate_failure_log(
+                        log_payload,
+                        job=job,
+                        stage="downloading_inputs",
+                        error=exc,
+                    ),
                     "progress_modules": _progress_modules(
                         failed_key="material_preparation",
                         production_config=directive.production_config,
@@ -1111,7 +1515,12 @@ class JobProcessor:
                 current_stage="voice_profile_reference_failed",
                 failure_reason=f"{exc.failure_code}: {exc}",
                 log_payload={
-                    **log_payload,
+                    **_annotate_failure_log(
+                        log_payload,
+                        job=job,
+                        stage="voice_profile_reference",
+                        error=exc,
+                    ),
                     "progress_modules": _progress_modules(
                         failed_key="voiceover",
                         production_config=directive.production_config,
@@ -1121,9 +1530,11 @@ class JobProcessor:
             )
             return
         except VoiceoverArtifactValidationError as exc:
+            validation_stage = getattr(exc, "validation_stage", "voiceover_artifact_validation")
+            progress_key = "subtitles" if validation_stage == "lip_sync_input_validation" else "voiceover"
             log_payload["steps"].append(
                 {
-                    "stage": "voiceover_artifact_validation",
+                    "stage": validation_stage,
                     "status": "failed",
                     "failure_code": exc.failure_code,
                     "error": str(exc),
@@ -1131,12 +1542,18 @@ class JobProcessor:
             )
             self._repository.mark_failed(
                 job.id,
-                current_stage="voiceover_artifact_validation_failed",
+                current_stage=f"{validation_stage}_failed",
                 failure_reason=f"{exc.failure_code}: {exc}",
                 log_payload={
-                    **log_payload,
+                    **_annotate_failure_log(
+                        log_payload,
+                        job=job,
+                        stage=validation_stage,
+                        error=exc,
+                        run_result=run_result,
+                    ),
                     "progress_modules": _progress_modules(
-                        failed_key="voiceover",
+                        failed_key=progress_key,
                         production_config=directive.production_config,
                     ),
                 },
@@ -1160,7 +1577,14 @@ class JobProcessor:
                 current_stage="openstoryline_rendering_failed",
                 failure_reason=f"engine_run_failed: {exc}",
                 log_payload={
-                    **log_payload,
+                    **_annotate_failure_log(
+                        log_payload,
+                        job=job,
+                        stage="openstoryline_rendering",
+                        error=exc,
+                        module_key=failed_module_key,
+                        run_result=run_result,
+                    ),
                     "progress_modules": _progress_modules(
                         failed_key=failed_module_key,
                         production_config=directive.production_config,
@@ -1187,7 +1611,15 @@ class JobProcessor:
                 current_stage="uploading_outputs_failed",
                 failure_reason=f"OUTPUT_UPLOAD_FAILED: {exc}",
                 log_payload={
-                    **log_payload,
+                    **_annotate_failure_log(
+                        log_payload,
+                        job=job,
+                        stage="uploading_outputs",
+                        error=exc,
+                        run_result=run_result,
+                        uploaded_assets=uploaded_assets,
+                        persisted_assets=persisted_assets,
+                    ),
                     "progress_modules": _progress_modules(
                         failed_key="output_delivery",
                         production_config=directive.production_config,
@@ -1210,7 +1642,15 @@ class JobProcessor:
                 current_stage="asset_objects_persistence_failed",
                 failure_reason=f"asset_objects_insert_failed: {exc}",
                 log_payload={
-                    **log_payload,
+                    **_annotate_failure_log(
+                        log_payload,
+                        job=job,
+                        stage="asset_objects_persistence",
+                        error=exc,
+                        run_result=run_result,
+                        uploaded_assets=uploaded_assets,
+                        persisted_assets=persisted_assets,
+                    ),
                     "progress_modules": _progress_modules(
                         failed_key="output_delivery",
                         production_config=directive.production_config,
@@ -1231,7 +1671,15 @@ class JobProcessor:
                 current_stage="failed",
                 failure_reason=str(exc),
                 log_payload={
-                    **log_payload,
+                    **_annotate_failure_log(
+                        log_payload,
+                        job=job,
+                        stage="failed",
+                        error=exc,
+                        run_result=run_result,
+                        uploaded_assets=uploaded_assets,
+                        persisted_assets=persisted_assets,
+                    ),
                     "progress_modules": _progress_modules(
                         failed_key="material_match",
                         production_config=directive.production_config,

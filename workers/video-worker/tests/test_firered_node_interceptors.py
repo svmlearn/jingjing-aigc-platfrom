@@ -669,6 +669,69 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
 
         self.assertEqual(["split_shots", "group_clips", "asr"], require_kind)
 
+    def test_generate_script_does_not_require_asr_for_script_audio_alignment(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(
+            worker_payload={
+                "production_config": {
+                    "subtitles": {"talking_head_source": "script_audio_alignment"},
+                    "lip_sync": {"enabled": True, "provider": "aliyun_videoretalk"},
+                }
+            }
+        )
+
+        require_kind = module._with_required_original_audio_asr(
+            ["split_shots", "group_clips"],
+            "generate_script",
+            context,
+        )
+
+        self.assertEqual(["split_shots", "group_clips"], require_kind)
+
+    def test_locked_worker_script_keeps_script_for_script_audio_alignment_talking_head_groups(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        label = module._DIALOGUE_RE.pattern.split("|")[0].split("(?:")[1]
+        script_text = f"1\n00:00-00:05\n{label}: Locked script must be the subtitle source\n"
+        payload = {
+            "script_text": script_text,
+            "production_directive": {"script_locked": True},
+            "production_config": {
+                "subtitles": {"talking_head_source": "script_audio_alignment"},
+                "lip_sync": {"enabled": True, "provider": "aliyun_videoretalk"},
+            },
+        }
+        groups = [{"group_id": "group_0001", "clip_ids": ["clip_0001"]}]
+        split_shots = {
+            "clips": [
+                {
+                    "clip_id": "clip_0001",
+                    "source_ref": {
+                        "media_id": "media_0001",
+                        "duration": 5000,
+                        "tags": ["talking_head"],
+                    },
+                }
+            ]
+        }
+        asr = {
+            "asr_infos": [
+                {"clip_id": "clip_0001", "asr_text": "ASR should not replace this"}
+            ]
+        }
+
+        custom_script = module._build_custom_script_from_worker_payload(
+            payload,
+            groups,
+            asr,
+            split_shots,
+        )
+
+        first = custom_script["group_scripts"][0]
+        self.assertEqual("Locked script must be the subtitle source", first["raw_text"])
+        self.assertFalse(first.get("skip_voiceover", False))
+        self.assertEqual("voiceover", first["audio_source"])
+        self.assertEqual("locked_script", first["subtitle_source"])
+
     def test_original_audio_asr_injection_accepts_aliyun_paraformer(self):
         request = Request("local_asr", {}, context=TalkingHeadAsrContext())
 

@@ -10,6 +10,7 @@ def make_job(input_payload):
         merchant_id="merchant_1",
         draft_id="draft_1",
         content_variant_id="variant_1",
+        created_by_user_id="member_user_1",
         status="pending",
         current_stage=None,
         instruction_text="make a video",
@@ -195,8 +196,55 @@ class DirectiveContractTests(unittest.TestCase):
         self.assertEqual(0.35, directive.production_config["bgm"]["volume"])
         self.assertTrue(directive.production_config["render"]["include_original_audio"])
         self.assertEqual("script", directive.production_config["subtitles"]["talking_head_source"])
+        self.assertFalse(directive.production_config["lip_sync"]["enabled"])
 
-    def test_directive_normalizes_talking_head_original_audio_subtitles(self):
+    def test_directive_normalizes_script_audio_alignment_lip_sync(self):
+        job = make_job(
+            {
+                "executionMode": "staging_worker",
+                "script": {
+                    "text": "locked script",
+                    "locked": True,
+                },
+                "productionConfig": {
+                    "voiceover": {
+                        "enabled": True,
+                        "mode": "voice_profile",
+                        "provider": "pixelle_clone",
+                        "voiceProfileId": "profile-1",
+                        "refAudioAssetId": "asset-1",
+                    },
+                    "subtitles": {
+                        "enabled": True,
+                        "style": "platform_default",
+                        "talkingHeadSource": "script_audio_alignment",
+                    },
+                    "lipSync": {
+                        "enabled": True,
+                        "provider": "aliyun_videoretalk",
+                    },
+                },
+                "productionDirective": {
+                    "targetPlatform": "douyin",
+                    "desiredOutputs": ["final_video"],
+                },
+            }
+        )
+
+        directive = build_production_directive(job)
+
+        self.assertEqual(
+            "script_audio_alignment",
+            directive.production_config["subtitles"]["talking_head_source"],
+        )
+        self.assertTrue(directive.production_config["lip_sync"]["enabled"])
+        self.assertEqual(
+            "script_audio_alignment",
+            directive.production_config["lip_sync"]["subtitle_source"],
+        )
+        self.assertTrue(directive.production_config["lip_sync"]["require_voice_profile"])
+
+    def test_directive_keeps_asr_original_audio_as_explicit_fallback(self):
         job = make_job(
             {
                 "executionMode": "staging_worker",
@@ -231,6 +279,7 @@ class DirectiveContractTests(unittest.TestCase):
             directive.production_config["render"]["preserve_talking_head_original_audio"]
         )
         self.assertTrue(directive.production_config["render"]["include_video_audio"])
+        self.assertFalse(directive.production_config["lip_sync"]["enabled"])
 
     def test_directive_rejects_unsupported_voiceover_provider(self):
         job = make_job(

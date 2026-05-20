@@ -642,6 +642,63 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
                     )
                 )
 
+    def test_fire_red_script_audio_alignment_does_not_require_asr(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="test-provider-key",
+            asr_provider="local_funasr",
+            aliyun_asr_api_key="",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {"engine": "fire_red-openstoryline"},
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                    production_config={
+                        "subtitles": {"talking_head_source": "script_audio_alignment"},
+                        "lip_sync": {
+                            "enabled": True,
+                            "provider": "aliyun_videoretalk",
+                        },
+                        "voiceover": {"enabled": False},
+                    },
+                )
+            )
+
+            payload = post.call_args.kwargs["json"]
+            self.assertEqual(
+                "script_audio_alignment",
+                payload["production_config"]["subtitles"]["talking_head_source"],
+            )
+
     def test_fire_red_payload_marks_self_hosted_rehearsal_fast_path(self):
         settings = Settings(
             host="127.0.0.1",
