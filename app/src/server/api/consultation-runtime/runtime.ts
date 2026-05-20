@@ -1140,7 +1140,26 @@ function parseJsonToolLoopDecision(value: string):
     };
   }
 
-  if (action !== "tool_use") {
+  if (action === "call_tool" || action === "tool_call" || action === "tool") {
+    record.action = "tool_use";
+  } else if (isConsultationAgentToolKey(action)) {
+    const input = buildJsonToolInputFromActionRecord(record);
+
+    return {
+      ok: true,
+      decision: {
+        action: "tool_use",
+        toolUses: [
+          {
+            id: readString(record.id) ?? randomUUID(),
+            name: action,
+            input,
+            reason: readString(record.reason) ?? null,
+          },
+        ],
+      },
+    };
+  } else if (action !== "tool_use") {
     return { ok: false, error: "action must be tool_use or final." };
   }
 
@@ -1192,6 +1211,35 @@ function normalizeJsonToolUse(value: unknown, fallbackReason: unknown) {
     input,
     reason: readString(record.reason) ?? readString(fallbackReason) ?? null,
   };
+}
+
+function buildJsonToolInputFromActionRecord(record: Record<string, unknown>) {
+  const explicitInput =
+    record.input && typeof record.input === "object" && !Array.isArray(record.input)
+      ? (record.input as Record<string, unknown>)
+      : record.args && typeof record.args === "object" && !Array.isArray(record.args)
+        ? (record.args as Record<string, unknown>)
+        : null;
+
+  if (explicitInput) {
+    return explicitInput;
+  }
+
+  return Object.fromEntries(
+    Object.entries(record).filter(
+      ([key]) =>
+        ![
+          "action",
+          "id",
+          "name",
+          "toolName",
+          "tool_name",
+          "reason",
+          "thought",
+          "commentary",
+        ].includes(key),
+    ),
+  );
 }
 
 function readString(value: unknown) {

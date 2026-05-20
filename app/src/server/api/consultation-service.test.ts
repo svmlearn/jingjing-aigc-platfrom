@@ -261,6 +261,9 @@ test("consultation planner supports Claude Code style JSON tool loop", () => {
   assert.match(consultationServiceAndRuntimeSource, /tool_arguments_validation_failed/);
   assert.match(consultationServiceAndRuntimeSource, /planNextConsultationToolCall/);
   assert.match(consultationServiceAndRuntimeSource, /responseFormat: "json_object"/);
+  assert.match(consultationRuntimeSource, /action === "call_tool"/);
+  assert.match(consultationRuntimeSource, /buildJsonToolInputFromActionRecord/);
+  assert.match(consultationRuntimeSource, /isConsultationAgentToolKey\(action\)/);
   assert.match(consultationServiceAndRuntimeSource, /plannerDecisionSchema/);
   assert.match(consultationServiceAndRuntimeSource, /model_json_planner/);
   assert.match(consultationServiceAndRuntimeSource, /getReadyToolNames/);
