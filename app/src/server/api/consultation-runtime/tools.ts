@@ -363,7 +363,7 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
     {
       key: "update_content_calendar",
       label: "更新内容日历",
-      purpose: "把咨询结论、用户知识库和策略快照转成图文/视频混合营销日历。",
+      purpose: "在本轮已经取得足够知识库、话术或素材能力依据后，把咨询结论、用户知识库和策略快照转成图文/视频混合营销日历。",
       writes: "strategySnapshot.contentCalendarDraft",
       parameters: updateContentCalendarParameters,
       validate: validateUpdateContentCalendarArgs,

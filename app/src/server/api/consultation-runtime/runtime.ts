@@ -335,6 +335,12 @@ async function runModelJsonToolLoop(input: {
           status: result.status,
           summary: result.summary,
         })),
+        decisionRules: [
+          "如果用户要求基于知识库、用户资料、已有素材能力来生成营销日历、团队选题、图文或视频脚本，且 completedTools 不含 retrieve_knowledge_base，请把第一步 tool_use 选择为 retrieve_knowledge_base。",
+          "strategySnapshot.contentCalendarDraft 和 strategyTags 是历史策略资产，不等于本轮 tool_result；不要把历史日历或历史“知识库命中”标签当作本轮已经检索过。",
+          "当前团队内容生成链路是内容日历 -> 生成团队内容 -> Dify；generate_article_brief / generate_video_brief 只在用户明确要求工作台 brief 时使用。",
+          "只有当本轮 tool_result 已经提供足够知识库、话术或素材能力依据后，才选择 update_content_calendar。",
+        ],
       }),
     };
 
