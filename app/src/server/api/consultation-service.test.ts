@@ -236,6 +236,7 @@ test("consultation planner supports native tool calling with deterministic fallb
   assert.match(consultationServiceAndRuntimeSource, /toolChoice: getNativeToolChoice/);
   assert.match(consultationRuntimeSource, /buildExplicitKnowledgeRetrievalQueries/);
   assert.match(consultationRuntimeSource, /applyNativeRetrievalPlan/);
+  assert.match(consultationRuntimeSource, /shouldForceNativeContentCalendarWrite/);
   assert.match(consultationRuntimeSource, /native_tool_calling_no_calendar_write/);
   assert.match(consultationRuntimeSource, /runtime 按用户显式多维资料需求继续检索知识库/);
   assert.match(consultationServiceAndRuntimeSource, /return "auto"/);

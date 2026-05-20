@@ -570,6 +570,18 @@ function getNativeToolChoice(input: {
   }
 
   if (
+    shouldForceNativeContentCalendarWrite(input.state, input.toolResults) &&
+    input.tools.some((tool) => tool.function.name === "update_content_calendar")
+  ) {
+    return {
+      type: "function",
+      function: {
+        name: "update_content_calendar",
+      },
+    };
+  }
+
+  if (
     input.turn === 1 &&
     shouldOpenWithKnowledgeBaseTool(input.state) &&
     !hasToolResult(input.toolResults, "retrieve_knowledge_base") &&
@@ -668,9 +680,7 @@ function getNextExplicitKnowledgeRetrievalQuery(
 
 function buildExplicitKnowledgeRetrievalQueries(state: ConsultationAgentLoopState) {
   const normalized = state.userContent.replace(/\s+/g, "");
-  const asksForCalendar = /内容日历|营销日历|团队选题|本周选题|生成团队内容|图文视频/.test(
-    normalized,
-  );
+  const asksForCalendar = isContentCalendarRequest(normalized);
   const asksForMultiDimensionRead =
     isExplicitKnowledgeBaseReadRequest(state.userContent) &&
     /分别|多个|维度|项目优势|房子|房源|方法论|干货|话术|异议|素材|视频|镜头|画面/.test(
@@ -712,7 +722,7 @@ function shouldContinueAfterNativeAssistantFinal(input: {
 }) {
   const normalized = input.state.userContent.replace(/\s+/g, "");
 
-  if (!/内容日历|营销日历|团队选题|本周选题|生成团队内容|图文视频/.test(normalized)) {
+  if (!isContentCalendarRequest(normalized)) {
     return false;
   }
 
@@ -723,6 +733,33 @@ function shouldContinueAfterNativeAssistantFinal(input: {
   return !input.toolResults.some(
     (result) => result.toolName === "update_content_calendar" && result.status === "completed",
   );
+}
+
+function shouldForceNativeContentCalendarWrite(
+  state: ConsultationAgentLoopState,
+  toolResults: ConsultationAgentToolResult[],
+) {
+  const normalized = state.userContent.replace(/\s+/g, "");
+
+  if (!isContentCalendarRequest(normalized)) {
+    return false;
+  }
+
+  if (!state.consultationAgent.enabledTools.includes("update_content_calendar")) {
+    return false;
+  }
+
+  if (getNextExplicitKnowledgeRetrievalQuery(state, toolResults)) {
+    return false;
+  }
+
+  return !toolResults.some(
+    (result) => result.toolName === "update_content_calendar" && result.status === "completed",
+  );
+}
+
+function isContentCalendarRequest(normalizedText: string) {
+  return /内容日历|营销日历|团队选题|本周选题|生成团队内容|图文视频/.test(normalizedText);
 }
 
 function hasToolResult(
