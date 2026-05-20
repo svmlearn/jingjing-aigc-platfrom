@@ -188,6 +188,8 @@ class FireRedEngineAdapter:
             if self._settings.fire_red_provider_key
             else {}
         )
+        run_timeout_seconds = float(self._settings.fire_red_run_timeout_seconds)
+        run_started_at = time.monotonic()
         try:
             with httpx.stream(
                 "POST",
@@ -200,12 +202,24 @@ class FireRedEngineAdapter:
                 ),
             ) as response:
                 _raise_for_status_with_body(response, "FireRed stream run")
-                last_event_at = time.monotonic()
+                last_event_at = run_started_at
                 for line in response.iter_lines():
+                    now = time.monotonic()
+                    if now - run_started_at > run_timeout_seconds:
+                        yield {
+                            "type": "error",
+                            "error": {
+                                "message": (
+                                    "FireRed stream run timeout after "
+                                    f"{_format_timeout_seconds(run_timeout_seconds)}s"
+                                ),
+                            },
+                        }
+                        return
                     event = _decode_stream_event(line)
                     if event is None:
                         if (
-                            time.monotonic() - last_event_at
+                            now - last_event_at
                             > self._settings.fire_red_stream_idle_timeout_seconds
                         ):
                             yield {
@@ -219,7 +233,7 @@ class FireRedEngineAdapter:
                             }
                             return
                         continue
-                    last_event_at = time.monotonic()
+                    last_event_at = now
                     event_type = event.get("type")
                     if event_type == "progress":
                         yield event
@@ -746,6 +760,10 @@ def _decode_stream_event(line: str | bytes) -> dict[str, Any] | None:
             "error": {"message": f"invalid stream event JSON: {exc}"},
         }
     return data if isinstance(data, dict) else None
+
+
+def _format_timeout_seconds(seconds: float) -> str:
+    return str(int(seconds)) if seconds.is_integer() else str(seconds)
 
 
 def _raise_for_status_with_body(response: httpx.Response, action: str) -> None:
