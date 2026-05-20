@@ -218,7 +218,7 @@ def get_video_media_from_pexels(
         video_number: int,
         orientation: str,
         min_video_duration: int,
-        max_video_duration: int
+        max_video_duration: int,
     ) -> Tuple[list[str], List[Dict[str, Any]]]:
 
     if video_number <= 0:

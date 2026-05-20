@@ -4,6 +4,7 @@ import json
 import uuid
 import ast
 import asyncio
+import httpx
 
 from open_storyline.config import Settings
 
@@ -26,6 +27,8 @@ _SENSITIVE_KEYS = {
     "secret",
     "x-api-key",
     "apikey",
+    "runninghub_api_key",
+    "pixelle_runninghub_api_key",
 }
 
 # GUI 日志输出通道
@@ -41,6 +44,12 @@ def reset_mcp_log_sink(token):
 def _norm_url(u: str) -> str:
     u = (u or "").strip()
     return u.rstrip("/") if u else u
+
+def _no_proxy_client(timeout):
+    return httpx.Client(timeout=timeout, trust_env=False)
+
+def _no_proxy_async_client(timeout):
+    return httpx.AsyncClient(timeout=timeout, trust_env=False)
 
 def _mask_secrets(obj: Any) -> Any:
     """
@@ -68,6 +77,7 @@ def _make_chat_llm(cfg: Settings, model_name: str, streaming: bool) -> ChatOpenA
     model_config = (cfg.developer.chat_models_config.get(model_name) or {})
     base_url = _norm_url(model_config.get("base_url") or "")
     api_key = model_config.get("api_key")
+    timeout = cfg.llm.timeout
     return ChatOpenAI(
         model=model_name,
         base_url=base_url,
@@ -76,9 +86,11 @@ def _make_chat_llm(cfg: Settings, model_name: str, streaming: bool) -> ChatOpenA
             "api-key": api_key,
             "Content-Type": "application/json",
         },
-        timeout=cfg.llm.timeout,
+        timeout=timeout,
         temperature=model_config.get("temperature", cfg.llm.temperature),
         streaming=streaming,
+        http_client=_no_proxy_client(timeout=timeout),
+        http_async_client=_no_proxy_async_client(timeout=timeout),
     )
 
 

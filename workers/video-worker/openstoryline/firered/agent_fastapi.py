@@ -2886,6 +2886,7 @@ async def _run_worker_session_prompt(
         sess._ensure_system_prompt()
         if sess.client_context is not None:
             sess.client_context.worker_payload = worker_payload if isinstance(worker_payload, dict) else None
+            sess.client_context.asr_config = sess.asr_config if isinstance(sess.asr_config, dict) and sess.asr_config else None
 
         attachments = await sess.take_pending_media_for_message(None)
         stats = {

@@ -36,7 +36,11 @@ import type {
 import type { ContentDraftBundleDto, ContentVariantDto } from "@/contracts/draft";
 import type { PublicVideoEditJobDto, VideoEditProgressModuleDto } from "@/contracts/video";
 import { isVideoEditJobInFlightStatus } from "@/contracts/video";
-import { summarizeMemberVideoEditState } from "@/lib/member-video-workflow";
+import type { VoiceProfileDto } from "@/contracts/voice";
+import {
+  isSupportedVoiceProfileAudioFile,
+  summarizeMemberVideoEditState,
+} from "@/lib/member-video-workflow";
 import { getVideoJobStageLabel } from "@/lib/ui/video-job-display";
 import {
   createVideoEditJob,
@@ -44,6 +48,7 @@ import {
   getVideoEditJobDetail,
   type VideoEditJob,
   uploadDraftMediaFile,
+  uploadVoiceProfileAudioFile,
 } from "@/lib/ui/video-workflow";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +68,10 @@ type MemberHistoryPayload = ApiErrorPayload & {
   videoJobs?: PublicVideoEditJobDto[];
 };
 
+type VoiceProfilesPayload = ApiErrorPayload & {
+  voiceProfiles?: VoiceProfileDto[];
+};
+
 type AiEditBusyStage = "preparing_script" | "confirming_script" | "uploading_media" | "creating_job";
 
 type AiEditBusyState = {
@@ -71,6 +80,17 @@ type AiEditBusyState = {
   uploadTotal?: number;
   uploadPercent?: number;
   uploadStage?: DraftMediaUploadStage;
+};
+
+type VoiceProfileCreateState = {
+  displayName: string;
+  authorizationAccepted: boolean;
+  fileName?: string;
+  status: "idle" | "uploading" | "creating" | "ready" | "failed";
+  progressPct: number;
+  stage?: DraftMediaUploadStage;
+  error?: string;
+  profile?: VoiceProfileDto | null;
 };
 
 type AiEditProgressView = {
@@ -426,10 +446,18 @@ export function MemberArticleTaskPage({ taskId }: { taskId: string }) {
 export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
   const { task, loading, error, reload } = useMemberTask(taskId);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
+  const [selectedVoiceAudioFile, setSelectedVoiceAudioFile] = useState<File | null>(null);
   const [draftBundle, setDraftBundle] = useState<ContentDraftBundleDto | null>(null);
   const [job, setJob] = useState<VideoEditJob | null>(null);
   const [busyState, setBusyState] = useState<AiEditBusyState | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [voiceProfileCreate, setVoiceProfileCreate] = useState<VoiceProfileCreateState>({
+    displayName: "",
+    authorizationAccepted: false,
+    status: "idle",
+    progressPct: 0,
+    profile: null,
+  });
 
   useEffect(() => {
     if (!job || isTerminalJob(job.status)) {
@@ -449,6 +477,21 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
     return () => window.clearInterval(timer);
   }, [job]);
 
+  useEffect(() => {
+    void requestJson<VoiceProfilesPayload>("/api/voice-profiles")
+      .then((data) => {
+        const profile = data.voiceProfiles?.find((item) => item.status === "ready") ?? null;
+        if (profile) {
+          setVoiceProfileCreate((current) => ({
+            ...current,
+            status: current.status === "idle" ? "ready" : current.status,
+            profile,
+          }));
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
   if (loading) {
     return <MemberLoading label="正在打开视频镜头脚本" />;
   }
@@ -466,6 +509,9 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
   });
   const resultUrl = editState.previewUrl;
   const resultDownloadUrl = editState.downloadUrl;
+  const selectedVoiceProfile = voiceProfileCreate.profile ?? null;
+  const voiceProfileBusy =
+    voiceProfileCreate.status === "uploading" || voiceProfileCreate.status === "creating";
 
   async function startAiEdit() {
     const currentTask = task;
@@ -477,6 +523,11 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
 
     if (!currentTask) {
       setActionError("任务加载完成后才能发起 AI 剪辑。");
+      return;
+    }
+
+    if (voiceProfileBusy) {
+      setActionError("克隆音色还在上传，请等待声音准备完成后再发起 AI 剪辑。");
       return;
     }
 
@@ -493,18 +544,36 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
     setBusyState({ stage: "preparing_script" });
 
     try {
-      const bundle = draftBundle ?? (await createVideoDraftFromTask(currentTask, script));
+      const difyDraftReference = getDifyVideoDraftReference(currentTask);
+      let bundle = draftBundle;
+
+      if (difyDraftReference) {
+        if (!bundle || bundle.draft.id !== difyDraftReference.contentDraftId) {
+          bundle = await getContentDraftBundle(difyDraftReference.contentDraftId);
+        }
+      } else {
+        bundle = bundle ?? (await createVideoDraftFromTask(currentTask, script));
+      }
+
       setDraftBundle(bundle);
-      const selectedVariant = bundle.selectedVariant ?? bundle.variants[0] ?? null;
+      const selectedVariant = selectVideoVariantForEdit(
+        bundle,
+        difyDraftReference?.contentVariantId ?? null,
+      );
 
       if (!selectedVariant) {
         throw new Error("视频脚本草稿缺少候选版本。");
+      }
+
+      if (selectedVariant.variantType !== "video_script") {
+        throw new Error("视频脚本草稿缺少可剪辑的视频版本。");
       }
 
       setBusyState({ stage: "confirming_script" });
       const approvedVariant = await approveVariantIfNeeded(selectedVariant);
 
       const uploadTotal = uploadEntries.length;
+      const uploadedInputAssetIds: string[] = [];
       for (let index = 0; index < uploadEntries.length; index += 1) {
         const [, file] = uploadEntries[index]!;
         let currentUploadPercent = 0;
@@ -522,7 +591,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           });
         };
 
-        await uploadDraftMediaFile({
+        const uploadedAsset = await uploadDraftMediaFile({
           draftId: bundle.draft.id,
           file,
           sortOrder: index,
@@ -533,6 +602,17 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
             updateUploadState("uploading", progress.percent);
           },
         });
+        uploadedInputAssetIds.push(uploadedAsset.id);
+      }
+
+      let voiceProfileForJob = selectedVoiceProfile;
+      if (selectedVoiceAudioFile) {
+        const uploadedVoiceProfile = await createVoiceProfileFromFile(selectedVoiceAudioFile);
+        if (!uploadedVoiceProfile) {
+          return;
+        }
+        voiceProfileForJob = uploadedVoiceProfile;
+        setSelectedVoiceAudioFile(null);
       }
 
       setBusyState({ stage: "creating_job" });
@@ -540,21 +620,11 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         draftId: bundle.draft.id,
         contentVariantId: approvedVariant.id,
         instructionText: `成员端 AI 剪辑：${script.title}`,
-        productionConfig: {
-          render: {
-            aspectRatio: "9:16",
-            maxDurationSeconds: script.targetDurationSeconds,
-            includeOriginalAudio: true,
-          },
-          subtitles: {
-            enabled: true,
-            style: "platform_default",
-          },
-          bgm: {
-            enabled: true,
-            userRequest: "轻快但不要盖过口播的人居项目短视频背景音乐",
-          },
-        },
+        inputAssetIds: uploadedInputAssetIds,
+        productionConfig: buildMemberVideoProductionConfig({
+          script,
+          voiceProfile: voiceProfileForJob,
+        }),
       });
 
       setJob(nextJob);
@@ -562,6 +632,92 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
       setActionError(requestError instanceof Error ? requestError.message : "AI 剪辑任务创建失败");
     } finally {
       setBusyState(null);
+    }
+  }
+
+  async function createVoiceProfileFromFile(file: File): Promise<VoiceProfileDto | null> {
+    if (!isSupportedVoiceProfileAudioFile(file)) {
+      const message = "克隆音色参考音频仅支持 wav、mp3、m4a、aac、ogg、opus、webm 音频文件。";
+      setVoiceProfileCreate((current) => ({
+        ...current,
+        fileName: file.name,
+        status: "failed",
+        error: message,
+      }));
+      setActionError(message);
+      return null;
+    }
+
+    if (!voiceProfileCreate.authorizationAccepted) {
+      const message = "请先勾选声音克隆授权确认，再上传音频。";
+      setVoiceProfileCreate((current) => ({
+        ...current,
+        fileName: file.name,
+        status: "failed",
+        error: message,
+      }));
+      setActionError(message);
+      return null;
+    }
+
+    const displayName = voiceProfileCreate.displayName.trim() || file.name.replace(/\.[^.]+$/, "");
+
+    setActionError(null);
+    setVoiceProfileCreate((current) => ({
+      ...current,
+      displayName,
+      fileName: file.name,
+      status: "uploading",
+      stage: "preparing",
+      progressPct: 0,
+      error: undefined,
+    }));
+
+    try {
+      const data = await uploadVoiceProfileAudioFile({
+        displayName,
+        authorizationAccepted: true,
+        file,
+        onStageChange(stage) {
+          setVoiceProfileCreate((current) => ({
+            ...current,
+            status: "uploading",
+            stage,
+            progressPct: stage === "finalizing" ? 100 : current.progressPct,
+          }));
+        },
+        onProgress(progress) {
+          setVoiceProfileCreate((current) => ({
+            ...current,
+            status: "uploading",
+            stage: "uploading",
+            progressPct: normalizeUploadPercent(progress.percent),
+          }));
+        },
+      });
+
+      if (!data.voiceProfile) {
+        throw new Error("克隆音色创建失败");
+      }
+
+      setVoiceProfileCreate({
+        displayName: "",
+        authorizationAccepted: false,
+        fileName: file.name,
+        status: "ready",
+        progressPct: 100,
+        profile: data.voiceProfile,
+      });
+      return data.voiceProfile;
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : "克隆音色创建失败";
+      setVoiceProfileCreate((current) => ({
+        ...current,
+        status: "failed",
+        error: message,
+      }));
+      setActionError(message);
+      return null;
     }
   }
 
@@ -640,6 +796,79 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
       </section>
 
       <section className="rounded-lg border border-black/10 bg-white p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">声音克隆</p>
+            <p className="mt-1 text-xs leading-5 text-black/50">
+              {selectedVoiceProfile ? `当前音色：${selectedVoiceProfile.displayName}` : "可上传本人音频用于 AI 配音；不上传则使用默认音色。"}
+            </p>
+          </div>
+          <span className="rounded-lg bg-[#ece8dc] px-2 py-1 text-[11px] text-black/55">可选</span>
+        </div>
+
+        <label className="mt-3 flex items-start gap-2 rounded-lg border border-black/10 bg-[#f7f4ea] px-3 py-3 text-xs leading-5 text-black/65">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 shrink-0 accent-[#1f6f68]"
+            checked={voiceProfileCreate.authorizationAccepted}
+            onChange={(event) => {
+              setVoiceProfileCreate((current) => ({
+                ...current,
+                authorizationAccepted: event.target.checked,
+              }));
+            }}
+          />
+          <span>我确认已获得该声音用于克隆和视频配音的授权。</span>
+        </label>
+
+        <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-black/20 bg-[#f7f4ea] px-3 py-3 text-sm">
+          <span className="min-w-0 truncate">
+            {selectedVoiceAudioFile?.name ?? voiceProfileCreate.fileName ?? selectedVoiceProfile?.refAudioAsset?.storageKey.split("/").pop() ?? "上传 MP3 / 音频"}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[#1f6f68]">
+            {voiceProfileBusy ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Upload className="size-4" aria-hidden="true" />
+            )}
+            {voiceProfileBusy ? `${voiceProfileCreate.progressPct}%` : selectedVoiceAudioFile ? "更换" : "选择"}
+          </span>
+          <input
+            type="file"
+            accept="audio/*,audio/mp4,audio/x-m4a,video/mp4,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm"
+            className="sr-only"
+            disabled={voiceProfileBusy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.currentTarget.value = "";
+              if (file) {
+                setSelectedVoiceAudioFile(file);
+                setVoiceProfileCreate((current) => ({
+                  ...current,
+                  fileName: file.name,
+                  status: "idle",
+                  progressPct: 0,
+                  error: undefined,
+                  profile: null,
+                }));
+              }
+            }}
+          />
+        </label>
+
+        {selectedVoiceAudioFile && voiceProfileCreate.status === "idle" ? (
+          <StatusLine icon={<Upload className="size-4" />} text="已选择音频，点击 AI 剪辑时会先上传并创建克隆音色。" />
+        ) : null}
+
+        {voiceProfileCreate.status === "ready" && selectedVoiceProfile ? (
+          <StatusLine icon={<Check className="size-4" />} text="克隆音色已准备好，本次 AI 剪辑将使用该声音配音。" />
+        ) : null}
+        {voiceProfileCreate.status === "failed" && voiceProfileCreate.error ? (
+          <StatusLine tone="danger" icon={<AlertCircle className="size-4" />} text={voiceProfileCreate.error} />
+        ) : null}
+      </section>
+
+      <section className="rounded-lg border border-black/10 bg-white p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold">AI 剪辑</p>
@@ -650,7 +879,11 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           <button
             type="button"
             onClick={() => void startAiEdit()}
-            disabled={Boolean(busyState) || Boolean(job && isVideoEditJobInFlightStatus(job.status))}
+            disabled={
+              Boolean(busyState) ||
+              voiceProfileBusy ||
+              Boolean(job && isVideoEditJobInFlightStatus(job.status))
+            }
             className="inline-flex items-center gap-2 rounded-lg bg-[#171717] px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
           >
             {busyState || (job && isVideoEditJobInFlightStatus(job.status)) ? (
@@ -968,6 +1201,111 @@ async function createVideoDraftFromTask(
   return data.draftBundle;
 }
 
+function buildMemberVideoProductionConfig(input: {
+  script: DailyVideoScriptPackageDto;
+  voiceProfile: VoiceProfileDto | null;
+}) {
+  if (input.voiceProfile) {
+    return {
+      voiceover: {
+        enabled: true,
+        mode: "voice_profile",
+        voiceProfileId: input.voiceProfile.id,
+        refAudioAssetId: input.voiceProfile.refAudioAssetId,
+        includeOriginalAudio: false,
+      },
+      render: {
+        aspectRatio: "9:16",
+        maxDurationSeconds: input.script.targetDurationSeconds,
+        includeOriginalAudio: false,
+      },
+      subtitles: {
+        enabled: true,
+        style: "platform_default",
+        talkingHeadSource: "asr_original_audio",
+      },
+      bgm: {
+        enabled: false,
+        userRequest: "",
+      },
+    };
+  }
+
+  return {
+    voiceover: {
+      enabled: true,
+      mode: "system",
+      provider: "minimax",
+      includeOriginalAudio: false,
+    },
+    render: {
+      aspectRatio: "9:16",
+      maxDurationSeconds: input.script.targetDurationSeconds,
+      includeOriginalAudio: false,
+    },
+    subtitles: {
+      enabled: true,
+      style: "platform_default",
+      talkingHeadSource: "script",
+    },
+    bgm: {
+      enabled: false,
+      userRequest: "",
+    },
+  };
+}
+
+function getDifyVideoDraftReference(task: DailyContentTaskDto) {
+  const contentDraftId = task.videoTask.contentDraftId?.trim();
+  const contentVariantId = task.videoTask.contentVariantId?.trim();
+
+  if (!task.videoTask.generatedVideoScript || !contentDraftId || !contentVariantId) {
+    return null;
+  }
+
+  return {
+    contentDraftId,
+    contentVariantId,
+  };
+}
+
+async function getContentDraftBundle(draftId: string) {
+  const response = await fetch(`/api/content/records/${encodeURIComponent(draftId)}`, {
+    method: "GET",
+    headers: taskFetchHeaders,
+  });
+  const data = (await response.json().catch(() => null)) as
+    | ({ draftBundle?: ContentDraftBundleDto } & ApiErrorPayload)
+    | null;
+
+  if (!response.ok || !data?.draftBundle) {
+    throw new Error(data?.error?.message ?? "Dify 视频脚本草稿读取失败");
+  }
+
+  return data.draftBundle;
+}
+
+function selectVideoVariantForEdit(
+  bundle: ContentDraftBundleDto,
+  expectedVariantId?: string | null,
+) {
+  if (expectedVariantId) {
+    const expectedVariant = bundle.variants.find((variant) => variant.id === expectedVariantId);
+
+    if (!expectedVariant) {
+      throw new Error("Dify 视频脚本版本不存在，无法发起 AI 剪辑。");
+    }
+
+    return expectedVariant;
+  }
+
+  if (bundle.selectedVariant?.variantType === "video_script") {
+    return bundle.selectedVariant;
+  }
+
+  return bundle.variants.find((variant) => variant.variantType === "video_script") ?? null;
+}
+
 async function approveVariantIfNeeded(variant: ContentVariantDto) {
   if (variant.reviewStatus === "approved") {
     return variant;
@@ -1250,7 +1588,7 @@ function AiEditProgressStatus({
       {resultUrl ? (
         <div className="mt-3 overflow-hidden rounded-lg border border-black/10 bg-black">
           <video
-            className="aspect-video w-full bg-black"
+            className="aspect-video w-full bg-black object-contain"
             controls
             playsInline
             preload="metadata"

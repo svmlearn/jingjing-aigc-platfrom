@@ -453,6 +453,18 @@ def _clip_has_talking_head_label(clip: Any, payload_assets_by_media_id: dict[str
     return any(_normalize_token(label) in normalized for label in _TALKING_HEAD_LABELS)
 
 
+def _clip_is_project_material(clip: Any, payload_assets_by_media_id: dict[str, dict[str, Any]]) -> bool:
+    if not isinstance(clip, dict):
+        return False
+    source_ref = clip.get("source_ref")
+    values = _asset_values_for_talking_head(source_ref)
+    media_id = source_ref.get("media_id") if isinstance(source_ref, dict) else None
+    if isinstance(media_id, str) and media_id in payload_assets_by_media_id:
+        values.extend(_asset_values_for_talking_head(payload_assets_by_media_id[media_id]))
+    normalized = {_normalize_token(value) for value in values if str(value).strip()}
+    return bool({"project-material", "merchant-material-library"} & normalized)
+
+
 def _group_source_duration_ms(group: dict[str, Any], clip_lookup: dict[str, dict[str, Any]]) -> int:
     total = 0
     for clip_id in group.get("clip_ids") or []:
@@ -509,16 +521,19 @@ def _build_custom_script_from_worker_payload(
         return {}
 
     numbered_dialogues: list[str] = []
+    numbered_sections: list[str] = []
     for _scene_no, section in _SCRIPT_SECTION_RE.findall(script_text):
         dialogue = _extract_dialogue_from_section(section)
         if dialogue:
             numbered_dialogues.append(dialogue)
+            numbered_sections.append(section)
 
     if not numbered_dialogues:
         for line in script_text.splitlines():
             dialogue = _extract_dialogue_from_section(line)
             if dialogue:
                 numbered_dialogues.append(dialogue)
+                numbered_sections.append(line)
 
     if not numbered_dialogues:
         return {}
@@ -526,6 +541,7 @@ def _build_custom_script_from_worker_payload(
     numbered_dialogues = _expand_dialogues_to_group_count(numbered_dialogues, len(group_ids))
 
     use_asr_for_talking_head = _worker_payload_talking_head_subtitles_from_asr(payload)
+    payload_is_talking_head = _worker_payload_is_talking_head(payload)
     asr_infos = _get_nested_value(asr, "asr_infos")
     clip_lookup = _clip_lookup_from_split_shots(split_shots)
     payload_assets_by_media_id = _payload_asset_by_media_id(payload)
@@ -537,10 +553,24 @@ def _build_custom_script_from_worker_payload(
             break
         group = groups[index] if isinstance(groups, list) and index < len(groups) and isinstance(groups[index], dict) else {}
         group_clip_ids = [str(item) for item in (group.get("clip_ids") or [])]
-        is_talking_head_group = any(
+        section_text = numbered_sections[index] if index < len(numbered_sections) else numbered_dialogues[index]
+        section_requests_talking_head = any(
+            token in section_text for token in _TALKING_HEAD_SCRIPT_TOKENS
+        )
+        has_talking_head_label = any(
             _clip_has_talking_head_label(clip_lookup.get(clip_id), payload_assets_by_media_id)
             for clip_id in group_clip_ids
         )
+        has_member_upload_candidate = (
+            payload_is_talking_head
+            and section_requests_talking_head
+            and group_clip_ids
+            and any(
+                not _clip_is_project_material(clip_lookup.get(clip_id), payload_assets_by_media_id)
+                for clip_id in group_clip_ids
+            )
+        )
+        is_talking_head_group = has_talking_head_label or has_member_upload_candidate
         source_duration_ms = _group_source_duration_ms(group, clip_lookup)
         raw_text = numbered_dialogues[index]
         group_script = {
@@ -562,19 +592,42 @@ def _build_custom_script_from_worker_payload(
         if use_asr_for_talking_head and is_talking_head_group:
             asr_text = _asr_text_for_group(group, asr_infos)
             if not asr_text:
+                if not has_talking_head_label:
+                    group_scripts.append(group_script)
+                    continue
                 raise ValueError(
                     f"talking-head group {group_id} requires ASR original-audio subtitles, but ASR text is empty"
                 )
             group_script.update(
                 {
                     "raw_text": asr_text,
-                    "skip_voiceover": True,
-                    "voiceover_enabled": False,
-                    "audio_source": _ORIGINAL_VIDEO_AUDIO_SOURCE,
                     "subtitle_source": _ASR_ORIGINAL_AUDIO_MODE,
                     "preserve_clip_duration": True,
                 }
             )
+            if has_talking_head_label:
+                group_script.update(
+                    {
+                        "skip_voiceover": True,
+                        "voiceover_enabled": False,
+                        "audio_source": _ORIGINAL_VIDEO_AUDIO_SOURCE,
+                    }
+                )
+            elif voiceover_enabled:
+                group_script.update(
+                    {
+                        "audio_source": "voiceover",
+                        "voiceover_enabled": True,
+                    }
+                )
+            else:
+                group_script.update(
+                    {
+                        "skip_voiceover": True,
+                        "voiceover_enabled": False,
+                        "audio_source": _ORIGINAL_VIDEO_AUDIO_SOURCE,
+                    }
+                )
         group_scripts.append(
             group_script
         )
@@ -693,6 +746,23 @@ def _force_mute_source_audio_for_talking_head(args: dict[str, Any], context: Any
     args["include_video_audio"] = False
     args["video_volume_scale"] = 0
     args["audio_policy"] = "mute_source_for_talking_head_voiceover"
+
+
+def _reject_worker_filter_clips_fallback(node_id: str, args: Any, context: Any) -> None:
+    if node_id != "filter_clips":
+        return
+    worker_payload = getattr(context, "worker_payload", None)
+    if not isinstance(worker_payload, dict):
+        return
+    mode = "auto"
+    if isinstance(args, dict):
+        mode = str(args.get("mode", "auto") or "auto").strip().lower()
+    if mode == "auto":
+        return
+    raise ToolException(
+        "Worker video-edit jobs must not run filter_clips in skip/default mode; "
+        "model clip filtering must complete successfully or fail the job."
+    )
 
 
 def should_inline_media_as_base64(server_cfg=None) -> bool:
@@ -842,6 +912,7 @@ class ToolInterceptor:
                                 })
             elif node_id in list(meta_collector.id_to_tool.keys()):
                 # 1. Determine execution mode and dependency requirements
+                _reject_worker_filter_clips_fallback(node_id, request.args, context)
                 is_skip_mode = request.args.get('mode', 'auto') != 'auto'
                 require_kind = (
                     meta_collector.id_to_default_require_prior_kind[node_id]
@@ -933,6 +1004,12 @@ class ToolInterceptor:
                         logger.info(
                             f"{indent}├─ [Default Mode] Executing `{miss_id}` "
                             f"(required by `{for_node_id}`)"
+                        )
+
+                        _reject_worker_filter_clips_fallback(
+                            miss_id,
+                            {"mode": "default"},
+                            context,
                         )
 
                         # Prepare tool invocation arguments
@@ -1126,7 +1203,7 @@ class ToolInterceptor:
                             for key, value in provider_cfg.items():
                                 if value is None:
                                     continue
-                                normalized = str(value).strip()
+                                normalized = value.strip() if isinstance(value, str) else value
                                 args.setdefault(key, normalized)
                                 provider_keys.setdefault(key, normalized)
                         fallback_provider = str(

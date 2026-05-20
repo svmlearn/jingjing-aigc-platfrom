@@ -1,5 +1,10 @@
 import type { VideoEditJobStatus } from "../contracts/video.ts";
 
+type VoiceProfileAudioFileLike = {
+  name: string;
+  type: string;
+};
+
 export type MemberVideoResultAssetLike = {
   assetType?: string | null;
   signedPreviewUrl?: string | null;
@@ -77,4 +82,58 @@ function getMemberVideoEditStage(input: {
   }
 
   return input.job.status === "running" || input.job.status === "preparing" ? "editing" : "queued";
+}
+
+export function normalizeVoiceProfileAudioMimeType(file: VoiceProfileAudioFileLike) {
+  const fileName = file.name.toLowerCase();
+  const browserType = file.type.trim().toLowerCase();
+
+  if (/\.(m4a|mp4)$/i.test(fileName)) {
+    return "audio/mp4";
+  }
+
+  if (/\.aac$/i.test(fileName)) {
+    return "audio/aac";
+  }
+
+  if (/\.mp3$/i.test(fileName)) {
+    return "audio/mpeg";
+  }
+
+  if (/\.wav$/i.test(fileName)) {
+    return "audio/wav";
+  }
+
+  if (/\.ogg$/i.test(fileName)) {
+    return "audio/ogg";
+  }
+
+  if (/\.opus$/i.test(fileName)) {
+    return "audio/opus";
+  }
+
+  if (/\.webm$/i.test(fileName)) {
+    return "audio/webm";
+  }
+
+  return browserType.startsWith("audio/") ? browserType : "application/octet-stream";
+}
+
+export function isSupportedVoiceProfileAudioFile(file: VoiceProfileAudioFileLike) {
+  if (file.type.startsWith("audio/")) {
+    return true;
+  }
+
+  if (file.type === "video/mp4" && /\.(m4a|mp4)$/i.test(file.name)) {
+    return true;
+  }
+
+  if (
+    file.type === "application/octet-stream" &&
+    /\.(aac|flac|m4a|mp3|ogg|opus|wav|webm)$/i.test(file.name)
+  ) {
+    return true;
+  }
+
+  return /\.(aac|flac|m4a|mp3|ogg|opus|wav|webm)$/i.test(file.name);
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -94,6 +95,8 @@ class OpenStorylineClient:
         payload: dict[str, Any],
         progress_callback: Callable[[dict[str, Any]], None],
     ) -> EngineRunResult:
+        run_timeout_seconds = float(self._timeout)
+        run_started_at = time.monotonic()
         with httpx.stream(
             "POST",
             f"{self._base_url}/v1/runs/stream",
@@ -102,6 +105,11 @@ class OpenStorylineClient:
         ) as response:
             response.raise_for_status()
             for line in response.iter_lines():
+                if time.monotonic() - run_started_at > run_timeout_seconds:
+                    raise RuntimeError(
+                        "OpenStoryline stream run timeout after "
+                        f"{_format_timeout_seconds(run_timeout_seconds)}s"
+                    )
                 event = self._decode_stream_event(line)
                 if event is None:
                     continue
@@ -191,3 +199,7 @@ def _format_error_detail(error: dict[str, Any]) -> str:
             parts.append(f"tool_summary={summary}")
 
     return "; ".join(parts)
+
+
+def _format_timeout_seconds(seconds: float) -> str:
+    return str(int(seconds)) if seconds.is_integer() else str(seconds)

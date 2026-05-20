@@ -200,6 +200,15 @@ export const tencentCosProvider: ObjectStorageProvider = {
       SecretId: config.secretId,
       SecretKey: config.secretKey,
     });
+    const query: Record<string, string> = {};
+
+    if (input.responseContentDisposition) {
+      query["response-content-disposition"] = input.responseContentDisposition;
+    }
+
+    if (input.responseContentType) {
+      query["response-content-type"] = input.responseContentType;
+    }
 
     return client.getObjectUrl({
       Bucket: input.bucketName ?? config.bucket,
@@ -209,6 +218,7 @@ export const tencentCosProvider: ObjectStorageProvider = {
       Method: "GET",
       Expires: input.expiresInSeconds ?? config.readUrlTtlSeconds,
       Protocol: "https:",
+      ...(Object.keys(query).length > 0 ? { Query: query } : {}),
     });
   },
 

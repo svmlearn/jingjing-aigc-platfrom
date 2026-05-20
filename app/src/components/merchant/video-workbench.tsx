@@ -91,6 +91,7 @@ type VoiceProfileCreateState = {
   status: "idle" | "recording" | "uploading" | "creating" | "ready" | "failed";
   progressPct: number;
   stage?: DraftMediaUploadStage;
+  profile?: VoiceProfileDto;
   error?: string;
 };
 
@@ -665,7 +666,6 @@ export function VideoWorkbench({
     }
 
     const displayName = voiceProfileCreate.displayName.trim() || file.name.replace(/\.[^.]+$/, "");
-    const voiceProfileId = crypto.randomUUID();
 
     setError(null);
     setVoiceProfileCreate((current) => ({
@@ -679,8 +679,9 @@ export function VideoWorkbench({
     }));
 
     try {
-      const audioAsset = await uploadVoiceProfileAudioFile({
-        voiceProfileId,
+      const data = await uploadVoiceProfileAudioFile({
+        displayName,
+        authorizationAccepted: true,
         file,
         onStageChange(stage) {
           setVoiceProfileCreate((current) => ({
@@ -700,36 +701,9 @@ export function VideoWorkbench({
         },
       });
 
-      setVoiceProfileCreate((current) => ({
-        ...current,
-        status: "creating",
-        stage: "finalizing",
-        progressPct: 100,
-      }));
-      const response = await fetch("/api/voice-profiles", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id: voiceProfileId,
-          displayName,
-          refAudioAssetId: audioAsset.id,
-          authorizationAccepted: true,
-        }),
-      });
-      const data = (await response.json()) as {
-        voiceProfile?: VoiceProfileDto;
-        error?: { message?: string };
-      };
-
-      if (!response.ok || !data.voiceProfile) {
-        throw new Error(data.error?.message ?? "克隆音色创建失败");
-      }
-
       setVoiceProfiles((current) => [
-        data.voiceProfile!,
-        ...current.filter((item) => item.id !== data.voiceProfile!.id),
+        data.voiceProfile,
+        ...current.filter((item) => item.id !== data.voiceProfile.id),
       ]);
       setSelectedVoiceProfileId(data.voiceProfile.id);
       setVoiceoverMode("voice_profile");
@@ -739,6 +713,7 @@ export function VideoWorkbench({
         fileName: file.name,
         status: "ready",
         progressPct: 100,
+        profile: data.voiceProfile,
       });
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : "克隆音色创建失败";

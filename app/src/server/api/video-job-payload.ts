@@ -204,7 +204,7 @@ type NormalizedProductionConfig = {
   subtitles: {
     enabled: boolean;
     style: "platform_default" | "bold_caption";
-    talkingHeadSource?: TalkingHeadSubtitleSource;
+    talkingHeadSource: TalkingHeadSubtitleSource;
   };
   render: {
     aspectRatio: "9:16";
@@ -536,11 +536,8 @@ function normalizeProductionConfig(
   }
   const talkingHeadSource =
     subtitles.talkingHeadSource ??
-    (options.defaultTalkingHeadOriginalAudio ? "asr_original_audio" : undefined);
-  if (
-    talkingHeadSource !== undefined &&
-    !allowedTalkingHeadSubtitleSources.has(talkingHeadSource)
-  ) {
+    (options.defaultTalkingHeadOriginalAudio ? "asr_original_audio" : "script");
+  if (!allowedTalkingHeadSubtitleSources.has(talkingHeadSource)) {
     throwInvalidProductionConfig("Unsupported talking-head subtitle source.");
   }
 
@@ -588,7 +585,7 @@ function normalizeProductionConfig(
     subtitles: {
       enabled: subtitles.enabled ?? true,
       style: subtitleStyle,
-      ...(talkingHeadSource ? { talkingHeadSource } : {}),
+      talkingHeadSource,
     },
     render: normalizedRender,
   };

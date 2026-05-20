@@ -1167,6 +1167,66 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
         timeout = stream.call_args.kwargs["timeout"]
         self.assertEqual(7.0, timeout.read)
 
+    def test_fire_red_stream_run_timeout_returns_error_event(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=5,
+            fire_red_stream_idle_timeout_seconds=60,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.stream",
+            return_value=MockHttpStreamResponse(
+                [
+                    json.dumps(
+                        {
+                            "type": "progress",
+                            "event": {"type": "tool_progress", "name": "filter_clips"},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "type": "progress",
+                            "event": {"type": "tool_progress", "name": "filter_clips"},
+                        }
+                    ),
+                ]
+            ),
+        ), patch(
+            "openstoryline.app.engine_adapters.time.monotonic",
+            side_effect=[0.0, 1.0, 6.0],
+        ):
+            events = list(
+                adapter.stream(
+                    RunRequest(
+                        job_id="fire-red-job",
+                        merchant_id="merchant-1",
+                        draft_id="draft-1",
+                        content_variant_id="variant-1",
+                        workspace_dir=str(Path(tmp) / "workspace"),
+                        output_dir=str(Path(tmp) / "outputs"),
+                        script_text="locked script",
+                        production_directive={
+                            "script_locked": True,
+                            "desired_outputs": ["final_video"],
+                        },
+                    )
+                )
+            )
+
+        self.assertEqual("progress", events[0]["type"])
+        self.assertEqual("error", events[1]["type"])
+        self.assertIn("run timeout after 5s", events[1]["error"]["message"])
+
     def test_fire_red_adapter_run_endpoint_uses_worker_mapping(self):
         original_settings = app.state.settings
         app.state.settings = Settings(

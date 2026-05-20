@@ -2,7 +2,9 @@ import "server-only";
 
 import type {
   MediaAssetDto,
+  MediaAssetType,
   MediaCompleteRequest,
+  MediaOwnerType,
   MediaUploadIntentDto,
   MediaUploadIntentRequest,
 } from "@/contracts/media";
@@ -26,17 +28,15 @@ export async function createMediaUploadIntentForUser(input: {
 }): Promise<MediaUploadIntentDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
 
+  assertBrowserUploadOwnerAssetPair(input.request);
+
   if (input.request.ownerType === "content_variant") {
     throw new ApiError(
       400,
       "MEDIA_UPLOAD_OWNER_UNSUPPORTED",
-      "Direct browser uploads do not support content variants.",
+      "Direct browser uploads only support source items, content drafts, and voice profiles.",
     );
   }
-  assertOwnerAssetTypeSupported({
-    ownerType: input.request.ownerType,
-    assetType: input.request.assetType,
-  });
 
   const storage = getConfiguredObjectStorageProvider();
   storage.assertUploadSizeWithinLimit(input.request.sizeBytes);
@@ -85,17 +85,15 @@ export async function completeMediaUploadForUser(input: {
 }): Promise<MediaAssetDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
 
+  assertBrowserUploadOwnerAssetPair(input.request);
+
   if (input.request.ownerType === "content_variant") {
     throw new ApiError(
       400,
       "MEDIA_COMPLETE_OWNER_UNSUPPORTED",
-      "Direct browser uploads do not support content variants.",
+      "Direct browser uploads only support source items, content drafts, and voice profiles.",
     );
   }
-  assertOwnerAssetTypeSupported({
-    ownerType: input.request.ownerType,
-    assetType: input.request.assetType,
-  });
 
   const storage = getWritableConfiguredObjectStorageProvider(input.request.storageProvider);
   const merchantId = isLocalRealChainEnabled() ? getLocalRealChainMerchantId() : merchant.id;
@@ -155,25 +153,22 @@ export async function completeMediaUploadForUser(input: {
   });
 }
 
-function assertOwnerAssetTypeSupported(input: {
-  ownerType: MediaUploadIntentRequest["ownerType"];
-  assetType: MediaCompleteRequest["assetType"];
+function assertBrowserUploadOwnerAssetPair(input: {
+  ownerType: MediaOwnerType;
+  assetType: MediaAssetType;
 }) {
-  if (input.ownerType === "voice_profile") {
-    if (input.assetType !== "audio") {
-      throw new ApiError(
-        400,
-        "MEDIA_ASSET_TYPE_UNSUPPORTED",
-        "Voice profiles only support audio reference assets.",
-      );
-    }
-    return;
-  }
-
-  if (input.assetType === "audio") {
+  if (input.ownerType === "voice_profile" && input.assetType !== "audio") {
     throw new ApiError(
       400,
-      "MEDIA_ASSET_TYPE_UNSUPPORTED",
+      "MEDIA_UPLOAD_ASSET_TYPE_UNSUPPORTED",
+      "Voice profiles only support audio reference assets.",
+    );
+  }
+
+  if (input.assetType === "audio" && input.ownerType !== "voice_profile") {
+    throw new ApiError(
+      400,
+      "MEDIA_UPLOAD_OWNER_UNSUPPORTED",
       "Audio uploads are only supported for voice profiles.",
     );
   }

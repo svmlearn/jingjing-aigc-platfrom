@@ -92,6 +92,7 @@ export type PublicVideoEditJobDto = Pick<
 
 export type VoiceoverProvider = "bytedance_bigtts" | "minimax" | "302";
 export type VoiceoverMode = "system" | "voice_profile";
+export type TalkingHeadSubtitleSource = "script" | "asr_original_audio";
 
 export type BgmFilterKey = "mood" | "scene" | "genre" | "lang" | "id";
 export type BgmFilter = Partial<Record<BgmFilterKey, Array<string | number>>>;
@@ -119,7 +120,7 @@ export type ProductionConfig = {
   subtitles?: {
     enabled?: boolean;
     style?: "platform_default" | "bold_caption";
-    talkingHeadSource?: "script" | "asr_original_audio";
+    talkingHeadSource?: TalkingHeadSubtitleSource;
   };
   render?: {
     aspectRatio?: "9:16";
@@ -132,6 +133,7 @@ export type ProductionConfig = {
 export type CreateVideoEditJobRequest = {
   contentVariantId: string;
   instructionText?: string | null;
+  inputAssetIds?: string[] | null;
   productionConfig?: ProductionConfig | null;
   sourceJobId?: string | null;
 };

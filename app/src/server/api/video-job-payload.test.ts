@@ -56,7 +56,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
   assert.deepEqual(payload.productionConfig, {
     voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
-    subtitles: { enabled: true, style: "platform_default" },
+    subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
   });
   assert.deepEqual(payload.materialContext, {
@@ -103,7 +103,7 @@ test("buildVideoEditJobInputPayload adds default production config", () => {
   assert.deepEqual(payload.productionConfig, {
     voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
-    subtitles: { enabled: true, style: "platform_default" },
+    subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
   });
 });
@@ -125,7 +125,7 @@ test("buildVideoEditJobInputPayload keeps non-talking-head jobs on script subtit
     assets: [],
   });
 
-  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, undefined);
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "script");
   assert.equal(payload.productionConfig.render.preserveTalkingHeadOriginalAudio, undefined);
   assert.equal(payload.productionConfig.render.includeOriginalAudio, false);
 });
@@ -331,7 +331,7 @@ test("buildVideoEditJobInputPayload accepts Aliyun OSS input assets", () => {
   assert.equal(payload.input_assets[0]?.storage_provider, "aliyun_oss");
   assert.equal(payload.input_assets[0]?.bucket_name, "jingjing-domestic-phase1-hz");
   assert.equal(payload.render_mode, "asset_driven");
-  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, undefined);
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "script");
   assert.equal(payload.productionConfig.render.includeOriginalAudio, false);
 });
 
@@ -446,7 +446,7 @@ test("buildVideoEditJobInputPayload normalizes production config overrides", () 
       exclude: {},
       volume: 0.18,
     },
-    subtitles: { enabled: true, style: "platform_default" },
+    subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     render: {
       aspectRatio: "9:16",
       maxDurationSeconds: 45,
@@ -455,7 +455,7 @@ test("buildVideoEditJobInputPayload normalizes production config overrides", () 
   });
 });
 
-test("buildVideoEditJobInputPayload normalizes cloned voice profile config", () => {
+test("buildVideoEditJobInputPayload accepts voice profile production config", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",
     variant: approvedVariant,
@@ -467,7 +467,13 @@ test("buildVideoEditJobInputPayload normalizes cloned voice profile config", () 
         mode: "voice_profile",
         voiceProfileId: "11111111-1111-4111-8111-111111111111",
         refAudioAssetId: "22222222-2222-4222-8222-222222222222",
+        includeOriginalAudio: false,
+      },
+      render: {
         includeOriginalAudio: true,
+      },
+      subtitles: {
+        talkingHeadSource: "asr_original_audio",
       },
     },
   });
@@ -480,6 +486,7 @@ test("buildVideoEditJobInputPayload normalizes cloned voice profile config", () 
     volume: 2,
   });
   assert.equal(payload.productionConfig.render.includeOriginalAudio, true);
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "asr_original_audio");
 });
 
 test("buildVideoEditJobInputPayload rejects invalid production config provider", () => {
