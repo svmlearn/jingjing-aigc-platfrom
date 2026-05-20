@@ -67,7 +67,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="skeleton",
             fire_red_base_url="",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=False,
         )
         try:
@@ -81,7 +81,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
         self.assertEqual("openstoryline-engine", body["service"])
         self.assertEqual("skeleton", body["engine_adapter"])
         self.assertFalse(body["fire_red_base_url_configured"])
-        self.assertEqual(900, body["fire_red_run_timeout_seconds"])
+        self.assertEqual(2700, body["fire_red_run_timeout_seconds"])
         self.assertFalse(body["fire_red_provider_key_configured"])
         self.assertEqual(8000, body["http_port"])
         self.assertEqual(8001, body["mcp_port"])
@@ -96,7 +96,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="skeleton",
             fire_red_base_url="",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=False,
         )
         try:
@@ -119,7 +119,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=False,
         )
         try:
@@ -146,7 +146,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
         )
@@ -195,7 +195,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="skeleton",
             fire_red_base_url="",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=False,
         )
         adapter = create_engine_adapter(settings)
@@ -234,7 +234,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="skeleton",
             fire_red_base_url="",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=False,
         )
         try:
@@ -284,7 +284,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
         )
         adapter = create_engine_adapter(settings)
@@ -314,7 +314,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=False,
         )
         adapter = create_engine_adapter(settings)
@@ -344,7 +344,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
         )
@@ -416,7 +416,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             post.assert_called_once()
             args, kwargs = post.call_args
             self.assertEqual("http://fire-red:7860/api/worker/runs", args[0])
-            self.assertEqual(900, kwargs["timeout"])
+            self.assertEqual(2700, kwargs["timeout"])
             self.assertEqual(
                 {"X-FIRERED-PROVIDER-KEY": "provider-secret"},
                 kwargs["headers"],
@@ -450,7 +450,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
             tts_provider="minimax",
@@ -512,7 +512,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
         )
@@ -573,7 +573,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
             private_pexels_base_url="https://app.example.com/api/private-media/pexels",
@@ -624,7 +624,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
             tts_pixelle_clone_base_url="https://pixelle.example",
@@ -686,7 +686,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
         )
@@ -756,7 +756,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
             tts_minimax_base_url="https://api.minimax.io",
@@ -804,7 +804,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
         )
@@ -860,7 +860,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
         )
@@ -922,7 +922,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
         )
@@ -994,7 +994,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_stream_idle_timeout_seconds=7,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
@@ -1098,7 +1098,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
         )
@@ -1146,7 +1146,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             models_dir=Path("/tmp/models"),
             engine_adapter="fire_red",
             fire_red_base_url="http://fire-red:7860",
-            fire_red_run_timeout_seconds=900,
+            fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
         )

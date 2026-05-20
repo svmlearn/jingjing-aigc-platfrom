@@ -37,7 +37,7 @@ def _settings() -> Settings:
         worker_models_root=Path("/tmp/models"),
         worker_output_root=Path("/tmp/outputs"),
         openstoryline_base_url="http://openstoryline-engine:8000",
-        openstoryline_timeout_seconds=1800,
+        openstoryline_timeout_seconds=2700,
         log_level="INFO",
     )
 

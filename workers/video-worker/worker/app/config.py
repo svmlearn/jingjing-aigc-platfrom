@@ -148,7 +148,7 @@ class Settings:
                 "OPENSTORYLINE_BASE_URL", "http://openstoryline-engine:8000"
             ).rstrip("/"),
             openstoryline_timeout_seconds=_read_int(
-                "OPENSTORYLINE_TIMEOUT_SECONDS", 1800
+                "OPENSTORYLINE_TIMEOUT_SECONDS", 2700
             ),
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
         )
