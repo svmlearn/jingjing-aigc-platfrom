@@ -50,6 +50,22 @@ const consultationRepositorySource = readFileSync(
   new URL("../../lib/db/consultation-repository.ts", import.meta.url),
   "utf8",
 );
+const strategySnapshotSource = readFileSync(
+  new URL("../../lib/strategy-snapshot.ts", import.meta.url),
+  "utf8",
+);
+const contentCalendarGuidanceSource = readFileSync(
+  new URL("../../lib/content-calendar-guidance.ts", import.meta.url),
+  "utf8",
+);
+const dailyContentTaskSource = readFileSync(
+  new URL("./daily-content-task-service.ts", import.meta.url),
+  "utf8",
+);
+const contentGenerationBatchSource = readFileSync(
+  new URL("./content-generation-batch-service.ts", import.meta.url),
+  "utf8",
+);
 const consultationMessagesRouteSource = readFileSync(
   new URL("../../app/api/consultation/sessions/[sessionId]/messages/route.ts", import.meta.url),
   "utf8",
@@ -234,6 +250,19 @@ test("consultation runtime requires knowledge retrieval for explicit user knowle
   assert.doesNotMatch(serviceSource, /你可以不调用工具，直接给用户中文自然语言回复/);
 });
 
+test("consultation-selected merchant knowledge flows into calendar tasks and Dify inputs", () => {
+  assert.match(contentCalendarGuidanceSource, /buildMerchantKnowledgeCalendarGuidance/);
+  assert.match(contentCalendarGuidanceSource, /source: "merchant_knowledge_base"/);
+  assert.match(serviceSource, /buildMerchantKnowledgeCalendarGuidance/);
+  assert.match(serviceSource, /attachGuidanceToContentCalendar/);
+  assert.match(strategySnapshotSource, /normalizeContentCalendarGuidance/);
+  assert.match(dailyContentTaskSource, /collectContentCalendarKnowledgeRefs/);
+  assert.match(dailyContentTaskSource, /calendarGuidance/);
+  assert.match(contentGenerationBatchSource, /formatKnowledgeRefForFallbackText/);
+  assert.match(contentGenerationBatchSource, /chunkId: readString\(item\.chunkId\)/);
+  assert.match(contentGenerationBatchSource, /fallback_knowledge_text/);
+});
+
 test("consultation runtime surfaces native tool call rejections as failed tool facts", () => {
   assert.match(consultationRuntimeSource, /buildNativeRejectedToolResult/);
   assert.match(consultationRuntimeSource, /native_tool_call_rejected/);
@@ -380,8 +409,8 @@ test("strategy assets are merchant-level and stable across consultation sessions
   assert.match(serviceSource, /upsertMerchantStrategyAssetDocument/);
   assert.match(serviceSource, /existingMerchantStrategyAsset\?\.strategySnapshot \?\? session\.strategySnapshot/);
   assert.match(serviceSource, /strategyAsset: merchantStrategyAsset/);
-  assert.match(serviceSource, /strategySnapshot: loopResult\.strategySnapshot/);
-  assert.match(serviceSource, /strategyMarkdown: loopResult\.strategyMarkdown/);
+  assert.match(serviceSource, /strategySnapshot: finalizedStrategySnapshot/);
+  assert.match(serviceSource, /strategyMarkdown: finalizedStrategyMarkdown/);
   assert.doesNotMatch(serviceSource, /previousSnapshot: null,\n\s*userMessages: \[\],\n\s*\}\);\n\s*const session = await createConsultationSession/);
 });
 
@@ -417,7 +446,7 @@ test("initial consultation agent prompt and soul keep empty profile facts unknow
 
 test("strategy asset markdown is the extensible primary document", () => {
   assert.match(serviceSource, /strategyMarkdown: state\.strategyMarkdown/);
-  assert.match(serviceSource, /strategyMarkdownChars: loopResult\.strategyMarkdown\.length/);
+  assert.match(serviceSource, /strategyMarkdownChars: finalizedStrategyMarkdown\.length/);
   assert.match(serviceSource, /strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion、strategyMarkdown 六个字段/);
   assert.match(serviceSource, /strategyMarkdown 是右侧策略资产的主文档/);
   assert.match(serviceSource, /strategyMarkdown 写完整 Markdown 策略资产文档/);

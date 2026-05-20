@@ -108,6 +108,10 @@ import {
 } from "@/server/api/consultation-runtime/utils";
 import { emptyStrategySnapshot } from "@/lib/strategy-snapshot";
 import {
+  attachGuidanceToContentCalendar,
+  buildMerchantKnowledgeCalendarGuidance,
+} from "@/lib/content-calendar-guidance";
+import {
   AiRuntimeError,
   type AiRuntimeTool,
   type AiRuntimeToolCall,
@@ -526,10 +530,23 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
     knowledgeRuntime,
     llmRuntime,
   });
-  const finalizedStrategySnapshot = ensureTeamCalendarDraftForRequest({
+  const teamCalendarSnapshot = ensureTeamCalendarDraftForRequest({
     snapshot: loopResult.strategySnapshot,
     userContent: effectiveUserContent || sourceMessage.content,
   });
+  const knowledgeCalendarGuidance = buildMerchantKnowledgeCalendarGuidance({
+    matches: loopResult.knowledgeMatches,
+    snapshot: teamCalendarSnapshot,
+  });
+  const finalizedStrategySnapshot = knowledgeCalendarGuidance
+    ? {
+        ...teamCalendarSnapshot,
+        contentCalendarDraft: attachGuidanceToContentCalendar({
+          calendar: teamCalendarSnapshot.contentCalendarDraft,
+          guidance: knowledgeCalendarGuidance,
+        }),
+      }
+    : teamCalendarSnapshot;
   const finalizedStrategyMarkdown =
     finalizedStrategySnapshot === loopResult.strategySnapshot
       ? loopResult.strategyMarkdown
@@ -557,6 +574,7 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
       round: loopResult.nextRound,
       strategyTags: finalizedStrategySnapshot.strategyTags,
       calendarCount: finalizedStrategySnapshot.contentCalendarDraft.length,
+      knowledgeGuidanceRefCount: knowledgeCalendarGuidance?.knowledgeRefs.length ?? 0,
       strategyMarkdownChars: finalizedStrategyMarkdown.length,
       loopIterations: loopResult.toolResults.length,
       mentionRouting: loopResult.mentionRouting,
@@ -592,6 +610,13 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
       positioning: finalizedStrategySnapshot.positioning,
       strategyTags: finalizedStrategySnapshot.strategyTags,
       knowledgeContext: buildKnowledgeContextBlock(loopResult.knowledgeMatches),
+      calendarKnowledgeGuidance: knowledgeCalendarGuidance
+        ? {
+            source: knowledgeCalendarGuidance.source,
+            refCount: knowledgeCalendarGuidance.knowledgeRefs.length,
+            mustUseFacts: knowledgeCalendarGuidance.mustUseFacts.slice(0, 5),
+          }
+        : null,
       agentLoop: {
         mode:
           loopResult.runtimeDesign === "native_tool_calling_loop_v1"

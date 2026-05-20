@@ -438,11 +438,20 @@ function buildViralReferences(task: DailyContentTaskDto) {
   return [
     ...task.knowledgeRefs.map((item, index) => ({
       id: readString(item.id) ?? `knowledge-${index + 1}`,
-      source: item.source ?? "knowledge_ref",
-      title: item.title ?? "知识库参考",
-      summary: item.summary ?? null,
-      usageType: item.usageType ?? null,
-      retrievalTargets: item.retrievalTargets ?? null,
+      source: readString(item.source) ?? "knowledge_ref",
+      title: readString(item.title) ?? "知识库参考",
+      summary: readString(item.summary),
+      usageType: readString(item.usageType),
+      retrievalTargets: readStringArray(item.retrievalTargets),
+      documentId: readString(item.documentId),
+      chunkId: readString(item.chunkId),
+      documentTitle: readString(item.documentTitle),
+      sourceName: readString(item.sourceName),
+      scope: readString(item.scope),
+      excerpt: readString(item.excerpt),
+      mustUseFacts: readStringArray(item.mustUseFacts),
+      contentAngles: readStringArray(item.contentAngles),
+      complianceNotes: readStringArray(item.complianceNotes),
     })),
     ...task.materialRefs
       .filter((item) => item.sourceKind === "benchmark")
@@ -468,12 +477,26 @@ function buildFallbackKnowledgeText(input: {
     `主题：${input.task.theme}`,
     `图文任务：${input.task.articleTask.title}。${input.task.articleTask.summary}`,
     `视频任务：${input.task.videoTask.title}。${input.task.videoTask.summary}`,
-    ...input.task.knowledgeRefs.map((item) =>
-      [item.title, item.summary].filter((value) => typeof value === "string" && value).join("："),
-    ),
+    ...input.task.knowledgeRefs.map(formatKnowledgeRefForFallbackText),
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function formatKnowledgeRefForFallbackText(item: Record<string, unknown>) {
+  const title = readString(item.title) ?? readString(item.documentTitle) ?? "知识库参考";
+  const summary = readString(item.summary) ?? readString(item.excerpt);
+  const mustUseFacts = readStringArray(item.mustUseFacts) ?? [];
+  const contentAngles = readStringArray(item.contentAngles) ?? [];
+  const complianceNotes = readStringArray(item.complianceNotes) ?? [];
+  const parts = [
+    summary ? `${title}：${summary}` : title,
+    mustUseFacts.length ? `必须参考：${mustUseFacts.join("；")}` : "",
+    contentAngles.length ? `内容角度：${contentAngles.join("；")}` : "",
+    complianceNotes.length ? `边界：${complianceNotes.join("；")}` : "",
+  ].filter(Boolean);
+
+  return parts.join("\n");
 }
 
 function readDifyWorkflowInputs(snapshot: Record<string, unknown>) {
@@ -655,6 +678,17 @@ function readFirstCalendarItemId(value: Record<string, unknown>) {
 
 function readString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const items = value
+    .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    .map((item) => item.trim());
+  return items.length ? items : null;
 }
 
 function toRecord(value: unknown): Record<string, unknown> {

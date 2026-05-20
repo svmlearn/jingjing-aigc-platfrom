@@ -1,4 +1,5 @@
 import type { ContentCalendarItemDto, StrategySnapshotDto } from "@/contracts/consultation";
+import { normalizeContentCalendarGuidance } from "@/lib/content-calendar-guidance";
 
 export const emptyStrategySnapshot: StrategySnapshotDto = {
   positioning: "",
@@ -59,6 +60,7 @@ function toCalendarItems(value: unknown): ContentCalendarItemDto[] {
         strategyTag: getString(record.strategyTag),
         title: getString(record.title),
         summary: getString(record.summary),
+        guidance: normalizeContentCalendarGuidance(record.guidance),
       };
     })
     .filter((item) => item.title.length > 0);

@@ -11,6 +11,33 @@ export type ConsultationToolCardDto = {
   status: "completed" | "skipped" | "failed";
 };
 
+export type ContentCalendarKnowledgeRefDto = {
+  id: string;
+  source: "merchant_knowledge_base" | "platform_knowledge_base" | "strategy_asset" | "material_library" | string;
+  title: string;
+  summary: string;
+  documentId?: string | null;
+  chunkId?: string | null;
+  documentTitle?: string | null;
+  sourceName?: string | null;
+  scope?: "merchant" | "platform" | string | null;
+  excerpt?: string | null;
+  score?: number | null;
+  chunkIndex?: number | null;
+};
+
+export type ContentCalendarGuidanceDto = {
+  source: "consultation_knowledge_distillation_v1" | string;
+  summary?: string | null;
+  mustUseFacts: string[];
+  sellingPointHints: string[];
+  audienceHints: string[];
+  contentAngles: string[];
+  complianceNotes: string[];
+  materialHints: string[];
+  knowledgeRefs: ContentCalendarKnowledgeRefDto[];
+};
+
 export type ContentCalendarItemDto = {
   id: string;
   dayLabel: string;
@@ -18,6 +45,7 @@ export type ContentCalendarItemDto = {
   strategyTag: string;
   title: string;
   summary: string;
+  guidance?: ContentCalendarGuidanceDto | null;
 };
 
 export type StrategySnapshotDto = {

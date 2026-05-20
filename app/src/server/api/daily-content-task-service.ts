@@ -21,6 +21,10 @@ import {
   buildGeneratedVideoScriptPackage,
   buildProjectIntro,
 } from "@/server/api/member-content-builders";
+import {
+  collectContentCalendarGuidanceSummary,
+  collectContentCalendarKnowledgeRefs,
+} from "@/lib/content-calendar-guidance";
 
 export async function getDailyContentWorkspaceForUser(input: {
   userId: string;
@@ -89,6 +93,12 @@ async function getOrCreateDailyContentTaskForUser(input: {
   const seed = hashSeed(`${input.userId}:${input.taskDate}`);
   const articleItem = pickCalendarItem(calendar, "article", seed);
   const videoItem = pickCalendarItem(calendar, "video", seed + 3);
+  const selectedCalendarItems = [articleItem, videoItem];
+  const calendarGuidance = collectContentCalendarGuidanceSummary(selectedCalendarItems);
+  const calendarKnowledgeRefs = collectContentCalendarKnowledgeRefs(selectedCalendarItems).slice(
+    0,
+    8,
+  );
   const theme =
     articleItem?.strategyTag ||
     videoItem?.strategyTag ||
@@ -99,6 +109,7 @@ async function getOrCreateDailyContentTaskForUser(input: {
     articleItem,
     videoItem,
     snapshot,
+    calendarGuidance,
   });
   const [articleImageMaterials, copyContextMaterials] = await Promise.all([
     listMaterialLibraryItems({
@@ -118,7 +129,10 @@ async function getOrCreateDailyContentTaskForUser(input: {
     ...buildMaterialRoutingTrace(item),
     platform: item.platform,
   }));
-  const materialHints = copyContextMaterials.slice(0, 4).map((item) => item.title);
+  const materialHints = compactStrings([
+    ...copyContextMaterials.slice(0, 4).map((item) => item.title),
+    ...(calendarGuidance?.materialHints ?? []),
+  ]).slice(0, 8);
 
   return upsertDailyContentTask({
     merchantId: input.merchantId,
@@ -130,6 +144,7 @@ async function getOrCreateDailyContentTaskForUser(input: {
       updatedAt: strategyAsset?.updatedAt ?? null,
       strategyTags: snapshot?.strategyTags ?? [],
       calendarItemIds: compactStrings([articleItem?.id, videoItem?.id]),
+      calendarGuidance,
     },
     articleTask: buildTaskItem({
       kind: "article",
@@ -153,6 +168,8 @@ async function getOrCreateDailyContentTaskForUser(input: {
         title: "团队内容日历",
         summary: snapshot?.currentSuggestion ?? "使用团队共享项目资料生成。",
       },
+      ...buildCalendarGuidanceKnowledgeRefs(calendarGuidance),
+      ...calendarKnowledgeRefs,
       ...copyContextMaterials.slice(0, 4).map((item) => ({
         source: "material_library",
         title: item.title,
@@ -170,6 +187,7 @@ function buildDailyMaterialRetrievalQuery(input: {
   articleItem: ContentCalendarItemDto | null;
   videoItem: ContentCalendarItemDto | null;
   snapshot: StrategySnapshotDto | null;
+  calendarGuidance: ReturnType<typeof collectContentCalendarGuidanceSummary>;
 }) {
   return compactStrings([
     input.theme,
@@ -181,7 +199,40 @@ function buildDailyMaterialRetrievalQuery(input: {
     ...(input.snapshot?.targetAudiences ?? []),
     ...(input.snapshot?.keyScenes ?? []),
     ...(input.snapshot?.strategyTags ?? []),
+    ...(input.calendarGuidance?.mustUseFacts ?? []),
+    ...(input.calendarGuidance?.contentAngles ?? []),
+    ...(input.calendarGuidance?.materialHints ?? []),
   ]).join(" ");
+}
+
+function buildCalendarGuidanceKnowledgeRefs(
+  calendarGuidance: ReturnType<typeof collectContentCalendarGuidanceSummary>,
+) {
+  if (!calendarGuidance) {
+    return [];
+  }
+
+  const summary = compactStrings([
+    ...calendarGuidance.mustUseFacts.slice(0, 3),
+    ...calendarGuidance.contentAngles.slice(0, 2),
+  ]).join("；");
+
+  return [
+    {
+      source: "team_calendar_guidance",
+      title: "知识库选题指导",
+      summary: summary || "根据咨询台命中的用户知识库资料生成内容任务。",
+      usageType: "calendar_guidance",
+      retrievalTargets: ["copy_context", "script_context"],
+      mustUseFacts: calendarGuidance.mustUseFacts,
+      sellingPointHints: calendarGuidance.sellingPointHints,
+      audienceHints: calendarGuidance.audienceHints,
+      contentAngles: calendarGuidance.contentAngles,
+      complianceNotes: calendarGuidance.complianceNotes,
+      materialHints: calendarGuidance.materialHints,
+      knowledgeRefIds: calendarGuidance.knowledgeRefIds,
+    },
+  ];
 }
 
 function buildTaskItem(input: {
