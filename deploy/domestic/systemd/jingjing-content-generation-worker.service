@@ -1,0 +1,27 @@
+[Unit]
+Description=Jingjing Dify content generation worker
+After=network-online.target jingjing-app.service
+Wants=network-online.target jingjing-app.service
+
+[Service]
+Type=simple
+User=jingjing
+Group=jingjing
+WorkingDirectory=/srv/jingjing/app
+EnvironmentFile=/etc/jingjing/app.env
+Environment=NODE_ENV=production
+Environment=APP_BASE_URL=http://127.0.0.1:3000
+ExecStart=/usr/bin/env bash -lc 'corepack enable >/dev/null 2>&1 || true; pnpm run content-generation:worker'
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+SyslogIdentifier=jingjing-content-generation-worker
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/jingjing /tmp
+
+[Install]
+WantedBy=multi-user.target

@@ -66,6 +66,15 @@ const contentGenerationBatchSource = readFileSync(
   new URL("./content-generation-batch-service.ts", import.meta.url),
   "utf8",
 );
+const contentGenerationBatchRouteSource = readFileSync(
+  new URL("../../app/api/content-generation/batches/route.ts", import.meta.url),
+  "utf8",
+);
+const schemasSource = readFileSync(new URL("./schemas.ts", import.meta.url), "utf8");
+const memberLayoutSource = readFileSync(
+  new URL("../../app/member/layout.tsx", import.meta.url),
+  "utf8",
+);
 const consultationMessagesRouteSource = readFileSync(
   new URL("../../app/api/consultation/sessions/[sessionId]/messages/route.ts", import.meta.url),
   "utf8",
@@ -280,6 +289,32 @@ test("consultation-selected merchant knowledge flows into calendar tasks and Dif
   assert.match(contentGenerationBatchSource, /fallback_knowledge_text/);
   assert.match(contentGenerationBatchSource, /calendar_task_json/);
   assert.doesNotMatch(contentGenerationBatchSource, /video_asset_capabilities_json/);
+});
+
+test("team content generation uses the current consultation calendar as batch source", () => {
+  assert.match(schemasSource, /consultationSessionId: z\.uuid\(\)\.nullish\(\)/);
+  assert.match(contentGenerationBatchRouteSource, /consultationSessionId: payload\.consultationSessionId/);
+  assert.match(contentGenerationBatchSource, /getConsultationSessionDetail/);
+  assert.match(contentGenerationBatchSource, /consultationSessionId\?: string \| null/);
+  assert.match(contentGenerationBatchSource, /upsertDailyContentTasksFromCalendarForUser/);
+  assert.match(
+    contentGenerationBatchSource,
+    /source: consultationCalendar\.length \? "consultation_calendar" : "daily_task"/,
+  );
+  assert.match(contentGenerationBatchSource, /calendarItemIds: consultationCalendar\.map/);
+  assert.match(dailyContentTaskSource, /source: "consultation_calendar"/);
+  assert.match(dailyContentTaskSource, /calendarItems: selectedCalendarItems/);
+  assert.match(dailyContentTaskSource, /calendarGuidance/);
+});
+
+test("calendar UI follows the direct team generation path", () => {
+  assert.match(consultationWorkspaceSource, /consultationSessionId: session\?\.id \?\? null/);
+  assert.match(consultationWorkspaceSource, /CalendarGuidanceChips/);
+  assert.match(consultationWorkspaceSource, /已参考知识库/);
+  assert.doesNotMatch(consultationWorkspaceSource, /内测入口/);
+  assert.doesNotMatch(consultationWorkspaceSource, /内测\{item\.contentType/);
+  assert.doesNotMatch(consultationWorkspaceSource, /getCalendarItemHref/);
+  assert.match(memberLayoutSource, /dynamic = "force-dynamic"/);
 });
 
 test("consultation runtime surfaces native tool call rejections as failed tool facts", () => {

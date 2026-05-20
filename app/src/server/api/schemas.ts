@@ -286,6 +286,7 @@ export const createContentGenerationBatchSchema = z.object({
   days: z.number().int().min(1).max(7).optional(),
   memberScope: z.enum(["self", "active_members"]).optional(),
   extraRequirement: z.string().trim().max(1000).nullish(),
+  consultationSessionId: z.uuid().nullish(),
 });
 
 export const platformAdminBootstrapSchema = z.object({

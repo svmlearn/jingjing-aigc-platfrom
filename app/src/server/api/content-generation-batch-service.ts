@@ -24,6 +24,7 @@ import {
   getOperationalMerchantWorkspaceByUserId,
   listActiveMerchantTeamMembersByMerchant,
 } from "@/lib/db/merchant-repository";
+import { getConsultationSessionDetail } from "@/lib/db/consultation-repository";
 import {
   buildDifyImageRenderUrl,
   mapDifyArticleToMemberPackage,
@@ -32,7 +33,10 @@ import {
   type DifyFinalJson,
 } from "@/server/api/dify-final-json-mapper";
 import { runDifyWorkflow } from "@/server/api/dify-workflow-client";
-import { getDailyContentWorkspaceForUser } from "@/server/api/daily-content-task-service";
+import {
+  getDailyContentWorkspaceForUser,
+  upsertDailyContentTasksFromCalendarForUser,
+} from "@/server/api/daily-content-task-service";
 import { ApiError } from "@/server/api/errors";
 import { getObjectStorageProvider } from "@/server/storage";
 
@@ -61,10 +65,18 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
   days?: number;
   memberScope?: BatchMemberScope;
   extraRequirement?: string | null;
+  consultationSessionId?: string | null;
 }): Promise<CreateBatchResult> {
   const workspace = await getOperationalMerchantWorkspaceByUserId(input.userId);
   const days = clampDays(input.days);
   const startDate = normalizeDate(input.date);
+  const consultationSession = input.consultationSessionId
+    ? await getConsultationSessionDetail({
+        merchantId: workspace.merchantProfile.id,
+        sessionId: input.consultationSessionId,
+      })
+    : null;
+  const consultationCalendar = consultationSession?.strategySnapshot.contentCalendarDraft ?? [];
   const members =
     input.memberScope === "active_members" && workspace.role === "owner"
       ? await listActiveMerchantTeamMembersByMerchant(workspace.merchantProfile.id)
@@ -96,9 +108,20 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
       userId: member.userId,
       date: startDate,
     });
-    const tasks = [memberWorkspace.today, ...memberWorkspace.upcoming].slice(0, days);
+    const tasks = consultationCalendar.length
+      ? await upsertDailyContentTasksFromCalendarForUser({
+          userId: member.userId,
+          merchantId: workspace.merchantProfile.id,
+          startDate,
+          days,
+          snapshot: consultationSession!.strategySnapshot,
+          consultationSessionId: consultationSession!.id,
+          sourceUpdatedAt: consultationSession!.updatedAt,
+        })
+      : [memberWorkspace.today, ...memberWorkspace.upcoming].slice(0, days);
 
     for (const task of tasks) {
+      const calendarItemId = readFirstCalendarItemId(task.teamCalendarSource);
       const inputSnapshot = await buildDifyJobInputSnapshot({
         task,
         merchantName: memberWorkspace.project.projectName,
@@ -112,11 +135,12 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
         memberUserId: member.userId,
         dailyTaskId: task.id,
         taskDate: task.taskDate,
-        calendarItemId: readFirstCalendarItemId(task.teamCalendarSource),
+        calendarItemId,
         idempotencyKey: [
           workspace.merchantProfile.id,
           member.userId,
           task.taskDate,
+          calendarItemId ?? "daily-task",
           getDifyWorkflowVersion(),
         ].join(":"),
         inputSnapshot,
@@ -127,13 +151,15 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
   const result = await createContentGenerationBatch({
     merchantId: workspace.merchantProfile.id,
     createdByUserId: input.userId,
-    source: "daily_task",
+    source: consultationCalendar.length ? "consultation_calendar" : "daily_task",
     workflowProvider: "dify",
     workflowVersion: getDifyWorkflowVersion(),
     calendarSnapshot: {
       date: startDate,
       days,
-      source: "daily_content_tasks",
+      source: consultationCalendar.length ? "consultation_calendar" : "daily_content_tasks",
+      consultationSessionId: consultationSession?.id ?? null,
+      calendarItemIds: consultationCalendar.map((item) => item.id),
     },
     memberScopeSnapshot: {
       scope: input.memberScope ?? "self",
@@ -277,6 +303,7 @@ export async function runNextDifyContentGenerationJob(): Promise<RunNextJobResul
     return { job: updatedJob, processed: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Dify 生成任务失败。";
+    const retryable = isRetryableDifyContentGenerationError(error);
 
     await updateDailyContentTaskGeneratedContent({
       merchantId: job.merchantId,
@@ -295,11 +322,20 @@ export async function runNextDifyContentGenerationJob(): Promise<RunNextJobResul
     const failedJob = await markContentGenerationJobFailed({
       jobId: job.id,
       errorMessage: message,
-      retryable: false,
+      retryable,
     });
 
     return { job: failedJob, processed: true };
   }
+}
+
+function isRetryableDifyContentGenerationError(error: unknown) {
+  if (error instanceof ApiError && error.code === "DIFY_API_KEY_MISSING") {
+    return false;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return !message.includes("DIFY_API_KEY_MISSING");
 }
 
 async function buildDifyJobInputSnapshot(input: {
@@ -556,6 +592,7 @@ function buildFallbackKnowledgeText(input: {
     `主题：${input.task.theme}`,
     `图文任务：${input.task.articleTask.title}。${input.task.articleTask.summary}`,
     `视频任务：${input.task.videoTask.title}。${input.task.videoTask.summary}`,
+    "视频画面生成原则：把日历素材提示、视频素材能力和成员可补拍方式作为画面边界；未在知识库或素材能力中出现的客户签约、客户访谈、政策文件、价格收益数据、老业主反馈等，不要写成确定已有素材或确定事实。",
     ...input.task.knowledgeRefs.map(formatKnowledgeRefForFallbackText),
     ...(input.videoAssetCapabilities ?? []).map(formatVideoAssetCapabilityForFallbackText),
   ]

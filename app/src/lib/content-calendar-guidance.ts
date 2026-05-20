@@ -24,11 +24,11 @@ export function buildMerchantKnowledgeCalendarGuidance(input: {
     return null;
   }
 
-  const mustUseFacts = uniqueStrings([
+  const mustUseFacts = usefulUniqueStrings([
     ...refs.map((ref) => ref.summary),
     ...input.snapshot.coreSellingPoints,
   ]).slice(0, 8);
-  const contentAngles = uniqueStrings([
+  const contentAngles = usefulUniqueStrings([
     ...input.snapshot.strategyTags,
     ...input.snapshot.keyScenes,
     ...refs.map((ref) => ref.title),
@@ -42,14 +42,14 @@ export function buildMerchantKnowledgeCalendarGuidance(input: {
       .slice(0, 3)
       .join("\n"),
     mustUseFacts,
-    sellingPointHints: uniqueStrings(input.snapshot.coreSellingPoints).slice(0, 8),
-    audienceHints: uniqueStrings(input.snapshot.targetAudiences).slice(0, 8),
+    sellingPointHints: usefulUniqueStrings(input.snapshot.coreSellingPoints).slice(0, 8),
+    audienceHints: usefulUniqueStrings(input.snapshot.targetAudiences).slice(0, 8),
     contentAngles,
     complianceNotes: [
       "知识库片段只作为事实依据；价格、收益、资质、案例、活动承诺必须以实际资料为准。",
       "生成内容不得扩写成用户知识库未明确支持的确定性承诺。",
     ],
-    materialHints: uniqueStrings(input.snapshot.keyScenes).slice(0, 6),
+    materialHints: usefulUniqueStrings(input.snapshot.keyScenes).slice(0, 6),
     assetCapabilityHints,
     retrievalTrace: input.matches
       .filter((match) => match.scope === "merchant")
@@ -110,17 +110,20 @@ export function collectContentCalendarGuidanceSummary(
 
   return {
     source: calendarGuidanceSource,
-    mustUseFacts: uniqueStrings(guidance.flatMap((item) => item.mustUseFacts)).slice(0, 10),
-    sellingPointHints: uniqueStrings(guidance.flatMap((item) => item.sellingPointHints)).slice(0, 10),
-    audienceHints: uniqueStrings(guidance.flatMap((item) => item.audienceHints)).slice(0, 10),
-    contentAngles: uniqueStrings(guidance.flatMap((item) => item.contentAngles)).slice(0, 10),
-    complianceNotes: uniqueStrings(guidance.flatMap((item) => item.complianceNotes)).slice(0, 8),
-    materialHints: uniqueStrings(guidance.flatMap((item) => item.materialHints)).slice(0, 8),
-    shotConstraints: uniqueStrings(guidance.flatMap((item) => item.shotConstraints ?? [])).slice(
+    mustUseFacts: usefulUniqueStrings(guidance.flatMap((item) => item.mustUseFacts)).slice(0, 10),
+    sellingPointHints: usefulUniqueStrings(guidance.flatMap((item) => item.sellingPointHints)).slice(
       0,
       10,
     ),
-    assetCapabilityHints: uniqueStrings(
+    audienceHints: usefulUniqueStrings(guidance.flatMap((item) => item.audienceHints)).slice(0, 10),
+    contentAngles: usefulUniqueStrings(guidance.flatMap((item) => item.contentAngles)).slice(0, 10),
+    complianceNotes: uniqueStrings(guidance.flatMap((item) => item.complianceNotes)).slice(0, 8),
+    materialHints: usefulUniqueStrings(guidance.flatMap((item) => item.materialHints)).slice(0, 8),
+    shotConstraints: usefulUniqueStrings(guidance.flatMap((item) => item.shotConstraints ?? [])).slice(
+      0,
+      10,
+    ),
+    assetCapabilityHints: usefulUniqueStrings(
       guidance.flatMap((item) => item.assetCapabilityHints ?? []),
     ).slice(0, 10),
     retrievalTrace: guidance
@@ -222,9 +225,8 @@ function mergeContentCalendarGuidance(
 }
 
 function buildAssetCapabilityHints(snapshot: StrategySnapshotDto) {
-  return uniqueStrings([
-    ...snapshot.keyScenes.map((scene) => `已确认内容场景：${scene}`),
-    ...snapshot.coreSellingPoints.map((point) => `已确认卖点线索：${point}`),
+  return usefulUniqueStrings([
+    ...snapshot.keyScenes.map((scene) => `可用或可补拍的内容场景线索：${scene}`),
   ]).slice(0, 8);
 }
 
@@ -367,6 +369,28 @@ function uniqueStrings(values: Array<string | null | undefined>) {
   }
 
   return result;
+}
+
+function usefulUniqueStrings(values: Array<string | null | undefined>) {
+  return uniqueStrings(values).filter(isUsefulGuidanceText);
+}
+
+function isUsefulGuidanceText(value: string) {
+  const normalized = value.replace(/\s+/g, "").trim();
+
+  if (!normalized) {
+    return false;
+  }
+
+  if (/^(图文内容|AI视频|测试区域|测试内容|测试素材)$/.test(normalized)) {
+    return false;
+  }
+
+  if (/用于验证|成员端登录|邀请码|测试链路/.test(normalized)) {
+    return false;
+  }
+
+  return true;
 }
 
 function clipText(value: string, maxLength: number) {

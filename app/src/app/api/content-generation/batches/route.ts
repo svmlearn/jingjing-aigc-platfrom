@@ -16,6 +16,7 @@ export async function POST(request: Request) {
       days: payload.days,
       memberScope: payload.memberScope,
       extraRequirement: payload.extraRequirement,
+      consultationSessionId: payload.consultationSessionId,
     });
 
     return Response.json(

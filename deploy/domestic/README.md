@@ -91,7 +91,28 @@ pm2 logs jingjing-app
 
 Use only one process manager for the app.
 
-## 4. Worker process
+## 4. Content generation worker
+
+The Dify content generation queue is consumed by a lightweight Node worker. It
+calls the app's `/api/content-generation/jobs/run-next` route and processes one
+job per request. Use the same app env file so `DIFY_*`, database, and
+`CONTENT_GENERATION_WORKER_SECRET` stay aligned with the app.
+
+```bash
+sudo cp deploy/domestic/systemd/jingjing-content-generation-worker.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now jingjing-content-generation-worker
+sudo systemctl status jingjing-content-generation-worker --no-pager
+journalctl -u jingjing-content-generation-worker -f
+```
+
+Restart commands:
+
+```bash
+sudo systemctl restart jingjing-content-generation-worker
+```
+
+## 5. Video worker process
 
 The worker remains Docker Compose based in phase1. Keep
 `WORKER_MAX_CONCURRENCY=1`.
@@ -115,7 +136,7 @@ docker compose -f docker-compose.yml -f docker-compose.firered.yml --profile fir
 docker compose -f docker-compose.yml -f docker-compose.firered.yml --profile firered logs -f video-worker
 ```
 
-## 5. Nginx
+## 6. Nginx
 
 ```bash
 sudo cp deploy/domestic/nginx/jingjing-domestic.conf /etc/nginx/conf.d/
@@ -126,7 +147,7 @@ sudo systemctl reload nginx
 The Nginx sample proxies IP-stage HTTP traffic to `127.0.0.1:3000`. HTTPS,
 domain binding, and ICP are intentionally not included.
 
-## 6. Readiness commands after resources exist
+## 7. Readiness commands after resources exist
 
 Fill `/etc/jingjing/app.env` and `/etc/jingjing/worker.env` from the templates,
 then run:
