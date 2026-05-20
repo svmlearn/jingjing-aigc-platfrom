@@ -78,6 +78,7 @@ export async function createVideoEditJobForUser(input: {
     merchantId: variant.merchantId,
     draftId: variant.draftId,
     variant,
+    inputAssetIds: input.request.inputAssetIds ?? null,
     productionConfig: input.request.productionConfig ?? null,
   });
   const runtimePayload = {
@@ -329,10 +330,11 @@ async function buildServerManagedInputPayload(input: {
   merchantId: string;
   draftId: string;
   variant: VideoJobPayloadVariant;
+  inputAssetIds: CreateVideoEditJobRequest["inputAssetIds"];
   productionConfig: CreateVideoEditJobRequest["productionConfig"];
 }) {
   if (isPostgresVideoChainEnabled() || !isSupabaseAdminConfigured()) {
-    const assets = isLocalRealChainEnabled()
+    const allAssets = isLocalRealChainEnabled()
       ? await listLocalRealChainAssetObjectsByOwner({
           ownerType: "content_draft",
           ownerId: input.draftId,
@@ -341,6 +343,10 @@ async function buildServerManagedInputPayload(input: {
           ownerType: "content_draft",
           ownerId: input.draftId,
         });
+    const assets = filterRequestedInputAssets({
+      assets: allAssets,
+      inputAssetIds: input.inputAssetIds,
+    });
 
     const payload = buildVideoEditJobPayloadOrThrow({
       draftId: input.draftId,
@@ -356,7 +362,7 @@ async function buildServerManagedInputPayload(input: {
     });
   }
 
-  const [assets, materialReferences] = await Promise.all([
+  const [allAssets, materialReferences] = await Promise.all([
     listAssetObjectsByOwner({
       ownerType: "content_draft",
       ownerId: input.draftId,
@@ -367,6 +373,10 @@ async function buildServerManagedInputPayload(input: {
       targetWorkbench: "video",
     }),
   ]);
+  const assets = filterRequestedInputAssets({
+    assets: allAssets,
+    inputAssetIds: input.inputAssetIds,
+  });
 
   const videoEditMaterialReferences = await filterVideoEditMaterialReferences({
     merchantId: input.merchantId,
@@ -388,6 +398,31 @@ async function buildServerManagedInputPayload(input: {
     merchantId: input.merchantId,
     payload,
   });
+}
+
+function filterRequestedInputAssets(input: {
+  assets: MediaAssetDto[];
+  inputAssetIds: CreateVideoEditJobRequest["inputAssetIds"];
+}) {
+  const requestedIds = [...new Set((input.inputAssetIds ?? []).filter(Boolean))];
+  if (requestedIds.length === 0) {
+    return input.assets;
+  }
+
+  const requestedIdSet = new Set(requestedIds);
+  const matchedAssets = input.assets.filter((asset) => requestedIdSet.has(asset.id));
+  if (matchedAssets.length !== requestedIds.length) {
+    const matchedIds = new Set(matchedAssets.map((asset) => asset.id));
+    const missingIds = requestedIds.filter((assetId) => !matchedIds.has(assetId));
+    throw new ApiError(
+      400,
+      "VIDEO_INPUT_ASSET_NOT_FOUND",
+      "Some selected video inputs are no longer available for this draft.",
+      { missingAssetIds: missingIds },
+    );
+  }
+
+  return matchedAssets;
 }
 
 async function attachVoiceProfileReference(input: {

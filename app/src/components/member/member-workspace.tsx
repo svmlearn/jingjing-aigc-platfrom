@@ -573,6 +573,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
       const approvedVariant = await approveVariantIfNeeded(selectedVariant);
 
       const uploadTotal = uploadEntries.length;
+      const uploadedInputAssetIds: string[] = [];
       for (let index = 0; index < uploadEntries.length; index += 1) {
         const [, file] = uploadEntries[index]!;
         let currentUploadPercent = 0;
@@ -590,7 +591,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           });
         };
 
-        await uploadDraftMediaFile({
+        const uploadedAsset = await uploadDraftMediaFile({
           draftId: bundle.draft.id,
           file,
           sortOrder: index,
@@ -601,6 +602,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
             updateUploadState("uploading", progress.percent);
           },
         });
+        uploadedInputAssetIds.push(uploadedAsset.id);
       }
 
       let voiceProfileForJob = selectedVoiceProfile;
@@ -618,6 +620,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         draftId: bundle.draft.id,
         contentVariantId: approvedVariant.id,
         instructionText: `成员端 AI 剪辑：${script.title}`,
+        inputAssetIds: uploadedInputAssetIds,
         productionConfig: buildMemberVideoProductionConfig({
           script,
           voiceProfile: voiceProfileForJob,

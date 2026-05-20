@@ -132,6 +132,7 @@ export type ProductionConfig = {
 export type CreateVideoEditJobRequest = {
   contentVariantId: string;
   instructionText?: string | null;
+  inputAssetIds?: string[] | null;
   productionConfig?: ProductionConfig | null;
   sourceJobId?: string | null;
 };

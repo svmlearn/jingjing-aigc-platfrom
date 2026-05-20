@@ -1001,12 +1001,14 @@ export async function createVideoEditJob(payload: {
   draftId: string;
   contentVariantId: string;
   instructionText?: string | null;
+  inputAssetIds?: string[] | null;
   sourceJobId?: string | null;
   productionConfig?: JsonRecord | null;
 }) {
   const requestPayload = {
     contentVariantId: payload.contentVariantId,
     instructionText: payload.instructionText ?? null,
+    inputAssetIds: payload.inputAssetIds ?? null,
     sourceJobId: payload.sourceJobId ?? null,
     productionConfig: payload.productionConfig ?? null,
   };
