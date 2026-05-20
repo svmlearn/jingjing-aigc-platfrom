@@ -682,6 +682,23 @@ def _force_mute_source_audio_for_talking_head(args: dict[str, Any], context: Any
     args["audio_policy"] = "mute_source_for_talking_head_voiceover"
 
 
+def _reject_worker_filter_clips_fallback(node_id: str, args: Any, context: Any) -> None:
+    if node_id != "filter_clips":
+        return
+    worker_payload = getattr(context, "worker_payload", None)
+    if not isinstance(worker_payload, dict):
+        return
+    mode = "auto"
+    if isinstance(args, dict):
+        mode = str(args.get("mode", "auto") or "auto").strip().lower()
+    if mode == "auto":
+        return
+    raise ToolException(
+        "Worker video-edit jobs must not run filter_clips in skip/default mode; "
+        "model clip filtering must complete successfully or fail the job."
+    )
+
+
 def should_inline_media_as_base64(server_cfg=None) -> bool:
     """
     Whether to inline media as base64 in MCP requests.
@@ -829,6 +846,7 @@ class ToolInterceptor:
                                 })
             elif node_id in list(meta_collector.id_to_tool.keys()):
                 # 1. Determine execution mode and dependency requirements
+                _reject_worker_filter_clips_fallback(node_id, request.args, context)
                 is_skip_mode = request.args.get('mode', 'auto') != 'auto'
                 require_kind = (
                     meta_collector.id_to_default_require_prior_kind[node_id]
@@ -920,6 +938,12 @@ class ToolInterceptor:
                         logger.info(
                             f"{indent}├─ [Default Mode] Executing `{miss_id}` "
                             f"(required by `{for_node_id}`)"
+                        )
+
+                        _reject_worker_filter_clips_fallback(
+                            miss_id,
+                            {"mode": "default"},
+                            context,
                         )
 
                         # Prepare tool invocation arguments
