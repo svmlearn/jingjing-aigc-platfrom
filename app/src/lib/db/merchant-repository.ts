@@ -15,12 +15,6 @@ import type {
   MerchantWorkspaceDto,
 } from "@/contracts/merchant";
 import {
-  getLocalDemoMerchantProfile,
-  localDemoUserId,
-  resolveLocalDemoWorkspaceIdentity,
-  updateLocalDemoMerchantProfile,
-} from "@/lib/demo/local-demo-runtime";
-import {
   isPostgresVideoChainEnabled,
   pgAcceptMemberInvitationCode,
   pgCreateInvitationCode,
@@ -399,10 +393,6 @@ export async function getMerchantTeamManagementForOwner(
 ): Promise<MerchantTeamManagementDto> {
   const workspace = await getOperationalMerchantWorkspaceByUserId(ownerUserId);
   assertMerchantTeamOwner(workspace);
-
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
-  }
 
   const merchantId = workspace.merchantProfile.id;
 
