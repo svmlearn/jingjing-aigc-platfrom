@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import type {
+  ContentCalendarItemDto,
   ConsultationExpertRosterItemDto,
   ConsultationSessionDetailDto,
   ConsultationToolCardDto,
@@ -530,10 +531,7 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
     knowledgeRuntime,
     llmRuntime,
   });
-  const teamCalendarSnapshot = ensureTeamCalendarDraftForRequest({
-    snapshot: loopResult.strategySnapshot,
-    userContent: effectiveUserContent || sourceMessage.content,
-  });
+  const teamCalendarSnapshot = loopResult.strategySnapshot;
   const knowledgeCalendarGuidance = buildMerchantKnowledgeCalendarGuidance({
     matches: loopResult.knowledgeMatches,
     snapshot: teamCalendarSnapshot,
@@ -665,88 +663,6 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
 
 function hasPendingAssistantReply(session: ConsultationSessionDetailDto) {
   return session.messages.at(-1)?.role === "user";
-}
-
-function ensureTeamCalendarDraftForRequest(input: {
-  snapshot: StrategySnapshotDto;
-  userContent: string;
-}): StrategySnapshotDto {
-  if (
-    input.snapshot.contentCalendarDraft.length > 0 ||
-    !looksLikeTeamCalendarRequest(input.userContent)
-  ) {
-    return input.snapshot;
-  }
-
-  const theme = inferTeamCalendarTheme(input.userContent);
-  const strategyTags = uniqueStrings([theme, ...input.snapshot.strategyTags]).slice(0, 6);
-  const currentSuggestion =
-    input.snapshot.currentSuggestion ||
-    `本周团队围绕「${theme}」展开内容分发，成员任务保持同主题不同表达。`;
-
-  return {
-    ...input.snapshot,
-    positioning: input.snapshot.positioning || "房地产项目内容营销",
-    coreSellingPoints: input.snapshot.coreSellingPoints.length
-      ? input.snapshot.coreSellingPoints
-      : ["低总价上车", "成熟配套", "客户顾虑拆解"],
-    targetAudiences: input.snapshot.targetAudiences.length
-      ? input.snapshot.targetAudiences
-      : ["有购房、换房或投资需求的本地客户"],
-    keyScenes: input.snapshot.keyScenes.length
-      ? input.snapshot.keyScenes
-      : ["项目现场口播", "周边配套实拍", "客户异议拆解"],
-    currentSuggestion,
-    strategyTags,
-    contentCalendarDraft: [
-      {
-        id: "team-calendar-article-1",
-        dayLabel: "本周",
-        contentType: "article",
-        strategyTag: theme,
-        title: `${theme}：图文种草角度`,
-        summary: "围绕项目卖点、成熟配套和真实客户顾虑生成小红书图文任务。",
-      },
-      {
-        id: "team-calendar-video-1",
-        dayLabel: "本周",
-        contentType: "video",
-        strategyTag: theme,
-        title: `${theme}：视频口播角度`,
-        summary: "围绕通勤、配套、首付压力和私信咨询生成中介可拍的视频脚本任务。",
-      },
-    ],
-    articleBrief: input.snapshot.articleBrief ?? {
-      workingTitle: `${theme}：本地客户关心的上车机会`,
-      angle: "用真实中介视角解释项目卖点、配套和客户常见顾虑。",
-      callToAction: "私信咨询，获取项目资料。",
-    },
-    videoBrief: input.snapshot.videoBrief ?? {
-      workingTitle: `${theme}：短视频口播脚本`,
-      hook: "从客户最关心的通勤、配套和首付压力切入。",
-      outcome: "引导客户私信咨询项目详情。",
-    },
-  };
-}
-
-function looksLikeTeamCalendarRequest(content: string) {
-  return /内容日历|团队|选题|主推|本周|这周|日历|图文|视频/.test(content);
-}
-
-function inferTeamCalendarTheme(content: string) {
-  if (content.includes("小户型")) {
-    return "小户型回归";
-  }
-
-  if (content.includes("配套")) {
-    return "成熟配套";
-  }
-
-  if (content.includes("低总价")) {
-    return "低总价上车";
-  }
-
-  return "团队本周选题";
 }
 
 async function markQueuedConsultationMessageFailed(input: {
@@ -1548,18 +1464,33 @@ async function dispatchConsultationTool(
   }
 
   if (call.toolName === "update_content_calendar") {
-    const calendar = state.strategySnapshot.contentCalendarDraft;
+    const incomingCalendar = normalizeContentCalendarToolItems(call.args.calendar);
+    const calendar = incomingCalendar.length
+      ? incomingCalendar
+      : state.strategySnapshot.contentCalendarDraft;
+    const strategySnapshot = incomingCalendar.length
+      ? {
+          ...state.strategySnapshot,
+          contentCalendarDraft: calendar,
+        }
+      : state.strategySnapshot;
+    const strategyMarkdown = buildStrategyAssetMarkdown(strategySnapshot);
+
     return {
       callId: call.id,
       toolName: call.toolName,
       status: calendar.length > 0 ? "completed" : "skipped",
       summary:
-        calendar.length > 0
-          ? `已同步 ${calendar.length} 条图文/视频混合内容日历。`
+        incomingCalendar.length > 0
+          ? `已写入 ${calendar.length} 条图文/视频混合营销日历。`
+          : calendar.length > 0
+            ? `已同步 ${calendar.length} 条图文/视频混合营销日历。`
           : "策略快照尚未生成内容日历。",
       payload: {
         calendarCount: calendar.length,
         calendar,
+        strategySnapshot,
+        strategyMarkdown,
       },
     };
   }
@@ -1600,6 +1531,29 @@ function applyToolResultToState(
   }
 
   if (result.toolName === "update_strategy_snapshot") {
+    const strategySnapshot = result.payload.strategySnapshot;
+    const strategyMarkdown = result.payload.strategyMarkdown;
+
+    if (isStrategySnapshot(strategySnapshot)) {
+      state.strategySnapshot = strategySnapshot;
+    }
+
+    if (typeof strategyMarkdown === "string" && strategyMarkdown.trim()) {
+      state.strategyMarkdown = strategyMarkdown;
+    }
+
+    state.sharedConsultationState = buildSharedConsultationState({
+      merchant: state.merchant,
+      strategySnapshot: state.strategySnapshot,
+      strategyMarkdown: state.strategyMarkdown,
+      userContent: state.userContent,
+      sessionSummary: state.session.summaryText,
+      mentionRouting: state.mentionRouting,
+      expertTurnNotes: state.expertTurnNotes,
+    });
+  }
+
+  if (result.toolName === "update_content_calendar") {
     const strategySnapshot = result.payload.strategySnapshot;
     const strategyMarkdown = result.payload.strategyMarkdown;
 
@@ -1776,8 +1730,8 @@ async function buildAssistantReplyWithModel(input: {
             buildBusinessToolPrompt(input.consultationAgent.enabledTools),
             buildContextInjectionSystemPrompt(contextInjection),
             "你只输出给用户的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
-            "必须基于已完成工具结果、策略快照和受控知识库片段回答；如果信息不足，提出一个最关键的追问。",
-            "当 knowledgeMatches 已包含用户知识库片段时，直接基于这些片段总结；不要声称无法直接查看用户知识库或上传文件。",
+            "回答时可以使用已完成工具结果、策略快照和受控知识库片段；如果信息不足，可以提出一个最关键的追问。",
+            "当 knowledgeMatches 已包含用户知识库片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
             "如果工具结果已经显示策略资产被编辑，要先确认已按用户要求写入；不要反过来劝用户保持旧结构，也不要把已执行的明确编辑再改成优先级追问。",
             "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshot 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
           ]
@@ -1869,9 +1823,10 @@ function buildNativeToolCallingMessages(input: {
         buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
         buildContextInjectionSystemPrompt(contextInjection),
         "你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。",
-        "用户明确要求读取、查看、分析用户知识库或已上传文件时，必须先调用 retrieve_knowledge_base；不要声称无法读取用户知识库。",
+        "当用户要求读取、查看、分析用户知识库或已上传文件，或回答依赖业务资料、案例、方法论时，优先考虑调用 retrieve_knowledge_base；不要声称无法读取用户知识库。",
         "只有寒暄、轻问答、流程说明或完全不需要受控上下文时，才可以不调用工具直接回复。",
         "只有在用户明确要求沉淀、补充、写进右侧策略资产，或当前信息已经足够形成业务结论时，才调用 update_strategy_snapshot。",
+        "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",
         "轻问答、寒暄、流程追问、信息不足时，不要调用 update_strategy_snapshot；应该直接回答或追问一个关键事实。",
         "用户要求找对标、竞品、爆款、博主主页或提供小红书/抖音链接时，优先调用 search_benchmark_materials。",
         "需要方法论、案例、用户资料依据时，调用 retrieve_knowledge_base；用户提到刚才、上次、前面时，调用 read_history。",
@@ -2029,6 +1984,70 @@ function buildStrategySnapshot(input: {
     articleBrief: input.previousSnapshot?.articleBrief ?? null,
     videoBrief: input.previousSnapshot?.videoBrief ?? null,
   };
+}
+
+function normalizeContentCalendarToolItems(value: unknown): ContentCalendarItemDto[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const usedIds = new Set<string>();
+
+  return value
+    .map((item, index) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const record = item as Record<string, unknown>;
+      const contentType = record.contentType === "video" ? "video" : "article";
+      const title = cleanCalendarText(record.title, 100);
+      const summary = cleanCalendarText(record.summary, 360);
+      const dayLabel = cleanCalendarText(record.dayLabel, 24);
+
+      if (!title || !summary || !dayLabel) {
+        return null;
+      }
+
+      const requestedId = cleanCalendarText(record.id, 80);
+      const fallbackId = `calendar-${index + 1}-${contentType}`;
+      const id = uniqueCalendarItemId(requestedId || fallbackId, usedIds);
+
+      return {
+        id,
+        dayLabel,
+        contentType,
+        strategyTag: cleanCalendarText(record.strategyTag, 40) || title,
+        title,
+        summary,
+      };
+    })
+    .filter((item): item is ContentCalendarItemDto => Boolean(item))
+    .slice(0, 14);
+}
+
+function cleanCalendarText(value: unknown, maxLength: number) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const normalized = value.replace(/\s+/g, " ").trim();
+
+  return normalized ? clipText(normalized, maxLength) : "";
+}
+
+function uniqueCalendarItemId(baseId: string, usedIds: Set<string>) {
+  const normalizedBase = baseId.replace(/\s+/g, "-").slice(0, 80) || "calendar-item";
+  let candidate = normalizedBase;
+  let suffix = 2;
+
+  while (usedIds.has(candidate)) {
+    candidate = `${normalizedBase}-${suffix}`;
+    suffix += 1;
+  }
+
+  usedIds.add(candidate);
+  return candidate;
 }
 
 function buildInitialStrategySnapshot(merchant: MerchantProfileDto): StrategySnapshotDto {

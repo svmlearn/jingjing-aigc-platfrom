@@ -239,15 +239,14 @@ test("consultation planner supports native tool calling with deterministic fallb
   assert.match(consultationServiceAndRuntimeSource, /plannerTrace/);
 });
 
-test("consultation runtime requires knowledge retrieval for explicit user knowledge reads", () => {
-  assert.match(consultationRuntimeSource, /isExplicitKnowledgeBaseReadRequest/);
-  assert.match(consultationRuntimeSource, /getRequiredOpeningToolNames/);
-  assert.match(consultationRuntimeSource, /runRequiredNativeToolCall/);
-  assert.match(consultationRuntimeSource, /runtime_required_tool_contract/);
-  assert.match(consultationRuntimeSource, /用户明确要求读取用户知识库或已上传文件/);
-  assert.match(serviceSource, /必须先调用 retrieve_knowledge_base/);
-  assert.match(serviceSource, /不要声称无法直接查看用户知识库或上传文件/);
-  assert.doesNotMatch(serviceSource, /你可以不调用工具，直接给用户中文自然语言回复/);
+test("consultation runtime exposes knowledge retrieval as a model-selected tool", () => {
+  assert.match(consultationServiceAndRuntimeSource, /retrieve_knowledge_base/);
+  assert.match(consultationServiceAndRuntimeSource, /toolChoice: "auto"/);
+  assert.match(serviceSource, /优先考虑调用 retrieve_knowledge_base/);
+  assert.match(serviceSource, /不要声称无法读取用户知识库/);
+  assert.doesNotMatch(consultationRuntimeSource, /runtime_required_tool_contract/);
+  assert.doesNotMatch(consultationRuntimeSource, /runRequiredNativeToolCall/);
+  assert.doesNotMatch(serviceSource, /必须先调用 retrieve_knowledge_base/);
 });
 
 test("consultation-selected merchant knowledge flows into calendar tasks and Dify inputs", () => {
@@ -292,16 +291,12 @@ test("consultation runtime wraps tool execution exceptions as failed tool result
   );
 });
 
-test("consultation runtime records clarification requests as structured runtime facts", () => {
-  assert.match(consultationRuntimeSource, /buildClarificationRequestResult/);
-  assert.match(consultationRuntimeSource, /request_user_clarification/);
-  assert.match(consultationRuntimeSource, /agent\.clarification\.requested/);
-  assert.match(consultationRuntimeSource, /assistant_final_question/);
-  assert.match(consultationRuntimeSource, /blocksAssetWrite: true/);
-  assert.match(consultationRuntimeSource, /hasCompletedAssetWriteTool/);
-  assert.match(consultationRuntimeSource, /inferClarificationReasonCode/);
-  assert.match(consultationServiceAndRuntimeSource, /需要用户补充/);
-  assert.match(consultationRuntimeSource, /extractOpenQuestions/);
+test("consultation runtime does not synthesize blocking clarification tool results", () => {
+  assert.doesNotMatch(consultationRuntimeSource, /buildClarificationRequestResult/);
+  assert.doesNotMatch(consultationRuntimeSource, /agent\.clarification\.requested/);
+  assert.doesNotMatch(consultationRuntimeSource, /assistant_final_question/);
+  assert.doesNotMatch(consultationRuntimeSource, /blocksAssetWrite: true/);
+  assert.doesNotMatch(consultationRuntimeSource, /inferClarificationReasonCode/);
 });
 
 test("knowledge retrieval can directly surface indexed user documents", () => {

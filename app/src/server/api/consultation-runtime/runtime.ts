@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import {
   AiRuntimeError,
   createChatCompletion,
@@ -21,10 +19,8 @@ import { buildSkillDependencyWarnings } from "@/server/api/consultation-runtime/
 import {
   buildContextBoundarySnapshot,
   buildLatestExpertTurnNote,
-  extractOpenQuestions,
 } from "@/server/api/consultation-runtime/context";
 import {
-  buildConsultationToolArgs,
   buildConsultationAiRuntimeTools,
   isConsultationAgentToolKey,
   parseNativeConsultationToolCall,
@@ -40,7 +36,6 @@ import type {
 } from "@/server/api/consultation-runtime/types";
 import {
   clipText,
-  isExplicitKnowledgeBaseReadRequest,
   uniqueStrings,
 } from "@/server/api/consultation-runtime/utils";
 
@@ -161,20 +156,6 @@ export async function runConsultationRuntime(input: RunConsultationRuntimeInput)
     assistantReply = await input.buildAssistantReply({
       state: input.state,
       toolResults,
-    });
-  }
-
-  const clarificationResult = buildClarificationRequestResult({
-    state: input.state,
-    toolResults,
-    assistantReply,
-  });
-
-  if (clarificationResult) {
-    toolResults.push(clarificationResult);
-    await input.emitEvent({
-      eventType: "agent.clarification.requested",
-      payload: buildClarificationRequestedPayload(clarificationResult),
     });
   }
 
@@ -302,25 +283,6 @@ async function runNativeToolCallingLoop(input: {
     state: input.input.state,
     toolResults: input.toolResults,
   });
-  const requiredOpeningToolNames = getRequiredOpeningToolNames(input.input.state);
-
-  for (const toolName of requiredOpeningToolNames) {
-    if (hasToolResult(input.toolResults, toolName)) {
-      continue;
-    }
-
-    await runRequiredNativeToolCall({
-      input: input.input,
-      toolResults: input.toolResults,
-      messages,
-      toolName,
-      reason:
-        toolName === "retrieve_knowledge_base"
-          ? "用户明确要求读取用户知识库或已上传文件，runtime 按工具契约先执行检索。"
-          : "runtime 按工具契约先执行必要工具。",
-    });
-  }
-
   let consecutiveSkippedToolTurns = 0;
 
   for (let turn = 1; turn <= nativeMaxToolTurns; turn += 1) {
@@ -492,74 +454,6 @@ async function runNativeToolCallingLoop(input: {
   }
 }
 
-async function runRequiredNativeToolCall(input: {
-  input: RunConsultationRuntimeInput;
-  toolResults: ConsultationAgentToolResult[];
-  messages: ChatMessage[];
-  toolName: ConsultationAgentToolKey;
-  reason: string;
-}) {
-  const toolCall: ConsultationAgentToolCall = {
-    id: `required_${randomUUID()}`,
-    toolName: input.toolName,
-    args: buildConsultationToolArgs(input.toolName, input.input.state),
-  };
-  const rawToolCall = {
-    id: toolCall.id,
-    type: "function" as const,
-    function: {
-      name: toolCall.toolName,
-      arguments: JSON.stringify(toolCall.args),
-    },
-  };
-
-  input.messages.push({
-    role: "assistant",
-    content: null,
-    toolCalls: [rawToolCall],
-  });
-
-  await input.input.emitEvent({
-    eventType: "agent.tool.requested",
-    payload: {
-      source: "runtime_required_tool_contract",
-      runtimeDesign: "native_tool_calling_loop_v1",
-      toolCallId: toolCall.id,
-      toolName: toolCall.toolName,
-      rawArgumentsPreview: clipText(rawToolCall.function.arguments, 600),
-    },
-  });
-
-  const planner: ConsultationPlannerTraceItem = {
-    turn: input.toolResults.length + 1,
-    mode: "native_tool_calling",
-    status: "planned",
-    toolName: toolCall.toolName,
-    reason: input.reason,
-  };
-  input.input.state.plannerTrace.push(planner);
-
-  const result = await dispatchToolWithRuntimeSafety({
-    input: input.input,
-    toolCall,
-  });
-  input.input.applyToolResultToState(input.input.state, result);
-  input.toolResults.push(result);
-
-  await emitCompletedToolEvents({
-    input: input.input,
-    toolCall,
-    result,
-    planner,
-  });
-
-  input.messages.push({
-    role: "tool",
-    toolCallId: toolCall.id,
-    content: buildNativeToolResultContent(result),
-  });
-}
-
 export function getPlannerCompletedToolNames(
   toolResults: ConsultationAgentToolResult[],
 ): ConsultationAgentToolCall["toolName"][] {
@@ -568,46 +462,6 @@ export function getPlannerCompletedToolNames(
     .filter((result) => result.status !== "failed")
     .filter((result) => result.toolName !== "update_strategy_snapshot" || result.status === "completed")
     .map((result) => result.toolName);
-}
-
-function getRequiredOpeningToolNames(
-  state: ConsultationAgentLoopState,
-): ConsultationAgentToolKey[] {
-  const enabledTools = new Set(state.consultationAgent.enabledTools);
-
-  return [
-    enabledTools.has("retrieve_knowledge_base") &&
-    shouldRequireKnowledgeBaseRead(state)
-      ? "retrieve_knowledge_base"
-      : null,
-  ].filter((toolName): toolName is ConsultationAgentToolKey => toolName !== null);
-}
-
-function shouldRequireKnowledgeBaseRead(state: ConsultationAgentLoopState) {
-  if (isExplicitKnowledgeBaseReadRequest(state.userContent)) {
-    return true;
-  }
-
-  const normalizedCurrent = state.userContent.replace(/\s+/g, "");
-
-  if (!/(工具.*读|读.*工具|可以读|能读|读不了|无法读|不能读)/.test(normalizedCurrent)) {
-    return false;
-  }
-
-  const recentUserText = state.session.messages
-    .filter((message) => message.role === "user")
-    .slice(-3)
-    .map((message) => message.content)
-    .join("\n");
-
-  return isExplicitKnowledgeBaseReadRequest(`${recentUserText}\n${state.userContent}`);
-}
-
-function hasToolResult(
-  toolResults: ConsultationAgentToolResult[],
-  toolName: ConsultationAgentToolKey,
-) {
-  return toolResults.some((result) => result.toolName === toolName);
 }
 
 function getNativeUnavailableToolNames(
@@ -733,85 +587,6 @@ function isKnownConsultationToolResult(
   result: ConsultationAgentToolResult,
 ): result is ConsultationAgentToolResult & { toolName: ConsultationAgentToolKey } {
   return isConsultationAgentToolKey(result.toolName);
-}
-
-function buildClarificationRequestResult(input: {
-  state: ConsultationAgentLoopState;
-  toolResults: ConsultationAgentToolResult[];
-  assistantReply: ConsultationRuntimeAssistantReply;
-}): ConsultationAgentToolResult | null {
-  if (input.assistantReply.mode !== "llm") {
-    return null;
-  }
-
-  if (hasCompletedAssetWriteTool(input.toolResults)) {
-    return null;
-  }
-
-  const openQuestions = extractOpenQuestions(input.assistantReply.content);
-  const question = openQuestions[0];
-
-  if (!question) {
-    return null;
-  }
-
-  const reasonCode = inferClarificationReasonCode(input.toolResults);
-
-  return {
-    callId: `clarification_${randomUUID()}`,
-    toolName: "request_user_clarification",
-    status: "completed",
-    summary: `本轮需要用户补充一个关键事实：${clipText(question, 160)}`,
-    payload: {
-      resultKind: "request_user_clarification",
-      reasonCode,
-      question,
-      openQuestions: [question],
-      detectedQuestionCount: openQuestions.length,
-      blocksAssetWrite: true,
-      source: "assistant_final_question",
-    },
-  };
-}
-
-function hasCompletedAssetWriteTool(toolResults: ConsultationAgentToolResult[]) {
-  return toolResults.some(
-    (result) =>
-      result.status === "completed" &&
-      (
-        result.toolName === "update_strategy_snapshot" ||
-        result.toolName === "update_content_calendar" ||
-        result.toolName === "generate_article_brief" ||
-        result.toolName === "generate_video_brief"
-      ),
-  );
-}
-
-function inferClarificationReasonCode(
-  toolResults: ConsultationAgentToolResult[],
-) {
-  if (toolResults.some((result) => result.status === "failed")) {
-    return "tool_failed_needs_clarification";
-  }
-
-  if (toolResults.some((result) => result.toolName === "retrieve_knowledge_base")) {
-    return "context_read_needs_user_confirmation";
-  }
-
-  if (toolResults.some((result) => result.status === "skipped")) {
-    return "insufficient_context_after_skipped_tools";
-  }
-
-  return "insufficient_user_context";
-}
-
-function buildClarificationRequestedPayload(result: ConsultationAgentToolResult) {
-  return {
-    callId: result.callId,
-    status: result.status,
-    summary: result.summary,
-    payload: result.payload,
-  };
 }
 
 function classifyToolRuntimeError(
