@@ -244,6 +244,8 @@ test("consultation runtime exposes knowledge retrieval as a model-selected tool"
   assert.match(consultationServiceAndRuntimeSource, /toolChoice: "auto"/);
   assert.match(serviceSource, /优先考虑调用 retrieve_knowledge_base/);
   assert.match(serviceSource, /不要声称无法读取用户知识库/);
+  assert.match(consultationRuntimeSource, /knowledgeMatches: \(result\.knowledgeMatches \?\? \[\]\)\.map/);
+  assert.match(consultationRuntimeSource, /content: clipText\(match\.content, 1200\)/);
   assert.doesNotMatch(consultationRuntimeSource, /runtime_required_tool_contract/);
   assert.doesNotMatch(consultationRuntimeSource, /runRequiredNativeToolCall/);
   assert.doesNotMatch(serviceSource, /必须先调用 retrieve_knowledge_base/);

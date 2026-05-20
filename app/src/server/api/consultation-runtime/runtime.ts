@@ -725,6 +725,14 @@ function buildNativeToolResultContent(result: ConsultationAgentToolResult) {
     status: result.status,
     summary: result.summary,
     payload: result.payload,
+    knowledgeMatches: (result.knowledgeMatches ?? []).map((match) => ({
+      documentId: match.documentId,
+      documentTitle: match.documentTitle,
+      chunkId: match.chunkId,
+      scope: match.scope,
+      score: match.score,
+      content: clipText(match.content, 1200),
+    })),
   });
 }
 
