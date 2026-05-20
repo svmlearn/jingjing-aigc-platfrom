@@ -423,6 +423,51 @@ ba-ba-ke.com 可以用不同二级域名挂不同项目。
 主域名备案不等于所有业务天然合规，只是域名接入层面更方便。
 ```
 
+### 10.6 ECS 退款重购仍沿用原配置（2026-05-18 补充）
+
+用户反馈原 ECS 因折扣问题准备退款重购后，本轮重新核对 ECS 购买页。
+
+结论：
+
+```text
+不切换到临时比较过的 ecs.u2a-c1m2.2xlarge / ecs.e-c1m2.2xlarge / ARM c8y。
+继续沿用原工单已选的 c9i 方案，优先保证今天 ICP 和后续部署的稳定性。
+```
+
+当前 ECS 购买页已重新配置为：
+
+```text
+付费类型：包年包月
+地域：华东1（杭州）
+可用区：杭州 可用区K
+VPC：[默认]vpc-bp15fcpbsrgzp9zs5hxx2
+交换机：[默认]vsw-bp1laydq1pucnxugyr54i
+安全组：sg-bp1hnbjy7dqbhesc4g2f
+实例规格：计算型 c9i / ecs.c9i.2xlarge，8 vCPU / 16 GiB
+镜像：Ubuntu 22.04 64位（安全加固）
+系统盘：ESSD 云盘 100GiB，PL0，随实例释放
+公网带宽：按固定带宽 5Mbps
+登录凭证：创建后设置
+购买实例数量：1
+购买时长：3个月
+自动续费：未勾选
+页面合计金额：¥2755.93
+```
+
+人工下单前再确认：
+
+```text
+1. 不点击/选择 ARM c8y，避免 Docker / OpenStoryline / FireRed 兼容性风险。
+2. 不选择经济型 e 共享实例，避免视频 worker 和多项目复用时出现性能抖动。
+3. 若页面实例名称仍显示 launch-advisor-20260518，可以下单后在 ECS 控制台改名为 jingjing-domestic-phase1-c9i。
+4. 下单完成后，把新 ECS 公网 IP、内网 IP、实例 ID 发回；随后需要把 RDS 白名单从旧内网 IP 更新为新内网 IP。
+5. 本轮没有点击“确认下单”，没有付款，没有改 DNS，没有提交 ICP。
+```
+
+截图：
+
+![ECS repurchase c9i final](assets/2026-05-18-aliyun-phase1-ecs-repurchase-c9i-final.png)
+
 ## 11. 本轮新增截图文件
 
 ```text
@@ -430,4 +475,5 @@ docs/handoff/assets/2026-05-18-aliyun-phase1-ecs-final.png
 docs/handoff/assets/2026-05-18-aliyun-phase1-rds-final.png
 docs/handoff/assets/2026-05-18-aliyun-phase1-oss-final.png
 docs/handoff/assets/2026-05-18-aliyun-phase1-oss-downlink-final.png
+docs/handoff/assets/2026-05-18-aliyun-phase1-ecs-repurchase-c9i-final.png
 ```
