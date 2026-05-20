@@ -807,22 +807,24 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
           <span>我确认已获得该声音用于克隆和视频配音的授权。</span>
         </label>
 
-        <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-black/20 bg-[#f7f4ea] px-3 py-3 text-sm">
-          <span className="min-w-0 truncate">
-            {voiceProfileCreate.fileName ?? selectedVoiceProfile?.refAudioAsset?.storageKey.split("/").pop() ?? "上传 MP3 / 音频"}
-          </span>
-          <span className="inline-flex items-center gap-1 text-[#1f6f68]">
-            {voiceProfileBusy ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Upload className="size-4" aria-hidden="true" />
-            )}
-            {voiceProfileBusy ? `${voiceProfileCreate.progressPct}%` : "上传"}
-          </span>
+        <div className="mt-3 rounded-lg border border-dashed border-black/20 bg-[#f7f4ea] px-3 py-3 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="min-w-0 truncate">
+              {voiceProfileCreate.fileName ?? selectedVoiceProfile?.refAudioAsset?.storageKey.split("/").pop() ?? "上传 MP3 / 音频"}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[#1f6f68]">
+              {voiceProfileBusy ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Upload className="size-4" aria-hidden="true" />
+              )}
+              {voiceProfileBusy ? `${voiceProfileCreate.progressPct}%` : "上传"}
+            </span>
+          </div>
           <input
             type="file"
             accept="audio/*,audio/mp4,audio/x-m4a,video/mp4,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm"
-            className="sr-only"
+            className="mt-3 block w-full cursor-pointer text-xs text-black/65 file:mr-3 file:rounded-lg file:border-0 file:bg-[#1f6f68] file:px-3 file:py-2 file:text-xs file:font-medium file:text-white disabled:cursor-not-allowed disabled:opacity-50"
             disabled={voiceProfileBusy}
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -832,7 +834,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
               }
             }}
           />
-        </label>
+        </div>
 
         {voiceProfileCreate.status === "ready" && selectedVoiceProfile ? (
           <StatusLine icon={<Check className="size-4" />} text="克隆音色已准备好，本次 AI 剪辑将使用该声音配音。" />
