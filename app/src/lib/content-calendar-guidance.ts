@@ -152,14 +152,14 @@ export function normalizeContentCalendarGuidance(value: unknown): ContentCalenda
   const guidance: ContentCalendarGuidanceDto = {
     source: getString(record.source, calendarGuidanceSource),
     summary: summary || null,
-    mustUseFacts: toStringArray(record.mustUseFacts).slice(0, 12),
-    sellingPointHints: toStringArray(record.sellingPointHints).slice(0, 12),
-    audienceHints: toStringArray(record.audienceHints).slice(0, 12),
-    contentAngles: toStringArray(record.contentAngles).slice(0, 12),
+    mustUseFacts: usefulUniqueStrings(toStringArray(record.mustUseFacts)).slice(0, 12),
+    sellingPointHints: usefulUniqueStrings(toStringArray(record.sellingPointHints)).slice(0, 12),
+    audienceHints: usefulUniqueStrings(toStringArray(record.audienceHints)).slice(0, 12),
+    contentAngles: usefulUniqueStrings(toStringArray(record.contentAngles)).slice(0, 12),
     complianceNotes: toStringArray(record.complianceNotes).slice(0, 8),
-    materialHints: toStringArray(record.materialHints).slice(0, 8),
-    shotConstraints: toStringArray(record.shotConstraints).slice(0, 12),
-    assetCapabilityHints: toStringArray(record.assetCapabilityHints).slice(0, 12),
+    materialHints: usefulUniqueStrings(toStringArray(record.materialHints)).slice(0, 8),
+    shotConstraints: usefulUniqueStrings(toStringArray(record.shotConstraints)).slice(0, 12),
+    assetCapabilityHints: usefulUniqueStrings(toStringArray(record.assetCapabilityHints)).slice(0, 12),
     retrievalTrace: toArray(record.retrievalTrace)
       .map(normalizeRetrievalTrace)
       .filter((item): item is NonNullable<ContentCalendarGuidanceDto["retrievalTrace"]>[number] =>
@@ -195,23 +195,23 @@ function mergeContentCalendarGuidance(
   return {
     source: incoming.source,
     summary: incoming.summary ?? current.summary ?? null,
-    mustUseFacts: uniqueStrings([...current.mustUseFacts, ...incoming.mustUseFacts]).slice(0, 12),
-    sellingPointHints: uniqueStrings([
+    mustUseFacts: usefulUniqueStrings([...current.mustUseFacts, ...incoming.mustUseFacts]).slice(0, 12),
+    sellingPointHints: usefulUniqueStrings([
       ...current.sellingPointHints,
       ...incoming.sellingPointHints,
     ]).slice(0, 12),
-    audienceHints: uniqueStrings([...current.audienceHints, ...incoming.audienceHints]).slice(0, 12),
-    contentAngles: uniqueStrings([...current.contentAngles, ...incoming.contentAngles]).slice(0, 12),
+    audienceHints: usefulUniqueStrings([...current.audienceHints, ...incoming.audienceHints]).slice(0, 12),
+    contentAngles: usefulUniqueStrings([...current.contentAngles, ...incoming.contentAngles]).slice(0, 12),
     complianceNotes: uniqueStrings([...current.complianceNotes, ...incoming.complianceNotes]).slice(
       0,
       8,
     ),
-    materialHints: uniqueStrings([...current.materialHints, ...incoming.materialHints]).slice(0, 8),
-    shotConstraints: uniqueStrings([
+    materialHints: usefulUniqueStrings([...current.materialHints, ...incoming.materialHints]).slice(0, 8),
+    shotConstraints: usefulUniqueStrings([
       ...(current.shotConstraints ?? []),
       ...(incoming.shotConstraints ?? []),
     ]).slice(0, 12),
-    assetCapabilityHints: uniqueStrings([
+    assetCapabilityHints: usefulUniqueStrings([
       ...(current.assetCapabilityHints ?? []),
       ...(incoming.assetCapabilityHints ?? []),
     ]).slice(0, 12),

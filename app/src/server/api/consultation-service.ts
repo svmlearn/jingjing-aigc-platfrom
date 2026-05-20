@@ -1798,13 +1798,63 @@ async function buildAssistantReplyWithModel(input: {
         : error instanceof Error
           ? error.message
           : "Unknown AI runtime error.";
+    const recoveredReply = buildRecoveredToolResultReply({
+      toolResults: input.toolResults ?? [],
+      errorMessage,
+    });
 
     return {
-      content: buildAssistantErrorReply(errorMessage),
+      content: recoveredReply ?? buildAssistantErrorReply(errorMessage),
       mode: "fallback_error",
       error: errorMessage,
     };
   }
+}
+
+function buildRecoveredToolResultReply(input: {
+  toolResults: ConsultationAgentToolResult[];
+  errorMessage: string;
+}) {
+  const completedResults = input.toolResults.filter((result) => result.status === "completed");
+
+  if (completedResults.length === 0) {
+    return null;
+  }
+
+  const retrievedCount = completedResults.filter(
+    (result) => result.toolName === "retrieve_knowledge_base",
+  ).length;
+  const strategyResult = completedResults.find(
+    (result) => result.toolName === "update_strategy_snapshot",
+  );
+  const calendarResult = completedResults.find(
+    (result) => result.toolName === "update_content_calendar",
+  );
+
+  if (!retrievedCount && !strategyResult && !calendarResult) {
+    return null;
+  }
+
+  const lines = [
+    "本轮自然语言总结生成超时了，但受控工具已经执行完成，已保留本轮写入结果。",
+  ];
+
+  if (retrievedCount > 0) {
+    lines.push(`已完成 ${retrievedCount} 轮知识库检索，并把命中的资料纳入本轮上下文。`);
+  }
+
+  if (strategyResult) {
+    lines.push(strategyResult.summary);
+  }
+
+  if (calendarResult) {
+    lines.push(calendarResult.summary);
+    lines.push("你可以先查看右侧内容日历；下一轮我会继续基于这些已写入结果协作。");
+  }
+
+  lines.push(`超时信息：${input.errorMessage}`);
+
+  return lines.join("\n");
 }
 
 function buildAssistantErrorReply(detail: string) {

@@ -80,14 +80,14 @@ test("merchant knowledge matches are distilled into calendar guidance", () => {
 test("calendar guidance normalization preserves compact knowledge refs", () => {
   const guidance = normalizeContentCalendarGuidance({
     source: "consultation_knowledge_distillation_v1",
-    mustUseFacts: ["A", "A", "B"],
-    sellingPointHints: [],
-    audienceHints: [],
-    contentAngles: ["选题角度"],
+    mustUseFacts: ["A", "A", "B", "图文内容"],
+    sellingPointHints: ["AI视频", "真实卖点"],
+    audienceHints: ["用于验证成员端登录、邀请码注册和团队加入链路。", "改善客户"],
+    contentAngles: ["选题角度", "测试区域"],
     complianceNotes: [],
-    materialHints: [],
-    shotConstraints: ["只能用项目现场实拍", "只能用项目现场实拍"],
-    assetCapabilityHints: ["样板间", "样板间"],
+    materialHints: ["测试素材", "阳台看景"],
+    shotConstraints: ["只能用项目现场实拍", "只能用项目现场实拍", "测试内容"],
+    assetCapabilityHints: ["样板间", "样板间", "AI视频"],
     retrievalTrace: [
       {
         source: "keyword_search",
@@ -123,6 +123,10 @@ test("calendar guidance normalization preserves compact knowledge refs", () => {
   });
 
   assert.deepEqual(guidance?.mustUseFacts, ["A", "B"]);
+  assert.deepEqual(guidance?.sellingPointHints, ["真实卖点"]);
+  assert.deepEqual(guidance?.audienceHints, ["改善客户"]);
+  assert.deepEqual(guidance?.contentAngles, ["选题角度"]);
+  assert.deepEqual(guidance?.materialHints, ["阳台看景"]);
   assert.equal(guidance?.knowledgeRefs.length, 1);
   assert.deepEqual(guidance?.shotConstraints, ["只能用项目现场实拍"]);
   assert.deepEqual(guidance?.assetCapabilityHints, ["样板间"]);

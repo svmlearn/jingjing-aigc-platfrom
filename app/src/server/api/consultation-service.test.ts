@@ -234,6 +234,10 @@ test("consultation planner supports native tool calling with deterministic fallb
   assert.match(consultationRuntimeSource, /!isRepeatableConsultationReadTool\(result\.toolName\)/);
   assert.match(consultationServiceAndRuntimeSource, /parseNativeConsultationToolCall/);
   assert.match(consultationServiceAndRuntimeSource, /toolChoice: getNativeToolChoice/);
+  assert.match(consultationRuntimeSource, /buildExplicitKnowledgeRetrievalQueries/);
+  assert.match(consultationRuntimeSource, /applyNativeRetrievalPlan/);
+  assert.match(consultationRuntimeSource, /native_tool_calling_no_calendar_write/);
+  assert.match(consultationRuntimeSource, /runtime 按用户显式多维资料需求继续检索知识库/);
   assert.match(consultationServiceAndRuntimeSource, /return "auto"/);
   assert.match(consultationServiceAndRuntimeSource, /agent\.tool\.requested/);
   assert.match(consultationServiceAndRuntimeSource, /source: "model_tool_calls"/);
@@ -260,6 +264,8 @@ test("consultation runtime routes explicit knowledge reads through the retrieval
   assert.match(serviceSource, /用新的 query 再调用 retrieve_knowledge_base 深挖/);
   assert.match(serviceSource, /画面描述必须根据已返回的素材能力/);
   assert.match(serviceSource, /不要声称无法读取用户知识库/);
+  assert.match(serviceSource, /buildRecoveredToolResultReply/);
+  assert.match(serviceSource, /受控工具已经执行完成/);
   assert.match(consultationRuntimeSource, /knowledgeMatches: \(result\.knowledgeMatches \?\? \[\]\)\.map/);
   assert.match(consultationRuntimeSource, /content: clipText\(match\.content, 1200\)/);
   assert.doesNotMatch(consultationRuntimeSource, /runtime_required_tool_contract/);

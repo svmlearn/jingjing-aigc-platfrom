@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   AiRuntimeError,
   createChatCompletion,
@@ -23,6 +25,7 @@ import {
   buildLatestExpertTurnNote,
 } from "@/server/api/consultation-runtime/context";
 import {
+  buildConsultationToolArgs,
   buildConsultationAiRuntimeTools,
   isConsultationAgentToolKey,
   isRepeatableConsultationReadTool,
@@ -236,6 +239,43 @@ async function runBoundedBusinessToolLoop(input: {
   plannerMode: Exclude<ConsultationPlannerMode, "native_tool_calling">;
 }) {
   while (input.toolResults.length < input.input.toolBudget) {
+    const plannedRetrievalCall = buildPlannedKnowledgeRetrievalToolCall({
+      state: input.input.state,
+      toolResults: input.toolResults,
+    });
+
+    if (plannedRetrievalCall) {
+      const planner: ConsultationPlannerTraceItem = {
+        turn: input.toolResults.length + 1,
+        mode: "deterministic",
+        status: "planned",
+        toolName: "retrieve_knowledge_base",
+        reason: "runtime 按用户显式多维资料需求继续检索知识库。",
+      };
+      input.input.state.plannerTrace.push(planner);
+
+      const result = await dispatchToolWithRuntimeSafety({
+        input: input.input,
+        toolCall: plannedRetrievalCall,
+      });
+
+      input.input.applyToolResultToState(input.input.state, result);
+      input.toolResults.push(result);
+
+      await emitCompletedToolEvents({
+        input: input.input,
+        toolCall: plannedRetrievalCall,
+        result,
+        planner,
+      });
+
+      if (shouldStopAfterToolResult(result)) {
+        break;
+      }
+
+      continue;
+    }
+
     const plannerDecision = await planNextConsultationToolCall({
       state: input.input.state,
       completedToolNames: getPlannerCompletedToolNames(input.toolResults),
@@ -325,6 +365,15 @@ async function runNativeToolCallingLoop(input: {
         return buildNativeFallbackResult("原生 tool calling 返回了空正文且无 tool_calls。");
       }
 
+      if (
+        shouldContinueAfterNativeAssistantFinal({
+          state: input.input.state,
+          toolResults: input.toolResults,
+        })
+      ) {
+        return buildNativeFallbackResult("native_tool_calling_no_calendar_write");
+      }
+
       return {
         assistantReply: {
           content,
@@ -386,32 +435,39 @@ async function runNativeToolCallingLoop(input: {
         continue;
       }
 
+      const toolCall = applyNativeRetrievalPlan({
+        state: input.input.state,
+        toolResults: input.toolResults,
+        toolCall: parsed.call,
+      });
       const planner: ConsultationPlannerTraceItem = {
         turn,
         mode: "native_tool_calling",
         status: "planned",
-        toolName: parsed.call.toolName,
-        reason: "主模型通过原生 tool_calls 请求执行受控业务工具。",
+        toolName: toolCall.toolName,
+        reason: toolCall.repaired
+          ? "runtime 按用户显式多维资料需求覆盖本次检索 query。"
+          : "主模型通过原生 tool_calls 请求执行受控业务工具。",
       };
       input.input.state.plannerTrace.push(planner);
 
       const result = await dispatchToolWithRuntimeSafety({
         input: input.input,
-        toolCall: parsed.call,
+        toolCall,
       });
       input.input.applyToolResultToState(input.input.state, result);
       input.toolResults.push(result);
 
       await emitCompletedToolEvents({
         input: input.input,
-        toolCall: parsed.call,
+        toolCall,
         result,
         planner,
       });
 
       messages.push({
         role: "tool",
-        toolCallId: parsed.call.id,
+        toolCallId: toolCall.id,
         content: buildNativeToolResultContent(result),
       });
     }
@@ -427,6 +483,15 @@ async function runNativeToolCallingLoop(input: {
     if (consecutiveSkippedToolTurns >= 2) {
       break;
     }
+  }
+
+  if (
+    shouldContinueAfterNativeAssistantFinal({
+      state: input.input.state,
+      toolResults: input.toolResults,
+    })
+  ) {
+    return buildNativeFallbackResult("native_tool_calling_no_calendar_write");
   }
 
   try {
@@ -493,6 +558,18 @@ function getNativeToolChoice(input: {
   turn: number;
 }): AiRuntimeToolChoice {
   if (
+    getNextExplicitKnowledgeRetrievalQuery(input.state, input.toolResults) &&
+    input.tools.some((tool) => tool.function.name === "retrieve_knowledge_base")
+  ) {
+    return {
+      type: "function",
+      function: {
+        name: "retrieve_knowledge_base",
+      },
+    };
+  }
+
+  if (
     input.turn === 1 &&
     shouldOpenWithKnowledgeBaseTool(input.state) &&
     !hasToolResult(input.toolResults, "retrieve_knowledge_base") &&
@@ -527,6 +604,125 @@ function shouldOpenWithKnowledgeBaseTool(state: ConsultationAgentLoopState) {
     .join("\n");
 
   return isExplicitKnowledgeBaseReadRequest(`${recentUserText}\n${state.userContent}`);
+}
+
+function buildPlannedKnowledgeRetrievalToolCall(input: {
+  state: ConsultationAgentLoopState;
+  toolResults: ConsultationAgentToolResult[];
+}): ConsultationAgentToolCall | null {
+  const query = getNextExplicitKnowledgeRetrievalQuery(input.state, input.toolResults);
+
+  if (!query) {
+    return null;
+  }
+
+  return {
+    id: randomUUID(),
+    toolName: "retrieve_knowledge_base",
+    repaired: true,
+    args: {
+      ...buildConsultationToolArgs("retrieve_knowledge_base", input.state),
+      query,
+    },
+  };
+}
+
+function applyNativeRetrievalPlan(input: {
+  state: ConsultationAgentLoopState;
+  toolResults: ConsultationAgentToolResult[];
+  toolCall: ConsultationAgentToolCall;
+}): ConsultationAgentToolCall {
+  if (input.toolCall.toolName !== "retrieve_knowledge_base") {
+    return input.toolCall;
+  }
+
+  const query = getNextExplicitKnowledgeRetrievalQuery(input.state, input.toolResults);
+
+  if (!query) {
+    return input.toolCall;
+  }
+
+  return {
+    ...input.toolCall,
+    repaired: true,
+    args: {
+      ...input.toolCall.args,
+      query,
+    },
+  };
+}
+
+function getNextExplicitKnowledgeRetrievalQuery(
+  state: ConsultationAgentLoopState,
+  toolResults: ConsultationAgentToolResult[],
+) {
+  if (!state.consultationAgent.enabledTools.includes("retrieve_knowledge_base")) {
+    return null;
+  }
+
+  const queries = buildExplicitKnowledgeRetrievalQueries(state);
+  const attemptCount = countKnowledgeRetrievalAttempts(toolResults);
+
+  return queries[attemptCount] ?? null;
+}
+
+function buildExplicitKnowledgeRetrievalQueries(state: ConsultationAgentLoopState) {
+  const normalized = state.userContent.replace(/\s+/g, "");
+  const asksForCalendar = /内容日历|营销日历|团队选题|本周选题|生成团队内容|图文视频/.test(
+    normalized,
+  );
+  const asksForMultiDimensionRead =
+    isExplicitKnowledgeBaseReadRequest(state.userContent) &&
+    /分别|多个|维度|项目优势|房子|房源|方法论|干货|话术|异议|素材|视频|镜头|画面/.test(
+      normalized,
+    );
+
+  if (!asksForCalendar && !asksForMultiDimensionRead) {
+    return [];
+  }
+
+  const serviceText = state.merchant.serviceItems.join(" ");
+  const querySeed = [state.userContent, state.merchant.industry ?? "", serviceText]
+    .filter(Boolean)
+    .join("\n");
+
+  return uniqueStrings([
+    [
+      querySeed,
+      "检索维度：项目事实、房源优势、区域配套、目标客群、已确认卖点。",
+    ].join("\n"),
+    [
+      querySeed,
+      "检索维度：如何选好一套房、买房判断标准、干货结构、避坑提醒。",
+    ].join("\n"),
+    [
+      querySeed,
+      "检索维度：客户异议转化话术、种草表达、视频素材能力、可用场景和镜头边界。",
+    ].join("\n"),
+  ]).slice(0, 3);
+}
+
+function countKnowledgeRetrievalAttempts(toolResults: ConsultationAgentToolResult[]) {
+  return toolResults.filter((result) => result.toolName === "retrieve_knowledge_base").length;
+}
+
+function shouldContinueAfterNativeAssistantFinal(input: {
+  state: ConsultationAgentLoopState;
+  toolResults: ConsultationAgentToolResult[];
+}) {
+  const normalized = input.state.userContent.replace(/\s+/g, "");
+
+  if (!/内容日历|营销日历|团队选题|本周选题|生成团队内容|图文视频/.test(normalized)) {
+    return false;
+  }
+
+  if (!input.state.consultationAgent.enabledTools.includes("update_content_calendar")) {
+    return false;
+  }
+
+  return !input.toolResults.some(
+    (result) => result.toolName === "update_content_calendar" && result.status === "completed",
+  );
 }
 
 function hasToolResult(
