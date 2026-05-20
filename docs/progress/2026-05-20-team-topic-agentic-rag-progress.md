@@ -31,9 +31,10 @@ branch：`codex/team-topic-agentic-rag`
 6. daily task 创建时把隐藏 guidance 字段带入检索 query 和 `team_calendar_guidance` knowledge ref。
 7. Dify batch 输入组装继续使用现有字段：
    - `calendar_task_json` 增加 `videoAssetCapabilities`。
-   - `fallback_knowledge_text` 增加素材能力与镜头边界文本。
+   - `fallback_knowledge_text` 增加素材能力；如上游已有真实 `shotConstraints` 则透传镜头边界文本。
    - `image_assets_json` 仍只承载图文图片素材。
    - 未新增 `video_asset_capabilities_json` 等 YAML Start 输入。
+8. 2026-05-20 追加修正：移除咨询台代码中默认生成的固定镜头禁令，素材边界改为 prompt 约束 + 真实素材能力透传。
 
 ## 验证
 

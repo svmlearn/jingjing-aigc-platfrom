@@ -30,8 +30,9 @@ merge：未 merge
    - `shotConstraints`
    - `assetCapabilityHints`
    - `retrievalTrace`
-7. daily task 和 Dify 输入组装已消费这些隐藏字段。
-8. Dify 仍只使用现有输入字段，没有新增 YAML Start input。
+7. `shotConstraints` 保留为透传通道，但咨询台代码不再硬生成默认镜头禁令；素材边界由 prompt 约束和真实素材能力共同决定。
+8. daily task 和 Dify 输入组装已消费这些隐藏字段。
+9. Dify 仍只使用现有输入字段，没有新增 YAML Start input。
 
 ## 主要改动文件
 

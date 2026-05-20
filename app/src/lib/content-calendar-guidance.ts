@@ -34,7 +34,6 @@ export function buildMerchantKnowledgeCalendarGuidance(input: {
     ...refs.map((ref) => ref.title),
   ]).slice(0, 8);
   const assetCapabilityHints = buildAssetCapabilityHints(input.snapshot);
-  const shotConstraints = buildShotConstraints(input.snapshot);
 
   return {
     source: calendarGuidanceSource,
@@ -51,7 +50,6 @@ export function buildMerchantKnowledgeCalendarGuidance(input: {
       "生成内容不得扩写成用户知识库未明确支持的确定性承诺。",
     ],
     materialHints: uniqueStrings(input.snapshot.keyScenes).slice(0, 6),
-    shotConstraints,
     assetCapabilityHints,
     retrievalTrace: input.matches
       .filter((match) => match.scope === "merchant")
@@ -225,21 +223,9 @@ function mergeContentCalendarGuidance(
 
 function buildAssetCapabilityHints(snapshot: StrategySnapshotDto) {
   return uniqueStrings([
-    ...snapshot.keyScenes.map((scene) => `可用或可补拍的画面优先围绕：${scene}`),
-    ...snapshot.coreSellingPoints.map((point) => `画面表达要服务于已确认卖点：${point}`),
+    ...snapshot.keyScenes.map((scene) => `已确认内容场景：${scene}`),
+    ...snapshot.coreSellingPoints.map((point) => `已确认卖点线索：${point}`),
   ]).slice(0, 8);
-}
-
-function buildShotConstraints(snapshot: StrategySnapshotDto) {
-  const sceneBoundary = snapshot.keyScenes.length
-    ? `B-roll 和转场画面优先从这些已确认场景中选择：${snapshot.keyScenes.join("、")}。`
-    : "B-roll 和转场画面优先使用团队已有项目实景、成员口播、客户视角和周边配套素材。";
-
-  return uniqueStrings([
-    sceneBoundary,
-    "视频脚本不得编写当前素材能力无法支撑的高空航拍、大规模人群、跨城街景、施工现场或夸张特效镜头，除非素材库已有对应素材。",
-    "镜头描述要能被团队视频素材或成员可补拍素材承接，不要只写抽象情绪画面。",
-  ]);
 }
 
 function toCalendarKnowledgeRef(

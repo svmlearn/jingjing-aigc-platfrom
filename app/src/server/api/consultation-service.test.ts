@@ -249,6 +249,7 @@ test("consultation runtime routes explicit knowledge reads through the retrieval
   assert.match(consultationRuntimeSource, /name: "retrieve_knowledge_base"/);
   assert.match(serviceSource, /请先调用 retrieve_knowledge_base 获取资料/);
   assert.match(serviceSource, /用新的 query 再调用 retrieve_knowledge_base 深挖/);
+  assert.match(serviceSource, /画面描述必须根据已返回的素材能力/);
   assert.match(serviceSource, /不要声称无法读取用户知识库/);
   assert.match(consultationRuntimeSource, /knowledgeMatches: \(result\.knowledgeMatches \?\? \[\]\)\.map/);
   assert.match(consultationRuntimeSource, /content: clipText\(match\.content, 1200\)/);

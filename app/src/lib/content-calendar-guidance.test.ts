@@ -49,7 +49,7 @@ test("merchant knowledge matches are distilled into calendar guidance", () => {
   assert.equal(guidance?.knowledgeRefs[0]?.chunkId, "chunk-1");
   assert.match(guidance?.mustUseFacts.join(" ") ?? "", /项目真实卖点/);
   assert.match(guidance?.assetCapabilityHints?.join(" ") ?? "", /项目现场实拍/);
-  assert.match(guidance?.shotConstraints?.join(" ") ?? "", /高空航拍/);
+  assert.equal(guidance?.shotConstraints?.length ?? 0, 0);
   assert.equal(guidance?.retrievalTrace?.[0]?.chunkId, "chunk-1");
 
   const calendar = attachGuidanceToContentCalendar({
@@ -73,7 +73,7 @@ test("merchant knowledge matches are distilled into calendar guidance", () => {
   assert.deepEqual(refs[0]?.retrievalTargets, ["copy_context", "script_context"]);
   assert.match(summary?.mustUseFacts.join(" ") ?? "", /成熟配套/);
   assert.match(summary?.assetCapabilityHints.join(" ") ?? "", /项目现场实拍/);
-  assert.match(summary?.shotConstraints.join(" ") ?? "", /高空航拍/);
+  assert.deepEqual(summary?.shotConstraints, []);
   assert.equal(summary?.retrievalTrace[0]?.documentId, "doc-1");
 });
 
