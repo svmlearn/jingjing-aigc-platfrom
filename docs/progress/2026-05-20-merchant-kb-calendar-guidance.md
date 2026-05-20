@@ -35,3 +35,33 @@
 - branch：`codex/kb-calendar-guidance`
 - worktree：`/Users/wy/.codex/worktrees/kb-calendar-guidance`
 - 状态：已实现、已验证，待用户确认后合并 / push。
+
+## 2026-05-20 部署补充
+
+- 本地 `main` 先合入本次知识库日历指导提交 `3328185`。
+- 为避免服务器回滚，随后合入 `gitee/codex/domestic-infra-migration` 中已在服务器侧使用的 worker/OpenStoryline 修复：
+  - `e7c78db fix: reject worker filter clips fallback`
+  - `4652a1c fix: extend openstoryline run timeout`
+  - `e5c8e18 chore: align domestic worker timeout template`
+- 最终代码部署基线：`fcf7b6d`。
+- Gitee `main`：已推送到 `fcf7b6d`。
+- GitHub `main`：已推送到 `fcf7b6d`。
+- Aliyun ECS release：`/srv/jingjing-domestic/releases/20260520121313-fcf7b6d`。
+- `/srv/jingjing-domestic/current` 已切到该 release。
+- 重启服务：
+  - `jingjing-domestic-app.service`
+  - `jingjing-firered-openstoryline.service`
+  - `jingjing-openstoryline-engine.service`
+  - `jingjing-video-worker.service`
+
+部署后验证：
+
+- `systemctl is-active`：四个服务均为 `active`。
+- `GET http://127.0.0.1:3000/api/health`：`ok: true`，DB `postgres`，storage `aliyun_oss`。
+- `GET http://127.0.0.1:8000/ready`：OpenStoryline `ready`，adapter `fire_red`，FireRed runtime assets ready。
+- `GET http://127.0.0.1:3000/login`：HTTP `200`。
+
+观察到的既有运行事实：
+
+- 部署前 worker 最新任务 `7a148613-8c5d-4108-aeb5-9411362a42f1` 已在 `2026-05-20 11:52` 因 `FireRed stream run timeout after 900s` 失败。
+- 本次合入并部署了 1800s timeout 相关修复，后续真实 AI 剪辑任务需要继续观察是否能越过该超时点。
