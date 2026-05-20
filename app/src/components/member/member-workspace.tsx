@@ -111,6 +111,11 @@ const taskFetchHeaders = {
 
 export function MemberShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isAuthPath = pathname.startsWith("/member/login") || pathname.startsWith("/member/register");
+  if (isAuthPath) {
+    return <>{children}</>;
+  }
+
   const navItems = [
     { href: "/member", label: "项目", icon: Home, active: pathname === "/member" },
     {
@@ -127,6 +132,12 @@ export function MemberShell({ children }: { children: ReactNode }) {
       label: "内容",
       icon: FolderGit2,
       active: pathname.startsWith("/member/history"),
+    },
+    {
+      href: "/member/teams",
+      label: "团队",
+      icon: BriefcaseBusiness,
+      active: pathname.startsWith("/member/teams"),
     },
   ];
 
@@ -146,24 +157,38 @@ export function MemberShell({ children }: { children: ReactNode }) {
                 </span>
               </span>
             </Link>
-            <Link
-              href="/member/invite"
-              className={cn(
-                "inline-flex size-9 items-center justify-center rounded-lg border text-black/55",
-                pathname.startsWith("/member/invite")
-                  ? "border-[#1f6f68]/40 bg-[#1f6f68]/10 text-[#1f6f68]"
-                  : "border-black/10 bg-white/55",
-              )}
-              aria-label="邀请码加入"
-            >
-              <UserPlus className="size-4" aria-hidden="true" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/member/teams"
+                className={cn(
+                  "inline-flex size-9 items-center justify-center rounded-lg border text-black/55",
+                  pathname.startsWith("/member/teams")
+                    ? "border-[#1f6f68]/40 bg-[#1f6f68]/10 text-[#1f6f68]"
+                    : "border-black/10 bg-white/55",
+                )}
+                aria-label="选择团队"
+              >
+                <BriefcaseBusiness className="size-4" aria-hidden="true" />
+              </Link>
+              <Link
+                href="/member/invite"
+                className={cn(
+                  "inline-flex size-9 items-center justify-center rounded-lg border text-black/55",
+                  pathname.startsWith("/member/invite")
+                    ? "border-[#1f6f68]/40 bg-[#1f6f68]/10 text-[#1f6f68]"
+                    : "border-black/10 bg-white/55",
+                )}
+                aria-label="邀请码加入"
+              >
+                <UserPlus className="size-4" aria-hidden="true" />
+              </Link>
+            </div>
           </div>
         </header>
 
         <main className="flex-1 pb-24">{children}</main>
 
-        <nav className="fixed bottom-0 left-1/2 z-30 grid w-full max-w-md -translate-x-1/2 grid-cols-3 border-t border-black/10 bg-[#f7f4ea]/95 px-3 py-2 backdrop-blur">
+        <nav className="fixed bottom-0 left-1/2 z-30 grid w-full max-w-md -translate-x-1/2 grid-cols-4 border-t border-black/10 bg-[#f7f4ea]/95 px-3 py-2 backdrop-blur">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -1006,7 +1031,7 @@ export function MemberInvitePage({ initialCode = "" }: { initialCode?: string })
         }),
       });
       const data = (await response.json().catch(() => null)) as
-        | ({ workspace?: { merchantProfile?: { name?: string } } } & ApiErrorPayload)
+        | ({ workspace?: { merchantProfile?: { name?: string } }; nextPath?: string } & ApiErrorPayload)
         | null;
 
       if (!response.ok || !data?.workspace) {
@@ -1062,8 +1087,8 @@ export function MemberInvitePage({ initialCode = "" }: { initialCode?: string })
           加入团队
         </button>
         {result ? (
-          <Link href="/member" className="block rounded-lg bg-[#e6f1ee] px-3 py-3 text-center text-sm font-medium text-[#1f6f68]">
-            {result} 进入项目介绍
+          <Link href="/member/teams" className="block rounded-lg bg-[#e6f1ee] px-3 py-3 text-center text-sm font-medium text-[#1f6f68]">
+            {result} 选择团队
           </Link>
         ) : null}
         {error ? <p className="text-sm leading-6 text-red-700">{error}</p> : null}

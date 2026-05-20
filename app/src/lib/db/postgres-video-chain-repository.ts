@@ -302,8 +302,7 @@ export async function pgRedeemInvitationCode(input: {
         status,
         display_name
       ) values ($1, $2, 'owner', 'active', $3)
-      on conflict (user_id) do update set
-        merchant_id = excluded.merchant_id,
+      on conflict (merchant_id, user_id) do update set
         role = 'owner',
         status = 'active',
         display_name = excluded.display_name,
@@ -362,6 +361,7 @@ export async function pgGetMerchantProfileByOwnerUserId(
 
 export async function pgGetMerchantWorkspaceByUserId(
   userId: string,
+  merchantId?: string | null,
 ): Promise<MerchantWorkspaceDto> {
   const owner = await queryAppDb<MerchantProfileRow>(
     `
@@ -387,9 +387,114 @@ export async function pgGetMerchantWorkspaceByUserId(
     };
   }
 
-  const membership = await pgGetActiveMerchantTeamMemberByUserId(userId);
+  const membership = await pgGetActiveMerchantTeamMemberByUserId(userId, merchantId);
   if (!membership) {
     throw new ApiError(404, "MERCHANT_PROFILE_NOT_FOUND", "Merchant profile not found.");
+  }
+
+  return {
+    merchantProfile: await pgGetMerchantProfileById(membership.merchant_id),
+    role: membership.role,
+    membershipId: membership.id,
+  };
+}
+
+export async function pgListMerchantWorkspacesByUserId(
+  userId: string,
+): Promise<MerchantWorkspaceDto[]> {
+  const workspaces: MerchantWorkspaceDto[] = [];
+  const owner = await queryAppDb<MerchantProfileRow>(
+    `
+    select ${merchantProfileSelect}
+    from public.merchant_profiles
+    where owner_user_id = $1
+    order by created_at asc
+    limit 1
+    `,
+    [userId],
+  );
+
+  if (owner.rows[0]) {
+    const membership = await pgEnsureMerchantOwnerMembership({
+      merchantId: owner.rows[0].id,
+      userId,
+      displayName: owner.rows[0].name,
+    });
+
+    workspaces.push({
+      merchantProfile: mapMerchantProfile(owner.rows[0]),
+      role: "owner",
+      membershipId: membership?.id ?? null,
+    });
+  }
+
+  const memberships = await queryAppDb<MerchantTeamMemberRow>(
+    `
+    select ${merchantTeamMemberSelect}
+    from public.merchant_team_members
+    where user_id = $1 and status = 'active'
+    order by updated_at desc, created_at desc
+    `,
+    [userId],
+  );
+
+  const seenMerchantIds = new Set(workspaces.map((workspace) => workspace.merchantProfile.id));
+  for (const membership of memberships.rows) {
+    if (seenMerchantIds.has(membership.merchant_id)) {
+      continue;
+    }
+
+    workspaces.push({
+      merchantProfile: await pgGetMerchantProfileById(membership.merchant_id),
+      role: membership.role,
+      membershipId: membership.id,
+    });
+    seenMerchantIds.add(membership.merchant_id);
+  }
+
+  return workspaces;
+}
+
+export async function pgSelectMerchantWorkspaceForUser(input: {
+  userId: string;
+  merchantId: string;
+}): Promise<MerchantWorkspaceDto> {
+  const owner = await queryAppDb<MerchantProfileRow>(
+    `
+    select ${merchantProfileSelect}
+    from public.merchant_profiles
+    where owner_user_id = $1 and id = $2
+    limit 1
+    `,
+    [input.userId, input.merchantId],
+  );
+
+  if (owner.rows[0]) {
+    const membership = await pgEnsureMerchantOwnerMembership({
+      merchantId: owner.rows[0].id,
+      userId: input.userId,
+      displayName: owner.rows[0].name,
+    });
+
+    return {
+      merchantProfile: mapMerchantProfile(owner.rows[0]),
+      role: "owner",
+      membershipId: membership?.id ?? null,
+    };
+  }
+
+  const result = await queryAppDb<MerchantTeamMemberRow>(
+    `
+    update public.merchant_team_members
+    set updated_at = timezone('utc', now())
+    where user_id = $1 and merchant_id = $2 and status = 'active'
+    returning ${merchantTeamMemberSelect}
+    `,
+    [input.userId, input.merchantId],
+  );
+  const membership = result.rows[0];
+  if (!membership) {
+    throw new ApiError(404, "MEMBER_WORKSPACE_NOT_FOUND", "Member workspace not found.");
   }
 
   return {
@@ -499,6 +604,29 @@ export async function pgAcceptMemberInvitationCode(input: {
     const invitation = invitationResult.rows[0] ?? null;
     assertMemberInvitationUsable(invitation);
 
+    const existingMembership = await client.query<MerchantTeamMemberRow>(
+      `
+      select ${merchantTeamMemberSelect}
+      from public.merchant_team_members
+      where merchant_id = $1 and user_id = $2 and status = 'active'
+      for update
+      `,
+      [invitation.merchant_id, input.userId],
+    );
+
+    if (existingMembership.rows[0]) {
+      await client.query(
+        `
+        update public.merchant_team_members
+        set display_name = coalesce($3, display_name),
+            updated_at = timezone('utc', now())
+        where merchant_id = $1 and user_id = $2 and status = 'active'
+        `,
+        [invitation.merchant_id, input.userId, input.displayName ?? null],
+      );
+      return;
+    }
+
     await client.query(
       `
       insert into public.merchant_team_members (
@@ -509,8 +637,7 @@ export async function pgAcceptMemberInvitationCode(input: {
         display_name,
         invited_by_user_id
       ) values ($1, $2, 'member', 'active', $3, $4)
-      on conflict (user_id) do update set
-        merchant_id = excluded.merchant_id,
+      on conflict (merchant_id, user_id) do update set
         role = 'member',
         status = 'active',
         display_name = excluded.display_name,
@@ -1498,15 +1625,22 @@ export async function pgCancelVideoEditJob(input: {
   return mapVideoEditJob(row);
 }
 
-async function pgGetActiveMerchantTeamMemberByUserId(userId: string) {
+async function pgGetActiveMerchantTeamMemberByUserId(
+  userId: string,
+  merchantId?: string | null,
+) {
+  const merchantFilter = merchantId ? "and merchant_id = $2" : "";
+  const params = merchantId ? [userId, merchantId] : [userId];
   const result = await queryAppDb<MerchantTeamMemberRow>(
     `
     select ${merchantTeamMemberSelect}
     from public.merchant_team_members
     where user_id = $1 and status = 'active'
+    ${merchantFilter}
+    order by updated_at desc, created_at desc
     limit 1
     `,
-    [userId],
+    params,
   );
 
   return result.rows[0] ?? null;
@@ -1526,8 +1660,7 @@ async function pgEnsureMerchantOwnerMembership(input: {
       status,
       display_name
     ) values ($1, $2, 'owner', 'active', $3)
-    on conflict (user_id) do update set
-      merchant_id = excluded.merchant_id,
+    on conflict (merchant_id, user_id) do update set
       role = 'owner',
       status = 'active',
       display_name = excluded.display_name,

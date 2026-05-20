@@ -1,5 +1,7 @@
 import { MemberHistoryPage } from "@/components/member/member-workspace";
+import { requireMemberAccess } from "@/lib/auth/member-page-guard";
 
-export default function MemberHistoryRoute() {
+export default async function MemberHistoryRoute() {
+  await requireMemberAccess("/member/history");
   return <MemberHistoryPage />;
 }
