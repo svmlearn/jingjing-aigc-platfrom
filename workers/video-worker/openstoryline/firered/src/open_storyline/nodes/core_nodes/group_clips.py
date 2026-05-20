@@ -42,6 +42,12 @@ class GroupClipsNode(BaseNode):
         if not selected_clips:
             return {"groups": []}
 
+        if len(selected_clips) == 1:
+            node_state.node_summary.info_for_user(
+                "Single selected clip, using deterministic grouping"
+            )
+            return {"groups": _make_single_group_fallback(selected_clips)}
+
         selected_clips_captions = [clip_lookup[cid] for cid in selected_clips if cid in clip_lookup]
         if not selected_clips_captions:
             return {"groups": _make_single_group_fallback(selected_clips)}

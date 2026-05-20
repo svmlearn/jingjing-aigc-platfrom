@@ -431,6 +431,25 @@ def _build_fire_red_service_config(
             )
         }
 
+    if settings.asr_provider:
+        asr_provider = str(settings.asr_provider).strip()
+        asr_provider_config = _compact_dict(
+            {
+                "model": settings.aliyun_asr_model,
+                "api_key": settings.aliyun_asr_api_key,
+                "workspace": settings.aliyun_asr_workspace,
+                "format": "wav",
+                "sample_rate": 16000,
+                "language_hints": ["zh", "en"],
+            }
+        )
+        service_config["asr"] = {
+            "provider": asr_provider,
+            asr_provider: asr_provider_config,
+        }
+        if asr_provider in {"aliyun", "dashscope", "dashscope_paraformer"}:
+            service_config["asr"]["aliyun_paraformer"] = asr_provider_config
+
     voiceover = production_config.get("voiceover")
     if not isinstance(voiceover, dict) or voiceover.get("enabled") is False:
         return service_config
@@ -687,7 +706,7 @@ def _build_fire_red_prompt(
     )
 
 
-def _compact_dict(payload: dict[str, str]) -> dict[str, str]:
+def _compact_dict(payload: dict[str, object]) -> dict[str, object]:
     return {key: value for key, value in payload.items() if value}
 
 

@@ -10,7 +10,7 @@ export type AppObjectStorageProviderName = Extract<
   "tencent_cos" | "aliyun_oss"
 >;
 
-export type BrowserUploadOwnerType = "source_item" | "content_draft";
+export type BrowserUploadOwnerType = "source_item" | "content_draft" | "voice_profile";
 
 export type KnowledgeUploadScope = "platform" | "merchant";
 
@@ -65,6 +65,8 @@ export type ObjectStorageProvider = {
     storageKey: string;
     bucketName?: string | null;
     expiresInSeconds?: number;
+    responseContentDisposition?: "inline" | "attachment";
+    responseContentType?: string | null;
   }): string;
   assertWritableObjectRef(input: {
     bucketName?: string | null;
@@ -179,6 +181,10 @@ export function buildStandardMediaUploadKeyPrefix(input: {
 }) {
   if (input.ownerType === "source_item") {
     return `source-assets/${input.merchantId}/${input.ownerId}`;
+  }
+
+  if (input.ownerType === "voice_profile") {
+    return `draft-inputs/${input.merchantId}/${input.ownerId}/voice-profile-audio`;
   }
 
   return `draft-inputs/${input.merchantId}/${input.ownerId}`;

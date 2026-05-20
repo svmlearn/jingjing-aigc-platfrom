@@ -2,7 +2,9 @@ import "server-only";
 
 import type {
   MediaAssetDto,
+  MediaAssetType,
   MediaCompleteRequest,
+  MediaOwnerType,
   MediaUploadIntentDto,
   MediaUploadIntentRequest,
 } from "@/contracts/media";
@@ -26,11 +28,13 @@ export async function createMediaUploadIntentForUser(input: {
 }): Promise<MediaUploadIntentDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
 
+  assertBrowserUploadOwnerAssetPair(input.request);
+
   if (input.request.ownerType === "content_variant") {
     throw new ApiError(
       400,
       "MEDIA_UPLOAD_OWNER_UNSUPPORTED",
-      "Direct browser uploads only support source items and content drafts.",
+      "Direct browser uploads only support source items, content drafts, and voice profiles.",
     );
   }
 
@@ -81,11 +85,13 @@ export async function completeMediaUploadForUser(input: {
 }): Promise<MediaAssetDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
 
+  assertBrowserUploadOwnerAssetPair(input.request);
+
   if (input.request.ownerType === "content_variant") {
     throw new ApiError(
       400,
       "MEDIA_COMPLETE_OWNER_UNSUPPORTED",
-      "Direct browser uploads only support source items and content drafts.",
+      "Direct browser uploads only support source items, content drafts, and voice profiles.",
     );
   }
 
@@ -145,4 +151,25 @@ export async function completeMediaUploadForUser(input: {
     etag: input.request.etag,
     sortOrder: input.request.sortOrder,
   });
+}
+
+function assertBrowserUploadOwnerAssetPair(input: {
+  ownerType: MediaOwnerType;
+  assetType: MediaAssetType;
+}) {
+  if (input.ownerType === "voice_profile" && input.assetType !== "audio") {
+    throw new ApiError(
+      400,
+      "MEDIA_UPLOAD_ASSET_TYPE_UNSUPPORTED",
+      "Voice profiles only support audio reference assets.",
+    );
+  }
+
+  if (input.assetType === "audio" && input.ownerType !== "voice_profile") {
+    throw new ApiError(
+      400,
+      "MEDIA_UPLOAD_OWNER_UNSUPPORTED",
+      "Audio uploads are only supported for voice profiles.",
+    );
+  }
 }

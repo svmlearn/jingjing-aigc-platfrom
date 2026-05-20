@@ -112,6 +112,8 @@ class FakeRepository:
         self.failed = None
         self.succeeded = None
         self.inserted_assets = []
+        self.material_input_assets = []
+        self.material_queries = []
         self.fail_insert_output_assets = fail_insert_output_assets
 
     def update_stage(self, job_id, **kwargs):
@@ -141,6 +143,10 @@ class FakeRepository:
             }
             for asset in uploaded_assets
         ]
+
+    def list_video_material_input_assets(self, merchant_id, *, query, limit=8):
+        self.material_queries.append({"merchant_id": merchant_id, "query": query, "limit": limit})
+        return self.material_input_assets[:limit]
 
 
 class FakeCosClient:
@@ -584,6 +590,76 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual(
             {"content_type": "talking_head"},
             engine_client.last_input_assets[0]["metadata"],
+        )
+
+    def test_material_library_assets_are_retrieved_inside_worker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            repository.material_input_assets = [
+                {
+                    "asset_type": "video",
+                    "storage_provider": "aliyun_oss",
+                    "bucket_name": "project-bucket",
+                    "storage_key": "merchant-media/merchant/clips/asset/clip.mp4",
+                    "file_name": "material-clip.mp4",
+                    "role": "project_material",
+                    "scene_type": "merchant_material_library",
+                    "tags": ["外立面"],
+                    "metadata": {
+                        "source": "merchant_material_library",
+                        "asset_object_id": "asset-1",
+                    },
+                }
+            ]
+            cos_client = FakeCosClient()
+            engine_client = FakeOpenStorylineClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                engine_client,
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "materialContext": {
+                        "sceneAssetQueries": [
+                            {
+                                "query": "素材检索：建筑外立面 商铺招牌 入口",
+                            }
+                        ],
+                    },
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_provider": "aliyun_oss",
+                            "bucket_name": "user-bucket",
+                            "storage_key": "draft-inputs/member-selfie.mp4",
+                            "file_name": "member-selfie.mp4",
+                            "role": "talking_head",
+                        }
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.failed)
+        self.assertIn("建筑外立面", repository.material_queries[0]["query"])
+        self.assertEqual(2, len(engine_client.last_input_assets))
+        self.assertEqual("talking_head", engine_client.last_input_assets[0]["role"])
+        self.assertEqual("project_material", engine_client.last_input_assets[1]["role"])
+        self.assertEqual("aliyun_oss", cos_client.downloads[1]["storage_provider"])
+        self.assertEqual(
+            "merchant-media/merchant/clips/asset/clip.mp4",
+            cos_client.downloads[1]["storage_key"],
+        )
+        self.assertEqual(
+            1,
+            repository.succeeded["log_payload"]["steps"][1][
+                "material_library_inputs_downloaded"
+            ],
         )
 
     def test_engine_run_failure_marks_failed_retryable_with_diagnostic_stage(self):

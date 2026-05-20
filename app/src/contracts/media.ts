@@ -1,6 +1,6 @@
-export type MediaOwnerType = "source_item" | "content_draft" | "content_variant";
+export type MediaOwnerType = "source_item" | "content_draft" | "content_variant" | "voice_profile";
 
-export type MediaAssetType = "image" | "video" | "cover" | "subtitle";
+export type MediaAssetType = "image" | "video" | "cover" | "subtitle" | "audio";
 
 export type MediaStorageProvider = "tencent_cos" | "aliyun_oss" | "supabase_storage";
 
@@ -20,12 +20,13 @@ export type MediaAssetDto = {
   createdAt: string;
   updatedAt?: string | null;
   signedPreviewUrl?: string | null;
+  signedDownloadUrl?: string | null;
 };
 
 export type MediaUploadIntentRequest = {
   ownerType: MediaOwnerType;
   ownerId: string;
-  assetType: Extract<MediaAssetType, "image" | "video">;
+  assetType: Extract<MediaAssetType, "image" | "video" | "audio">;
   fileName: string;
   mimeType: string;
   sizeBytes: number;

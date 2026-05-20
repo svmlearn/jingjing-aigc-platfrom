@@ -74,11 +74,21 @@ export function extractPayloadResultAssets(
           ? asset.signedPreviewUrl
           : typeof asset.signed_preview_url === "string"
             ? asset.signed_preview_url
-          : typeof asset.originUrl === "string"
-            ? asset.originUrl
-            : typeof asset.origin_url === "string"
-              ? asset.origin_url
-            : null,
+            : typeof asset.originUrl === "string"
+              ? asset.originUrl
+              : typeof asset.origin_url === "string"
+                ? asset.origin_url
+                : null,
+      signedDownloadUrl:
+        typeof asset.signedDownloadUrl === "string"
+          ? asset.signedDownloadUrl
+          : typeof asset.signed_download_url === "string"
+            ? asset.signed_download_url
+            : typeof asset.downloadUrl === "string"
+              ? asset.downloadUrl
+              : typeof asset.download_url === "string"
+                ? asset.download_url
+                : null,
     }))
     .filter((asset) => asset.id && asset.ownerId && asset.storageKey);
 }

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { ContentVariantDto } from "@/contracts/draft";
+import type { MediaAssetDto } from "@/contracts/media";
 import type {
   CreateVideoEditJobRequest,
   PublicVideoEditJobDto,
@@ -35,6 +36,10 @@ import {
   buildVideoEditJobInputPayload,
   type VideoJobPayloadVariant,
 } from "@/server/api/video-job-payload";
+import {
+  assertVoiceProfileAccess,
+  assertVoiceProfileAudioAsset,
+} from "@/lib/db/voice-profile-repository";
 import { extractPayloadResultAssets, toPublicVideoEditJob } from "@/server/api/video-job-public-dto";
 import { ApiError } from "@/server/api/errors";
 import { getObjectStorageProvider } from "@/server/storage";
@@ -69,15 +74,20 @@ export async function createVideoEditJobForUser(input: {
   }
 
   const inputPayload = await buildServerManagedInputPayload({
+    userId: input.userId,
     merchantId: variant.merchantId,
     draftId: variant.draftId,
     variant,
+    inputAssetIds: input.request.inputAssetIds ?? null,
     productionConfig: input.request.productionConfig ?? null,
   });
   const runtimePayload = {
     engine_adapter: "fire_red",
     provider_settings_source: "env",
-    tts_provider: inputPayload.productionConfig.voiceover.provider,
+    tts_provider:
+      inputPayload.productionConfig.voiceover.mode === "voice_profile"
+        ? "pixelle_clone"
+        : inputPayload.productionConfig.voiceover.provider,
   };
 
   const job = await createVideoEditJob({
@@ -162,6 +172,7 @@ export async function getVideoEditJobResultAssetRedirectUrlForUser(input: {
   userId: string;
   jobId: string;
   assetId: string;
+  disposition?: "inline" | "attachment";
 }): Promise<string> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
   const job = await getVideoEditJobById({
@@ -198,6 +209,8 @@ export async function getVideoEditJobResultAssetRedirectUrlForUser(input: {
     return getObjectStorageProvider(asset.storageProvider).createSignedReadUrl({
       bucketName: asset.bucketName,
       storageKey: asset.storageKey,
+      responseContentDisposition: input.disposition ?? "inline",
+      responseContentType: getPreviewContentType(asset),
     });
   }
 
@@ -270,26 +283,58 @@ async function attachSignedResultAssets(job: VideoEditJobDto): Promise<VideoEdit
         ...asset,
         signedPreviewUrl:
           asset.storageProvider === "tencent_cos" || asset.storageProvider === "aliyun_oss"
-            ? buildStableVideoResultAssetUrl(job.id, asset.id)
+            ? buildStableVideoResultAssetUrl(job.id, asset.id, "inline")
             : null,
+        signedDownloadUrl:
+          asset.storageProvider === "tencent_cos" || asset.storageProvider === "aliyun_oss"
+            ? buildStableVideoResultAssetUrl(job.id, asset.id, "attachment")
+            : asset.signedDownloadUrl ?? asset.signedPreviewUrl ?? asset.originUrl ?? null,
       })),
       ...payloadResultAssets,
     ],
   };
 }
 
-function buildStableVideoResultAssetUrl(jobId: string, assetId: string) {
-  return `/api/video-edit-jobs/${encodeURIComponent(jobId)}/result/${encodeURIComponent(assetId)}`;
+function buildStableVideoResultAssetUrl(
+  jobId: string,
+  assetId: string,
+  disposition: "inline" | "attachment",
+) {
+  return `/api/video-edit-jobs/${encodeURIComponent(jobId)}/result/${encodeURIComponent(
+    assetId,
+  )}?disposition=${disposition}`;
+}
+
+function getPreviewContentType(asset: MediaAssetDto) {
+  if (asset.mimeType) {
+    return asset.mimeType;
+  }
+
+  if (asset.assetType === "video") {
+    return "video/mp4";
+  }
+
+  if (asset.assetType === "cover" || asset.assetType === "image") {
+    return "image/jpeg";
+  }
+
+  if (asset.assetType === "subtitle") {
+    return "text/plain; charset=utf-8";
+  }
+
+  return null;
 }
 
 async function buildServerManagedInputPayload(input: {
+  userId: string;
   merchantId: string;
   draftId: string;
   variant: VideoJobPayloadVariant;
+  inputAssetIds: CreateVideoEditJobRequest["inputAssetIds"];
   productionConfig: CreateVideoEditJobRequest["productionConfig"];
 }) {
   if (isPostgresVideoChainEnabled() || !isSupabaseAdminConfigured()) {
-    const assets = isLocalRealChainEnabled()
+    const allAssets = isLocalRealChainEnabled()
       ? await listLocalRealChainAssetObjectsByOwner({
           ownerType: "content_draft",
           ownerId: input.draftId,
@@ -298,17 +343,26 @@ async function buildServerManagedInputPayload(input: {
           ownerType: "content_draft",
           ownerId: input.draftId,
         });
+    const assets = filterRequestedInputAssets({
+      assets: allAssets,
+      inputAssetIds: input.inputAssetIds,
+    });
 
-    return buildVideoEditJobPayloadOrThrow({
+    const payload = buildVideoEditJobPayloadOrThrow({
       draftId: input.draftId,
       variant: input.variant,
       materialReferences: [],
       assets,
       productionConfig: input.productionConfig,
     });
+    return attachVoiceProfileReference({
+      userId: input.userId,
+      merchantId: input.merchantId,
+      payload,
+    });
   }
 
-  const [assets, materialReferences] = await Promise.all([
+  const [allAssets, materialReferences] = await Promise.all([
     listAssetObjectsByOwner({
       ownerType: "content_draft",
       ownerId: input.draftId,
@@ -319,13 +373,17 @@ async function buildServerManagedInputPayload(input: {
       targetWorkbench: "video",
     }),
   ]);
+  const assets = filterRequestedInputAssets({
+    assets: allAssets,
+    inputAssetIds: input.inputAssetIds,
+  });
 
   const videoEditMaterialReferences = await filterVideoEditMaterialReferences({
     merchantId: input.merchantId,
     references: materialReferences,
   });
 
-  return buildVideoEditJobPayloadOrThrow({
+  const payload = buildVideoEditJobPayloadOrThrow({
     draftId: input.draftId,
     variant: input.variant,
     materialReferences: videoEditMaterialReferences.map((reference) => ({
@@ -335,6 +393,88 @@ async function buildServerManagedInputPayload(input: {
     assets,
     productionConfig: input.productionConfig,
   });
+  return attachVoiceProfileReference({
+    userId: input.userId,
+    merchantId: input.merchantId,
+    payload,
+  });
+}
+
+function filterRequestedInputAssets(input: {
+  assets: MediaAssetDto[];
+  inputAssetIds: CreateVideoEditJobRequest["inputAssetIds"];
+}) {
+  const requestedIds = [...new Set((input.inputAssetIds ?? []).filter(Boolean))];
+  if (requestedIds.length === 0) {
+    return input.assets;
+  }
+
+  const requestedIdSet = new Set(requestedIds);
+  const matchedAssets = input.assets.filter((asset) => requestedIdSet.has(asset.id));
+  if (matchedAssets.length !== requestedIds.length) {
+    const matchedIds = new Set(matchedAssets.map((asset) => asset.id));
+    const missingIds = requestedIds.filter((assetId) => !matchedIds.has(assetId));
+    throw new ApiError(
+      400,
+      "VIDEO_INPUT_ASSET_NOT_FOUND",
+      "Some selected video inputs are no longer available for this draft.",
+      { missingAssetIds: missingIds },
+    );
+  }
+
+  return matchedAssets;
+}
+
+async function attachVoiceProfileReference(input: {
+  userId: string;
+  merchantId: string;
+  payload: ReturnType<typeof buildVideoEditJobInputPayload>;
+}) {
+  const voiceover = input.payload.productionConfig.voiceover;
+  if (voiceover.mode !== "voice_profile") {
+    return input.payload;
+  }
+
+  const voiceProfile = await assertVoiceProfileAccess({
+    merchantId: input.merchantId,
+    createdByUserId: input.userId,
+    voiceProfileId: voiceover.voiceProfileId,
+  });
+  const refAudioAsset = await assertVoiceProfileAudioAsset({
+    merchantId: input.merchantId,
+    createdByUserId: input.userId,
+    voiceProfileId: voiceover.voiceProfileId,
+    assetId: voiceover.refAudioAssetId,
+  });
+
+  return {
+    ...input.payload,
+    productionConfig: {
+      ...input.payload.productionConfig,
+      voiceover: {
+        ...voiceover,
+        voiceProfile: {
+          id: voiceProfile.id,
+          displayName: voiceProfile.displayName,
+          provider: voiceProfile.provider,
+          externalVoiceId: voiceProfile.externalVoiceId,
+          externalModelId: voiceProfile.externalModelId,
+        },
+        refAudioAsset: {
+          assetId: refAudioAsset.id,
+          assetType: refAudioAsset.assetType,
+          ownerType: refAudioAsset.ownerType,
+          ownerId: refAudioAsset.ownerId,
+          storageProvider: refAudioAsset.storageProvider,
+          bucketName: refAudioAsset.bucketName,
+          storageKey: refAudioAsset.storageKey,
+          mimeType: refAudioAsset.mimeType,
+          fileSizeBytes: refAudioAsset.fileSizeBytes,
+          etag: refAudioAsset.etag,
+        },
+      },
+    },
+  };
 }
 
 async function filterVideoEditMaterialReferences(input: {
