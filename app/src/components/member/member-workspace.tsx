@@ -1225,7 +1225,7 @@ function buildMemberVideoProductionConfig(input: {
         talkingHeadSource: "asr_original_audio",
       },
       bgm: {
-        enabled: false,
+        enabled: true,
         userRequest: "",
       },
     };
@@ -1249,7 +1249,7 @@ function buildMemberVideoProductionConfig(input: {
       talkingHeadSource: "script",
     },
     bgm: {
-      enabled: false,
+      enabled: true,
       userRequest: "",
     },
   };
