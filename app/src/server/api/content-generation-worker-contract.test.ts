@@ -36,3 +36,12 @@ test("Dify transient failures are retryable while missing key is manual", () => 
   assert.match(serviceSource, /failed_retryable|retryable/);
   assert.doesNotMatch(serviceSource, /retryable: false/);
 });
+
+test("Dify workflow inputs are compacted before reaching Start node limits", () => {
+  assert.match(serviceSource, /const difyInputMaxChars = 5800/);
+  assert.match(serviceSource, /buildDifyCalendarTaskForDify/);
+  assert.match(serviceSource, /compactTeamCalendarSourceForDify/);
+  assert.match(serviceSource, /calendar_task_json: stringifyDifyJsonInput\(difyCalendarTask\)/);
+  assert.match(serviceSource, /fallback_knowledge_text: clampDifyInputText\(fallbackKnowledgeText\)/);
+  assert.doesNotMatch(serviceSource, /calendar_task_json: JSON\.stringify\(calendarTask\)/);
+});
