@@ -181,6 +181,39 @@ class OpenStorylineContractPayloadTests(unittest.TestCase):
                     progress_callback=lambda _event: None,
                 )
 
+    def test_run_job_stream_raises_on_total_timeout(self):
+        def fake_stream(method, url, json, timeout):
+            return FakeStreamResponse(
+                [
+                    '{"type":"progress","event":{"type":"tool_progress","name":"filter_clips"}}',
+                    '{"type":"progress","event":{"type":"tool_progress","name":"filter_clips"}}',
+                ]
+            )
+
+        job = make_job()
+        directive = build_production_directive(job)
+        client = OpenStorylineClient(Settings())
+        progress_events = []
+
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "worker.app.openstoryline_client.httpx.stream",
+            side_effect=fake_stream,
+        ), patch(
+            "worker.app.openstoryline_client.time.monotonic",
+            side_effect=[0.0, 1.0, 31.0],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "stream run timeout after 30s"):
+                client.run_job(
+                    job=job,
+                    directive=directive,
+                    input_assets=[],
+                    workspace_dir=Path(tmp) / "workspace",
+                    output_dir=Path(tmp) / "outputs",
+                    progress_callback=progress_events.append,
+                )
+
+        self.assertEqual("filter_clips", progress_events[0]["name"])
+
     def test_run_job_stream_preserves_structured_render_error_detail(self):
         def fake_stream(method, url, json, timeout):
             return FakeStreamResponse(
