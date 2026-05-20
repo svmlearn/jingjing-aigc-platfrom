@@ -106,9 +106,9 @@ export type ProductionConfig = {
     voiceStyle?: string | null;
     voiceProfileId?: string;
     refAudioAssetId?: string;
-    includeOriginalAudio?: boolean;
     speed?: number | null;
     volume?: number | null;
+    includeOriginalAudio?: boolean;
   };
   bgm?: {
     enabled?: boolean;
@@ -126,6 +126,7 @@ export type ProductionConfig = {
     aspectRatio?: "9:16";
     maxDurationSeconds?: number | null;
     includeOriginalAudio?: boolean;
+    preserveTalkingHeadOriginalAudio?: boolean;
   };
 };
 

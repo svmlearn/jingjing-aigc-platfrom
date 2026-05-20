@@ -18,8 +18,9 @@
 8. `架构规范/2026-05-13-国内化部署与ba-ba-ke域名备案决策.md`
 9. `架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`
 10. `架构规范/2026-05-20-Agent架构易错点.md`
-11. `progress/2026-04-25-supabase-migration-current-state.md`
-12. `progress/2026-05-13-staging-server-resource-log-analysis.md`
+11. `架构规范/2026-05-15-Dify主链路国内自托管方案/`
+12. `progress/2026-04-25-supabase-migration-current-state.md`
+13. `progress/2026-05-13-staging-server-resource-log-analysis.md`
 
 如果是在接续当前未完成事项，再读 `current-task.md`。如果是在规划 V2.2 合并后的下一阶段，再读 `需求池.md` 和 `探索/2026-04-28-热点抓取与咨询Agent优化待验证事项.md`。
 
@@ -45,6 +46,7 @@
 - `架构规范/2026-05-13-国内化部署与ba-ba-ke域名备案决策.md`
 - `架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`
 - `架构规范/2026-05-20-Agent架构易错点.md`
+- `架构规范/2026-05-15-Dify主链路国内自托管方案/`
 
 这份是当前架构总说明，覆盖：
 
@@ -64,6 +66,8 @@
 `2026-05-13-国内化改造分支冻结与恢复断点.md` 是国内化改造的架构级恢复入口，记录 `codex/domestic-infra-migration` 分支、worktree、冻结 commit、已完成验证、真实资源阻塞项和买完服务器后的继续验证命令。
 
 `2026-05-20-Agent架构易错点.md` 记录编写 Agent runtime、RAG、工具调用和 workflow 输入组装时容易犯的分层错误：不要把模型判断、业务判断或创意判断写死在代码默认值里；代码负责传递真实事实和 trace，prompt/LLM 负责基于事实做生成判断。
+
+`2026-05-15-Dify主链路国内自托管方案/` 补充定义 Dify 作为内容生成主链路时的工作流、落库合同、单队列消费、用户点击 AI 剪辑后的 `video_edit_jobs` 边界、国内自托管部署边界和硬门禁。
 
 旧的增长 Agent 文档、旧 skeleton 默认路径、旧分阶段 worker / FireRed work-plan 不再作为当前依据。
 
@@ -102,6 +106,7 @@ staging 服务器资源日志分析记录了当前 2 核 4G 服务器的 CPU / �
 - `协作/`：协作规则、面向产品/开发/AI 的说明。
 - `progress/`：当前状态、执行日志和验证事实。
 - `handoff/`：交接文档和任务冻结说明。
+- `可复用方案/`：反复出现的问题诊断、改动方案和验证清单。
 - `探索/`：历史探索资料和待验证事项，默认不作为真相源。
 - `designs/`：历史 UI 原型和视觉参考。
 - `test/`：历史测试清单和点击验证记录。
@@ -130,6 +135,7 @@ staging 服务器资源日志分析记录了当前 2 核 4G 服务器的 CPU / �
 - 两份 V2.1 产品文档
 - `docs/架构规范/2026-04-28-current-architecture.md`
 - `docs/架构规范/2026-05-13-国内化部署与ba-ba-ke域名备案决策.md`
+- `docs/架构规范/2026-05-15-Dify主链路国内自托管方案/`
 - `docs/架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`，仅当接续国内化分支时提供
 - `docs/progress/2026-04-25-supabase-migration-current-state.md`
 - `docs/current-task.md`，仅当任务正在接续时提供

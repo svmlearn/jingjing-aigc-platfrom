@@ -1,7 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
 import type { ContentVariantDto } from "@/contracts/draft";
 import type {
   CreateVideoEditJobRequest,
@@ -11,9 +9,7 @@ import type {
 } from "@/contracts/video";
 import {
   VIDEO_EDIT_JOB_IN_FLIGHT_STATUSES,
-  isVideoEditJobInFlightStatus,
 } from "@/contracts/video";
-import { getLocalDemoContentVariantContext } from "@/lib/db/content-draft-repository";
 import {
   cancelLocalRealChainVideoEditJob,
   createLocalRealChainVideoEditJob,
@@ -32,6 +28,7 @@ import {
   pgListVideoEditJobs,
   pgRetryVideoEditJob,
 } from "@/lib/db/postgres-video-chain-repository";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { normalizeVideoProgressModules } from "@/lib/ui/video-progress-modules";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
@@ -67,6 +64,7 @@ type ContentVariantContextRow = {
   script_text: string | null;
   hashtags: unknown;
   cta_text: string | null;
+  production_scenes?: unknown;
   review_status: ContentVariantDto["reviewStatus"];
 };
 
@@ -89,45 +87,6 @@ export type VideoEditJobDeduplicationScope = {
   contentVariantId: string;
 };
 
-const demoVideoEditJobs = new Map<string, VideoEditJobDto>();
-const LOCAL_DEMO_JOB_TIMELINE = [
-  {
-    elapsedMs: 0,
-    status: "pending",
-    currentStage: "local_demo_pending_worker",
-    progressPct: 0,
-  },
-  {
-    elapsedMs: 1500,
-    status: "queued",
-    currentStage: "local_demo_claimed",
-    progressPct: 20,
-  },
-  {
-    elapsedMs: 3000,
-    status: "preparing",
-    currentStage: "local_demo_preparing_inputs",
-    progressPct: 45,
-  },
-  {
-    elapsedMs: 5000,
-    status: "running",
-    currentStage: "local_demo_rendering_placeholder",
-    progressPct: 80,
-  },
-  {
-    elapsedMs: 8000,
-    status: "succeeded",
-    currentStage: "local_demo_completed",
-    progressPct: 100,
-  },
-] as const satisfies Array<{
-  elapsedMs: number;
-  status: VideoEditJobStatus;
-  currentStage: string;
-  progressPct: number;
-}>;
-
 export async function assertVideoScriptVariantAccess(input: {
   merchantId: string;
   createdByUserId?: string | null;
@@ -142,6 +101,7 @@ export async function assertVideoScriptVariantAccess(input: {
   scriptText?: string | null;
   hashtags?: string[];
   ctaText?: string | null;
+  productionScenes?: ContentVariantDto["productionScenes"];
   reviewStatus: ContentVariantDto["reviewStatus"];
 }> {
   if (isPostgresVideoChainEnabled()) {
@@ -149,42 +109,15 @@ export async function assertVideoScriptVariantAccess(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const variant = getLocalDemoContentVariantContext(input.contentVariantId);
-
-    if (
-      !variant ||
-      variant.merchantId !== input.merchantId ||
-      (input.createdByUserId && variant.createdByUserId !== input.createdByUserId)
-    ) {
-      throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
-    }
-
-    if (variant.variantType !== "video_script") {
-      throw new ApiError(
-        409,
-        "CONTENT_VARIANT_NOT_VIDEO_SCRIPT",
-        "Only video_script variants can create video edit jobs.",
-      );
-    }
-
-    return {
-      merchantId: variant.merchantId,
-      createdByUserId: variant.createdByUserId ?? null,
-      draftId: variant.draftId,
-      contentVariantId: variant.contentVariantId,
-      variantType: variant.variantType,
-      title: variant.title,
-      scriptText: variant.scriptText,
-      hashtags: variant.hashtags,
-      ctaText: variant.ctaText,
-      reviewStatus: variant.reviewStatus,
-    };
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
   const { data: variantData, error: variantError } = await supabase
     .from("content_variants")
-    .select("id, draft_id, variant_type, title, script_text, hashtags, cta_text, review_status")
+    .select(
+      "id, draft_id, variant_type, title, script_text, hashtags, cta_text, production_scenes, review_status",
+    )
     .eq("id", input.contentVariantId)
     .single();
 
@@ -228,6 +161,7 @@ export async function assertVideoScriptVariantAccess(input: {
     scriptText: variant.script_text,
     hashtags: toStringArray(variant.hashtags),
     ctaText: variant.cta_text,
+    productionScenes: toProductionScenes(variant.production_scenes),
     reviewStatus: variant.review_status,
   };
 }
@@ -269,54 +203,7 @@ export async function createVideoEditJob(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    if (isLocalRealChainEnabled()) {
-      return createLocalRealChainVideoEditJob({
-        draftId: input.draftId,
-        contentVariantId: input.contentVariantId,
-        createdByUserId: input.createdByUserId,
-        triggerSource: input.triggerSource,
-        instructionText: input.instructionText,
-        inputPayload: input.inputPayload,
-      });
-    }
-
-    const now = new Date().toISOString();
-    const job: VideoEditJobDto = {
-      id: randomUUID(),
-      merchantId: input.merchantId,
-      createdByUserId: input.createdByUserId ?? null,
-      draftId: input.draftId,
-      contentVariantId: input.contentVariantId,
-      status: "pending",
-      currentStage: "local_demo_pending_worker",
-      triggerSource: input.triggerSource ?? "manual",
-      instructionText: input.instructionText ?? null,
-      inputPayload: input.inputPayload ?? {},
-      runtimePayload: input.runtimePayload ?? {
-        mode: "local_demo_memory",
-      },
-      progressPct: 0,
-      retryCount: 0,
-      failureReason: null,
-      resultPayload: {},
-      logPayload: {},
-      progressModules: normalizeVideoProgressModules({
-        status: "pending",
-        currentStage: "local_demo_pending_worker",
-        progressPct: 0,
-        runtimePayload: input.runtimePayload ?? { mode: "local_demo_memory" },
-        resultPayload: {},
-        logPayload: {},
-      }),
-      startedAt: now,
-      finishedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    demoVideoEditJobs.set(job.id, job);
-
-    return job;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -372,28 +259,7 @@ export async function findInFlightVideoEditJobForScope(
   }
 
   if (!isSupabaseAdminConfigured()) {
-    if (isLocalRealChainEnabled()) {
-      const jobs = await listLocalRealChainVideoEditJobs({
-        createdByUserId: input.createdByUserId,
-        limit: 50,
-      });
-
-      return (
-        jobs.find((job) =>
-          isSameVideoEditJobScope(job, input) &&
-          isVideoEditJobInFlightStatus(job.status),
-        ) ?? null
-      );
-    }
-
-    const jobs = Array.from(demoVideoEditJobs.values()).map(advanceLocalDemoVideoJob);
-
-    return (
-      jobs
-        .filter((job) => isSameVideoEditJobScope(job, input))
-        .filter((job) => isVideoEditJobInFlightStatus(job.status))
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
-    );
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -435,21 +301,7 @@ export async function listVideoEditJobs(
   }
 
   if (!isSupabaseAdminConfigured()) {
-    if (isLocalRealChainEnabled()) {
-      return listLocalRealChainVideoEditJobs(filters);
-    }
-
-    return Array.from(demoVideoEditJobs.values())
-      .map(advanceLocalDemoVideoJob)
-      .filter((job) => job.merchantId === merchantId)
-      .filter((job) =>
-        filters.createdByUserId === undefined
-          ? true
-          : job.createdByUserId === (filters.createdByUserId ?? null),
-      )
-      .filter((job) => !filters.status || job.status === filters.status)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, filters.limit ?? 50);
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -488,21 +340,7 @@ export async function getVideoEditJobById(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    if (isLocalRealChainEnabled()) {
-      return getLocalRealChainVideoEditJobById(input.jobId);
-    }
-
-    const job = demoVideoEditJobs.get(input.jobId);
-
-    if (
-      !job ||
-      job.merchantId !== input.merchantId ||
-      (input.createdByUserId && job.createdByUserId !== input.createdByUserId)
-    ) {
-      throw new ApiError(404, "VIDEO_EDIT_JOB_NOT_FOUND", "Video edit job not found.");
-    }
-
-    return advanceLocalDemoVideoJob(job);
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -545,37 +383,7 @@ export async function retryVideoEditJob(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    if (isLocalRealChainEnabled()) {
-      return retryLocalRealChainVideoEditJob(input.jobId);
-    }
-
-    const now = new Date().toISOString();
-    const updated: VideoEditJobDto = {
-      ...current,
-      status: "pending",
-      currentStage: "local_demo_pending_worker",
-      progressPct: 0,
-      failureReason: null,
-      runtimePayload: {},
-      resultPayload: {},
-      logPayload: {},
-      progressModules: normalizeVideoProgressModules({
-        status: "pending",
-        currentStage: "local_demo_pending_worker",
-        progressPct: 0,
-        runtimePayload: {},
-        resultPayload: {},
-        logPayload: {},
-      }),
-      startedAt: now,
-      finishedAt: null,
-      retryCount: current.retryCount + 1,
-      updatedAt: now,
-    };
-
-    demoVideoEditJobs.set(input.jobId, updated);
-
-    return updated;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -629,30 +437,7 @@ export async function cancelVideoEditJob(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    if (isLocalRealChainEnabled()) {
-      return cancelLocalRealChainVideoEditJob(input.jobId);
-    }
-
-    const now = new Date().toISOString();
-    const updated: VideoEditJobDto = {
-      ...current,
-      status: "cancelled",
-      currentStage: current.currentStage ?? "cancelled",
-      progressModules: normalizeVideoProgressModules({
-        status: "cancelled",
-        currentStage: current.currentStage ?? "cancelled",
-        progressPct: current.progressPct,
-        runtimePayload: current.runtimePayload,
-        resultPayload: current.resultPayload,
-        logPayload: current.logPayload,
-      }),
-      finishedAt: now,
-      updatedAt: now,
-    };
-
-    demoVideoEditJobs.set(input.jobId, updated);
-
-    return updated;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -712,82 +497,6 @@ export function mapVideoEditJob(row: VideoEditJobRow): VideoEditJobDto {
   };
 }
 
-function advanceLocalDemoVideoJob(job: VideoEditJobDto): VideoEditJobDto {
-  if (!["pending", "queued", "preparing", "running"].includes(job.status)) {
-    return job;
-  }
-
-  const startedAt = Date.parse(job.startedAt ?? job.updatedAt ?? job.createdAt);
-  if (!Number.isFinite(startedAt)) {
-    return job;
-  }
-
-  const elapsedMs = Date.now() - startedAt;
-  const step =
-    [...LOCAL_DEMO_JOB_TIMELINE]
-      .reverse()
-      .find((item) => elapsedMs >= item.elapsedMs) ?? LOCAL_DEMO_JOB_TIMELINE[0];
-  if (
-    job.status === step.status &&
-    job.currentStage === step.currentStage &&
-    job.progressPct === step.progressPct
-  ) {
-    return job;
-  }
-
-  const now = new Date().toISOString();
-  const succeeded = step.status === "succeeded";
-  const updated: VideoEditJobDto = {
-    ...job,
-    status: step.status,
-    currentStage: step.currentStage,
-    progressPct: step.progressPct,
-    runtimePayload: {
-      ...job.runtimePayload,
-      mode: "local_demo_memory",
-      simulatedWorker: true,
-    },
-    resultPayload: succeeded
-      ? buildLocalDemoResultPayload(job)
-      : job.resultPayload,
-    logPayload: {
-      ...job.logPayload,
-      local_demo: {
-        simulated: true,
-        stage: step.currentStage,
-        note: "Local demo mode simulates worker progress without rendering media.",
-      },
-    },
-    progressModules: normalizeVideoProgressModules({
-      status: step.status,
-      currentStage: step.currentStage,
-      progressPct: step.progressPct,
-      runtimePayload: job.runtimePayload,
-      resultPayload: succeeded ? buildLocalDemoResultPayload(job) : job.resultPayload,
-      logPayload: job.logPayload,
-    }),
-    finishedAt: succeeded ? (job.finishedAt ?? now) : null,
-    updatedAt: now,
-  };
-
-  demoVideoEditJobs.set(job.id, updated);
-
-  return updated;
-}
-
-function isSameVideoEditJobScope(
-  job: VideoEditJobDto,
-  scope: VideoEditJobDeduplicationScope,
-) {
-  return (
-    job.merchantId === scope.merchantId &&
-    (scope.createdByUserId === undefined ||
-      job.createdByUserId === (scope.createdByUserId ?? null)) &&
-    job.draftId === scope.draftId &&
-    job.contentVariantId === scope.contentVariantId
-  );
-}
-
 function isUniqueViolation(error: unknown) {
   return Boolean(
     error &&
@@ -797,62 +506,61 @@ function isUniqueViolation(error: unknown) {
   );
 }
 
-function buildLocalDemoResultPayload(job: VideoEditJobDto): Record<string, unknown> {
-  const directive = readRecord(job.inputPayload.productionDirective);
-  const desiredOutputs = Array.isArray(directive.desiredOutputs)
-    ? directive.desiredOutputs
-    : ["final_video"];
-
-  return {
-    engine: "local-demo-worker",
-    engine_adapter: "local_demo",
-    execution_mode: "local_demo_memory",
-    script_locked: readRecord(job.inputPayload.script).locked === true,
-    desired_outputs: desiredOutputs,
-    outputs: {
-      final_video: {
-        kind: "local_demo_preview_placeholder",
-        asset_id: `local-demo-preview-${job.id}`,
-        storage_key: `local-demo-preview/${job.id}.mp4`,
-      },
-    },
-    resultAssets: [
-      {
-        id: `local-demo-preview-${job.id}`,
-        ownerType: "content_variant",
-        ownerId: job.contentVariantId,
-        assetType: "video",
-        storageProvider: "supabase_storage",
-        bucketName: null,
-        storageKey: `local-demo-preview/${job.id}.mp4`,
-        originUrl: "data:video/mp4;base64,",
-        mimeType: "video/mp4",
-        fileSizeBytes: 0,
-        etag: null,
-        sortOrder: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: null,
-        signedPreviewUrl: "data:video/mp4;base64,",
-      },
-    ],
-    uploaded_assets: [],
-    preview_notice:
-      "Local demo mode returns a placeholder preview asset. Configure Supabase, COS, and video-worker for real rendered media.",
-  };
-}
-
-function readRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
 function toStringArray(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
   }
 
   return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function toProductionScenes(value: unknown): ContentVariantDto["productionScenes"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const scenes: NonNullable<ContentVariantDto["productionScenes"]> = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      continue;
+    }
+
+    const record = item as Record<string, unknown>;
+    scenes.push({
+      sceneNo: toPositiveInteger(record.sceneNo) ?? 0,
+      timeRange: toStringValue(record.timeRange),
+      sceneType: toNullableStringValue(record.sceneType),
+      requiresUserUpload: toNullableBooleanValue(record.requiresUserUpload),
+      shotRequirement: toStringValue(record.shotRequirement),
+      visual: toStringValue(record.visual),
+      voiceover: toStringValue(record.voiceover),
+      subtitle: toStringValue(record.subtitle),
+      materials: toStringArray(record.materials),
+      cameraMovement: toStringValue(record.cameraMovement),
+      purpose: toStringValue(record.purpose),
+      fallbackShot: toStringValue(record.fallbackShot),
+    });
+  }
+
+  return scenes;
+}
+
+function toStringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function toNullableStringValue(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+function toNullableBooleanValue(value: unknown) {
+  return typeof value === "boolean" ? value : null;
+}
+
+function toPositiveInteger(value: unknown) {
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
 }
 
 const videoEditJobSelect = [

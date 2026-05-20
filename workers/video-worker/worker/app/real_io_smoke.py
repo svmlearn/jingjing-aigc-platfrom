@@ -51,7 +51,7 @@ class InvalidRealSmokeEnvError(RuntimeError):
 @dataclass(frozen=True)
 class RealSmokeConfig:
     database_url: str = field(repr=False)
-    storage_provider: str = "tencent_cos"
+    storage_provider: str = "aliyun_oss"
     cos_secret_id: str = field(default="", repr=False)
     cos_secret_key: str = field(default="", repr=False)
     cos_bucket: str = ""
@@ -145,7 +145,7 @@ def _storage_provider(source: Mapping[str, str]) -> str:
     value = str(
         source.get("WORKER_STORAGE_PROVIDER")
         or source.get("STORAGE_PROVIDER")
-        or "tencent_cos"
+        or "aliyun_oss"
     ).strip().lower()
     if value not in SUPPORTED_STORAGE_PROVIDERS:
         raise InvalidRealSmokeEnvError(

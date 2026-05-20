@@ -1,4 +1,8 @@
-export type MediaOwnerType = "source_item" | "content_draft" | "content_variant" | "voice_profile";
+export type MediaOwnerType =
+  | "source_item"
+  | "content_draft"
+  | "content_variant"
+  | "voice_profile";
 
 export type MediaAssetType = "image" | "video" | "cover" | "subtitle" | "audio";
 

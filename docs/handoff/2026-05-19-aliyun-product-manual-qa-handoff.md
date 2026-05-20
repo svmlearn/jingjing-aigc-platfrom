@@ -113,4 +113,3 @@ Browser trial evidence:
 ## Next Step
 
 Give the PM the URL and the local credential file path. After manual trial, collect product feedback separately from infrastructure follow-up. The likely next engineering batch is TTS/voiceover or domain/HTTPS/ICP planning, not further no-voiceover baseline work.
-

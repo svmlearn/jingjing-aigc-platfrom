@@ -1,0 +1,3 @@
+display_name: 服务器时间测试
+short_description: 核实服务器时间并整理飞书测试记录
+default_prompt: 按服务器时间测试流程核实真实运行证据，整理处理时间表和运行附件。

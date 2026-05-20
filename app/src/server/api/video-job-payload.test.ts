@@ -5,6 +5,7 @@ import {
   VideoJobPayloadValidationError,
   buildVideoEditJobInputPayload,
 } from "./video-job-payload.ts";
+import type { PrivateMediaClipRecord } from "../../lib/private-media-pexels-adapter.ts";
 
 const approvedVariant = {
   contentVariantId: "variant-1",
@@ -29,7 +30,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
         assetType: "video",
         storageProvider: "tencent_cos",
         bucketName: "jj-content-staging-1341668543",
-        storageKey: "draft-inputs/demo.mp4",
+        storageKey: "draft-inputs/merchant-1/draft-1/talking-head.mp4",
         mimeType: "video/mp4",
         fileSizeBytes: 123456,
         etag: "etag",
@@ -53,7 +54,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     lockedFields: ["script", "cta", "target_user", "claims"],
   });
   assert.deepEqual(payload.productionConfig, {
-    voiceover: { enabled: true, provider: "bytedance_bigtts", volume: 2 },
+    voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
     subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
@@ -68,6 +69,9 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     selectionMode: "user_confirmed",
     fallbackMode: null,
     excludedAssetIds: [],
+    userTalkingHeadAssetIds: [],
+    merchantMediaCandidateCount: 0,
+    merchantMediaMatches: [],
     missingVideoAssetHints: [],
     sceneAssetQueries: [],
     assetMatchPlan: [],
@@ -78,7 +82,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
       asset_type: "video",
       storage_provider: "tencent_cos",
       bucket_name: "jj-content-staging-1341668543",
-      storage_key: "draft-inputs/demo.mp4",
+      storage_key: "draft-inputs/merchant-1/draft-1/talking-head.mp4",
       mime_type: "video/mp4",
       file_size_bytes: 123456,
       etag: "etag",
@@ -97,11 +101,205 @@ test("buildVideoEditJobInputPayload adds default production config", () => {
   });
 
   assert.deepEqual(payload.productionConfig, {
-    voiceover: { enabled: true, provider: "bytedance_bigtts", volume: 2 },
+    voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
     subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
   });
+});
+
+test("buildVideoEditJobInputPayload keeps non-talking-head jobs on script subtitles", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      productionScenes: [
+        {
+          sceneNo: 1,
+          shotRequirement: "Project entrance with nearby shops",
+          visual: "Show entrance and shops",
+        },
+      ],
+    },
+    materialReferences: [],
+    assets: [],
+  });
+
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "script");
+  assert.equal(payload.productionConfig.render.preserveTalkingHeadOriginalAudio, undefined);
+  assert.equal(payload.productionConfig.render.includeOriginalAudio, false);
+});
+
+test("buildVideoEditJobInputPayload requires at least one user talking-head draft video when enabled", () => {
+  assert.throws(
+    () =>
+      buildVideoEditJobInputPayload({
+        draftId: "draft-1",
+        variant: approvedVariant,
+        materialReferences: [],
+        assets: [],
+        merchantMediaClips: [merchantClip],
+        requireUserTalkingHead: true,
+      }),
+    (error) =>
+      error instanceof VideoJobPayloadValidationError &&
+      error.code === "VIDEO_USER_TALKING_HEAD_ASSET_REQUIRED" &&
+      error.status === 409,
+  );
+});
+
+test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merchant clips in materialContext", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      productionScenes: [
+        {
+          sceneNo: 2,
+          timeRange: "00:05-00:12",
+          shotRequirement: "Project entrance with nearby shops",
+          visual: "Show entrance and shops",
+          materials: ["entrance", "shops"],
+          fallbackShot: "Use lobby if entrance unavailable",
+        },
+      ],
+    },
+    materialReferences: [],
+    assets: [
+      {
+        id: "user-head-1",
+        assetType: "video",
+        storageProvider: "tencent_cos",
+        bucketName: "jj-content-staging-1341668543",
+        storageKey: "draft-inputs/merchant-1/draft-1/opening-talking-head.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+      },
+    ],
+    merchantMediaClips: [merchantClip],
+    requireUserTalkingHead: true,
+  });
+
+  assert.deepEqual(payload.input_assets.map((asset) => asset.asset_id), ["user-head-1"]);
+  assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["user-head-1"]);
+  assert.equal(payload.input_assets[0]?.role, "talking_head");
+  assert.deepEqual(payload.productionConfig.subtitles, {
+    enabled: true,
+    style: "platform_default",
+    talkingHeadSource: "asr_original_audio",
+  });
+  assert.deepEqual(payload.productionConfig.render, {
+    aspectRatio: "9:16",
+    includeOriginalAudio: true,
+    preserveTalkingHeadOriginalAudio: true,
+  });
+  assert.equal(payload.materialContext.merchantMediaCandidateCount, 1);
+  assert.deepEqual(payload.materialContext.merchantMediaMatches, [
+    {
+      sceneNo: 2,
+      query: "Project entrance with nearby shops Show entrance and shops entrance shops",
+      clipIds: ["merchant-clip-entrance"],
+      clips: [
+        {
+          clipId: "merchant-clip-entrance",
+          assetId: "merchant-asset-1",
+          mediaType: "video",
+          clipType: "segment",
+          bucketName: "jj-private-bucket",
+          cosKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
+          thumbCosKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
+          mimeType: "video/mp4",
+          durationSeconds: 5,
+          startTimeSeconds: 0,
+          endTimeSeconds: 5,
+          tags: ["project", "entrance", "shops"],
+          sceneTags: ["exterior"],
+          shotTags: ["wide"],
+          description: "Project entrance with nearby shops.",
+        },
+      ],
+    },
+  ]);
+  assert.deepEqual(payload.materialContext.assetMatchPlan, [
+    {
+      sceneNo: 2,
+      query: "Project entrance with nearby shops Show entrance and shops entrance shops",
+      matchedAssetIds: [],
+      missing: true,
+      reason: "no_video_asset",
+    },
+  ]);
+  const rawPayload = payload as Record<string, unknown>;
+  assert.equal(rawPayload.difyFinalJson, undefined);
+  assert.equal(rawPayload.difyRawOutputs, undefined);
+});
+
+test("buildVideoEditJobInputPayload marks intro/outro scenes as user talking head", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      productionScenes: [
+        {
+          sceneNo: 1,
+          timeRange: "00:00-00:05",
+          requiresUserUpload: true,
+          sceneType: "intro_talking_head",
+          shotRequirement: "真人口播开场",
+          visual: "经纪人出镜口播",
+          materials: ["user upload"],
+          fallbackShot: "Use uploaded phone clip",
+        },
+        {
+          sceneNo: 2,
+          timeRange: "00:05-00:12",
+          shotRequirement: "Project entrance with nearby shops",
+          visual: "Show entrance and shops",
+          materials: ["entrance", "shops"],
+          fallbackShot: "Use lobby if entrance unavailable",
+        },
+      ],
+    },
+    materialReferences: [],
+    assets: [
+      {
+        id: "user-head-1",
+        assetType: "video",
+        storageProvider: "tencent_cos",
+        bucketName: "jj-content-staging-1341668543",
+        storageKey: "draft-inputs/merchant-1/draft-1/opening-talking-head.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+      },
+    ],
+    merchantMediaClips: [merchantClip],
+    requireUserTalkingHead: true,
+  });
+
+  assert.deepEqual(
+    payload.materialContext.sceneAssetQueries.map((query) => ({
+      sceneNo: query.sceneNo,
+      sourceRole: query.sourceRole,
+    })),
+    [
+      { sceneNo: 1, sourceRole: "user_talking_head" },
+      { sceneNo: 2, sourceRole: "merchant_broll" },
+    ],
+  );
+  assert.deepEqual(
+    payload.materialContext.merchantMediaMatches.map((match) => ({
+      sceneNo: match.sceneNo,
+      clipIds: match.clipIds,
+    })),
+    [
+      { sceneNo: 1, clipIds: [] },
+      { sceneNo: 2, clipIds: ["merchant-clip-entrance"] },
+    ],
+  );
 });
 
 test("buildVideoEditJobInputPayload accepts Aliyun OSS input assets", () => {
@@ -133,6 +331,79 @@ test("buildVideoEditJobInputPayload accepts Aliyun OSS input assets", () => {
   assert.equal(payload.input_assets[0]?.storage_provider, "aliyun_oss");
   assert.equal(payload.input_assets[0]?.bucket_name, "jingjing-domestic-phase1-hz");
   assert.equal(payload.render_mode, "asset_driven");
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "script");
+  assert.equal(payload.productionConfig.render.includeOriginalAudio, false);
+});
+
+test("buildVideoEditJobInputPayload accepts Aliyun OSS user talking-head assets", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [
+      {
+        id: "asset-aliyun-head-1",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/merchant-1/draft-1/opening-talking-head.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+      },
+    ],
+    requireUserTalkingHead: true,
+    now: "2026-05-18T00:00:00.000Z",
+  });
+
+  assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["asset-aliyun-head-1"]);
+  assert.equal(payload.input_assets[0]?.storage_provider, "aliyun_oss");
+  assert.equal(payload.input_assets[0]?.role, "talking_head");
+  assert.deepEqual(payload.input_assets[0]?.metadata, {
+    content_type: "talking_head",
+    audio_source: "original_video_audio",
+    subtitle_source: "asr_original_audio",
+  });
+  assert.deepEqual(payload.productionConfig.subtitles, {
+    enabled: true,
+    style: "platform_default",
+    talkingHeadSource: "asr_original_audio",
+  });
+  assert.deepEqual(payload.productionConfig.render, {
+    aspectRatio: "9:16",
+    includeOriginalAudio: true,
+    preserveTalkingHeadOriginalAudio: true,
+  });
+});
+
+test("buildVideoEditJobInputPayload defaults structured talking-head assets to original-audio ASR", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [
+      {
+        id: "asset-structured-head-1",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "source-assets/merchant-1/asset-structured-head-1/source.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+        role: "talking_head",
+      },
+    ],
+    now: "2026-05-18T00:00:00.000Z",
+  });
+
+  assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["asset-structured-head-1"]);
+  assert.equal(payload.input_assets[0]?.role, "talking_head");
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "asr_original_audio");
+  assert.equal(payload.productionConfig.render.preserveTalkingHeadOriginalAudio, true);
+  assert.equal(payload.productionConfig.render.includeOriginalAudio, true);
 });
 
 test("buildVideoEditJobInputPayload normalizes production config overrides", () => {
@@ -162,6 +433,7 @@ test("buildVideoEditJobInputPayload normalizes production config overrides", () 
   assert.deepEqual(payload.productionConfig, {
     voiceover: {
       enabled: true,
+      mode: "system",
       provider: "minimax",
       voiceStyle: "warm_consultant",
       speed: 1.1,
@@ -213,7 +485,7 @@ test("buildVideoEditJobInputPayload accepts voice profile production config", ()
     refAudioAssetId: "22222222-2222-4222-8222-222222222222",
     volume: 2,
   });
-  assert.equal(payload.productionConfig.render.includeOriginalAudio, false);
+  assert.equal(payload.productionConfig.render.includeOriginalAudio, true);
   assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "asr_original_audio");
 });
 
@@ -369,6 +641,7 @@ test("buildVideoEditJobInputPayload exposes missing video hints from scene asset
       query: "项目外立面远景",
       visualRequirement: "项目外立面远景",
       fallbackShot: null,
+      sourceRole: "merchant_broll",
     },
   ]);
   assert.deepEqual(payload.materialContext.assetMatchPlan, [
@@ -399,7 +672,7 @@ test("buildVideoEditJobInputPayload only sends video assets to worker and orders
         assetType: "image",
         storageProvider: "tencent_cos",
         bucketName: " jj-content-staging-1341668543 ",
-        storageKey: " draft-inputs/cover.jpg ",
+        storageKey: " draft-inputs/merchant-1/draft-1/cover.jpg ",
         mimeType: "image/jpeg",
         fileSizeBytes: 456,
         etag: "etag-2",
@@ -410,7 +683,7 @@ test("buildVideoEditJobInputPayload only sends video assets to worker and orders
         assetType: "video",
         storageProvider: "tencent_cos",
         bucketName: "jj-content-staging-1341668543",
-        storageKey: "draft-inputs/demo.mp4",
+        storageKey: "draft-inputs/merchant-1/draft-1/demo.mp4",
         mimeType: "video/mp4",
         fileSizeBytes: 123,
         etag: "etag-1",
@@ -431,7 +704,7 @@ test("buildVideoEditJobInputPayload only sends video assets to worker and orders
       {
         asset_id: "asset-1",
         bucket_name: "jj-content-staging-1341668543",
-        storage_key: "draft-inputs/demo.mp4",
+        storage_key: "draft-inputs/merchant-1/draft-1/demo.mp4",
         sort_order: 1,
       },
     ],
@@ -462,7 +735,7 @@ test("buildVideoEditJobInputPayload builds scene asset queries from production s
         assetType: "video",
         storageProvider: "tencent_cos",
         bucketName: "jj-content-staging-1341668543",
-        storageKey: "draft-inputs/样板间-客厅.mp4",
+        storageKey: "draft-inputs/merchant-1/draft-1/样板间-客厅.mp4",
         mimeType: "video/mp4",
         fileSizeBytes: 123,
         etag: "etag",
@@ -478,15 +751,41 @@ test("buildVideoEditJobInputPayload builds scene asset queries from production s
       query: "样板间客厅横移 客厅空间感和采光 样板间 客厅",
       visualRequirement: "样板间客厅横移",
       fallbackShot: "用同户型空间细节替代",
+      sourceRole: "merchant_broll",
     },
   ]);
   assert.deepEqual(payload.materialContext.assetMatchPlan, [
     {
       sceneNo: 2,
       query: "样板间客厅横移 客厅空间感和采光 样板间 客厅",
-      matchedAssetIds: ["asset-living-room"],
-      missing: false,
-      reason: "filename_keyword_match",
+      matchedAssetIds: [],
+      missing: true,
+      reason: "no_video_asset",
     },
   ]);
 });
+
+const merchantClip: PrivateMediaClipRecord = {
+  id: "merchant-clip-entrance",
+  assetId: "merchant-asset-1",
+  merchantId: "merchant-1",
+  mediaType: "video",
+  status: "ready",
+  clipIndex: 0,
+  clipType: "segment",
+  startTimeSeconds: 0,
+  endTimeSeconds: 5,
+  width: 1080,
+  height: 1920,
+  durationSeconds: 5,
+  orientation: "portrait",
+  description: "Project entrance with nearby shops.",
+  tags: ["project", "entrance", "shops"],
+  sceneTags: ["exterior"],
+  shotTags: ["wide"],
+  bucketName: "jj-private-bucket",
+  cosKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
+  thumbCosKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
+  mimeType: "video/mp4",
+  createdAt: "2026-05-15T00:00:00.000Z",
+} as const;

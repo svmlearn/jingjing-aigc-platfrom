@@ -30,7 +30,7 @@ async def main():
     cfg = load_settings(default_config_path())
 
     artifact_store = ArtifactStore(cfg.project.outputs_dir, session_id=session_id)
-    agent, node_manager = await build_agent(cfg=cfg, session_id=session_id, store=artifact_store, tool_interceptors=[ToolInterceptor.inject_media_content_before, ToolInterceptor.save_media_content_after, ToolInterceptor.inject_tts_config])
+    agent, node_manager = await build_agent(cfg=cfg, session_id=session_id, store=artifact_store, tool_interceptors=[ToolInterceptor.inject_media_content_before, ToolInterceptor.save_media_content_after, ToolInterceptor.inject_tts_config, ToolInterceptor.inject_asr_config])
 
     context = ClientContext(
         cfg=cfg,

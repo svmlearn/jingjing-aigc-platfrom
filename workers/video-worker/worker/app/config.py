@@ -16,7 +16,7 @@ def _read_storage_provider() -> str:
     value = (
         os.getenv("WORKER_STORAGE_PROVIDER")
         or os.getenv("STORAGE_PROVIDER")
-        or "tencent_cos"
+        or "aliyun_oss"
     )
     normalized = value.strip().lower()
     if normalized not in SUPPORTED_STORAGE_PROVIDERS:

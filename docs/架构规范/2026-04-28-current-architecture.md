@@ -179,15 +179,15 @@ worker 只消费 `asset_objects` 中可下载的 COS 资产。
 -> app 展示结果
 ```
 
-### 5.2 本地/demo 模式
+### 5.2 本地运行与云端 Supabase
 
-无 Supabase admin 配置时，本地 job 只做 UI/demo 模拟推进。
+app 本地运行时也必须连接部署在云端的 Supabase，不再使用本地 Supabase、内存 demo 用户、内存 demo 商家或本地 real-chain 测试库作为业务数据源。
 
-本地 demo 会自动从 pending 推进到 succeeded，并写入 local demo result payload，但不会真实调用 worker、FireRed 或 COS。
+本地 `.env.local` 应配置云端 `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY` 和 `SUPABASE_SERVICE_ROLE_KEY`。缺少这些配置时，商家端登录、后台访问、平台后台和业务 API 必须明确失败，不能自动放行到 demo 模式。
 
 真实跑通必须依赖：
 
-- Supabase
+- 云端 Supabase
 - COS
 - server worker
 - Docker FireRed/OpenStoryline

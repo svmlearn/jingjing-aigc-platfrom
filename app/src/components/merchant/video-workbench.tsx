@@ -1,23 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useEffect, useEffectEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
   Clock,
+  Download,
   Film,
   Loader2,
   Maximize2,
+  Mic,
   Minimize2,
   PanelRightClose,
   PanelRightOpen,
   PlayCircle,
+  Radio,
   RefreshCw,
   Send,
   Sparkles,
+  Square,
   UploadCloud,
   Video,
+  Volume2,
   Wand2,
 } from "lucide-react";
 
@@ -26,6 +31,7 @@ import type { ContentDraftBundleDto, VideoScriptSceneDto } from "@/contracts/dra
 import type { MaterialLibraryItemDto } from "@/contracts/material";
 import type { PublicVideoEditJobDto, VideoEditProgressModuleDto } from "@/contracts/video";
 import { isVideoEditJobInFlightStatus } from "@/contracts/video";
+import type { VoiceProfileDto } from "@/contracts/voice";
 import {
   buildVideoJobStatusCopy,
   type VideoJobStatusCopyTone,
@@ -44,6 +50,7 @@ import {
   type DraftMediaAsset,
   formatAssetSize,
   uploadDraftMediaFile,
+  uploadVoiceProfileAudioFile,
 } from "@/lib/ui/video-workflow";
 
 type ApiErrorPayload = {
@@ -72,6 +79,19 @@ type SegmentUploadState = {
   stage?: DraftMediaUploadStage;
   fileName?: string;
   asset?: DraftMediaAsset;
+  error?: string;
+};
+
+type VoiceoverMode = "system" | "voice_profile";
+
+type VoiceProfileCreateState = {
+  displayName: string;
+  authorizationAccepted: boolean;
+  fileName?: string;
+  status: "idle" | "recording" | "uploading" | "creating" | "ready" | "failed";
+  progressPct: number;
+  stage?: DraftMediaUploadStage;
+  profile?: VoiceProfileDto;
   error?: string;
 };
 
@@ -126,6 +146,19 @@ export function VideoWorkbench({
   const [showCanvas, setShowCanvas] = useState(true);
   const [canvasExpanded, setCanvasExpanded] = useState(false);
   const [segmentUploads, setSegmentUploads] = useState<Record<number, SegmentUploadState>>({});
+  const [voiceoverMode, setVoiceoverMode] = useState<VoiceoverMode>("system");
+  const [systemVoiceProvider, setSystemVoiceProvider] = useState("bytedance_bigtts");
+  const [systemVoiceSpeaker, setSystemVoiceSpeaker] = useState("");
+  const [includeOriginalAudio, setIncludeOriginalAudio] = useState(false);
+  const [voiceProfiles, setVoiceProfiles] = useState<VoiceProfileDto[]>([]);
+  const [selectedVoiceProfileId, setSelectedVoiceProfileId] = useState("");
+  const [loadingVoiceProfiles, setLoadingVoiceProfiles] = useState(false);
+  const [voiceProfileCreate, setVoiceProfileCreate] = useState<VoiceProfileCreateState>({
+    displayName: "",
+    authorizationAccepted: false,
+    status: "idle",
+    progressPct: 0,
+  });
   const [messages, setMessages] = useState<VideoWorkbenchChatMessage[]>(
     buildInitialMessages(strategyTag ?? null),
   );
@@ -446,15 +479,19 @@ export function VideoWorkbench({
       setError("请先生成视频脚本。");
       return;
     }
-    if (selectedVariant.reviewStatus !== "approved") {
-      setError("请先确认脚本，再创建正式视频任务。");
-      return;
-    }
 
     setCreatingJob(true);
     setError(null);
 
     try {
+      const productionConfig = buildProductionConfig({
+        mode: voiceoverMode,
+        systemVoiceProvider,
+        systemVoiceSpeaker,
+        includeOriginalAudio,
+        voiceProfiles,
+        selectedVoiceProfileId,
+      });
       const response = await fetch("/api/video-edit-jobs", {
         method: "POST",
         headers: {
@@ -464,6 +501,7 @@ export function VideoWorkbench({
           contentVariantId: selectedVariant.id,
           instructionText: instructionOverride || extraRequirement || goal || selectedVariant.title,
           sourceJobId: sourceJobId ?? null,
+          productionConfig,
         }),
       });
       const data = (await response.json()) as {
@@ -584,6 +622,127 @@ export function VideoWorkbench({
       }));
       setError(message);
     }
+  }
+
+  async function loadVoiceProfiles() {
+    setLoadingVoiceProfiles(true);
+
+    try {
+      const response = await fetch("/api/voice-profiles", {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as {
+        voiceProfiles?: VoiceProfileDto[];
+        error?: { message?: string };
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error?.message ?? "克隆音色加载失败");
+      }
+
+      const profiles = data.voiceProfiles ?? [];
+      setVoiceProfiles(profiles);
+      setSelectedVoiceProfileId((current) =>
+        current && profiles.some((profile) => profile.id === current)
+          ? current
+          : profiles[0]?.id ?? "",
+      );
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "克隆音色加载失败");
+    } finally {
+      setLoadingVoiceProfiles(false);
+    }
+  }
+
+  async function createVoiceProfileFromFile(file: File) {
+    if (!isSupportedVoiceProfileAudioFile(file)) {
+      setError("克隆音色参考音频仅支持 wav、mp3、m4a、aac、ogg、opus、webm 音频文件。");
+      return;
+    }
+
+    if (!voiceProfileCreate.authorizationAccepted) {
+      setError("请先确认已获得声音克隆授权。");
+      return;
+    }
+
+    const displayName = voiceProfileCreate.displayName.trim() || file.name.replace(/\.[^.]+$/, "");
+
+    setError(null);
+    setVoiceProfileCreate((current) => ({
+      ...current,
+      displayName,
+      fileName: file.name,
+      status: "uploading",
+      stage: "preparing",
+      progressPct: 0,
+      error: undefined,
+    }));
+
+    try {
+      const data = await uploadVoiceProfileAudioFile({
+        displayName,
+        authorizationAccepted: true,
+        file,
+        onStageChange(stage) {
+          setVoiceProfileCreate((current) => ({
+            ...current,
+            status: "uploading",
+            stage,
+            progressPct: stage === "finalizing" ? 100 : current.progressPct,
+          }));
+        },
+        onProgress(progress) {
+          setVoiceProfileCreate((current) => ({
+            ...current,
+            status: "uploading",
+            stage: "uploading",
+            progressPct: normalizeUploadPercent(progress.percent),
+          }));
+        },
+      });
+
+      setVoiceProfiles((current) => [
+        data.voiceProfile,
+        ...current.filter((item) => item.id !== data.voiceProfile.id),
+      ]);
+      setSelectedVoiceProfileId(data.voiceProfile.id);
+      setVoiceoverMode("voice_profile");
+      setVoiceProfileCreate({
+        displayName: "",
+        authorizationAccepted: false,
+        fileName: file.name,
+        status: "ready",
+        progressPct: 100,
+        profile: data.voiceProfile,
+      });
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : "克隆音色创建失败";
+      setVoiceProfileCreate((current) => ({
+        ...current,
+        status: "failed",
+        error: message,
+      }));
+      setError(message);
+    }
+  }
+
+  function setVoiceProfileCreateRecording(active: boolean) {
+    setVoiceProfileCreate((current) => ({
+      ...current,
+      status: active ? "recording" : "idle",
+      progressPct: 0,
+      stage: undefined,
+      error: undefined,
+    }));
+  }
+
+  function setVoiceProfileCreateError(message: string) {
+    setVoiceProfileCreate((current) => ({
+      ...current,
+      status: "failed",
+      error: message,
+    }));
+    setError(message);
   }
 
   async function retryVideoJob(jobId: string) {
@@ -768,6 +927,11 @@ export function VideoWorkbench({
   }, [routeContext.strategyTag]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadVoiceProfiles();
+  }, []);
+
+  useEffect(() => {
     if (!selectedVariantId) {
       return;
     }
@@ -852,6 +1016,8 @@ export function VideoWorkbench({
   const resultVideoAsset =
     job?.resultAssets?.find((asset) => asset.assetType === "video") ?? job?.resultAssets?.[0] ?? null;
   const resultVideoPreviewUrl = resultVideoAsset?.signedPreviewUrl ?? resultVideoAsset?.originUrl ?? null;
+  const resultVideoDownloadUrl =
+    resultVideoAsset?.signedDownloadUrl ?? resultVideoPreviewUrl;
   const progressModules = job?.progressModules ?? [];
   const jobStatusCopy = job
     ? buildVideoJobStatusCopy({
@@ -908,14 +1074,14 @@ export function VideoWorkbench({
             className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-emerald-400 disabled:opacity-50"
           >
             {approvingScript ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-            {scriptApproved ? "脚本已确认" : "确认脚本"}
+            {scriptApproved ? "脚本已锁定" : "创建时自动锁定"}
           </button>
           <button
             type="button"
             onClick={() => {
               void createVideoJob();
             }}
-            disabled={creatingJob || Boolean(jobIsRunning) || !selectedVariant || !scriptApproved}
+            disabled={creatingJob || Boolean(jobIsRunning) || !selectedVariant}
             className="relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-white/70 transition-colors hover:bg-white/10 disabled:opacity-50"
           >
             {creatingJob || jobIsRunning ? (
@@ -923,7 +1089,7 @@ export function VideoWorkbench({
             ) : (
               <Wand2 className="h-3.5 w-3.5 text-amber-500" />
             )}
-            {jobIsRunning ? "AI 剪辑中" : scriptApproved ? "AI 一键剪辑" : "待确认脚本"}
+            {jobIsRunning ? "AI 剪辑中" : "AI 一键剪辑"}
           </button>
         </div>
       </div>
@@ -1054,7 +1220,28 @@ export function VideoWorkbench({
 
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
                 {selectedVariant ? (
-                  <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#080808]">
+                  <div className="space-y-5">
+                    <VoiceoverSettingsPanel
+                      mode={voiceoverMode}
+                      onModeChange={setVoiceoverMode}
+                      systemVoiceProvider={systemVoiceProvider}
+                      onSystemVoiceProviderChange={setSystemVoiceProvider}
+                      systemVoiceSpeaker={systemVoiceSpeaker}
+                      onSystemVoiceSpeakerChange={setSystemVoiceSpeaker}
+                      includeOriginalAudio={includeOriginalAudio}
+                      onIncludeOriginalAudioChange={setIncludeOriginalAudio}
+                      voiceProfiles={voiceProfiles}
+                      selectedVoiceProfileId={selectedVoiceProfileId}
+                      onSelectedVoiceProfileIdChange={setSelectedVoiceProfileId}
+                      loadingVoiceProfiles={loadingVoiceProfiles}
+                      createState={voiceProfileCreate}
+                      onCreateStateChange={setVoiceProfileCreate}
+                      onCreateFromFile={(file) => void createVoiceProfileFromFile(file)}
+                      onRecordingStateChange={setVoiceProfileCreateRecording}
+                      onRecordingError={setVoiceProfileCreateError}
+                    />
+
+                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#080808]">
                     <div className="grid grid-cols-12 border-b border-white/10 bg-[#050505] text-[10px] uppercase tracking-[0.2em] text-white/35">
                       <div className="col-span-2 border-r border-white/10 p-4 text-center">时长</div>
                       <div className="col-span-4 border-r border-white/10 p-4">画面 / 镜头要求</div>
@@ -1070,6 +1257,7 @@ export function VideoWorkbench({
                         onUpload={(file) => void uploadSegmentAsset(index, file)}
                       />
                     ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="flex h-full min-h-[420px] items-center justify-center">
@@ -1129,7 +1317,7 @@ export function VideoWorkbench({
                           重试任务
                         </button>
                       ) : null}
-                      {jobSucceeded && scriptApproved ? (
+                      {jobSucceeded && selectedVariant ? (
                         <button
                           type="button"
                           onClick={() => void createVideoJob(job.id)}
@@ -1143,11 +1331,24 @@ export function VideoWorkbench({
                     </div>
                   </div>
                   {resultVideoPreviewUrl ? (
-                    <video
-                      controls
-                      className="mt-5 aspect-video w-full rounded-2xl border border-white/10 bg-black"
-                      src={resultVideoPreviewUrl}
-                    />
+                    <div className="mt-5">
+                      <video
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="aspect-video w-full rounded-2xl border border-white/10 bg-black"
+                        src={resultVideoPreviewUrl}
+                      />
+                      {resultVideoDownloadUrl ? (
+                        <a
+                          href={resultVideoDownloadUrl}
+                          className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          下载成片
+                        </a>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -1200,6 +1401,306 @@ function VideoProgressModules({ modules }: { modules: VideoEditProgressModuleDto
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function VoiceoverSettingsPanel({
+  mode,
+  onModeChange,
+  systemVoiceProvider,
+  onSystemVoiceProviderChange,
+  systemVoiceSpeaker,
+  onSystemVoiceSpeakerChange,
+  includeOriginalAudio,
+  onIncludeOriginalAudioChange,
+  voiceProfiles,
+  selectedVoiceProfileId,
+  onSelectedVoiceProfileIdChange,
+  loadingVoiceProfiles,
+  createState,
+  onCreateStateChange,
+  onCreateFromFile,
+  onRecordingStateChange,
+  onRecordingError,
+}: {
+  mode: VoiceoverMode;
+  onModeChange: (mode: VoiceoverMode) => void;
+  systemVoiceProvider: string;
+  onSystemVoiceProviderChange: (provider: string) => void;
+  systemVoiceSpeaker: string;
+  onSystemVoiceSpeakerChange: (speaker: string) => void;
+  includeOriginalAudio: boolean;
+  onIncludeOriginalAudioChange: (value: boolean) => void;
+  voiceProfiles: VoiceProfileDto[];
+  selectedVoiceProfileId: string;
+  onSelectedVoiceProfileIdChange: (id: string) => void;
+  loadingVoiceProfiles: boolean;
+  createState: VoiceProfileCreateState;
+  onCreateStateChange: (updater: (current: VoiceProfileCreateState) => VoiceProfileCreateState) => void;
+  onCreateFromFile: (file: File) => void;
+  onRecordingStateChange: (active: boolean) => void;
+  onRecordingError: (message: string) => void;
+}) {
+  const isRecording = createState.status === "recording";
+  const isCreating = createState.status === "uploading" || createState.status === "creating";
+  const isBusy = isRecording || isCreating;
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+
+  useEffect(
+    () => () => {
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        recorder.onerror = null;
+        recorder.stop();
+      }
+      stopRecordingStream(recordingStreamRef.current);
+    },
+    [],
+  );
+
+  async function startRecording() {
+    if (!createState.authorizationAccepted) {
+      onRecordingError("请先确认已获得声音克隆授权。");
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      onRecordingError("当前浏览器不支持录音，请改用上传参考音频。");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = getSupportedRecordingMimeType();
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+      recordingChunksRef.current = [];
+      recordingStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+      recorder.onstop = () => {
+        const chunks = recordingChunksRef.current;
+        const recordedMimeType = recorder.mimeType || mimeType || "audio/webm";
+        stopRecordingStream(stream);
+        recordingStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        onRecordingStateChange(false);
+
+        if (chunks.length === 0) {
+          onRecordingError("没有录到有效声音，请重新录制或上传音频。");
+          return;
+        }
+
+        const extension = recordedMimeType.includes("ogg") ? "ogg" : "webm";
+        const blob = new Blob(chunks, { type: recordedMimeType });
+        const file = new File([blob], `voice-profile-recording-${Date.now()}.${extension}`, {
+          type: recordedMimeType,
+        });
+        onCreateFromFile(file);
+      };
+      recorder.onerror = () => {
+        stopRecordingStream(stream);
+        recordingStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        onRecordingError("录音失败，请重试或上传参考音频。");
+      };
+
+      recorder.start();
+      onRecordingStateChange(true);
+    } catch {
+      onRecordingError("无法访问麦克风，请检查浏览器授权或改用上传音频。");
+    }
+  }
+
+  function stopRecording() {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") {
+      return;
+    }
+    recorder.stop();
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#080808] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2 text-amber-400">
+            <Volume2 className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm text-white/80">配音</p>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/35">
+              voiceover
+            </p>
+          </div>
+        </div>
+
+        <label className="inline-flex items-center gap-2 text-xs text-white/55">
+          <input
+            type="checkbox"
+            checked={includeOriginalAudio}
+            onChange={(event) => onIncludeOriginalAudioChange(event.target.checked)}
+            className="h-4 w-4 accent-amber-500"
+          />
+          保留原视频声音
+        </label>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => onModeChange("system")}
+          className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+            mode === "system"
+              ? "border-amber-500/35 bg-amber-500/10 text-amber-100"
+              : "border-white/10 bg-white/[0.03] text-white/60 hover:bg-white/[0.06]"
+          }`}
+        >
+          <Radio className="h-4 w-4" />
+          <span className="text-sm">系统配音</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onModeChange("voice_profile")}
+          className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+            mode === "voice_profile"
+              ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-100"
+              : "border-white/10 bg-white/[0.03] text-white/60 hover:bg-white/[0.06]"
+          }`}
+        >
+          <Volume2 className="h-4 w-4" />
+          <span className="text-sm">我的克隆音色</span>
+        </button>
+      </div>
+
+      {mode === "system" ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <label className="grid gap-2 text-xs text-white/45">
+            Provider
+            <select
+              value={systemVoiceProvider}
+              onChange={(event) => onSystemVoiceProviderChange(event.target.value)}
+              className="h-10 rounded-xl border border-white/10 bg-[#050505] px-3 text-sm text-white/75 outline-none focus:border-amber-500/45"
+            >
+              <option value="bytedance_bigtts">ByteDance BigTTS</option>
+              <option value="minimax">Minimax</option>
+              <option value="302">302</option>
+            </select>
+          </label>
+          <label className="grid gap-2 text-xs text-white/45">
+            Speaker
+            <input
+              value={systemVoiceSpeaker}
+              onChange={(event) => onSystemVoiceSpeakerChange(event.target.value)}
+              placeholder="可选"
+              className="h-10 rounded-xl border border-white/10 bg-[#050505] px-3 text-sm text-white/75 outline-none placeholder:text-white/25 focus:border-amber-500/45"
+            />
+          </label>
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+          <label className="grid gap-2 text-xs text-white/45">
+            已有音色
+            <select
+              value={selectedVoiceProfileId}
+              onChange={(event) => onSelectedVoiceProfileIdChange(event.target.value)}
+              disabled={loadingVoiceProfiles || voiceProfiles.length === 0}
+              className="h-10 rounded-xl border border-white/10 bg-[#050505] px-3 text-sm text-white/75 outline-none disabled:opacity-50"
+            >
+              {voiceProfiles.length === 0 ? (
+                <option value="">暂无克隆音色</option>
+              ) : (
+                voiceProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.displayName}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="grid gap-3">
+              <input
+                value={createState.displayName}
+                onChange={(event) =>
+                  onCreateStateChange((current) => ({
+                    ...current,
+                    displayName: event.target.value,
+                  }))
+                }
+                placeholder="新音色名称"
+                className="h-10 rounded-xl border border-white/10 bg-[#050505] px-3 text-sm text-white/75 outline-none placeholder:text-white/25 focus:border-emerald-500/45"
+              />
+              <label className="flex items-start gap-2 text-xs leading-5 text-white/55">
+                <input
+                  type="checkbox"
+                  checked={createState.authorizationAccepted}
+                  onChange={(event) =>
+                    onCreateStateChange((current) => ({
+                      ...current,
+                      authorizationAccepted: event.target.checked,
+                    }))
+                  }
+                  className="mt-0.5 h-4 w-4 accent-emerald-500"
+                />
+                我确认已获得该声音用于克隆和视频配音的授权。
+              </label>
+              <label
+                className={`flex h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-3 text-center transition-colors ${
+                  isBusy
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                    : "border-white/10 bg-[#050505] text-white/40 hover:border-emerald-500/40 hover:text-emerald-300"
+                }`}
+              >
+                <input
+                  type="file"
+                  accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm"
+                  className="hidden"
+                  disabled={isBusy}
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (file) {
+                      onCreateFromFile(file);
+                    }
+                  }}
+                />
+                {isCreating ? <Loader2 className="h-5 w-5 animate-spin" /> : <UploadCloud className="h-5 w-5" />}
+                <span className="max-w-full truncate text-[10px] uppercase tracking-[0.16em]">
+                  {isCreating ? `${getVoiceProfileUploadStageLabel(createState)} ${createState.progressPct}%` : "上传参考音频"}
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={isRecording ? stopRecording : () => void startRecording()}
+                disabled={isCreating}
+                className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                  isRecording
+                    ? "border-rose-500/35 bg-rose-500/10 text-rose-100"
+                    : "border-white/10 bg-[#050505] text-white/55 hover:border-emerald-500/40 hover:text-emerald-300"
+                }`}
+              >
+                {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {isRecording ? "停止并创建音色" : "录音创建音色"}
+              </button>
+              {createState.error ? (
+                <p className="text-xs leading-5 text-rose-300">{createState.error}</p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1489,6 +1990,42 @@ function formatApiError(error: ApiErrorPayload | undefined, fallback: string) {
   return `${message}\n${questions.map((question) => `· ${question}`).join("\n")}`;
 }
 
+function buildProductionConfig(input: {
+  mode: VoiceoverMode;
+  systemVoiceProvider: string;
+  systemVoiceSpeaker: string;
+  includeOriginalAudio: boolean;
+  voiceProfiles: VoiceProfileDto[];
+  selectedVoiceProfileId: string;
+}) {
+  if (input.mode === "voice_profile") {
+    const profile = input.voiceProfiles.find((item) => item.id === input.selectedVoiceProfileId);
+    if (!profile) {
+      throw new Error("请选择一个可用的克隆音色，或先上传参考音频创建音色。");
+    }
+
+    return {
+      voiceover: {
+        enabled: true,
+        mode: "voice_profile",
+        voiceProfileId: profile.id,
+        refAudioAssetId: profile.refAudioAssetId,
+        includeOriginalAudio: input.includeOriginalAudio,
+      },
+    };
+  }
+
+  return {
+    voiceover: {
+      enabled: true,
+      mode: "system",
+      provider: input.systemVoiceProvider,
+      ...(input.systemVoiceSpeaker.trim() ? { speaker: input.systemVoiceSpeaker.trim() } : {}),
+      includeOriginalAudio: input.includeOriginalAudio,
+    },
+  };
+}
+
 function getSegmentUploadStageLabel(uploadState: SegmentUploadState) {
   if (uploadState.stage === "preparing") {
     return "领凭证";
@@ -1525,6 +2062,22 @@ function updateUploadInProgressState(
   };
 }
 
+function getVoiceProfileUploadStageLabel(state: VoiceProfileCreateState) {
+  if (state.status === "creating") {
+    return "登记音色";
+  }
+  if (state.status === "recording") {
+    return "录音中";
+  }
+  if (state.stage === "preparing") {
+    return "领取凭证";
+  }
+  if (state.stage === "finalizing") {
+    return "登记音频";
+  }
+  return "上传中";
+}
+
 function normalizeUploadPercent(value: number) {
   if (!Number.isFinite(value)) {
     return 0;
@@ -1540,6 +2093,30 @@ function isSupportedSegmentMediaFile(file: File) {
   }
 
   return /\.(avif|bmp|gif|jpe?g|m4v|mov|mp4|png|webm|webp)$/i.test(file.name);
+}
+
+function isSupportedVoiceProfileAudioFile(file: File) {
+  if (file.type.startsWith("audio/")) {
+    return true;
+  }
+
+  return /\.(aac|flac|m4a|mp3|ogg|opus|wav|webm)$/i.test(file.name);
+}
+
+function getSupportedRecordingMimeType() {
+  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) {
+    return "";
+  }
+
+  return (
+    ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/ogg"].find((mimeType) =>
+      MediaRecorder.isTypeSupported(mimeType),
+    ) ?? ""
+  );
+}
+
+function stopRecordingStream(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop());
 }
 
 function getProgressModuleStatusLabel(status: VideoEditProgressModuleDto["status"]) {

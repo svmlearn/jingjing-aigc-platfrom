@@ -125,4 +125,3 @@ Batch 10B should focus on worker storage/app integration:
   provider instead of hardcoded `tencent_cos`.
 - Only after the app contract passes, deploy worker and run render/final asset
   validation.
-

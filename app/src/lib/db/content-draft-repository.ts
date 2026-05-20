@@ -1,7 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
 import type { ContentDraftBundleDto, ContentDraftDto, ContentVariantDto } from "@/contracts/draft";
 import type { Platform } from "@/contracts/import";
 import {
@@ -21,6 +19,7 @@ import {
   pgListDraftBundlesByMerchant,
   pgUpdateContentVariantScript,
 } from "@/lib/db/postgres-video-chain-repository";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -49,6 +48,7 @@ type ContentVariantRow = {
   script_text: string | null;
   hashtags: unknown;
   cta_text: string | null;
+  production_scenes?: unknown;
   review_status: ContentVariantDto["reviewStatus"];
   created_at: string;
   updated_at: string;
@@ -71,24 +71,6 @@ type ContentVariantAccessRow = ContentVariantRow & {
     | null;
 };
 
-type LocalDemoContentDraftStore = {
-  sourceItems: Map<string, { id: string; merchantId: string }>;
-  draftBundles: Map<string, ContentDraftBundleDto>;
-};
-
-const globalDemoContentDraftStore = globalThis as typeof globalThis & {
-  __jingjingLocalDemoContentDraftStore?: LocalDemoContentDraftStore;
-};
-
-const demoContentDraftStore =
-  globalDemoContentDraftStore.__jingjingLocalDemoContentDraftStore ??
-  (globalDemoContentDraftStore.__jingjingLocalDemoContentDraftStore = {
-    sourceItems: new Map<string, { id: string; merchantId: string }>(),
-    draftBundles: new Map<string, ContentDraftBundleDto>(),
-  });
-const demoSourceItems = demoContentDraftStore.sourceItems;
-const demoDraftBundles = demoContentDraftStore.draftBundles;
-
 export async function createManualSourceItem(input: {
   merchantId: string;
   platform: Platform;
@@ -102,26 +84,7 @@ export async function createManualSourceItem(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const id = randomUUID();
-    demoSourceItems.set(id, {
-      id,
-      merchantId: input.merchantId,
-    });
-
-    if (isLocalRealChainEnabled()) {
-      await syncLocalRealChainOptional("LOCAL_REAL_CHAIN_SOURCE_ITEM_SYNC_FAILED", () =>
-        upsertLocalRealChainSourceItem({
-          id,
-          platform: input.platform,
-          title: input.title,
-          bodyText: input.bodyText,
-          scriptText: input.scriptText,
-          tracePayload: input.tracePayload,
-        }),
-      );
-    }
-
-    return { id };
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -174,53 +137,7 @@ export async function createDraftWithVariants(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
-    const draftId = randomUUID();
-    const variants: ContentVariantDto[] = input.variants.map((variant, index) => ({
-      id: randomUUID(),
-      draftId,
-      platform: variant.platform,
-      variantType: variant.variantType,
-      versionNo: index + 1,
-      title: variant.title ?? null,
-      bodyText: variant.bodyText ?? null,
-      scriptText: variant.scriptText ?? null,
-      hashtags: variant.hashtags ?? [],
-      ctaText: variant.ctaText ?? null,
-      productionScenes: variant.productionScenes ?? [],
-      reviewStatus: variant.reviewStatus ?? "editing",
-      createdAt: now,
-      updatedAt: now,
-    }));
-    const selectedVariant = variants[0] ?? null;
-    const draft: ContentDraftDto = {
-      id: draftId,
-      sourceItemId: input.sourceItemId,
-      merchantId: input.merchantId,
-      createdByUserId: input.createdByUserId ?? null,
-      workingTitle: input.workingTitle,
-      rewriteGoal: input.rewriteGoal ?? null,
-      inputSnapshot: input.inputSnapshot ?? null,
-      status: input.status ?? "review_pending",
-      selectedVariantId: selectedVariant?.id ?? null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const bundle = {
-      draft,
-      variants,
-      selectedVariant,
-    };
-
-    demoDraftBundles.set(draft.id, bundle);
-
-    if (isLocalRealChainEnabled()) {
-      await syncLocalRealChainOptional("LOCAL_REAL_CHAIN_DRAFT_SYNC_FAILED", () =>
-        upsertLocalRealChainDraftBundle(bundle),
-      );
-    }
-
-    return bundle;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -257,6 +174,7 @@ export async function createDraftWithVariants(input: {
         script_text: variant.scriptText ?? null,
         hashtags: variant.hashtags ?? [],
         cta_text: variant.ctaText ?? null,
+        production_scenes: variant.productionScenes ?? [],
         review_status: variant.reviewStatus ?? "editing",
       })),
     )
@@ -307,14 +225,7 @@ export async function listDraftBundlesByMerchant(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    return Array.from(demoDraftBundles.values())
-      .filter((bundle) => bundle.draft.merchantId === input.merchantId)
-      .filter(
-        (bundle) =>
-          !input.createdByUserId || bundle.draft.createdByUserId === input.createdByUserId,
-      )
-      .sort((a, b) => b.draft.createdAt.localeCompare(a.draft.createdAt))
-      .slice(0, input.limit ?? 50);
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -386,17 +297,7 @@ export async function getDraftBundleByMerchant(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const bundle = demoDraftBundles.get(input.draftId);
-
-    if (
-      !bundle ||
-      bundle.draft.merchantId !== input.merchantId ||
-      (input.createdByUserId && bundle.draft.createdByUserId !== input.createdByUserId)
-    ) {
-      throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
-    }
-
-    return bundle;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -447,40 +348,7 @@ export async function approveContentVariant(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    for (const [draftId, bundle] of demoDraftBundles.entries()) {
-      const variant = bundle.variants.find((item) => item.id === input.contentVariantId);
-
-      if (
-        !variant ||
-        bundle.draft.merchantId !== input.merchantId ||
-        (input.createdByUserId && bundle.draft.createdByUserId !== input.createdByUserId)
-      ) {
-        continue;
-      }
-
-      const now = new Date().toISOString();
-      const approvedVariant: ContentVariantDto = {
-        ...variant,
-        reviewStatus: "approved",
-        updatedAt: now,
-      };
-      const variants = bundle.variants.map((item) =>
-        item.id === approvedVariant.id ? approvedVariant : item,
-      );
-      demoDraftBundles.set(draftId, {
-        draft: {
-          ...bundle.draft,
-          selectedVariantId: approvedVariant.id,
-          updatedAt: now,
-        },
-        variants,
-        selectedVariant: approvedVariant,
-      });
-
-      return approvedVariant;
-    }
-
-    throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant not found.");
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -572,53 +440,7 @@ export async function appendContentVariantToDraft(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const bundle = demoDraftBundles.get(input.draftId);
-
-    if (
-      !bundle ||
-      bundle.draft.merchantId !== input.merchantId ||
-      (input.createdByUserId && bundle.draft.createdByUserId !== input.createdByUserId)
-    ) {
-      throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
-    }
-
-    const now = new Date().toISOString();
-    const variant: ContentVariantDto = {
-      id: randomUUID(),
-      draftId: input.draftId,
-      platform: input.platform,
-      variantType: input.variantType,
-      versionNo: Math.max(0, ...bundle.variants.map((item) => item.versionNo)) + 1,
-      title: input.title ?? null,
-      bodyText: input.bodyText ?? null,
-      scriptText: input.scriptText ?? null,
-      hashtags: input.hashtags ?? [],
-      ctaText: input.ctaText ?? null,
-      productionScenes: input.productionScenes ?? [],
-      reviewStatus: input.reviewStatus ?? "review_pending",
-      createdAt: now,
-      updatedAt: now,
-    };
-    const nextBundle = {
-      ...bundle,
-      draft: {
-        ...bundle.draft,
-        selectedVariantId: variant.id,
-        updatedAt: now,
-      },
-      variants: [...bundle.variants, variant],
-      selectedVariant: variant,
-    };
-
-    demoDraftBundles.set(input.draftId, nextBundle);
-
-    if (isLocalRealChainEnabled()) {
-      await syncLocalRealChainOptional("LOCAL_REAL_CHAIN_DRAFT_SYNC_FAILED", () =>
-        upsertLocalRealChainDraftBundle(nextBundle),
-      );
-    }
-
-    return variant;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -663,6 +485,7 @@ export async function appendContentVariantToDraft(input: {
       script_text: input.scriptText ?? null,
       hashtags: input.hashtags ?? [],
       cta_text: input.ctaText ?? null,
+      production_scenes: input.productionScenes ?? [],
       review_status: input.reviewStatus ?? "review_pending",
     })
     .select(contentVariantSelect)
@@ -713,57 +536,7 @@ export async function updateContentVariantScript(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    for (const [draftId, bundle] of demoDraftBundles.entries()) {
-      const variant = bundle.variants.find((item) => item.id === input.contentVariantId);
-
-      if (!variant || bundle.draft.merchantId !== input.merchantId) {
-        continue;
-      }
-
-      if (variant.variantType !== "video_script") {
-        throw new ApiError(
-          409,
-          "CONTENT_VARIANT_TYPE_MISMATCH",
-          "当前内容版本类型和操作要求不一致。",
-        );
-      }
-
-      const now = new Date().toISOString();
-      const updatedVariant: ContentVariantDto = {
-        ...variant,
-        title: input.title ?? variant.title,
-        scriptText: input.scriptText,
-        hashtags: input.hashtags ?? variant.hashtags,
-        ctaText: input.ctaText ?? variant.ctaText,
-        reviewStatus: input.reviewStatus ?? "review_pending",
-        updatedAt: now,
-      };
-      const variants = bundle.variants.map((item) =>
-        item.id === updatedVariant.id ? updatedVariant : item,
-      );
-      const nextBundle = {
-        ...bundle,
-        draft: {
-          ...bundle.draft,
-          selectedVariantId: updatedVariant.id,
-          updatedAt: now,
-        },
-        variants,
-        selectedVariant: updatedVariant,
-      };
-
-      demoDraftBundles.set(draftId, nextBundle);
-
-      if (isLocalRealChainEnabled()) {
-        await syncLocalRealChainOptional("LOCAL_REAL_CHAIN_DRAFT_SYNC_FAILED", () =>
-          upsertLocalRealChainDraftBundle(nextBundle),
-        );
-      }
-
-      return updatedVariant;
-    }
-
-    throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant not found.");
+    throw cloudSupabaseRequiredError();
   }
 
   const currentVariant = await assertContentVariantAccess({
@@ -839,38 +612,7 @@ export async function assertContentVariantAccess(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const variant = getLocalDemoContentVariantContext(input.contentVariantId);
-
-    if (
-      !variant ||
-      variant.merchantId !== input.merchantId ||
-      (input.createdByUserId && variant.createdByUserId !== input.createdByUserId)
-    ) {
-      throw new ApiError(404, "CONTENT_VARIANT_NOT_FOUND", "Content variant is not accessible.");
-    }
-
-    if (input.variantType && variant.variantType !== input.variantType) {
-      throw new ApiError(
-        409,
-        "CONTENT_VARIANT_TYPE_MISMATCH",
-        "当前内容版本类型和操作要求不一致。",
-      );
-    }
-
-    return {
-      merchantId: variant.merchantId,
-      createdByUserId: variant.createdByUserId ?? null,
-      draftId: variant.draftId,
-      contentVariantId: variant.contentVariantId,
-      variantType: variant.variantType,
-      title: variant.title,
-      bodyText: variant.bodyText,
-      scriptText: variant.scriptText,
-      hashtags: variant.hashtags,
-      ctaText: variant.ctaText,
-      reviewStatus: variant.reviewStatus,
-      inputSnapshot: variant.inputSnapshot ?? null,
-    };
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -936,30 +678,7 @@ export async function appendContentDraftRevisionTrace(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const bundle = demoDraftBundles.get(input.draftId);
-
-    if (
-      !bundle ||
-      bundle.draft.merchantId !== input.merchantId ||
-      (input.createdByUserId && bundle.draft.createdByUserId !== input.createdByUserId)
-    ) {
-      throw new ApiError(404, "CONTENT_DRAFT_NOT_FOUND", "Content draft not found.");
-    }
-
-    const snapshot = bundle.draft.inputSnapshot ?? {};
-    const traces = Array.isArray(snapshot.revisionTraces) ? snapshot.revisionTraces : [];
-    demoDraftBundles.set(input.draftId, {
-      ...bundle,
-      draft: {
-        ...bundle.draft,
-        inputSnapshot: {
-          ...snapshot,
-          revisionTraces: [...traces, input.trace],
-        },
-        updatedAt: new Date().toISOString(),
-      },
-    });
-    return;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1004,110 +723,6 @@ export async function appendContentDraftRevisionTrace(input: {
   }
 }
 
-export function getLocalDemoContentVariantContext(contentVariantId: string) {
-  if (isSupabaseAdminConfigured()) {
-    return null;
-  }
-
-  for (const bundle of demoDraftBundles.values()) {
-    const variant = bundle.variants.find((item) => item.id === contentVariantId);
-
-    if (!variant) {
-      continue;
-    }
-
-    return {
-      merchantId: bundle.draft.merchantId,
-      createdByUserId: bundle.draft.createdByUserId ?? null,
-      draftId: bundle.draft.id,
-      contentVariantId: variant.id,
-      variantType: variant.variantType,
-      title: variant.title,
-      bodyText: variant.bodyText,
-      scriptText: variant.scriptText,
-      hashtags: variant.hashtags,
-      ctaText: variant.ctaText,
-      productionScenes: variant.productionScenes,
-      reviewStatus: variant.reviewStatus,
-      inputSnapshot: bundle.draft.inputSnapshot,
-    };
-  }
-
-  return null;
-}
-
-export function getLocalDemoMediaOwnerContext(input: {
-  merchantId: string;
-  ownerType: "source_item" | "content_draft" | "content_variant";
-  ownerId: string;
-}) {
-  if (isSupabaseAdminConfigured()) {
-    return null;
-  }
-
-  if (input.ownerType === "source_item") {
-    const sourceItem = demoSourceItems.get(input.ownerId);
-
-    if (!sourceItem || sourceItem.merchantId !== input.merchantId) {
-      return null;
-    }
-
-    return {
-      ownerType: input.ownerType,
-      ownerId: sourceItem.id,
-      merchantId: sourceItem.merchantId,
-    };
-  }
-
-  if (input.ownerType === "content_draft") {
-    const bundle = demoDraftBundles.get(input.ownerId);
-
-    if (!bundle || bundle.draft.merchantId !== input.merchantId) {
-      return null;
-    }
-
-    return {
-      ownerType: input.ownerType,
-      ownerId: bundle.draft.id,
-      merchantId: bundle.draft.merchantId,
-      createdByUserId: bundle.draft.createdByUserId ?? null,
-      draftId: bundle.draft.id,
-    };
-  }
-
-  for (const bundle of demoDraftBundles.values()) {
-    const variant = bundle.variants.find((item) => item.id === input.ownerId);
-
-    if (!variant || bundle.draft.merchantId !== input.merchantId) {
-      continue;
-    }
-
-    return {
-      ownerType: input.ownerType,
-      ownerId: variant.id,
-      merchantId: bundle.draft.merchantId,
-      createdByUserId: bundle.draft.createdByUserId ?? null,
-      draftId: bundle.draft.id,
-      variantType: variant.variantType,
-    };
-  }
-
-  return null;
-}
-
-async function syncLocalRealChainOptional(
-  code: string,
-  sync: () => Promise<void>,
-) {
-  try {
-    await sync();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Local real-chain sync failed.";
-
-    console.warn(`[${code}] ${message}`);
-  }
-}
-
 function mapContentDraft(row: ContentDraftRow): ContentDraftDto {
   return {
     id: row.id,
@@ -1136,6 +751,7 @@ function mapContentVariant(row: ContentVariantRow): ContentVariantDto {
     scriptText: row.script_text,
     hashtags: toStringArray(row.hashtags),
     ctaText: row.cta_text,
+    productionScenes: toProductionScenes(row.production_scenes),
     reviewStatus: row.review_status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -1148,6 +764,55 @@ function toStringArray(value: unknown) {
   }
 
   return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function toProductionScenes(value: unknown): ContentVariantDto["productionScenes"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const scenes: NonNullable<ContentVariantDto["productionScenes"]> = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      continue;
+    }
+
+    const record = item as Record<string, unknown>;
+    scenes.push({
+      sceneNo: toPositiveInteger(record.sceneNo) ?? 0,
+      timeRange: toStringValue(record.timeRange),
+      sceneType: toNullableStringValue(record.sceneType),
+      requiresUserUpload: toNullableBooleanValue(record.requiresUserUpload),
+      shotRequirement: toStringValue(record.shotRequirement),
+      visual: toStringValue(record.visual),
+      voiceover: toStringValue(record.voiceover),
+      subtitle: toStringValue(record.subtitle),
+      materials: toStringArray(record.materials),
+      cameraMovement: toStringValue(record.cameraMovement),
+      purpose: toStringValue(record.purpose),
+      fallbackShot: toStringValue(record.fallbackShot),
+    });
+  }
+
+  return scenes;
+}
+
+function toStringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function toNullableStringValue(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+function toNullableBooleanValue(value: unknown) {
+  return typeof value === "boolean" ? value : null;
+}
+
+function toPositiveInteger(value: unknown) {
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
 }
 
 const contentDraftSelect = [
@@ -1175,6 +840,7 @@ const contentVariantSelect = [
   "script_text",
   "hashtags",
   "cta_text",
+  "production_scenes",
   "review_status",
   "created_at",
   "updated_at",

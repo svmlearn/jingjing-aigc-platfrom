@@ -191,14 +191,16 @@ class SplitShotsConfig(ConfigBaseModel):
     transnet_weights: Path = Field(..., description="Path to transnet_v2 weights")
     transnet_device: str = "cpu"
 
+
 class ASRConfig(ConfigBaseModel):
-    provider: str = "local_funasr"
+    provider: str = "aliyun_paraformer"
     model: str = "paraformer-realtime-v2"
     api_key: str = ""
     workspace: str = ""
     format: str = "wav"
     sample_rate: int = 16000
     language_hints: List[str] = Field(default_factory=lambda: ["zh", "en"])
+
 
 class UnderstandClipsConfig(ConfigBaseModel):
     sample_fps: float = 2.0

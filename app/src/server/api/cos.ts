@@ -25,7 +25,7 @@ export function assertSupportedMediaStorageProvider(storageProvider: MediaStorag
     throw new ApiError(
       400,
       "MEDIA_STORAGE_PROVIDER_UNSUPPORTED",
-      "New media uploads must use Tencent COS.",
+      "Tencent COS is only available for explicit legacy/reference operations.",
     );
   }
 }
@@ -91,10 +91,12 @@ export async function putCosObject(input: {
   };
 }
 
-export function createCosSignedPreviewUrl(input: {
+export function createCosSignedReadUrl(input: {
   storageKey: string;
   bucketName?: string | null;
   expiresInSeconds?: number;
+  responseContentDisposition?: "inline" | "attachment";
+  responseContentType?: string | null;
 }): string {
   return tencentCosProvider.createSignedReadUrl(input);
 }

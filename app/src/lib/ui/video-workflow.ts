@@ -32,6 +32,7 @@ export type DraftMediaAsset = {
   etag: string;
   sortOrder?: number | null;
   signedPreviewUrl?: string | null;
+  signedDownloadUrl?: string | null;
   originUrl?: string | null;
   createdAt?: string | null;
 };
@@ -278,7 +279,7 @@ function normalizeAsset(input: unknown): DraftMediaAsset | null {
   const ownerType = readString(input, "ownerType", "owner_type");
   const ownerId = readString(input, "ownerId", "owner_id");
   const assetType = readString(input, "assetType", "asset_type");
-  const storageProvider = readString(input, "storageProvider", "storage_provider") ?? "tencent_cos";
+  const storageProvider = readString(input, "storageProvider", "storage_provider") ?? "aliyun_oss";
   const bucketName = readString(input, "bucketName", "bucket_name") ?? "";
   const storageKey = readString(input, "storageKey", "storage_key") ?? "";
   const mimeType = readString(input, "mimeType", "mime_type") ?? "application/octet-stream";
@@ -303,6 +304,10 @@ function normalizeAsset(input: unknown): DraftMediaAsset | null {
     etag,
     sortOrder,
     signedPreviewUrl:
+      readString(input, "signedPreviewUrl", "signed_preview_url", "previewUrl", "preview_url") ??
+      readString(input, "originUrl", "origin_url"),
+    signedDownloadUrl:
+      readString(input, "signedDownloadUrl", "signed_download_url", "downloadUrl", "download_url") ??
       readString(input, "signedPreviewUrl", "signed_preview_url", "previewUrl", "preview_url") ??
       readString(input, "originUrl", "origin_url"),
     originUrl: readString(input, "originUrl", "origin_url"),
@@ -722,7 +727,7 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
   });
 
   const source = readNestedRecord(response, "uploadIntent", "intent", "credentials") ?? response;
-  const provider = readString(source, "provider", "storageProvider") ?? "tencent_cos";
+  const provider = readString(source, "provider", "storageProvider") ?? "aliyun_oss";
   const bucket = readString(source, "bucket");
   const region = readString(source, "region");
   const endpoint = readString(source, "endpoint");

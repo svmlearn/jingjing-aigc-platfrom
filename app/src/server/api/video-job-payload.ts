@@ -1,5 +1,6 @@
 import type { BgmFilter, ProductionConfig, VoiceoverProvider } from "@/contracts/video";
 import { tokenizeMaterialRetrievalQuery } from "../../lib/material-retrieval.ts";
+import type { PrivateMediaClipRecord } from "../../lib/private-media-pexels-adapter.ts";
 
 export type VideoJobPayloadAsset = {
   id: string;
@@ -11,6 +12,11 @@ export type VideoJobPayloadAsset = {
   fileSizeBytes?: number | null;
   etag?: string | null;
   sortOrder: number;
+  role?: string | null;
+  sceneType?: string | null;
+  tags?: string[] | null;
+  labels?: string[] | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type VideoJobPayloadMaterialReference = {
@@ -33,6 +39,8 @@ export type VideoJobPayloadSceneInput = {
   visual?: string | null;
   materials?: string[] | null;
   fallbackShot?: string | null;
+  requiresUserUpload?: boolean | null;
+  sceneType?: string | null;
 };
 
 export type VideoEditJobInputAsset = {
@@ -45,6 +53,11 @@ export type VideoEditJobInputAsset = {
   file_size_bytes: number | null;
   etag: string | null;
   sort_order: number;
+  role?: string;
+  scene_type?: string;
+  tags?: string[];
+  labels?: string[];
+  metadata?: Record<string, unknown>;
 };
 
 export type VideoEditJobSceneAssetQuery = {
@@ -53,6 +66,7 @@ export type VideoEditJobSceneAssetQuery = {
   query: string;
   visualRequirement: string;
   fallbackShot: string | null;
+  sourceRole: "user_talking_head" | "merchant_broll";
 };
 
 export type VideoEditJobAssetMatchPlanItem = {
@@ -64,6 +78,31 @@ export type VideoEditJobAssetMatchPlanItem = {
     | "filename_keyword_match"
     | "draft_video_assets_available_no_scene_index"
     | "no_video_asset";
+};
+
+export type VideoEditJobMerchantMediaMatch = {
+  sceneNo: number;
+  query: string;
+  clipIds: string[];
+  clips: VideoEditJobMerchantMediaClip[];
+};
+
+export type VideoEditJobMerchantMediaClip = {
+  clipId: string;
+  assetId: string | null;
+  mediaType: "image" | "video";
+  clipType: string | null;
+  bucketName: string;
+  cosKey: string;
+  thumbCosKey: string | null;
+  mimeType: string;
+  durationSeconds: number | null;
+  startTimeSeconds: number | null;
+  endTimeSeconds: number | null;
+  tags: string[];
+  sceneTags: string[];
+  shotTags: string[];
+  description: string;
 };
 
 export type VideoEditJobInputPayload = {
@@ -91,6 +130,9 @@ export type VideoEditJobInputPayload = {
     selectionMode: "user_confirmed" | "none";
     fallbackMode: string | null;
     excludedAssetIds: string[];
+    userTalkingHeadAssetIds: string[];
+    merchantMediaCandidateCount: number;
+    merchantMediaMatches: VideoEditJobMerchantMediaMatch[];
     missingVideoAssetHints: string[];
     sceneAssetQueries: VideoEditJobSceneAssetQuery[];
     assetMatchPlan: VideoEditJobAssetMatchPlanItem[];
@@ -131,12 +173,13 @@ const allowedTalkingHeadSubtitleSources = new Set(["script", "asr_original_audio
 const allowedBgmFilterKeys = new Set(["mood", "scene", "genre", "lang", "id"]);
 
 type WorkerInputStorageProvider = "tencent_cos" | "aliyun_oss";
+type TalkingHeadSubtitleSource = "script" | "asr_original_audio";
 
 type NormalizedProductionConfig = {
   voiceover:
     | {
         enabled: boolean;
-        mode?: "system";
+        mode: "system";
         provider: VoiceoverProvider;
         speaker?: string;
         voiceStyle?: string;
@@ -161,12 +204,13 @@ type NormalizedProductionConfig = {
   subtitles: {
     enabled: boolean;
     style: "platform_default" | "bold_caption";
-    talkingHeadSource: "script" | "asr_original_audio";
+    talkingHeadSource: TalkingHeadSubtitleSource;
   };
   render: {
     aspectRatio: "9:16";
     maxDurationSeconds?: number;
     includeOriginalAudio: boolean;
+    preserveTalkingHeadOriginalAudio?: boolean;
   };
 };
 
@@ -175,13 +219,15 @@ export function buildVideoEditJobInputPayload(input: {
   variant: VideoJobPayloadVariant;
   materialReferences: VideoJobPayloadMaterialReference[];
   assets: VideoJobPayloadAsset[];
+  merchantMediaClips?: PrivateMediaClipRecord[];
+  requireUserTalkingHead?: boolean;
   productionConfig?: ProductionConfig | null;
   now?: string;
 }): VideoEditJobInputPayload {
   assertApprovedScript(input.variant);
 
   const excludedAssets = input.assets.filter((asset) => asset.assetType !== "video");
-  const inputAssets = input.assets
+  const rawInputAssets = input.assets
     .filter((asset) => asset.assetType === "video")
     .map(mapInputAsset)
     .sort(
@@ -192,9 +238,31 @@ export function buildVideoEditJobInputPayload(input: {
   const materialReferenceIds = uniqueStrings(input.materialReferences.map((item) => item.id));
   const materialIds = uniqueStrings(input.materialReferences.map((item) => item.materialItemId));
   const sceneAssetQueries = buildSceneAssetQueries(input.variant);
+  const shouldUseTalkingHeadDefaults =
+    input.requireUserTalkingHead === true ||
+    sceneAssetQueries.some((query) => query.sourceRole === "user_talking_head");
+  const userTalkingHeadAssetIds = rawInputAssets
+    .filter((asset) =>
+      isUserTalkingHeadAsset(asset, input.draftId, {
+        allowDraftInputHeuristic: shouldUseTalkingHeadDefaults,
+      }),
+    )
+    .map((asset) => asset.asset_id);
+  const userTalkingHeadAssetIdSet = new Set(userTalkingHeadAssetIds);
+  const shouldApplyTalkingHeadDefaults =
+    shouldUseTalkingHeadDefaults || userTalkingHeadAssetIds.length > 0;
+  const inputAssets = rawInputAssets.map((asset) =>
+    userTalkingHeadAssetIdSet.has(asset.asset_id) && shouldApplyTalkingHeadDefaults
+      ? markTalkingHeadInputAsset(asset)
+      : asset,
+  );
   const assetMatchPlan = buildAssetMatchPlan({
     sceneAssetQueries,
     inputAssets,
+  });
+  const merchantMediaMatches = buildMerchantMediaMatches({
+    sceneAssetQueries,
+    merchantMediaClips: input.merchantMediaClips ?? [],
   });
 
   if (materialReferenceIds.length > 0 && inputAssets.length === 0) {
@@ -202,6 +270,13 @@ export function buildVideoEditJobInputPayload(input: {
       409,
       "VIDEO_CONFIRMED_MATERIAL_ASSET_REQUIRED",
       "Confirmed video materials do not have downloadable input assets.",
+    );
+  }
+  if (input.requireUserTalkingHead && userTalkingHeadAssetIds.length === 0) {
+    throw new VideoJobPayloadValidationError(
+      409,
+      "VIDEO_USER_TALKING_HEAD_ASSET_REQUIRED",
+      "请先上传至少一段开头或结尾真人口播视频，再创建 AI 剪辑任务。",
     );
   }
 
@@ -219,7 +294,10 @@ export function buildVideoEditJobInputPayload(input: {
       desiredOutputs: [...desiredOutputs],
       lockedFields: [...lockedFields],
     },
-    productionConfig: normalizeProductionConfig(input.productionConfig),
+    productionConfig: normalizeProductionConfig(input.productionConfig, {
+      defaultTalkingHeadOriginalAudio:
+        shouldApplyTalkingHeadDefaults && userTalkingHeadAssetIds.length > 0,
+    }),
     materialContext: {
       retrievalTarget: "video_edit_asset",
       assetPlanId: null,
@@ -230,8 +308,13 @@ export function buildVideoEditJobInputPayload(input: {
       selectionMode: materialReferenceIds.length > 0 ? "user_confirmed" : "none",
       fallbackMode: materialReferenceIds.length > 0 ? null : "no_material_reference",
       excludedAssetIds: excludedAssets.map((asset) => asset.id),
+      userTalkingHeadAssetIds,
+      merchantMediaCandidateCount: (input.merchantMediaClips ?? []).filter(
+        (clip) => clip.status === "ready" && clip.mediaType === "video",
+      ).length,
+      merchantMediaMatches,
       missingVideoAssetHints:
-        inputAssets.length > 0
+        inputAssets.length > 0 || merchantMediaMatches.some((match) => match.clipIds.length > 0)
           ? []
           : buildMissingVideoAssetHints({
               sceneAssetQueries,
@@ -272,6 +355,7 @@ function buildSceneAssetQueries(
         ]).join(" "),
         visualRequirement,
         fallbackShot: normalizeOptionalString(scene.fallbackShot) ?? null,
+        sourceRole: inferSceneSourceRole(scene),
       };
     })
     .filter((item): item is VideoEditJobSceneAssetQuery => Boolean(item));
@@ -292,6 +376,16 @@ function buildAssetMatchPlan(input: {
   }
 
   return input.sceneAssetQueries.map((sceneQuery) => {
+    if (sceneQuery.sourceRole === "merchant_broll") {
+      return {
+        sceneNo: sceneQuery.sceneNo,
+        query: sceneQuery.query,
+        matchedAssetIds: [],
+        missing: true,
+        reason: "no_video_asset" as const,
+      };
+    }
+
     if (input.inputAssets.length === 0) {
       return {
         sceneNo: sceneQuery.sceneNo,
@@ -318,8 +412,116 @@ function buildAssetMatchPlan(input: {
   });
 }
 
+function buildMerchantMediaMatches(input: {
+  sceneAssetQueries: VideoEditJobSceneAssetQuery[];
+  merchantMediaClips: PrivateMediaClipRecord[];
+}): VideoEditJobMerchantMediaMatch[] {
+  if (input.sceneAssetQueries.length === 0) {
+    return [];
+  }
+
+  const readyVideoClips = input.merchantMediaClips.filter(
+    (clip) => clip.status === "ready" && clip.mediaType === "video",
+  );
+
+  return input.sceneAssetQueries.map((query) => {
+    if (query.sourceRole === "user_talking_head") {
+      return {
+        sceneNo: query.sceneNo,
+        query: query.query,
+        clipIds: [],
+        clips: [],
+      };
+    }
+
+    const matchedClips = matchMerchantMediaClipsByQuery(query.query, readyVideoClips).slice(0, 6);
+
+    return {
+      sceneNo: query.sceneNo,
+      query: query.query,
+      clipIds: matchedClips.map((clip) => clip.id),
+      clips: matchedClips.map(mapMerchantMediaClipForPayload),
+    };
+  });
+}
+
+function matchMerchantMediaClipsByQuery(
+  query: string,
+  clips: PrivateMediaClipRecord[],
+) {
+  const terms = tokenizeMaterialRetrievalQuery(query);
+
+  if (terms.length === 0) {
+    return clips.slice(0, 6);
+  }
+
+  return clips
+    .map((clip) => ({
+      clip,
+      score: scoreMerchantMediaClip(clip, terms),
+    }))
+    .filter((item) => item.score > 0)
+    .sort((left, right) => {
+      const scoreDelta = right.score - left.score;
+
+      if (scoreDelta !== 0) {
+        return scoreDelta;
+      }
+
+      const createdDelta = right.clip.createdAt.localeCompare(left.clip.createdAt);
+
+      if (createdDelta !== 0) {
+        return createdDelta;
+      }
+
+      return left.clip.id.localeCompare(right.clip.id);
+    })
+    .map((item) => item.clip);
+}
+
+function scoreMerchantMediaClip(clip: PrivateMediaClipRecord, terms: string[]) {
+  const haystack = [
+    clip.description,
+    clip.cosKey,
+    ...clip.tags,
+    ...(clip.industryTags ?? []),
+    ...(clip.sceneTags ?? []),
+    ...(clip.shotTags ?? []),
+    ...(clip.peopleTags ?? []),
+    ...(clip.qualityTags ?? []),
+  ]
+    .join(" ")
+    .normalize("NFKC")
+    .toLowerCase();
+
+  return terms.filter((term) => haystack.includes(term)).length;
+}
+
+function mapMerchantMediaClipForPayload(
+  clip: PrivateMediaClipRecord,
+): VideoEditJobMerchantMediaClip {
+  return {
+    clipId: clip.id,
+    assetId: clip.assetId ?? null,
+    mediaType: clip.mediaType,
+    clipType: clip.clipType ?? null,
+    bucketName: clip.bucketName,
+    cosKey: clip.cosKey,
+    thumbCosKey: clip.thumbCosKey ?? null,
+    mimeType: clip.mimeType,
+    durationSeconds: clip.durationSeconds ?? null,
+    startTimeSeconds: clip.startTimeSeconds ?? null,
+    endTimeSeconds: clip.endTimeSeconds ?? null,
+    tags: clip.tags,
+    sceneTags: clip.sceneTags ?? [],
+    shotTags: clip.shotTags ?? [],
+    description: clip.description,
+  };
+}
+
 function normalizeProductionConfig(
   input: ProductionConfig | null | undefined,
+  options: { defaultTalkingHeadOriginalAudio?: boolean } = {},
 ): NormalizedProductionConfig {
   const voiceover = input?.voiceover ?? {};
   const voiceoverMode = voiceover.mode ?? "system";
@@ -332,19 +534,28 @@ function normalizeProductionConfig(
   if (!allowedSubtitleStyles.has(subtitleStyle)) {
     throwInvalidProductionConfig("Unsupported subtitle style.");
   }
-  const talkingHeadSource = subtitles.talkingHeadSource ?? "script";
+  const talkingHeadSource =
+    subtitles.talkingHeadSource ??
+    (options.defaultTalkingHeadOriginalAudio ? "asr_original_audio" : "script");
   if (!allowedTalkingHeadSubtitleSources.has(talkingHeadSource)) {
-    throwInvalidProductionConfig("Unsupported talking head subtitle source.");
+    throwInvalidProductionConfig("Unsupported talking-head subtitle source.");
   }
 
   const render = input?.render ?? {};
+  const preserveTalkingHeadOriginalAudio =
+    render.preserveTalkingHeadOriginalAudio ?? talkingHeadSource === "asr_original_audio";
   const normalizedRender: NormalizedProductionConfig["render"] = {
     aspectRatio: render.aspectRatio ?? "9:16",
     includeOriginalAudio:
-      "includeOriginalAudio" in voiceover && typeof voiceover.includeOriginalAudio === "boolean"
+      preserveTalkingHeadOriginalAudio
+        ? true
+        : "includeOriginalAudio" in voiceover && typeof voiceover.includeOriginalAudio === "boolean"
         ? voiceover.includeOriginalAudio
         : render.includeOriginalAudio ?? false,
   };
+  if (preserveTalkingHeadOriginalAudio) {
+    normalizedRender.preserveTalkingHeadOriginalAudio = true;
+  }
   if (normalizedRender.aspectRatio !== "9:16") {
     throwInvalidProductionConfig("Unsupported render aspect ratio.");
   }
@@ -415,6 +626,7 @@ function normalizeVoiceover(
 
   const normalized: NormalizedProductionConfig["voiceover"] = {
     enabled: voiceover.enabled ?? true,
+    mode: "system",
     provider,
     volume,
   };
@@ -534,6 +746,28 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
     file_size_bytes: asset.fileSizeBytes ?? null,
     etag: asset.etag ?? null,
     sort_order: asset.sortOrder,
+    ...normalizeInputAssetClassification(asset),
+  };
+}
+
+function normalizeInputAssetClassification(
+  asset: VideoJobPayloadAsset,
+): Pick<VideoEditJobInputAsset, "role" | "scene_type" | "tags" | "labels" | "metadata"> {
+  const role = normalizeOptionalString(asset.role);
+  const sceneType = normalizeOptionalString(asset.sceneType);
+  const tags = Array.isArray(asset.tags) ? uniqueStrings(asset.tags) : [];
+  const labels = Array.isArray(asset.labels) ? uniqueStrings(asset.labels) : [];
+  const metadata =
+    asset.metadata && typeof asset.metadata === "object" && !Array.isArray(asset.metadata)
+      ? asset.metadata
+      : null;
+
+  return {
+    ...(role ? { role } : {}),
+    ...(sceneType ? { scene_type: sceneType } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
+    ...(labels.length > 0 ? { labels } : {}),
+    ...(metadata ? { metadata } : {}),
   };
 }
 
@@ -573,8 +807,43 @@ function extractSceneAssetQueriesFromScript(
         query: query || line,
         visualRequirement: query || line,
         fallbackShot: null,
+        sourceRole: "merchant_broll" as const,
       };
     });
+}
+
+function inferSceneSourceRole(scene: VideoJobPayloadSceneInput): VideoEditJobSceneAssetQuery["sourceRole"] {
+  if (scene.requiresUserUpload === true) {
+    return "user_talking_head";
+  }
+
+  const sceneType = normalizeOptionalString(scene.sceneType)?.normalize("NFKC").toLowerCase() ?? "";
+  const text = [
+    scene.shotRequirement,
+    scene.visual,
+    scene.fallbackShot,
+    ...(scene.materials ?? []),
+  ]
+    .join(" ")
+    .normalize("NFKC")
+    .toLowerCase();
+
+  if (
+    sceneType.includes("intro") ||
+    sceneType.includes("outro") ||
+    sceneType.includes("talking") ||
+    sceneType.includes("口播") ||
+    sceneType.includes("真人") ||
+    sceneType.includes("出镜") ||
+    text.includes("talking head") ||
+    text.includes("口播") ||
+    text.includes("真人") ||
+    text.includes("出镜")
+  ) {
+    return "user_talking_head";
+  }
+
+  return "merchant_broll";
 }
 
 function matchInputAssetsByQuery(
@@ -602,6 +871,73 @@ function matchInputAssetsByQuery(
   });
 }
 
+function isUserTalkingHeadAsset(
+  asset: VideoEditJobInputAsset,
+  draftId: string,
+  options: { allowDraftInputHeuristic?: boolean } = {},
+) {
+  if (asset.asset_type !== "video") {
+    return false;
+  }
+  if (!allowedWorkerInputStorageProviders.has(asset.storage_provider as WorkerInputStorageProvider)) {
+    return false;
+  }
+  if (assetHasTalkingHeadClassification(asset)) {
+    return true;
+  }
+  return (
+    options.allowDraftInputHeuristic === true &&
+    asset.storage_key.startsWith("draft-inputs/") &&
+    asset.storage_key.includes(`/${draftId}/`)
+  );
+}
+
+function markTalkingHeadInputAsset(asset: VideoEditJobInputAsset): VideoEditJobInputAsset {
+  return {
+    ...asset,
+    role: "talking_head",
+    scene_type: "talking_head",
+    tags: uniqueStrings([...(asset.tags ?? []), "talking_head"]),
+    labels: uniqueStrings([...(asset.labels ?? []), "talking_head"]),
+    metadata: {
+      ...(asset.metadata ?? {}),
+      content_type: "talking_head",
+      audio_source: "original_video_audio",
+      subtitle_source: "asr_original_audio",
+    },
+  };
+}
+
+function assetHasTalkingHeadClassification(asset: VideoEditJobInputAsset) {
+  const values = [
+    asset.role,
+    asset.scene_type,
+    ...(asset.tags ?? []),
+    ...(asset.labels ?? []),
+  ];
+  if (asset.metadata && typeof asset.metadata === "object") {
+    for (const key of ["role", "scene_type", "sceneType", "asset_type", "assetType", "content_type"]) {
+      const value = asset.metadata[key];
+      if (typeof value === "string") {
+        values.push(value);
+      }
+    }
+    for (const key of ["tags", "labels"]) {
+      const value = asset.metadata[key];
+      if (Array.isArray(value)) {
+        values.push(...value.map((item) => String(item)));
+      }
+    }
+  }
+
+  const normalized = values
+    .map((value) => String(value ?? "").trim().toLowerCase().replace(/_/g, "-"))
+    .filter(Boolean);
+  return normalized.some((value) =>
+    ["talking-head", "talkinghead", "user-talking-head", "真人口播", "口播", "出镜讲解", "人物讲解"].includes(value),
+  );
+}
+
 function buildMissingVideoAssetHints(input: {
   sceneAssetQueries: VideoEditJobSceneAssetQuery[];
 }) {
@@ -612,7 +948,7 @@ function buildMissingVideoAssetHints(input: {
 
   return hints.length
     ? hints
-    : ["当前草稿没有可剪辑视频素材，请上传项目外立面、样板间、周边配套或口播片段后重试。"];
+    : ["当前草稿没有可剪辑视频素材，请上传开头或结尾真人口播视频后重试。"];
 }
 
 function firstNonEmptyString(...values: Array<string | null | undefined>) {

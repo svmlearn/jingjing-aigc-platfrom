@@ -107,4 +107,3 @@ curl -fsS http://127.0.0.1/api/health
 ## Next Step
 
 If Dify/content calendar real smoke is required, the user needs to restore or provide `DIFY_API_KEY` through a safe channel. If TikHub/material import smoke is required, restore or provide `TIKHUB_API_KEY`; Apify import requires `APIFY_TOKEN`.
-

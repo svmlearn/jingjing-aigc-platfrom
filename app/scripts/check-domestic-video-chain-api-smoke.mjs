@@ -17,7 +17,7 @@ const baseUrl = normalizeBaseUrl(
 const email = getArgValue("--email") || process.env.DOMESTIC_SMOKE_EMAIL || "";
 const password = getArgValue("--password") || process.env.DOMESTIC_SMOKE_PASSWORD || "";
 const provider = normalizeStorageProvider(
-  getArgValue("--provider") || process.env.STORAGE_PROVIDER?.trim() || "tencent_cos",
+  getArgValue("--provider") || process.env.STORAGE_PROVIDER?.trim() || "aliyun_oss",
 );
 const bucketName = getArgValue("--bucket") || defaultBucketForProvider(provider);
 const fileName = getArgValue("--file-name") || "codex-domestic-api-smoke.mp4";

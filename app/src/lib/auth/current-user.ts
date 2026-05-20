@@ -1,7 +1,6 @@
 import "server-only";
 
 import type { User } from "@supabase/supabase-js";
-import { headers } from "next/headers";
 
 import {
   getDomesticAuthenticatedUser,
@@ -17,7 +16,11 @@ export async function getAuthenticatedUser(): Promise<User> {
   }
 
   if (!isSupabasePublicConfigured()) {
-    return createLocalDemoUser(await readLocalDemoUserId());
+    throw new ApiError(
+      503,
+      "SUPABASE_NOT_CONFIGURED",
+      "Cloud Supabase environment variables are required.",
+    );
   }
 
   const supabase = await createSupabaseServerClient();
@@ -28,15 +31,4 @@ export async function getAuthenticatedUser(): Promise<User> {
   }
 
   return data.user;
-}
-
-async function readLocalDemoUserId() {
-  try {
-    const requestHeaders = await headers();
-    const userId = requestHeaders.get("x-jingjing-demo-user-id")?.trim();
-
-    return userId?.startsWith("demo-") ? userId : undefined;
-  } catch {
-    return undefined;
-  }
 }

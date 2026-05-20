@@ -1,7 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
 import type {
   DailyArticleContentPackageDto,
   DailyContentTaskDto,
@@ -16,6 +14,7 @@ import {
   queryAppDb,
 } from "@/lib/server-db/postgres";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import { ApiError } from "@/server/api/errors";
 
 type Timestamp = string | Date;
@@ -52,8 +51,6 @@ const dailyContentTaskSelect = [
   "updated_at",
 ].join(", ");
 
-const demoDailyTasks = new Map<string, DailyContentTaskDto>();
-
 export async function getDailyContentTask(input: {
   merchantId: string;
   userId: string;
@@ -74,7 +71,7 @@ export async function getDailyContentTask(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    return demoDailyTasks.get(buildDemoKey(input)) ?? null;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -149,26 +146,7 @@ export async function upsertDailyContentTask(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
-    const existing = demoDailyTasks.get(buildDemoKey(input));
-    const task: DailyContentTaskDto = {
-      id: existing?.id ?? randomUUID(),
-      merchantId: input.merchantId,
-      userId: input.userId,
-      taskDate: input.taskDate,
-      theme: input.theme,
-      teamCalendarSource: input.teamCalendarSource,
-      articleTask: input.articleTask,
-      videoTask: input.videoTask,
-      knowledgeRefs: input.knowledgeRefs ?? [],
-      materialRefs: input.materialRefs ?? [],
-      status: input.status ?? existing?.status ?? "generated",
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    };
-
-    demoDailyTasks.set(buildDemoKey(input), task);
-    return task;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -223,18 +201,7 @@ export async function getDailyContentTaskById(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const task = Array.from(demoDailyTasks.values()).find(
-      (item) =>
-        item.id === input.taskId &&
-        item.merchantId === input.merchantId &&
-        item.userId === input.userId,
-    );
-
-    if (!task) {
-      throw new ApiError(404, "DAILY_CONTENT_TASK_NOT_FOUND", "今日任务不存在或无权访问。");
-    }
-
-    return task;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -304,24 +271,7 @@ export async function updateDailyContentTaskGeneratedContent(input: {
   }
 
   if (!isSupabaseAdminConfigured()) {
-    const updated: DailyContentTaskDto = {
-      ...current,
-      articleTask: nextArticleTask,
-      videoTask: nextVideoTask,
-      status: input.status ?? current.status,
-      updatedAt: new Date().toISOString(),
-    };
-
-    demoDailyTasks.set(
-      buildDemoKey({
-        merchantId: input.merchantId,
-        userId: input.userId,
-        taskDate: current.taskDate,
-      }),
-      updated,
-    );
-
-    return updated;
+    throw cloudSupabaseRequiredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -511,8 +461,4 @@ function toGenerationStatus(value: unknown): DailyContentTaskItemDto["generation
     value === "failed"
     ? value
     : null;
-}
-
-function buildDemoKey(input: { merchantId: string; userId: string; taskDate: string }) {
-  return `${input.merchantId}:${input.userId}:${input.taskDate}`;
 }

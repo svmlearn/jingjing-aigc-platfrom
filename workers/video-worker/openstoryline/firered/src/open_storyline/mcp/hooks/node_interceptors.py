@@ -46,6 +46,9 @@ _TALKING_HEAD_SCRIPT_TOKENS = (
 )
 _ASR_ORIGINAL_AUDIO_MODE = "asr_original_audio"
 _ORIGINAL_VIDEO_AUDIO_SOURCE = "original_video_audio"
+_ALIYUN_ASR_PROVIDER = "aliyun_paraformer"
+_ALIYUN_ASR_PROVIDER_ALIASES = {"aliyun", "aliyun-paraformer", "dashscope", "dashscope-paraformer"}
+_LOCAL_ASR_PROVIDER_ALIASES = {"local", "local-funasr", "funasr"}
 _ASSET_METADATA_KEYS = (
     "asset_id",
     "asset_type",
@@ -280,6 +283,61 @@ def _worker_payload_talking_head_subtitles_from_asr(worker_payload: Any) -> bool
         or subtitles.get("source")
     )
     return str(source or "").strip().lower() == _ASR_ORIGINAL_AUDIO_MODE
+
+
+def _normalized_asr_provider(value: Any) -> str:
+    provider = _normalize_token(value)
+    if provider in _ALIYUN_ASR_PROVIDER_ALIASES:
+        return _ALIYUN_ASR_PROVIDER
+    return provider
+
+
+def _asr_config_provider(asr_config: Any) -> str:
+    if not isinstance(asr_config, dict):
+        return _normalized_asr_provider(os.getenv("OPENSTORYLINE_ASR_PROVIDER"))
+    return _normalized_asr_provider(
+        asr_config.get("provider") or os.getenv("OPENSTORYLINE_ASR_PROVIDER")
+    )
+
+
+def _asr_config_api_key(asr_config: Any) -> str:
+    if not isinstance(asr_config, dict):
+        return str(os.getenv("ALIYUN_ASR_API_KEY") or os.getenv("DASHSCOPE_API_KEY") or "").strip()
+
+    provider = _asr_config_provider(asr_config)
+    provider_cfg = asr_config.get(provider)
+    if not isinstance(provider_cfg, dict):
+        provider_cfg = asr_config.get(_ALIYUN_ASR_PROVIDER)
+    if not isinstance(provider_cfg, dict):
+        provider_cfg = {}
+    return str(
+        provider_cfg.get("api_key")
+        or asr_config.get("api_key")
+        or os.getenv("ALIYUN_ASR_API_KEY")
+        or os.getenv("DASHSCOPE_API_KEY")
+        or ""
+    ).strip()
+
+
+def _assert_original_audio_asr_config(context: Any) -> None:
+    worker_payload = getattr(context, "worker_payload", None)
+    if not _worker_payload_talking_head_subtitles_from_asr(worker_payload):
+        return
+
+    asr_config = getattr(context, "asr_config", None)
+    provider = _asr_config_provider(asr_config)
+    if provider in _LOCAL_ASR_PROVIDER_ALIASES:
+        raise ToolException(
+            "talking-head original-audio subtitles require aliyun_paraformer; local FunASR fallback is disabled"
+        )
+    if provider != _ALIYUN_ASR_PROVIDER:
+        raise ToolException(
+            f"talking-head original-audio subtitles require aliyun_paraformer; got {provider or '(empty)'}"
+        )
+    if not _asr_config_api_key(asr_config):
+        raise ToolException(
+            "talking-head original-audio subtitles require ALIYUN_ASR_API_KEY or DASHSCOPE_API_KEY"
+        )
 
 
 def _with_required_original_audio_asr(
@@ -547,7 +605,15 @@ def _build_custom_script_from_worker_payload(
                     "preserve_clip_duration": True,
                 }
             )
-            if voiceover_enabled:
+            if has_talking_head_label:
+                group_script.update(
+                    {
+                        "skip_voiceover": True,
+                        "voiceover_enabled": False,
+                        "audio_source": _ORIGINAL_VIDEO_AUDIO_SOURCE,
+                    }
+                )
+            elif voiceover_enabled:
                 group_script.update(
                     {
                         "audio_source": "voiceover",
@@ -1188,6 +1254,11 @@ class ToolInterceptor:
         before invoking the ASR node.
         - asr_config: {"provider": "aliyun_paraformer", "aliyun_paraformer": {...}}
         """
+        runtime = getattr(request, "runtime", None)
+        ctx = getattr(runtime, "context", None) if runtime else None
+        if ctx is not None:
+            _assert_original_audio_asr_config(ctx)
+
         return await ToolInterceptor._inject_provider_config(
             request,
             handler,

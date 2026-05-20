@@ -106,6 +106,14 @@ def make_job(input_payload=None):
     )
 
 
+def make_job_without_input_bucket():
+    job = make_job()
+    payload = dict(job.input_payload)
+    payload["input_assets"] = [dict(payload["input_assets"][0])]
+    payload["input_assets"][0].pop("bucket_name", None)
+    return make_job(payload)
+
+
 class FakeRepository:
     def __init__(self, fail_insert_output_assets=False) -> None:
         self.stage_updates = []
@@ -972,6 +980,39 @@ class ProcessorContractTests(unittest.TestCase):
             "aliyun_oss",
             result_payload["uploaded_assets"][0]["storage_provider"],
         )
+
+    def test_missing_input_asset_provider_uses_configured_aliyun_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                AliyunSettings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+
+            processor.process(make_job_without_input_bucket())
+
+        self.assertEqual("aliyun_oss", cos_client.downloads[0]["storage_provider"])
+        self.assertEqual("default-aliyun-bucket", cos_client.downloads[0]["bucket_name"])
+        self.assertEqual("aliyun_oss", cos_client.uploads[0]["storage_provider"])
+
+    def test_missing_input_asset_provider_keeps_legacy_cos_when_configured(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+
+            processor.process(make_job_without_input_bucket())
+
+        self.assertEqual("tencent_cos", cos_client.downloads[0]["storage_provider"])
+        self.assertEqual("default-bucket", cos_client.downloads[0]["bucket_name"])
 
     def test_stage_updates_include_progress_modules(self):
         with tempfile.TemporaryDirectory() as tmp:

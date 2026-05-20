@@ -370,4 +370,3 @@ handoff must state that COS rehearsal does not validate Aliyun OSS.
 5. Keep Tencent COS in this pass; record Aliyun OSS adapter as domestic blocker.
 6. Run required local validation.
 7. Rebuild/redeploy to Singapore IP-stage and run self-hosted regression.
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, CircleAlert, Clapperboard, ImageIcon, Loader2, RefreshCw, RotateCcw, Upload, Video, XCircle } from "lucide-react";
+import { CheckCircle2, CircleAlert, Clapperboard, Download, ImageIcon, Loader2, RefreshCw, RotateCcw, Upload, Video, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ContentVariantDto } from "@/contracts/draft";
@@ -892,6 +892,7 @@ function DraftVideoPanelsContent({
                       job.resultAssets.map((asset) => {
                         const isVideo = asset.assetType === "video";
                         const previewUrl = asset.signedPreviewUrl;
+                        const downloadUrl = asset.signedDownloadUrl ?? previewUrl;
 
                         return (
                           <div key={asset.id} className="rounded-md border border-[#dde3ea] bg-white p-3">
@@ -926,6 +927,15 @@ function DraftVideoPanelsContent({
                                 后端尚未返回签名预览 URL，当前先保留资产记录。
                               </p>
                             )}
+                            {isVideo && downloadUrl ? (
+                              <a
+                                href={downloadUrl}
+                                className="mt-3 inline-flex items-center gap-2 rounded-md border border-[#cbd5e1] bg-[#f8fafc] px-3 py-2 text-sm font-medium text-[#334155] hover:bg-[#eef2f7]"
+                              >
+                                <Download className="size-4" aria-hidden="true" />
+                                下载成片
+                              </a>
+                            ) : null}
                             <p className="mt-3 break-all text-xs text-[#5d6b7a]">{asset.storageKey}</p>
                           </div>
                         );
