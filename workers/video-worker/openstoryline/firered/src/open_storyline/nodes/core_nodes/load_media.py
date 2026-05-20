@@ -19,6 +19,19 @@ VIDEO_EXTS = {
 IMAGE_EXTS = {
     ".jpg", ".jpeg", ".png", ".webp", ".bmp"
 }
+ASSET_METADATA_KEYS = {
+    "asset_id",
+    "asset_type",
+    "bucket_name",
+    "storage_key",
+    "file_name",
+    "store_file_name",
+    "role",
+    "scene_type",
+    "sceneType",
+    "tags",
+    "labels",
+}
 
 def _image_metadata_from_path(path: Path) -> dict[str, Any]:
     from PIL import Image, ImageOps
@@ -107,6 +120,22 @@ def _video_metadata_from_path(
     }
 
 
+def _asset_metadata_from_input(enc_media: dict[str, Any]) -> dict[str, Any]:
+    asset_metadata: dict[str, Any] = {}
+    for key in ASSET_METADATA_KEYS:
+        value = enc_media.get(key)
+        if value not in (None, "", [], {}):
+            asset_metadata[key] = value
+
+    nested_metadata = enc_media.get("metadata")
+    if isinstance(nested_metadata, dict):
+        for key, value in nested_metadata.items():
+            if value not in (None, "", [], {}) and key not in asset_metadata:
+                asset_metadata[key] = value
+
+    return asset_metadata
+
+
 @NODE_REGISTRY.register()
 class LoadMediaNode(BaseNode):
     meta = NodeMeta(
@@ -141,16 +170,22 @@ class LoadMediaNode(BaseNode):
                 node_state.node_summary.info_for_user(f"[Node {self.meta.node_id}] Skipping unsupported file type `{enc_media['orig_path']}` ")
                 continue
 
-            media.append(
-                {
-                    "media_id": f"media_{media_idx:04d}",
-                    "path": path,
-                    "media_type": media_type,
-                    "metadata": metadata,
-                    "orig_path": enc_media['orig_path'],
-                    "orig_md5": enc_media['orig_md5'],
-                }
-            )
+            media_id = f"media_{media_idx:04d}"
+            asset_metadata = _asset_metadata_from_input(enc_media)
+            media_item = {
+                "media_id": media_id,
+                "path": path,
+                "media_type": media_type,
+                "metadata": metadata,
+                "orig_path": enc_media['orig_path'],
+                "orig_md5": enc_media['orig_md5'],
+            }
+            if asset_metadata:
+                media_item["asset_metadata"] = asset_metadata
+                for key in ("role", "scene_type", "asset_type", "tags", "labels", "file_name", "store_file_name"):
+                    if key in asset_metadata:
+                        media_item[key] = asset_metadata[key]
+            media.append(media_item)
             node_state.node_summary.info_for_user(f"Added media_{media_idx:04d}: ({media_type})")
             media_idx += 1
 

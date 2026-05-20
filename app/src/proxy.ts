@@ -28,6 +28,15 @@ async function updateSupabaseSession(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   let response = NextResponse.next({ request });
 
+  if (
+    process.env.APP_DATABASE_URL ||
+    process.env.DATABASE_URL ||
+    process.env.DATABASE_PROVIDER === "postgres" ||
+    process.env.DOMESTIC_DATABASE_ENABLED === "true"
+  ) {
+    return response;
+  }
+
   if (!supabaseUrl || !supabaseAnonKey) {
     return response;
   }

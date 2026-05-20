@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Optional, Any
+import asyncio
 import logging
 
 import httpx
@@ -20,6 +21,18 @@ from open_storyline.mcp.sampling_handler import make_sampling_callback
 from open_storyline.skills.skills_io import load_skills
 
 logger = logging.getLogger(__name__)
+
+
+def _transient_validation_delay(response: httpx.Response | None, attempt: int) -> float:
+    if response is not None:
+        retry_after = response.headers.get("retry-after")
+        if retry_after:
+            try:
+                return max(1.0, min(float(retry_after), 60.0))
+            except ValueError:
+                pass
+    return min(60.0, 10.0 * (attempt + 1))
+
 
 async def validate_api_key(base_url: str, api_key: str, model: str, provider: str = "LLM", timeout: float = 10.0) -> bool:
     """
@@ -43,13 +56,17 @@ async def validate_api_key(base_url: str, api_key: str, model: str, provider: st
         "max_tokens": 1,
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(
-                f"{base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-            )
+    max_attempts = 3
+    last_transient_error: str | None = None
+
+    for attempt in range(max_attempts):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    f"{base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
 
             if response.status_code == 200:
                 try:
@@ -84,20 +101,38 @@ async def validate_api_key(base_url: str, api_key: str, model: str, provider: st
                 )
             elif response.status_code == 429:
                 logger.warning(f"{provider} API rate limited: {response.status_code} {response.reason_phrase}")
-                raise ConnectionError(
+                last_transient_error = (
                     f"{provider} API rate limited. Please try again later.\n"
                     f"Model: {model}\n"
                     f"Base URL: {base_url}\n"
                     f"HTTP {response.status_code}: {response.reason_phrase}"
                 )
+                if attempt < max_attempts - 1:
+                    await asyncio.sleep(_transient_validation_delay(response, attempt))
+                    continue
+                logger.warning(
+                    "%s API validation skipped after repeated transient rate limits; "
+                    "real model calls will rely on provider retry handling.",
+                    provider,
+                )
+                return False
             elif response.status_code >= 500:
                 logger.error(f"{provider} API server error: {response.status_code} {response.reason_phrase}")
-                raise ConnectionError(
+                last_transient_error = (
                     f"{provider} API server error. The service may be temporarily unavailable.\n"
                     f"Model: {model}\n"
                     f"Base URL: {base_url}\n"
                     f"HTTP {response.status_code}: {response.reason_phrase}"
                 )
+                if attempt < max_attempts - 1:
+                    await asyncio.sleep(_transient_validation_delay(response, attempt))
+                    continue
+                logger.warning(
+                    "%s API validation skipped after repeated transient server errors; "
+                    "real model calls will rely on provider retry handling.",
+                    provider,
+                )
+                return False
             else:
                 logger.error(f"{provider} API validation failed: {response.status_code} {response.reason_phrase}")
                 raise ValueError(
@@ -107,25 +142,38 @@ async def validate_api_key(base_url: str, api_key: str, model: str, provider: st
                     f"HTTP {response.status_code}: {response.reason_phrase}"
                 )
 
-    except httpx.TimeoutException as e:
-        logger.warning(f"{provider} API connection timeout: {e}")
-        raise ConnectionError(
-            f"{provider} API connection timeout. Please check your network or base_url.\n"
-            f"Model: {model}\n"
-            f"Base URL: {base_url}\n"
-            f"Error: Connection timed out after 10 seconds"
-        )
-    except httpx.ConnectError as e:
-        logger.warning(f"{provider} API connection failed: {e}")
-        raise ConnectionError(
-            f"{provider} API connection failed. Please check your network or base_url.\n"
-            f"Model: {model}\n"
-            f"Base URL: {base_url}\n"
-            f"Error: Unable to connect to the API endpoint"
-        )
-    except Exception as e:
-        logger.error(f"{provider} API validation failed with unexpected error: {e}")
-        raise
+        except httpx.TimeoutException as e:
+            logger.warning(f"{provider} API connection timeout: {e}")
+            last_transient_error = (
+                f"{provider} API connection timeout. Please check your network or base_url.\n"
+                f"Model: {model}\n"
+                f"Base URL: {base_url}\n"
+                f"Error: Connection timed out after {timeout} seconds"
+            )
+            if attempt < max_attempts - 1:
+                await asyncio.sleep(_transient_validation_delay(None, attempt))
+                continue
+            logger.warning(
+                "%s API validation skipped after repeated transient timeouts; "
+                "real model calls will rely on provider retry handling.",
+                provider,
+            )
+            return False
+        except httpx.ConnectError as e:
+            logger.warning(f"{provider} API connection failed: {e}")
+            raise ConnectionError(
+                f"{provider} API connection failed. Please check your network or base_url.\n"
+                f"Model: {model}\n"
+                f"Base URL: {base_url}\n"
+                f"Error: Unable to connect to the API endpoint"
+            )
+        except Exception as e:
+            logger.error(f"{provider} API validation failed with unexpected error: {e}")
+            raise
+
+    if last_transient_error:
+        raise ConnectionError(last_transient_error)
+    return False
 
 @dataclass
 class ClientContext:
@@ -138,8 +186,11 @@ class ClientContext:
     chat_model_key: str  # Chat model key
     vlm_model_key: str = ""  # VLM model key
     pexels_api_key: Optional[str] = None
+    pexels_base_url: Optional[str] = None
     tts_config: Optional[dict] = None  # TTS config at runtime
     ai_transition_config: Optional[dict] = None # AI transition config at runtime
+    asr_config: Optional[dict] = None
+    worker_payload: Optional[dict] = None
     llm_pool: dict[tuple[str, bool], ChatOpenAI] = field(default_factory=dict)
     lang: str = "zh" # Default language: Chinese
 

@@ -55,7 +55,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
   assert.deepEqual(payload.productionConfig, {
     voiceover: { enabled: true, provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
-    subtitles: { enabled: true, style: "platform_default" },
+    subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
   });
   assert.deepEqual(payload.materialContext, {
@@ -99,9 +99,40 @@ test("buildVideoEditJobInputPayload adds default production config", () => {
   assert.deepEqual(payload.productionConfig, {
     voiceover: { enabled: true, provider: "bytedance_bigtts", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
-    subtitles: { enabled: true, style: "platform_default" },
+    subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     render: { aspectRatio: "9:16", includeOriginalAudio: false },
   });
+});
+
+test("buildVideoEditJobInputPayload accepts Aliyun OSS input assets", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [
+      {
+        id: "reference-1",
+        materialItemId: "material-1",
+      },
+    ],
+    assets: [
+      {
+        id: "asset-aliyun-1",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/demo.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+      },
+    ],
+    now: "2026-05-18T00:00:00.000Z",
+  });
+
+  assert.equal(payload.input_assets[0]?.storage_provider, "aliyun_oss");
+  assert.equal(payload.input_assets[0]?.bucket_name, "jingjing-domestic-phase1-hz");
+  assert.equal(payload.render_mode, "asset_driven");
 });
 
 test("buildVideoEditJobInputPayload normalizes production config overrides", () => {
@@ -143,13 +174,47 @@ test("buildVideoEditJobInputPayload normalizes production config overrides", () 
       exclude: {},
       volume: 0.18,
     },
-    subtitles: { enabled: true, style: "platform_default" },
+    subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     render: {
       aspectRatio: "9:16",
       maxDurationSeconds: 45,
       includeOriginalAudio: true,
     },
   });
+});
+
+test("buildVideoEditJobInputPayload accepts voice profile production config", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [],
+    productionConfig: {
+      voiceover: {
+        enabled: true,
+        mode: "voice_profile",
+        voiceProfileId: "11111111-1111-4111-8111-111111111111",
+        refAudioAssetId: "22222222-2222-4222-8222-222222222222",
+        includeOriginalAudio: false,
+      },
+      render: {
+        includeOriginalAudio: true,
+      },
+      subtitles: {
+        talkingHeadSource: "asr_original_audio",
+      },
+    },
+  });
+
+  assert.deepEqual(payload.productionConfig.voiceover, {
+    enabled: true,
+    mode: "voice_profile",
+    voiceProfileId: "11111111-1111-4111-8111-111111111111",
+    refAudioAssetId: "22222222-2222-4222-8222-222222222222",
+    volume: 2,
+  });
+  assert.equal(payload.productionConfig.render.includeOriginalAudio, false);
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "asr_original_audio");
 });
 
 test("buildVideoEditJobInputPayload rejects invalid production config provider", () => {
@@ -237,7 +302,7 @@ test("buildVideoEditJobInputPayload rejects bad COS input assets", () => {
   );
 });
 
-test("buildVideoEditJobInputPayload rejects non-COS input assets", () => {
+test("buildVideoEditJobInputPayload rejects unsupported input asset providers", () => {
   assert.throws(
     () =>
       buildVideoEditJobInputPayload({

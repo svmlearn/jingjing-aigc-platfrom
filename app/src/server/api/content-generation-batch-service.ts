@@ -12,6 +12,8 @@ import { createDraftWithVariants, createManualSourceItem } from "@/lib/db/conten
 import {
   claimNextContentGenerationJob,
   createContentGenerationBatch,
+  getContentGenerationBatchById,
+  listContentGenerationJobsByBatchId,
   markContentGenerationJobFailed,
   markContentGenerationJobSucceeded,
 } from "@/lib/db/content-generation-repository";
@@ -22,7 +24,6 @@ import {
   getOperationalMerchantWorkspaceByUserId,
   listActiveMerchantTeamMembersByMerchant,
 } from "@/lib/db/merchant-repository";
-import { createCosSignedPreviewUrl } from "@/server/api/cos";
 import {
   buildDifyImageRenderUrl,
   mapDifyArticleToMemberPackage,
@@ -32,10 +33,17 @@ import {
 } from "@/server/api/dify-final-json-mapper";
 import { runDifyWorkflow } from "@/server/api/dify-workflow-client";
 import { getDailyContentWorkspaceForUser } from "@/server/api/daily-content-task-service";
+import { ApiError } from "@/server/api/errors";
+import { getObjectStorageProvider } from "@/server/storage";
 
 type BatchMemberScope = "self" | "active_members";
 
 type CreateBatchResult = {
+  batch: ContentGenerationBatchDto;
+  jobs: ContentGenerationJobDto[];
+};
+
+type BatchStatusResult = {
   batch: ContentGenerationBatchDto;
   jobs: ContentGenerationJobDto[];
 };
@@ -159,6 +167,29 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
   }
 
   return result;
+}
+
+export async function getDifyContentGenerationBatchStatusForUser(input: {
+  userId: string;
+  batchId: string;
+}): Promise<BatchStatusResult> {
+  const workspace = await getOperationalMerchantWorkspaceByUserId(input.userId);
+  const batch = await getContentGenerationBatchById(input.batchId);
+
+  if (batch.merchantId !== workspace.merchantProfile.id) {
+    throw new ApiError(404, "CONTENT_GENERATION_BATCH_NOT_FOUND", "生成批次不存在。");
+  }
+
+  const jobs = await listContentGenerationJobsByBatchId(batch.id);
+
+  if (workspace.role === "owner" || batch.createdByUserId === input.userId) {
+    return { batch, jobs };
+  }
+
+  return {
+    batch,
+    jobs: jobs.filter((job) => job.memberUserId === input.userId),
+  };
 }
 
 export async function runNextDifyContentGenerationJob(): Promise<RunNextJobResult> {
@@ -356,7 +387,7 @@ async function buildDifyImageAssetPayload(material: MaterialLibraryItemDto) {
     ownerId: material.sourceItemId ?? material.id,
   }).catch(() => []);
   const primaryImage = assets.find((asset) => asset.assetType === "image") ?? null;
-  const cosPath = primaryImage ? buildCosPath(primaryImage) : material.originalUrl ?? null;
+  const storagePath = primaryImage ? buildStoragePath(primaryImage) : material.originalUrl ?? null;
 
   return {
     id: material.id,
@@ -365,7 +396,7 @@ async function buildDifyImageAssetPayload(material: MaterialLibraryItemDto) {
     sourceKind: material.sourceKind,
     usageType: material.usageType,
     retrievalTargets: material.retrievalTargets,
-    cosPath,
+    cosPath: storagePath,
     url: primaryImage ? buildSignedPreviewUrl(primaryImage) : material.originalUrl ?? null,
     originalUrl: material.originalUrl,
     assetObjectId: primaryImage?.id ?? null,
@@ -561,20 +592,32 @@ function formatVideoScriptText(finalJson: DifyFinalJson) {
   ].join("\n\n");
 }
 
-function buildCosPath(asset: MediaAssetDto) {
-  return asset.bucketName ? `cos://${asset.bucketName}/${asset.storageKey}` : asset.storageKey;
+function buildStoragePath(asset: MediaAssetDto) {
+  if (asset.storageProvider === "tencent_cos") {
+    return asset.bucketName ? `cos://${asset.bucketName}/${asset.storageKey}` : asset.storageKey;
+  }
+
+  if (asset.storageProvider === "aliyun_oss") {
+    return asset.bucketName ? `oss://${asset.bucketName}/${asset.storageKey}` : asset.storageKey;
+  }
+
+  return asset.storageKey;
 }
 
 function buildSignedPreviewUrl(asset: MediaAssetDto) {
   try {
-    return createCosSignedPreviewUrl({
-      bucketName: asset.bucketName,
-      storageKey: asset.storageKey,
-      expiresInSeconds: 3600,
-    });
+    if (asset.storageProvider === "tencent_cos" || asset.storageProvider === "aliyun_oss") {
+      return getObjectStorageProvider(asset.storageProvider).createSignedReadUrl({
+        bucketName: asset.bucketName,
+        storageKey: asset.storageKey,
+        expiresInSeconds: 3600,
+      });
+    }
   } catch {
-    return buildDifyImageRenderUrl(buildCosPath(asset));
+    return buildDifyImageRenderUrl(buildStoragePath(asset));
   }
+
+  return buildDifyImageRenderUrl(buildStoragePath(asset));
 }
 
 function stringifyDifyInput(value: unknown) {

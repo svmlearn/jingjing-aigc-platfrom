@@ -1,11 +1,14 @@
 "use client";
 
 import type { VideoEditProgressModuleDto } from "@/contracts/video";
+import type { MediaAssetDto } from "@/contracts/media";
+import type { VoiceProfileDto } from "@/contracts/voice";
+import { normalizeVoiceProfileAudioMimeType } from "@/lib/member-video-workflow";
 import { normalizeVideoProgressModules } from "@/lib/ui/video-progress-modules";
 
-export type MediaOwnerType = "source_item" | "content_draft" | "content_variant";
-export type MediaAssetType = "image" | "video" | "cover" | "subtitle";
-export type UploadableMediaAssetType = Extract<MediaAssetType, "image" | "video">;
+export type MediaOwnerType = "source_item" | "content_draft" | "content_variant" | "voice_profile";
+export type MediaAssetType = "image" | "video" | "cover" | "subtitle" | "audio";
+export type UploadableMediaAssetType = Extract<MediaAssetType, "image" | "video" | "audio">;
 export type VideoEditJobStatus =
   | "pending"
   | "queued"
@@ -60,12 +63,19 @@ export type UploadIntentRequest = {
 };
 
 export type UploadIntent = {
+  provider: "tencent_cos" | "aliyun_oss";
   bucket: string;
   region: string;
+  endpoint?: string | null;
+  storageKey: string;
+  uploadKey: string;
   cosKey: string;
-  tmpSecretId: string;
-  tmpSecretKey: string;
-  token: string;
+  tmpSecretId?: string;
+  tmpSecretKey?: string;
+  token?: string;
+  uploadUrl?: string;
+  uploadMethod?: "PUT";
+  uploadHeaders?: Record<string, string>;
   expiredTime: number;
 };
 
@@ -78,6 +88,11 @@ type UploadProgress = {
 };
 
 export type DraftMediaUploadStage = "preparing" | "uploading" | "finalizing";
+
+export type VoiceProfileUploadResult = {
+  voiceProfile: VoiceProfileDto;
+  audioAsset: DraftMediaAsset;
+};
 
 const DRAFT_MEDIA_STORAGE_PREFIX = "jingjing:draft-media-assets";
 const DRAFT_VIDEO_JOBS_STORAGE_PREFIX = "jingjing:draft-video-jobs";
@@ -193,6 +208,31 @@ function readNestedRecord(record: JsonRecord, ...keys: string[]) {
   return null;
 }
 
+function readStringRecord(record: JsonRecord | null) {
+  const output: Record<string, string> = {};
+
+  if (!record) {
+    return output;
+  }
+
+  for (const [key, value] of Object.entries(record)) {
+    if (typeof value === "string") {
+      output[key] = value;
+    }
+  }
+
+  return output;
+}
+
+function parseJsonRecord(value: string) {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function extractErrorMessage(payload: unknown) {
   if (!isRecord(payload)) {
     return null;
@@ -267,6 +307,69 @@ function normalizeAsset(input: unknown): DraftMediaAsset | null {
       readString(input, "originUrl", "origin_url"),
     originUrl: readString(input, "originUrl", "origin_url"),
     createdAt: readString(input, "createdAt", "created_at"),
+  };
+}
+
+function normalizeVoiceProfile(input: unknown): VoiceProfileDto | null {
+  if (!isRecord(input)) {
+    return null;
+  }
+
+  const id = readString(input, "id");
+  const merchantId = readString(input, "merchantId", "merchant_id");
+  const createdByUserId = readString(input, "createdByUserId", "created_by_user_id");
+  const displayName = readString(input, "displayName", "display_name");
+  const status = readString(input, "status");
+  const provider = readString(input, "provider");
+  const refAudioAssetId = readString(input, "refAudioAssetId", "ref_audio_asset_id");
+  const authorizationAcceptedAt = readString(
+    input,
+    "authorizationAcceptedAt",
+    "authorization_accepted_at",
+  );
+  const createdAt = readString(input, "createdAt", "created_at");
+
+  if (
+    !id ||
+    !merchantId ||
+    !createdByUserId ||
+    !displayName ||
+    !status ||
+    !provider ||
+    !refAudioAssetId ||
+    !authorizationAcceptedAt ||
+    !createdAt
+  ) {
+    return null;
+  }
+
+  const refAudioAsset = normalizeAsset(readNestedRecord(input, "refAudioAsset", "ref_audio_asset"));
+
+  return {
+    id,
+    merchantId,
+    createdByUserId,
+    displayName,
+    status: status as VoiceProfileDto["status"],
+    provider: provider as VoiceProfileDto["provider"],
+    externalVoiceId: readString(input, "externalVoiceId", "external_voice_id"),
+    externalModelId: readString(input, "externalModelId", "external_model_id"),
+    refAudioAssetId,
+    authorizationAcceptedAt,
+    createdAt,
+    updatedAt: readString(input, "updatedAt", "updated_at"),
+    refAudioAsset: refAudioAsset ? toMediaAssetDto(refAudioAsset) : null,
+  };
+}
+
+function toMediaAssetDto(asset: DraftMediaAsset): MediaAssetDto {
+  return {
+    ...asset,
+    ownerType: asset.ownerType as MediaAssetDto["ownerType"],
+    assetType: asset.assetType as MediaAssetDto["assetType"],
+    storageProvider: asset.storageProvider as MediaAssetDto["storageProvider"],
+    sortOrder: asset.sortOrder ?? 0,
+    createdAt: asset.createdAt ?? "",
   };
 }
 
@@ -421,13 +524,17 @@ async function uploadToCos(params: {
   file: File;
   onProgress?: (progress: UploadProgress) => void;
 }) {
+  if (!params.intent.tmpSecretId || !params.intent.tmpSecretKey || !params.intent.token) {
+    throw new Error("上传意图返回不完整，缺少 COS 临时凭证。");
+  }
+
   const Cos = await loadCosSdk();
   const cosClient = new Cos({
     getAuthorization(_, callback) {
       callback({
-        TmpSecretId: params.intent.tmpSecretId,
-        TmpSecretKey: params.intent.tmpSecretKey,
-        SecurityToken: params.intent.token,
+        TmpSecretId: params.intent.tmpSecretId ?? "",
+        TmpSecretKey: params.intent.tmpSecretKey ?? "",
+        SecurityToken: params.intent.token ?? "",
         ExpiredTime: params.intent.expiredTime,
       });
     },
@@ -535,7 +642,60 @@ async function uploadToCos(params: {
   });
 }
 
+async function uploadToAliyunOss(params: {
+  intent: UploadIntent;
+  file: File;
+  onProgress?: (progress: UploadProgress) => void;
+}) {
+  if (!params.intent.uploadUrl) {
+    throw new Error("上传意图返回不完整，缺少 OSS 上传地址。");
+  }
+
+  params.onProgress?.({
+    loaded: 0,
+    total: params.file.size,
+    percent: 0,
+  });
+
+  const response = await fetch(params.intent.uploadUrl, {
+    method: params.intent.uploadMethod ?? "PUT",
+    headers: params.intent.uploadHeaders ?? {},
+    body: params.file,
+  });
+
+  if (!response.ok) {
+    throw new Error(`素材上传到 OSS 失败：${response.status} ${response.statusText}`);
+  }
+
+  params.onProgress?.({
+    loaded: params.file.size,
+    total: params.file.size,
+    percent: 1,
+  });
+
+  return {
+    etag:
+      stripEtagQuotes(response.headers.get("etag") ?? "") ||
+      `${params.intent.storageKey}-${params.file.size}`,
+  };
+}
+
+async function uploadToObjectStorage(params: {
+  intent: UploadIntent;
+  file: File;
+  onProgress?: (progress: UploadProgress) => void;
+}) {
+  if (params.intent.provider === "aliyun_oss") {
+    return uploadToAliyunOss(params);
+  }
+
+  return uploadToCos(params);
+}
+
 function assetTypeFromMimeType(mimeType: string, fileName?: string): UploadableMediaAssetType {
+  if (mimeType.startsWith("audio/") || /\.(aac|flac|m4a|mp3|ogg|opus|wav|webm)$/i.test(fileName ?? "")) {
+    return "audio";
+  }
   if (mimeType.startsWith("video/") || /\.(m4v|mov|mp4|webm)$/i.test(fileName ?? "")) {
     return "video";
   }
@@ -562,25 +722,54 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
   });
 
   const source = readNestedRecord(response, "uploadIntent", "intent", "credentials") ?? response;
+  const provider = readString(source, "provider", "storageProvider") ?? "tencent_cos";
   const bucket = readString(source, "bucket");
   const region = readString(source, "region");
-  const cosKey = readString(source, "cosKey", "cos_key", "key");
+  const endpoint = readString(source, "endpoint");
+  const cosKey = readString(source, "cosKey", "cos_key", "storageKey", "uploadKey", "key");
+  const storageKey = readString(source, "storageKey", "storage_key", "uploadKey", "cosKey", "key");
+  const uploadKey = readString(source, "uploadKey", "upload_key", "storageKey", "cosKey", "key");
+  const uploadUrl = readString(source, "uploadUrl", "upload_url");
+  const uploadMethod = readString(source, "uploadMethod", "upload_method");
+  const uploadHeaders = readStringRecord(readNestedRecord(source, "uploadHeaders", "upload_headers"));
   const tmpSecretId = readString(source, "TmpSecretId", "tmpSecretId", "tmp_secret_id");
   const tmpSecretKey = readString(source, "TmpSecretKey", "tmpSecretKey", "tmp_secret_key");
   const token = readString(source, "Token", "token", "SecurityToken", "securityToken");
   const expiredTime = readNumber(source, "expiredTime", "expired_time", "ExpiredTime");
 
-  if (!bucket || !region || !cosKey || !tmpSecretId || !tmpSecretKey || !token || expiredTime === null) {
+  if (provider !== "tencent_cos" && provider !== "aliyun_oss") {
+    throw new Error("上传意图返回了暂不支持的存储 provider。");
+  }
+
+  if (!bucket || !region || !cosKey || !storageKey || !uploadKey || expiredTime === null) {
+    throw new Error("上传意图返回不完整，缺少对象存储目标。");
+  }
+
+  if (
+    provider === "tencent_cos" &&
+    (!tmpSecretId || !tmpSecretKey || !token)
+  ) {
     throw new Error("上传意图返回不完整，缺少 COS 临时凭证。");
   }
 
+  if (provider === "aliyun_oss" && !uploadUrl) {
+    throw new Error("上传意图返回不完整，缺少 OSS 上传地址。");
+  }
+
   return {
+    provider,
     bucket,
     region,
+    endpoint,
+    storageKey,
+    uploadKey,
     cosKey,
-    tmpSecretId,
-    tmpSecretKey,
-    token,
+    tmpSecretId: tmpSecretId ?? undefined,
+    tmpSecretKey: tmpSecretKey ?? undefined,
+    token: token ?? undefined,
+    uploadUrl: uploadUrl ?? undefined,
+    uploadMethod: uploadMethod === "PUT" ? "PUT" : undefined,
+    uploadHeaders,
     expiredTime,
   } satisfies UploadIntent;
 }
@@ -612,15 +801,17 @@ export async function completeMediaUpload(payload: {
 }
 
 export async function uploadMediaFileForOwner(params: {
-  ownerType: Extract<MediaOwnerType, "source_item" | "content_draft">;
+  ownerType: Extract<MediaOwnerType, "source_item" | "content_draft" | "voice_profile">;
   ownerId: string;
   file: File;
+  assetTypeOverride?: UploadableMediaAssetType;
+  mimeTypeOverride?: string;
   sortOrder?: number;
   onProgress?: (progress: UploadProgress) => void;
   onStageChange?: (stage: DraftMediaUploadStage) => void;
 }) {
-  const assetType = assetTypeFromMimeType(params.file.type, params.file.name);
-  const mimeType = params.file.type || "application/octet-stream";
+  const assetType = params.assetTypeOverride ?? assetTypeFromMimeType(params.file.type, params.file.name);
+  const mimeType = params.mimeTypeOverride?.trim() || params.file.type || "application/octet-stream";
 
   params.onStageChange?.("preparing");
   const intent = await createUploadIntent({
@@ -633,7 +824,7 @@ export async function uploadMediaFileForOwner(params: {
   });
 
   params.onStageChange?.("uploading");
-  const uploadResult = await uploadToCos({
+  const uploadResult = await uploadToObjectStorage({
     intent,
     file: params.file,
     onProgress: params.onProgress,
@@ -643,9 +834,9 @@ export async function uploadMediaFileForOwner(params: {
     ownerType: params.ownerType,
     ownerId: params.ownerId,
     assetType,
-    storageProvider: "tencent_cos",
+    storageProvider: intent.provider,
     bucketName: intent.bucket,
-    storageKey: intent.cosKey,
+    storageKey: intent.storageKey,
     mimeType,
     sizeBytes: params.file.size,
     etag: uploadResult.etag,
@@ -656,13 +847,13 @@ export async function uploadMediaFileForOwner(params: {
   const completedAsset =
     (await completeMediaUpload(completePayload)) ??
     ({
-      id: intent.cosKey,
+      id: intent.storageKey,
       ownerType: params.ownerType,
       ownerId: params.ownerId,
       assetType,
-      storageProvider: "tencent_cos",
+      storageProvider: intent.provider,
       bucketName: intent.bucket,
-      storageKey: intent.cosKey,
+      storageKey: intent.storageKey,
       mimeType,
       fileSizeBytes: params.file.size,
       etag: uploadResult.etag,
@@ -672,6 +863,55 @@ export async function uploadMediaFileForOwner(params: {
     } satisfies DraftMediaAsset);
 
   return completedAsset;
+}
+
+function uploadVoiceProfileAudioWithProgress(params: {
+  formData: FormData;
+  fileSize: number;
+  onProgress?: (progress: UploadProgress) => void;
+  onStageChange?: (stage: DraftMediaUploadStage) => void;
+}): Promise<JsonRecord> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.open("POST", "/api/voice-profiles/upload");
+    xhr.withCredentials = true;
+    params.onStageChange?.("uploading");
+    params.onProgress?.({ loaded: 0, total: params.fileSize, percent: 0 });
+
+    xhr.upload.onprogress = (event) => {
+      const total = event.lengthComputable ? event.total : params.fileSize;
+      params.onProgress?.({
+        loaded: event.loaded,
+        total,
+        percent: total > 0 ? event.loaded / total : 0,
+      });
+    };
+    xhr.upload.onload = () => {
+      params.onProgress?.({
+        loaded: params.fileSize,
+        total: params.fileSize,
+        percent: 1,
+      });
+      params.onStageChange?.("finalizing");
+    };
+    xhr.onerror = () => reject(new Error("克隆音色上传失败，请稍后重试。"));
+    xhr.onabort = () => reject(new Error("克隆音色上传已取消。"));
+    xhr.onload = () => {
+      const payload = parseJsonRecord(xhr.responseText);
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(extractErrorMessage(payload) ?? `${xhr.status} ${xhr.statusText}`));
+        return;
+      }
+      if (!payload) {
+        reject(new Error("接口返回为空，暂时无法继续。"));
+        return;
+      }
+      resolve(payload);
+    };
+
+    xhr.send(params.formData);
+  });
 }
 
 export async function uploadDraftMediaFile(params: {
@@ -689,6 +929,44 @@ export async function uploadDraftMediaFile(params: {
     onProgress: params.onProgress,
     onStageChange: params.onStageChange,
   });
+}
+
+export async function uploadVoiceProfileAudioFile(params: {
+  voiceProfileId?: string;
+  displayName: string;
+  authorizationAccepted: boolean;
+  file: File;
+  onProgress?: (progress: UploadProgress) => void;
+  onStageChange?: (stage: DraftMediaUploadStage) => void;
+}): Promise<VoiceProfileUploadResult> {
+  params.onStageChange?.("preparing");
+
+  const formData = new FormData();
+  if (params.voiceProfileId) {
+    formData.set("voiceProfileId", params.voiceProfileId);
+  }
+  formData.set("displayName", params.displayName);
+  formData.set("authorizationAccepted", params.authorizationAccepted ? "true" : "false");
+  formData.set("mimeType", normalizeVoiceProfileAudioMimeType(params.file));
+  formData.set("file", params.file, params.file.name);
+
+  const response = await uploadVoiceProfileAudioWithProgress({
+    formData,
+    fileSize: params.file.size,
+    onProgress: params.onProgress,
+    onStageChange: params.onStageChange,
+  });
+  const voiceProfile = normalizeVoiceProfile(response.voiceProfile);
+  const audioAsset =
+    normalizeAsset(response.audioAsset) ??
+    normalizeAsset(response.asset) ??
+    normalizeAsset(response.mediaAsset);
+
+  if (!voiceProfile || !audioAsset) {
+    throw new Error("克隆音色创建失败");
+  }
+
+  return { voiceProfile, audioAsset };
 }
 
 export function loadDraftMediaAssetsFallback(draftId: string) {
@@ -723,12 +1001,14 @@ export async function createVideoEditJob(payload: {
   draftId: string;
   contentVariantId: string;
   instructionText?: string | null;
+  inputAssetIds?: string[] | null;
   sourceJobId?: string | null;
   productionConfig?: JsonRecord | null;
 }) {
   const requestPayload = {
     contentVariantId: payload.contentVariantId,
     instructionText: payload.instructionText ?? null,
+    inputAssetIds: payload.inputAssetIds ?? null,
     sourceJobId: payload.sourceJobId ?? null,
     productionConfig: payload.productionConfig ?? null,
   };

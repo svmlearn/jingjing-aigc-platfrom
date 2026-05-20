@@ -100,6 +100,35 @@ test("toPublicVideoEditJob exposes result assets at the top level", () => {
   assert.equal(publicJob.resultAssets?.[0]?.signedPreviewUrl, "https://example.com/final.mp4");
 });
 
+test("toPublicVideoEditJob preserves explicit result asset download URL", () => {
+  const publicJob = toPublicVideoEditJob({
+    ...baseJob,
+    resultPayload: {
+      resultAssets: [
+        {
+          id: "asset-1",
+          ownerId: "variant-1",
+          assetType: "video",
+          storageProvider: "tencent_cos",
+          bucketName: "bucket",
+          storageKey: "outputs/final.mp4",
+          signedPreviewUrl: "/api/video-edit-jobs/job-1/result/asset-1?disposition=inline",
+          signedDownloadUrl: "/api/video-edit-jobs/job-1/result/asset-1?disposition=attachment",
+        },
+      ],
+    },
+  });
+
+  assert.equal(
+    publicJob.resultAssets?.[0]?.signedPreviewUrl,
+    "/api/video-edit-jobs/job-1/result/asset-1?disposition=inline",
+  );
+  assert.equal(
+    publicJob.resultAssets?.[0]?.signedDownloadUrl,
+    "/api/video-edit-jobs/job-1/result/asset-1?disposition=attachment",
+  );
+});
+
 test("toPublicVideoEditJob keeps payload result asset types intact", () => {
   const publicJob = toPublicVideoEditJob({
     ...baseJob,
@@ -154,6 +183,31 @@ test("toPublicVideoEditJob maps worker uploaded assets to top-level result asset
   assert.equal(publicJob.resultAssets[0]?.id, "asset-video-1");
   assert.equal(publicJob.resultAssets[0]?.ownerId, "variant-1");
   assert.equal(publicJob.resultAssets[0]?.storageKey, "outputs/final.mp4");
+});
+
+test("toPublicVideoEditJob preserves Aliyun OSS worker uploaded assets", () => {
+  const publicJob = toPublicVideoEditJob({
+    ...baseJob,
+    resultPayload: {
+      uploaded_assets: [
+        {
+          asset_id: "asset-video-aliyun-1",
+          asset_type: "video",
+          bucket_name: "jingjing-domestic-phase1-hz",
+          storage_provider: "aliyun_oss",
+          storage_key: "video-results/final.mp4",
+          mime_type: "video/mp4",
+          etag: "etag",
+          file_size_bytes: 1024,
+        },
+      ],
+    },
+  });
+
+  assert.equal(publicJob.resultAssets.length, 1);
+  assert.equal(publicJob.resultAssets[0]?.storageProvider, "aliyun_oss");
+  assert.equal(publicJob.resultAssets[0]?.bucketName, "jingjing-domestic-phase1-hz");
+  assert.equal(publicJob.resultAssets[0]?.storageKey, "video-results/final.mp4");
 });
 
 test("toPublicVideoEditJob keeps explicit result assets before payload assets", () => {

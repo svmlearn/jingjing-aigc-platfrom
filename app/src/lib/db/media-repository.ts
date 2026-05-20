@@ -10,6 +10,12 @@ import type {
 } from "@/contracts/media";
 import type { ContentVariantDto } from "@/contracts/draft";
 import { getLocalDemoMediaOwnerContext } from "@/lib/db/content-draft-repository";
+import {
+  isPostgresVideoChainEnabled,
+  pgAssertMediaOwnerAccess,
+  pgCreateAssetObject,
+  pgListAssetObjectsByOwner,
+} from "@/lib/db/postgres-video-chain-repository";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -47,6 +53,12 @@ type ContentVariantOwnerRow = {
   variant_type: ContentVariantDto["variantType"];
 };
 
+type VoiceProfileOwnerRow = {
+  id: string;
+  merchant_id: string;
+  created_by_user_id: string;
+};
+
 export type MediaOwnerContext = {
   ownerType: MediaOwnerType;
   ownerId: string;
@@ -77,8 +89,25 @@ export async function assertMediaOwnerAccess(input: {
   ownerType: MediaOwnerType;
   ownerId: string;
 }): Promise<MediaOwnerContext> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgAssertMediaOwnerAccess(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
-    const owner = getLocalDemoMediaOwnerContext(input);
+    if (input.ownerType === "voice_profile") {
+      return {
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        merchantId: input.merchantId,
+        createdByUserId: input.createdByUserId ?? null,
+      };
+    }
+
+    const owner = getLocalDemoMediaOwnerContext({
+      merchantId: input.merchantId,
+      ownerType: input.ownerType as Exclude<MediaOwnerType, "voice_profile">,
+      ownerId: input.ownerId,
+    });
 
     if (owner) {
       if (input.createdByUserId && owner.createdByUserId !== input.createdByUserId) {
@@ -147,6 +176,41 @@ export async function assertMediaOwnerAccess(input: {
     };
   }
 
+  if (input.ownerType === "voice_profile") {
+    let profileQuery = supabase
+      .from("voice_profiles")
+      .select("id, merchant_id, created_by_user_id")
+      .eq("id", input.ownerId)
+      .eq("merchant_id", input.merchantId);
+
+    if (input.createdByUserId) {
+      profileQuery = profileQuery.eq("created_by_user_id", input.createdByUserId);
+    }
+
+    const { data, error } = await profileQuery.maybeSingle();
+
+    if (error) {
+      throw new ApiError(500, "MEDIA_OWNER_LOOKUP_FAILED", error.message);
+    }
+
+    if (!data) {
+      return {
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        merchantId: input.merchantId,
+        createdByUserId: input.createdByUserId ?? null,
+      };
+    }
+
+    const profile = data as unknown as VoiceProfileOwnerRow;
+    return {
+      ownerType: input.ownerType,
+      ownerId: profile.id,
+      merchantId: profile.merchant_id,
+      createdByUserId: profile.created_by_user_id,
+    };
+  }
+
   const { data: variantData, error: variantError } = await supabase
     .from("content_variants")
     .select("id, draft_id, variant_type")
@@ -198,6 +262,10 @@ export async function createAssetObject(input: {
   etag?: string | null;
   sortOrder?: number;
 }): Promise<MediaAssetDto> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgCreateAssetObject(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     const now = new Date().toISOString();
     const sortOrder =
@@ -257,6 +325,10 @@ export async function listAssetObjectsByOwner(input: {
   ownerType: MediaOwnerType;
   ownerId: string;
 }): Promise<MediaAssetDto[]> {
+  if (isPostgresVideoChainEnabled()) {
+    return pgListAssetObjectsByOwner(input);
+  }
+
   if (!isSupabaseAdminConfigured()) {
     return Array.from(demoAssetObjects.values())
       .filter((asset) => asset.ownerType === input.ownerType && asset.ownerId === input.ownerId)

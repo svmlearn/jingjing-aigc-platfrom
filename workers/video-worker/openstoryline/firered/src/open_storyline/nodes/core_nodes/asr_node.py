@@ -1,4 +1,5 @@
-from typing import Any, Dict
+from http import HTTPStatus
+from typing import Any, Dict, Iterable, List, Optional
 import os
 import subprocess
 import tempfile
@@ -7,6 +8,105 @@ from open_storyline.nodes.core_nodes.base_node import BaseNode, NodeMeta
 from open_storyline.nodes.node_state import NodeState
 from open_storyline.nodes.node_schema import LocalASRInput
 from open_storyline.utils.register import NODE_REGISTRY
+
+LOCAL_ASR_PROVIDERS = {"local", "local_funasr", "funasr"}
+ALIYUN_ASR_PROVIDERS = {"aliyun", "aliyun_paraformer", "dashscope", "dashscope_paraformer"}
+ALIYUN_RECOGNITION_MODEL_ALIASES = {
+    "paraformer-v2": "paraformer-realtime-v2",
+}
+
+
+def _coerce_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(round(float(value)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _first_present(source: Dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if key in source and source[key] is not None:
+            return source[key]
+    return None
+
+
+def _append_asr_text(parts: List[str], text: str) -> None:
+    text = text.strip()
+    if not text:
+        return
+    if (
+        parts
+        and parts[-1]
+        and parts[-1][-1].isascii()
+        and parts[-1][-1].isalnum()
+        and text[0].isascii()
+        and text[0].isalnum()
+    ):
+        parts.append(" ")
+    parts.append(text)
+
+
+def _normalise_dashscope_sentences(sentences: Any) -> Dict[str, Any]:
+    if isinstance(sentences, dict):
+        sentence_items: Iterable[Dict[str, Any]] = [sentences]
+    elif isinstance(sentences, list):
+        sentence_items = [item for item in sentences if isinstance(item, dict)]
+    else:
+        sentence_items = []
+
+    text_parts: List[str] = []
+    timestamps: List[List[int]] = []
+    sentence_info: List[Dict[str, Any]] = []
+
+    for sentence in sentence_items:
+        sentence_text = str(sentence.get("text") or "").strip()
+        begin_time = _coerce_int(
+            _first_present(sentence, "begin_time", "beginTime", "start_time", "start"),
+        )
+        end_time = _coerce_int(
+            _first_present(sentence, "end_time", "endTime", "stop_time", "end"),
+            begin_time,
+        )
+
+        words = sentence.get("words")
+        word_timestamps: List[List[int]] = []
+        if isinstance(words, list):
+            for word in words:
+                if not isinstance(word, dict):
+                    continue
+                word_begin = _first_present(word, "begin_time", "beginTime", "start_time", "start")
+                word_end = _first_present(word, "end_time", "endTime", "stop_time", "end")
+                if word_begin is None or word_end is None:
+                    continue
+                timestamp = [_coerce_int(word_begin), _coerce_int(word_end)]
+                word_timestamps.append(timestamp)
+                timestamps.append(timestamp)
+
+        if not word_timestamps and end_time > begin_time:
+            word_timestamps.append([begin_time, end_time])
+            timestamps.append([begin_time, end_time])
+
+        if sentence_text:
+            _append_asr_text(text_parts, sentence_text)
+
+        sentence_info.append(
+            {
+                "text": sentence_text,
+                "start": begin_time,
+                "end": end_time,
+                "timestamp": word_timestamps,
+                "words": words if isinstance(words, list) else [],
+                "source": "aliyun_paraformer",
+            }
+        )
+
+    return {
+        "text": "".join(text_parts),
+        "timestamp": timestamps,
+        "sentence_info": sentence_info,
+        "provider": "aliyun_paraformer",
+    }
+
 
 @NODE_REGISTRY.register()
 class LocalASRNode(BaseNode):
@@ -22,6 +122,104 @@ class LocalASRNode(BaseNode):
     )
 
     input_schema = LocalASRInput
+
+    def _provider(self, inputs: Dict[str, Any] | None = None) -> str:
+        inputs = inputs or {}
+        cfg = getattr(self.server_cfg, "asr", None)
+        provider = (
+            inputs.get("provider")
+            or os.getenv("OPENSTORYLINE_ASR_PROVIDER")
+            or getattr(cfg, "provider", None)
+            or "local_funasr"
+        )
+        return str(provider).strip().lower()
+
+    def _aliyun_asr_config(self, inputs: Dict[str, Any] | None = None) -> Dict[str, Any]:
+        inputs = inputs or {}
+        provider_keys = inputs.get("provider_keys")
+        if not isinstance(provider_keys, dict):
+            provider_keys = {}
+        return {**provider_keys, **{k: v for k, v in inputs.items() if v not in (None, "", [], {})}}
+
+    def _aliyun_asr_model(self, inputs: Dict[str, Any] | None = None) -> str:
+        runtime_cfg = self._aliyun_asr_config(inputs)
+        cfg = getattr(self.server_cfg, "asr", None)
+        model = (
+            runtime_cfg.get("model")
+            or os.getenv("ALIYUN_ASR_MODEL")
+            or getattr(cfg, "model", None)
+            or "paraformer-realtime-v2"
+        )
+        model = str(model).strip()
+        return ALIYUN_RECOGNITION_MODEL_ALIASES.get(model, model)
+
+    def _aliyun_asr_api_key(self, inputs: Dict[str, Any] | None = None) -> str:
+        runtime_cfg = self._aliyun_asr_config(inputs)
+        cfg = getattr(self.server_cfg, "asr", None)
+        return str(
+            runtime_cfg.get("api_key")
+            or os.getenv("ALIYUN_ASR_API_KEY")
+            or getattr(cfg, "api_key", None)
+            or os.getenv("DASHSCOPE_API_KEY")
+            or ""
+        ).strip()
+
+    def _aliyun_asr_language_hints(self, inputs: Dict[str, Any] | None = None) -> Optional[List[str]]:
+        runtime_cfg = self._aliyun_asr_config(inputs)
+        cfg = getattr(self.server_cfg, "asr", None)
+        hints = runtime_cfg.get("language_hints") or getattr(cfg, "language_hints", None)
+        if hints is None:
+            raw = os.getenv("ALIYUN_ASR_LANGUAGE_HINTS", "")
+            hints = [item.strip() for item in raw.split(",") if item.strip()]
+        if isinstance(hints, str):
+            hints = [item.strip() for item in hints.split(",") if item.strip()]
+        return list(hints) if hints else None
+
+    def _transcribe_with_aliyun(self, audio_wav: str, inputs: Dict[str, Any] | None = None) -> Dict[str, Any]:
+        runtime_cfg = self._aliyun_asr_config(inputs)
+        api_key = self._aliyun_asr_api_key(inputs)
+        if not api_key:
+            raise RuntimeError("ALIYUN_ASR_API_KEY or DASHSCOPE_API_KEY is required for aliyun ASR")
+
+        try:
+            from dashscope.audio.asr import Recognition
+        except ImportError as exc:
+            raise RuntimeError("dashscope package is required for aliyun ASR") from exc
+
+        cfg = getattr(self.server_cfg, "asr", None)
+        kwargs: Dict[str, Any] = {
+            "api_key": api_key,
+            "callback": None,
+            "format": str(runtime_cfg.get("format") or getattr(cfg, "format", None) or "wav"),
+            "sample_rate": int(runtime_cfg.get("sample_rate") or getattr(cfg, "sample_rate", None) or 16000),
+        }
+        workspace = (
+            runtime_cfg.get("workspace")
+            or os.getenv("ALIYUN_ASR_WORKSPACE")
+            or getattr(cfg, "workspace", None)
+        )
+        if workspace:
+            kwargs["workspace"] = str(workspace)
+        language_hints = self._aliyun_asr_language_hints(inputs)
+        if language_hints:
+            kwargs["language_hints"] = language_hints
+
+        recognition = Recognition(
+            model=self._aliyun_asr_model(inputs),
+            **kwargs,
+        )
+        result = recognition.call(audio_wav)
+        if result.status_code != HTTPStatus.OK:
+            raise RuntimeError(
+                "Aliyun ASR failed: "
+                f"status={result.status_code}, code={getattr(result, 'code', '')}, "
+                f"message={getattr(result, 'message', '')}"
+            )
+
+        normalized = _normalise_dashscope_sentences(result.get_sentence())
+        normalized["request_id"] = result.get_request_id()
+        normalized["model"] = self._aliyun_asr_model(inputs)
+        return normalized
 
     def _load_asr_model(self):
 
@@ -78,15 +276,21 @@ class LocalASRNode(BaseNode):
         node_state,
         inputs: Dict[str, Any],
     ) -> Any:
-        return {}
+        return await self.process(node_state, inputs)
 
     async def process(self, node_state: NodeState, inputs: Dict[str, Any]) -> Any:
 
         clips = inputs["split_shots"].get('clips', [])
-        asr_model = self._load_asr_model()
+        provider = self._provider(inputs)
+        if provider in LOCAL_ASR_PROVIDERS:
+            asr_model = self._load_asr_model()
+        elif provider in ALIYUN_ASR_PROVIDERS:
+            asr_model = None
+        else:
+            raise ValueError(f"Unsupported ASR provider: {provider}")
 
         asr_infos = []
-        for clip in clips:
+        for index, clip in enumerate(clips):
             video_path = clip["path"]
             kind = clip["kind"]
             source_ref = clip.get("source_ref", {})
@@ -123,17 +327,27 @@ class LocalASRNode(BaseNode):
                 # perform asr and get asr text, here we directly use the audio wav path as input for asr model,
                 # since funasr can support audio file input and will handle the audio loading and feature extraction internally,
                 # which can avoid the potential audio loading and feature extraction issues in different environments
-                res = asr_model.generate(
-                    input=audio_wav,
-                    sentence_timestamp=True
+                await self._report_progress(
+                    node_state,
+                    index,
+                    len(clips),
+                    f"transcribing clip {clip['clip_id']} with {provider}",
                 )
+                if provider in ALIYUN_ASR_PROVIDERS:
+                    asr_res = self._transcribe_with_aliyun(audio_wav, inputs)
+                else:
+                    res = asr_model.generate(
+                        input=audio_wav,
+                        sentence_timestamp=True
+                    )
+                    asr_res = res[0] if res else {}
                 asr_infos.append({
                     "clip_id": clip["clip_id"],
                     "path": video_path,
                     "kind": kind,
                     "source_ref": source_ref,
                     "fps": fps,
-                    "asr_res": res[0] if res else {},
+                    "asr_res": asr_res,
                 })
 
         return {

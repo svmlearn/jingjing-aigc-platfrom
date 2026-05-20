@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { Pool, type QueryResultRow } from "pg";
+import type { QueryResultRow } from "pg";
 
 import type { ContentDraftBundleDto } from "@/contracts/draft";
 import type {
@@ -18,12 +18,15 @@ import type {
 } from "@/contracts/video";
 import { normalizeVideoProgressModules } from "@/lib/ui/video-progress-modules";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin";
+import {
+  getAppPostgresPool,
+  mapPostgresError,
+  queryAppDb,
+} from "@/lib/server-db/postgres";
 import { ApiError } from "@/server/api/errors";
 
 const defaultLocalRealChainMerchantId = "00000000-0000-4000-8000-000000000101";
 const defaultLocalRealChainMerchantName = "Local Real Chain Smoke Test";
-
-let pool: Pool | null = null;
 
 type SourceItemInput = {
   id: string;
@@ -518,38 +521,14 @@ async function ensureLocalRealChainMerchant() {
 
 async function query<T extends QueryResultRow>(sql: string, params: unknown[] = []) {
   try {
-    return await getPool().query<T>(sql, params);
+    return await queryAppDb<T>(sql, params);
   } catch (error) {
     throw mapLocalRealChainError(error, "LOCAL_REAL_CHAIN_DB_FAILED");
   }
 }
 
 function getPool() {
-  if (pool) {
-    return pool;
-  }
-
-  const connectionString = process.env.LOCAL_REAL_CHAIN_DB_URL?.trim();
-  if (!connectionString) {
-    throw new ApiError(
-      503,
-      "LOCAL_REAL_CHAIN_DB_NOT_CONFIGURED",
-      "LOCAL_REAL_CHAIN_DB_URL is required for local real-chain testing.",
-    );
-  }
-
-  pool = new Pool({
-    connectionString,
-    ssl:
-      process.env.LOCAL_REAL_CHAIN_DB_SSL === "disable"
-        ? false
-        : {
-            rejectUnauthorized: false,
-          },
-    max: 3,
-  });
-
-  return pool;
+  return getAppPostgresPool();
 }
 
 function mapLocalRealChainError(error: unknown, code: string) {
@@ -557,8 +536,7 @@ function mapLocalRealChainError(error: unknown, code: string) {
     return error;
   }
 
-  const message = error instanceof Error ? error.message : "Local real-chain database request failed.";
-  return new ApiError(500, code, message);
+  return mapPostgresError(error, code);
 }
 
 function mapAssetObject(row: AssetRow): MediaAssetDto {

@@ -125,17 +125,32 @@ const allowedVoiceoverProviders = new Set<VoiceoverProvider>([
   "minimax",
   "302",
 ]);
+const allowedWorkerInputStorageProviders = new Set(["tencent_cos", "aliyun_oss"] as const);
 const allowedSubtitleStyles = new Set(["platform_default", "bold_caption"]);
+const allowedTalkingHeadSubtitleSources = new Set(["script", "asr_original_audio"] as const);
 const allowedBgmFilterKeys = new Set(["mood", "scene", "genre", "lang", "id"]);
 
+type WorkerInputStorageProvider = "tencent_cos" | "aliyun_oss";
+
 type NormalizedProductionConfig = {
-  voiceover: {
-    enabled: boolean;
-    provider: VoiceoverProvider;
-    voiceStyle?: string;
-    speed?: number;
-    volume: number;
-  };
+  voiceover:
+    | {
+        enabled: boolean;
+        mode?: "system";
+        provider: VoiceoverProvider;
+        speaker?: string;
+        voiceStyle?: string;
+        speed?: number;
+        volume: number;
+      }
+    | {
+        enabled: boolean;
+        mode: "voice_profile";
+        voiceProfileId: string;
+        refAudioAssetId: string;
+        speed?: number;
+        volume: number;
+      };
   bgm: {
     enabled: boolean;
     userRequest: string;
@@ -146,6 +161,7 @@ type NormalizedProductionConfig = {
   subtitles: {
     enabled: boolean;
     style: "platform_default" | "bold_caption";
+    talkingHeadSource: "script" | "asr_original_audio";
   };
   render: {
     aspectRatio: "9:16";
@@ -306,9 +322,9 @@ function normalizeProductionConfig(
   input: ProductionConfig | null | undefined,
 ): NormalizedProductionConfig {
   const voiceover = input?.voiceover ?? {};
-  const provider = voiceover.provider ?? "bytedance_bigtts";
-  if (!allowedVoiceoverProviders.has(provider)) {
-    throwInvalidProductionConfig("Unsupported voiceover provider.");
+  const voiceoverMode = voiceover.mode ?? "system";
+  if (voiceoverMode !== "system" && voiceoverMode !== "voice_profile") {
+    throwInvalidProductionConfig("Unsupported voiceover mode.");
   }
 
   const subtitles = input?.subtitles ?? {};
@@ -316,11 +332,18 @@ function normalizeProductionConfig(
   if (!allowedSubtitleStyles.has(subtitleStyle)) {
     throwInvalidProductionConfig("Unsupported subtitle style.");
   }
+  const talkingHeadSource = subtitles.talkingHeadSource ?? "script";
+  if (!allowedTalkingHeadSubtitleSources.has(talkingHeadSource)) {
+    throwInvalidProductionConfig("Unsupported talking head subtitle source.");
+  }
 
   const render = input?.render ?? {};
   const normalizedRender: NormalizedProductionConfig["render"] = {
     aspectRatio: render.aspectRatio ?? "9:16",
-    includeOriginalAudio: render.includeOriginalAudio ?? false,
+    includeOriginalAudio:
+      "includeOriginalAudio" in voiceover && typeof voiceover.includeOriginalAudio === "boolean"
+        ? voiceover.includeOriginalAudio
+        : render.includeOriginalAudio ?? false,
   };
   if (normalizedRender.aspectRatio !== "9:16") {
     throwInvalidProductionConfig("Unsupported render aspect ratio.");
@@ -337,19 +360,7 @@ function normalizeProductionConfig(
   }
 
   const bgm = input?.bgm ?? {};
-  const normalizedVoiceover: NormalizedProductionConfig["voiceover"] = {
-    enabled: voiceover.enabled ?? true,
-    provider,
-    volume: normalizeOptionalNumber(voiceover.volume, "voiceover.volume", 0, 3) ?? 2,
-  };
-  const voiceStyle = normalizeOptionalString(voiceover.voiceStyle);
-  if (voiceStyle) {
-    normalizedVoiceover.voiceStyle = voiceStyle;
-  }
-  const speed = normalizeOptionalNumber(voiceover.speed, "voiceover.speed", 0.5, 2);
-  if (speed !== undefined) {
-    normalizedVoiceover.speed = speed;
-  }
+  const normalizedVoiceover = normalizeVoiceover(voiceover, voiceoverMode);
 
   return {
     voiceover: normalizedVoiceover,
@@ -363,9 +374,62 @@ function normalizeProductionConfig(
     subtitles: {
       enabled: subtitles.enabled ?? true,
       style: subtitleStyle,
+      talkingHeadSource,
     },
     render: normalizedRender,
   };
+}
+
+function normalizeVoiceover(
+  voiceover: NonNullable<ProductionConfig["voiceover"]> | Record<string, never>,
+  mode: "system" | "voice_profile",
+): NormalizedProductionConfig["voiceover"] {
+  const speed = normalizeOptionalNumber(voiceover.speed, "voiceover.speed", 0.5, 2);
+  const volume = normalizeOptionalNumber(voiceover.volume, "voiceover.volume", 0, 3) ?? 2;
+
+  if (mode === "voice_profile") {
+    const voiceProfileId = normalizeOptionalString(voiceover.voiceProfileId);
+    const refAudioAssetId = normalizeOptionalString(voiceover.refAudioAssetId);
+
+    if (!voiceProfileId || !refAudioAssetId) {
+      throwInvalidProductionConfig("voice_profile voiceover requires voiceProfileId and refAudioAssetId.");
+    }
+
+    const normalized: NormalizedProductionConfig["voiceover"] = {
+      enabled: voiceover.enabled ?? true,
+      mode: "voice_profile",
+      voiceProfileId,
+      refAudioAssetId,
+      volume,
+    };
+    if (speed !== undefined) {
+      normalized.speed = speed;
+    }
+    return normalized;
+  }
+
+  const provider = voiceover.provider ?? "bytedance_bigtts";
+  if (!allowedVoiceoverProviders.has(provider)) {
+    throwInvalidProductionConfig("Unsupported voiceover provider.");
+  }
+
+  const normalized: NormalizedProductionConfig["voiceover"] = {
+    enabled: voiceover.enabled ?? true,
+    provider,
+    volume,
+  };
+  const speaker = normalizeOptionalString(voiceover.speaker);
+  if (speaker) {
+    normalized.speaker = speaker;
+  }
+  const voiceStyle = normalizeOptionalString(voiceover.voiceStyle);
+  if (voiceStyle) {
+    normalized.voiceStyle = voiceStyle;
+  }
+  if (speed !== undefined) {
+    normalized.speed = speed;
+  }
+  return normalized;
 }
 
 function normalizeOptionalString(value: string | null | undefined) {
@@ -440,17 +504,9 @@ export function assertApprovedScript(variant: VideoJobPayloadVariant) {
 }
 
 function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
-  const storageProvider = asset.storageProvider.trim();
+  const storageProvider = normalizeWorkerInputStorageProvider(asset.storageProvider);
   const storageKey = asset.storageKey.trim();
   const bucketName = asset.bucketName?.trim() ?? "";
-
-  if (storageProvider !== "tencent_cos") {
-    throw new VideoJobPayloadValidationError(
-      409,
-      "VIDEO_INPUT_ASSET_PROVIDER_UNSUPPORTED",
-      "Video worker input assets must use tencent_cos storage.",
-    );
-  }
 
   if (!storageKey) {
     throw new VideoJobPayloadValidationError(
@@ -464,14 +520,14 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
     throw new VideoJobPayloadValidationError(
       409,
       "VIDEO_INPUT_ASSET_BUCKET_REQUIRED",
-      "COS 素材缺少 bucket_name，无法交给 worker 执行。",
+      "素材缺少 bucket_name，无法交给 worker 执行。",
     );
   }
 
   return {
     asset_id: asset.id,
     asset_type: asset.assetType,
-    storage_provider: "tencent_cos",
+    storage_provider: storageProvider,
     bucket_name: bucketName,
     storage_key: storageKey,
     mime_type: asset.mimeType ?? null,
@@ -479,6 +535,20 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
     etag: asset.etag ?? null,
     sort_order: asset.sortOrder,
   };
+}
+
+function normalizeWorkerInputStorageProvider(value: string): WorkerInputStorageProvider {
+  const normalized = value.trim().toLowerCase();
+
+  if (allowedWorkerInputStorageProviders.has(normalized as WorkerInputStorageProvider)) {
+    return normalized as WorkerInputStorageProvider;
+  }
+
+  throw new VideoJobPayloadValidationError(
+    409,
+    "VIDEO_INPUT_ASSET_PROVIDER_UNSUPPORTED",
+    "Video worker input assets must use tencent_cos or aliyun_oss storage.",
+  );
 }
 
 function extractSceneAssetQueriesFromScript(

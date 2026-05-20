@@ -201,7 +201,14 @@ def _parse_provider_runtime_config(service_cfg: Any, key_name: str) -> Dict[str,
     if not isinstance(provider_block, dict):
         provider_block = {}
 
-    return {"provider": provider, provider: provider_block}
+    out: Dict[str, Any] = {"provider": provider, provider: provider_block}
+    fallback_provider = _s(cfg.get("fallback_provider")).lower()
+    if fallback_provider:
+        out["fallback_provider"] = fallback_provider
+        fallback_block = cfg.get(fallback_provider)
+        if isinstance(fallback_block, dict):
+            out[fallback_provider] = fallback_block
+    return out
 
 def _parse_service_config(service_cfg: Any) -> Tuple[
     Optional[Dict[str, Any]],
@@ -209,14 +216,15 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
     Dict[str, Any],
     Dict[str, Any],
     Dict[str, Any],
+    Dict[str, Any],
     Optional[str]]:
     """
-    返回 (custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, pexels, err)
+    Returns (custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, asr_cfg, pexels, err).
     - custom_llm/custom_vlm: {"model","base_url","api_key"} 或 None（允许只传 llm 或只传 vlm）
     - tts_cfg: dict（可能为空）
     """
     if not isinstance(service_cfg, dict):
-        return None, None, {}, {}, {}, None
+        return None, None, {}, {}, {}, {}, None
 
     # ---- custom models ----
     custom_llm = None
@@ -225,7 +233,7 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
 
     if custom_models is not None:
         if not isinstance(custom_models, dict):
-            return None, None, {}, {}, {}, "service_config.custom_models 必须是对象"
+            return None, None, {}, {}, {}, {}, "service_config.custom_models 必须是对象"
 
         def _pick(m: Any, label: str) -> Tuple[Optional[Dict[str, str]], Optional[str]]:
             if m is None:
@@ -245,15 +253,16 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
 
         custom_llm, err1 = _pick(custom_models.get("llm"), "llm")
         if err1:
-            return None, None, {}, {}, {}, err1
+            return None, None, {}, {}, {}, {}, err1
 
         custom_vlm, err2 = _pick(custom_models.get("vlm"), "vlm")
         if err2:
-            return None, None, {}, {}, {}, err2
+            return None, None, {}, {}, {}, {}, err2
 
     # ---- provider runtime config ----
     tts_cfg = _parse_provider_runtime_config(service_cfg, "tts")
     ai_transition_cfg = _parse_provider_runtime_config(service_cfg, "ai_transition")
+    asr_cfg = _parse_provider_runtime_config(service_cfg, "asr")
 
     # ---- pexels ----
     pexels_cfg: Dict[str, Any] = {}
@@ -268,15 +277,17 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
             if mode not in ("default", "custom"):
                 mode = "default"
             api_key = _s(p.get("api_key") or p.get("pexels_api_key") or p.get("pexels_api_key"))
-            pexels_cfg = {"mode": mode, "api_key": api_key}
+            base_url = _s(p.get("base_url") or p.get("pexels_base_url") or p.get("private_base_url"))
+            pexels_cfg = {"mode": mode, "api_key": api_key, "base_url": base_url}
         else:
             mode = _s(search_media.get("mode") or search_media.get("pexels_mode") or search_media.get("pexels_mode")).lower()
             if mode not in ("default", "custom"):
                 mode = "default"
             api_key = _s(search_media.get("pexels_api_key") or search_media.get("pexels_api_key"))
-            pexels_cfg = {"mode": mode, "api_key": api_key}
+            base_url = _s(search_media.get("base_url") or search_media.get("pexels_base_url") or search_media.get("private_base_url"))
+            pexels_cfg = {"mode": mode, "api_key": api_key, "base_url": base_url}
 
-    return custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, pexels_cfg, None
+    return custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, asr_cfg, pexels_cfg, None
 
 def is_developer_mode(cfg: Settings) -> bool:
     try:
@@ -1337,10 +1348,12 @@ class ChatSession:
         self.custom_vlm_config: Optional[Dict[str, Any]] = None
         self.tts_config: Dict[str, Any] = {}
         self.ai_transition_config: Dict[str, Any] = {}
+        self.asr_config: Dict[str, Any] = {}
         self._agent_build_key: Optional[Tuple[Any, ...]] = None
 
         self.pexels_key_mode: str = "default"   # "default" | "custom"
         self.pexels_custom_key: str = ""
+        self.pexels_base_url: str = ""
 
         self._media_seq_inited = False
         self._media_seq_next = 1
@@ -1582,6 +1595,7 @@ class ChatSession:
             "pending_media_ids": [str(x) for x in (self.pending_media_ids or [])],
             "lc_messages_serialized": self._serialize_lc_messages(),
             "pexels_key_mode": self.pexels_key_mode,
+            "pexels_base_url": self.pexels_base_url,
             "sent_media_total": int(getattr(self, "sent_media_total", 0) or 0),
             # Primary boundary: never persist raw API keys for configs.
             "custom_llm_config": self._sanitize_custom_model_cfg_for_state(self.custom_llm_config),
@@ -1772,6 +1786,7 @@ class ChatSession:
         if sess.pexels_key_mode not in ("default", "custom"):
             sess.pexels_key_mode = "default"
         sess.pexels_custom_key = ""
+        sess.pexels_base_url = _s(data.get("pexels_base_url"))
 
         llm_cfg = data.get("custom_llm_config")
         sess.custom_llm_config = llm_cfg if isinstance(llm_cfg, dict) else None
@@ -1807,7 +1822,7 @@ class ChatSession:
                 missing.append("custom_vlm")
 
         if (self.pexels_key_mode or "").lower() == "custom":
-            if _is_missing(self.pexels_custom_key):
+            if _is_missing(self.pexels_custom_key) and _is_missing(self.pexels_base_url):
                 missing.append("pexels_custom")
 
         tts_cfg = self.tts_config if isinstance(self.tts_config, dict) else {}
@@ -1910,7 +1925,7 @@ class ChatSession:
 
 
     def apply_service_config(self, service_cfg: Any) -> Tuple[bool, Optional[str]]:
-        llm, vlm, tts, ai_transition, pexels, err = _parse_service_config(service_cfg)
+        llm, vlm, tts, ai_transition, asr, pexels, err = _parse_service_config(service_cfg)
         if err:
             return False, err
 
@@ -1926,15 +1941,20 @@ class ChatSession:
         if isinstance(ai_transition, dict) and ai_transition:
             self.ai_transition_config = ai_transition
 
+        if isinstance(asr, dict) and asr:
+            self.asr_config = asr
+
         # ---- pexels ----
         if isinstance(pexels, dict) and pexels:
             mode = _s(pexels.get("mode")).lower()
-            if mode == "custom":
+            self.pexels_base_url = _s(pexels.get("base_url") or pexels.get("pexels_base_url"))
+            if mode == "custom" or self.pexels_base_url:
                 self.pexels_key_mode = "custom"
                 self.pexels_custom_key = _s(pexels.get("api_key"))
             else:
                 self.pexels_key_mode = "default"
                 self.pexels_custom_key = ""
+                self.pexels_base_url = ""
 
         return True, None
 
@@ -1983,6 +2003,7 @@ class ChatSession:
                     ToolInterceptor.save_media_content_after,
                     ToolInterceptor.inject_tts_config,
                     ToolInterceptor.inject_ai_transition_config,
+                    ToolInterceptor.inject_asr_config,
                     ToolInterceptor.inject_pexels_api_key,
                 ],
                 llm_override=llm_override,
@@ -2002,6 +2023,7 @@ class ChatSession:
                 vlm_model_key=self.vlm_model_key,
                 tts_config=(self.tts_config or None),
                 ai_transition_config=(self.ai_transition_config or None),
+                asr_config=(self.asr_config or None),
                 pexels_api_key=None,
                 lang=self.lang,
             )
@@ -2010,6 +2032,7 @@ class ChatSession:
             self.client_context.vlm_model_key = self.vlm_model_key
             self.client_context.tts_config = (self.tts_config or None)
             self.client_context.ai_transition_config = (self.ai_transition_config or None)
+            self.client_context.asr_config = (self.asr_config or None)
             self.client_context.lang = self.lang
 
         # ---- resolve pexels_api_key for runtime context ----
@@ -2020,6 +2043,8 @@ class ChatSession:
             pexels_api_key = _get_default_pexels_api_key(self.cfg)  # from config.toml
 
         self.client_context.pexels_api_key = (pexels_api_key or None)
+        pexels_base_url = self.pexels_base_url or _get_default_pexels_base_url(self.cfg)
+        self.client_context.pexels_base_url = (pexels_base_url or None)
 
     # ---- DTO / public mapping ----
     def public_media(self, meta: MediaMeta) -> Dict[str, Any]:
@@ -2372,6 +2397,11 @@ def health():
     }
 
 
+@app.get("/ready")
+def ready():
+    return health()
+
+
 @api.get("/health")
 def api_health():
     return health()
@@ -2544,6 +2574,14 @@ def _get_default_pexels_api_key(cfg: Settings) -> str:
             return pexels_api_key
         else:
             return ""
+    except Exception:
+        return ""
+
+def _get_default_pexels_base_url(cfg: Settings) -> str:
+    try:
+        search_media = getattr(cfg, "search_media", None)
+        pexels_base_url = _s(getattr(search_media, "pexels_base_url", None) if search_media else None)
+        return pexels_base_url.rstrip("/") if pexels_base_url else ""
     except Exception:
         return ""
 
@@ -2796,6 +2834,25 @@ async def _register_worker_input_assets(
     return metas
 
 
+def _worker_input_assets_with_store_names(
+    input_assets: Any,
+    metas: List[MediaMeta],
+) -> Any:
+    if not isinstance(input_assets, list):
+        return input_assets
+    out: list[Any] = []
+    for index, asset in enumerate(input_assets):
+        if not isinstance(asset, dict):
+            out.append(asset)
+            continue
+        enriched = dict(asset)
+        if index < len(metas):
+            enriched["store_file_name"] = os.path.basename(metas[index].path or "")
+            enriched["media_id"] = metas[index].id
+        out.append(enriched)
+    return out
+
+
 def _merge_worker_lc_messages(messages: List[BaseMessage]) -> List[BaseMessage]:
     system_parts: List[str] = []
     non_system: List[BaseMessage] = []
@@ -2816,6 +2873,7 @@ async def _run_worker_session_prompt(
     *,
     prompt: str,
     service_config: Any = None,
+    worker_payload: Any = None,
     event_sink: Any = None,
 ) -> str:
     async with sess.chat_lock:
@@ -2826,6 +2884,9 @@ async def _run_worker_session_prompt(
 
         await sess.ensure_agent()
         sess._ensure_system_prompt()
+        if sess.client_context is not None:
+            sess.client_context.worker_payload = worker_payload if isinstance(worker_payload, dict) else None
+            sess.client_context.asr_config = sess.asr_config if isinstance(sess.asr_config, dict) and sess.asr_config else None
 
         attachments = await sess.take_pending_media_for_message(None)
         stats = {
@@ -2919,6 +2980,77 @@ def _latest_render_video_result(session_id: str) -> Tuple[ArtifactStore, Any, Di
     return artifact_store, render_path, data
 
 
+def _latest_node_payload(session_id: str, node_id: str) -> Dict[str, Any]:
+    artifact_store = ArtifactStore(app.state.cfg.project.outputs_dir, session_id=session_id)
+    meta = artifact_store.get_latest_meta(node_id=node_id, session_id=session_id)
+    if meta is None:
+        return {}
+    try:
+        _loaded_meta, data = artifact_store.load_result(meta.artifact_id)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _extract_node_payload(data: Dict[str, Any], node_id: str) -> Dict[str, Any]:
+    payload = data.get("payload") if isinstance(data, dict) else None
+    if isinstance(payload, dict):
+        nested = payload.get(node_id)
+        if isinstance(nested, dict):
+            return nested
+        return payload
+    return {}
+
+
+def _is_clone_voiceover_required(payload: Dict[str, Any]) -> bool:
+    production_config = payload.get("production_config")
+    if not isinstance(production_config, dict):
+        return False
+    voiceover = production_config.get("voiceover")
+    if not isinstance(voiceover, dict) or voiceover.get("enabled") is False:
+        return False
+    provider = _s(voiceover.get("provider")).lower()
+    return bool(
+        voiceover.get("clone_enabled")
+        or voiceover.get("cloneEnabled")
+        or "clone" in provider
+    )
+
+
+def _latest_voiceover_tool_failure(sess: ChatSession) -> Optional[Dict[str, Any]]:
+    for rec in reversed(sess.history or []):
+        if not isinstance(rec, dict):
+            continue
+        if str(rec.get("role") or "") != "tool":
+            continue
+        if str(rec.get("state") or "") != "error":
+            continue
+        if "voiceover" not in str(rec.get("name") or "").lower():
+            continue
+        return _mask_tool_history_record(
+            {
+                "server": rec.get("server"),
+                "name": rec.get("name"),
+                "state": rec.get("state"),
+                "message": rec.get("message"),
+                "summary": rec.get("summary"),
+            }
+        )
+    return None
+
+
+def _raise_if_required_clone_voiceover_failed(payload: Dict[str, Any], sess: ChatSession) -> None:
+    if not _is_clone_voiceover_required(payload):
+        return
+    failure = _latest_voiceover_tool_failure(sess)
+    if not failure:
+        return
+    raise RuntimeError(
+        "clone voiceover failed before render completion: "
+        + json.dumps(failure, ensure_ascii=False, default=str)
+    )
+
+
 def _copy_worker_final_video(render_path: str, output_dir: Path) -> Path:
     source = Path(render_path)
     if not source.is_absolute():
@@ -2941,6 +3073,7 @@ def _write_worker_run_metadata(
     session_id: str,
     final_text: str,
     render_payload: Dict[str, Any],
+    voiceover_payload: Dict[str, Any],
     final_video_path: Path,
 ) -> None:
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2953,6 +3086,7 @@ def _write_worker_run_metadata(
                 "final_video_path": str(final_video_path),
                 "assistant_text": final_text,
                 "render_video": render_payload,
+                "generate_voiceover": voiceover_payload,
             },
             ensure_ascii=False,
             indent=2,
@@ -2978,6 +3112,73 @@ def _fallback_worker_prompt(payload: Dict[str, Any]) -> str:
     )
 
 
+def _worker_rehearsal_fast_path_enabled(payload: Dict[str, Any]) -> bool:
+    service_config = payload.get("service_config")
+    return isinstance(service_config, dict) and service_config.get(
+        "worker_rehearsal_fast_path"
+    ) is True
+
+
+def _worker_rehearsal_fast_path_payload(payload: Dict[str, Any], output_dir: Path) -> Dict[str, Any]:
+    input_assets = payload.get("input_assets")
+    if not isinstance(input_assets, list) or not input_assets:
+        raise HTTPException(status_code=400, detail="input_assets is required")
+
+    source_path: Path | None = None
+    for asset in input_assets:
+        if not isinstance(asset, dict):
+            continue
+        local_path = _s(asset.get("local_path"))
+        if not local_path:
+            continue
+        candidate = Path(local_path)
+        if candidate.is_file():
+            source_path = candidate
+            break
+
+    if source_path is None:
+        raise HTTPException(
+            status_code=500,
+            detail="worker rehearsal input file not found",
+        )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    final_video_path = output_dir / "final.mp4"
+    shutil.copyfile(source_path, final_video_path)
+
+    render_payload = {
+        "mode": "worker_rehearsal_fast_path",
+        "output_path": str(final_video_path),
+        "source_path": str(source_path),
+        "input_asset_count": len(input_assets),
+    }
+    metadata_path = output_dir / "firered-run-metadata.json"
+    _write_worker_run_metadata(
+        metadata_path,
+        payload=payload,
+        session_id="worker_rehearsal_fast_path",
+        final_text="worker rehearsal fast path rendered final.mp4 from input asset",
+        render_payload=render_payload,
+        final_video_path=final_video_path,
+    )
+
+    return {
+        "job_id": payload.get("job_id"),
+        "session_id": "worker_rehearsal_fast_path",
+        "final_video_path": str(final_video_path),
+        "metadata_path": str(metadata_path),
+        "raw_response": {
+            "engine": "fire_red-openstoryline",
+            "worker_rehearsal_fast_path": True,
+            "render_video": render_payload,
+        },
+    }
+
+
+def _run_worker_rehearsal_fast_path(payload: Dict[str, Any], output_dir: Path) -> JSONResponse:
+    return JSONResponse(_worker_rehearsal_fast_path_payload(payload, output_dir))
+
+
 def _worker_run_response_payload(
     *,
     payload: Dict[str, Any],
@@ -2985,6 +3186,7 @@ def _worker_run_response_payload(
     final_video_path: Path,
     metadata_path: Path,
     render_payload: Dict[str, Any],
+    voiceover_payload: Dict[str, Any],
 ) -> Dict[str, Any]:
     return {
         "job_id": payload.get("job_id"),
@@ -2994,7 +3196,9 @@ def _worker_run_response_payload(
         "raw_response": {
             "engine": "fire_red-openstoryline",
             "render_video": render_payload,
+            "generate_voiceover": voiceover_payload,
         },
+        "voiceover": voiceover_payload,
     }
 
 
@@ -3033,18 +3237,31 @@ async def run_worker_video_job(request: Request):
         raise HTTPException(status_code=400, detail="output_dir is required")
     output_dir = Path(output_dir_raw)
 
+    if _worker_rehearsal_fast_path_enabled(payload):
+        return _run_worker_rehearsal_fast_path(payload, output_dir)
+
     store: SessionStore = app.state.sessions
     sess = await store.create()
     try:
-        await _register_worker_input_assets(sess, payload.get("input_assets") or [])
+        metas = await _register_worker_input_assets(sess, payload.get("input_assets") or [])
+        payload["input_assets"] = _worker_input_assets_with_store_names(
+            payload.get("input_assets") or [],
+            metas,
+        )
         prompt = _s(payload.get("prompt")) or _fallback_worker_prompt(payload)
         final_text = await _run_worker_session_prompt(
             store,
             sess,
             prompt=prompt,
             service_config=payload.get("service_config"),
+            worker_payload=payload,
         )
+        _raise_if_required_clone_voiceover_failed(payload, sess)
         _artifact_store, render_path, render_payload = _latest_render_video_result(sess.session_id)
+        voiceover_payload = _extract_node_payload(
+            _latest_node_payload(sess.session_id, "generate_voiceover"),
+            "generate_voiceover",
+        )
         final_video_path = _copy_worker_final_video(render_path, output_dir)
         metadata_path = output_dir / "firered-run-metadata.json"
         _write_worker_run_metadata(
@@ -3053,6 +3270,7 @@ async def run_worker_video_job(request: Request):
             session_id=sess.session_id,
             final_text=final_text,
             render_payload=render_payload,
+            voiceover_payload=voiceover_payload,
             final_video_path=final_video_path,
         )
         return JSONResponse(
@@ -3062,6 +3280,7 @@ async def run_worker_video_job(request: Request):
                 final_video_path=final_video_path,
                 metadata_path=metadata_path,
                 render_payload=render_payload,
+                voiceover_payload=voiceover_payload,
             )
         )
     except HTTPException:
@@ -3094,6 +3313,18 @@ async def stream_worker_video_job(request: Request):
     if not output_dir_raw:
         raise HTTPException(status_code=400, detail="output_dir is required")
     output_dir = Path(output_dir_raw)
+
+    if _worker_rehearsal_fast_path_enabled(payload):
+        fast_path_payload = _worker_rehearsal_fast_path_payload(payload, output_dir)
+
+        async def generate_fast_path():
+            yield json.dumps(
+                {"type": "result", "data": fast_path_payload},
+                ensure_ascii=False,
+                default=str,
+            ) + "\n"
+
+        return StreamingResponse(generate_fast_path(), media_type="application/x-ndjson")
 
     async def generate():
         queue: asyncio.Queue = asyncio.Queue()
@@ -3138,16 +3369,26 @@ async def stream_worker_video_job(request: Request):
             store: SessionStore = app.state.sessions
             sess = await store.create()
             sess_holder["session"] = sess
-            await _register_worker_input_assets(sess, payload.get("input_assets") or [])
+            metas = await _register_worker_input_assets(sess, payload.get("input_assets") or [])
+            payload["input_assets"] = _worker_input_assets_with_store_names(
+                payload.get("input_assets") or [],
+                metas,
+            )
             prompt = _s(payload.get("prompt")) or _fallback_worker_prompt(payload)
             final_text = await _run_worker_session_prompt(
                 store,
                 sess,
                 prompt=prompt,
                 service_config=payload.get("service_config"),
+                worker_payload=payload,
                 event_sink=enqueue_event,
             )
+            _raise_if_required_clone_voiceover_failed(payload, sess)
             _artifact_store, render_path, render_payload = _latest_render_video_result(sess.session_id)
+            voiceover_payload = _extract_node_payload(
+                _latest_node_payload(sess.session_id, "generate_voiceover"),
+                "generate_voiceover",
+            )
             final_video_path = _copy_worker_final_video(render_path, output_dir)
             metadata_path = output_dir / "firered-run-metadata.json"
             _write_worker_run_metadata(
@@ -3156,6 +3397,7 @@ async def stream_worker_video_job(request: Request):
                 session_id=sess.session_id,
                 final_text=final_text,
                 render_payload=render_payload,
+                voiceover_payload=voiceover_payload,
                 final_video_path=final_video_path,
             )
             await queue.put(
@@ -3167,6 +3409,7 @@ async def stream_worker_video_job(request: Request):
                         final_video_path=final_video_path,
                         metadata_path=metadata_path,
                         render_payload=render_payload,
+                        voiceover_payload=voiceover_payload,
                     ),
                 }
             )

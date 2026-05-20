@@ -4,35 +4,67 @@ import sys
 import types
 from pathlib import Path
 
-qcloud_cos = types.ModuleType("qcloud_cos")
-qcloud_cos.CosConfig = object
-qcloud_cos.CosS3Client = object
-sys.modules.setdefault("qcloud_cos", qcloud_cos)
+try:
+    import httpx  # noqa: F401
+except ModuleNotFoundError:
+    httpx = types.ModuleType("httpx")
+    httpx.get = object()
+    httpx.post = object()
+    httpx.stream = object()
+    sys.modules.setdefault("httpx", httpx)
 
-psycopg = types.ModuleType("psycopg")
-psycopg.Connection = object
-psycopg_rows = types.ModuleType("psycopg.rows")
-psycopg_rows.dict_row = object()
-psycopg_types = types.ModuleType("psycopg.types")
-psycopg_json = types.ModuleType("psycopg.types.json")
-psycopg_json.Json = dict
-psycopg_json.Jsonb = dict
-sys.modules.setdefault("psycopg", psycopg)
-sys.modules.setdefault("psycopg.rows", psycopg_rows)
-sys.modules.setdefault("psycopg.types", psycopg_types)
-sys.modules.setdefault("psycopg.types.json", psycopg_json)
+try:
+    import qcloud_cos  # noqa: F401
+except ModuleNotFoundError:
+    qcloud_cos = types.ModuleType("qcloud_cos")
+    qcloud_cos.CosConfig = object
+    qcloud_cos.CosS3Client = object
+    sys.modules.setdefault("qcloud_cos", qcloud_cos)
+
+try:
+    import psycopg  # noqa: F401
+    import psycopg.rows  # noqa: F401
+    import psycopg.types.json  # noqa: F401
+except ModuleNotFoundError:
+    psycopg = types.ModuleType("psycopg")
+    psycopg.Connection = object
+    psycopg_rows = types.ModuleType("psycopg.rows")
+    psycopg_rows.dict_row = object()
+    psycopg_types = types.ModuleType("psycopg.types")
+    psycopg_json = types.ModuleType("psycopg.types.json")
+    psycopg_json.Json = dict
+    psycopg_json.Jsonb = dict
+    sys.modules.setdefault("psycopg", psycopg)
+    sys.modules.setdefault("psycopg.rows", psycopg_rows)
+    sys.modules.setdefault("psycopg.types", psycopg_types)
+    sys.modules.setdefault("psycopg.types.json", psycopg_json)
 
 from worker.app.models import EngineRunResult, UploadedAsset, VideoJob
 from worker.app.processor import JobProcessor
 
 
 class Settings:
+    storage_provider = "tencent_cos"
     cos_bucket = "default-bucket"
     cos_result_prefix = "video-results"
+    storage_result_prefix = "video-results"
+    default_input_buckets = {
+        "tencent_cos": "default-bucket",
+        "aliyun_oss": "default-aliyun-bucket",
+    }
 
     def __init__(self, root: Path) -> None:
         self.worker_temp_root = root / "tmp"
         self.worker_output_root = root / "outputs"
+
+
+class AliyunSettings(Settings):
+    storage_provider = "aliyun_oss"
+    storage_result_prefix = "video-results"
+    default_input_buckets = {
+        "tencent_cos": "default-bucket",
+        "aliyun_oss": "default-aliyun-bucket",
+    }
 
 
 def make_job(input_payload=None):
@@ -80,6 +112,8 @@ class FakeRepository:
         self.failed = None
         self.succeeded = None
         self.inserted_assets = []
+        self.material_input_assets = []
+        self.material_queries = []
         self.fail_insert_output_assets = fail_insert_output_assets
 
     def update_stage(self, job_id, **kwargs):
@@ -100,6 +134,7 @@ class FakeRepository:
             {
                 "asset_id": f"asset_{asset.asset_type}_1",
                 "asset_type": asset.asset_type,
+                "storage_provider": asset.storage_provider,
                 "bucket_name": asset.bucket_name,
                 "storage_key": asset.storage_key,
                 "mime_type": asset.mime_type,
@@ -109,6 +144,10 @@ class FakeRepository:
             for asset in uploaded_assets
         ]
 
+    def list_video_material_input_assets(self, merchant_id, *, query, limit=8):
+        self.material_queries.append({"merchant_id": merchant_id, "query": query, "limit": limit})
+        return self.material_input_assets[:limit]
+
 
 class FakeCosClient:
     def __init__(self, fail_download=False, fail_upload_asset_type=None) -> None:
@@ -117,12 +156,13 @@ class FakeCosClient:
         self.fail_download = fail_download
         self.fail_upload_asset_type = fail_upload_asset_type
 
-    def download_file(self, storage_key, destination, bucket_name=None):
+    def download_file(self, storage_key, destination, bucket_name=None, storage_provider="tencent_cos"):
         self.downloads.append(
             {
                 "storage_key": storage_key,
                 "destination": destination,
                 "bucket_name": bucket_name,
+                "storage_provider": storage_provider,
             }
         )
         if self.fail_download:
@@ -131,19 +171,28 @@ class FakeCosClient:
         destination.write_bytes(b"input")
         return destination
 
-    def upload_file(self, local_path, storage_key, asset_type, bucket_name=None):
+    def upload_file(
+        self,
+        local_path,
+        storage_key,
+        asset_type,
+        bucket_name=None,
+        storage_provider=None,
+    ):
         self.uploads.append(
             {
                 "local_path": local_path,
                 "storage_key": storage_key,
                 "asset_type": asset_type,
                 "bucket_name": bucket_name,
+                "storage_provider": storage_provider or "tencent_cos",
             }
         )
         if self.fail_upload_asset_type == asset_type:
             raise RuntimeError(f"upload failed for {storage_key}")
         return UploadedAsset(
             asset_type=asset_type,
+            storage_provider=storage_provider or "tencent_cos",
             bucket_name=bucket_name or "output-bucket",
             storage_key=storage_key,
             mime_type="video/mp4" if asset_type == "video" else "application/octet-stream",
@@ -160,14 +209,18 @@ class FakeOpenStorylineClient:
         fail_run=False,
         progress_events=None,
         failure_message="engine unavailable",
+        voiceover_payload=None,
     ) -> None:
         self.missing_outputs = set(missing_outputs or [])
         self.fail_run = fail_run
         self.progress_events = list(progress_events or [])
         self.failure_message = failure_message
         self.progress_callback_seen = False
+        self.voiceover_payload = voiceover_payload
+        self.last_input_assets = None
 
     def run_job(self, job, directive, input_assets, workspace_dir, output_dir, progress_callback=None):
+        self.last_input_assets = input_assets
         if progress_callback is not None:
             self.progress_callback_seen = True
             for event in self.progress_events:
@@ -191,6 +244,10 @@ class FakeOpenStorylineClient:
             if name not in self.missing_outputs:
                 path.write_bytes(b"output")
 
+        voiceover_payload = self.voiceover_payload
+        if voiceover_payload is None:
+            voiceover_payload = {"provider": "bytedance_bigtts"}
+
         return EngineRunResult(
             final_video_path=final_video_path,
             cover_image_path=cover_image_path,
@@ -206,7 +263,10 @@ class FakeOpenStorylineClient:
                         "voiceover": {"provider": "bytedance_bigtts"},
                     },
                     "selected_bgm": {"name": "light_upbeat_01"},
-                    "voiceover": {"provider": "bytedance_bigtts"},
+                    "voiceover": voiceover_payload,
+                },
+                "fire_red_raw_response": {
+                    "generate_voiceover": voiceover_payload,
                 },
             },
         )
@@ -255,6 +315,200 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
         self.assertEqual([], cos_client.downloads)
 
+    def test_voice_profile_reference_audio_is_downloaded_and_summarized(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            engine_client = FakeOpenStorylineClient(
+                voiceover_payload={
+                    "provider": "pixelle_clone",
+                    "voiceover": [
+                        {
+                            "voiceover_id": "voiceover_0001",
+                            "duration": 1200,
+                            "duration_ms": 1200,
+                            "provider": "pixelle_clone",
+                            "clone": True,
+                        }
+                    ],
+                }
+            )
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                engine_client,
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "productionConfig": {
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                            "voiceProfileId": "profile-1",
+                            "refAudioAssetId": "asset-1",
+                            "refAudioAsset": {
+                                "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                "bucket_name": "voice-bucket",
+                                "storage_provider": "tencent_cos",
+                            },
+                        }
+                    },
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.failed)
+        self.assertEqual(
+            "voice-profiles/merchant/profile/ref.wav",
+            cos_client.downloads[0]["storage_key"],
+        )
+        self.assertEqual("voice-bucket", cos_client.downloads[0]["bucket_name"])
+        self.assertEqual(
+            "voice_profile",
+            repository.succeeded["result_payload"]["voiceover_artifacts"]["mode"],
+        )
+        self.assertEqual(
+            "profile-1",
+            repository.succeeded["result_payload"]["voiceover_artifacts"]["voice_profile_id"],
+        )
+        self.assertEqual(
+            1,
+            repository.succeeded["result_payload"]["voiceover_artifacts"]["segment_count"],
+        )
+
+    def test_voice_profile_job_fails_when_clone_voiceover_artifacts_are_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(voiceover_payload={"provider": "minimax"}),
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "productionConfig": {
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                            "voiceProfileId": "profile-1",
+                            "refAudioAssetId": "asset-1",
+                            "refAudioAsset": {
+                                "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                "storage_provider": "tencent_cos",
+                            },
+                        }
+                    },
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual("failed_manual", repository.failed["status"])
+        self.assertEqual("voiceover_artifact_validation_failed", repository.failed["current_stage"])
+        self.assertIn("voiceover_clone_artifacts_missing", repository.failed["failure_reason"])
+
+    def test_voice_profile_job_fails_when_non_clone_provider_was_used(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(
+                    voiceover_payload={
+                        "provider": "minimax",
+                        "voiceover": [
+                            {"duration": 1200, "provider": "minimax"},
+                        ],
+                    }
+                ),
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "productionConfig": {
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                            "voiceProfileId": "profile-1",
+                            "refAudioAssetId": "asset-1",
+                            "refAudioAsset": {
+                                "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                "storage_provider": "tencent_cos",
+                            },
+                        }
+                    },
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual("failed_manual", repository.failed["status"])
+        self.assertIn("voiceover_clone_provider_not_used", repository.failed["failure_reason"])
+
+    def test_voice_profile_original_audio_job_allows_middle_clone_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(
+                    voiceover_payload={
+                        "provider": "pixelle_clone",
+                        "voiceover": [],
+                        "skipped_voiceover": [
+                            {"group_id": "group_0001", "reason": "original_video_audio"},
+                            {"group_id": "group_0005", "reason": "original_video_audio"},
+                        ],
+                    }
+                ),
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "productionConfig": {
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                            "voiceProfileId": "profile-1",
+                            "refAudioAssetId": "asset-1",
+                            "refAudioAsset": {
+                                "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                "storage_provider": "tencent_cos",
+                            },
+                        },
+                        "render": {
+                            "preserveTalkingHeadOriginalAudio": True,
+                        },
+                    },
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.failed)
+        self.assertIsNotNone(repository.succeeded)
+        self.assertEqual(
+            ["pixelle_clone"],
+            repository.succeeded["result_payload"]["voiceover_artifacts"]["providers"],
+        )
+
     def test_falsey_non_list_input_assets_marks_failed_manual_without_download(self):
         for input_assets in ("", 0, False):
             with self.subTest(input_assets=input_assets):
@@ -299,6 +553,114 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual("downloading_inputs_failed", repository.failed["current_stage"])
         self.assertIn("input_download_failed", repository.failed["failure_reason"])
         self.assertIsNone(repository.succeeded)
+
+    def test_input_asset_metadata_is_preserved_for_talking_head_classification(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            engine_client = FakeOpenStorylineClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                FakeRepository(),
+                FakeCosClient(),
+                engine_client,
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_provider": "tencent_cos",
+                            "storage_key": "draft-inputs/demo.mp4",
+                            "file_name": "demo.mp4",
+                            "role": "talking_head",
+                            "scene_type": "真人口播",
+                            "tags": ["talking_head"],
+                            "labels": ["真人口播"],
+                            "metadata": {"content_type": "talking_head"},
+                        }
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertEqual("talking_head", engine_client.last_input_assets[0]["role"])
+        self.assertEqual(["talking_head"], engine_client.last_input_assets[0]["tags"])
+        self.assertEqual(
+            {"content_type": "talking_head"},
+            engine_client.last_input_assets[0]["metadata"],
+        )
+
+    def test_material_library_assets_are_retrieved_inside_worker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            repository.material_input_assets = [
+                {
+                    "asset_type": "video",
+                    "storage_provider": "aliyun_oss",
+                    "bucket_name": "project-bucket",
+                    "storage_key": "merchant-media/merchant/clips/asset/clip.mp4",
+                    "file_name": "material-clip.mp4",
+                    "role": "project_material",
+                    "scene_type": "merchant_material_library",
+                    "tags": ["外立面"],
+                    "metadata": {
+                        "source": "merchant_material_library",
+                        "asset_object_id": "asset-1",
+                    },
+                }
+            ]
+            cos_client = FakeCosClient()
+            engine_client = FakeOpenStorylineClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                engine_client,
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "materialContext": {
+                        "sceneAssetQueries": [
+                            {
+                                "query": "素材检索：建筑外立面 商铺招牌 入口",
+                            }
+                        ],
+                    },
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_provider": "aliyun_oss",
+                            "bucket_name": "user-bucket",
+                            "storage_key": "draft-inputs/member-selfie.mp4",
+                            "file_name": "member-selfie.mp4",
+                            "role": "talking_head",
+                        }
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.failed)
+        self.assertIn("建筑外立面", repository.material_queries[0]["query"])
+        self.assertEqual(2, len(engine_client.last_input_assets))
+        self.assertEqual("talking_head", engine_client.last_input_assets[0]["role"])
+        self.assertEqual("project_material", engine_client.last_input_assets[1]["role"])
+        self.assertEqual("aliyun_oss", cos_client.downloads[1]["storage_provider"])
+        self.assertEqual(
+            "merchant-media/merchant/clips/asset/clip.mp4",
+            cos_client.downloads[1]["storage_key"],
+        )
+        self.assertEqual(
+            1,
+            repository.succeeded["log_payload"]["steps"][1][
+                "material_library_inputs_downloaded"
+            ],
+        )
 
     def test_engine_run_failure_marks_failed_retryable_with_diagnostic_stage(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -359,6 +721,44 @@ class ProcessorContractTests(unittest.TestCase):
         failure_step = repository.failed["log_payload"]["steps"][-1]
         self.assertEqual("render", failure_step["active_module"])
         self.assertIn("ConnectError", failure_step["openstoryline_progress"]["last_event"]["summary"])
+
+    def test_engine_run_failure_after_voiceover_event_marks_voiceover_module_failed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            engine_client = FakeOpenStorylineClient(
+                fail_run=True,
+                progress_events=[
+                    {
+                        "type": "tool_end",
+                        "server": "storyline",
+                        "name": "generate_voiceover",
+                        "is_error": True,
+                        "summary": "runninghub submit returned no task id or audio: errorCode 1014",
+                    }
+                ],
+                failure_message=(
+                    "worker run failed: RuntimeError: clone voiceover failed before render completion; "
+                    "root_cause=RuntimeError: runninghub errorCode 1014; "
+                    "last_tool=generate_voiceover"
+                ),
+            )
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                engine_client,
+            )
+
+            with self.assertRaises(RuntimeError):
+                processor.process(make_job())
+
+        self.assertEqual("failed_retryable", repository.failed["status"])
+        self.assertEqual("openstoryline_rendering_failed", repository.failed["current_stage"])
+        self.assertIn("generate_voiceover", repository.failed["failure_reason"])
+        failure_step = repository.failed["log_payload"]["steps"][-1]
+        self.assertEqual("voiceover", failure_step["active_module"])
+        self.assertIn("errorCode 1014", failure_step["openstoryline_progress"]["last_event"]["summary"])
 
     def test_unsafe_input_asset_file_name_marks_failed_manual_without_download(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -523,6 +923,54 @@ class ProcessorContractTests(unittest.TestCase):
                 item["key"] == "render" and item["label"] == "合成渲染"
                 for item in result_payload["progress_modules"]
             )
+        )
+
+    def test_aliyun_input_and_output_provider_are_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            processor = JobProcessor(
+                AliyunSettings(Path(tmp)),
+                repository,
+                cos_client,
+                FakeOpenStorylineClient(),
+            )
+            job = make_job(
+                {
+                    "source": "video_workbench",
+                    "executionMode": "staging_worker",
+                    "script": {
+                        "text": "固定脚本，不允许制作层改写。",
+                        "locked": True,
+                        "variantId": "variant_1",
+                    },
+                    "productionDirective": {
+                        "targetPlatform": "douyin",
+                        "aspectRatio": "9:16",
+                        "desiredOutputs": ["final_video"],
+                        "lockedFields": ["script", "cta"],
+                    },
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_provider": "aliyun_oss",
+                            "bucket_name": "jingjing-domestic-phase1-hz",
+                            "storage_key": "draft-inputs/demo.mp4",
+                            "file_name": "demo.mp4",
+                        }
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertEqual("aliyun_oss", cos_client.downloads[0]["storage_provider"])
+        self.assertEqual("aliyun_oss", cos_client.uploads[0]["storage_provider"])
+        result_payload = repository.succeeded["result_payload"]
+        self.assertEqual("aliyun_oss", result_payload["upload_mode"])
+        self.assertEqual(
+            "aliyun_oss",
+            result_payload["uploaded_assets"][0]["storage_provider"],
         )
 
     def test_stage_updates_include_progress_modules(self):

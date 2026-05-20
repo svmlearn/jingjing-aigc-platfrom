@@ -38,6 +38,9 @@ class TimeLine:
         tts_durations = [item['duration'] for item in tts_res] if tts_res else [min(min_single_text_duration * len(''.join(text)), max_text_duration) for text in texts]
         meterial_durations = [x if x > 0 else cfg.img_default_duration for x in meterial_durations]
 
+        if tts_res and len(tts_res) != len(tts_indices_map or {}):
+            return 0, meterial_durations, [1.0 for _ in meterial_durations], [0 for _ in meterial_durations]
+
         # edit meterials
         music_offset = 0
         if is_on_beats is False:
@@ -198,6 +201,8 @@ class TimeLine:
         "Add tts start timestamp"
         if not tts_res or kwargs.get("is_speech_rough_cut", False) is True:
             return
+        if len(tts_res) != len(tts_indices_map or {}):
+            return tts_res
 
         # get base start timestamps
         paragraph = [0] + list(accumulate(tts_indices_map.values()))
@@ -262,7 +267,7 @@ class TimeLine:
             return texts, final_text_durations, final_text_start_timestamps, text_clip_maps
 
         # case-1: with tts
-        if tts_res:
+        if tts_res and len(tts_res) == len(tts_indices_map or {}):
 
             # get tts start timestamps
             tts_start_timestamps = [item['start_timestamp'] for item in tts_res]
@@ -327,6 +332,44 @@ class TimeLine:
             final_text_durations.append(sub_text_durations)
             final_text_start_timestamps.append(sub_start_timestamps)
 
+        return texts, final_text_durations, final_text_start_timestamps, text_clip_maps
+
+    def edit_hybrid_text_timeline(
+        self,
+        cfg: PlanTimelineProConfig,
+        meterial_durations: List[int],
+        texts: List[List[str]],
+        group_has_tts: List[bool],
+        tts_res: List[Dict],
+        tts_indices_map: Dict,
+    ):
+        final_text_durations, final_text_start_timestamps, text_clip_maps = [], [], []
+        tts_by_group = {str(item.get("group_id") or ""): item for item in (tts_res or [])}
+        group_ids = list((tts_indices_map or {}).keys())
+        cursor = 0
+        for index, text in enumerate(texts):
+            clip_count = int(tts_indices_map.get(index, 0) or 0)
+            group_duration = sum(meterial_durations[cursor: cursor + clip_count])
+            group_start = sum(meterial_durations[:cursor])
+            cursor += clip_count
+            if group_duration <= 0:
+                final_text_durations.append([])
+                final_text_start_timestamps.append([])
+                continue
+            if group_has_tts[index] and index < len(group_ids):
+                tts_item = tts_by_group.get(str(group_ids[index]))
+                if isinstance(tts_item, dict):
+                    group_start = int(tts_item.get("start_timestamp") or group_start)
+                    group_duration = int(tts_item.get("duration") or group_duration)
+
+            joined_len = max(1, len("".join(text)))
+            sub_text_durations = [int(len(sub_text) / joined_len * group_duration) for sub_text in text]
+            if sub_text_durations:
+                diff = group_duration - sum(sub_text_durations)
+                sub_text_durations[-1] += diff
+            sub_start_timestamps = [group_start + sum(sub_text_durations[:i]) for i in range(len(sub_text_durations))]
+            final_text_durations.append(sub_text_durations)
+            final_text_start_timestamps.append(sub_start_timestamps)
         return texts, final_text_durations, final_text_start_timestamps, text_clip_maps
 
     @staticmethod
@@ -408,18 +451,35 @@ class PlanTimelineProNode(BaseNode):
         tts_start_timestamps = [item.get("start_timestamp") for item in tts_res] if tts_res else []
 
         # Processing text durations
-        texts, text_durations, text_start_timestamps, text_clip_maps = self.timeline_client.edit_text_timeline(
-            self.default_timeline_cfg,
-            node_state,
-            new_meterial_durations,
-            texts=inputs.get('texts', []),
-            tts_res=tts_res,
-            tts_indices_map=inputs.get('text_indices_map', {}),
-            music=music,
-            clip_uuids=[],
-            is_speech_rough_cut=is_speech_rough_cut,
-            speech_rough_cut=inputs.get("speech_rough_cut"),
-        )
+        group_has_tts = inputs.get("text_group_has_tts")
+        if (
+            tts_res
+            and isinstance(group_has_tts, list)
+            and len(group_has_tts) == len(inputs.get("texts", []))
+            and not all(group_has_tts)
+            and not is_speech_rough_cut
+        ):
+            texts, text_durations, text_start_timestamps, text_clip_maps = self.timeline_client.edit_hybrid_text_timeline(
+                self.default_timeline_cfg,
+                new_meterial_durations,
+                texts=inputs.get('texts', []),
+                group_has_tts=group_has_tts,
+                tts_res=tts_res,
+                tts_indices_map=inputs.get('text_indices_map', {}),
+            )
+        else:
+            texts, text_durations, text_start_timestamps, text_clip_maps = self.timeline_client.edit_text_timeline(
+                self.default_timeline_cfg,
+                node_state,
+                new_meterial_durations,
+                texts=inputs.get('texts', []),
+                tts_res=tts_res,
+                tts_indices_map=inputs.get('text_indices_map', {}),
+                music=music,
+                clip_uuids=[],
+                is_speech_rough_cut=is_speech_rough_cut,
+                speech_rough_cut=inputs.get("speech_rough_cut"),
+            )
 
         inputs.update({
             "music": music,
@@ -573,6 +633,8 @@ class PlanTimelineProNode(BaseNode):
         clip_durations = []
         text_group_ids, text_unit_ids, text_index_in_group = [], [], []
         text_indices_map = {}
+        text_group_key_map = {}
+        text_group_has_tts = []
         tts_group_ids, voiceover_ids, tts_durations, tts_paths = [], [], [], []
 
         if is_ai_transition is True:
@@ -688,11 +750,16 @@ class PlanTimelineProNode(BaseNode):
             sizes = [[clip.get('source_ref', {}).get('width', 576), clip.get('source_ref', {}).get('height', 1024)] for clip in speech_rough_cut_clips]
 
         # Get text info
+        tts_group_id_set = {str(item.get("group_id") or "") for item in tts_res if isinstance(item, dict)}
         for item in generate_script.get('group_scripts', []):
             texts.append([sub_item.get('text', '') for sub_item in item.get('subtitle_units', [])])
             text_unit_ids += [sub_item.get('unit_id', '') for sub_item in item.get('subtitle_units', [])]
             text_group_ids += [item.get('group_id', '') for _ in item.get('subtitle_units', [])]
             text_index_in_group += [i for i in range(len(item.get('subtitle_units', [])))]
+            text_group_index = len(texts) - 1
+            group_id = item.get("group_id", "")
+            text_group_key_map[text_group_index] = group_id
+            text_group_has_tts.append(str(group_id) in tts_group_id_set)
 
         # Get tts info
         for item in tts_res:
@@ -715,6 +782,8 @@ class PlanTimelineProNode(BaseNode):
             'clip_durations': clip_durations,
             'start_times': start_times,
             'text_indices_map': text_indices_map,
+            'text_group_key_map': text_group_key_map,
+            'text_group_has_tts': text_group_has_tts,
             'music': music,
             'tts_res': tts_res,
             'tts_group_ids': tts_group_ids,

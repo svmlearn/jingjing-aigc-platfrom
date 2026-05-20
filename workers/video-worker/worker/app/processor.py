@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
 from .config import Settings
-from .cos_client import TencentCosClient
+from .cos_client import ObjectStorageClient
 from .db import VideoJobRepository
-from .directive import DirectiveValidationError, build_production_directive
-from .models import EngineRunResult, InputAssetContractError, UploadedAsset, VideoJob
+from .directive import (
+    DirectiveValidationError,
+    ProductionDirective,
+    build_production_directive,
+)
+from .models import EngineRunResult, InputAsset, InputAssetContractError, UploadedAsset, VideoJob
 from .openstoryline_client import OpenStorylineClient
 
 
@@ -30,6 +35,30 @@ class InputDownloadError(RuntimeError):
     def __init__(self, storage_key: str, original_error: Exception) -> None:
         self.storage_key = storage_key
         super().__init__(f"failed to download input asset {storage_key}: {original_error}")
+
+
+class VoiceProfileReferenceError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_code: str = "voice_profile_reference_invalid",
+    ) -> None:
+        self.failure_code = failure_code
+        super().__init__(message)
+
+
+class VoiceoverArtifactValidationError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_code: str,
+        failure_status: str = "failed_manual",
+    ) -> None:
+        self.failure_code = failure_code
+        self.failure_status = failure_status
+        super().__init__(message)
 
 
 class EngineRunError(RuntimeError):
@@ -68,6 +97,30 @@ def _nested_dict(source: dict[str, Any], *keys: str) -> dict[str, Any]:
     return {}
 
 
+def _material_library_query(directive: ProductionDirective) -> str:
+    values: list[str] = []
+    scene_queries = directive.material_context.get("sceneAssetQueries") or directive.material_context.get(
+        "scene_asset_queries"
+    )
+    if isinstance(scene_queries, list):
+        for item in scene_queries:
+            if not isinstance(item, dict):
+                continue
+            for key in ("query", "visualRequirement", "visual_requirement", "fallbackShot", "fallback_shot"):
+                value = item.get(key)
+                if isinstance(value, str) and value.strip():
+                    values.append(value.strip())
+
+    material_context_hints = directive.material_context.get("missingVideoAssetHints") or []
+    if isinstance(material_context_hints, list):
+        values.extend(str(item).strip() for item in material_context_hints if str(item).strip())
+
+    if directive.script_text.strip():
+        values.append(directive.script_text.strip())
+
+    return "\n".join(dict.fromkeys(values))[:12_000]
+
+
 PROGRESS_MODULES: tuple[dict[str, str], ...] = (
     {"key": "material_preparation", "label": "素材准备"},
     {"key": "material_match", "label": "素材匹配"},
@@ -103,6 +156,8 @@ OPENSTORYLINE_TOOL_MODULE_TOKENS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "plan_timeline",
             "timeline",
             "generate_script",
+            "local_asr",
+            "asr",
         ),
     ),
     (
@@ -291,10 +346,7 @@ def _openstoryline_result_payload(
         "selected_bgm",
         "bgm",
     )
-    voiceover = _nested_dict(openstoryline, "voiceover") or _nested_dict(
-        fire_red,
-        "voiceover",
-    )
+    voiceover = _extract_voiceover_payload(raw_response)
     production_config_used = _dict_or_empty(
         openstoryline.get("production_config_used")
     ) or production_config
@@ -310,12 +362,104 @@ def _openstoryline_result_payload(
     }
 
 
+def _voiceover_artifacts_summary(
+    raw_response: dict[str, Any],
+    production_config: dict[str, Any],
+) -> dict[str, Any]:
+    voiceover_config = _nested_dict(production_config, "voiceover")
+    voiceover = _extract_voiceover_payload(raw_response)
+    segments = voiceover.get("voiceover")
+    if not isinstance(segments, list):
+        segments = []
+    total_duration_ms = 0
+    providers: list[str] = []
+    for segment in segments:
+        if isinstance(segment, dict) and isinstance(segment.get("duration"), int | float):
+            total_duration_ms += int(segment["duration"])
+        if isinstance(segment, dict):
+            provider = str(segment.get("provider") or "").strip()
+            if provider and provider not in providers:
+                providers.append(provider)
+
+    provider = voiceover.get("provider") or voiceover_config.get("provider")
+    if not providers and provider:
+        providers.append(str(provider))
+
+    return {
+        "provider": provider,
+        "providers": providers,
+        "mode": voiceover_config.get("mode", "system"),
+        "clone_enabled": bool(voiceover_config.get("clone_enabled")),
+        "voice_profile_id": voiceover_config.get("voice_profile_id"),
+        "ref_audio_asset_id": voiceover_config.get("ref_audio_asset_id"),
+        "segment_count": len(segments),
+        "total_duration_ms": total_duration_ms,
+        "error_summary": None,
+    }
+
+
+def _extract_voiceover_payload(raw_response: dict[str, Any]) -> dict[str, Any]:
+    candidates = (
+        ("openstoryline", "voiceover"),
+        ("fire_red", "voiceover"),
+        ("fire_red", "raw_response", "generate_voiceover"),
+        ("fire_red_raw_response", "generate_voiceover"),
+        ("generate_voiceover",),
+        ("fire_red", "generate_voiceover"),
+    )
+    for path in candidates:
+        cur: Any = raw_response
+        for key in path:
+            if not isinstance(cur, dict):
+                cur = None
+                break
+            cur = cur.get(key)
+        if isinstance(cur, dict) and cur:
+            return cur
+    return {}
+
+
+def _is_clone_voiceover_summary(summary: dict[str, Any]) -> bool:
+    provider_values = [
+        str(summary.get("provider") or ""),
+        *[str(item or "") for item in summary.get("providers", [])],
+    ]
+    return any(
+        "clone" in value.strip().lower() or value.strip().lower() == "pixelle_clone"
+        for value in provider_values
+    )
+
+
+def _validate_voiceover_artifacts_for_directive(
+    summary: dict[str, Any],
+    production_config: dict[str, Any],
+) -> None:
+    voiceover_config = _nested_dict(production_config, "voiceover")
+    if voiceover_config.get("enabled") is False:
+        return
+    if not bool(voiceover_config.get("clone_enabled")):
+        return
+    if _nested_dict(production_config, "render").get("preserve_talking_head_original_audio"):
+        if _is_clone_voiceover_summary(summary):
+            return
+    if int(summary.get("segment_count") or 0) <= 0 or int(summary.get("total_duration_ms") or 0) <= 0:
+        raise VoiceoverArtifactValidationError(
+            "clone voiceover produced no measurable voiceover segments",
+            failure_code="voiceover_clone_artifacts_missing",
+        )
+    if not _is_clone_voiceover_summary(summary):
+        raise VoiceoverArtifactValidationError(
+            "voice_profile job did not use clone voiceover provider",
+            failure_code="voiceover_clone_provider_not_used",
+        )
+
+
 class JobProcessor:
     def __init__(
         self,
         settings: Settings,
         repository: VideoJobRepository,
-        cos_client: TencentCosClient,
+        cos_client: ObjectStorageClient,
         openstoryline_client: OpenStorylineClient,
     ) -> None:
         self._settings = settings
@@ -331,26 +475,118 @@ class JobProcessor:
         output_dir.mkdir(parents=True, exist_ok=True)
         return job_temp_dir, input_dir, output_dir
 
-    def _download_inputs(self, job: VideoJob, input_dir: Path) -> list[dict[str, str]]:
-        downloaded_assets: list[dict[str, str]] = []
-        for asset in job.input_assets(self._settings.cos_bucket):
-            local_path = input_dir / asset.file_name
-            try:
-                self._cos_client.download_file(
-                    storage_key=asset.storage_key,
-                    destination=local_path,
-                    bucket_name=asset.bucket_name,
-                )
-            except Exception as exc:
-                raise InputDownloadError(asset.storage_key, exc) from exc
-            downloaded_assets.append(
-                {
-                    "asset_type": asset.asset_type,
-                    "file_name": asset.file_name,
-                    "local_path": str(local_path),
-                }
-            )
+    def _download_inputs(self, job: VideoJob, input_dir: Path) -> list[dict[str, Any]]:
+        downloaded_assets: list[dict[str, Any]] = []
+        default_buckets = getattr(
+            self._settings,
+            "default_input_buckets",
+            getattr(self._settings, "cos_bucket", ""),
+        )
+        for asset in job.input_assets(default_buckets):
+            downloaded_assets.append(self._download_input_asset(asset, input_dir))
         return downloaded_assets
+
+    def _download_material_library_inputs(
+        self,
+        job: VideoJob,
+        directive: ProductionDirective,
+        input_dir: Path,
+    ) -> list[dict[str, Any]]:
+        query = _material_library_query(directive)
+        if not query:
+            return []
+
+        default_buckets = getattr(
+            self._settings,
+            "default_input_buckets",
+            getattr(self._settings, "cos_bucket", ""),
+        )
+        raw_assets = self._repository.list_video_material_input_assets(
+            job.merchant_id,
+            query=query,
+            limit=8,
+        )
+        material_dir = input_dir / "merchant-materials"
+        return [
+            self._download_input_asset(
+                InputAsset.from_payload(raw_asset, default_buckets),
+                material_dir,
+            )
+            for raw_asset in raw_assets
+        ]
+
+    def _download_input_asset(self, asset: InputAsset, input_dir: Path) -> dict[str, Any]:
+        local_path = input_dir / asset.file_name
+        try:
+            self._cos_client.download_file(
+                storage_key=asset.storage_key,
+                destination=local_path,
+                bucket_name=asset.bucket_name,
+                storage_provider=asset.storage_provider,
+            )
+        except Exception as exc:
+            raise InputDownloadError(asset.storage_key, exc) from exc
+        downloaded: dict[str, Any] = {
+            "asset_type": asset.asset_type,
+            "storage_provider": asset.storage_provider,
+            "file_name": asset.file_name,
+            "local_path": str(local_path),
+        }
+        if asset.role:
+            downloaded["role"] = asset.role
+        if asset.scene_type:
+            downloaded["scene_type"] = asset.scene_type
+        if asset.tags:
+            downloaded["tags"] = list(asset.tags)
+        if asset.labels:
+            downloaded["labels"] = list(asset.labels)
+        if asset.metadata:
+            downloaded["metadata"] = asset.metadata
+        return downloaded
+
+    def _prepare_voice_profile_reference(
+        self,
+        production_config: dict[str, Any],
+        input_dir: Path,
+    ) -> dict[str, Any]:
+        voiceover = _nested_dict(production_config, "voiceover")
+        if voiceover.get("mode") != "voice_profile":
+            return production_config
+        ref_audio_asset = _nested_dict(voiceover, "ref_audio_asset", "refAudioAsset")
+        storage_key = str(
+            ref_audio_asset.get("storage_key") or ref_audio_asset.get("storageKey") or ""
+        ).strip()
+        if not storage_key:
+            raise VoiceProfileReferenceError(
+                "voice_profile voiceover requires ref_audio_asset.storage_key"
+            )
+        bucket_name = str(
+            ref_audio_asset.get("bucket_name") or ref_audio_asset.get("bucketName") or ""
+        ).strip()
+        storage_provider = str(
+            ref_audio_asset.get("storage_provider")
+            or ref_audio_asset.get("storageProvider")
+            or getattr(self._settings, "storage_provider", "tencent_cos")
+        ).strip()
+
+        local_path = input_dir / "voice_profile_ref_audio" / Path(storage_key).name
+        try:
+            self._cos_client.download_file(
+                storage_key=storage_key,
+                destination=local_path,
+                bucket_name=bucket_name or None,
+                storage_provider=storage_provider,
+            )
+        except Exception as exc:
+            raise InputDownloadError(storage_key, exc) from exc
+
+        return {
+            **production_config,
+            "voiceover": {
+                **voiceover,
+                "ref_audio": str(local_path),
+            },
+        }
 
     def _upload_outputs(
         self,
@@ -363,13 +599,14 @@ class JobProcessor:
         def upload(local_path: Path, asset_type: str) -> UploadedAsset:
             storage_key = job.output_object_key(
                 asset_type,
-                self._settings.cos_result_prefix,
+                getattr(self._settings, "storage_result_prefix", self._settings.cos_result_prefix),
             )
             try:
                 return self._cos_client.upload_file(
                     local_path=local_path,
                     storage_key=storage_key,
                     asset_type=asset_type,
+                    storage_provider=getattr(self._settings, "storage_provider", "tencent_cos"),
                 )
             except Exception as exc:
                 raise OutputUploadError(storage_key, exc) from exc
@@ -409,7 +646,13 @@ class JobProcessor:
             raise OutputValidationError(missing_outputs)
 
     def _cos_output_configured(self) -> bool:
-        return bool(getattr(self._settings, "cos_output_configured", True))
+        return bool(
+            getattr(
+                self._settings,
+                "output_storage_configured",
+                getattr(self._settings, "cos_output_configured", True),
+            )
+        )
 
     def _local_outputs_payload(self, run_result: EngineRunResult) -> dict[str, str | None]:
         return {
@@ -442,7 +685,7 @@ class JobProcessor:
             {
                 "asset_type": asset.asset_type,
                 "bucket_name": asset.bucket_name,
-                "storage_provider": "tencent_cos",
+                "storage_provider": asset.storage_provider,
                 "storage_key": asset.storage_key,
                 "mime_type": asset.mime_type,
                 "etag": asset.etag,
@@ -452,10 +695,23 @@ class JobProcessor:
         ]
 
     def process(self, job: VideoJob) -> None:
-        log_payload: dict[str, Any] = {"steps": []}
+        job_started_at = time.monotonic()
+        log_payload: dict[str, Any] = {
+            "steps": [],
+            "timings_ms": {},
+            "worker": {"id": getattr(self._settings, "worker_id", "video-worker")},
+        }
+
+        def record_timing(stage: str, started_at: float) -> None:
+            timings = _dict_or_empty(log_payload.get("timings_ms"))
+            timings[stage] = int((time.monotonic() - started_at) * 1000)
+            timings["total_elapsed"] = int((time.monotonic() - job_started_at) * 1000)
+            log_payload["timings_ms"] = timings
+
         try:
             directive = build_production_directive(job)
         except DirectiveValidationError as exc:
+            record_timing("directive_validation", job_started_at)
             log_payload["steps"].append(
                 {
                     "stage": "directive_validation",
@@ -474,6 +730,22 @@ class JobProcessor:
             return
 
         workspace_dir, input_dir, output_dir = self._workspace_for(job)
+        existing_runtime_payload = _dict_or_empty(job.runtime_payload)
+        self_hosted_fast_path = (
+            directive.execution_mode == "self_hosted_rehearsal_fast_path"
+            or existing_runtime_payload.get("self_hosted_rehearsal_fast_path") is True
+        )
+
+        def stage_runtime_payload(**payload: Any) -> dict[str, Any]:
+            runtime_payload = {
+                **payload,
+                "execution_mode": directive.execution_mode,
+            }
+            if self_hosted_fast_path:
+                runtime_payload["self_hosted_rehearsal_fast_path"] = True
+            return runtime_payload
+
+        record_timing("directive_validation", job_started_at)
         log_payload["steps"].append(
             {
                 "stage": "directive_validation",
@@ -488,23 +760,60 @@ class JobProcessor:
             status="preparing",
             current_stage="downloading_inputs",
             progress_pct=10,
-            runtime_payload={
-                "workspace_dir": str(workspace_dir),
-                "output_dir": str(output_dir),
-                "progress_modules": _progress_modules(
+            runtime_payload=stage_runtime_payload(
+                workspace_dir=str(workspace_dir),
+                output_dir=str(output_dir),
+                progress_modules=_progress_modules(
                     active_key="material_preparation",
                     production_config=directive.production_config,
                 ),
-            },
+            ),
             log_payload=log_payload,
         )
         run_result: EngineRunResult | None = None
         try:
-            input_assets = self._download_inputs(job, input_dir)
+            stage_started_at = time.monotonic()
+            user_input_assets = self._download_inputs(job, input_dir)
+            material_input_assets = self._download_material_library_inputs(
+                job,
+                directive,
+                input_dir,
+            )
+            input_assets = [*user_input_assets, *material_input_assets]
+            directive_production_config = self._prepare_voice_profile_reference(
+                directive.production_config,
+                input_dir,
+            )
+            if directive_production_config is not directive.production_config:
+                directive = ProductionDirective(
+                    job_id=directive.job_id,
+                    execution_mode=directive.execution_mode,
+                    script_text=directive.script_text,
+                    script_locked=directive.script_locked,
+                    target_platform=directive.target_platform,
+                    aspect_ratio=directive.aspect_ratio,
+                    desired_outputs=directive.desired_outputs,
+                    locked_fields=directive.locked_fields,
+                    source=directive.source,
+                    material_context=directive.material_context,
+                    production_config=directive_production_config,
+                )
+            record_timing("downloading_inputs", stage_started_at)
             log_payload["steps"].append(
                 {
                     "stage": "downloading_inputs",
                     "inputs_downloaded": len(input_assets),
+                    "user_inputs_downloaded": len(user_input_assets),
+                    "material_library_inputs_downloaded": len(material_input_assets),
+                    "material_library_asset_ids": [
+                        str(_nested_dict(asset, "metadata").get("asset_object_id"))
+                        for asset in material_input_assets
+                        if _nested_dict(asset, "metadata").get("asset_object_id")
+                    ],
+                    "voice_profile_ref_audio_prepared": (
+                        directive.production_config.get("voiceover", {}).get("mode")
+                        == "voice_profile"
+                    ),
                 }
             )
             self._repository.update_stage(
@@ -512,15 +821,15 @@ class JobProcessor:
                 status="running",
                 current_stage="openstoryline_rendering",
                 progress_pct=50,
-                runtime_payload={
-                    "workspace_dir": str(workspace_dir),
-                    "output_dir": str(output_dir),
-                    "input_assets": input_assets,
-                    "progress_modules": _progress_modules(
+                runtime_payload=stage_runtime_payload(
+                    workspace_dir=str(workspace_dir),
+                    output_dir=str(output_dir),
+                    input_assets=input_assets,
+                    progress_modules=_progress_modules(
                         active_key="material_match",
                         production_config=directive.production_config,
                     ),
-                },
+                ),
                 log_payload=log_payload,
             )
 
@@ -562,22 +871,23 @@ class JobProcessor:
                     status="running",
                     current_stage=f"openstoryline_{module_key}",
                     progress_pct=int(progress_state["progress_pct"]),
-                    runtime_payload={
-                        "workspace_dir": str(workspace_dir),
-                        "output_dir": str(output_dir),
-                        "input_assets": input_assets,
-                        "openstoryline_progress": log_payload["openstoryline_progress"],
-                        "progress_modules": _progress_modules(
+                    runtime_payload=stage_runtime_payload(
+                        workspace_dir=str(workspace_dir),
+                        output_dir=str(output_dir),
+                        input_assets=input_assets,
+                        openstoryline_progress=log_payload["openstoryline_progress"],
+                        progress_modules=_progress_modules(
                             active_key=module_key,
                             active_progress_pct=active_progress,
                             active_detail=_openstoryline_event_detail(event, module_key),
                             production_config=directive.production_config,
                         ),
-                    },
+                    ),
                     log_payload=log_payload,
                 )
 
             try:
+                stage_started_at = time.monotonic()
                 run_result = self._openstoryline_client.run_job(
                     job=job,
                     directive=directive,
@@ -586,6 +896,7 @@ class JobProcessor:
                     output_dir=output_dir,
                     progress_callback=handle_openstoryline_progress,
                 )
+                record_timing("openstoryline_rendering", stage_started_at)
             except Exception as exc:
                 raise EngineRunError(
                     exc,
@@ -598,7 +909,17 @@ class JobProcessor:
                     "metadata_path": str(run_result.metadata_path),
                 }
             )
+            stage_started_at = time.monotonic()
             self._validate_outputs(directive.desired_outputs, run_result)
+            voiceover_artifacts = _voiceover_artifacts_summary(
+                run_result.raw_response,
+                directive.production_config,
+            )
+            _validate_voiceover_artifacts_for_directive(
+                voiceover_artifacts,
+                directive.production_config,
+            )
+            record_timing("output_validation", stage_started_at)
             log_payload["steps"].append(
                 {
                     "stage": "output_validation",
@@ -616,17 +937,18 @@ class JobProcessor:
                     status="running",
                     current_stage="uploading_outputs",
                     progress_pct=80,
-                    runtime_payload={
-                        "workspace_dir": str(workspace_dir),
-                        "output_dir": str(output_dir),
-                        "input_assets": input_assets,
-                        "progress_modules": _progress_modules(
+                    runtime_payload=stage_runtime_payload(
+                        workspace_dir=str(workspace_dir),
+                        output_dir=str(output_dir),
+                        input_assets=input_assets,
+                        progress_modules=_progress_modules(
                             active_key="output_delivery",
                             production_config=directive.production_config,
                         ),
-                    },
+                    ),
                     log_payload=log_payload,
                 )
+                stage_started_at = time.monotonic()
                 uploaded_assets = self._upload_outputs(
                     job=job,
                     desired_outputs=directive.desired_outputs,
@@ -634,14 +956,17 @@ class JobProcessor:
                     cover_image_path=run_result.cover_image_path,
                     subtitle_path=run_result.subtitle_path,
                 )
+                record_timing("uploading_outputs", stage_started_at)
                 try:
+                    stage_started_at = time.monotonic()
                     persisted_assets = self._repository.insert_output_assets(
                         job,
                         uploaded_assets,
                     )
+                    record_timing("asset_objects_persistence", stage_started_at)
                 except Exception as exc:
                     raise OutputAssetPersistenceError(exc) from exc
-                upload_mode = "tencent_cos"
+                upload_mode = getattr(self._settings, "storage_provider", "tencent_cos")
                 log_payload["steps"].append(
                     {
                         "stage": "uploading_outputs",
@@ -654,7 +979,7 @@ class JobProcessor:
                     {
                         "stage": "uploading_outputs",
                         "status": "skipped",
-                        "reason": "cos_not_configured",
+                        "reason": "object_storage_not_configured",
                         "local_outputs": local_outputs,
                     }
                 )
@@ -687,6 +1012,7 @@ class JobProcessor:
                         run_result.raw_response,
                         directive.production_config,
                     ),
+                    "voiceover_artifacts": voiceover_artifacts,
                     "engine_response": run_result.raw_response,
                 },
                 log_payload=log_payload,
@@ -762,6 +1088,52 @@ class JobProcessor:
                 status="failed_retryable",
             )
             raise
+        except VoiceProfileReferenceError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "voice_profile_reference",
+                    "status": "failed",
+                    "failure_code": exc.failure_code,
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="voice_profile_reference_failed",
+                failure_reason=f"{exc.failure_code}: {exc}",
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key="voiceover",
+                        production_config=directive.production_config,
+                    ),
+                },
+                status="failed_manual",
+            )
+            return
+        except VoiceoverArtifactValidationError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "voiceover_artifact_validation",
+                    "status": "failed",
+                    "failure_code": exc.failure_code,
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="voiceover_artifact_validation_failed",
+                failure_reason=f"{exc.failure_code}: {exc}",
+                log_payload={
+                    **log_payload,
+                    "progress_modules": _progress_modules(
+                        failed_key="voiceover",
+                        production_config=directive.production_config,
+                    ),
+                },
+                status=exc.failure_status,
+            )
+            return
         except EngineRunError as exc:
             failed_module_key = _openstoryline_failure_module_key(exc)
             log_payload["steps"].append(

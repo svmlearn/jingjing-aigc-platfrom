@@ -3,7 +3,7 @@ import { runNextDifyContentGenerationJob } from "@/server/api/content-generation
 import { ApiError, handleApiError } from "@/server/api/errors";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 1200;
 
 export async function POST(request: Request) {
   try {

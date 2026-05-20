@@ -43,6 +43,19 @@ CLIP_ID_NUMBER_WIDTH = 4
 MILLISECONDS_PER_SECOND = 1000.0
 
 COPY_VIDEO_WHEN_NO_SPLIT = False
+SOURCE_REF_METADATA_KEYS = (
+    "asset_metadata",
+    "asset_id",
+    "asset_type",
+    "bucket_name",
+    "storage_key",
+    "file_name",
+    "store_file_name",
+    "role",
+    "scene_type",
+    "tags",
+    "labels",
+)
 
 # =========================
 # Model / ffmpeg helpers
@@ -387,6 +400,35 @@ class SplitShotsNode(BaseNode):
             raise ValueError(f"media_id={media_id} missing required field {field_name!r}")
         return str(path_value)
 
+    def _source_ref(
+        self,
+        media_item: Dict[str, Any],
+        *,
+        media_id: str,
+        start: int | None = None,
+        end: int | None = None,
+        duration: int | None = None,
+        metadata: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        metadata = metadata or media_item.get("metadata", {}) or {}
+        source_ref: Dict[str, Any] = {
+            "media_id": media_id,
+            "height": metadata.get("height"),
+            "width": metadata.get("width"),
+        }
+        if start is not None:
+            source_ref["start"] = start
+        if end is not None:
+            source_ref["end"] = end
+        if duration is not None:
+            source_ref["duration"] = duration
+
+        for key in SOURCE_REF_METADATA_KEYS:
+            value = media_item.get(key)
+            if value not in (None, "", [], {}):
+                source_ref[key] = value
+        return source_ref
+
     def _build_clip_without_splitting(self, media_item: Dict[str, Any], clip_index: int, node_summary: NodeSummary) -> Dict[str, Any]:
         """
         Build a single clip without cutting:
@@ -406,11 +448,7 @@ class SplitShotsNode(BaseNode):
                 "clip_id": clip_id,
                 "kind": "image",
                 "path": image_path,
-                "source_ref": {
-                    "media_id": media_id,
-                    "height": media_item.get("metadata", {}).get("height"),
-                    "width": media_item.get("metadata", {}).get("width"),
-                },
+                "source_ref": self._source_ref(media_item, media_id=media_id),
             }
 
         if media_type != "video":
@@ -426,14 +464,14 @@ class SplitShotsNode(BaseNode):
             "kind": "video",
             "path": video_path,
             "fps": metadata.get("fps"),
-            "source_ref": {
-                "media_id": media_id,
-                "start": 0,
-                "end": duration_milliseconds,
-                "duration": duration_milliseconds,
-                "height": metadata.get("height"),
-                "width": metadata.get("width"),
-            },
+            "source_ref": self._source_ref(
+                media_item,
+                media_id=media_id,
+                start=0,
+                end=duration_milliseconds,
+                duration=duration_milliseconds,
+                metadata=metadata,
+            ),
         }
 
     def _process_single_media_item(
@@ -463,11 +501,7 @@ class SplitShotsNode(BaseNode):
                 "clip_id": clip_id,
                 "kind": "image",
                 "path": image_path,
-                "source_ref": {
-                    "media_id": media_id,
-                    "height": media_item.get("metadata", {}).get("height"),
-                    "width": media_item.get("metadata", {}).get("width"),
-                },
+                "source_ref": self._source_ref(media_item, media_id=media_id),
             }
             return [clip], starting_clip_index + 1
 
@@ -510,14 +544,14 @@ class SplitShotsNode(BaseNode):
                 "kind": "video",
                 "path": str(input_video_path),
                 "fps": metadata.get("fps"),
-                "source_ref": {
-                    "media_id": media_id,
-                    "start": 0,
-                    "end": duration_milliseconds,
-                    "duration": duration_milliseconds,
-                    "height": metadata.get("height"),
-                    "width": metadata.get("width"),
-                },
+                "source_ref": self._source_ref(
+                    media_item,
+                    media_id=media_id,
+                    start=0,
+                    end=duration_milliseconds,
+                    duration=duration_milliseconds,
+                    metadata=metadata,
+                ),
             }
             return [clip], starting_clip_index + 1
 
@@ -547,14 +581,14 @@ class SplitShotsNode(BaseNode):
                 "kind": "video",
                 "path": str(input_video_path),
                 "fps": metadata.get("fps"),
-                "source_ref": {
-                    "media_id": media_id,
-                    "start": 0,
-                    "end": duration_milliseconds,
-                    "duration": duration_milliseconds,
-                    "height": metadata.get("height"),
-                    "width": metadata.get("width"),
-                },
+                "source_ref": self._source_ref(
+                    media_item,
+                    media_id=media_id,
+                    start=0,
+                    end=duration_milliseconds,
+                    duration=duration_milliseconds,
+                    metadata=metadata,
+                ),
             }
             return [clip], starting_clip_index + 1
 
@@ -596,14 +630,14 @@ class SplitShotsNode(BaseNode):
                     "kind": "video",
                     "path": output_path_string,
                     "fps": metadata.get("fps"),
-                    "source_ref": {
-                        "media_id": media_id,
-                        "start": start_milliseconds,
-                        "end": end_milliseconds,
-                        "duration": segment_duration_milliseconds,
-                        "height": metadata.get("height"),
-                        "width": metadata.get("width"),
-                    },
+                    "source_ref": self._source_ref(
+                        media_item,
+                        media_id=media_id,
+                        start=start_milliseconds,
+                        end=end_milliseconds,
+                        duration=segment_duration_milliseconds,
+                        metadata=metadata,
+                    ),
                 }
             )
             clip_index += 1

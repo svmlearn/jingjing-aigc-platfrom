@@ -5,16 +5,21 @@ import { getVideoEditJobResultAssetRedirectUrlForUser } from "@/server/api/video
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string; assetId: string }> },
 ) {
   try {
     const user = await getAuthenticatedUser();
     const { id, assetId } = await context.params;
+    const disposition =
+      new URL(request.url).searchParams.get("disposition") === "attachment"
+        ? "attachment"
+        : "inline";
     const redirectUrl = await getVideoEditJobResultAssetRedirectUrlForUser({
       userId: user.id,
       jobId: id,
       assetId,
+      disposition,
     });
 
     return Response.redirect(redirectUrl, 307);

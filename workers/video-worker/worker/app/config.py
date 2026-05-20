@@ -1,22 +1,47 @@
 from __future__ import annotations
 
 import os
+import socket
 from dataclasses import dataclass
 from pathlib import Path
+
+SUPPORTED_STORAGE_PROVIDERS = frozenset({"tencent_cos", "aliyun_oss"})
 
 
 def _read_int(name: str, default: int) -> int:
     return int(os.getenv(name, str(default)))
 
 
+def _read_storage_provider() -> str:
+    value = (
+        os.getenv("WORKER_STORAGE_PROVIDER")
+        or os.getenv("STORAGE_PROVIDER")
+        or "tencent_cos"
+    )
+    normalized = value.strip().lower()
+    if normalized not in SUPPORTED_STORAGE_PROVIDERS:
+        allowed = ", ".join(sorted(SUPPORTED_STORAGE_PROVIDERS))
+        raise ValueError(
+            f"WORKER_STORAGE_PROVIDER must be one of: {allowed}"
+        )
+    return normalized
+
+
 @dataclass(frozen=True)
 class Settings:
-    supabase_db_url: str
+    database_url: str
+    storage_provider: str
     cos_secret_id: str
     cos_secret_key: str
     cos_bucket: str
     cos_region: str
-    cos_result_prefix: str
+    aliyun_oss_access_key_id: str
+    aliyun_oss_access_key_secret: str
+    aliyun_oss_bucket: str
+    aliyun_oss_region: str
+    aliyun_oss_endpoint: str
+    storage_result_prefix: str
+    worker_id: str
     worker_poll_interval_seconds: int
     worker_max_concurrency: int
     video_job_stale_minutes: int
@@ -28,7 +53,28 @@ class Settings:
     log_level: str
 
     @property
-    def cos_output_configured(self) -> bool:
+    def cos_result_prefix(self) -> str:
+        return self.storage_result_prefix
+
+    @property
+    def default_input_buckets(self) -> dict[str, str]:
+        return {
+            "tencent_cos": self.cos_bucket,
+            "aliyun_oss": self.aliyun_oss_bucket,
+        }
+
+    @property
+    def output_storage_configured(self) -> bool:
+        if self.storage_provider == "aliyun_oss":
+            return all(
+                [
+                    self.aliyun_oss_access_key_id,
+                    self.aliyun_oss_access_key_secret,
+                    self.aliyun_oss_bucket,
+                    self.aliyun_oss_region,
+                    self.aliyun_oss_endpoint,
+                ]
+            )
         return all(
             [
                 self.cos_secret_id,
@@ -38,10 +84,21 @@ class Settings:
             ]
         )
 
+    @property
+    def cos_output_configured(self) -> bool:
+        return self.output_storage_configured
+
     @classmethod
     def from_env(cls) -> "Settings":
+        database_url = os.getenv("WORKER_DATABASE_URL") or os.getenv("SUPABASE_DB_URL")
+        if not database_url:
+            raise RuntimeError(
+                "WORKER_DATABASE_URL is required; SUPABASE_DB_URL is accepted only as a compatibility fallback"
+            )
+        storage_provider = _read_storage_provider()
         settings = cls(
-            supabase_db_url=os.environ["SUPABASE_DB_URL"],
+            database_url=database_url,
+            storage_provider=storage_provider,
             cos_secret_id=os.getenv("WORKER_COS_SECRET_ID")
             or os.getenv("COS_SECRET_ID", ""),
             cos_secret_key=os.getenv("WORKER_COS_SECRET_KEY")
@@ -50,10 +107,29 @@ class Settings:
             or os.getenv("COS_BUCKET", ""),
             cos_region=os.getenv("WORKER_COS_REGION")
             or os.getenv("COS_REGION", ""),
-            cos_result_prefix=(
-                os.getenv("WORKER_COS_RESULT_PREFIX", "video-results").strip("/")
+            aliyun_oss_access_key_id=os.getenv("WORKER_ALIYUN_OSS_ACCESS_KEY_ID")
+            or os.getenv("ALIYUN_OSS_ACCESS_KEY_ID", ""),
+            aliyun_oss_access_key_secret=os.getenv("WORKER_ALIYUN_OSS_ACCESS_KEY_SECRET")
+            or os.getenv("ALIYUN_OSS_ACCESS_KEY_SECRET", ""),
+            aliyun_oss_bucket=os.getenv("WORKER_ALIYUN_OSS_BUCKET")
+            or os.getenv("ALIYUN_OSS_BUCKET", ""),
+            aliyun_oss_region=os.getenv("WORKER_ALIYUN_OSS_REGION")
+            or os.getenv("ALIYUN_OSS_REGION", ""),
+            aliyun_oss_endpoint=os.getenv("WORKER_ALIYUN_OSS_ENDPOINT")
+            or os.getenv("ALIYUN_OSS_ENDPOINT", ""),
+            storage_result_prefix=(
+                os.getenv("WORKER_STORAGE_RESULT_PREFIX")
+                or (
+                    os.getenv("WORKER_ALIYUN_OSS_RESULT_PREFIX")
+                    if storage_provider == "aliyun_oss"
+                    else None
+                )
+                or os.getenv("WORKER_COS_RESULT_PREFIX")
                 or "video-results"
-            ),
+            ).strip("/")
+            or "video-results",
+            worker_id=os.getenv("WORKER_ID", socket.gethostname()).strip()
+            or "video-worker",
             worker_poll_interval_seconds=_read_int(
                 "WORKER_POLL_INTERVAL_SECONDS", 10
             ),
@@ -77,5 +153,7 @@ class Settings:
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
         )
         if settings.worker_max_concurrency != 1:
-            raise ValueError("WORKER_MAX_CONCURRENCY must stay fixed at 1 for staging")
+            raise ValueError(
+                "WORKER_MAX_CONCURRENCY must stay fixed at 1 for domestic phase-1 validation"
+            )
         return settings

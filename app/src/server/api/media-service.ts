@@ -2,7 +2,9 @@ import "server-only";
 
 import type {
   MediaAssetDto,
+  MediaAssetType,
   MediaCompleteRequest,
+  MediaOwnerType,
   MediaUploadIntentDto,
   MediaUploadIntentRequest,
 } from "@/contracts/media";
@@ -16,13 +18,9 @@ import { assertMediaOwnerAccess, createAssetObject } from "@/lib/db/media-reposi
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import { ApiError } from "@/server/api/errors";
 import {
-  assertSupportedMediaStorageProvider,
-  assertUploadSizeWithinLimit,
-  buildCosUploadObjectKey,
-  getCosConfig,
-  getCosUploadKeyPrefix,
-  issueCosUploadCredentials,
-} from "@/server/api/cos";
+  getConfiguredObjectStorageProvider,
+  getWritableConfiguredObjectStorageProvider,
+} from "@/server/storage";
 
 export async function createMediaUploadIntentForUser(input: {
   userId: string;
@@ -30,36 +28,35 @@ export async function createMediaUploadIntentForUser(input: {
 }): Promise<MediaUploadIntentDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
 
+  assertBrowserUploadOwnerAssetPair(input.request);
+
   if (input.request.ownerType === "content_variant") {
     throw new ApiError(
       400,
       "MEDIA_UPLOAD_OWNER_UNSUPPORTED",
-      "Direct browser uploads only support source items and content drafts.",
+      "Direct browser uploads only support source items, content drafts, and voice profiles.",
     );
   }
 
-  assertUploadSizeWithinLimit(input.request.sizeBytes);
+  const storage = getConfiguredObjectStorageProvider();
+  storage.assertUploadSizeWithinLimit(input.request.sizeBytes);
 
   if (isLocalRealChainEnabled()) {
     await assertLocalRealChainMediaOwner({
       ownerType: input.request.ownerType,
       ownerId: input.request.ownerId,
     });
-    const cosKey = buildCosUploadObjectKey({
+    const storageKey = storage.buildMediaUploadKey({
       merchantId: getLocalRealChainMerchantId(),
       ownerType: input.request.ownerType,
       ownerId: input.request.ownerId,
       fileName: input.request.fileName,
     });
-    const credentials = await issueCosUploadCredentials({ cosKey });
-    const cosConfig = getCosConfig();
 
-    return {
-      bucket: cosConfig.bucket,
-      region: cosConfig.region,
-      cosKey,
-      ...credentials,
-    };
+    return storage.issueBrowserUploadIntent({
+      storageKey,
+      contentType: input.request.mimeType,
+    });
   }
 
   await assertMediaOwnerAccess({
@@ -69,21 +66,17 @@ export async function createMediaUploadIntentForUser(input: {
     ownerId: input.request.ownerId,
   });
 
-  const cosKey = buildCosUploadObjectKey({
+  const storageKey = storage.buildMediaUploadKey({
     merchantId: merchant.id,
     ownerType: input.request.ownerType,
     ownerId: input.request.ownerId,
     fileName: input.request.fileName,
   });
-  const credentials = await issueCosUploadCredentials({ cosKey });
-  const cosConfig = getCosConfig();
 
-  return {
-    bucket: cosConfig.bucket,
-    region: cosConfig.region,
-    cosKey,
-    ...credentials,
-  };
+  return storage.issueBrowserUploadIntent({
+    storageKey,
+    contentType: input.request.mimeType,
+  });
 }
 
 export async function completeMediaUploadForUser(input: {
@@ -92,44 +85,30 @@ export async function completeMediaUploadForUser(input: {
 }): Promise<MediaAssetDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
 
+  assertBrowserUploadOwnerAssetPair(input.request);
+
   if (input.request.ownerType === "content_variant") {
     throw new ApiError(
       400,
       "MEDIA_COMPLETE_OWNER_UNSUPPORTED",
-      "Direct browser uploads only support source items and content drafts.",
+      "Direct browser uploads only support source items, content drafts, and voice profiles.",
     );
   }
 
-  assertSupportedMediaStorageProvider(input.request.storageProvider);
-  const cosConfig = getCosConfig();
+  const storage = getWritableConfiguredObjectStorageProvider(input.request.storageProvider);
+  const merchantId = isLocalRealChainEnabled() ? getLocalRealChainMerchantId() : merchant.id;
 
   if (input.request.sizeBytes !== null && input.request.sizeBytes !== undefined) {
-    assertUploadSizeWithinLimit(input.request.sizeBytes);
+    storage.assertUploadSizeWithinLimit(input.request.sizeBytes);
   }
 
-  if ((input.request.bucketName ?? cosConfig.bucket) !== cosConfig.bucket) {
-    throw new ApiError(
-      400,
-      "MEDIA_BUCKET_MISMATCH",
-      "Uploaded media must target the configured Tencent COS bucket.",
-    );
-  }
-
-  if (
-    !input.request.storageKey.startsWith(
-      `${getCosUploadKeyPrefix({
-        merchantId: isLocalRealChainEnabled() ? getLocalRealChainMerchantId() : merchant.id,
-        ownerType: input.request.ownerType,
-        ownerId: input.request.ownerId,
-      })}/`,
-    )
-  ) {
-    throw new ApiError(
-      400,
-      "MEDIA_STORAGE_KEY_INVALID",
-      "Uploaded media key does not match the expected owner prefix.",
-    );
-  }
+  const objectRef = storage.assertWritableObjectRef({
+    bucketName: input.request.bucketName,
+    storageKey: input.request.storageKey,
+    merchantId,
+    ownerType: input.request.ownerType,
+    ownerId: input.request.ownerId,
+  });
 
   if (isLocalRealChainEnabled()) {
     await assertLocalRealChainMediaOwner({
@@ -141,9 +120,9 @@ export async function completeMediaUploadForUser(input: {
       ownerType: input.request.ownerType,
       ownerId: input.request.ownerId,
       assetType: input.request.assetType,
-      storageProvider: input.request.storageProvider,
-      bucketName: input.request.bucketName ?? cosConfig.bucket,
-      storageKey: input.request.storageKey,
+      storageProvider: storage.provider,
+      bucketName: objectRef.bucketName,
+      storageKey: objectRef.storageKey,
       originUrl: input.request.originUrl,
       mimeType: input.request.mimeType,
       fileSizeBytes: input.request.sizeBytes,
@@ -163,13 +142,34 @@ export async function completeMediaUploadForUser(input: {
     ownerType: input.request.ownerType,
     ownerId: input.request.ownerId,
     assetType: input.request.assetType,
-    storageProvider: input.request.storageProvider,
-    bucketName: input.request.bucketName ?? cosConfig.bucket,
-    storageKey: input.request.storageKey,
+    storageProvider: storage.provider,
+    bucketName: objectRef.bucketName,
+    storageKey: objectRef.storageKey,
     originUrl: input.request.originUrl,
     mimeType: input.request.mimeType,
     fileSizeBytes: input.request.sizeBytes,
     etag: input.request.etag,
     sortOrder: input.request.sortOrder,
   });
+}
+
+function assertBrowserUploadOwnerAssetPair(input: {
+  ownerType: MediaOwnerType;
+  assetType: MediaAssetType;
+}) {
+  if (input.ownerType === "voice_profile" && input.assetType !== "audio") {
+    throw new ApiError(
+      400,
+      "MEDIA_UPLOAD_ASSET_TYPE_UNSUPPORTED",
+      "Voice profiles only support audio reference assets.",
+    );
+  }
+
+  if (input.assetType === "audio" && input.ownerType !== "voice_profile") {
+    throw new ApiError(
+      400,
+      "MEDIA_UPLOAD_OWNER_UNSUPPORTED",
+      "Audio uploads are only supported for voice profiles.",
+    );
+  }
 }

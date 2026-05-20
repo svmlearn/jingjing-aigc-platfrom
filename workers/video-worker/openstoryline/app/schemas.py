@@ -9,6 +9,11 @@ class InputAsset(BaseModel):
     local_path: str
     asset_type: str
     file_name: str | None = None
+    role: str | None = None
+    scene_type: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    labels: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class RunRequest(BaseModel):
