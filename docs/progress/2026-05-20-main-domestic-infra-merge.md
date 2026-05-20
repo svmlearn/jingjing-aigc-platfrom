@@ -21,7 +21,7 @@
 来源分支：
 
 ```text
-gitee/codex/domestic-infra-migration @ d3ed90f
+gitee/codex/domestic-infra-migration @ 4f3339f
 codex/main-domestic-infra-integration @ e8d8064
 ```
 
@@ -45,6 +45,12 @@ a3fcf3e docs: freeze pre-integration working notes
 
 ```text
 5eeb4ba Merge branch 'codex/main-domestic-infra-integration'
+```
+
+5. push 前同步发现 `gitee/codex/domestic-infra-migration` 新增一条 OpenStoryline stream runtime 修复，并继续合入本机 `main`：
+
+```text
+4f3339f fix: bound openstoryline stream runtime
 ```
 
 ## 验证
@@ -113,4 +119,3 @@ DOMESTIC_PHASE1_E2E_PASS
 ```
 
 原因：尽管链路基本已通，仍建议在最终上线口径明确后再写入正式完成标记。
-
