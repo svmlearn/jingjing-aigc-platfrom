@@ -190,6 +190,7 @@ class ClientContext:
     tts_config: Optional[dict] = None  # TTS config at runtime
     ai_transition_config: Optional[dict] = None # AI transition config at runtime
     asr_config: Optional[dict] = None
+    lip_sync_config: Optional[dict] = None
     worker_payload: Optional[dict] = None
     llm_pool: dict[tuple[str, bool], ChatOpenAI] = field(default_factory=dict)
     lang: str = "zh" # Default language: Chinese

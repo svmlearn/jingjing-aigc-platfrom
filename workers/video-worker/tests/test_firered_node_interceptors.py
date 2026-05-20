@@ -203,6 +203,22 @@ class MissingKeyTalkingHeadAsrContext(TalkingHeadAsrContext):
     asr_config = {"provider": "aliyun_paraformer", "aliyun_paraformer": {}}
 
 
+class LipSyncContext:
+    lip_sync_config = {
+        "provider": "aliyun_videoretalk",
+        "aliyun_videoretalk": {
+            "api_key": "retalk-key",
+            "base_url": "https://dashscope.example/api/v1",
+            "model": "videoretalk",
+        },
+    }
+    worker_payload = {
+        "production_config": {
+            "lip_sync": {"enabled": True, "provider": "aliyun_videoretalk"}
+        }
+    }
+
+
 class Runtime:
     context = Context()
 
@@ -808,6 +824,49 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
             ["load_media", "split_shots", "group_clips", "generate_script"],
             require_kind,
         )
+
+    def test_render_drops_lip_sync_dependency_when_disabled(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(
+            worker_payload={"production_config": {"lip_sync": {"enabled": False}}}
+        )
+
+        require_kind = module._with_disabled_optional_kinds_removed(
+            ["load_media", "plan_timeline", "lip_sync", "transition_rec", "text_rec"],
+            "render_video",
+            context,
+        )
+
+        self.assertEqual(
+            ["load_media", "plan_timeline", "transition_rec", "text_rec"],
+            require_kind,
+        )
+
+    def test_render_requires_lip_sync_output_when_enabled(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(
+            worker_payload={"production_config": {"lip_sync": {"enabled": True}}}
+        )
+
+        with self.assertRaisesRegex(module.ToolException, "requires lip_sync output"):
+            module._ensure_lip_sync_render_input({}, context)
+
+        module._ensure_lip_sync_render_input(
+            {"lip_sync": {"plan_timeline": {"tracks": {"video": []}}}},
+            context,
+        )
+
+    def test_lip_sync_config_injection_uses_model_config_chain(self):
+        request = Request("lip_sync", {}, context=LipSyncContext())
+
+        async def handler(req):
+            return dict(req.args)
+
+        result = asyncio.run(self.ToolInterceptor.inject_lip_sync_config(request, handler))
+
+        self.assertEqual("aliyun_videoretalk", result["provider"])
+        self.assertEqual("retalk-key", result["api_key"])
+        self.assertEqual("videoretalk", result["model"])
 
     def test_worker_filter_clips_rejects_skip_mode(self):
         module = sys.modules["firered_node_interceptors_under_test"]

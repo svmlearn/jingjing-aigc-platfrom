@@ -698,6 +698,86 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
                 "script_audio_alignment",
                 payload["production_config"]["subtitles"]["talking_head_source"],
             )
+            self.assertIn("lip_sync", payload["prompt"])
+            self.assertIn("render_video must consume", payload["prompt"])
+
+    def test_fire_red_payload_includes_lip_sync_service_config(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=900,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="test-provider-key",
+            aliyun_videoretalk_api_key="retalk-key",
+            aliyun_videoretalk_base_url="https://dashscope.example/api/v1",
+            aliyun_videoretalk_model="videoretalk",
+            aliyun_videoretalk_ref_image_url="https://oss.example/ref.png",
+            aliyun_videoretalk_video_extension=True,
+            aliyun_videoretalk_query_face_threshold=170,
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                    "raw_response": {
+                        "engine": "fire_red-openstoryline",
+                        "lip_sync": {"segments": [{"retalked_path": "/tmp/retalked.mp4"}]},
+                    },
+                }
+            ),
+        ) as post:
+            response = adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                    production_config={
+                        "subtitles": {"talking_head_source": "script_audio_alignment"},
+                        "lip_sync": {
+                            "enabled": True,
+                            "provider": "aliyun_videoretalk",
+                        },
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                        },
+                    },
+                )
+            )
+
+            payload = post.call_args.kwargs["json"]
+            retalk_cfg = payload["service_config"]["lip_sync"]["aliyun_videoretalk"]
+            self.assertEqual("retalk-key", retalk_cfg["api_key"])
+            self.assertEqual("videoretalk", retalk_cfg["model"])
+            self.assertEqual("https://oss.example/ref.png", retalk_cfg["ref_image_url"])
+            self.assertTrue(retalk_cfg["video_extension"])
+            self.assertEqual(170, retalk_cfg["query_face_threshold"])
+            self.assertEqual(
+                "aliyun_videoretalk",
+                payload["service_config"]["lip_sync"]["provider"],
+            )
+            self.assertEqual(
+                [{"retalked_path": "/tmp/retalked.mp4"}],
+                response.raw_response["openstoryline"]["lip_sync"]["segments"],
+            )
 
     def test_fire_red_payload_marks_self_hosted_rehearsal_fast_path(self):
         settings = Settings(

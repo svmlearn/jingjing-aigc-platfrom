@@ -39,6 +39,16 @@ class Settings:
     aliyun_asr_model: str = "paraformer-realtime-v2"
     aliyun_asr_api_key: str = ""
     aliyun_asr_workspace: str = ""
+    lip_sync_provider: str = "aliyun_videoretalk"
+    aliyun_videoretalk_base_url: str = "https://dashscope.aliyuncs.com/api/v1"
+    aliyun_videoretalk_api_key: str = ""
+    aliyun_videoretalk_model: str = "videoretalk"
+    aliyun_videoretalk_timeout_seconds: int = 900
+    aliyun_videoretalk_poll_interval_seconds: int = 15
+    aliyun_videoretalk_upload_url_mode: str = "external_url"
+    aliyun_videoretalk_ref_image_url: str = ""
+    aliyun_videoretalk_video_extension: bool = False
+    aliyun_videoretalk_query_face_threshold: int = 170
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -155,4 +165,42 @@ class Settings:
                 or os.getenv("DASHSCOPE_API_KEY", "")
             ).strip(),
             aliyun_asr_workspace=os.getenv("ALIYUN_ASR_WORKSPACE", "").strip(),
+            lip_sync_provider=os.getenv(
+                "OPENSTORYLINE_LIP_SYNC_PROVIDER",
+                "aliyun_videoretalk",
+            ).strip() or "aliyun_videoretalk",
+            aliyun_videoretalk_base_url=os.getenv(
+                "ALIYUN_VIDEORETALK_BASE_URL",
+                "https://dashscope.aliyuncs.com/api/v1",
+            ).strip().rstrip("/") or "https://dashscope.aliyuncs.com/api/v1",
+            aliyun_videoretalk_api_key=(
+                os.getenv("ALIYUN_VIDEORETALK_API_KEY", "")
+                or os.getenv("DASHSCOPE_API_KEY", "")
+            ).strip(),
+            aliyun_videoretalk_model=os.getenv(
+                "ALIYUN_VIDEORETALK_MODEL",
+                "videoretalk",
+            ).strip() or "videoretalk",
+            aliyun_videoretalk_timeout_seconds=int(
+                os.getenv("ALIYUN_VIDEORETALK_TIMEOUT_SECONDS", "900")
+            ),
+            aliyun_videoretalk_poll_interval_seconds=int(
+                os.getenv("ALIYUN_VIDEORETALK_POLL_INTERVAL_SECONDS", "15")
+            ),
+            aliyun_videoretalk_upload_url_mode=os.getenv(
+                "ALIYUN_VIDEORETALK_UPLOAD_URL_MODE",
+                "external_url",
+            ).strip() or "external_url",
+            aliyun_videoretalk_ref_image_url=os.getenv(
+                "ALIYUN_VIDEORETALK_REF_IMAGE_URL",
+                "",
+            ).strip(),
+            aliyun_videoretalk_video_extension=os.getenv(
+                "ALIYUN_VIDEORETALK_VIDEO_EXTENSION",
+                "false",
+            ).strip().lower()
+            in {"1", "true", "yes", "y", "on"},
+            aliyun_videoretalk_query_face_threshold=int(
+                os.getenv("ALIYUN_VIDEORETALK_QUERY_FACE_THRESHOLD", "170")
+            ),
         )

@@ -219,6 +219,7 @@ class FakeOpenStorylineClient:
         progress_events=None,
         failure_message="engine unavailable",
         voiceover_payload=None,
+        lip_sync_payload=None,
     ) -> None:
         self.missing_outputs = set(missing_outputs or [])
         self.fail_run = fail_run
@@ -226,6 +227,7 @@ class FakeOpenStorylineClient:
         self.failure_message = failure_message
         self.progress_callback_seen = False
         self.voiceover_payload = voiceover_payload
+        self.lip_sync_payload = lip_sync_payload
         self.last_input_assets = None
 
     def run_job(self, job, directive, input_assets, workspace_dir, output_dir, progress_callback=None):
@@ -264,6 +266,7 @@ class FakeOpenStorylineClient:
             for segment in voiceover_payload.get("voiceover", []):
                 if isinstance(segment, dict) and "path" not in segment:
                     segment["path"] = str(voiceover_audio_path)
+        lip_sync_payload = self.lip_sync_payload
 
         return EngineRunResult(
             final_video_path=final_video_path,
@@ -281,9 +284,11 @@ class FakeOpenStorylineClient:
                     },
                     "selected_bgm": {"name": "light_upbeat_01"},
                     "voiceover": voiceover_payload,
+                    "lip_sync": lip_sync_payload or {},
                 },
                 "fire_red_raw_response": {
                     "generate_voiceover": voiceover_payload,
+                    "lip_sync": lip_sync_payload or {},
                 },
             },
         )
@@ -544,7 +549,28 @@ class ProcessorContractTests(unittest.TestCase):
                                 "clone": True,
                             },
                         ],
-                    }
+                    },
+                    lip_sync_payload={
+                        "provider": "aliyun_videoretalk",
+                        "segments": [
+                            {
+                                "group_id": "group_0001",
+                                "clip_id": "clip_0001",
+                                "retalked_path": "/tmp/retalked-talking-head.mp4",
+                            }
+                        ],
+                        "plan_timeline": {
+                            "tracks": {
+                                "video": [
+                                    {
+                                        "group_id": "group_0001",
+                                        "clip_id": "clip_0001",
+                                        "source_path": "/tmp/retalked-talking-head.mp4",
+                                    }
+                                ]
+                            }
+                        },
+                    },
                 ),
             )
             job = make_job(
@@ -598,6 +624,10 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual(
             "voice_profile",
             repository.succeeded["result_payload"]["voiceover_artifacts"]["mode"],
+        )
+        self.assertEqual(
+            "aliyun_videoretalk",
+            repository.succeeded["result_payload"]["lip_sync_artifacts"]["provider"],
         )
 
     def test_lip_sync_voice_profile_job_fails_when_clone_audio_duration_is_out_of_range(self):
@@ -667,6 +697,79 @@ class ProcessorContractTests(unittest.TestCase):
             "lip_sync",
             repository.failed["log_payload"]["failure_diagnostic"]["failure_stage"],
         )
+
+    def test_lip_sync_voice_profile_job_fails_when_retalked_segments_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(
+                    voiceover_payload={
+                        "provider": "pixelle_clone",
+                        "voiceover": [
+                            {
+                                "duration": 3000,
+                                "duration_ms": 3000,
+                                "provider": "pixelle_clone",
+                                "clone": True,
+                            },
+                        ],
+                    },
+                    lip_sync_payload={},
+                ),
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "productionConfig": {
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "pixelle_clone",
+                            "voiceProfileId": "profile-1",
+                            "refAudioAssetId": "asset-1",
+                            "refAudioAsset": {
+                                "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                "storage_provider": "tencent_cos",
+                            },
+                        },
+                        "subtitles": {
+                            "talkingHeadSource": "script_audio_alignment",
+                        },
+                        "lipSync": {
+                            "enabled": True,
+                            "provider": "aliyun_videoretalk",
+                        },
+                    },
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "storage_provider": "tencent_cos",
+                            "storage_key": "draft-inputs/talking-head.mp4",
+                            "file_name": "talking-head.mp4",
+                            "role": "talking_head",
+                            "metadata": {
+                                "content_type": "talking_head",
+                                "durationSeconds": 8,
+                                "width": 1080,
+                                "height": 1920,
+                                "fps": 30,
+                                "codec": "h264",
+                            },
+                        },
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual("lip_sync_artifact_validation_failed", repository.failed["current_stage"])
+        self.assertIn("lip_sync_artifacts_missing", repository.failed["failure_reason"])
+        self.assertEqual("lip_sync", repository.failed["log_payload"]["failure_stage"])
 
     def test_lip_sync_voice_profile_job_fails_when_talking_head_video_is_unsupported(self):
         with tempfile.TemporaryDirectory() as tmp:

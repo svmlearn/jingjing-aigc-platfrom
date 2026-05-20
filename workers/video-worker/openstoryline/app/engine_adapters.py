@@ -324,10 +324,16 @@ class FireRedEngineAdapter:
                 "production_config_used": production_config,
                 "selected_bgm": _first_dict(fire_red_response, "selected_bgm", "bgm"),
                 "voiceover": _first_dict(fire_red_response, "voiceover"),
+                "lip_sync": _first_dict(fire_red_response, "lip_sync"),
             },
         }
         if isinstance(fire_red_response.get("raw_response"), dict):
             raw_response["fire_red_raw_response"] = fire_red_response["raw_response"]
+            raw_response["openstoryline"]["lip_sync"] = _nested_first_dict(
+                fire_red_response,
+                ("lip_sync",),
+                ("raw_response", "lip_sync"),
+            )
 
         return RunResponse(
             job_id=request.job_id,
@@ -468,6 +474,32 @@ def _build_fire_red_service_config(
         }
         if asr_provider in {"aliyun", "dashscope", "dashscope_paraformer"}:
             service_config["asr"]["aliyun_paraformer"] = asr_provider_config
+
+    lip_sync = production_config.get("lip_sync")
+    if isinstance(lip_sync, dict) and lip_sync.get("enabled") is True:
+        provider = str(
+            lip_sync.get("provider") or settings.lip_sync_provider or "aliyun_videoretalk"
+        ).strip() or "aliyun_videoretalk"
+        if provider == "aliyun_videoretalk":
+            provider_config = _compact_dict(
+                {
+                    "base_url": settings.aliyun_videoretalk_base_url,
+                    "api_key": settings.aliyun_videoretalk_api_key,
+                    "model": settings.aliyun_videoretalk_model,
+                    "timeout_seconds": settings.aliyun_videoretalk_timeout_seconds,
+                    "poll_interval_seconds": settings.aliyun_videoretalk_poll_interval_seconds,
+                    "upload_url_mode": settings.aliyun_videoretalk_upload_url_mode,
+                    "ref_image_url": settings.aliyun_videoretalk_ref_image_url,
+                    "video_extension": settings.aliyun_videoretalk_video_extension,
+                    "query_face_threshold": settings.aliyun_videoretalk_query_face_threshold,
+                }
+            )
+        else:
+            provider_config = {}
+        service_config["lip_sync"] = {
+            "provider": provider,
+            provider: provider_config,
+        }
 
     voiceover = production_config.get("voiceover")
     if not isinstance(voiceover, dict) or voiceover.get("enabled") is False:
@@ -742,6 +774,10 @@ def _build_fire_red_prompt(
             "- Use generate_voiceover when voiceover.enabled is true.",
             "- Use select_bgm when productionConfig.bgm.enabled is true.",
             "- Use select_bgm when bgm.enabled is true.",
+            "- When productionConfig.lip_sync.enabled is true, run plan_timeline first, then run lip_sync before render_video.",
+            "- For lip_sync, only replace talking-head segments; keep B-roll and ordinary project media unchanged.",
+            "- Do not call ASR for script_audio_alignment; ASR is only allowed for explicit asr_original_audio rollback mode.",
+            "- render_video must consume the retalked talking-head segments produced by lip_sync.",
             "- Use render_video as the final node and include BGM/TTS tracks according to productionConfig.",
             f"Desired outputs: {', '.join(desired_outputs)}",
             "",
@@ -780,6 +816,19 @@ def _first_dict(payload: dict[str, object], *keys: str) -> dict[str, object]:
         value = payload.get(key)
         if isinstance(value, dict):
             return value
+    return {}
+
+
+def _nested_first_dict(payload: dict[str, object], *paths: tuple[str, ...]) -> dict[str, object]:
+    for path in paths:
+        cur: object = payload
+        for key in path:
+            if not isinstance(cur, dict):
+                cur = None
+                break
+            cur = cur.get(key)
+        if isinstance(cur, dict) and cur:
+            return cur
     return {}
 
 

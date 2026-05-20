@@ -125,6 +125,7 @@ PROGRESS_MODULES: tuple[dict[str, str], ...] = (
     {"key": "material_preparation", "label": "素材准备"},
     {"key": "material_match", "label": "素材匹配"},
     {"key": "voiceover", "label": "配音生成"},
+    {"key": "lip_sync", "label": "lip_sync"},
     {"key": "subtitles", "label": "字幕与时间线"},
     {"key": "render", "label": "合成渲染"},
     {"key": "output_delivery", "label": "保存成片"},
@@ -146,6 +147,15 @@ OPENSTORYLINE_TOOL_MODULE_TOKENS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "voiceover",
             "text_to_speech",
             "tts",
+        ),
+    ),
+    (
+        "lip_sync",
+        (
+            "lip_sync",
+            "lipsync",
+            "videoretalk",
+            "retalk",
         ),
     ),
     (
@@ -190,6 +200,7 @@ FAILURE_STAGE_BY_PROGRESS_MODULE = {
     "material_preparation": "upload",
     "material_match": "timeline",
     "voiceover": "clone_tts",
+    "lip_sync": "lip_sync",
     "subtitles": "timeline",
     "render": "render",
     "output_delivery": "oss",
@@ -222,6 +233,8 @@ def _optional_bool(source: dict[str, Any], *keys: str, default: bool = True) -> 
 def _module_is_skipped(key: str, production_config: dict[str, Any]) -> bool:
     if key == "voiceover":
         return not _optional_bool(_nested_dict(production_config, "voiceover"), "enabled")
+    if key == "lip_sync":
+        return _nested_dict(production_config, "lip_sync", "lipSync").get("enabled") is not True
     if key == "subtitles":
         return not _optional_bool(_nested_dict(production_config, "subtitles"), "enabled")
     return False
@@ -350,6 +363,8 @@ def _openstoryline_failure_module_key(exc: EngineRunError) -> str:
     if exc.module_key:
         return exc.module_key
     text = str(exc).lower()
+    if any(token in text for token in ("lip_sync", "lipsync", "videoretalk", "retalk")):
+        return "lip_sync"
     if "render_video" in text or "render" in text:
         return "render"
     if any(token in text for token in ("voiceover", "tts", "generate_voiceover")):
@@ -648,6 +663,69 @@ def _extract_voiceover_payload(raw_response: dict[str, Any]) -> dict[str, Any]:
         if isinstance(cur, dict) and cur:
             return cur
     return {}
+
+
+def _extract_lip_sync_payload(raw_response: dict[str, Any]) -> dict[str, Any]:
+    candidates = (
+        ("openstoryline", "lip_sync"),
+        ("fire_red", "lip_sync"),
+        ("fire_red", "raw_response", "lip_sync"),
+        ("fire_red_raw_response", "lip_sync"),
+        ("lip_sync",),
+        ("fire_red", "generate_lip_sync"),
+    )
+    for path in candidates:
+        cur: Any = raw_response
+        for key in path:
+            if not isinstance(cur, dict):
+                cur = None
+                break
+            cur = cur.get(key)
+        if isinstance(cur, dict) and cur:
+            return cur
+    return {}
+
+
+def _validate_lip_sync_artifacts_for_directive(
+    raw_response: dict[str, Any],
+    production_config: dict[str, Any],
+) -> dict[str, Any]:
+    lip_sync_config = _nested_dict(production_config, "lip_sync", "lipSync")
+    if lip_sync_config.get("enabled") is not True:
+        return {}
+
+    payload = _extract_lip_sync_payload(raw_response)
+    segments = payload.get("segments") if isinstance(payload, dict) else None
+    if not isinstance(segments, list) or not segments:
+        raise VoiceoverArtifactValidationError(
+            "lip_sync enabled but no retalked talking-head segments were produced",
+            failure_code="lip_sync_artifacts_missing",
+        )
+    plan_timeline = payload.get("plan_timeline")
+    tracks = plan_timeline.get("tracks") if isinstance(plan_timeline, dict) else None
+    video_track = tracks.get("video") if isinstance(tracks, dict) else None
+    if not isinstance(video_track, list) or not video_track:
+        raise VoiceoverArtifactValidationError(
+            "lip_sync enabled but retalked plan_timeline is missing",
+            failure_code="lip_sync_plan_timeline_missing",
+        )
+    retalked_paths = {
+        str(item.get("retalked_path") or "")
+        for item in segments
+        if isinstance(item, dict) and item.get("retalked_path")
+    }
+    consumed = [
+        item
+        for item in video_track
+        if isinstance(item, dict)
+        and str(item.get("source_path") or "") in retalked_paths
+    ]
+    if len(consumed) < len(retalked_paths):
+        raise VoiceoverArtifactValidationError(
+            "lip_sync produced retalked segments but render timeline does not consume them",
+            failure_code="lip_sync_render_input_not_retalked",
+        )
+    return payload
 
 
 def _is_clone_voiceover_summary(summary: dict[str, Any]) -> bool:
@@ -1161,6 +1239,7 @@ class JobProcessor:
             log_payload=log_payload,
         )
         run_result: EngineRunResult | None = None
+        lip_sync_artifacts: dict[str, Any] = {}
         try:
             stage_started_at = time.monotonic()
             user_input_assets = self._download_inputs(job, input_dir)
@@ -1318,6 +1397,14 @@ class JobProcessor:
             except VoiceoverArtifactValidationError as exc:
                 exc.validation_stage = "lip_sync_input_validation"
                 raise
+            try:
+                lip_sync_artifacts = _validate_lip_sync_artifacts_for_directive(
+                    run_result.raw_response,
+                    directive.production_config,
+                )
+            except VoiceoverArtifactValidationError as exc:
+                exc.validation_stage = "lip_sync_artifact_validation"
+                raise
             record_timing("output_validation", stage_started_at)
             log_payload["steps"].append(
                 {
@@ -1410,6 +1497,7 @@ class JobProcessor:
                         directive.production_config,
                     ),
                     "voiceover_artifacts": voiceover_artifacts,
+                    "lip_sync_artifacts": lip_sync_artifacts,
                     "engine_response": run_result.raw_response,
                 },
                 log_payload=log_payload,
@@ -1531,7 +1619,7 @@ class JobProcessor:
             return
         except VoiceoverArtifactValidationError as exc:
             validation_stage = getattr(exc, "validation_stage", "voiceover_artifact_validation")
-            progress_key = "subtitles" if validation_stage == "lip_sync_input_validation" else "voiceover"
+            progress_key = "lip_sync" if validation_stage.startswith("lip_sync") else "voiceover"
             log_payload["steps"].append(
                 {
                     "stage": validation_stage,

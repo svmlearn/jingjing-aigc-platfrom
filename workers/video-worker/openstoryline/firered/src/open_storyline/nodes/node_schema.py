@@ -457,6 +457,20 @@ class PlanTimelineInput(BaseInput):
     is_ai_transition: Annotated[bool, Field(default=False, description="Whether to build a minimal AI transition timeline by concatenating clips in order without subtitles, voiceover, cutting, or speed changes")]
     image_duration_ms: Annotated[int, Field(default=3000, description="Default duration for image clips in milliseconds when using the AI transition timeline branch")]
 
+class LipSyncInput(BaseInput):
+    mode: Literal["auto", "skip", "default"] = Field(
+        default="auto",
+        description="auto: Replace talking-head video segments with lip-synced versions; skip/default: pass through the timeline without lip sync."
+    )
+    provider: Annotated[str | None, Field(default=None, description="Lip-sync provider, currently aliyun_videoretalk.")]
+    provider_keys: Annotated[Dict[str, Any] | None, Field(default=None, description="Runtime provider secrets/config.")]
+    base_url: Annotated[str | None, Field(default=None, description="Runtime provider base URL.")]
+    api_key: Annotated[str | None, Field(default=None, description="Runtime provider API key.")]
+    model: Annotated[str | None, Field(default=None, description="Provider model name.")]
+    poll_interval_seconds: Annotated[int | None, Field(default=None, description="Provider task polling interval.")]
+    timeout_seconds: Annotated[int | None, Field(default=None, description="Provider task timeout.")]
+    upload_url_mode: Annotated[str | None, Field(default=None, description="How local files are exposed to the provider.")]
+
 class PlanTimelineAITransitionInput(BaseInput):
     image_duration_ms: Annotated[int, Field(default=3000, description="Default duration for image clips in milliseconds")]
 

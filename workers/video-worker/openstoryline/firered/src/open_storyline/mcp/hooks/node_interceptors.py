@@ -370,10 +370,12 @@ def _with_disabled_optional_kinds_removed(
     context: Any,
 ) -> list[str]:
     result = _with_required_original_audio_asr(require_kind, node_id, context)
+    worker_payload = getattr(context, "worker_payload", None)
+    if node_id == "render_video" and not _worker_payload_lip_sync_enabled(worker_payload):
+        result = [kind for kind in result if kind != "lip_sync"]
     if node_id not in {"plan_timeline", "plan_timeline_pro"}:
         return result
 
-    worker_payload = getattr(context, "worker_payload", None)
     disabled_kinds: set[str] = set()
     if not _worker_payload_voiceover_enabled(worker_payload):
         disabled_kinds.add("tts")
@@ -716,6 +718,16 @@ def _worker_payload_voiceover_enabled(worker_payload: Any) -> bool:
     return not (isinstance(voiceover, dict) and voiceover.get("enabled") is False)
 
 
+def _worker_payload_lip_sync_enabled(worker_payload: Any) -> bool:
+    if not isinstance(worker_payload, dict):
+        return False
+    production_config = worker_payload.get("production_config")
+    if not isinstance(production_config, dict):
+        return False
+    lip_sync = production_config.get("lip_sync") or production_config.get("lipSync")
+    return isinstance(lip_sync, dict) and lip_sync.get("enabled") is True
+
+
 def _worker_payload_preserves_talking_head_original_audio(worker_payload: Any) -> bool:
     if not isinstance(worker_payload, dict):
         return False
@@ -746,6 +758,21 @@ def _force_mute_source_audio_for_talking_head(args: dict[str, Any], context: Any
     args["include_video_audio"] = False
     args["video_volume_scale"] = 0
     args["audio_policy"] = "mute_source_for_talking_head_voiceover"
+
+
+def _ensure_lip_sync_render_input(args: dict[str, Any], context: Any) -> None:
+    worker_payload = getattr(context, "worker_payload", None)
+    if not _worker_payload_lip_sync_enabled(worker_payload):
+        return
+    lip_sync = args.get("lip_sync")
+    if not isinstance(lip_sync, dict):
+        raise ToolException(
+            "render_video requires lip_sync output when production_config.lip_sync.enabled is true"
+        )
+    if not lip_sync.get("plan_timeline") and not lip_sync.get("tracks"):
+        raise ToolException(
+            "render_video requires retalked lip_sync.plan_timeline before rendering"
+        )
 
 
 def _reject_worker_filter_clips_fallback(node_id: str, args: Any, context: Any) -> None:
@@ -1089,6 +1116,7 @@ class ToolInterceptor:
             new_req_args.update(request.args)
             new_req_args.update(input_data)
             if node_id == "render_video":
+                _ensure_lip_sync_render_input(new_req_args, context)
                 _force_mute_source_audio_for_talking_head(new_req_args, context)
 
             modified_request = request.override(
@@ -1264,6 +1292,19 @@ class ToolInterceptor:
             handler,
             tool_name_keyword="local_asr",
             context_attr="asr_config",
+        )
+
+    @staticmethod
+    async def inject_lip_sync_config(request: MCPToolCallRequest, handler):
+        """
+        Interceptor: Injects runtime.context.lip_sync_config parameters into lip_sync.
+        - lip_sync_config: {"provider": "aliyun_videoretalk", "aliyun_videoretalk": {...}}
+        """
+        return await ToolInterceptor._inject_provider_config(
+            request,
+            handler,
+            tool_name_keyword="lip_sync",
+            context_attr="lip_sync_config",
         )
 
     @staticmethod

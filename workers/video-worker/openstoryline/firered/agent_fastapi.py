@@ -217,14 +217,15 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
     Dict[str, Any],
     Dict[str, Any],
     Dict[str, Any],
+    Dict[str, Any],
     Optional[str]]:
     """
-    Returns (custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, asr_cfg, pexels, err).
+    Returns (custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, asr_cfg, lip_sync_cfg, pexels, err).
     - custom_llm/custom_vlm: {"model","base_url","api_key"} 或 None（允许只传 llm 或只传 vlm）
     - tts_cfg: dict（可能为空）
     """
     if not isinstance(service_cfg, dict):
-        return None, None, {}, {}, {}, {}, None
+        return None, None, {}, {}, {}, {}, {}, None
 
     # ---- custom models ----
     custom_llm = None
@@ -233,7 +234,7 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
 
     if custom_models is not None:
         if not isinstance(custom_models, dict):
-            return None, None, {}, {}, {}, {}, "service_config.custom_models 必须是对象"
+            return None, None, {}, {}, {}, {}, {}, "service_config.custom_models 必须是对象"
 
         def _pick(m: Any, label: str) -> Tuple[Optional[Dict[str, str]], Optional[str]]:
             if m is None:
@@ -253,16 +254,17 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
 
         custom_llm, err1 = _pick(custom_models.get("llm"), "llm")
         if err1:
-            return None, None, {}, {}, {}, {}, err1
+            return None, None, {}, {}, {}, {}, {}, err1
 
         custom_vlm, err2 = _pick(custom_models.get("vlm"), "vlm")
         if err2:
-            return None, None, {}, {}, {}, {}, err2
+            return None, None, {}, {}, {}, {}, {}, err2
 
     # ---- provider runtime config ----
     tts_cfg = _parse_provider_runtime_config(service_cfg, "tts")
     ai_transition_cfg = _parse_provider_runtime_config(service_cfg, "ai_transition")
     asr_cfg = _parse_provider_runtime_config(service_cfg, "asr")
+    lip_sync_cfg = _parse_provider_runtime_config(service_cfg, "lip_sync")
 
     # ---- pexels ----
     pexels_cfg: Dict[str, Any] = {}
@@ -287,7 +289,7 @@ def _parse_service_config(service_cfg: Any) -> Tuple[
             base_url = _s(search_media.get("base_url") or search_media.get("pexels_base_url") or search_media.get("private_base_url"))
             pexels_cfg = {"mode": mode, "api_key": api_key, "base_url": base_url}
 
-    return custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, asr_cfg, pexels_cfg, None
+    return custom_llm, custom_vlm, tts_cfg, ai_transition_cfg, asr_cfg, lip_sync_cfg, pexels_cfg, None
 
 def is_developer_mode(cfg: Settings) -> bool:
     try:
@@ -1349,6 +1351,7 @@ class ChatSession:
         self.tts_config: Dict[str, Any] = {}
         self.ai_transition_config: Dict[str, Any] = {}
         self.asr_config: Dict[str, Any] = {}
+        self.lip_sync_config: Dict[str, Any] = {}
         self._agent_build_key: Optional[Tuple[Any, ...]] = None
 
         self.pexels_key_mode: str = "default"   # "default" | "custom"
@@ -1925,7 +1928,7 @@ class ChatSession:
 
 
     def apply_service_config(self, service_cfg: Any) -> Tuple[bool, Optional[str]]:
-        llm, vlm, tts, ai_transition, asr, pexels, err = _parse_service_config(service_cfg)
+        llm, vlm, tts, ai_transition, asr, lip_sync, pexels, err = _parse_service_config(service_cfg)
         if err:
             return False, err
 
@@ -1943,6 +1946,9 @@ class ChatSession:
 
         if isinstance(asr, dict) and asr:
             self.asr_config = asr
+
+        if isinstance(lip_sync, dict) and lip_sync:
+            self.lip_sync_config = lip_sync
 
         # ---- pexels ----
         if isinstance(pexels, dict) and pexels:
@@ -2004,6 +2010,7 @@ class ChatSession:
                     ToolInterceptor.inject_tts_config,
                     ToolInterceptor.inject_ai_transition_config,
                     ToolInterceptor.inject_asr_config,
+                    ToolInterceptor.inject_lip_sync_config,
                     ToolInterceptor.inject_pexels_api_key,
                 ],
                 llm_override=llm_override,
@@ -2024,6 +2031,7 @@ class ChatSession:
                 tts_config=(self.tts_config or None),
                 ai_transition_config=(self.ai_transition_config or None),
                 asr_config=(self.asr_config or None),
+                lip_sync_config=(self.lip_sync_config or None),
                 pexels_api_key=None,
                 lang=self.lang,
             )
@@ -2033,6 +2041,7 @@ class ChatSession:
             self.client_context.tts_config = (self.tts_config or None)
             self.client_context.ai_transition_config = (self.ai_transition_config or None)
             self.client_context.asr_config = (self.asr_config or None)
+            self.client_context.lip_sync_config = (self.lip_sync_config or None)
             self.client_context.lang = self.lang
 
         # ---- resolve pexels_api_key for runtime context ----
@@ -3074,6 +3083,7 @@ def _write_worker_run_metadata(
     final_text: str,
     render_payload: Dict[str, Any],
     voiceover_payload: Dict[str, Any],
+    lip_sync_payload: Dict[str, Any] | None = None,
     final_video_path: Path,
 ) -> None:
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3087,6 +3097,7 @@ def _write_worker_run_metadata(
                 "assistant_text": final_text,
                 "render_video": render_payload,
                 "generate_voiceover": voiceover_payload,
+                "lip_sync": lip_sync_payload or {},
             },
             ensure_ascii=False,
             indent=2,
@@ -3187,19 +3198,26 @@ def _worker_run_response_payload(
     metadata_path: Path,
     render_payload: Dict[str, Any],
     voiceover_payload: Dict[str, Any],
+    lip_sync_payload: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
-    return {
+    raw_response = {
+        "engine": "fire_red-openstoryline",
+        "render_video": render_payload,
+        "generate_voiceover": voiceover_payload,
+    }
+    if isinstance(lip_sync_payload, dict) and lip_sync_payload:
+        raw_response["lip_sync"] = lip_sync_payload
+    result = {
         "job_id": payload.get("job_id"),
         "session_id": session_id,
         "final_video_path": str(final_video_path),
         "metadata_path": str(metadata_path),
-        "raw_response": {
-            "engine": "fire_red-openstoryline",
-            "render_video": render_payload,
-            "generate_voiceover": voiceover_payload,
-        },
+        "raw_response": raw_response,
         "voiceover": voiceover_payload,
     }
+    if isinstance(lip_sync_payload, dict) and lip_sync_payload:
+        result["lip_sync"] = lip_sync_payload
+    return result
 
 
 def _last_tool_failure_context(sess: ChatSession) -> Optional[Dict[str, Any]]:
@@ -3262,6 +3280,10 @@ async def run_worker_video_job(request: Request):
             _latest_node_payload(sess.session_id, "generate_voiceover"),
             "generate_voiceover",
         )
+        lip_sync_payload = _extract_node_payload(
+            _latest_node_payload(sess.session_id, "lip_sync"),
+            "lip_sync",
+        )
         final_video_path = _copy_worker_final_video(render_path, output_dir)
         metadata_path = output_dir / "firered-run-metadata.json"
         _write_worker_run_metadata(
@@ -3271,6 +3293,7 @@ async def run_worker_video_job(request: Request):
             final_text=final_text,
             render_payload=render_payload,
             voiceover_payload=voiceover_payload,
+            lip_sync_payload=lip_sync_payload,
             final_video_path=final_video_path,
         )
         return JSONResponse(
@@ -3281,6 +3304,7 @@ async def run_worker_video_job(request: Request):
                 metadata_path=metadata_path,
                 render_payload=render_payload,
                 voiceover_payload=voiceover_payload,
+                lip_sync_payload=lip_sync_payload,
             )
         )
     except HTTPException:
@@ -3389,6 +3413,10 @@ async def stream_worker_video_job(request: Request):
                 _latest_node_payload(sess.session_id, "generate_voiceover"),
                 "generate_voiceover",
             )
+            lip_sync_payload = _extract_node_payload(
+                _latest_node_payload(sess.session_id, "lip_sync"),
+                "lip_sync",
+            )
             final_video_path = _copy_worker_final_video(render_path, output_dir)
             metadata_path = output_dir / "firered-run-metadata.json"
             _write_worker_run_metadata(
@@ -3398,6 +3426,7 @@ async def stream_worker_video_job(request: Request):
                 final_text=final_text,
                 render_payload=render_payload,
                 voiceover_payload=voiceover_payload,
+                lip_sync_payload=lip_sync_payload,
                 final_video_path=final_video_path,
             )
             await queue.put(
@@ -3410,6 +3439,7 @@ async def stream_worker_video_job(request: Request):
                         metadata_path=metadata_path,
                         render_payload=render_payload,
                         voiceover_payload=voiceover_payload,
+                        lip_sync_payload=lip_sync_payload,
                     ),
                 }
             )

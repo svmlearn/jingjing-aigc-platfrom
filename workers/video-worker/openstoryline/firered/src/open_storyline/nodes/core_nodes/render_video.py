@@ -197,7 +197,8 @@ def resolve_output_canvas_size(inputs: Dict[str, Any]) -> Tuple[int, int]:
         return standard_ratios[max_count_idx]
 
     # Specify the aspect ratio and the longest side
-    video_items = inputs.get('plan_timeline', {}).get("tracks", {}).get("video", []) or []
+    plan_timeline = select_render_plan_timeline(inputs)
+    video_items = plan_timeline.get("tracks", {}).get("video", []) or []
     ratio = (
         parse_aspect_ratio(inputs.get("aspect_ratio"))
         or find_dominant_aspect_ratio([item.get("size")[0] / item.get("size")[1] for item in video_items if item and item.get("size")])
@@ -229,6 +230,18 @@ def build_media_id_to_path_map(load_media: Dict[str, Any]) -> Dict[str, str]:
         if media_id and path:
             mapping[media_id] = path
     return mapping
+
+
+def select_render_plan_timeline(inputs: Dict[str, Any]) -> Dict[str, Any]:
+    lip_sync = inputs.get("lip_sync")
+    if isinstance(lip_sync, dict):
+        plan_timeline = lip_sync.get("plan_timeline")
+        if isinstance(plan_timeline, dict) and plan_timeline:
+            return plan_timeline
+        tracks = lip_sync.get("tracks")
+        if isinstance(tracks, dict) and tracks:
+            return {"tracks": tracks}
+    return inputs.get("plan_timeline") or {}
 
 
 def is_image_file(path: str) -> bool:
@@ -697,7 +710,9 @@ class RenderVideoPipeline:
 
     async def render(self, *, node_state: NodeState, inputs: Dict[str, Any]) -> Dict[str, Any]:
         load_media: Dict[str, Any] = inputs["load_media"]
-        tracks: Dict[str, Any] = (inputs.get("plan_timeline") or {}).get("tracks", {}) or {}
+        render_plan_timeline = select_render_plan_timeline(inputs)
+        tracks: Dict[str, Any] = render_plan_timeline.get("tracks", {}) or {}
+        lip_sync = inputs.get("lip_sync") if isinstance(inputs.get("lip_sync"), dict) else {}
         transition_rec = inputs.get('transition_rec', [])
         text_rec = inputs.get('text_rec', [])
         # cut settings
@@ -829,6 +844,8 @@ class RenderVideoPipeline:
                 "audio_policy": inputs.get("audio_policy"),
                 "include_video_audio": bool(include_video_audio),
                 "video_volume_scale": float(video_volume_scale or 0),
+                "lip_sync_segments_consumed": len(lip_sync.get("segments") or []) if isinstance(lip_sync, dict) else 0,
+                "lip_sync_provider": lip_sync.get("provider") if isinstance(lip_sync, dict) else None,
             }
 
         finally:
@@ -1009,7 +1026,7 @@ class RenderVideoNode(BaseNode):
         description="Render final video from the timeline",
         node_id="render_video",
         node_kind="render_video",
-        require_prior_kind=["load_media", "plan_timeline", "transition_rec", "text_rec"],
+        require_prior_kind=["load_media", "plan_timeline", "lip_sync", "transition_rec", "text_rec"],
         default_require_prior_kind=["load_media", "plan_timeline", "transition_rec", "text_rec"],
     )
 

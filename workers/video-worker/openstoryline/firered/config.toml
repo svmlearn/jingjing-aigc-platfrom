@@ -56,7 +56,7 @@ available_nodes = [
     "LoadMediaNode", "SearchMediaNode", "SplitShotsNode", "LocalASRNode", "SpeechRoughCutNode", "GenerateAITransitionNode",
     "UnderstandClipsNode", "FilterClipsNode", "GroupClipsNode", "GenerateScriptNode", "ScriptTemplateRecomendation",
     "GenerateVoiceoverNode", "SelectBGMNode", "RecommendTransitionNode", "RecommendTextNode",
-    "PlanTimelineProNode", "PlanTimelineAITransitionNode", "RenderVideoNode"
+    "PlanTimelineProNode", "PlanTimelineAITransitionNode", "LipSyncNode", "RenderVideoNode"
 ]
 
 # =========== skills ==========
@@ -174,6 +174,19 @@ estimate_text_char_per_sec = 6.0 # 在没有TTS的情况下，估计每秒展示
 
 image_default_duration = 3000 # 默认的图片播放时长 / Default image duration
 group_margin_over_voiceover = 1000 # 在一个group中，画面比配音多出现多久 / Extra visual duration over voiceover in a group
+
+[lip_sync]
+
+[lip_sync.providers.aliyun_videoretalk]
+base_url = "${ALIYUN_VIDEORETALK_BASE_URL:-https://dashscope.aliyuncs.com/api/v1}"
+api_key = "${ALIYUN_VIDEORETALK_API_KEY:-${DASHSCOPE_API_KEY:-}}"
+model = "${ALIYUN_VIDEORETALK_MODEL:-videoretalk}"
+timeout_seconds = 900
+poll_interval_seconds = 15
+upload_url_mode = "external_url"
+ref_image_url = "${ALIYUN_VIDEORETALK_REF_IMAGE_URL:-}"
+video_extension = false
+query_face_threshold = 170
 
 [plan_timeline_pro]
 

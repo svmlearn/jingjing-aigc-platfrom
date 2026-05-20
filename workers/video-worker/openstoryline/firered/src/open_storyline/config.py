@@ -246,6 +246,9 @@ class PlanTimelineConfig(ConfigBaseModel):
 
     group_margin_over_voiceover: int = 1000  # Visual extension beyond voiceover duration per group (ms)
 
+class LipSyncConfig(ConfigBaseModel):
+    providers: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
 class PlanTimelineProConfig(ConfigBaseModel):
 
     min_single_text_duration: int = 200
@@ -323,6 +326,7 @@ class Settings(ConfigBaseModel):
     select_bgm: SelectBGMConfig
     recommend_text: RecommendTextConfig
     plan_timeline: PlanTimelineConfig
+    lip_sync: LipSyncConfig = Field(default_factory=LipSyncConfig)
     plan_timeline_pro: PlanTimelineProConfig
 
 
