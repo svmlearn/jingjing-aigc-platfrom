@@ -1823,7 +1823,7 @@ function buildNativeToolCallingMessages(input: {
         buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
         buildContextInjectionSystemPrompt(contextInjection),
         "你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。",
-        "当用户要求读取、查看、分析用户知识库或已上传文件，或回答依赖业务资料、案例、方法论时，优先考虑调用 retrieve_knowledge_base；不要声称无法读取用户知识库。",
+        "当用户直接要求读取、查看、总结、盘点或分析用户知识库/已上传文件/资料时，请先调用 retrieve_knowledge_base 获取资料，再自行判断如何回答、追问或写入资产；不要声称无法读取用户知识库。",
         "只有寒暄、轻问答、流程说明或完全不需要受控上下文时，才可以不调用工具直接回复。",
         "只有在用户明确要求沉淀、补充、写进右侧策略资产，或当前信息已经足够形成业务结论时，才调用 update_strategy_snapshot。",
         "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",
