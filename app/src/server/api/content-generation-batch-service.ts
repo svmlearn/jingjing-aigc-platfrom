@@ -310,12 +310,20 @@ async function buildDifyJobInputSnapshot(input: {
   member: { userId: string; displayName?: string | null; role: string };
   extraRequirement?: string | null;
 }) {
-  const imageAssets = await listImageAssetsForDify({
-    merchantId: input.task.merchantId,
-    task: input.task,
-  });
+  const [imageAssets, videoAssetCapabilities] = await Promise.all([
+    listImageAssetsForDify({
+      merchantId: input.task.merchantId,
+      task: input.task,
+    }),
+    listVideoAssetCapabilitiesForDify({
+      merchantId: input.task.merchantId,
+      task: input.task,
+    }),
+  ]);
   const viralReferences = buildViralReferences(input.task);
-  const calendarTask = buildCalendarTaskPayload(input.task);
+  const calendarTask = buildCalendarTaskPayload(input.task, {
+    videoAssetCapabilities,
+  });
   const memberProfile = {
     userId: input.member.userId,
     displayName: input.member.displayName ?? null,
@@ -331,6 +339,7 @@ async function buildDifyJobInputSnapshot(input: {
     task: input.task,
     merchantName: input.merchantName,
     merchantSummary: input.merchantSummary,
+    videoAssetCapabilities,
   });
   const extraRequirement = input.extraRequirement?.trim() ?? "";
 
@@ -344,6 +353,7 @@ async function buildDifyJobInputSnapshot(input: {
     memberProfile,
     accountProfile,
     imageAssets,
+    videoAssetCapabilities,
     viralReferences,
     fallbackKnowledgeText,
     extraRequirement,
@@ -364,13 +374,7 @@ async function listImageAssetsForDify(input: {
   merchantId: string;
   task: DailyContentTaskDto;
 }) {
-  const query = [
-    input.task.theme,
-    input.task.articleTask.title,
-    input.task.articleTask.summary,
-    input.task.videoTask.title,
-    input.task.videoTask.summary,
-  ].join(" ");
+  const query = buildTaskMaterialRetrievalQuery(input.task);
   const materials = await listMaterialLibraryItems({
     merchantId: input.merchantId,
     retrievalTarget: "article_image_asset",
@@ -379,6 +383,42 @@ async function listImageAssetsForDify(input: {
   }).catch(() => []);
 
   return Promise.all(materials.map(buildDifyImageAssetPayload));
+}
+
+function buildTaskMaterialRetrievalQuery(task: DailyContentTaskDto) {
+  const teamCalendarSource = toRecord(task.teamCalendarSource);
+  const calendarGuidance = toRecord(teamCalendarSource.calendarGuidance);
+
+  return [
+    task.theme,
+    task.articleTask.title,
+    task.articleTask.summary,
+    task.videoTask.title,
+    task.videoTask.summary,
+    ...task.articleTask.materialHints,
+    ...task.videoTask.materialHints,
+    ...(readStringArray(calendarGuidance.mustUseFacts) ?? []),
+    ...(readStringArray(calendarGuidance.contentAngles) ?? []),
+    ...(readStringArray(calendarGuidance.materialHints) ?? []),
+    ...(readStringArray(calendarGuidance.assetCapabilityHints) ?? []),
+    ...(readStringArray(calendarGuidance.shotConstraints) ?? []),
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ");
+}
+
+async function listVideoAssetCapabilitiesForDify(input: {
+  merchantId: string;
+  task: DailyContentTaskDto;
+}) {
+  const materials = await listMaterialLibraryItems({
+    merchantId: input.merchantId,
+    retrievalTarget: "video_edit_asset",
+    query: buildTaskMaterialRetrievalQuery(input.task),
+    limit: 12,
+  }).catch(() => []);
+
+  return materials.map(buildDifyVideoAssetCapabilityPayload);
 }
 
 async function buildDifyImageAssetPayload(material: MaterialLibraryItemDto) {
@@ -406,7 +446,41 @@ async function buildDifyImageAssetPayload(material: MaterialLibraryItemDto) {
   };
 }
 
-function buildCalendarTaskPayload(task: DailyContentTaskDto) {
+function buildDifyVideoAssetCapabilityPayload(material: MaterialLibraryItemDto) {
+  const analysis = toRecord(material.analysisPayload);
+  const structureSummary = toRecord(analysis.structureSummary);
+  const tracePayload = toRecord(analysis.tracePayload);
+
+  return {
+    id: material.id,
+    title: material.title,
+    description: material.description,
+    sourceKind: material.sourceKind,
+    usageType: material.usageType,
+    retrievalTargets: material.retrievalTargets,
+    platform: material.platform,
+    materialType: material.materialType,
+    assetQueryText: [
+      material.title,
+      material.description,
+      material.engagementLabel,
+      readString(structureSummary.visualSummary),
+      readString(tracePayload.visualSummary),
+    ]
+      .filter((value): value is string => Boolean(value?.trim()))
+      .join("\n"),
+    sceneTags: readStringArray(structureSummary.sceneTags) ?? [],
+    shotTypes: readStringArray(structureSummary.shotTypes) ?? [],
+    constraints: readStringArray(structureSummary.shotConstraints) ?? [],
+  };
+}
+
+function buildCalendarTaskPayload(
+  task: DailyContentTaskDto,
+  options: {
+    videoAssetCapabilities?: Array<ReturnType<typeof buildDifyVideoAssetCapabilityPayload>>;
+  } = {},
+) {
   return {
     id: task.id,
     taskDate: task.taskDate,
@@ -431,6 +505,7 @@ function buildCalendarTaskPayload(task: DailyContentTaskDto) {
     },
     knowledgeRefs: task.knowledgeRefs,
     materialRefs: task.materialRefs,
+    videoAssetCapabilities: options.videoAssetCapabilities ?? [],
   };
 }
 
@@ -452,6 +527,9 @@ function buildViralReferences(task: DailyContentTaskDto) {
       mustUseFacts: readStringArray(item.mustUseFacts),
       contentAngles: readStringArray(item.contentAngles),
       complianceNotes: readStringArray(item.complianceNotes),
+      materialHints: readStringArray(item.materialHints),
+      assetCapabilityHints: readStringArray(item.assetCapabilityHints),
+      shotConstraints: readStringArray(item.shotConstraints),
     })),
     ...task.materialRefs
       .filter((item) => item.sourceKind === "benchmark")
@@ -469,6 +547,7 @@ function buildFallbackKnowledgeText(input: {
   task: DailyContentTaskDto;
   merchantName: string;
   merchantSummary: string;
+  videoAssetCapabilities?: Array<ReturnType<typeof buildDifyVideoAssetCapabilityPayload>>;
 }) {
   return [
     `项目：${input.merchantName}`,
@@ -478,6 +557,7 @@ function buildFallbackKnowledgeText(input: {
     `图文任务：${input.task.articleTask.title}。${input.task.articleTask.summary}`,
     `视频任务：${input.task.videoTask.title}。${input.task.videoTask.summary}`,
     ...input.task.knowledgeRefs.map(formatKnowledgeRefForFallbackText),
+    ...(input.videoAssetCapabilities ?? []).map(formatVideoAssetCapabilityForFallbackText),
   ]
     .filter(Boolean)
     .join("\n");
@@ -489,11 +569,32 @@ function formatKnowledgeRefForFallbackText(item: Record<string, unknown>) {
   const mustUseFacts = readStringArray(item.mustUseFacts) ?? [];
   const contentAngles = readStringArray(item.contentAngles) ?? [];
   const complianceNotes = readStringArray(item.complianceNotes) ?? [];
+  const materialHints = readStringArray(item.materialHints) ?? [];
+  const assetCapabilityHints = readStringArray(item.assetCapabilityHints) ?? [];
+  const shotConstraints = readStringArray(item.shotConstraints) ?? [];
   const parts = [
     summary ? `${title}：${summary}` : title,
     mustUseFacts.length ? `必须参考：${mustUseFacts.join("；")}` : "",
     contentAngles.length ? `内容角度：${contentAngles.join("；")}` : "",
+    materialHints.length ? `素材提示：${materialHints.join("；")}` : "",
+    assetCapabilityHints.length ? `素材能力：${assetCapabilityHints.join("；")}` : "",
+    shotConstraints.length ? `镜头边界：${shotConstraints.join("；")}` : "",
     complianceNotes.length ? `边界：${complianceNotes.join("；")}` : "",
+  ].filter(Boolean);
+
+  return parts.join("\n");
+}
+
+function formatVideoAssetCapabilityForFallbackText(
+  item: ReturnType<typeof buildDifyVideoAssetCapabilityPayload>,
+) {
+  const parts = [
+    `视频素材能力：${item.title}`,
+    item.description ? `可用画面：${item.description}` : "",
+    item.sceneTags.length ? `场景标签：${item.sceneTags.join("；")}` : "",
+    item.shotTypes.length ? `镜头类型：${item.shotTypes.join("；")}` : "",
+    item.constraints.length ? `素材限制：${item.constraints.join("；")}` : "",
+    item.assetQueryText ? `检索描述：${item.assetQueryText}` : "",
   ].filter(Boolean);
 
   return parts.join("\n");

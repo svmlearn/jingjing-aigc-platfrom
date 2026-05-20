@@ -221,6 +221,8 @@ test("consultation planner supports native tool calling with deterministic fallb
   assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_loop_v1/);
   assert.match(consultationServiceAndRuntimeSource, /buildNativeToolCallingMessages/);
   assert.match(consultationServiceAndRuntimeSource, /buildConsultationAiRuntimeTools/);
+  assert.match(consultationServiceAndRuntimeSource, /isRepeatableConsultationReadTool/);
+  assert.match(consultationRuntimeSource, /!isRepeatableConsultationReadTool\(result\.toolName\)/);
   assert.match(consultationServiceAndRuntimeSource, /parseNativeConsultationToolCall/);
   assert.match(consultationServiceAndRuntimeSource, /toolChoice: getNativeToolChoice/);
   assert.match(consultationServiceAndRuntimeSource, /return "auto"/);
@@ -246,6 +248,7 @@ test("consultation runtime routes explicit knowledge reads through the retrieval
   assert.match(consultationRuntimeSource, /isExplicitKnowledgeBaseReadRequest/);
   assert.match(consultationRuntimeSource, /name: "retrieve_knowledge_base"/);
   assert.match(serviceSource, /请先调用 retrieve_knowledge_base 获取资料/);
+  assert.match(serviceSource, /用新的 query 再调用 retrieve_knowledge_base 深挖/);
   assert.match(serviceSource, /不要声称无法读取用户知识库/);
   assert.match(consultationRuntimeSource, /knowledgeMatches: \(result\.knowledgeMatches \?\? \[\]\)\.map/);
   assert.match(consultationRuntimeSource, /content: clipText\(match\.content, 1200\)/);
@@ -257,14 +260,25 @@ test("consultation runtime routes explicit knowledge reads through the retrieval
 test("consultation-selected merchant knowledge flows into calendar tasks and Dify inputs", () => {
   assert.match(contentCalendarGuidanceSource, /buildMerchantKnowledgeCalendarGuidance/);
   assert.match(contentCalendarGuidanceSource, /source: "merchant_knowledge_base"/);
+  assert.match(contentCalendarGuidanceSource, /assetCapabilityHints/);
+  assert.match(contentCalendarGuidanceSource, /shotConstraints/);
+  assert.match(contentCalendarGuidanceSource, /retrievalTrace/);
   assert.match(serviceSource, /buildMerchantKnowledgeCalendarGuidance/);
   assert.match(serviceSource, /attachGuidanceToContentCalendar/);
   assert.match(strategySnapshotSource, /normalizeContentCalendarGuidance/);
   assert.match(dailyContentTaskSource, /collectContentCalendarKnowledgeRefs/);
   assert.match(dailyContentTaskSource, /calendarGuidance/);
+  assert.match(dailyContentTaskSource, /assetCapabilityHints: calendarGuidance\.assetCapabilityHints/);
+  assert.match(dailyContentTaskSource, /shotConstraints: calendarGuidance\.shotConstraints/);
   assert.match(contentGenerationBatchSource, /formatKnowledgeRefForFallbackText/);
   assert.match(contentGenerationBatchSource, /chunkId: readString\(item\.chunkId\)/);
+  assert.match(contentGenerationBatchSource, /listVideoAssetCapabilitiesForDify/);
+  assert.match(contentGenerationBatchSource, /videoAssetCapabilities/);
+  assert.match(contentGenerationBatchSource, /素材能力：/);
+  assert.match(contentGenerationBatchSource, /镜头边界：/);
   assert.match(contentGenerationBatchSource, /fallback_knowledge_text/);
+  assert.match(contentGenerationBatchSource, /calendar_task_json/);
+  assert.doesNotMatch(contentGenerationBatchSource, /video_asset_capabilities_json/);
 });
 
 test("consultation runtime surfaces native tool call rejections as failed tool facts", () => {
@@ -310,6 +324,11 @@ test("knowledge retrieval can directly surface indexed user documents", () => {
   assert.match(consultationRuntimeSource, /listKnowledgeChunksByDocumentId/);
   assert.match(consultationRuntimeSource, /merchantKnowledgeDocumentIds/);
   assert.match(consultationRuntimeSource, /mergeKnowledgeMatches/);
+  assert.match(consultationRuntimeSource, /consultation_hybrid_rag_v1/);
+  assert.match(consultationRuntimeSource, /direct_merchant_document_scan/);
+  assert.match(consultationRuntimeSource, /keyword_search/);
+  assert.match(consultationRuntimeSource, /semantic_vector_search/);
+  assert.match(consultationRuntimeSource, /sourceCounts/);
 });
 
 test("AI runtime preserves native tool call/result pairs when trimming messages", () => {

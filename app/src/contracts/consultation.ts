@@ -35,6 +35,16 @@ export type ContentCalendarGuidanceDto = {
   contentAngles: string[];
   complianceNotes: string[];
   materialHints: string[];
+  shotConstraints?: string[];
+  assetCapabilityHints?: string[];
+  retrievalTrace?: Array<{
+    source?: string | null;
+    documentId?: string | null;
+    chunkId?: string | null;
+    documentTitle?: string | null;
+    scope?: string | null;
+    score?: number | null;
+  }>;
   knowledgeRefs: ContentCalendarKnowledgeRefDto[];
 };
 

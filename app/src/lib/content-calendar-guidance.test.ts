@@ -48,6 +48,9 @@ test("merchant knowledge matches are distilled into calendar guidance", () => {
   assert.equal(guidance?.knowledgeRefs.length, 1);
   assert.equal(guidance?.knowledgeRefs[0]?.chunkId, "chunk-1");
   assert.match(guidance?.mustUseFacts.join(" ") ?? "", /项目真实卖点/);
+  assert.match(guidance?.assetCapabilityHints?.join(" ") ?? "", /项目现场实拍/);
+  assert.match(guidance?.shotConstraints?.join(" ") ?? "", /高空航拍/);
+  assert.equal(guidance?.retrievalTrace?.[0]?.chunkId, "chunk-1");
 
   const calendar = attachGuidanceToContentCalendar({
     guidance,
@@ -69,6 +72,9 @@ test("merchant knowledge matches are distilled into calendar guidance", () => {
   assert.equal(refs[0]?.source, "merchant_knowledge_base");
   assert.deepEqual(refs[0]?.retrievalTargets, ["copy_context", "script_context"]);
   assert.match(summary?.mustUseFacts.join(" ") ?? "", /成熟配套/);
+  assert.match(summary?.assetCapabilityHints.join(" ") ?? "", /项目现场实拍/);
+  assert.match(summary?.shotConstraints.join(" ") ?? "", /高空航拍/);
+  assert.equal(summary?.retrievalTrace[0]?.documentId, "doc-1");
 });
 
 test("calendar guidance normalization preserves compact knowledge refs", () => {
@@ -80,6 +86,24 @@ test("calendar guidance normalization preserves compact knowledge refs", () => {
     contentAngles: ["选题角度"],
     complianceNotes: [],
     materialHints: [],
+    shotConstraints: ["只能用项目现场实拍", "只能用项目现场实拍"],
+    assetCapabilityHints: ["样板间", "样板间"],
+    retrievalTrace: [
+      {
+        source: "keyword_search",
+        documentId: "doc-1",
+        chunkId: "chunk-1",
+        documentTitle: "项目资料",
+        score: 0.88,
+      },
+      {
+        source: "keyword_search",
+        documentId: "doc-1",
+        chunkId: "chunk-1",
+        documentTitle: "重复资料",
+        score: 0.8,
+      },
+    ],
     knowledgeRefs: [
       {
         id: "chunk-1",
@@ -100,6 +124,9 @@ test("calendar guidance normalization preserves compact knowledge refs", () => {
 
   assert.deepEqual(guidance?.mustUseFacts, ["A", "B"]);
   assert.equal(guidance?.knowledgeRefs.length, 1);
+  assert.deepEqual(guidance?.shotConstraints, ["只能用项目现场实拍"]);
+  assert.deepEqual(guidance?.assetCapabilityHints, ["样板间"]);
+  assert.equal(guidance?.retrievalTrace?.length, 1);
 });
 
 function buildMatch(

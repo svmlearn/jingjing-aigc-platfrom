@@ -415,6 +415,14 @@ export function buildConsultationAiRuntimeTools(input: {
     }));
 }
 
+export function isRepeatableConsultationReadTool(toolName: ConsultationAgentToolKey) {
+  return (
+    toolName === "read_merchant_profile" ||
+    toolName === "retrieve_knowledge_base" ||
+    toolName === "read_history"
+  );
+}
+
 export function parseNativeConsultationToolCall(
   toolCall: AiRuntimeToolCall,
   state: ConsultationAgentLoopState,

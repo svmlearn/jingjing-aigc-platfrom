@@ -202,6 +202,8 @@ function buildDailyMaterialRetrievalQuery(input: {
     ...(input.calendarGuidance?.mustUseFacts ?? []),
     ...(input.calendarGuidance?.contentAngles ?? []),
     ...(input.calendarGuidance?.materialHints ?? []),
+    ...(input.calendarGuidance?.assetCapabilityHints ?? []),
+    ...(input.calendarGuidance?.shotConstraints ?? []),
   ]).join(" ");
 }
 
@@ -230,6 +232,9 @@ function buildCalendarGuidanceKnowledgeRefs(
       contentAngles: calendarGuidance.contentAngles,
       complianceNotes: calendarGuidance.complianceNotes,
       materialHints: calendarGuidance.materialHints,
+      assetCapabilityHints: calendarGuidance.assetCapabilityHints,
+      shotConstraints: calendarGuidance.shotConstraints,
+      retrievalTrace: calendarGuidance.retrievalTrace,
       knowledgeRefIds: calendarGuidance.knowledgeRefIds,
     },
   ];

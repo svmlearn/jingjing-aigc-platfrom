@@ -1527,7 +1527,10 @@ function applyToolResultToState(
   state: ConsultationAgentLoopState,
 ) {
   if (result.toolName === "retrieve_knowledge_base" && result.status !== "failed") {
-    state.knowledgeMatches = result.knowledgeMatches ?? [];
+    state.knowledgeMatches = mergeLoopKnowledgeMatches([
+      ...state.knowledgeMatches,
+      ...(result.knowledgeMatches ?? []),
+    ]);
   }
 
   if (result.toolName === "update_strategy_snapshot") {
@@ -1575,6 +1578,22 @@ function applyToolResultToState(
       expertTurnNotes: state.expertTurnNotes,
     });
   }
+}
+
+function mergeLoopKnowledgeMatches(matches: KnowledgeSearchMatchDto[]) {
+  const seen = new Set<string>();
+  const merged: KnowledgeSearchMatchDto[] = [];
+
+  for (const match of matches) {
+    if (seen.has(match.chunkId)) {
+      continue;
+    }
+
+    seen.add(match.chunkId);
+    merged.push(match);
+  }
+
+  return merged.slice(0, 24);
 }
 
 async function dispatchBenchmarkMaterialTool(
@@ -1824,6 +1843,7 @@ function buildNativeToolCallingMessages(input: {
         buildContextInjectionSystemPrompt(contextInjection),
         "你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。",
         "当用户直接要求读取、查看、总结、盘点或分析用户知识库/已上传文件/资料时，请先调用 retrieve_knowledge_base 获取资料，再自行判断如何回答、追问或写入资产；不要声称无法读取用户知识库。",
+        "做团队选题、营销日历、图文文案或视频脚本规划时，如果一次检索只覆盖项目事实、方法论、话术或素材边界中的一部分，可以用新的 query 再调用 retrieve_knowledge_base 深挖；写入类工具仍要在信息足够后再调用。",
         "只有寒暄、轻问答、流程说明或完全不需要受控上下文时，才可以不调用工具直接回复。",
         "只有在用户明确要求沉淀、补充、写进右侧策略资产，或当前信息已经足够形成业务结论时，才调用 update_strategy_snapshot。",
         "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",

@@ -33,6 +33,8 @@ export function buildMerchantKnowledgeCalendarGuidance(input: {
     ...input.snapshot.keyScenes,
     ...refs.map((ref) => ref.title),
   ]).slice(0, 8);
+  const assetCapabilityHints = buildAssetCapabilityHints(input.snapshot);
+  const shotConstraints = buildShotConstraints(input.snapshot);
 
   return {
     source: calendarGuidanceSource,
@@ -49,6 +51,20 @@ export function buildMerchantKnowledgeCalendarGuidance(input: {
       "生成内容不得扩写成用户知识库未明确支持的确定性承诺。",
     ],
     materialHints: uniqueStrings(input.snapshot.keyScenes).slice(0, 6),
+    shotConstraints,
+    assetCapabilityHints,
+    retrievalTrace: input.matches
+      .filter((match) => match.scope === "merchant")
+      .map((match) => ({
+        source: getString(match.metadata.retrievalSource, "knowledge_search"),
+        documentId: match.documentId,
+        chunkId: match.chunkId,
+        documentTitle: match.documentTitle,
+        scope: match.scope,
+        score: Number(match.score.toFixed(4)),
+      }))
+      .filter(uniqueRetrievalTrace)
+      .slice(0, 12),
     knowledgeRefs: refs,
   };
 }
@@ -102,6 +118,17 @@ export function collectContentCalendarGuidanceSummary(
     contentAngles: uniqueStrings(guidance.flatMap((item) => item.contentAngles)).slice(0, 10),
     complianceNotes: uniqueStrings(guidance.flatMap((item) => item.complianceNotes)).slice(0, 8),
     materialHints: uniqueStrings(guidance.flatMap((item) => item.materialHints)).slice(0, 8),
+    shotConstraints: uniqueStrings(guidance.flatMap((item) => item.shotConstraints ?? [])).slice(
+      0,
+      10,
+    ),
+    assetCapabilityHints: uniqueStrings(
+      guidance.flatMap((item) => item.assetCapabilityHints ?? []),
+    ).slice(0, 10),
+    retrievalTrace: guidance
+      .flatMap((item) => item.retrievalTrace ?? [])
+      .filter(uniqueRetrievalTrace)
+      .slice(0, 20),
     knowledgeRefIds: uniqueStrings(
       guidance.flatMap((item) => item.knowledgeRefs.map((ref) => ref.chunkId ?? ref.id)),
     ).slice(0, 12),
@@ -130,6 +157,15 @@ export function normalizeContentCalendarGuidance(value: unknown): ContentCalenda
     contentAngles: toStringArray(record.contentAngles).slice(0, 12),
     complianceNotes: toStringArray(record.complianceNotes).slice(0, 8),
     materialHints: toStringArray(record.materialHints).slice(0, 8),
+    shotConstraints: toStringArray(record.shotConstraints).slice(0, 12),
+    assetCapabilityHints: toStringArray(record.assetCapabilityHints).slice(0, 12),
+    retrievalTrace: toArray(record.retrievalTrace)
+      .map(normalizeRetrievalTrace)
+      .filter((item): item is NonNullable<ContentCalendarGuidanceDto["retrievalTrace"]>[number] =>
+        Boolean(item),
+      )
+      .filter(uniqueRetrievalTrace)
+      .slice(0, 24),
     knowledgeRefs: refs,
   };
 
@@ -137,6 +173,8 @@ export function normalizeContentCalendarGuidance(value: unknown): ContentCalenda
     guidance.knowledgeRefs.length === 0 &&
     guidance.mustUseFacts.length === 0 &&
     guidance.contentAngles.length === 0 &&
+    (guidance.shotConstraints ?? []).length === 0 &&
+    (guidance.assetCapabilityHints ?? []).length === 0 &&
     !guidance.summary
   ) {
     return null;
@@ -168,10 +206,40 @@ function mergeContentCalendarGuidance(
       8,
     ),
     materialHints: uniqueStrings([...current.materialHints, ...incoming.materialHints]).slice(0, 8),
+    shotConstraints: uniqueStrings([
+      ...(current.shotConstraints ?? []),
+      ...(incoming.shotConstraints ?? []),
+    ]).slice(0, 12),
+    assetCapabilityHints: uniqueStrings([
+      ...(current.assetCapabilityHints ?? []),
+      ...(incoming.assetCapabilityHints ?? []),
+    ]).slice(0, 12),
+    retrievalTrace: [...(current.retrievalTrace ?? []), ...(incoming.retrievalTrace ?? [])]
+      .filter(uniqueRetrievalTrace)
+      .slice(0, 24),
     knowledgeRefs: [...current.knowledgeRefs, ...incoming.knowledgeRefs]
       .filter(uniqueKnowledgeRef)
       .slice(0, 12),
   };
+}
+
+function buildAssetCapabilityHints(snapshot: StrategySnapshotDto) {
+  return uniqueStrings([
+    ...snapshot.keyScenes.map((scene) => `可用或可补拍的画面优先围绕：${scene}`),
+    ...snapshot.coreSellingPoints.map((point) => `画面表达要服务于已确认卖点：${point}`),
+  ]).slice(0, 8);
+}
+
+function buildShotConstraints(snapshot: StrategySnapshotDto) {
+  const sceneBoundary = snapshot.keyScenes.length
+    ? `B-roll 和转场画面优先从这些已确认场景中选择：${snapshot.keyScenes.join("、")}。`
+    : "B-roll 和转场画面优先使用团队已有项目实景、成员口播、客户视角和周边配套素材。";
+
+  return uniqueStrings([
+    sceneBoundary,
+    "视频脚本不得编写当前素材能力无法支撑的高空航拍、大规模人群、跨城街景、施工现场或夸张特效镜头，除非素材库已有对应素材。",
+    "镜头描述要能被团队视频素材或成员可补拍素材承接，不要只写抽象情绪画面。",
+  ]);
 }
 
 function toCalendarKnowledgeRef(
@@ -230,6 +298,31 @@ function normalizeKnowledgeRef(value: unknown): ContentCalendarKnowledgeRefDto |
   };
 }
 
+function normalizeRetrievalTrace(
+  value: unknown,
+): NonNullable<ContentCalendarGuidanceDto["retrievalTrace"]>[number] | null {
+  const record = toRecord(value);
+  const source = getNullableString(record.source);
+  const documentId = getNullableString(record.documentId);
+  const chunkId = getNullableString(record.chunkId);
+  const documentTitle = getNullableString(record.documentTitle);
+  const scope = getNullableString(record.scope);
+  const score = getNullableNumber(record.score);
+
+  if (!source && !documentId && !chunkId && !documentTitle) {
+    return null;
+  }
+
+  return {
+    source,
+    documentId,
+    chunkId,
+    documentTitle,
+    scope,
+    score,
+  };
+}
+
 function summarizeKnowledgeContent(content: string) {
   const normalized = content.replace(/\s+/g, " ").trim();
 
@@ -250,6 +343,24 @@ function uniqueKnowledgeRef<T extends { chunkId?: string | null; id?: string | n
   return items.findIndex((candidate) => {
     const candidateKey =
       candidate.chunkId || candidate.id || `${candidate.title ?? ""}:${candidate.summary ?? ""}`;
+    return candidateKey === key;
+  }) === index;
+}
+
+function uniqueRetrievalTrace<
+  T extends {
+    source?: string | null;
+    documentId?: string | null;
+    chunkId?: string | null;
+    documentTitle?: string | null;
+  },
+>(item: T, index: number, items: T[]) {
+  const key = item.chunkId || item.documentId || `${item.source ?? ""}:${item.documentTitle ?? ""}`;
+  return items.findIndex((candidate) => {
+    const candidateKey =
+      candidate.chunkId ||
+      candidate.documentId ||
+      `${candidate.source ?? ""}:${candidate.documentTitle ?? ""}`;
     return candidateKey === key;
   }) === index;
 }

@@ -25,6 +25,7 @@ import {
 import {
   buildConsultationAiRuntimeTools,
   isConsultationAgentToolKey,
+  isRepeatableConsultationReadTool,
   parseNativeConsultationToolCall,
 } from "@/server/api/consultation-runtime/tools";
 import type {
@@ -479,6 +480,7 @@ function getNativeUnavailableToolNames(
     new Set<ConsultationAgentToolKey>(
       toolResults
         .filter(isKnownConsultationToolResult)
+        .filter((result) => !isRepeatableConsultationReadTool(result.toolName))
         .map((result) => result.toolName),
     ),
   );
