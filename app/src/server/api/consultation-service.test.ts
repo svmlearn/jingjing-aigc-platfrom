@@ -285,7 +285,7 @@ test("consultation runtime routes explicit knowledge reads through the retrieval
   assert.match(serviceSource, /内容日历 -> 生成团队内容 -> Dify/);
   assert.match(serviceSource, /历史日历当成本轮已完成/);
   assert.match(consultationRuntimeSource, /decisionRules/);
-  assert.match(consultationRuntimeSource, /第一步 tool_use 选择为 retrieve_knowledge_base/);
+  assert.match(consultationRuntimeSource, /应优先考虑先调用 retrieve_knowledge_base/);
   assert.match(consultationRuntimeSource, /历史策略资产，不等于本轮 tool_result/);
   assert.match(consultationServiceAndRuntimeSource, /仅在用户明确要求图文工作台 brief 时/);
   assert.match(consultationServiceAndRuntimeSource, /仅在用户明确要求视频工作台 brief 时/);
