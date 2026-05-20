@@ -233,13 +233,13 @@ test("consultation planner supports native tool calling with deterministic fallb
   assert.match(consultationServiceAndRuntimeSource, /isRepeatableConsultationReadTool/);
   assert.match(consultationRuntimeSource, /!isRepeatableConsultationReadTool\(result\.toolName\)/);
   assert.match(consultationServiceAndRuntimeSource, /parseNativeConsultationToolCall/);
-  assert.match(consultationServiceAndRuntimeSource, /toolChoice: getNativeToolChoice/);
-  assert.match(consultationRuntimeSource, /buildExplicitKnowledgeRetrievalQueries/);
-  assert.match(consultationRuntimeSource, /applyNativeRetrievalPlan/);
-  assert.match(consultationRuntimeSource, /shouldForceNativeContentCalendarWrite/);
-  assert.match(consultationRuntimeSource, /native_tool_calling_no_calendar_write/);
-  assert.match(consultationRuntimeSource, /runtime 按用户显式多维资料需求继续检索知识库/);
-  assert.match(consultationServiceAndRuntimeSource, /return "auto"/);
+  assert.doesNotMatch(consultationRuntimeSource, /getNativeToolChoice/);
+  assert.doesNotMatch(consultationRuntimeSource, /buildExplicitKnowledgeRetrievalQueries/);
+  assert.doesNotMatch(consultationRuntimeSource, /applyNativeRetrievalPlan/);
+  assert.doesNotMatch(consultationRuntimeSource, /shouldForceNativeContentCalendarWrite/);
+  assert.doesNotMatch(consultationRuntimeSource, /runtime 按用户显式多维资料需求/);
+  assert.doesNotMatch(consultationRuntimeSource, /toolChoice:/);
+  assert.match(consultationRuntimeSource, /const nativeMaxToolTurns = 8/);
   assert.match(consultationServiceAndRuntimeSource, /agent\.tool\.requested/);
   assert.match(consultationServiceAndRuntimeSource, /source: "model_tool_calls"/);
   assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_fallback/);
@@ -258,11 +258,12 @@ test("consultation planner supports native tool calling with deterministic fallb
 
 test("consultation runtime routes explicit knowledge reads through the retrieval tool", () => {
   assert.match(consultationServiceAndRuntimeSource, /retrieve_knowledge_base/);
-  assert.match(consultationRuntimeSource, /shouldOpenWithKnowledgeBaseTool/);
   assert.match(consultationRuntimeSource, /isExplicitKnowledgeBaseReadRequest/);
-  assert.match(consultationRuntimeSource, /name: "retrieve_knowledge_base"/);
+  assert.match(consultationRuntimeSource, /key: "retrieve_knowledge_base"/);
   assert.match(serviceSource, /请先调用 retrieve_knowledge_base 获取资料/);
   assert.match(serviceSource, /用新的 query 再调用 retrieve_knowledge_base 深挖/);
+  assert.match(serviceSource, /必须由你根据用户目标和工具结果自行判断/);
+  assert.match(serviceSource, /自己调用 update_content_calendar 写入可执行日历/);
   assert.match(serviceSource, /画面描述必须根据已返回的素材能力/);
   assert.match(serviceSource, /不要声称无法读取用户知识库/);
   assert.match(serviceSource, /buildRecoveredToolResultReply/);
