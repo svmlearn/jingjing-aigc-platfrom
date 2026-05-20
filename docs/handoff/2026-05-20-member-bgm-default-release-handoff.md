@@ -31,7 +31,7 @@ corepack pnpm test -- video-job-payload.test.ts
 
 Reason: no `test` script exists in `app/package.json`.
 
-## Blocker
+## Earlier Blocker
 
 Server release deployment did not run because SSH authentication to ECS failed.
 
@@ -49,23 +49,69 @@ Tried local identities:
 ~/.ssh/id_ed25519
 ```
 
-No server files, env files, DNS, ICP, RDS, OSS permissions, worker prefix, or service state were changed.
+No server files, env files, DNS, ICP, RDS, OSS permissions, worker prefix, or service state were changed during that first attempt.
 
-## Next Step
+## Server Release Completed
 
-Provide or enable the correct ECS SSH identity for `8.154.28.41`, then deploy commit `073a38e` as a clean release under:
-
-```text
-/srv/jingjing-domestic/releases
-```
-
-After build passes, switch:
+After the `meng` SSH account became available, commit `e8fc61a` was deployed as
+a clean release:
 
 ```text
-/srv/jingjing-domestic/current
+/srv/jingjing-domestic/releases/20260520144018-e8fc61a
 ```
 
-to the new release and restart the normal services. Keep the existing Aliyun OSS provider and `video-results/*` worker output prefix.
+Previous release:
+
+```text
+/srv/jingjing-domestic/releases/20260520140700-a5e9c08
+```
+
+Build passed on ECS:
+
+```text
+corepack pnpm@10.20.0 install --frozen-lockfile
+corepack pnpm@10.20.0 build
+```
+
+Current symlink:
+
+```text
+/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260520144018-e8fc61a
+```
+
+Final service state:
+
+```text
+jingjing-domestic-app.service: active
+nginx: active
+jingjing-firered-openstoryline.service: active
+jingjing-openstoryline-engine.service: active
+jingjing-video-worker.service: active
+```
+
+Health:
+
+```text
+/api/health: ok, postgres, aliyun_oss
+OpenStoryline /ready: ready, fire_red
+FireRed /api/ready: ready
+```
+
+Runtime note:
+
+- FireRed/video-worker systemd units run as `ubuntu`.
+- The clean release was owned by `jingjing:jingjing`.
+- FireRed startup needed runtime symlinks inside the release directory.
+- The new release now has symlinks for `.storyline`, `resource`, and `outputs`
+  pointing to `/srv/jingjing-video-worker/firered/*`.
+- Worker env and `video-results/*` output prefix were not changed.
+
+Server source verification:
+
+```text
+member voice_profile path: bgm.enabled=true
+member system voiceover fallback path: bgm.enabled=true
+```
 
 ## Failure Fields
 
@@ -78,18 +124,19 @@ No video job was launched, so the video-chain fields are intentionally empty:
 | member user id | not used |
 | final asset id / object key | none |
 | FireRed run id | not created |
-| failed step | server release deployment |
+| failed step | none for release; no video job launched |
 | upload / ASR / clone TTS / timeline / render / OSS | not reached |
-| failure log summary | ECS SSH publickey authentication failed before release creation |
+| failure log summary | first attempt blocked by SSH publickey; second attempt deployed successfully after `meng` SSH account was provided |
 
 ## Branch / Push
 
 ```text
 local branch: 孟_5.13
 gitee branch: 孟_5.13
-commit: 073a38e
+code commit: 073a38e
+latest gitee commit: e8fc61a
 push: yes
 merge: no additional merge
-server release: blocked
+server release: deployed
 ```
 

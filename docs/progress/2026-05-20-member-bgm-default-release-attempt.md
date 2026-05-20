@@ -65,7 +65,7 @@ before: 002aab3
 after: 073a38e
 ```
 
-## Server Release Attempt
+## Server Release Attempt 1
 
 Target from current deployment docs:
 
@@ -101,6 +101,102 @@ ssh-agent service -> Stopped / Disabled
 
 No server files were changed because SSH authentication failed.
 
+## Server Release Attempt 2
+
+After the `meng` SSH account was provided, deployment continued through the
+clean release path.
+
+SSH / permission check:
+
+```text
+ssh user: meng
+groups: meng sudo jingjing-ops
+sudo: passwordless sudo ok
+```
+
+Previous server release before this deployment:
+
+```text
+/srv/jingjing-domestic/releases/20260520140700-a5e9c08
+```
+
+New release:
+
+```text
+/srv/jingjing-domestic/releases/20260520144018-e8fc61a
+source: git archive e8fc61a
+```
+
+Build:
+
+```text
+corepack pnpm@10.20.0 install --frozen-lockfile
+corepack pnpm@10.20.0 build
+result: passed
+```
+
+Deployment actions:
+
+```text
+ln -sfn /srv/jingjing-domestic/releases/20260520144018-e8fc61a /srv/jingjing-domestic/current
+systemctl restart jingjing-domestic-app.service jingjing-firered-openstoryline.service jingjing-openstoryline-engine.service jingjing-video-worker.service
+systemctl reload nginx
+```
+
+Runtime permission issue encountered after switching:
+
+```text
+jingjing-firered-openstoryline.service:
+ln: failed to create symbolic link '/srv/jingjing-domestic/current/workers/video-worker/openstoryline/firered/.storyline': Permission denied
+```
+
+Cause:
+
+- The FireRed and video-worker systemd units run as `ubuntu`.
+- The clean release directory was owned by `jingjing:jingjing`.
+- FireRed `run.sh` creates runtime symlinks inside the release directory when
+  `VIDEO_WORKER_HOST_ROOT` is set.
+
+Fix applied inside the new release only:
+
+```text
+/srv/jingjing-domestic/current/workers/video-worker/openstoryline/firered/.storyline -> /srv/jingjing-video-worker/firered/.storyline
+/srv/jingjing-domestic/current/workers/video-worker/openstoryline/firered/resource -> /srv/jingjing-video-worker/firered/resource
+/srv/jingjing-domestic/current/workers/video-worker/openstoryline/firered/outputs -> /srv/jingjing-video-worker/firered/outputs
+```
+
+This kept the existing persistent runtime dirs and did not change worker env or
+the `video-results/*` output prefix.
+
+Final service state:
+
+```text
+jingjing-domestic-app.service: active
+nginx: active
+jingjing-firered-openstoryline.service: active
+jingjing-openstoryline-engine.service: active
+jingjing-video-worker.service: active
+```
+
+Health checks:
+
+```text
+/api/health: ok
+database.provider: postgres
+storage.provider: aliyun_oss
+storage.bucket: jingjing-domestic-phase1-hz
+OpenStoryline /ready: ready, engine_adapter=fire_red
+FireRed /api/ready: ready, render_video_available=true
+```
+
+Server source verification:
+
+```text
+app/src/components/member/member-workspace.tsx
+voice_profile path: bgm.enabled=true
+system voiceover fallback path: bgm.enabled=true
+```
+
 ## Requested Failure Fields
 
 No video task was started in this attempt.
@@ -119,7 +215,8 @@ No video task was started in this attempt.
 ## Current State
 
 - Local worktree was clean after commit.
-- Gitee `孟_5.13` points to `073a38e`.
-- ECS release is not updated by this attempt.
-- Existing server runtime remains untouched.
+- Gitee `孟_5.13` points to `e8fc61a`.
+- ECS `/srv/jingjing-domestic/current` points to `/srv/jingjing-domestic/releases/20260520144018-e8fc61a`.
+- App, Nginx, FireRed, OpenStoryline, and video worker are active.
+- No video job was started in this deployment attempt.
 
