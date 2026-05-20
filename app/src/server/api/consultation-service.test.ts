@@ -272,6 +272,8 @@ test("consultation runtime routes explicit knowledge reads through the retrieval
   assert.match(serviceSource, /用新的 query 再调用 retrieve_knowledge_base 深挖/);
   assert.match(serviceSource, /必须由你根据用户目标和工具结果自行判断/);
   assert.match(serviceSource, /自己调用 update_content_calendar 写入可执行日历/);
+  assert.match(serviceSource, /buildNativeStrategySnapshotSummary/);
+  assert.match(serviceSource, /guidancePresence/);
   assert.match(serviceSource, /画面描述必须根据已返回的素材能力/);
   assert.match(serviceSource, /不要声称无法读取用户知识库/);
   assert.match(serviceSource, /buildRecoveredToolResultReply/);
@@ -580,6 +582,8 @@ test("consultation message send is queued and completed in the background", () =
   assert.match(serviceSource, /hasPendingAssistantReply/);
   assert.match(consultationMessagesRouteSource, /after\(\(\) =>/);
   assert.match(consultationMessagesRouteSource, /status: queued\.processing \? 202 : 200/);
+  assert.doesNotMatch(consultationMessagesRouteSource, /isSupabasePublicConfigured/);
+  assert.doesNotMatch(consultationMessagesRouteSource, /status: "completed"/);
   assert.match(consultationWorkspaceSource, /AssistantThinkingBubble/);
   assert.match(consultationWorkspaceSource, /isConsultationAssistantPending/);
   assert.match(consultationWorkspaceSource, /refreshPendingSession/);

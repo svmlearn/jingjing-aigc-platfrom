@@ -1878,6 +1878,15 @@ function buildNativeToolCallingMessages(input: {
     sharedConsultationState: input.state.sharedConsultationState,
     expertTurnNotes: input.state.expertTurnNotes,
   });
+  const nativeStrategySnapshot = buildNativeStrategySnapshotSummary(input.state.strategySnapshot);
+  const nativeContextInjection = {
+    ...contextInjection,
+    sessionContext: {
+      ...contextInjection.sessionContext,
+      strategySnapshot: nativeStrategySnapshot,
+      strategyMarkdown: clipText(contextInjection.sessionContext.strategyMarkdown ?? "", 1200),
+    },
+  };
 
   return [
     {
@@ -1921,8 +1930,8 @@ function buildNativeToolCallingMessages(input: {
         },
         userMessage: input.state.userContent,
         round: input.state.nextRound,
-        contextInjection,
-        strategySnapshot: input.state.strategySnapshot,
+        contextInjection: nativeContextInjection,
+        strategySnapshot: nativeStrategySnapshot,
         knowledgeMatches: input.state.knowledgeMatches.map((match) => ({
           title: match.documentTitle,
           score: match.score,
@@ -1938,6 +1947,45 @@ function buildNativeToolCallingMessages(input: {
       }),
     },
   ];
+}
+
+function buildNativeStrategySnapshotSummary(snapshot: StrategySnapshotDto) {
+  return {
+    positioning: snapshot.positioning,
+    coreSellingPoints: snapshot.coreSellingPoints,
+    targetAudiences: snapshot.targetAudiences,
+    keyScenes: snapshot.keyScenes,
+    currentSuggestion: snapshot.currentSuggestion,
+    strategyTags: snapshot.strategyTags,
+    contentCalendarDraft: snapshot.contentCalendarDraft.slice(0, 7).map((item) => ({
+      id: item.id,
+      dayLabel: item.dayLabel,
+      contentType: item.contentType,
+      strategyTag: item.strategyTag,
+      title: item.title,
+      summary: clipText(item.summary, 180),
+      guidancePresence: item.guidance
+        ? {
+            hasKnowledgeRefs: item.guidance.knowledgeRefs.length > 0,
+            hasMaterialHints: item.guidance.materialHints.length > 0,
+            hasAssetCapabilityHints: (item.guidance.assetCapabilityHints ?? []).length > 0,
+            hasShotConstraints: (item.guidance.shotConstraints ?? []).length > 0,
+          }
+        : null,
+    })),
+    articleBrief: snapshot.articleBrief
+      ? {
+          workingTitle: snapshot.articleBrief.workingTitle,
+          angle: snapshot.articleBrief.angle,
+        }
+      : null,
+    videoBrief: snapshot.videoBrief
+      ? {
+          workingTitle: snapshot.videoBrief.workingTitle,
+          hook: snapshot.videoBrief.hook,
+        }
+      : null,
+  };
 }
 
 function buildToolCards(input: {
