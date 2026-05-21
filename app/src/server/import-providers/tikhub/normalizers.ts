@@ -82,6 +82,8 @@ export function normalizeTikHubComments(input: {
 function collectXiaohongshuItems(payload: unknown): Record<string, unknown>[] {
   const root = toRecord(payload);
   const directItems = [
+    ...toArray(getPath(root, ["data", "data", 0, "note_list"])),
+    ...toArray(getPath(root, ["data", "data", "note_list"])),
     ...toArray(getPath(root, ["data", "data", "items"])),
     ...toArray(getPath(root, ["data", "data", "notes"])),
     ...toArray(getPath(root, ["data", "items"])),
@@ -120,7 +122,13 @@ function normalizeXiaohongshuItem(
   const noteType = getString(noteCard.type ?? item.type);
   const materialType: MaterialType = noteType === "video" ? "video" : "article";
   const sourceUrl =
-    getString(item.url ?? item.shareUrl ?? item.share_url) ??
+    getString(
+      item.url ??
+        item.shareUrl ??
+        item.share_url ??
+        getPath(item, ["share_info", "link"]) ??
+        getPath(noteCard, ["share_info", "link"]),
+    ) ??
     (externalItemId
       ? `https://www.xiaohongshu.com/explore/${externalItemId}${xsecToken ? `?xsec_token=${encodeURIComponent(xsecToken)}` : ""}`
       : null);
@@ -129,10 +137,34 @@ function normalizeXiaohongshuItem(
     getPath(noteCard, ["cover", "urlPre"]),
     getPath(noteCard, ["cover", "url"]),
     getPath(noteCard, ["cover", "url_default"]),
+    getPath(noteCard, ["image_list", 0, "url"]),
+    getPath(noteCard, ["image_list", 0, "url_default"]),
+    getPath(noteCard, ["images_list", 0, "url"]),
+    getPath(noteCard, ["images", 0, "url"]),
+    getPath(noteCard, ["video_info", "image", "url_list", 0]),
   ]);
-  const likedCount = parseCount(interactInfo.likedCount ?? interactInfo.likeCount ?? interactInfo.likes);
-  const commentCount = parseCount(interactInfo.commentCount ?? interactInfo.comments);
-  const collectedCount = parseCount(interactInfo.collectedCount ?? interactInfo.collectCount);
+  const likedCount = parseCount(
+    interactInfo.likedCount ??
+      interactInfo.likeCount ??
+      interactInfo.likes ??
+      noteCard.liked_count ??
+      noteCard.like_count ??
+      item.liked_count,
+  );
+  const commentCount = parseCount(
+    interactInfo.commentCount ??
+      interactInfo.comments ??
+      noteCard.comments_count ??
+      noteCard.comment_count ??
+      item.comments_count,
+  );
+  const collectedCount = parseCount(
+    interactInfo.collectedCount ??
+      interactInfo.collectCount ??
+      noteCard.collected_count ??
+      noteCard.collect_count ??
+      item.collected_count,
+  );
 
   return {
     platform: "xiaohongshu",
@@ -162,7 +194,15 @@ function normalizeXiaohongshuItem(
       providerEndpointFamily: "xiaohongshu",
       noteType: noteType ?? materialType,
       coverUrl,
-      tags: collectTagNames(noteCard.tags ?? noteCard.tagList ?? noteCard.tag_list),
+      tags: collectTagNames(
+        noteCard.tags ??
+          noteCard.tagList ??
+          noteCard.tag_list ??
+          noteCard.topics ??
+          noteCard.hash_tag ??
+          noteCard.foot_tags ??
+          noteCard.head_tags,
+      ),
       rank: index + 1,
     },
     tracePayload: {

@@ -46,6 +46,54 @@ test("normalizes TikHub detail items as social viral content", () => {
   assert.equal(item.engagementSnapshot.likedCount, 12000);
 });
 
+test("normalizes Xiaohongshu App note detail payloads", () => {
+  const [item] = normalizeTikHubMaterialItems({
+    platform: "xiaohongshu",
+    findMethod: "detail",
+    target: "https://xhslink.com/a/example",
+    cacheKey: "test-cache-key",
+    limit: 1,
+    payload: {
+      data: {
+        data: [
+          {
+            note_list: [
+              {
+                id: "665f95200000000006005624",
+                title: "露台花园怎么拍",
+                desc: "露台花园这样拍更有松弛感 #庭院设计",
+                type: "normal",
+                liked_count: "2.3万",
+                comments_count: "128",
+                collected_count: "340",
+                share_info: {
+                  link: "https://www.xiaohongshu.com/explore/665f95200000000006005624",
+                },
+                user: {
+                  id: "user-1",
+                  nickname: "庭院博主",
+                },
+                topics: [{ name: "庭院设计" }],
+                image_list: [{ url: "https://example.com/cover.jpg" }],
+              },
+            ],
+          },
+        ],
+      },
+    },
+  });
+
+  assert.ok(item);
+  assert.equal(item.externalItemId, "665f95200000000006005624");
+  assert.equal(item.title, "露台花园怎么拍");
+  assert.equal(item.creatorName, "庭院博主");
+  assert.equal(item.engagementSnapshot.likedCount, 23000);
+  assert.equal(item.engagementSnapshot.commentCount, 128);
+  assert.equal(item.engagementSnapshot.collectedCount, 340);
+  assert.deepEqual(item.structureSummary.tags, ["庭院设计"]);
+  assert.equal(item.structureSummary.coverUrl, "https://example.com/cover.jpg");
+});
+
 test("normalizes TikHub comment payloads for storage", () => {
   const comments = normalizeTikHubComments({
     platform: "douyin",
