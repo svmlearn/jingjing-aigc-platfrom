@@ -47,6 +47,16 @@ test("media upload complete keeps user temporary assets out of merchant library 
 });
 
 test("media upload complete validates voice reference audio separately", () => {
+  const expectedPrefix = getUploadKeyPrefix({
+    merchantId: "merchant-a",
+    ownerType: "voice_profile",
+    ownerId: "profile-1",
+  });
+
+  assert.equal(
+    expectedPrefix,
+    "draft-inputs/merchant-a/profile-1/voice-profile-audio",
+  );
   assert.deepEqual(
     validateMediaUploadCompleteContract({
       ...baseInput,
@@ -56,7 +66,7 @@ test("media upload complete validates voice reference audio separately", () => {
       declaredMimeType: "audio/mp4",
       detectedMimeType: "audio/mp4",
       source: "voice_profile",
-      storageKey: "voice-profiles/merchant-a/profile-1/ref.m4a",
+      storageKey: `${expectedPrefix}/ref.m4a`,
     }),
     { ok: true },
   );
@@ -64,8 +74,18 @@ test("media upload complete validates voice reference audio separately", () => {
     {
       ownerType: "voice_profile",
       ownerId: "profile-1",
+      assetType: "audio",
+      source: "voice_profile",
+      storageKey: "voice-profiles/merchant-a/profile-1/ref.m4a",
+    },
+    "MEDIA_STORAGE_KEY_INVALID",
+  );
+  assertFailure(
+    {
+      ownerType: "voice_profile",
+      ownerId: "profile-1",
       assetType: "video",
-      storageKey: "voice-profiles/merchant-a/profile-1/ref.mp4",
+      storageKey: `${expectedPrefix}/ref.mp4`,
     },
     "MEDIA_ASSET_TYPE_UNSUPPORTED",
   );
