@@ -648,7 +648,7 @@ export const listMaterialLibraryQuerySchema = z.object({
 
 export const createMaterialLibraryItemSchema = z.object({
   platform: materialPlatformSchema,
-  url: z.url().max(2000),
+  url: z.string().trim().min(1).max(2000),
 });
 
 export const createProjectMediaMaterialSchema = z.object({
@@ -663,16 +663,19 @@ export const createProjectMediaMaterialSchema = z.object({
 export const benchmarkMaterialSearchSchema = z
   .object({
     platform: materialPlatformSchema,
-    findMethod: z.enum(["keyword", "profile"]),
+    findMethod: z.enum(["keyword", "profile", "detail"]),
     keyword: z.string().trim().max(120).optional(),
-    profileUrl: z.url().max(2000).optional(),
-    count: z.number().int().min(1).max(20).optional(),
+    profileUrl: z.string().trim().max(2000).optional(),
+    detailUrl: z.string().trim().max(2000).optional(),
+    count: z.number().int().min(1).max(50).optional(),
+    fetchAll: z.boolean().optional(),
   })
   .refine(
-    (value) =>
-      value.findMethod === "keyword"
-        ? Boolean(value.keyword?.trim())
-        : Boolean(value.profileUrl?.trim()),
+    (value) => {
+      if (value.findMethod === "keyword") return Boolean(value.keyword?.trim());
+      if (value.findMethod === "profile") return Boolean(value.profileUrl?.trim());
+      return Boolean(value.detailUrl?.trim());
+    },
     {
       message: "Search target is required.",
       path: ["keyword"],

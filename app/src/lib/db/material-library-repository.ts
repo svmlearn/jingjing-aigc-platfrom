@@ -14,6 +14,7 @@ import type {
 } from "@/contracts/material";
 import { normalizeMaterialRouting } from "@/lib/material-routing";
 import { rankMaterialLibraryItemsForRetrieval } from "@/lib/material-retrieval";
+import { upsertImportedComments } from "@/lib/db/import-repository";
 import {
   isAppPostgresConfigured,
   isAppPostgresPreferred,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/server-db/postgres";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
+import type { NormalizedComment } from "@/server/import-providers/types";
 
 type Timestamp = string | Date;
 
@@ -71,6 +73,7 @@ export type MaterialProviderLibraryItemInput = {
   engagementSnapshot?: Record<string, unknown>;
   structureSummary?: Record<string, unknown>;
   tracePayload?: Record<string, unknown>;
+  comments?: NormalizedComment[];
 };
 
 type MaterialSourceItemWriteRow = {
@@ -509,6 +512,7 @@ export async function upsertMaterialLibraryItemsFromProvider(input: {
           engagementSnapshot: item.engagementSnapshot ?? {},
           tracePayload: {
             ...(item.tracePayload ?? {}),
+            materialComments: item.comments ?? [],
             createdByUserId: input.createdByUserId,
           },
         },
@@ -549,6 +553,7 @@ export async function upsertMaterialLibraryItemsFromProvider(input: {
       materialSourceKind: item.sourceKind,
       materialUsageType: "viral_reference",
       retrievalTargets: ["copy_context", "script_context"],
+      materialComments: item.comments ?? [],
       createdByUserId: input.createdByUserId,
     },
     is_selected_for_rewrite: false,
@@ -560,10 +565,10 @@ export async function upsertMaterialLibraryItemsFromProvider(input: {
 
   if (shouldUseAppPostgres()) {
     try {
-      return await withAppDbTransaction(async (client) => {
-        const saved: MaterialLibraryItemDto[] = [];
+      const savedWithComments = await withAppDbTransaction(async (client) => {
+        const saved: Array<{ material: MaterialLibraryItemDto; comments: NormalizedComment[] }> = [];
 
-        for (const row of rows) {
+        for (const [index, row] of rows.entries()) {
           const existingId = await pgFindExistingProviderMaterialId(client, row);
           const savedRow = existingId
             ? await pgUpdateMaterialLibraryItem(client, existingId, row)
@@ -577,20 +582,26 @@ export async function upsertMaterialLibraryItemsFromProvider(input: {
             );
           }
 
-          saved.push(mapSourceItemToMaterial(savedRow));
+          saved.push({
+            material: mapSourceItemToMaterial(savedRow),
+            comments: input.items[index]?.comments ?? [],
+          });
         }
 
         return saved;
       });
+
+      await persistProviderComments(savedWithComments);
+      return savedWithComments.map((item) => item.material);
     } catch (error) {
       throw mapPostgresError(error, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED");
     }
   }
 
   const supabase = createSupabaseAdminClient();
-  const saved: MaterialLibraryItemDto[] = [];
+  const saved: Array<{ material: MaterialLibraryItemDto; comments: NormalizedComment[] }> = [];
 
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     let existingId: string | null = null;
 
     if (row.external_item_id) {
@@ -639,10 +650,14 @@ export async function upsertMaterialLibraryItemsFromProvider(input: {
       throw new ApiError(500, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED", error.message);
     }
 
-    saved.push(mapSourceItemToMaterial(data as unknown as SourceItemMaterialRow));
+    saved.push({
+      material: mapSourceItemToMaterial(data as unknown as SourceItemMaterialRow),
+      comments: input.items[index]?.comments ?? [],
+    });
   }
 
-  return saved;
+  await persistProviderComments(saved);
+  return saved.map((item) => item.material);
 }
 
 export async function createMaterialWorkbenchReference(input: {
@@ -1300,6 +1315,28 @@ function buildMaterialSourceItemParams(row: MaterialSourceItemWriteRow) {
   ];
 }
 
+async function persistProviderComments(
+  items: Array<{ material: MaterialLibraryItemDto; comments: NormalizedComment[] }>,
+) {
+  for (const item of items) {
+    if (!item.material.sourceItemId || item.comments.length === 0) {
+      continue;
+    }
+
+    try {
+      await upsertImportedComments({
+        sourceItemId: item.material.sourceItemId,
+        comments: item.comments,
+      });
+    } catch (error) {
+      console.warn("Material comments save failed", {
+        materialItemId: item.material.id,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
+  }
+}
+
 function buildWorkbenchReference(input: {
   merchantId: string;
   materialItemId: string;
@@ -1398,7 +1435,39 @@ function rowToProviderInput(row: SourceItemMaterialRow): MaterialProviderLibrary
       copiedFromMerchantId: row.merchant_id,
       providerCacheHit: true,
     },
+    comments: normalizeTracePayloadComments(tracePayload.materialComments),
   };
+}
+
+function normalizeTracePayloadComments(value: unknown): NormalizedComment[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return [];
+    }
+
+    const record = item as Record<string, unknown>;
+    const content = typeof record.content === "string" ? record.content.trim() : "";
+
+    if (!content) {
+      return [];
+    }
+
+    return [{
+      externalCommentId: typeof record.externalCommentId === "string" ? record.externalCommentId : undefined,
+      parentExternalCommentId:
+        typeof record.parentExternalCommentId === "string" ? record.parentExternalCommentId : undefined,
+      authorName: typeof record.authorName === "string" ? record.authorName : undefined,
+      content,
+      likeCount: typeof record.likeCount === "number" ? record.likeCount : undefined,
+      replyCount: typeof record.replyCount === "number" ? record.replyCount : undefined,
+      publishedAt: typeof record.publishedAt === "string" ? record.publishedAt : undefined,
+      tracePayload: record.tracePayload,
+    }];
+  });
 }
 
 function normalizeMaterialType(value: unknown, scriptText: string | null): MaterialType {
