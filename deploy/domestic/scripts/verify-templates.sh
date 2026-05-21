@@ -10,6 +10,7 @@ required_files=(
   "deploy/domestic/env/worker.env.example"
   "deploy/domestic/nginx/jingjing-domestic.conf"
   "deploy/domestic/systemd/jingjing-app.service"
+  "deploy/domestic/systemd/jingjing-content-generation-worker.service"
   "deploy/domestic/systemd/jingjing-worker-compose.service"
   "deploy/domestic/pm2/ecosystem.config.cjs"
 )

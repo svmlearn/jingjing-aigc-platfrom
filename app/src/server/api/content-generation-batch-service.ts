@@ -24,6 +24,7 @@ import {
   getOperationalMerchantWorkspaceByUserId,
   listActiveMerchantTeamMembersByMerchant,
 } from "@/lib/db/merchant-repository";
+import { getConsultationSessionDetail } from "@/lib/db/consultation-repository";
 import {
   buildDifyImageRenderUrl,
   mapDifyArticleToMemberPackage,
@@ -32,7 +33,10 @@ import {
   type DifyFinalJson,
 } from "@/server/api/dify-final-json-mapper";
 import { runDifyWorkflow } from "@/server/api/dify-workflow-client";
-import { getDailyContentWorkspaceForUser } from "@/server/api/daily-content-task-service";
+import {
+  getDailyContentWorkspaceForUser,
+  upsertDailyContentTasksFromCalendarForUser,
+} from "@/server/api/daily-content-task-service";
 import { ApiError } from "@/server/api/errors";
 import { getObjectStorageProvider } from "@/server/storage";
 
@@ -54,6 +58,7 @@ type RunNextJobResult = {
 };
 
 const defaultDifyWorkflowVersion = "v3.1";
+const difyInputMaxChars = 5800;
 
 export async function createDifyDailyTaskGenerationBatchForUser(input: {
   userId: string;
@@ -61,10 +66,18 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
   days?: number;
   memberScope?: BatchMemberScope;
   extraRequirement?: string | null;
+  consultationSessionId?: string | null;
 }): Promise<CreateBatchResult> {
   const workspace = await getOperationalMerchantWorkspaceByUserId(input.userId);
   const days = clampDays(input.days);
   const startDate = normalizeDate(input.date);
+  const consultationSession = input.consultationSessionId
+    ? await getConsultationSessionDetail({
+        merchantId: workspace.merchantProfile.id,
+        sessionId: input.consultationSessionId,
+      })
+    : null;
+  const consultationCalendar = consultationSession?.strategySnapshot.contentCalendarDraft ?? [];
   const members =
     input.memberScope === "active_members" && workspace.role === "owner"
       ? await listActiveMerchantTeamMembersByMerchant(workspace.merchantProfile.id)
@@ -96,9 +109,20 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
       userId: member.userId,
       date: startDate,
     });
-    const tasks = [memberWorkspace.today, ...memberWorkspace.upcoming].slice(0, days);
+    const tasks = consultationCalendar.length
+      ? await upsertDailyContentTasksFromCalendarForUser({
+          userId: member.userId,
+          merchantId: workspace.merchantProfile.id,
+          startDate,
+          days,
+          snapshot: consultationSession!.strategySnapshot,
+          consultationSessionId: consultationSession!.id,
+          sourceUpdatedAt: consultationSession!.updatedAt,
+        })
+      : [memberWorkspace.today, ...memberWorkspace.upcoming].slice(0, days);
 
     for (const task of tasks) {
+      const calendarItemId = readFirstCalendarItemId(task.teamCalendarSource);
       const inputSnapshot = await buildDifyJobInputSnapshot({
         task,
         merchantName: memberWorkspace.project.projectName,
@@ -112,11 +136,12 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
         memberUserId: member.userId,
         dailyTaskId: task.id,
         taskDate: task.taskDate,
-        calendarItemId: readFirstCalendarItemId(task.teamCalendarSource),
+        calendarItemId,
         idempotencyKey: [
           workspace.merchantProfile.id,
           member.userId,
           task.taskDate,
+          calendarItemId ?? "daily-task",
           getDifyWorkflowVersion(),
         ].join(":"),
         inputSnapshot,
@@ -127,13 +152,15 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
   const result = await createContentGenerationBatch({
     merchantId: workspace.merchantProfile.id,
     createdByUserId: input.userId,
-    source: "daily_task",
+    source: consultationCalendar.length ? "consultation_calendar" : "daily_task",
     workflowProvider: "dify",
     workflowVersion: getDifyWorkflowVersion(),
     calendarSnapshot: {
       date: startDate,
       days,
-      source: "daily_content_tasks",
+      source: consultationCalendar.length ? "consultation_calendar" : "daily_content_tasks",
+      consultationSessionId: consultationSession?.id ?? null,
+      calendarItemIds: consultationCalendar.map((item) => item.id),
     },
     memberScopeSnapshot: {
       scope: input.memberScope ?? "self",
@@ -277,6 +304,7 @@ export async function runNextDifyContentGenerationJob(): Promise<RunNextJobResul
     return { job: updatedJob, processed: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Dify 生成任务失败。";
+    const retryable = isRetryableDifyContentGenerationError(error);
 
     await updateDailyContentTaskGeneratedContent({
       merchantId: job.merchantId,
@@ -295,11 +323,20 @@ export async function runNextDifyContentGenerationJob(): Promise<RunNextJobResul
     const failedJob = await markContentGenerationJobFailed({
       jobId: job.id,
       errorMessage: message,
-      retryable: false,
+      retryable,
     });
 
     return { job: failedJob, processed: true };
   }
+}
+
+function isRetryableDifyContentGenerationError(error: unknown) {
+  if (error instanceof ApiError && error.code === "DIFY_API_KEY_MISSING") {
+    return false;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return !message.includes("DIFY_API_KEY_MISSING");
 }
 
 async function buildDifyJobInputSnapshot(input: {
@@ -310,12 +347,20 @@ async function buildDifyJobInputSnapshot(input: {
   member: { userId: string; displayName?: string | null; role: string };
   extraRequirement?: string | null;
 }) {
-  const imageAssets = await listImageAssetsForDify({
-    merchantId: input.task.merchantId,
-    task: input.task,
-  });
+  const [imageAssets, videoAssetCapabilities] = await Promise.all([
+    listImageAssetsForDify({
+      merchantId: input.task.merchantId,
+      task: input.task,
+    }),
+    listVideoAssetCapabilitiesForDify({
+      merchantId: input.task.merchantId,
+      task: input.task,
+    }),
+  ]);
   const viralReferences = buildViralReferences(input.task);
-  const calendarTask = buildCalendarTaskPayload(input.task);
+  const calendarTask = buildCalendarTaskPayload(input.task, {
+    videoAssetCapabilities,
+  });
   const memberProfile = {
     userId: input.member.userId,
     displayName: input.member.displayName ?? null,
@@ -331,7 +376,11 @@ async function buildDifyJobInputSnapshot(input: {
     task: input.task,
     merchantName: input.merchantName,
     merchantSummary: input.merchantSummary,
+    videoAssetCapabilities,
   });
+  const difyCalendarTask = buildDifyCalendarTaskForDify(calendarTask);
+  const difyViralReferences = viralReferences.map(compactKnowledgeRefForDify).slice(0, 8);
+  const difyImageAssets = imageAssets.map(compactImageAssetForDify).slice(0, 8);
   const extraRequirement = input.extraRequirement?.trim() ?? "";
 
   return {
@@ -344,15 +393,16 @@ async function buildDifyJobInputSnapshot(input: {
     memberProfile,
     accountProfile,
     imageAssets,
+    videoAssetCapabilities,
     viralReferences,
     fallbackKnowledgeText,
     extraRequirement,
     fallbackCta: input.defaultCta[0] ?? null,
     difyInputs: {
-      calendar_task_json: JSON.stringify(calendarTask),
-      viral_references_json: JSON.stringify(viralReferences),
-      image_assets_json: JSON.stringify(imageAssets),
-      fallback_knowledge_text: fallbackKnowledgeText,
+      calendar_task_json: stringifyDifyJsonInput(difyCalendarTask),
+      viral_references_json: stringifyDifyJsonInput(difyViralReferences),
+      image_assets_json: stringifyDifyJsonInput(difyImageAssets),
+      fallback_knowledge_text: clampDifyInputText(fallbackKnowledgeText),
       extra_requirement: extraRequirement,
       member_profile_json: JSON.stringify(memberProfile),
       account_profile_json: JSON.stringify(accountProfile),
@@ -364,13 +414,7 @@ async function listImageAssetsForDify(input: {
   merchantId: string;
   task: DailyContentTaskDto;
 }) {
-  const query = [
-    input.task.theme,
-    input.task.articleTask.title,
-    input.task.articleTask.summary,
-    input.task.videoTask.title,
-    input.task.videoTask.summary,
-  ].join(" ");
+  const query = buildTaskMaterialRetrievalQuery(input.task);
   const materials = await listMaterialLibraryItems({
     merchantId: input.merchantId,
     retrievalTarget: "article_image_asset",
@@ -379,6 +423,42 @@ async function listImageAssetsForDify(input: {
   }).catch(() => []);
 
   return Promise.all(materials.map(buildDifyImageAssetPayload));
+}
+
+function buildTaskMaterialRetrievalQuery(task: DailyContentTaskDto) {
+  const teamCalendarSource = toRecord(task.teamCalendarSource);
+  const calendarGuidance = toRecord(teamCalendarSource.calendarGuidance);
+
+  return [
+    task.theme,
+    task.articleTask.title,
+    task.articleTask.summary,
+    task.videoTask.title,
+    task.videoTask.summary,
+    ...task.articleTask.materialHints,
+    ...task.videoTask.materialHints,
+    ...(readStringArray(calendarGuidance.mustUseFacts) ?? []),
+    ...(readStringArray(calendarGuidance.contentAngles) ?? []),
+    ...(readStringArray(calendarGuidance.materialHints) ?? []),
+    ...(readStringArray(calendarGuidance.assetCapabilityHints) ?? []),
+    ...(readStringArray(calendarGuidance.shotConstraints) ?? []),
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ");
+}
+
+async function listVideoAssetCapabilitiesForDify(input: {
+  merchantId: string;
+  task: DailyContentTaskDto;
+}) {
+  const materials = await listMaterialLibraryItems({
+    merchantId: input.merchantId,
+    retrievalTarget: "video_edit_asset",
+    query: buildTaskMaterialRetrievalQuery(input.task),
+    limit: 12,
+  }).catch(() => []);
+
+  return materials.map(buildDifyVideoAssetCapabilityPayload);
 }
 
 async function buildDifyImageAssetPayload(material: MaterialLibraryItemDto) {
@@ -406,7 +486,41 @@ async function buildDifyImageAssetPayload(material: MaterialLibraryItemDto) {
   };
 }
 
-function buildCalendarTaskPayload(task: DailyContentTaskDto) {
+function buildDifyVideoAssetCapabilityPayload(material: MaterialLibraryItemDto) {
+  const analysis = toRecord(material.analysisPayload);
+  const structureSummary = toRecord(analysis.structureSummary);
+  const tracePayload = toRecord(analysis.tracePayload);
+
+  return {
+    id: material.id,
+    title: material.title,
+    description: material.description,
+    sourceKind: material.sourceKind,
+    usageType: material.usageType,
+    retrievalTargets: material.retrievalTargets,
+    platform: material.platform,
+    materialType: material.materialType,
+    assetQueryText: [
+      material.title,
+      material.description,
+      material.engagementLabel,
+      readString(structureSummary.visualSummary),
+      readString(tracePayload.visualSummary),
+    ]
+      .filter((value): value is string => Boolean(value?.trim()))
+      .join("\n"),
+    sceneTags: readStringArray(structureSummary.sceneTags) ?? [],
+    shotTypes: readStringArray(structureSummary.shotTypes) ?? [],
+    constraints: readStringArray(structureSummary.shotConstraints) ?? [],
+  };
+}
+
+function buildCalendarTaskPayload(
+  task: DailyContentTaskDto,
+  options: {
+    videoAssetCapabilities?: Array<ReturnType<typeof buildDifyVideoAssetCapabilityPayload>>;
+  } = {},
+) {
   return {
     id: task.id,
     taskDate: task.taskDate,
@@ -431,6 +545,7 @@ function buildCalendarTaskPayload(task: DailyContentTaskDto) {
     },
     knowledgeRefs: task.knowledgeRefs,
     materialRefs: task.materialRefs,
+    videoAssetCapabilities: options.videoAssetCapabilities ?? [],
   };
 }
 
@@ -438,11 +553,23 @@ function buildViralReferences(task: DailyContentTaskDto) {
   return [
     ...task.knowledgeRefs.map((item, index) => ({
       id: readString(item.id) ?? `knowledge-${index + 1}`,
-      source: item.source ?? "knowledge_ref",
-      title: item.title ?? "知识库参考",
-      summary: item.summary ?? null,
-      usageType: item.usageType ?? null,
-      retrievalTargets: item.retrievalTargets ?? null,
+      source: readString(item.source) ?? "knowledge_ref",
+      title: readString(item.title) ?? "知识库参考",
+      summary: readString(item.summary),
+      usageType: readString(item.usageType),
+      retrievalTargets: readStringArray(item.retrievalTargets),
+      documentId: readString(item.documentId),
+      chunkId: readString(item.chunkId),
+      documentTitle: readString(item.documentTitle),
+      sourceName: readString(item.sourceName),
+      scope: readString(item.scope),
+      excerpt: readString(item.excerpt),
+      mustUseFacts: readStringArray(item.mustUseFacts),
+      contentAngles: readStringArray(item.contentAngles),
+      complianceNotes: readStringArray(item.complianceNotes),
+      materialHints: readStringArray(item.materialHints),
+      assetCapabilityHints: readStringArray(item.assetCapabilityHints),
+      shotConstraints: readStringArray(item.shotConstraints),
     })),
     ...task.materialRefs
       .filter((item) => item.sourceKind === "benchmark")
@@ -456,10 +583,146 @@ function buildViralReferences(task: DailyContentTaskDto) {
   ];
 }
 
+function buildDifyCalendarTaskForDify(
+  calendarTask: ReturnType<typeof buildCalendarTaskPayload>,
+) {
+  const teamCalendarSource = toRecord(calendarTask.teamCalendarSource);
+
+  return {
+    id: calendarTask.id,
+    taskDate: calendarTask.taskDate,
+    theme: clampText(calendarTask.theme, 160),
+    status: calendarTask.status,
+    teamCalendarSource: compactTeamCalendarSourceForDify(teamCalendarSource),
+    articleTask: compactContentTaskForDify(calendarTask.articleTask),
+    videoTask: compactContentTaskForDify(calendarTask.videoTask),
+    knowledgeRefs: calendarTask.knowledgeRefs.map(compactKnowledgeRefForDify).slice(0, 5),
+    materialRefs: calendarTask.materialRefs.map(compactMaterialRefForDify).slice(0, 5),
+    videoAssetCapabilities: calendarTask.videoAssetCapabilities
+      .map(compactVideoAssetCapabilityForDify)
+      .slice(0, 6),
+  };
+}
+
+function compactTeamCalendarSourceForDify(source: Record<string, unknown>) {
+  const calendarGuidance = toRecord(source.calendarGuidance);
+  const calendarItems = Array.isArray(source.calendarItems) ? source.calendarItems : [];
+
+  return {
+    source: readString(source.source),
+    consultationSessionId: readString(source.consultationSessionId),
+    calendarItemIds: readStringArray(source.calendarItemIds)?.slice(0, 7) ?? [],
+    calendarItems: calendarItems.map(compactCalendarItemForDify).slice(0, 7),
+    calendarGuidance: {
+      source: readString(calendarGuidance.source),
+      summary: clampText(readString(calendarGuidance.summary), 280),
+      mustUseFacts: takeStringList(calendarGuidance.mustUseFacts, 4, 180),
+      sellingPointHints: takeStringList(calendarGuidance.sellingPointHints, 4, 160),
+      audienceHints: takeStringList(calendarGuidance.audienceHints, 3, 140),
+      contentAngles: takeStringList(calendarGuidance.contentAngles, 4, 160),
+      complianceNotes: takeStringList(calendarGuidance.complianceNotes, 4, 180),
+      materialHints: takeStringList(calendarGuidance.materialHints, 4, 140),
+      assetCapabilityHints: takeStringList(calendarGuidance.assetCapabilityHints, 4, 160),
+      shotConstraints: takeStringList(calendarGuidance.shotConstraints, 4, 180),
+      knowledgeRefs: toRecordArray(calendarGuidance.knowledgeRefs)
+        .map(compactKnowledgeRefForDify)
+        .slice(0, 4),
+    },
+  };
+}
+
+function compactCalendarItemForDify(value: unknown) {
+  const item = toRecord(value);
+
+  return {
+    id: readString(item.id),
+    dayLabel: readString(item.dayLabel),
+    contentType: readString(item.contentType),
+    title: clampText(readString(item.title), 140),
+    summary: clampText(readString(item.summary), 220),
+    strategyTag: clampText(readString(item.strategyTag), 80),
+  };
+}
+
+function compactContentTaskForDify(
+  task: ReturnType<typeof buildCalendarTaskPayload>["articleTask"],
+) {
+  return {
+    title: clampText(task.title, 140),
+    summary: clampText(task.summary, 240),
+    strategyTag: clampText(task.strategyTag, 80),
+    contentGoal: clampText(task.contentGoal, 160),
+    suggestedPlatform: task.suggestedPlatform,
+    materialHints: task.materialHints.map((item) => clampText(item, 100)).slice(0, 4),
+  };
+}
+
+function compactKnowledgeRefForDify(item: Record<string, unknown>) {
+  return {
+    id: readString(item.id),
+    source: readString(item.source),
+    title: clampText(readString(item.title) ?? readString(item.documentTitle), 120),
+    summary: clampText(readString(item.summary), 220),
+    documentId: readString(item.documentId),
+    chunkId: readString(item.chunkId),
+    sourceName: clampText(readString(item.sourceName), 80),
+    excerpt: clampText(readString(item.excerpt), 260),
+    mustUseFacts: takeStringList(item.mustUseFacts, 3, 150),
+    contentAngles: takeStringList(item.contentAngles, 3, 140),
+    materialHints: takeStringList(item.materialHints, 3, 120),
+    assetCapabilityHints: takeStringList(item.assetCapabilityHints, 3, 140),
+    shotConstraints: takeStringList(item.shotConstraints, 3, 160),
+    complianceNotes: takeStringList(item.complianceNotes, 3, 150),
+  };
+}
+
+function compactMaterialRefForDify(item: Record<string, unknown>) {
+  return {
+    id: readString(item.id),
+    sourceKind: readString(item.sourceKind),
+    title: clampText(readString(item.title), 120),
+    usageType: readString(item.usageType),
+    retrievalTargets: readStringArray(item.retrievalTargets)?.slice(0, 4) ?? [],
+  };
+}
+
+function compactVideoAssetCapabilityForDify(
+  item: ReturnType<typeof buildDifyVideoAssetCapabilityPayload>,
+) {
+  return {
+    id: item.id,
+    title: clampText(item.title, 120),
+    description: clampText(item.description, 220),
+    sourceKind: item.sourceKind,
+    usageType: item.usageType,
+    platform: item.platform,
+    materialType: item.materialType,
+    sceneTags: item.sceneTags.slice(0, 6),
+    shotTypes: item.shotTypes.slice(0, 6),
+    constraints: item.constraints.map((value) => clampText(value, 140)).slice(0, 4),
+    assetQueryText: clampText(item.assetQueryText, 260),
+  };
+}
+
+function compactImageAssetForDify(item: Awaited<ReturnType<typeof buildDifyImageAssetPayload>>) {
+  return {
+    id: item.id,
+    title: clampText(item.title, 120),
+    description: clampText(item.description, 220),
+    sourceKind: item.sourceKind,
+    usageType: item.usageType,
+    retrievalTargets: item.retrievalTargets?.slice(0, 4) ?? [],
+    cosPath: item.cosPath,
+    url: item.url,
+    assetQueryText: clampText(item.assetQueryText, 260),
+  };
+}
+
 function buildFallbackKnowledgeText(input: {
   task: DailyContentTaskDto;
   merchantName: string;
   merchantSummary: string;
+  videoAssetCapabilities?: Array<ReturnType<typeof buildDifyVideoAssetCapabilityPayload>>;
 }) {
   return [
     `项目：${input.merchantName}`,
@@ -468,12 +731,49 @@ function buildFallbackKnowledgeText(input: {
     `主题：${input.task.theme}`,
     `图文任务：${input.task.articleTask.title}。${input.task.articleTask.summary}`,
     `视频任务：${input.task.videoTask.title}。${input.task.videoTask.summary}`,
-    ...input.task.knowledgeRefs.map((item) =>
-      [item.title, item.summary].filter((value) => typeof value === "string" && value).join("："),
-    ),
+    "视频画面生成原则：把日历素材提示、视频素材能力和成员可补拍方式作为画面边界；未在知识库或素材能力中出现的客户签约、客户访谈、政策文件、价格收益数据、老业主反馈等，不要写成确定已有素材或确定事实。",
+    ...input.task.knowledgeRefs.map(formatKnowledgeRefForFallbackText),
+    ...(input.videoAssetCapabilities ?? []).map(formatVideoAssetCapabilityForFallbackText),
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function formatKnowledgeRefForFallbackText(item: Record<string, unknown>) {
+  const title = readString(item.title) ?? readString(item.documentTitle) ?? "知识库参考";
+  const summary = readString(item.summary) ?? readString(item.excerpt);
+  const mustUseFacts = readStringArray(item.mustUseFacts) ?? [];
+  const contentAngles = readStringArray(item.contentAngles) ?? [];
+  const complianceNotes = readStringArray(item.complianceNotes) ?? [];
+  const materialHints = readStringArray(item.materialHints) ?? [];
+  const assetCapabilityHints = readStringArray(item.assetCapabilityHints) ?? [];
+  const shotConstraints = readStringArray(item.shotConstraints) ?? [];
+  const parts = [
+    summary ? `${title}：${summary}` : title,
+    mustUseFacts.length ? `必须参考：${mustUseFacts.join("；")}` : "",
+    contentAngles.length ? `内容角度：${contentAngles.join("；")}` : "",
+    materialHints.length ? `素材提示：${materialHints.join("；")}` : "",
+    assetCapabilityHints.length ? `素材能力：${assetCapabilityHints.join("；")}` : "",
+    shotConstraints.length ? `镜头边界：${shotConstraints.join("；")}` : "",
+    complianceNotes.length ? `边界：${complianceNotes.join("；")}` : "",
+  ].filter(Boolean);
+
+  return parts.join("\n");
+}
+
+function formatVideoAssetCapabilityForFallbackText(
+  item: ReturnType<typeof buildDifyVideoAssetCapabilityPayload>,
+) {
+  const parts = [
+    `视频素材能力：${item.title}`,
+    item.description ? `可用画面：${item.description}` : "",
+    item.sceneTags.length ? `场景标签：${item.sceneTags.join("；")}` : "",
+    item.shotTypes.length ? `镜头类型：${item.shotTypes.join("；")}` : "",
+    item.constraints.length ? `素材限制：${item.constraints.join("；")}` : "",
+    item.assetQueryText ? `检索描述：${item.assetQueryText}` : "",
+  ].filter(Boolean);
+
+  return parts.join("\n");
 }
 
 function readDifyWorkflowInputs(snapshot: Record<string, unknown>) {
@@ -622,14 +922,60 @@ function buildSignedPreviewUrl(asset: MediaAssetDto) {
 
 function stringifyDifyInput(value: unknown) {
   if (typeof value === "string") {
-    return value;
+    return clampDifyInputText(value);
   }
 
   if (value === null || value === undefined) {
     return "";
   }
 
-  return JSON.stringify(value);
+  return stringifyDifyJsonInput(value);
+}
+
+function stringifyDifyJsonInput(value: unknown) {
+  const text = JSON.stringify(value);
+
+  if (text.length <= difyInputMaxChars) {
+    return text;
+  }
+
+  return JSON.stringify({
+    truncated: true,
+    note: `Input exceeded ${difyInputMaxChars} characters and was compacted before calling Dify.`,
+    summary: clampText(text, difyInputMaxChars - 160),
+  });
+}
+
+function clampDifyInputText(value: string) {
+  return clampText(value, difyInputMaxChars);
+}
+
+function clampText(value: string | null | undefined, maxChars: number) {
+  if (!value) {
+    return value ?? null;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed.length <= maxChars) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, Math.max(maxChars - 16, 0)).trimEnd()}...（已截断）`;
+}
+
+function takeStringList(value: unknown, maxItems: number, maxChars: number) {
+  return (readStringArray(value) ?? [])
+    .map((item) => clampText(item, maxChars) ?? "")
+    .slice(0, maxItems);
+}
+
+function toRecordArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> =>
+        Boolean(item && typeof item === "object" && !Array.isArray(item)),
+      )
+    : [];
 }
 
 function extractHashtags(text: string): string[] {
@@ -655,6 +1001,17 @@ function readFirstCalendarItemId(value: Record<string, unknown>) {
 
 function readString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const items = value
+    .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    .map((item) => item.trim());
+  return items.length ? items : null;
 }
 
 function toRecord(value: unknown): Record<string, unknown> {

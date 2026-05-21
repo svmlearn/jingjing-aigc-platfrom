@@ -50,6 +50,31 @@ const consultationRepositorySource = readFileSync(
   new URL("../../lib/db/consultation-repository.ts", import.meta.url),
   "utf8",
 );
+const strategySnapshotSource = readFileSync(
+  new URL("../../lib/strategy-snapshot.ts", import.meta.url),
+  "utf8",
+);
+const contentCalendarGuidanceSource = readFileSync(
+  new URL("../../lib/content-calendar-guidance.ts", import.meta.url),
+  "utf8",
+);
+const dailyContentTaskSource = readFileSync(
+  new URL("./daily-content-task-service.ts", import.meta.url),
+  "utf8",
+);
+const contentGenerationBatchSource = readFileSync(
+  new URL("./content-generation-batch-service.ts", import.meta.url),
+  "utf8",
+);
+const contentGenerationBatchRouteSource = readFileSync(
+  new URL("../../app/api/content-generation/batches/route.ts", import.meta.url),
+  "utf8",
+);
+const schemasSource = readFileSync(new URL("./schemas.ts", import.meta.url), "utf8");
+const memberLayoutSource = readFileSync(
+  new URL("../../app/member/layout.tsx", import.meta.url),
+  "utf8",
+);
 const consultationMessagesRouteSource = readFileSync(
   new URL("../../app/api/consultation/sessions/[sessionId]/messages/route.ts", import.meta.url),
   "utf8",
@@ -143,6 +168,14 @@ test("expert container can scope knowledge and runtime tool policy", () => {
   assert.match(consultationServiceAndRuntimeSource, /modelConfig\.retrievalTopK/);
 });
 
+test("llm runtime timeout respects platform settings for native tool calling", () => {
+  assert.match(platformAdminRepositorySource, /timeoutSeconds: getNumber\(record\.timeoutSeconds/);
+  assert.doesNotMatch(
+    platformAdminRepositorySource,
+    /timeoutSeconds: useSiliconFlowDefaults\s*\?\s*defaultLlmRuntime\.timeoutSeconds/,
+  );
+});
+
 test("consultation runtime uses progressive skill disclosure", () => {
   assert.match(consultationServiceAndRuntimeSource, /mode: "progressive_disclosure"/);
   assert.match(consultationServiceAndRuntimeSource, /buildSkillCatalogPrompt/);
@@ -200,20 +233,37 @@ test("consultation runtime exposes right panel assets through bounded business t
   assert.match(consultationServiceAndRuntimeSource, /strategySnapshot\.contentCalendarDraft/);
 });
 
-test("consultation planner supports native tool calling with deterministic fallback", () => {
-  assert.match(consultationServiceAndRuntimeSource, /plannerMode: "native_tool_calling"/);
+test("consultation planner supports Claude Code style JSON tool loop", () => {
+  assert.match(consultationServiceAndRuntimeSource, /plannerMode: "model_json_planner"/);
+  assert.match(consultationServiceAndRuntimeSource, /model_json_tool_loop_v1/);
+  assert.match(consultationServiceAndRuntimeSource, /buildJsonToolLoopMessages/);
+  assert.match(consultationServiceAndRuntimeSource, /tool_loop_state/);
+  assert.match(consultationServiceAndRuntimeSource, /tool_result/);
+  assert.match(consultationServiceAndRuntimeSource, /source: "model_json_tool_use"/);
   assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_loop_v1/);
   assert.match(consultationServiceAndRuntimeSource, /buildNativeToolCallingMessages/);
   assert.match(consultationServiceAndRuntimeSource, /buildConsultationAiRuntimeTools/);
+  assert.match(consultationServiceAndRuntimeSource, /isRepeatableConsultationReadTool/);
+  assert.match(consultationRuntimeSource, /!isRepeatableConsultationReadTool\(result\.toolName\)/);
   assert.match(consultationServiceAndRuntimeSource, /parseNativeConsultationToolCall/);
-  assert.match(consultationServiceAndRuntimeSource, /toolChoice: "auto"/);
+  assert.doesNotMatch(consultationRuntimeSource, /getNativeToolChoice/);
+  assert.doesNotMatch(consultationRuntimeSource, /buildExplicitKnowledgeRetrievalQueries/);
+  assert.doesNotMatch(consultationRuntimeSource, /applyNativeRetrievalPlan/);
+  assert.doesNotMatch(consultationRuntimeSource, /shouldForceNativeContentCalendarWrite/);
+  assert.doesNotMatch(consultationRuntimeSource, /runtime 按用户显式多维资料需求/);
+  assert.match(consultationRuntimeSource, /toolChoice: "auto"/);
+  assert.doesNotMatch(consultationRuntimeSource, /toolChoice: \{/);
+  assert.match(consultationRuntimeSource, /const nativeMaxToolTurns = 8/);
+  assert.match(consultationRuntimeSource, /const jsonToolLoopMaxTurns = 8/);
   assert.match(consultationServiceAndRuntimeSource, /agent\.tool\.requested/);
   assert.match(consultationServiceAndRuntimeSource, /source: "model_tool_calls"/);
   assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_fallback/);
-  assert.match(consultationServiceAndRuntimeSource, /fallback_deterministic/);
   assert.match(consultationServiceAndRuntimeSource, /tool_arguments_validation_failed/);
   assert.match(consultationServiceAndRuntimeSource, /planNextConsultationToolCall/);
   assert.match(consultationServiceAndRuntimeSource, /responseFormat: "json_object"/);
+  assert.match(consultationRuntimeSource, /action === "call_tool"/);
+  assert.match(consultationRuntimeSource, /buildJsonToolInputFromActionRecord/);
+  assert.match(consultationRuntimeSource, /isConsultationAgentToolKey\(action\)/);
   assert.match(consultationServiceAndRuntimeSource, /plannerDecisionSchema/);
   assert.match(consultationServiceAndRuntimeSource, /model_json_planner/);
   assert.match(consultationServiceAndRuntimeSource, /getReadyToolNames/);
@@ -223,15 +273,84 @@ test("consultation planner supports native tool calling with deterministic fallb
   assert.match(consultationServiceAndRuntimeSource, /plannerTrace/);
 });
 
-test("consultation runtime requires knowledge retrieval for explicit user knowledge reads", () => {
+test("consultation runtime routes explicit knowledge reads through the retrieval tool", () => {
+  assert.match(consultationServiceAndRuntimeSource, /retrieve_knowledge_base/);
   assert.match(consultationRuntimeSource, /isExplicitKnowledgeBaseReadRequest/);
-  assert.match(consultationRuntimeSource, /getRequiredOpeningToolNames/);
-  assert.match(consultationRuntimeSource, /runRequiredNativeToolCall/);
-  assert.match(consultationRuntimeSource, /runtime_required_tool_contract/);
-  assert.match(consultationRuntimeSource, /用户明确要求读取用户知识库或已上传文件/);
-  assert.match(serviceSource, /必须先调用 retrieve_knowledge_base/);
-  assert.match(serviceSource, /不要声称无法直接查看用户知识库或上传文件/);
-  assert.doesNotMatch(serviceSource, /你可以不调用工具，直接给用户中文自然语言回复/);
+  assert.match(consultationRuntimeSource, /key: "retrieve_knowledge_base"/);
+  assert.match(serviceSource, /请先调用 retrieve_knowledge_base 获取资料/);
+  assert.match(serviceSource, /用新的 query 再调用 retrieve_knowledge_base 深挖/);
+  assert.match(serviceSource, /必须由你根据用户目标和工具结果自行判断/);
+  assert.match(serviceSource, /不要先写日历再补查依据/);
+  assert.match(serviceSource, /availableTools 中仍有 update_content_calendar/);
+  assert.match(serviceSource, /内容日历 -> 生成团队内容 -> Dify/);
+  assert.match(serviceSource, /历史日历当成本轮已完成/);
+  assert.match(consultationRuntimeSource, /decisionRules/);
+  assert.match(consultationRuntimeSource, /应优先考虑先调用 retrieve_knowledge_base/);
+  assert.match(consultationRuntimeSource, /历史策略资产，不等于本轮 tool_result/);
+  assert.match(consultationServiceAndRuntimeSource, /仅在用户明确要求图文工作台 brief 时/);
+  assert.match(consultationServiceAndRuntimeSource, /仅在用户明确要求视频工作台 brief 时/);
+  assert.match(serviceSource, /自己调用 update_content_calendar 写入可执行日历/);
+  assert.match(serviceSource, /buildNativeStrategySnapshotSummary/);
+  assert.match(serviceSource, /guidancePresence/);
+  assert.match(serviceSource, /画面描述必须根据已返回的素材能力/);
+  assert.match(serviceSource, /不要声称无法读取用户知识库/);
+  assert.match(serviceSource, /buildRecoveredToolResultReply/);
+  assert.match(serviceSource, /受控工具已经执行完成/);
+  assert.match(consultationRuntimeSource, /knowledgeMatches: \(result\.knowledgeMatches \?\? \[\]\)\.map/);
+  assert.match(consultationRuntimeSource, /content: clipText\(match\.content, 1200\)/);
+  assert.doesNotMatch(consultationRuntimeSource, /runtime_required_tool_contract/);
+  assert.doesNotMatch(consultationRuntimeSource, /runRequiredNativeToolCall/);
+  assert.doesNotMatch(serviceSource, /必须先调用 retrieve_knowledge_base/);
+});
+
+test("consultation-selected merchant knowledge flows into calendar tasks and Dify inputs", () => {
+  assert.match(contentCalendarGuidanceSource, /buildMerchantKnowledgeCalendarGuidance/);
+  assert.match(contentCalendarGuidanceSource, /source: "merchant_knowledge_base"/);
+  assert.match(contentCalendarGuidanceSource, /assetCapabilityHints/);
+  assert.match(contentCalendarGuidanceSource, /shotConstraints/);
+  assert.match(contentCalendarGuidanceSource, /retrievalTrace/);
+  assert.match(serviceSource, /buildMerchantKnowledgeCalendarGuidance/);
+  assert.match(serviceSource, /attachGuidanceToContentCalendar/);
+  assert.match(strategySnapshotSource, /normalizeContentCalendarGuidance/);
+  assert.match(dailyContentTaskSource, /collectContentCalendarKnowledgeRefs/);
+  assert.match(dailyContentTaskSource, /calendarGuidance/);
+  assert.match(dailyContentTaskSource, /assetCapabilityHints: calendarGuidance\.assetCapabilityHints/);
+  assert.match(dailyContentTaskSource, /shotConstraints: calendarGuidance\.shotConstraints/);
+  assert.match(contentGenerationBatchSource, /formatKnowledgeRefForFallbackText/);
+  assert.match(contentGenerationBatchSource, /chunkId: readString\(item\.chunkId\)/);
+  assert.match(contentGenerationBatchSource, /listVideoAssetCapabilitiesForDify/);
+  assert.match(contentGenerationBatchSource, /videoAssetCapabilities/);
+  assert.match(contentGenerationBatchSource, /素材能力：/);
+  assert.match(contentGenerationBatchSource, /镜头边界：/);
+  assert.match(contentGenerationBatchSource, /fallback_knowledge_text/);
+  assert.match(contentGenerationBatchSource, /calendar_task_json/);
+  assert.doesNotMatch(contentGenerationBatchSource, /video_asset_capabilities_json/);
+});
+
+test("team content generation uses the current consultation calendar as batch source", () => {
+  assert.match(schemasSource, /consultationSessionId: z\.uuid\(\)\.nullish\(\)/);
+  assert.match(contentGenerationBatchRouteSource, /consultationSessionId: payload\.consultationSessionId/);
+  assert.match(contentGenerationBatchSource, /getConsultationSessionDetail/);
+  assert.match(contentGenerationBatchSource, /consultationSessionId\?: string \| null/);
+  assert.match(contentGenerationBatchSource, /upsertDailyContentTasksFromCalendarForUser/);
+  assert.match(
+    contentGenerationBatchSource,
+    /source: consultationCalendar\.length \? "consultation_calendar" : "daily_task"/,
+  );
+  assert.match(contentGenerationBatchSource, /calendarItemIds: consultationCalendar\.map/);
+  assert.match(dailyContentTaskSource, /source: "consultation_calendar"/);
+  assert.match(dailyContentTaskSource, /calendarItems: selectedCalendarItems/);
+  assert.match(dailyContentTaskSource, /calendarGuidance/);
+});
+
+test("calendar UI follows the direct team generation path", () => {
+  assert.match(consultationWorkspaceSource, /consultationSessionId: session\?\.id \?\? null/);
+  assert.match(consultationWorkspaceSource, /CalendarGuidanceChips/);
+  assert.match(consultationWorkspaceSource, /已参考知识库/);
+  assert.doesNotMatch(consultationWorkspaceSource, /内测入口/);
+  assert.doesNotMatch(consultationWorkspaceSource, /内测\{item\.contentType/);
+  assert.doesNotMatch(consultationWorkspaceSource, /getCalendarItemHref/);
+  assert.match(memberLayoutSource, /dynamic = "force-dynamic"/);
 });
 
 test("consultation runtime surfaces native tool call rejections as failed tool facts", () => {
@@ -263,16 +382,12 @@ test("consultation runtime wraps tool execution exceptions as failed tool result
   );
 });
 
-test("consultation runtime records clarification requests as structured runtime facts", () => {
-  assert.match(consultationRuntimeSource, /buildClarificationRequestResult/);
-  assert.match(consultationRuntimeSource, /request_user_clarification/);
-  assert.match(consultationRuntimeSource, /agent\.clarification\.requested/);
-  assert.match(consultationRuntimeSource, /assistant_final_question/);
-  assert.match(consultationRuntimeSource, /blocksAssetWrite: true/);
-  assert.match(consultationRuntimeSource, /hasCompletedAssetWriteTool/);
-  assert.match(consultationRuntimeSource, /inferClarificationReasonCode/);
-  assert.match(consultationServiceAndRuntimeSource, /需要用户补充/);
-  assert.match(consultationRuntimeSource, /extractOpenQuestions/);
+test("consultation runtime does not synthesize blocking clarification tool results", () => {
+  assert.doesNotMatch(consultationRuntimeSource, /buildClarificationRequestResult/);
+  assert.doesNotMatch(consultationRuntimeSource, /agent\.clarification\.requested/);
+  assert.doesNotMatch(consultationRuntimeSource, /assistant_final_question/);
+  assert.doesNotMatch(consultationRuntimeSource, /blocksAssetWrite: true/);
+  assert.doesNotMatch(consultationRuntimeSource, /inferClarificationReasonCode/);
 });
 
 test("knowledge retrieval can directly surface indexed user documents", () => {
@@ -281,6 +396,11 @@ test("knowledge retrieval can directly surface indexed user documents", () => {
   assert.match(consultationRuntimeSource, /listKnowledgeChunksByDocumentId/);
   assert.match(consultationRuntimeSource, /merchantKnowledgeDocumentIds/);
   assert.match(consultationRuntimeSource, /mergeKnowledgeMatches/);
+  assert.match(consultationRuntimeSource, /consultation_hybrid_rag_v1/);
+  assert.match(consultationRuntimeSource, /direct_merchant_document_scan/);
+  assert.match(consultationRuntimeSource, /keyword_search/);
+  assert.match(consultationRuntimeSource, /semantic_vector_search/);
+  assert.match(consultationRuntimeSource, /sourceCounts/);
 });
 
 test("AI runtime preserves native tool call/result pairs when trimming messages", () => {
@@ -380,8 +500,8 @@ test("strategy assets are merchant-level and stable across consultation sessions
   assert.match(serviceSource, /upsertMerchantStrategyAssetDocument/);
   assert.match(serviceSource, /existingMerchantStrategyAsset\?\.strategySnapshot \?\? session\.strategySnapshot/);
   assert.match(serviceSource, /strategyAsset: merchantStrategyAsset/);
-  assert.match(serviceSource, /strategySnapshot: loopResult\.strategySnapshot/);
-  assert.match(serviceSource, /strategyMarkdown: loopResult\.strategyMarkdown/);
+  assert.match(serviceSource, /strategySnapshot: finalizedStrategySnapshot/);
+  assert.match(serviceSource, /strategyMarkdown: finalizedStrategyMarkdown/);
   assert.doesNotMatch(serviceSource, /previousSnapshot: null,\n\s*userMessages: \[\],\n\s*\}\);\n\s*const session = await createConsultationSession/);
 });
 
@@ -417,7 +537,7 @@ test("initial consultation agent prompt and soul keep empty profile facts unknow
 
 test("strategy asset markdown is the extensible primary document", () => {
   assert.match(serviceSource, /strategyMarkdown: state\.strategyMarkdown/);
-  assert.match(serviceSource, /strategyMarkdownChars: loopResult\.strategyMarkdown\.length/);
+  assert.match(serviceSource, /strategyMarkdownChars: finalizedStrategyMarkdown\.length/);
   assert.match(serviceSource, /strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion、strategyMarkdown 六个字段/);
   assert.match(serviceSource, /strategyMarkdown 是右侧策略资产的主文档/);
   assert.match(serviceSource, /strategyMarkdown 写完整 Markdown 策略资产文档/);
@@ -480,6 +600,8 @@ test("consultation message send is queued and completed in the background", () =
   assert.match(serviceSource, /hasPendingAssistantReply/);
   assert.match(consultationMessagesRouteSource, /after\(\(\) =>/);
   assert.match(consultationMessagesRouteSource, /status: queued\.processing \? 202 : 200/);
+  assert.doesNotMatch(consultationMessagesRouteSource, /isSupabasePublicConfigured/);
+  assert.doesNotMatch(consultationMessagesRouteSource, /status: "completed"/);
   assert.match(consultationWorkspaceSource, /AssistantThinkingBubble/);
   assert.match(consultationWorkspaceSource, /isConsultationAssistantPending/);
   assert.match(consultationWorkspaceSource, /refreshPendingSession/);

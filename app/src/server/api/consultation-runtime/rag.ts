@@ -22,49 +22,100 @@ export async function retrieveConsultationKnowledge(input: {
   knowledgeDocumentIds: unknown;
 }) {
   const expertKnowledgeDocumentIds = toStringArrayValue(input.knowledgeDocumentIds);
+  const shouldReadMerchantDocuments = isExplicitKnowledgeBaseReadRequest(input.query);
+
+  if (input.topK <= 0) {
+    return {
+      matches: [],
+      payload: {
+        retrievalMode: "hybrid_empty_top_k",
+        retrievalStrategy: {
+          strategy: "consultation_hybrid_rag_v1",
+          sources: [],
+          directMerchantDocumentScan: shouldReadMerchantDocuments,
+        },
+        embeddingMode: "empty",
+        embeddingModel: input.state.knowledgeRuntime.embeddingModel,
+        expertKnowledgeDocumentIds,
+        merchantKnowledgeDocumentIds: [],
+      },
+    };
+  }
+
   const queryEmbedding = await embedKnowledgeQuery({
     query: input.query,
     state: input.state,
   });
-  const shouldReadMerchantDocuments = isExplicitKnowledgeBaseReadRequest(input.query);
-  const merchantDocumentMatches = shouldReadMerchantDocuments
-    ? await listMerchantKnowledgeDocumentMatches({
-        state: input.state,
-        limit: input.topK,
-      })
-    : [];
-  const matches =
-    input.topK > 0
-      ? mergeKnowledgeMatches(
-          [
-            ...merchantDocumentMatches,
-            ...(shouldReadMerchantDocuments
-              ? []
-              : await searchKnowledgeChunks({
-                  merchantId: input.state.merchant.id,
-                  query: input.query,
-                  limit: input.topK,
-                  queryEmbedding: queryEmbedding.embedding,
-                  documentIds: expertKnowledgeDocumentIds,
-                })),
-          ],
-          input.topK,
-        )
-      : [];
+  const searchLimit = Math.max(input.topK, input.topK * 2);
+  const [merchantDocumentMatches, keywordMatches, vectorMatches] = await Promise.all([
+    shouldReadMerchantDocuments
+      ? listMerchantKnowledgeDocumentMatches({
+          state: input.state,
+          limit: searchLimit,
+        })
+      : Promise.resolve([]),
+    searchKnowledgeChunks({
+      merchantId: input.state.merchant.id,
+      query: input.query,
+      limit: searchLimit,
+      documentIds: expertKnowledgeDocumentIds,
+    }),
+    queryEmbedding.embedding
+      ? searchKnowledgeChunks({
+          merchantId: input.state.merchant.id,
+          query: input.query,
+          limit: searchLimit,
+          queryEmbedding: queryEmbedding.embedding,
+          documentIds: expertKnowledgeDocumentIds,
+        })
+      : Promise.resolve([]),
+  ]);
+  const matchGroups = [
+    {
+      source: "direct_merchant_document_scan",
+      matches: merchantDocumentMatches,
+    },
+    {
+      source: "keyword_search",
+      matches: keywordMatches,
+    },
+    {
+      source: "semantic_vector_search",
+      matches: vectorMatches,
+    },
+  ];
+  const matches = mergeKnowledgeMatches(matchGroups, input.topK);
 
   return {
     matches,
     payload: {
-      retrievalMode: shouldReadMerchantDocuments
-        ? "merchant_documents_direct"
-        : queryEmbedding.embedding
-          ? "vector_with_lexical_fallback"
-          : "lexical",
+      retrievalMode: buildRetrievalMode({
+        shouldReadMerchantDocuments,
+        hasKeywordMatches: keywordMatches.length > 0,
+        hasVectorMatches: vectorMatches.length > 0,
+        hasEmbedding: Boolean(queryEmbedding.embedding),
+      }),
+      retrievalStrategy: {
+        strategy: "consultation_hybrid_rag_v1",
+        sources: matchGroups
+          .filter((group) => group.matches.length > 0)
+          .map((group) => group.source),
+        directMerchantDocumentScan: shouldReadMerchantDocuments,
+        topK: input.topK,
+        searchLimit,
+      },
+      sourceCounts: {
+        directMerchantDocumentScan: merchantDocumentMatches.length,
+        keywordSearch: keywordMatches.length,
+        semanticVectorSearch: vectorMatches.length,
+      },
       embeddingMode: queryEmbedding.mode,
       embeddingModel: queryEmbedding.model ?? input.state.knowledgeRuntime.embeddingModel,
       expertKnowledgeDocumentIds,
       merchantKnowledgeDocumentIds: uniqueStrings(
-        merchantDocumentMatches.map((match) => match.documentId),
+        matches
+          .filter((match) => match.scope === "merchant")
+          .map((match) => match.documentId),
       ),
     },
   };
@@ -131,26 +182,56 @@ async function listMerchantKnowledgeDocumentMatches(input: {
 }
 
 function mergeKnowledgeMatches(
-  matches: KnowledgeSearchMatchDto[],
+  groups: Array<{ source: string; matches: KnowledgeSearchMatchDto[] }>,
   limit: number,
 ): KnowledgeSearchMatchDto[] {
   const seen = new Set<string>();
   const merged: KnowledgeSearchMatchDto[] = [];
+  const maxGroupLength = Math.max(0, ...groups.map((group) => group.matches.length));
 
-  for (const match of matches) {
-    if (seen.has(match.chunkId)) {
-      continue;
-    }
+  for (let index = 0; index < maxGroupLength && merged.length < limit; index += 1) {
+    for (const group of groups) {
+      const match = group.matches[index];
 
-    seen.add(match.chunkId);
-    merged.push(match);
+      if (!match || seen.has(match.chunkId)) {
+        continue;
+      }
 
-    if (merged.length >= limit) {
-      break;
+      seen.add(match.chunkId);
+      merged.push({
+        ...match,
+        metadata: {
+          ...match.metadata,
+          retrievalSource: group.source,
+        },
+      });
+
+      if (merged.length >= limit) {
+        break;
+      }
     }
   }
 
   return merged;
+}
+
+function buildRetrievalMode(input: {
+  shouldReadMerchantDocuments: boolean;
+  hasKeywordMatches: boolean;
+  hasVectorMatches: boolean;
+  hasEmbedding: boolean;
+}) {
+  const modes = [
+    input.shouldReadMerchantDocuments ? "direct" : null,
+    input.hasKeywordMatches ? "keyword" : null,
+    input.hasVectorMatches ? "vector" : null,
+  ].filter(Boolean);
+
+  if (modes.length > 0) {
+    return `hybrid_${modes.join("_")}`;
+  }
+
+  return input.hasEmbedding ? "hybrid_no_matches_with_embedding" : "hybrid_no_matches_lexical";
 }
 
 async function embedKnowledgeQuery(input: {

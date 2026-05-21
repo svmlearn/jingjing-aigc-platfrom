@@ -14,7 +14,7 @@ class Settings:
     models_dir: Path
     engine_adapter: str
     fire_red_base_url: str
-    fire_red_run_timeout_seconds: int = 900
+    fire_red_run_timeout_seconds: int = 2700
     fire_red_stream_idle_timeout_seconds: int = 180
     fire_red_provider_key_configured: bool = False
     fire_red_provider_key: str = ""
@@ -79,7 +79,7 @@ class Settings:
             .strip()
             .rstrip("/"),
             fire_red_run_timeout_seconds=int(
-                os.getenv("FIRERED_RUN_TIMEOUT_SECONDS", "900")
+                os.getenv("FIRERED_RUN_TIMEOUT_SECONDS", "2700")
             ),
             fire_red_stream_idle_timeout_seconds=int(
                 os.getenv("FIRERED_STREAM_IDLE_TIMEOUT_SECONDS", "180")

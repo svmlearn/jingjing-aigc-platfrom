@@ -361,7 +361,10 @@ export async function claimNextContentGenerationJob(input: {
         `
         select ${jobSelect}
         from public.content_generation_jobs
-        where status = 'pending'
+        where (
+            status = 'pending'
+            or (status = 'failed_retryable' and attempt_count < max_attempts)
+          )
           ${providerSql}
         order by created_at asc
         for update skip locked
@@ -384,7 +387,11 @@ export async function claimNextContentGenerationJob(input: {
             started_at = coalesce(started_at, timezone('utc', now())),
             error_message = null,
             updated_at = timezone('utc', now())
-        where id = $1 and status = 'pending'
+        where id = $1
+          and (
+            status = 'pending'
+            or (status = 'failed_retryable' and attempt_count < max_attempts)
+          )
         returning ${jobSelect}
         `,
         [pending.id],
@@ -402,7 +409,11 @@ export async function claimNextContentGenerationJob(input: {
 
   if (!isSupabaseAdminConfigured()) {
     const job = Array.from(demoStore.jobs.values())
-      .filter((item) => item.status === "pending")
+      .filter(
+        (item) =>
+          item.status === "pending" ||
+          (item.status === "failed_retryable" && item.attemptCount < item.maxAttempts),
+      )
       .filter((item) => !input.provider || item.workflowProvider === input.provider)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
 
@@ -413,25 +424,33 @@ export async function claimNextContentGenerationJob(input: {
   let query = supabase
     .from("content_generation_jobs")
     .select(jobSelect)
-    .eq("status", "pending")
+    .in("status", ["pending", "failed_retryable"])
     .order("created_at", { ascending: true })
-    .limit(1);
+    .limit(20);
 
   if (input.provider) {
     query = query.eq("workflow_provider", input.provider);
   }
 
-  const { data, error } = await query.maybeSingle();
+  const { data, error } = await query;
 
   if (error) {
     throw new ApiError(500, "CONTENT_GENERATION_JOB_CLAIM_LOOKUP_FAILED", error.message);
   }
 
-  if (!data) {
+  const job =
+    (data as unknown as ContentGenerationJobRow[] | null)
+      ?.map(mapJob)
+      .find(
+        (item) =>
+          item.status === "pending" ||
+          (item.status === "failed_retryable" && item.attemptCount < item.maxAttempts),
+      ) ?? null;
+
+  if (!job) {
     return null;
   }
 
-  const job = mapJob(data as unknown as ContentGenerationJobRow);
   const { data: updatedData, error: updateError } = await supabase
     .from("content_generation_jobs")
     .update({
@@ -442,7 +461,8 @@ export async function claimNextContentGenerationJob(input: {
       error_message: null,
     })
     .eq("id", job.id)
-    .eq("status", "pending")
+    .in("status", ["pending", "failed_retryable"])
+    .lt("attempt_count", job.maxAttempts)
     .select(jobSelect)
     .maybeSingle();
 

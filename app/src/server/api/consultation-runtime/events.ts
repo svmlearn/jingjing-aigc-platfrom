@@ -13,6 +13,7 @@ import type {
 
 type ConsultationRuntimeDesign =
   | "bounded_business_tool_loop_v1"
+  | "model_json_tool_loop_v1"
   | "native_tool_calling_loop_v1";
 
 export type ConsultationRuntimeEventInput = {
@@ -137,7 +138,13 @@ export function buildLoopCompletedPayload(input: {
 function resolveRuntimeDesign(
   plannerMode: ConsultationPlannerMode,
 ): ConsultationRuntimeDesign {
-  return plannerMode === "native_tool_calling"
-    ? "native_tool_calling_loop_v1"
-    : "bounded_business_tool_loop_v1";
+  if (plannerMode === "native_tool_calling") {
+    return "native_tool_calling_loop_v1";
+  }
+
+  if (plannerMode === "model_json_planner") {
+    return "model_json_tool_loop_v1";
+  }
+
+  return "bounded_business_tool_loop_v1";
 }

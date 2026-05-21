@@ -6,6 +6,7 @@ import {
   buildConsultationToolArgs,
   getConsultationBusinessToolCatalog,
   isConsultationAgentToolKey,
+  isRepeatableConsultationReadTool,
 } from "@/server/api/consultation-runtime/tools";
 import { buildSkillReferencePlannerHints } from "@/server/api/consultation-runtime/skills";
 import type {
@@ -66,9 +67,14 @@ export async function planNextConsultationToolCall(input: {
   plannerMode?: Exclude<ConsultationPlannerMode, "native_tool_calling">;
 }): Promise<ConsultationPlannerDecision> {
   const turn = input.toolResults.length + 1;
-  const readyToolNames = getReadyToolNames(input.state, input.completedToolNames);
-  const fallbackToolName = readyToolNames[0] ?? null;
   const plannerMode = input.plannerMode ?? "model_json_planner";
+  const readyToolNames = getReadyToolNames(input.state, input.completedToolNames, {
+    allowRepeatableReadTools: plannerMode === "model_json_planner",
+  });
+  const fallbackReadyToolNames = getReadyToolNames(input.state, input.completedToolNames, {
+    allowRepeatableReadTools: false,
+  });
+  const fallbackToolName = fallbackReadyToolNames[0] ?? readyToolNames[0] ?? null;
 
   if (!fallbackToolName) {
     return {
@@ -208,12 +214,16 @@ function getOrderedEnabledToolNames(state: ConsultationAgentLoopState) {
 function getReadyToolNames(
   state: ConsultationAgentLoopState,
   completedToolNames: ConsultationAgentToolKey[],
+  options: { allowRepeatableReadTools?: boolean } = {},
 ) {
   const completed = new Set(completedToolNames);
   const enabled = new Set(getOrderedEnabledToolNames(state));
 
   return getOrderedEnabledToolNames(state).filter((toolName) => {
-    if (completed.has(toolName)) {
+    if (
+      completed.has(toolName) &&
+      !(options.allowRepeatableReadTools && isRepeatableConsultationReadTool(toolName))
+    ) {
       return false;
     }
 
@@ -270,6 +280,8 @@ function buildPlannerMessages(input: {
         "只输出 JSON object，不要输出 Markdown。",
         "JSON schema: {\"action\":\"call_tool\"|\"stop\",\"toolName\":\"工具 key\",\"args\":{},\"reason\":\"一句中文理由\"}",
         "在 readyTools 非空时必须选择其中一个工具；不要发明工具名。",
+        "retrieve_knowledge_base、read_history、read_merchant_profile 是读类工具；当用户明确列出多个检索维度，或上一轮检索只覆盖项目事实、方法论、话术、素材边界中的一部分时，可以继续选择 retrieve_knowledge_base，并用新的具体 query 深挖。",
+        "写类工具只在信息足够时调用；不要为了跳过检索而过早写入内容日历。",
         "策略资产、内容日历、图文 brief、视频 brief 只能通过受控工具推进。",
       ].join("\n"),
     },

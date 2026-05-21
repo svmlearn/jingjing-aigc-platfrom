@@ -67,12 +67,80 @@ const merchantRoundArgsSchema = z
   })
   .strict();
 
+const contentCalendarItemParameters = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    id: {
+      type: "string",
+      description: "可选稳定 ID；省略时 runtime 会按顺序补齐。",
+    },
+    dayLabel: {
+      type: "string",
+      description: "日历标签，例如 本周一、本周、明天。",
+    },
+    contentType: {
+      type: "string",
+      enum: ["article", "video"],
+      description: "内容类型：图文或视频。",
+    },
+    strategyTag: {
+      type: "string",
+      description: "本条任务对应的策略主题或内容角度。",
+    },
+    title: {
+      type: "string",
+      description: "可执行的选题标题。",
+    },
+    summary: {
+      type: "string",
+      description: "给成员或生成工作台使用的任务说明。",
+    },
+  },
+  required: ["dayLabel", "contentType", "title", "summary"],
+};
+
+const updateContentCalendarParameters = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    ...merchantRoundParameters.properties,
+    calendar: {
+      type: "array",
+      minItems: 1,
+      maxItems: 14,
+      items: contentCalendarItemParameters,
+      description: "模型判断需要写入营销日历时传入的图文/视频混合任务列表。",
+    },
+  },
+};
+
 const retrieveKnowledgeArgsSchema = z
   .object({
     query: z.string().trim().min(1).optional(),
     knowledgeDocumentIds: z.array(z.string()).optional(),
     topK: z.number().int().min(0).max(12).optional(),
     contextPolicy: z.enum(["controlled_context_chunks_only"]).optional(),
+  })
+  .strict();
+
+const contentCalendarItemArgsSchema = z
+  .object({
+    id: z.string().trim().min(1).max(80).optional(),
+    dayLabel: z.string().trim().min(1).max(24),
+    contentType: z.enum(["article", "video"]),
+    strategyTag: z.string().trim().min(1).max(40).optional(),
+    title: z.string().trim().min(1).max(100),
+    summary: z.string().trim().min(1).max(360),
+  })
+  .strict();
+
+const updateContentCalendarArgsSchema = z
+  .object({
+    merchantId: z.string().optional(),
+    round: z.number().optional(),
+    stage: z.string().optional(),
+    calendar: z.array(contentCalendarItemArgsSchema).min(1).max(14).optional(),
   })
   .strict();
 
@@ -295,15 +363,15 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
     {
       key: "update_content_calendar",
       label: "更新内容日历",
-      purpose: "把策略快照转成图文/视频混合内容日历。",
+      purpose: "在本轮已经取得足够知识库、话术或素材能力依据后，把咨询结论、用户知识库和策略快照转成图文/视频混合营销日历。",
       writes: "strategySnapshot.contentCalendarDraft",
-      parameters: merchantRoundParameters,
-      validate: validateMerchantRoundArgs("update_content_calendar"),
+      parameters: updateContentCalendarParameters,
+      validate: validateUpdateContentCalendarArgs,
     },
     {
       key: "generate_article_brief",
       label: "生成图文任务草案",
-      purpose: "把咨询结论转成图文工作台可使用的 brief。",
+      purpose: "仅在用户明确要求图文工作台 brief 时，把咨询结论转成图文工作台可使用的 brief；团队内容日历直接生成链路不要用它作为前置。",
       writes: "strategySnapshot.articleBrief",
       parameters: merchantRoundParameters,
       validate: validateMerchantRoundArgs("generate_article_brief"),
@@ -311,7 +379,7 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
     {
       key: "generate_video_brief",
       label: "生成视频任务草案",
-      purpose: "把咨询结论转成视频工作台可使用的 brief。",
+      purpose: "仅在用户明确要求视频工作台 brief 时，把咨询结论转成视频工作台可使用的 brief；团队内容日历直接生成链路不要用它作为前置。",
       writes: "strategySnapshot.videoBrief",
       parameters: merchantRoundParameters,
       validate: validateMerchantRoundArgs("generate_video_brief"),
@@ -345,6 +413,14 @@ export function buildConsultationAiRuntimeTools(input: {
         parameters: tool.parameters,
       },
     }));
+}
+
+export function isRepeatableConsultationReadTool(toolName: ConsultationAgentToolKey) {
+  return (
+    toolName === "read_merchant_profile" ||
+    toolName === "retrieve_knowledge_base" ||
+    toolName === "read_history"
+  );
 }
 
 export function parseNativeConsultationToolCall(
@@ -503,6 +579,25 @@ function validateMerchantRoundArgs(toolName: ConsultationAgentToolKey) {
         }
       : { ok: false, error: formatSchemaError(parsed.error) };
   };
+}
+
+function validateUpdateContentCalendarArgs(
+  args: unknown,
+  state: ConsultationAgentLoopState,
+):
+  | { ok: true; args: Record<string, unknown> }
+  | { ok: false; error: string } {
+  const parsed = updateContentCalendarArgsSchema.safeParse(args);
+
+  return parsed.success
+    ? {
+        ok: true,
+        args: {
+          ...buildConsultationToolArgs("update_content_calendar", state),
+          ...parsed.data,
+        },
+      }
+    : { ok: false, error: formatSchemaError(parsed.error) };
 }
 
 function parseToolArguments(value: string):

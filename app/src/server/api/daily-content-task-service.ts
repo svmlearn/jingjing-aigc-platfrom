@@ -21,6 +21,10 @@ import {
   buildGeneratedVideoScriptPackage,
   buildProjectIntro,
 } from "@/server/api/member-content-builders";
+import {
+  collectContentCalendarGuidanceSummary,
+  collectContentCalendarKnowledgeRefs,
+} from "@/lib/content-calendar-guidance";
 
 export async function getDailyContentWorkspaceForUser(input: {
   userId: string;
@@ -72,6 +76,129 @@ export async function getDailyContentTaskForUser(input: {
   });
 }
 
+export async function upsertDailyContentTasksFromCalendarForUser(input: {
+  userId: string;
+  merchantId: string;
+  startDate: string;
+  days: number;
+  snapshot: StrategySnapshotDto;
+  consultationSessionId?: string | null;
+  sourceUpdatedAt?: string | null;
+}): Promise<DailyContentTaskDto[]> {
+  const calendar = input.snapshot.contentCalendarDraft;
+
+  if (calendar.length === 0) {
+    return [];
+  }
+
+  const tasks: DailyContentTaskDto[] = [];
+  const days = Math.min(Math.max(input.days, 1), 7);
+
+  for (let index = 0; index < days; index += 1) {
+    const taskDate = addDays(input.startDate, index);
+    const item = calendar[index % calendar.length] ?? null;
+    const seed = hashSeed(`${input.userId}:${taskDate}:consultation_calendar:${item?.id ?? index}`);
+    const selectedCalendarItems = uniqueCalendarItems([item]);
+    const calendarGuidance = collectContentCalendarGuidanceSummary(selectedCalendarItems);
+    const calendarKnowledgeRefs = collectContentCalendarKnowledgeRefs(selectedCalendarItems).slice(
+      0,
+      8,
+    );
+    const theme =
+      item?.strategyTag ||
+      item?.title ||
+      input.snapshot.strategyTags[index % Math.max(input.snapshot.strategyTags.length, 1)] ||
+      input.snapshot.currentSuggestion ||
+      "团队内容日历";
+    const retrievalQuery = buildDailyMaterialRetrievalQuery({
+      theme,
+      articleItem: item,
+      videoItem: item,
+      snapshot: input.snapshot,
+      calendarGuidance,
+    });
+    const [articleImageMaterials, copyContextMaterials] = await Promise.all([
+      listMaterialLibraryItems({
+        merchantId: input.merchantId,
+        retrievalTarget: "article_image_asset",
+        query: retrievalQuery,
+        limit: 24,
+      }).catch(() => []),
+      listMaterialLibraryItems({
+        merchantId: input.merchantId,
+        retrievalTarget: "copy_context",
+        query: retrievalQuery,
+        limit: 12,
+      }).catch(() => []),
+    ]);
+    const materialRefs = articleImageMaterials.slice(0, 6).map((material) => ({
+      ...buildMaterialRoutingTrace(material),
+      platform: material.platform,
+    }));
+    const materialHints = compactStrings([
+      item?.summary,
+      ...copyContextMaterials.slice(0, 4).map((material) => material.title),
+      ...(calendarGuidance?.materialHints ?? []),
+      ...(calendarGuidance?.assetCapabilityHints ?? []),
+    ]).slice(0, 10);
+
+    tasks.push(
+      await upsertDailyContentTask({
+        merchantId: input.merchantId,
+        userId: input.userId,
+        taskDate,
+        theme,
+        teamCalendarSource: {
+          source: "consultation_calendar",
+          consultationSessionId: input.consultationSessionId ?? null,
+          updatedAt: input.sourceUpdatedAt ?? null,
+          strategyTags: input.snapshot.strategyTags,
+          calendarItemIds: compactStrings([item?.id]),
+          calendarItems: selectedCalendarItems,
+          calendarGuidance,
+        },
+        articleTask: buildTaskItem({
+          kind: "article",
+          item,
+          snapshot: input.snapshot,
+          materialHints,
+          imageMaterials: articleImageMaterials,
+          seed,
+        }),
+        videoTask: buildTaskItem({
+          kind: "video",
+          item,
+          snapshot: input.snapshot,
+          materialHints,
+          imageMaterials: articleImageMaterials,
+          seed: seed + 9,
+        }),
+        knowledgeRefs: [
+          {
+            source: "consultation_calendar",
+            title: "咨询台团队内容日历",
+            summary: item?.summary ?? input.snapshot.currentSuggestion ?? "使用本次咨询日历生成。",
+            consultationSessionId: input.consultationSessionId ?? null,
+            calendarItemId: item?.id ?? null,
+          },
+          ...buildCalendarGuidanceKnowledgeRefs(calendarGuidance),
+          ...calendarKnowledgeRefs,
+          ...copyContextMaterials.slice(0, 4).map((material) => ({
+            source: "material_library",
+            title: material.title,
+            summary: material.description ?? material.engagementLabel ?? "可作为文案/脚本表达参考。",
+            usageType: material.usageType,
+            retrievalTargets: material.retrievalTargets,
+          })),
+        ],
+        materialRefs,
+      }),
+    );
+  }
+
+  return tasks;
+}
+
 async function getOrCreateDailyContentTaskForUser(input: {
   userId: string;
   merchantId: string;
@@ -89,6 +216,12 @@ async function getOrCreateDailyContentTaskForUser(input: {
   const seed = hashSeed(`${input.userId}:${input.taskDate}`);
   const articleItem = pickCalendarItem(calendar, "article", seed);
   const videoItem = pickCalendarItem(calendar, "video", seed + 3);
+  const selectedCalendarItems = [articleItem, videoItem];
+  const calendarGuidance = collectContentCalendarGuidanceSummary(selectedCalendarItems);
+  const calendarKnowledgeRefs = collectContentCalendarKnowledgeRefs(selectedCalendarItems).slice(
+    0,
+    8,
+  );
   const theme =
     articleItem?.strategyTag ||
     videoItem?.strategyTag ||
@@ -99,6 +232,7 @@ async function getOrCreateDailyContentTaskForUser(input: {
     articleItem,
     videoItem,
     snapshot,
+    calendarGuidance,
   });
   const [articleImageMaterials, copyContextMaterials] = await Promise.all([
     listMaterialLibraryItems({
@@ -118,7 +252,10 @@ async function getOrCreateDailyContentTaskForUser(input: {
     ...buildMaterialRoutingTrace(item),
     platform: item.platform,
   }));
-  const materialHints = copyContextMaterials.slice(0, 4).map((item) => item.title);
+  const materialHints = compactStrings([
+    ...copyContextMaterials.slice(0, 4).map((item) => item.title),
+    ...(calendarGuidance?.materialHints ?? []),
+  ]).slice(0, 8);
 
   return upsertDailyContentTask({
     merchantId: input.merchantId,
@@ -130,6 +267,7 @@ async function getOrCreateDailyContentTaskForUser(input: {
       updatedAt: strategyAsset?.updatedAt ?? null,
       strategyTags: snapshot?.strategyTags ?? [],
       calendarItemIds: compactStrings([articleItem?.id, videoItem?.id]),
+      calendarGuidance,
     },
     articleTask: buildTaskItem({
       kind: "article",
@@ -153,6 +291,8 @@ async function getOrCreateDailyContentTaskForUser(input: {
         title: "团队内容日历",
         summary: snapshot?.currentSuggestion ?? "使用团队共享项目资料生成。",
       },
+      ...buildCalendarGuidanceKnowledgeRefs(calendarGuidance),
+      ...calendarKnowledgeRefs,
       ...copyContextMaterials.slice(0, 4).map((item) => ({
         source: "material_library",
         title: item.title,
@@ -170,6 +310,7 @@ function buildDailyMaterialRetrievalQuery(input: {
   articleItem: ContentCalendarItemDto | null;
   videoItem: ContentCalendarItemDto | null;
   snapshot: StrategySnapshotDto | null;
+  calendarGuidance: ReturnType<typeof collectContentCalendarGuidanceSummary>;
 }) {
   return compactStrings([
     input.theme,
@@ -181,7 +322,45 @@ function buildDailyMaterialRetrievalQuery(input: {
     ...(input.snapshot?.targetAudiences ?? []),
     ...(input.snapshot?.keyScenes ?? []),
     ...(input.snapshot?.strategyTags ?? []),
+    ...(input.calendarGuidance?.mustUseFacts ?? []),
+    ...(input.calendarGuidance?.contentAngles ?? []),
+    ...(input.calendarGuidance?.materialHints ?? []),
+    ...(input.calendarGuidance?.assetCapabilityHints ?? []),
+    ...(input.calendarGuidance?.shotConstraints ?? []),
   ]).join(" ");
+}
+
+function buildCalendarGuidanceKnowledgeRefs(
+  calendarGuidance: ReturnType<typeof collectContentCalendarGuidanceSummary>,
+) {
+  if (!calendarGuidance) {
+    return [];
+  }
+
+  const summary = compactStrings([
+    ...calendarGuidance.mustUseFacts.slice(0, 3),
+    ...calendarGuidance.contentAngles.slice(0, 2),
+  ]).join("；");
+
+  return [
+    {
+      source: "team_calendar_guidance",
+      title: "知识库选题指导",
+      summary: summary || "根据咨询台命中的用户知识库资料生成内容任务。",
+      usageType: "calendar_guidance",
+      retrievalTargets: ["copy_context", "script_context"],
+      mustUseFacts: calendarGuidance.mustUseFacts,
+      sellingPointHints: calendarGuidance.sellingPointHints,
+      audienceHints: calendarGuidance.audienceHints,
+      contentAngles: calendarGuidance.contentAngles,
+      complianceNotes: calendarGuidance.complianceNotes,
+      materialHints: calendarGuidance.materialHints,
+      assetCapabilityHints: calendarGuidance.assetCapabilityHints,
+      shotConstraints: calendarGuidance.shotConstraints,
+      retrievalTrace: calendarGuidance.retrievalTrace,
+      knowledgeRefIds: calendarGuidance.knowledgeRefIds,
+    },
+  ];
 }
 
 function buildTaskItem(input: {
@@ -256,6 +435,22 @@ function pickAngle(seed: number) {
 
 function withAngle(title: string, angle: string) {
   return title.includes(angle) ? title : `${title} · ${angle}`;
+}
+
+function uniqueCalendarItems(items: Array<ContentCalendarItemDto | null | undefined>) {
+  const seen = new Set<string>();
+  const result: ContentCalendarItemDto[] = [];
+
+  for (const item of items) {
+    if (!item || seen.has(item.id)) {
+      continue;
+    }
+
+    seen.add(item.id);
+    result.push(item);
+  }
+
+  return result;
 }
 
 function normalizeDate(value?: string | null) {

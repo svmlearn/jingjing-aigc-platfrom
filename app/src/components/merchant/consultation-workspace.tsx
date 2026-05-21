@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useEffectEvent, useState } from "react";
 import {
   BookOpen,
   CalendarDays,
   ChevronDown,
-  ChevronRight,
   Edit3,
   History,
   Loader2,
@@ -364,25 +362,6 @@ export function ConsultationWorkspace() {
     }
   }
 
-  function getCalendarItemHref(item: ContentCalendarItemDto) {
-    if (!session) {
-      return "#";
-    }
-
-    const params = new URLSearchParams({
-      source: "consultation_calendar",
-      sessionId: session.id,
-      calendarItemId: item.id,
-      strategyTag: item.strategyTag,
-    });
-
-    if (item.contentType === "article") {
-      params.set("mode", "create");
-    }
-
-    return `/dashboard/${item.contentType === "article" ? "article" : "video"}?${params.toString()}`;
-  }
-
   async function startTeamWeekGeneration() {
     setTeamGenerationBusy(true);
     setTeamGenerationError(null);
@@ -396,6 +375,7 @@ export function ConsultationWorkspace() {
         body: JSON.stringify({
           days: 7,
           memberScope: "active_members",
+          consultationSessionId: session?.id ?? null,
         }),
         credentials: "same-origin",
       });
@@ -726,19 +706,14 @@ export function ConsultationWorkspace() {
                           {item.contentType === "article" ? "图文" : "视频"}
                         </span>
                       </div>
-                      <p className="mt-4 text-[10px] uppercase tracking-[0.25em] text-amber-500/80">
-                        {item.strategyTag}
-                      </p>
+                      {item.strategyTag.trim() && item.strategyTag.trim() !== item.title.trim() ? (
+                        <p className="mt-4 text-[10px] uppercase tracking-[0.25em] text-amber-500/80">
+                          {item.strategyTag}
+                        </p>
+                      ) : null}
                       <h3 className="mt-2 text-sm font-medium leading-6 text-white">{item.title}</h3>
                       <p className="mt-2 line-clamp-3 text-xs leading-6 text-white/50">{item.summary}</p>
-                      <Link
-                        href={getCalendarItemHref(item)}
-                        onClick={() => setCalendarOpen(false)}
-                        className="mt-auto inline-flex items-center gap-1 pt-4 text-[10px] uppercase tracking-[0.22em] text-white/35 transition-colors hover:text-amber-500"
-                      >
-                        内测{item.contentType === "article" ? "图文" : "视频"}工作台
-                        <ChevronRight className="h-3 w-3" />
-                      </Link>
+                      <CalendarGuidanceChips item={item} className="mt-auto pt-4" />
                     </article>
                   ))}
                 </div>
@@ -1006,17 +981,11 @@ export function ConsultationWorkspace() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">
-                        {item.dayLabel} · {item.strategyTag}
+                        {formatCalendarItemMeta(item)}
                       </p>
                       <p className="mt-2 text-sm text-white">{item.title}</p>
                       <p className="mt-2 text-xs leading-6 text-white/50">{item.summary}</p>
-                      <Link
-                        href={getCalendarItemHref(item)}
-                        className="mt-3 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.22em] text-white/35 transition-colors hover:text-amber-500"
-                      >
-                        内测入口
-                        <ChevronRight className="h-3 w-3" />
-                      </Link>
+                      <CalendarGuidanceChips item={item} className="mt-3" />
                     </div>
                   </div>
                 </article>
@@ -1025,6 +994,50 @@ export function ConsultationWorkspace() {
           </div>
         </aside>
       </div>
+    </div>
+  );
+}
+
+function formatCalendarItemMeta(item: ContentCalendarItemDto) {
+  return [
+    item.dayLabel,
+    item.contentType === "article" ? "图文" : "视频",
+    item.strategyTag.trim() && item.strategyTag.trim() !== item.title.trim()
+      ? item.strategyTag.trim()
+      : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" · ");
+}
+
+function CalendarGuidanceChips({
+  item,
+  className,
+}: {
+  item: ContentCalendarItemDto;
+  className?: string;
+}) {
+  const guidance = item.guidance;
+  const chips = [
+    guidance?.knowledgeRefs.length ? "已参考知识库" : null,
+    guidance?.materialHints.length || guidance?.assetCapabilityHints?.length ? "含素材建议" : null,
+    guidance?.shotConstraints?.length ? "含镜头边界" : null,
+  ].filter((value): value is string => Boolean(value));
+
+  if (chips.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={cn("flex flex-wrap gap-2", className)}>
+      {chips.map((chip) => (
+        <span
+          key={chip}
+          className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-white/35"
+        >
+          {chip}
+        </span>
+      ))}
     </div>
   );
 }

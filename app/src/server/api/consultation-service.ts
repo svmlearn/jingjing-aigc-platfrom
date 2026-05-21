@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import type {
+  ContentCalendarItemDto,
   ConsultationExpertRosterItemDto,
   ConsultationSessionDetailDto,
   ConsultationToolCardDto,
@@ -107,6 +108,10 @@ import {
   uniqueStrings,
 } from "@/server/api/consultation-runtime/utils";
 import { emptyStrategySnapshot } from "@/lib/strategy-snapshot";
+import {
+  attachGuidanceToContentCalendar,
+  buildMerchantKnowledgeCalendarGuidance,
+} from "@/lib/content-calendar-guidance";
 import {
   AiRuntimeError,
   type AiRuntimeTool,
@@ -526,10 +531,20 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
     knowledgeRuntime,
     llmRuntime,
   });
-  const finalizedStrategySnapshot = ensureTeamCalendarDraftForRequest({
-    snapshot: loopResult.strategySnapshot,
-    userContent: effectiveUserContent || sourceMessage.content,
+  const teamCalendarSnapshot = loopResult.strategySnapshot;
+  const knowledgeCalendarGuidance = buildMerchantKnowledgeCalendarGuidance({
+    matches: loopResult.knowledgeMatches,
+    snapshot: teamCalendarSnapshot,
   });
+  const finalizedStrategySnapshot = knowledgeCalendarGuidance
+    ? {
+        ...teamCalendarSnapshot,
+        contentCalendarDraft: attachGuidanceToContentCalendar({
+          calendar: teamCalendarSnapshot.contentCalendarDraft,
+          guidance: knowledgeCalendarGuidance,
+        }),
+      }
+    : teamCalendarSnapshot;
   const finalizedStrategyMarkdown =
     finalizedStrategySnapshot === loopResult.strategySnapshot
       ? loopResult.strategyMarkdown
@@ -557,6 +572,7 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
       round: loopResult.nextRound,
       strategyTags: finalizedStrategySnapshot.strategyTags,
       calendarCount: finalizedStrategySnapshot.contentCalendarDraft.length,
+      knowledgeGuidanceRefCount: knowledgeCalendarGuidance?.knowledgeRefs.length ?? 0,
       strategyMarkdownChars: finalizedStrategyMarkdown.length,
       loopIterations: loopResult.toolResults.length,
       mentionRouting: loopResult.mentionRouting,
@@ -592,6 +608,13 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
       positioning: finalizedStrategySnapshot.positioning,
       strategyTags: finalizedStrategySnapshot.strategyTags,
       knowledgeContext: buildKnowledgeContextBlock(loopResult.knowledgeMatches),
+      calendarKnowledgeGuidance: knowledgeCalendarGuidance
+        ? {
+            source: knowledgeCalendarGuidance.source,
+            refCount: knowledgeCalendarGuidance.knowledgeRefs.length,
+            mustUseFacts: knowledgeCalendarGuidance.mustUseFacts.slice(0, 5),
+          }
+        : null,
       agentLoop: {
         mode:
           loopResult.runtimeDesign === "native_tool_calling_loop_v1"
@@ -640,88 +663,6 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
 
 function hasPendingAssistantReply(session: ConsultationSessionDetailDto) {
   return session.messages.at(-1)?.role === "user";
-}
-
-function ensureTeamCalendarDraftForRequest(input: {
-  snapshot: StrategySnapshotDto;
-  userContent: string;
-}): StrategySnapshotDto {
-  if (
-    input.snapshot.contentCalendarDraft.length > 0 ||
-    !looksLikeTeamCalendarRequest(input.userContent)
-  ) {
-    return input.snapshot;
-  }
-
-  const theme = inferTeamCalendarTheme(input.userContent);
-  const strategyTags = uniqueStrings([theme, ...input.snapshot.strategyTags]).slice(0, 6);
-  const currentSuggestion =
-    input.snapshot.currentSuggestion ||
-    `本周团队围绕「${theme}」展开内容分发，成员任务保持同主题不同表达。`;
-
-  return {
-    ...input.snapshot,
-    positioning: input.snapshot.positioning || "房地产项目内容营销",
-    coreSellingPoints: input.snapshot.coreSellingPoints.length
-      ? input.snapshot.coreSellingPoints
-      : ["低总价上车", "成熟配套", "客户顾虑拆解"],
-    targetAudiences: input.snapshot.targetAudiences.length
-      ? input.snapshot.targetAudiences
-      : ["有购房、换房或投资需求的本地客户"],
-    keyScenes: input.snapshot.keyScenes.length
-      ? input.snapshot.keyScenes
-      : ["项目现场口播", "周边配套实拍", "客户异议拆解"],
-    currentSuggestion,
-    strategyTags,
-    contentCalendarDraft: [
-      {
-        id: "team-calendar-article-1",
-        dayLabel: "本周",
-        contentType: "article",
-        strategyTag: theme,
-        title: `${theme}：图文种草角度`,
-        summary: "围绕项目卖点、成熟配套和真实客户顾虑生成小红书图文任务。",
-      },
-      {
-        id: "team-calendar-video-1",
-        dayLabel: "本周",
-        contentType: "video",
-        strategyTag: theme,
-        title: `${theme}：视频口播角度`,
-        summary: "围绕通勤、配套、首付压力和私信咨询生成中介可拍的视频脚本任务。",
-      },
-    ],
-    articleBrief: input.snapshot.articleBrief ?? {
-      workingTitle: `${theme}：本地客户关心的上车机会`,
-      angle: "用真实中介视角解释项目卖点、配套和客户常见顾虑。",
-      callToAction: "私信咨询，获取项目资料。",
-    },
-    videoBrief: input.snapshot.videoBrief ?? {
-      workingTitle: `${theme}：短视频口播脚本`,
-      hook: "从客户最关心的通勤、配套和首付压力切入。",
-      outcome: "引导客户私信咨询项目详情。",
-    },
-  };
-}
-
-function looksLikeTeamCalendarRequest(content: string) {
-  return /内容日历|团队|选题|主推|本周|这周|日历|图文|视频/.test(content);
-}
-
-function inferTeamCalendarTheme(content: string) {
-  if (content.includes("小户型")) {
-    return "小户型回归";
-  }
-
-  if (content.includes("配套")) {
-    return "成熟配套";
-  }
-
-  if (content.includes("低总价")) {
-    return "低总价上车";
-  }
-
-  return "团队本周选题";
 }
 
 async function markQueuedConsultationMessageFailed(input: {
@@ -1373,6 +1314,11 @@ async function runConsultationAgentLoop(input: {
         state: currentState,
         toolResults,
       }),
+    buildJsonToolLoopMessages: ({ state: currentState, toolResults }) =>
+      buildJsonToolLoopMessages({
+        state: currentState,
+        toolResults,
+      }),
   });
   const nextStage = resolveConsultationStageLabel({
     userContent: state.userContent,
@@ -1523,18 +1469,33 @@ async function dispatchConsultationTool(
   }
 
   if (call.toolName === "update_content_calendar") {
-    const calendar = state.strategySnapshot.contentCalendarDraft;
+    const incomingCalendar = normalizeContentCalendarToolItems(call.args.calendar);
+    const calendar = incomingCalendar.length
+      ? incomingCalendar
+      : state.strategySnapshot.contentCalendarDraft;
+    const strategySnapshot = incomingCalendar.length
+      ? {
+          ...state.strategySnapshot,
+          contentCalendarDraft: calendar,
+        }
+      : state.strategySnapshot;
+    const strategyMarkdown = buildStrategyAssetMarkdown(strategySnapshot);
+
     return {
       callId: call.id,
       toolName: call.toolName,
       status: calendar.length > 0 ? "completed" : "skipped",
       summary:
-        calendar.length > 0
-          ? `已同步 ${calendar.length} 条图文/视频混合内容日历。`
+        incomingCalendar.length > 0
+          ? `已写入 ${calendar.length} 条图文/视频混合营销日历。`
+          : calendar.length > 0
+            ? `已同步 ${calendar.length} 条图文/视频混合营销日历。`
           : "策略快照尚未生成内容日历。",
       payload: {
         calendarCount: calendar.length,
         calendar,
+        strategySnapshot,
+        strategyMarkdown,
       },
     };
   }
@@ -1571,7 +1532,10 @@ function applyToolResultToState(
   state: ConsultationAgentLoopState,
 ) {
   if (result.toolName === "retrieve_knowledge_base" && result.status !== "failed") {
-    state.knowledgeMatches = result.knowledgeMatches ?? [];
+    state.knowledgeMatches = mergeLoopKnowledgeMatches([
+      ...state.knowledgeMatches,
+      ...(result.knowledgeMatches ?? []),
+    ]);
   }
 
   if (result.toolName === "update_strategy_snapshot") {
@@ -1596,6 +1560,45 @@ function applyToolResultToState(
       expertTurnNotes: state.expertTurnNotes,
     });
   }
+
+  if (result.toolName === "update_content_calendar") {
+    const strategySnapshot = result.payload.strategySnapshot;
+    const strategyMarkdown = result.payload.strategyMarkdown;
+
+    if (isStrategySnapshot(strategySnapshot)) {
+      state.strategySnapshot = strategySnapshot;
+    }
+
+    if (typeof strategyMarkdown === "string" && strategyMarkdown.trim()) {
+      state.strategyMarkdown = strategyMarkdown;
+    }
+
+    state.sharedConsultationState = buildSharedConsultationState({
+      merchant: state.merchant,
+      strategySnapshot: state.strategySnapshot,
+      strategyMarkdown: state.strategyMarkdown,
+      userContent: state.userContent,
+      sessionSummary: state.session.summaryText,
+      mentionRouting: state.mentionRouting,
+      expertTurnNotes: state.expertTurnNotes,
+    });
+  }
+}
+
+function mergeLoopKnowledgeMatches(matches: KnowledgeSearchMatchDto[]) {
+  const seen = new Set<string>();
+  const merged: KnowledgeSearchMatchDto[] = [];
+
+  for (const match of matches) {
+    if (seen.has(match.chunkId)) {
+      continue;
+    }
+
+    seen.add(match.chunkId);
+    merged.push(match);
+  }
+
+  return merged.slice(0, 24);
 }
 
 async function dispatchBenchmarkMaterialTool(
@@ -1751,8 +1754,8 @@ async function buildAssistantReplyWithModel(input: {
             buildBusinessToolPrompt(input.consultationAgent.enabledTools),
             buildContextInjectionSystemPrompt(contextInjection),
             "你只输出给用户的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
-            "必须基于已完成工具结果、策略快照和受控知识库片段回答；如果信息不足，提出一个最关键的追问。",
-            "当 knowledgeMatches 已包含用户知识库片段时，直接基于这些片段总结；不要声称无法直接查看用户知识库或上传文件。",
+            "回答时可以使用已完成工具结果、策略快照和受控知识库片段；如果信息不足，可以提出一个最关键的追问。",
+            "当 knowledgeMatches 已包含用户知识库片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
             "如果工具结果已经显示策略资产被编辑，要先确认已按用户要求写入；不要反过来劝用户保持旧结构，也不要把已执行的明确编辑再改成优先级追问。",
             "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshot 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
           ]
@@ -1800,13 +1803,63 @@ async function buildAssistantReplyWithModel(input: {
         : error instanceof Error
           ? error.message
           : "Unknown AI runtime error.";
+    const recoveredReply = buildRecoveredToolResultReply({
+      toolResults: input.toolResults ?? [],
+      errorMessage,
+    });
 
     return {
-      content: buildAssistantErrorReply(errorMessage),
+      content: recoveredReply ?? buildAssistantErrorReply(errorMessage),
       mode: "fallback_error",
       error: errorMessage,
     };
   }
+}
+
+function buildRecoveredToolResultReply(input: {
+  toolResults: ConsultationAgentToolResult[];
+  errorMessage: string;
+}) {
+  const completedResults = input.toolResults.filter((result) => result.status === "completed");
+
+  if (completedResults.length === 0) {
+    return null;
+  }
+
+  const retrievedCount = completedResults.filter(
+    (result) => result.toolName === "retrieve_knowledge_base",
+  ).length;
+  const strategyResult = completedResults.find(
+    (result) => result.toolName === "update_strategy_snapshot",
+  );
+  const calendarResult = completedResults.find(
+    (result) => result.toolName === "update_content_calendar",
+  );
+
+  if (!retrievedCount && !strategyResult && !calendarResult) {
+    return null;
+  }
+
+  const lines = [
+    "本轮自然语言总结生成超时了，但受控工具已经执行完成，已保留本轮写入结果。",
+  ];
+
+  if (retrievedCount > 0) {
+    lines.push(`已完成 ${retrievedCount} 轮知识库检索，并把命中的资料纳入本轮上下文。`);
+  }
+
+  if (strategyResult) {
+    lines.push(strategyResult.summary);
+  }
+
+  if (calendarResult) {
+    lines.push(calendarResult.summary);
+    lines.push("你可以先查看右侧内容日历；下一轮我会继续基于这些已写入结果协作。");
+  }
+
+  lines.push(`超时信息：${input.errorMessage}`);
+
+  return lines.join("\n");
 }
 
 function buildAssistantErrorReply(detail: string) {
@@ -1830,6 +1883,15 @@ function buildNativeToolCallingMessages(input: {
     sharedConsultationState: input.state.sharedConsultationState,
     expertTurnNotes: input.state.expertTurnNotes,
   });
+  const nativeStrategySnapshot = buildNativeStrategySnapshotSummary(input.state.strategySnapshot);
+  const nativeContextInjection = {
+    ...contextInjection,
+    sessionContext: {
+      ...contextInjection.sessionContext,
+      strategySnapshot: nativeStrategySnapshot,
+      strategyMarkdown: clipText(contextInjection.sessionContext.strategyMarkdown ?? "", 1200),
+    },
+  };
 
   return [
     {
@@ -1844,9 +1906,19 @@ function buildNativeToolCallingMessages(input: {
         buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
         buildContextInjectionSystemPrompt(contextInjection),
         "你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。",
-        "用户明确要求读取、查看、分析用户知识库或已上传文件时，必须先调用 retrieve_knowledge_base；不要声称无法读取用户知识库。",
+        "runtime 只负责提供、校验和执行工具；是否调用 retrieve_knowledge_base、是否换 query 深挖、是否写入 update_content_calendar，必须由你根据用户目标和工具结果自行判断。",
+        "当用户直接要求读取、查看、总结、盘点或分析用户知识库/已上传文件/资料时，请先调用 retrieve_knowledge_base 获取资料，再自行判断如何回答、追问或写入资产；不要声称无法读取用户知识库。",
+        "做团队选题、营销日历、图文文案或视频脚本规划时，如果一次检索只覆盖项目事实、方法论、话术或素材边界中的一部分，可以用新的 query 再调用 retrieve_knowledge_base 深挖；写入类工具仍要在信息足够后再调用。",
+        "如果用户要求的是营销日历、团队选题、图文/视频脚本这类会沉淀为后续生产任务的内容，并且 prior tool_result 尚未提供知识库或素材能力依据，应先调用 retrieve_knowledge_base；不要先写日历再补查依据。",
+        "在调用 update_content_calendar 前，应先判断当前知识库和素材能力依据是否足够；一旦写入日历，本轮不要再补查依据来反向证明已写内容。",
+        "当前团队内容生成链路是：内容日历 -> 生成团队内容 -> Dify；不再通过用户端图文工作台或视频工作台作为前置。generate_article_brief / generate_video_brief 只在用户明确要求工作台 brief 时使用。",
+        "strategySnapshot.contentCalendarDraft 可能是历史资产，只能作为上下文；当用户明确要求生成、重新生成或规划下周营销日历时，不要把历史日历当成本轮已完成，仍需基于本轮 tool_result 调用 update_content_calendar。",
+        "如果用户明确列出多个检索维度，例如项目优势、选房方法论、异议转化话术、素材边界，你应把这些维度拆成不同 query 逐轮读取；不要只用一个大 query 命中几个 chunk 后直接写日历。",
+        "当用户要求生成内容日历、营销日历或团队选题时，你应在检索和判断足够后，自己调用 update_content_calendar 写入可执行日历；不要只自然语言承诺已经生成。",
+        "生成视频选题、脚本方向或日历隐藏上下文时，画面描述必须根据已返回的素材能力、用户确认的场景或可补拍方式来写；没有素材依据的镜头不要写成确定方案。",
         "只有寒暄、轻问答、流程说明或完全不需要受控上下文时，才可以不调用工具直接回复。",
         "只有在用户明确要求沉淀、补充、写进右侧策略资产，或当前信息已经足够形成业务结论时，才调用 update_strategy_snapshot。",
+        "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",
         "轻问答、寒暄、流程追问、信息不足时，不要调用 update_strategy_snapshot；应该直接回答或追问一个关键事实。",
         "用户要求找对标、竞品、爆款、博主主页或提供小红书/抖音链接时，优先调用 search_benchmark_materials。",
         "需要方法论、案例、用户资料依据时，调用 retrieve_knowledge_base；用户提到刚才、上次、前面时，调用 read_history。",
@@ -1867,8 +1939,8 @@ function buildNativeToolCallingMessages(input: {
         },
         userMessage: input.state.userContent,
         round: input.state.nextRound,
-        contextInjection,
-        strategySnapshot: input.state.strategySnapshot,
+        contextInjection: nativeContextInjection,
+        strategySnapshot: nativeStrategySnapshot,
         knowledgeMatches: input.state.knowledgeMatches.map((match) => ({
           title: match.documentTitle,
           score: match.score,
@@ -1884,6 +1956,133 @@ function buildNativeToolCallingMessages(input: {
       }),
     },
   ];
+}
+
+function buildJsonToolLoopMessages(input: {
+  state: ConsultationAgentLoopState;
+  toolResults: ConsultationAgentToolResult[];
+}): ChatMessage[] {
+  const contextInjection = buildConsultationContextInjection({
+    merchant: input.state.merchant,
+    round: input.state.nextRound,
+    userContent: input.state.userContent,
+    sessionSummary: input.state.session.summaryText ?? null,
+    strategySnapshot: input.state.strategySnapshot,
+    strategyMarkdown: input.state.strategyMarkdown,
+    consultationAgent: input.state.consultationAgent,
+    knowledgeMatches: input.state.knowledgeMatches,
+    toolResults: input.toolResults,
+    sharedConsultationState: input.state.sharedConsultationState,
+    expertTurnNotes: input.state.expertTurnNotes,
+  });
+  const strategySnapshot = buildNativeStrategySnapshotSummary(input.state.strategySnapshot);
+  const compactContextInjection = {
+    ...contextInjection,
+    sessionContext: {
+      ...contextInjection.sessionContext,
+      strategySnapshot,
+      strategyMarkdown: clipText(contextInjection.sessionContext.strategyMarkdown ?? "", 1200),
+    },
+  };
+
+  return [
+    {
+      role: "system",
+      content: [
+        input.state.consultationAgent.systemPrompt,
+        buildAgentSoulPrompt(input.state.consultationAgent),
+        buildExpertContainerPrompt(input.state.consultationAgent),
+        buildSkillCatalogPrompt(input.state.consultationAgent),
+        buildActiveSkillPrompt(input.state.consultationAgent.activeSkills),
+        buildSkillReferencePrompt(input.state.consultationAgent.activeSkills),
+        buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
+        buildContextInjectionSystemPrompt(contextInjection),
+        "你正在运行 model_json_tool_loop_v1：这是一套兼容 Claude Code tool_use/tool_result 思路的 JSON 工具循环。",
+        "你必须只输出 JSON object，不要输出 Markdown、表格、解释文本或代码块。",
+        "当你要调用工具时，输出：{\"action\":\"tool_use\",\"tool_use\":{\"name\":\"工具名\",\"input\":{...}},\"reason\":\"一句中文理由\"}。",
+        "当你认为已经足够回答用户时，输出：{\"action\":\"final\",\"finalResponse\":\"给用户看的中文自然语言回复\"}。",
+        "runtime 只负责校验、执行工具并把 tool_result 回填到下一轮上下文；是否调用 retrieve_knowledge_base、换什么 query、是否写 update_content_calendar，必须由你根据用户目标、availableTools 和 tool_result 自行判断。",
+        "retrieve_knowledge_base 是读类工具，可以多轮调用；如果一次检索只覆盖项目事实、方法论、话术或素材边界中的一部分，可以用新的具体 query 继续深挖。",
+        "如果用户要求的是营销日历、团队选题、图文/视频脚本这类会沉淀为后续生产任务的内容，并且 priorToolResults 里尚未有 retrieve_knowledge_base 的 completed 结果，应先调用 retrieve_knowledge_base；不要先写日历再补查依据。",
+        "当前团队内容生成链路是：内容日历 -> 生成团队内容 -> Dify；不再通过用户端图文工作台或视频工作台作为前置。generate_article_brief / generate_video_brief 只在用户明确要求工作台 brief 时使用。",
+        "strategySnapshot.contentCalendarDraft 可能是历史资产，只能作为上下文；当用户明确要求生成、重新生成或规划下周营销日历时，不要把历史日历当成本轮已完成，仍需基于本轮 tool_result 调用 update_content_calendar。",
+        "写类工具要在信息足够后再调用；当用户要求生成内容日历、营销日历或团队选题时，你应在检索和判断足够后，自行调用 update_content_calendar 写入可执行日历，而不是只在 finalResponse 里承诺。",
+        "如果 retrieve_knowledge_base 返回了新的素材能力、话术或方法论，并且 availableTools 中仍有 update_content_calendar，应继续调用 update_content_calendar 写入或修订日历；如果写入工具已不可用，最终回复不要声称日历已经吸收后续检索结果。",
+        "生成视频选题、脚本方向或日历隐藏上下文时，画面描述必须根据已返回的素材能力、用户确认的场景或可补拍方式来写；没有素材依据的镜头不要写成确定方案。",
+        "如果 tool_result 表示失败或不可用，你应读取错误内容并修正下一次 tool_use；不要声称失败工具已经完成。",
+        "只有寒暄、轻问答、流程说明或完全不需要受控上下文时，才可以直接输出 final。",
+      ]
+        .filter((item): item is string => Boolean(item))
+        .join("\n"),
+    },
+    {
+      role: "user",
+      content: JSON.stringify({
+        type: "initial_user_request",
+        merchant: {
+          name: input.state.merchant.name,
+          industry: input.state.merchant.industry,
+          serviceItems: input.state.merchant.serviceItems,
+          defaultCta: input.state.merchant.defaultCta,
+        },
+        userMessage: input.state.userContent,
+        round: input.state.nextRound,
+        contextInjection: compactContextInjection,
+        strategySnapshot,
+        knowledgeMatches: input.state.knowledgeMatches.map((match) => ({
+          title: match.documentTitle,
+          score: match.score,
+          content: match.content.slice(0, 600),
+        })),
+        priorToolResults: input.toolResults.map((result) => ({
+          toolName: result.toolName,
+          status: result.status,
+          summary: result.summary,
+          guardrail: result.payload.guardrail ?? null,
+        })),
+        skillDisclosure: buildSkillDisclosure(input.state.consultationAgent),
+      }),
+    },
+  ];
+}
+
+function buildNativeStrategySnapshotSummary(snapshot: StrategySnapshotDto) {
+  return {
+    positioning: snapshot.positioning,
+    coreSellingPoints: snapshot.coreSellingPoints,
+    targetAudiences: snapshot.targetAudiences,
+    keyScenes: snapshot.keyScenes,
+    currentSuggestion: snapshot.currentSuggestion,
+    strategyTags: snapshot.strategyTags,
+    contentCalendarDraft: snapshot.contentCalendarDraft.slice(0, 7).map((item) => ({
+      id: item.id,
+      dayLabel: item.dayLabel,
+      contentType: item.contentType,
+      strategyTag: item.strategyTag,
+      title: item.title,
+      summary: clipText(item.summary, 180),
+      guidancePresence: item.guidance
+        ? {
+            hasKnowledgeRefs: item.guidance.knowledgeRefs.length > 0,
+            hasMaterialHints: item.guidance.materialHints.length > 0,
+            hasAssetCapabilityHints: (item.guidance.assetCapabilityHints ?? []).length > 0,
+            hasShotConstraints: (item.guidance.shotConstraints ?? []).length > 0,
+          }
+        : null,
+    })),
+    articleBrief: snapshot.articleBrief
+      ? {
+          workingTitle: snapshot.articleBrief.workingTitle,
+          angle: snapshot.articleBrief.angle,
+        }
+      : null,
+    videoBrief: snapshot.videoBrief
+      ? {
+          workingTitle: snapshot.videoBrief.workingTitle,
+          hook: snapshot.videoBrief.hook,
+        }
+      : null,
+  };
 }
 
 function buildToolCards(input: {
@@ -2004,6 +2203,70 @@ function buildStrategySnapshot(input: {
     articleBrief: input.previousSnapshot?.articleBrief ?? null,
     videoBrief: input.previousSnapshot?.videoBrief ?? null,
   };
+}
+
+function normalizeContentCalendarToolItems(value: unknown): ContentCalendarItemDto[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const usedIds = new Set<string>();
+
+  return value
+    .map((item, index) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const record = item as Record<string, unknown>;
+      const contentType = record.contentType === "video" ? "video" : "article";
+      const title = cleanCalendarText(record.title, 100);
+      const summary = cleanCalendarText(record.summary, 360);
+      const dayLabel = cleanCalendarText(record.dayLabel, 24);
+
+      if (!title || !summary || !dayLabel) {
+        return null;
+      }
+
+      const requestedId = cleanCalendarText(record.id, 80);
+      const fallbackId = `calendar-${index + 1}-${contentType}`;
+      const id = uniqueCalendarItemId(requestedId || fallbackId, usedIds);
+
+      return {
+        id,
+        dayLabel,
+        contentType,
+        strategyTag: cleanCalendarText(record.strategyTag, 40) || title,
+        title,
+        summary,
+      };
+    })
+    .filter((item): item is ContentCalendarItemDto => Boolean(item))
+    .slice(0, 14);
+}
+
+function cleanCalendarText(value: unknown, maxLength: number) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const normalized = value.replace(/\s+/g, " ").trim();
+
+  return normalized ? clipText(normalized, maxLength) : "";
+}
+
+function uniqueCalendarItemId(baseId: string, usedIds: Set<string>) {
+  const normalizedBase = baseId.replace(/\s+/g, "-").slice(0, 80) || "calendar-item";
+  let candidate = normalizedBase;
+  let suffix = 2;
+
+  while (usedIds.has(candidate)) {
+    candidate = `${normalizedBase}-${suffix}`;
+    suffix += 1;
+  }
+
+  usedIds.add(candidate);
+  return candidate;
 }
 
 function buildInitialStrategySnapshot(merchant: MerchantProfileDto): StrategySnapshotDto {

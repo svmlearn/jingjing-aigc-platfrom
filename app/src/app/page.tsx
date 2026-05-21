@@ -13,8 +13,8 @@ const entryCards = [
   },
   {
     title: "成员端",
-    description: "中介成员通过邀请码进入项目介绍、内容日历和每日图文 / 视频任务。",
-    href: "/member/invite",
+    description: "成员用自己的用户名和密码登录，或通过邀请码注册加入团队。",
+    href: "/member/login",
     icon: UserPlus,
     primary: false,
   },
@@ -86,7 +86,7 @@ export default function Home() {
             className="h-11 rounded-2xl border-white/10 bg-white/5 px-5 text-white/70 hover:bg-white/10 hover:text-white"
             asChild
           >
-            <Link href="/member/invite">成员端</Link>
+            <Link href="/member/login">成员端</Link>
           </Button>
           <Button
             variant="outline"

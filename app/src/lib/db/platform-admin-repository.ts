@@ -1757,9 +1757,7 @@ function toLlmRuntimeSettings(value: unknown): LlmRuntimeSettingsDto {
       : getNullableString(record.fallbackModel, defaultLlmRuntime.fallbackModel ?? null),
     temperature: getNumber(record.temperature, defaultLlmRuntime.temperature),
     maxTokens: getNumber(record.maxTokens, defaultLlmRuntime.maxTokens),
-    timeoutSeconds: useSiliconFlowDefaults
-      ? defaultLlmRuntime.timeoutSeconds
-      : getNumber(record.timeoutSeconds, defaultLlmRuntime.timeoutSeconds),
+    timeoutSeconds: getNumber(record.timeoutSeconds, defaultLlmRuntime.timeoutSeconds),
     retryCount: getNumber(record.retryCount, defaultLlmRuntime.retryCount),
     apiKeyMasked,
     apiKeySource: apiKeySource === "none" ? "none" : "env",

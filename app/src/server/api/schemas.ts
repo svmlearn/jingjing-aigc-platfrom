@@ -177,9 +177,39 @@ export const registerWithInviteSchema = z.object({
   merchantProfile: merchantProfileInputSchema,
 });
 
+export const memberUsernameSchema = z
+  .string()
+  .trim()
+  .min(3)
+  .max(254)
+  .regex(/^\S+$/, "Username cannot contain spaces.");
+
+export const memberLoginSchema = z.object({
+  username: memberUsernameSchema,
+  password: z.string().min(1).max(128),
+  next: z.string().trim().max(500).nullish(),
+});
+
+export const memberRegisterWithInviteSchema = z
+  .object({
+    inviteCode: z.string().trim().min(1).max(80),
+    displayName: z.string().trim().max(80).nullish(),
+    username: memberUsernameSchema,
+    password: z.string().min(8).max(128),
+    confirmPassword: z.string().max(128).nullish(),
+  })
+  .refine((value) => !value.confirmPassword || value.confirmPassword === value.password, {
+    message: "Passwords do not match.",
+    path: ["confirmPassword"],
+  });
+
 export const memberInvitationAcceptSchema = z.object({
   code: z.string().trim().min(1).max(80),
   displayName: z.string().trim().max(80).nullish(),
+});
+
+export const memberWorkspaceSelectSchema = z.object({
+  merchantId: z.uuid(),
 });
 
 export const createMemberInvitationCodeSchema = z.object({
@@ -256,6 +286,7 @@ export const createContentGenerationBatchSchema = z.object({
   days: z.number().int().min(1).max(7).optional(),
   memberScope: z.enum(["self", "active_members"]).optional(),
   extraRequirement: z.string().trim().max(1000).nullish(),
+  consultationSessionId: z.uuid().nullish(),
 });
 
 export const platformAdminBootstrapSchema = z.object({

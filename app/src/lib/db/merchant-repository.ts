@@ -15,12 +15,6 @@ import type {
   MerchantWorkspaceDto,
 } from "@/contracts/merchant";
 import {
-  getLocalDemoMerchantProfile,
-  localDemoUserId,
-  resolveLocalDemoWorkspaceIdentity,
-  updateLocalDemoMerchantProfile,
-} from "@/lib/demo/local-demo-runtime";
-import {
   isPostgresVideoChainEnabled,
   pgAcceptMemberInvitationCode,
   pgCreateInvitationCode,
@@ -28,9 +22,11 @@ import {
   pgGetMerchantProfileById,
   pgGetMerchantProfileByOwnerUserId,
   pgGetMerchantWorkspaceByUserId,
+  pgListMerchantWorkspacesByUserId,
   pgListActiveMerchantTeamMembersByMerchant,
   pgListMerchantTeamInvitationCodesByMerchant,
   pgRedeemInvitationCode,
+  pgSelectMerchantWorkspaceForUser,
   pgUpdateMerchantProfile,
 } from "@/lib/db/postgres-video-chain-repository";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
@@ -332,13 +328,23 @@ async function getMerchantProfileByTeamMemberUserId(
 
 async function getActiveMerchantTeamMemberByUserId(
   userId: string,
+  merchantId?: string | null,
 ): Promise<MerchantTeamMemberRow | null> {
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("merchant_team_members")
     .select(merchantTeamMemberSelect)
     .eq("user_id", userId)
-    .eq("status", "active")
+    .eq("status", "active");
+
+  if (merchantId) {
+    query = query.eq("merchant_id", merchantId);
+  }
+
+  const { data, error } = await query
+    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (error) {
@@ -387,10 +393,6 @@ export async function getMerchantTeamManagementForOwner(
 ): Promise<MerchantTeamManagementDto> {
   const workspace = await getOperationalMerchantWorkspaceByUserId(ownerUserId);
   assertMerchantTeamOwner(workspace);
-
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
-  }
 
   const merchantId = workspace.merchantProfile.id;
 
@@ -508,7 +510,7 @@ async function ensureMerchantOwnerMembership(input: {
         status: "active",
         display_name: input.displayName ?? null,
       },
-      { onConflict: "user_id" },
+      { onConflict: "merchant_id,user_id" },
     )
     .select(merchantTeamMemberSelect)
     .single();
@@ -524,9 +526,12 @@ async function ensureMerchantOwnerMembership(input: {
   return data as unknown as MerchantTeamMemberRow;
 }
 
-export async function getMerchantWorkspaceByUserId(userId: string): Promise<MerchantWorkspaceDto> {
+export async function getMerchantWorkspaceByUserId(
+  userId: string,
+  merchantId?: string | null,
+): Promise<MerchantWorkspaceDto> {
   if (isPostgresVideoChainEnabled()) {
-    return pgGetMerchantWorkspaceByUserId(userId);
+    return pgGetMerchantWorkspaceByUserId(userId, merchantId);
   }
 
   if (!isSupabaseAdminConfigured()) {
@@ -549,7 +554,7 @@ export async function getMerchantWorkspaceByUserId(userId: string): Promise<Merc
     };
   }
 
-  const membership = await getActiveMerchantTeamMemberByUserId(userId);
+  const membership = await getActiveMerchantTeamMemberByUserId(userId, merchantId);
 
   if (!membership) {
     throw new ApiError(404, "MERCHANT_PROFILE_NOT_FOUND", "Merchant profile not found.");
@@ -557,6 +562,132 @@ export async function getMerchantWorkspaceByUserId(userId: string): Promise<Merc
 
   return {
     merchantProfile: await getMerchantProfileById(membership.merchant_id),
+    role: membership.role,
+    membershipId: membership.id,
+  };
+}
+
+export async function listOperationalMerchantWorkspacesByUserId(
+  userId: string,
+): Promise<MerchantWorkspaceDto[]> {
+  if (isPostgresVideoChainEnabled()) {
+    const workspaces = await pgListMerchantWorkspacesByUserId(userId);
+    return workspaces.filter((workspace) => workspace.merchantProfile.status === "active");
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    return [await getMerchantWorkspaceByUserId(userId)];
+  }
+
+  const workspaces: MerchantWorkspaceDto[] = [];
+  const ownerProfile = await getMerchantProfileByOwnerUserIdStrict(userId).catch(() => null);
+
+  if (ownerProfile) {
+    const membership = await ensureMerchantOwnerMembership({
+      merchantId: ownerProfile.id,
+      userId,
+      displayName: ownerProfile.name,
+    });
+
+    workspaces.push({
+      merchantProfile: ownerProfile,
+      role: "owner",
+      membershipId: membership?.id ?? null,
+    });
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_team_members")
+    .select(merchantTeamMemberSelect)
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (!isMissingRelationError(error.message)) {
+      throw new ApiError(500, "MERCHANT_TEAM_MEMBER_LOOKUP_FAILED", error.message);
+    }
+
+    return workspaces;
+  }
+
+  const seenMerchantIds = new Set(workspaces.map((workspace) => workspace.merchantProfile.id));
+  for (const membership of ((data ?? []) as unknown as MerchantTeamMemberRow[])) {
+    if (seenMerchantIds.has(membership.merchant_id)) {
+      continue;
+    }
+
+    const merchantProfile = await getMerchantProfileById(membership.merchant_id);
+    if (merchantProfile.status !== "active") {
+      continue;
+    }
+
+    workspaces.push({
+      merchantProfile,
+      role: membership.role,
+      membershipId: membership.id,
+    });
+    seenMerchantIds.add(membership.merchant_id);
+  }
+
+  return workspaces;
+}
+
+export async function selectOperationalMerchantWorkspaceForUser(input: {
+  userId: string;
+  merchantId: string;
+}): Promise<MerchantWorkspaceDto> {
+  if (isPostgresVideoChainEnabled()) {
+    const workspace = await pgSelectMerchantWorkspaceForUser(input);
+    assertMerchantOperational(workspace.merchantProfile);
+    return workspace;
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    return getMerchantWorkspaceByUserId(input.userId);
+  }
+
+  const ownerProfile = await getMerchantProfileByOwnerUserIdStrict(input.userId).catch(() => null);
+  if (ownerProfile?.id === input.merchantId) {
+    const membership = await ensureMerchantOwnerMembership({
+      merchantId: ownerProfile.id,
+      userId: input.userId,
+      displayName: ownerProfile.name,
+    });
+    assertMerchantOperational(ownerProfile);
+    return {
+      merchantProfile: ownerProfile,
+      role: "owner",
+      membershipId: membership?.id ?? null,
+    };
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("merchant_team_members")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("user_id", input.userId)
+    .eq("merchant_id", input.merchantId)
+    .eq("status", "active")
+    .select(merchantTeamMemberSelect)
+    .maybeSingle();
+
+  if (error || !data) {
+    throw new ApiError(
+      404,
+      "MEMBER_WORKSPACE_NOT_FOUND",
+      error?.message ?? "Member workspace not found.",
+    );
+  }
+
+  const membership = data as unknown as MerchantTeamMemberRow;
+  const merchantProfile = await getMerchantProfileById(membership.merchant_id);
+  assertMerchantOperational(merchantProfile);
+
+  return {
+    merchantProfile,
     role: membership.role,
     membershipId: membership.id,
   };
@@ -615,7 +746,7 @@ export async function acceptMemberInvitationCode(input: {
         display_name: input.displayName ?? null,
         invited_by_user_id: invitation.created_by_user_id,
       },
-      { onConflict: "user_id" },
+      { onConflict: "merchant_id,user_id" },
     )
     .select(merchantTeamMemberSelect)
     .single();
