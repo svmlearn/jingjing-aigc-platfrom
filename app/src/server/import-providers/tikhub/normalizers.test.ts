@@ -94,6 +94,46 @@ test("normalizes Xiaohongshu App note detail payloads", () => {
   assert.equal(item.structureSummary.coverUrl, "https://example.com/cover.jpg");
 });
 
+test("normalizes Xiaohongshu App V2 profile note list payloads", () => {
+  const [item] = normalizeTikHubMaterialItems({
+    platform: "xiaohongshu",
+    findMethod: "profile",
+    target: "https://www.xiaohongshu.com/user/profile/61b46d790000000010008153",
+    cacheKey: "test-cache-key",
+    limit: 1,
+    payload: {
+      data: {
+        data: {
+          notes: [
+            {
+              id: "6819a5f9000000002203abcd",
+              display_title: "博主主页里的高赞视频",
+              desc: "主页内容里的正文",
+              type: "video",
+              likes: "8.8万",
+              comments_count: "321",
+              collected_count: "1200",
+              share_count: "45",
+              view_count: "120万",
+              user: { id: "61b46d790000000010008153", nickname: "高赞博主" },
+              images_list: [{ url: "https://example.com/profile-cover.jpg" }],
+            },
+          ],
+        },
+      },
+    },
+  });
+
+  assert.ok(item);
+  assert.equal(item.sourceType, "creator");
+  assert.equal(item.materialType, "video");
+  assert.equal(item.title, "博主主页里的高赞视频");
+  assert.equal(item.creatorName, "高赞博主");
+  assert.equal(item.engagementSnapshot.likedCount, 88000);
+  assert.equal(item.engagementSnapshot.playCount, 1200000);
+  assert.equal(item.structureSummary.coverUrl, "https://example.com/profile-cover.jpg");
+});
+
 test("normalizes TikHub comment payloads for storage", () => {
   const comments = normalizeTikHubComments({
     platform: "douyin",

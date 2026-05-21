@@ -113,6 +113,7 @@ function normalizeXiaohongshuItem(
     getString(noteCard.noteId);
   const title =
     getString(noteCard.displayTitle) ??
+    getString(noteCard.display_title) ??
     getString(noteCard.title) ??
     getString(noteCard.desc) ??
     `${input.target} · 小红书对标素材 ${index + 1}`;
@@ -142,6 +143,8 @@ function normalizeXiaohongshuItem(
     getPath(noteCard, ["images_list", 0, "url"]),
     getPath(noteCard, ["images", 0, "url"]),
     getPath(noteCard, ["video_info", "image", "url_list", 0]),
+    getPath(noteCard, ["video_info_v2", "image", "thumbnail"]),
+    getPath(noteCard, ["video_info_v2", "image", "first_frame"]),
   ]);
   const likedCount = parseCount(
     interactInfo.likedCount ??
@@ -149,6 +152,8 @@ function normalizeXiaohongshuItem(
       interactInfo.likes ??
       noteCard.liked_count ??
       noteCard.like_count ??
+      noteCard.likes ??
+      noteCard.nice_count ??
       item.liked_count,
   );
   const commentCount = parseCount(
@@ -165,6 +170,18 @@ function normalizeXiaohongshuItem(
       noteCard.collect_count ??
       item.collected_count,
   );
+  const shareCount = parseCount(
+    interactInfo.shareCount ??
+      interactInfo.share_count ??
+      noteCard.share_count ??
+      item.share_count,
+  );
+  const playCount = parseCount(
+    interactInfo.viewCount ??
+      interactInfo.view_count ??
+      noteCard.view_count ??
+      item.view_count,
+  );
 
   return {
     platform: "xiaohongshu",
@@ -173,19 +190,23 @@ function normalizeXiaohongshuItem(
     sourceType: mapFindMethodToSourceType(input.findMethod),
     externalItemId,
     sourceUrl,
-    creatorId: getString(user.userId ?? user.user_id ?? user.id),
+    creatorId: getString(user.user_id ?? user.userId ?? user.id),
     creatorName: getString(user.nickname ?? user.nickName ?? user.name),
     title,
-    description: getString(noteCard.desc ?? noteCard.description ?? noteCard.displayTitle),
+    description: getString(noteCard.desc ?? noteCard.description ?? noteCard.displayTitle ?? noteCard.display_title),
     engagementSnapshot: {
       label: formatEngagementLabel({
         likedCount,
         commentCount,
         collectedCount,
+        shareCount,
+        playCount,
       }),
       likedCount,
       commentCount,
       collectedCount,
+      shareCount,
+      playCount,
     },
     structureSummary: {
       materialType,

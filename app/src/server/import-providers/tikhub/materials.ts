@@ -49,66 +49,7 @@ async function fetchXiaohongshuBenchmark(
   }
 
   if (input.findMethod === "profile") {
-    const userId = extractXiaohongshuUserId(input.target);
-
-    if (userId) {
-      const endpoint = "/api/v1/xiaohongshu/web_v3/fetch_user_notes";
-      const query = {
-        user_id: userId,
-        cursor: "",
-        num: input.count,
-      };
-      const payload = await requestTikHub({
-        endpoint,
-        query,
-      });
-
-      return {
-        cacheKey: input.cacheKey,
-        providerResponses: [{
-          endpoint,
-          method: "GET",
-          requestPayload: query,
-          responsePayload: payload,
-        }],
-        items: normalizeTikHubMaterialItems({
-          platform: "xiaohongshu",
-          findMethod: input.findMethod,
-          target: input.target,
-          cacheKey: input.cacheKey,
-          payload,
-          limit: input.count,
-        }),
-      };
-    }
-
-    const endpoint = "/api/v1/xiaohongshu/app_v2/get_user_posted_notes";
-    const query = {
-      share_text: input.target,
-      cursor: "",
-    };
-    const payload = await requestTikHub({
-      endpoint,
-      query,
-    });
-
-    return {
-      cacheKey: input.cacheKey,
-      providerResponses: [{
-        endpoint,
-        method: "GET",
-        requestPayload: query,
-        responsePayload: payload,
-      }],
-      items: normalizeTikHubMaterialItems({
-        platform: "xiaohongshu",
-        findMethod: input.findMethod,
-        target: input.target,
-        cacheKey: input.cacheKey,
-        payload,
-        limit: input.count,
-      }),
-    };
+    return fetchXiaohongshuProfileBenchmark(input);
   }
 
   const endpoint = "/api/v1/xiaohongshu/web_v3/fetch_search_notes";
@@ -140,6 +81,65 @@ async function fetchXiaohongshuBenchmark(
       limit: input.count,
     }),
   };
+}
+
+async function fetchXiaohongshuProfileBenchmark(
+  input: TikHubBenchmarkRequest & { cacheKey: string },
+): Promise<TikHubBenchmarkResult> {
+  const userId = extractXiaohongshuUserId(input.target);
+  const profileUrl = extractFirstUrl(input.target) ?? input.target;
+  const appV2Query = {
+    ...(userId ? { user_id: userId } : { share_text: profileUrl }),
+    cursor: "",
+  };
+  const attempts = [
+    {
+      endpoint: "/api/v1/xiaohongshu/app_v2/get_user_posted_notes",
+      query: appV2Query,
+    },
+    ...(userId
+      ? [{
+          endpoint: "/api/v1/xiaohongshu/web_v3/fetch_user_notes",
+          query: {
+            user_id: userId,
+            cursor: "",
+            num: input.count,
+          },
+        }]
+      : []),
+  ];
+  let lastError: unknown = null;
+
+  for (const attempt of attempts) {
+    try {
+      const payload = await requestTikHub({
+        endpoint: attempt.endpoint,
+        query: attempt.query,
+      });
+
+      return {
+        cacheKey: input.cacheKey,
+        providerResponses: [{
+          endpoint: attempt.endpoint,
+          method: "GET",
+          requestPayload: attempt.query,
+          responsePayload: payload,
+        }],
+        items: normalizeTikHubMaterialItems({
+          platform: "xiaohongshu",
+          findMethod: input.findMethod,
+          target: input.target,
+          cacheKey: input.cacheKey,
+          payload,
+          limit: input.count,
+        }),
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
 }
 
 async function fetchXiaohongshuDetailBenchmark(
@@ -443,7 +443,7 @@ async function fetchCommentsForMaterial(input: {
   try {
     if (input.platform === "xiaohongshu") {
       const noteId = input.item.externalItemId ?? extractXiaohongshuNoteIdentity(input.target).noteId;
-      const shareText = extractFirstUrl(input.target) ?? input.item.sourceUrl ?? input.target;
+      const shareText = input.item.sourceUrl ?? extractFirstUrl(input.target) ?? input.target;
 
       if (!noteId && !shareText) {
         return {
