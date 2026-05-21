@@ -128,14 +128,18 @@ test("merchant consultation UI keeps expert container as the only visible multi-
   assert.match(consultationWorkspaceSource, /LegacyRoundtableNotice/);
 });
 
-test("consultation runtime treats expert as container and context as shared injection", () => {
+test("consultation runtime treats expert as container and main LLM context as slim packs", () => {
   assert.match(consultationServiceAndRuntimeSource, /ConsultationMentionRouting/);
   assert.match(consultationServiceAndRuntimeSource, /buildExpertContainerPrompt/);
-  assert.match(consultationServiceAndRuntimeSource, /buildConsultationContextInjection/);
-  assert.match(consultationServiceAndRuntimeSource, /consultation_context_injector_v1/);
-  assert.match(consultationServiceAndRuntimeSource, /@ 只切换目标专家，不清空历史与策略资产/);
+  assert.match(consultationServiceAndRuntimeSource, /buildConsultationSlimContextPack/);
+  assert.match(consultationServiceAndRuntimeSource, /consultation_context_pack_selector_v2/);
+  assert.match(consultationServiceAndRuntimeSource, /slim_v2/);
+  assert.match(consultationServiceAndRuntimeSource, /expertRouting/);
+  assert.match(consultationServiceAndRuntimeSource, /selectedContextPack/);
+  assert.match(consultationServiceAndRuntimeSource, /omittedContext/);
   assert.match(consultationServiceAndRuntimeSource, /mentionRouting: routedRuntime\.routing/);
-  assert.match(consultationServiceAndRuntimeSource, /contextInjection/);
+  assert.doesNotMatch(serviceSource, /contextInjection/);
+  assert.doesNotMatch(serviceSource, /priorToolResults/);
 });
 
 test("consultation runtime injects short-term expert traffic handoff notes", () => {
@@ -218,6 +222,23 @@ test("consultation context records replayable context boundary snapshots", () =>
   assert.match(consultationServiceAndRuntimeSource, /recentConversation/);
   assert.match(consultationServiceAndRuntimeSource, /memoryMatchIds/);
   assert.match(serviceSource, /runtimeSnapshot\.toolCallSummary\.contextBoundary/);
+});
+
+test("consultation slim context keeps debug-only fields out of main model payload", () => {
+  assert.match(consultationServiceAndRuntimeSource, /buildSlimContextPackSystemPrompt/);
+  assert.match(consultationServiceAndRuntimeSource, /currentKnowledgeMatches/);
+  assert.match(consultationServiceAndRuntimeSource, /selectedKnowledgeMatches/);
+  assert.match(consultationRuntimeSource, /field: "contextInjection"/);
+  assert.match(consultationRuntimeSource, /field: "toolResults"/);
+  assert.match(consultationRuntimeSource, /reason: "duplicate_authority"/);
+  assert.match(consultationRuntimeSource, /field: "skillDisclosure"/);
+  assert.match(consultationRuntimeSource, /reason: "debug_only"/);
+  assert.match(consultationRuntimeSource, /allKnowledgeMatches/);
+  assert.match(consultationRuntimeSource, /selectedContextDecision/);
+  assert.doesNotMatch(serviceSource, /contextInjection:/);
+  assert.doesNotMatch(serviceSource, /priorToolResults:/);
+  assert.doesNotMatch(serviceSource, /skillDisclosure: buildSkillDisclosure\(input\.state/);
+  assert.doesNotMatch(serviceSource, /toolResults: input\.toolResults\.map/);
 });
 
 test("consultation runtime exposes right panel assets through bounded business tools", () => {
@@ -357,7 +378,7 @@ test("content calendar update remains available after prior calendar writes", ()
   assert.match(consultationRuntimeSource, /result\.toolName !== "update_content_calendar"/);
   assert.match(
     consultationServiceAndRuntimeSource,
-    /currentStrategySnapshot\.contentCalendarGeneration/,
+    /strategySnapshot\.contentCalendarGeneration/,
   );
   assert.match(consultationServiceAndRuntimeSource, /不能只在自然语言中说已调整/);
   assert.match(consultationServiceAndRuntimeSource, /代码不会硬拦截，也不会替你自动确认/);
@@ -424,6 +445,18 @@ test("knowledge retrieval can directly surface indexed user documents", () => {
   assert.match(consultationRuntimeSource, /keyword_search/);
   assert.match(consultationRuntimeSource, /semantic_vector_search/);
   assert.match(consultationRuntimeSource, /sourceCounts/);
+});
+
+test("knowledge evidence is selected with query, tool call and freshness metadata", () => {
+  assert.match(serviceSource, /toolCallId: call\.id/);
+  assert.match(serviceSource, /freshness: "current_turn"/);
+  assert.match(consultationRuntimeSource, /buildSelectedKnowledgeMatches/);
+  assert.match(consultationRuntimeSource, /selectedKnowledgeMatchIds/);
+  assert.match(consultationRuntimeSource, /selectedMatches/);
+  assert.match(consultationRuntimeSource, /query: match\.query/);
+  assert.match(consultationRuntimeSource, /toolCallId: match\.toolCallId/);
+  assert.match(consultationRuntimeSource, /freshness: match\.freshness/);
+  assert.match(consultationRuntimeSource, /evidenceRole: match\.evidenceRole/);
 });
 
 test("AI runtime preserves native tool call/result pairs when trimming messages", () => {

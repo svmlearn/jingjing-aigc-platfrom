@@ -56,14 +56,14 @@ import {
 } from "@/lib/db/merchant-repository";
 import { getPlatformSettings } from "@/lib/db/platform-admin-repository";
 import {
-  buildConsultationContextInjection,
+  buildConsultationSlimContextPack,
   buildContextBudgetReport,
-  buildContextInjectionSystemPrompt,
   buildAgentSoulPrompt,
   buildExpertTurnNotes,
   buildExpertContainerPrompt,
   buildSharedConsultationState,
   buildKnowledgeContextBlock,
+  buildSlimContextPackSystemPrompt,
 } from "@/server/api/consultation-runtime/context";
 import {
   resolveConsultationAgentRuntime,
@@ -1310,6 +1310,7 @@ async function runConsultationAgentLoop(input: {
         llmRuntime: currentState.llmRuntime,
         sharedConsultationState: currentState.sharedConsultationState,
         expertTurnNotes: currentState.expertTurnNotes,
+        mentionRouting: currentState.mentionRouting,
       }),
     buildNativeToolCallingMessages: ({ state: currentState, toolResults }) =>
       buildNativeToolCallingMessages({
@@ -1387,7 +1388,16 @@ async function dispatchConsultationTool(
       topK,
       knowledgeDocumentIds: call.args.knowledgeDocumentIds,
     });
-    const matches = retrieval.matches;
+    const matches = retrieval.matches.map((match) => ({
+      ...match,
+      metadata: {
+        ...match.metadata,
+        query,
+        toolCallId: call.id,
+        turn: state.nextRound,
+        freshness: "current_turn",
+      },
+    }));
 
     return {
       callId: call.id,
@@ -1752,13 +1762,14 @@ async function buildAssistantReplyWithModel(input: {
   llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
   sharedConsultationState: ConsultationAgentLoopState["sharedConsultationState"];
   expertTurnNotes: ConsultationAgentLoopState["expertTurnNotes"];
+  mentionRouting: ConsultationMentionRouting;
 }): Promise<{
   content: string;
   mode: "llm" | "fallback_no_key" | "fallback_error";
   model?: string;
   error?: string;
 }> {
-  const contextInjection = buildConsultationContextInjection({
+  const slimContextPack = buildConsultationSlimContextPack({
     merchant: input.merchant,
     round: input.round,
     userContent: input.userContent,
@@ -1770,6 +1781,7 @@ async function buildAssistantReplyWithModel(input: {
     toolResults: input.toolResults ?? [],
     sharedConsultationState: input.sharedConsultationState,
     expertTurnNotes: input.expertTurnNotes,
+    mentionRouting: input.mentionRouting,
   });
 
   if (!getAiRuntimeApiKey()) {
@@ -1794,11 +1806,10 @@ async function buildAssistantReplyWithModel(input: {
             buildActiveSkillPrompt(input.consultationAgent.activeSkills),
             buildSkillReferencePrompt(input.consultationAgent.activeSkills),
             buildBusinessToolPrompt(input.consultationAgent.enabledTools),
-            buildContextInjectionSystemPrompt(contextInjection),
+            buildSlimContextPackSystemPrompt(slimContextPack),
             "你只输出给用户的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
-            "回答时可以使用已完成工具结果、策略快照和受控知识库片段；如果信息不足，可以提出一个最关键的追问。",
-            "当 knowledgeMatches 已包含用户知识库片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
-            "如果工具结果已经显示策略资产被编辑，要先确认已按用户要求写入；不要反过来劝用户保持旧结构，也不要把已执行的明确编辑再改成优先级追问。",
+            "回答时可以使用策略快照和 currentKnowledgeMatches 里的受控知识库片段；如果信息不足，可以提出一个最关键的追问。",
+            "当 currentKnowledgeMatches 已包含用户知识库片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
             "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshot 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
           ]
             .filter((item): item is string => Boolean(item))
@@ -1815,19 +1826,9 @@ async function buildAssistantReplyWithModel(input: {
             },
             userMessage: input.userContent,
             round: input.round,
-            contextInjection,
+            expertRouting: slimContextPack.expertRouting,
             strategySnapshot: input.strategySnapshot,
-            knowledgeMatches: input.knowledgeMatches.map((match) => ({
-              title: match.documentTitle,
-              score: match.score,
-              content: match.content.slice(0, 600),
-            })),
-            toolResults: (input.toolResults ?? []).map((result) => ({
-              label: getConsultationToolDisplayLabel(result.toolName),
-              status: result.status,
-              summary: result.summary,
-            })),
-            skillDisclosure: buildSkillDisclosure(input.consultationAgent),
+            currentKnowledgeMatches: slimContextPack.selectedKnowledgeMatches,
           }),
         },
       ],
@@ -1912,7 +1913,7 @@ function buildNativeToolCallingMessages(input: {
   state: ConsultationAgentLoopState;
   toolResults: ConsultationAgentToolResult[];
 }): ChatMessage[] {
-  const contextInjection = buildConsultationContextInjection({
+  const slimContextPack = buildConsultationSlimContextPack({
     merchant: input.state.merchant,
     round: input.state.nextRound,
     userContent: input.state.userContent,
@@ -1924,16 +1925,9 @@ function buildNativeToolCallingMessages(input: {
     toolResults: input.toolResults,
     sharedConsultationState: input.state.sharedConsultationState,
     expertTurnNotes: input.state.expertTurnNotes,
+    mentionRouting: input.state.mentionRouting,
   });
   const nativeStrategySnapshot = buildNativeStrategySnapshotSummary(input.state.strategySnapshot);
-  const nativeContextInjection = {
-    ...contextInjection,
-    sessionContext: {
-      ...contextInjection.sessionContext,
-      strategySnapshot: nativeStrategySnapshot,
-      strategyMarkdown: clipText(contextInjection.sessionContext.strategyMarkdown ?? "", 1200),
-    },
-  };
 
   return [
     {
@@ -1946,19 +1940,19 @@ function buildNativeToolCallingMessages(input: {
         buildActiveSkillPrompt(input.state.consultationAgent.activeSkills),
         buildSkillReferencePrompt(input.state.consultationAgent.activeSkills),
         buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
-        buildContextInjectionSystemPrompt(contextInjection),
+        buildSlimContextPackSystemPrompt(slimContextPack),
         "你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。",
         "runtime 只负责提供、校验和执行工具；是否调用 retrieve_knowledge_base、是否换 query 深挖、是否写入 update_content_calendar，必须由你根据用户目标和工具结果自行判断。",
         "当用户直接要求读取、查看、总结、盘点或分析用户知识库/已上传文件/资料时，请先调用 retrieve_knowledge_base 获取资料，再自行判断如何回答、追问或写入资产；不要声称无法读取用户知识库。",
         "做团队选题、营销日历、图文文案或视频脚本规划时，如果一次检索只覆盖项目事实、方法论、话术或素材边界中的一部分，可以用新的 query 再调用 retrieve_knowledge_base 深挖；写入类工具仍要在信息足够后再调用。",
-        "如果用户要求的是营销日历、团队选题、图文/视频脚本这类会沉淀为后续生产任务的内容，并且 prior tool_result 尚未提供知识库或素材能力依据，应先调用 retrieve_knowledge_base；不要先写日历再补查依据。",
+        "如果用户要求的是营销日历、团队选题、图文/视频脚本这类会沉淀为后续生产任务的内容，并且本轮 tool_result 尚未提供知识库或素材能力依据，应先调用 retrieve_knowledge_base；不要先写日历再补查依据。",
         "在调用 update_content_calendar 前，应先判断当前知识库和素材能力依据是否足够；一旦写入日历，本轮不要再补查依据来反向证明已写内容。",
         "当前团队内容生成链路是：内容日历 -> 生成团队内容 -> Dify；不再通过用户端图文工作台或视频工作台作为前置。generate_article_brief / generate_video_brief 只在用户明确要求工作台 brief 时使用。",
         "strategySnapshot.contentCalendarDraft 可能是历史资产，只能作为上下文；当用户明确要求生成、重新生成或规划下周营销日历时，不要把历史日历当成本轮已完成，仍需基于本轮 tool_result 调用 update_content_calendar。",
         "如果用户明确列出多个检索维度，例如项目优势、选房方法论、异议转化话术、素材边界，你应把这些维度拆成不同 query 逐轮读取；不要只用一个大 query 命中几个 chunk 后直接写日历。",
         "当用户要求生成内容日历、营销日历或团队选题时，你应在检索和判断足够后，自己调用 update_content_calendar 写入可执行日历；不要只自然语言承诺已经生成。",
         "当用户要求修改某一条日历标题、摘要、日期、内容类型或选题角度时，也必须通过 update_content_calendar 写入修改后的日历；不能只在自然语言中说已调整。",
-        "如果 currentStrategySnapshot.contentCalendarGeneration 显示当前日历已经生成过团队内容，你应基于这个事实自行判断是否先说明影响并询问用户确认；代码不会硬拦截，也不会替你自动确认。",
+        "如果 strategySnapshot.contentCalendarGeneration 显示当前日历已经生成过团队内容，你应基于这个事实自行判断是否先说明影响并询问用户确认；代码不会硬拦截，也不会替你自动确认。",
         "生成视频选题、脚本方向或日历隐藏上下文时，画面描述必须根据已返回的素材能力、用户确认的场景或可补拍方式来写；没有素材依据的镜头不要写成确定方案。",
         "只有寒暄、轻问答、流程说明或完全不需要受控上下文时，才可以不调用工具直接回复。",
         "只有在用户明确要求沉淀、补充、写进右侧策略资产，或当前信息已经足够形成业务结论时，才调用 update_strategy_snapshot。",
@@ -1983,20 +1977,9 @@ function buildNativeToolCallingMessages(input: {
         },
         userMessage: input.state.userContent,
         round: input.state.nextRound,
-        contextInjection: nativeContextInjection,
+        expertRouting: slimContextPack.expertRouting,
         strategySnapshot: nativeStrategySnapshot,
-        knowledgeMatches: input.state.knowledgeMatches.map((match) => ({
-          title: match.documentTitle,
-          score: match.score,
-          content: match.content.slice(0, 600),
-        })),
-        toolResults: input.toolResults.map((result) => ({
-          label: getConsultationToolDisplayLabel(result.toolName),
-          status: result.status,
-          summary: result.summary,
-          guardrail: result.payload.guardrail ?? null,
-        })),
-        skillDisclosure: buildSkillDisclosure(input.state.consultationAgent),
+        currentKnowledgeMatches: slimContextPack.selectedKnowledgeMatches,
       }),
     },
   ];
@@ -2006,7 +1989,7 @@ function buildJsonToolLoopMessages(input: {
   state: ConsultationAgentLoopState;
   toolResults: ConsultationAgentToolResult[];
 }): ChatMessage[] {
-  const contextInjection = buildConsultationContextInjection({
+  const slimContextPack = buildConsultationSlimContextPack({
     merchant: input.state.merchant,
     round: input.state.nextRound,
     userContent: input.state.userContent,
@@ -2018,16 +2001,9 @@ function buildJsonToolLoopMessages(input: {
     toolResults: input.toolResults,
     sharedConsultationState: input.state.sharedConsultationState,
     expertTurnNotes: input.state.expertTurnNotes,
+    mentionRouting: input.state.mentionRouting,
   });
   const strategySnapshot = buildNativeStrategySnapshotSummary(input.state.strategySnapshot);
-  const compactContextInjection = {
-    ...contextInjection,
-    sessionContext: {
-      ...contextInjection.sessionContext,
-      strategySnapshot,
-      strategyMarkdown: clipText(contextInjection.sessionContext.strategyMarkdown ?? "", 1200),
-    },
-  };
 
   return [
     {
@@ -2040,20 +2016,20 @@ function buildJsonToolLoopMessages(input: {
         buildActiveSkillPrompt(input.state.consultationAgent.activeSkills),
         buildSkillReferencePrompt(input.state.consultationAgent.activeSkills),
         buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
-        buildContextInjectionSystemPrompt(contextInjection),
+        buildSlimContextPackSystemPrompt(slimContextPack),
         "你正在运行 model_json_tool_loop_v1：这是一套兼容 Claude Code tool_use/tool_result 思路的 JSON 工具循环。",
         "你必须只输出 JSON object，不要输出 Markdown、表格、解释文本或代码块。",
         "当你要调用工具时，输出：{\"action\":\"tool_use\",\"tool_use\":{\"name\":\"工具名\",\"input\":{...}},\"reason\":\"一句中文理由\"}。",
         "当你认为已经足够回答用户时，输出：{\"action\":\"final\",\"finalResponse\":\"给用户看的中文自然语言回复\"}。",
-        "runtime 只负责校验、执行工具并把 tool_result 回填到下一轮上下文；是否调用 retrieve_knowledge_base、换什么 query、是否写 update_content_calendar，必须由你根据用户目标、availableTools 和 tool_result 自行判断。",
+        "runtime 只负责校验、执行工具并把 tool_result/observations 回填到下一轮上下文；是否调用 retrieve_knowledge_base、换什么 query、是否写 update_content_calendar，必须由你根据用户目标、availableTools 和 tool_result 自行判断。",
         "retrieve_knowledge_base 是读类工具，可以多轮调用；如果一次检索只覆盖项目事实、方法论、话术或素材边界中的一部分，可以用新的具体 query 继续深挖。",
-        "如果用户要求的是营销日历、团队选题、图文/视频脚本这类会沉淀为后续生产任务的内容，并且 priorToolResults 里尚未有 retrieve_knowledge_base 的 completed 结果，应先调用 retrieve_knowledge_base；不要先写日历再补查依据。",
+        "如果用户要求的是营销日历、团队选题、图文/视频脚本这类会沉淀为后续生产任务的内容，并且 observations 里尚未有 retrieve_knowledge_base 的 completed 结果，应先调用 retrieve_knowledge_base；不要先写日历再补查依据。",
         "当前团队内容生成链路是：内容日历 -> 生成团队内容 -> Dify；不再通过用户端图文工作台或视频工作台作为前置。generate_article_brief / generate_video_brief 只在用户明确要求工作台 brief 时使用。",
         "strategySnapshot.contentCalendarDraft 可能是历史资产，只能作为上下文；当用户明确要求生成、重新生成或规划下周营销日历时，不要把历史日历当成本轮已完成，仍需基于本轮 tool_result 调用 update_content_calendar。",
         "写类工具要在信息足够后再调用；当用户要求生成内容日历、营销日历或团队选题时，你应在检索和判断足够后，自行调用 update_content_calendar 写入可执行日历，而不是只在 finalResponse 里承诺。",
         "如果 retrieve_knowledge_base 返回了新的素材能力、话术或方法论，并且 availableTools 中仍有 update_content_calendar，应继续调用 update_content_calendar 写入或修订日历；如果写入工具已不可用，最终回复不要声称日历已经吸收后续检索结果。",
         "当用户要求修改某一条日历标题、摘要、日期、内容类型或选题角度时，也必须通过 update_content_calendar 写入修改后的日历；不能只在自然语言中说已调整。",
-        "如果 currentStrategySnapshot.contentCalendarGeneration 显示当前日历已经生成过团队内容，你应基于这个事实自行判断是否先说明影响并询问用户确认；代码不会硬拦截，也不会替你自动确认。",
+        "如果 strategySnapshot.contentCalendarGeneration 显示当前日历已经生成过团队内容，你应基于这个事实自行判断是否先说明影响并询问用户确认；代码不会硬拦截，也不会替你自动确认。",
         "生成视频选题、脚本方向或日历隐藏上下文时，画面描述必须根据已返回的素材能力、用户确认的场景或可补拍方式来写；没有素材依据的镜头不要写成确定方案。",
         "如果 tool_result 表示失败或不可用，你应读取错误内容并修正下一次 tool_use；不要声称失败工具已经完成。",
         "只有寒暄、轻问答、流程说明或完全不需要受控上下文时，才可以直接输出 final。",
@@ -2073,20 +2049,9 @@ function buildJsonToolLoopMessages(input: {
         },
         userMessage: input.state.userContent,
         round: input.state.nextRound,
-        contextInjection: compactContextInjection,
+        expertRouting: slimContextPack.expertRouting,
         strategySnapshot,
-        knowledgeMatches: input.state.knowledgeMatches.map((match) => ({
-          title: match.documentTitle,
-          score: match.score,
-          content: match.content.slice(0, 600),
-        })),
-        priorToolResults: input.toolResults.map((result) => ({
-          toolName: result.toolName,
-          status: result.status,
-          summary: result.summary,
-          guardrail: result.payload.guardrail ?? null,
-        })),
-        skillDisclosure: buildSkillDisclosure(input.state.consultationAgent),
+        currentKnowledgeMatches: slimContextPack.selectedKnowledgeMatches,
       }),
     },
   ];
@@ -2550,7 +2515,7 @@ function guardResolvedStrategyAssetEdit(input: {
 function buildStrategyAssetEditorMessages(
   state: ConsultationAgentLoopState,
 ): ChatMessage[] {
-  const contextInjection = buildConsultationContextInjection({
+  const slimContextPack = buildConsultationSlimContextPack({
     merchant: state.merchant,
     round: state.nextRound,
     userContent: state.userContent,
@@ -2562,6 +2527,7 @@ function buildStrategyAssetEditorMessages(
     toolResults: [],
     sharedConsultationState: state.sharedConsultationState,
     expertTurnNotes: state.expertTurnNotes,
+    mentionRouting: state.mentionRouting,
   });
 
   return [
@@ -2571,7 +2537,7 @@ function buildStrategyAssetEditorMessages(
         "你是咨询 Agent 的策略资产编辑器，只负责把右侧策略资产作为一个完整文档改写。",
         buildExpertContainerPrompt(state.consultationAgent),
         buildAgentSoulPrompt(state.consultationAgent),
-        buildContextInjectionSystemPrompt(contextInjection),
+        buildSlimContextPackSystemPrompt(slimContextPack),
         "你必须调用 update_strategy_asset_editor 工具，并传入完整 strategyAsset 文档，不要只传局部字段。",
         "strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion、strategyMarkdown 六个字段。",
         "strategyMarkdown 是右侧策略资产的主文档，允许用 Markdown 章节自由沉淀用户洞察、内容方向、风控边界、待验证想法；不要把它压缩成固定字段。",
@@ -2590,7 +2556,7 @@ function buildStrategyAssetEditorMessages(
       content: JSON.stringify({
         userMessage: state.userContent,
         mentionRouting: state.mentionRouting,
-        contextInjection,
+        expertRouting: slimContextPack.expertRouting,
         recentConversation: state.conversationMessages.slice(-8),
         recentUserMessages: state.userMessages.slice(-4),
         currentStrategySnapshot: {
