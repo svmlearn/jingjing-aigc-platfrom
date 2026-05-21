@@ -1,5 +1,6 @@
 import type { ContentCalendarItemDto, StrategySnapshotDto } from "@/contracts/consultation";
 import { normalizeContentCalendarGuidance } from "@/lib/content-calendar-guidance";
+import { normalizeContentCalendarGenerationStatus } from "@/lib/content-calendar-revision";
 
 export const emptyStrategySnapshot: StrategySnapshotDto = {
   positioning: "",
@@ -9,6 +10,7 @@ export const emptyStrategySnapshot: StrategySnapshotDto = {
   currentSuggestion: "",
   strategyTags: [],
   contentCalendarDraft: [],
+  contentCalendarGeneration: null,
   articleBrief: null,
   videoBrief: null,
 };
@@ -17,6 +19,7 @@ export function toStrategySnapshot(value: unknown): StrategySnapshotDto {
   const record = toRecord(value);
   const articleBrief = toNullableRecord(record.articleBrief);
   const videoBrief = toNullableRecord(record.videoBrief);
+  const contentCalendarDraft = toCalendarItems(record.contentCalendarDraft);
 
   return {
     positioning: getString(record.positioning),
@@ -25,7 +28,11 @@ export function toStrategySnapshot(value: unknown): StrategySnapshotDto {
     keyScenes: toStringArray(record.keyScenes),
     currentSuggestion: getString(record.currentSuggestion),
     strategyTags: toStringArray(record.strategyTags),
-    contentCalendarDraft: toCalendarItems(record.contentCalendarDraft),
+    contentCalendarDraft,
+    contentCalendarGeneration: normalizeContentCalendarGenerationStatus(
+      record.contentCalendarGeneration,
+      contentCalendarDraft,
+    ),
     articleBrief: articleBrief
       ? {
           workingTitle: getString(articleBrief.workingTitle),

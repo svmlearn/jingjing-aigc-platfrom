@@ -58,6 +58,10 @@ const contentCalendarGuidanceSource = readFileSync(
   new URL("../../lib/content-calendar-guidance.ts", import.meta.url),
   "utf8",
 );
+const contentCalendarRevisionSource = readFileSync(
+  new URL("../../lib/content-calendar-revision.ts", import.meta.url),
+  "utf8",
+);
 const dailyContentTaskSource = readFileSync(
   new URL("./daily-content-task-service.ts", import.meta.url),
   "utf8",
@@ -338,9 +342,28 @@ test("team content generation uses the current consultation calendar as batch so
     /source: consultationCalendar\.length \? "consultation_calendar" : "daily_task"/,
   );
   assert.match(contentGenerationBatchSource, /calendarItemIds: consultationCalendar\.map/);
+  assert.match(contentGenerationBatchSource, /buildContentCalendarRevisionId/);
+  assert.match(contentGenerationBatchSource, /markContentCalendarTeamContentGenerated/);
+  assert.match(contentGenerationBatchSource, /updateConsultationSession/);
+  assert.match(contentGenerationBatchSource, /upsertMerchantStrategyAssetDocument/);
+  assert.match(contentCalendarRevisionSource, /generatedFromRevisionId/);
+  assert.match(contentCalendarRevisionSource, /modified_after_generation/);
   assert.match(dailyContentTaskSource, /source: "consultation_calendar"/);
   assert.match(dailyContentTaskSource, /calendarItems: selectedCalendarItems/);
   assert.match(dailyContentTaskSource, /calendarGuidance/);
+});
+
+test("content calendar update remains available after prior calendar writes", () => {
+  assert.match(consultationRuntimeSource, /result\.toolName !== "update_content_calendar"/);
+  assert.match(
+    consultationServiceAndRuntimeSource,
+    /currentStrategySnapshot\.contentCalendarGeneration/,
+  );
+  assert.match(consultationServiceAndRuntimeSource, /不能只在自然语言中说已调整/);
+  assert.match(consultationServiceAndRuntimeSource, /代码不会硬拦截，也不会替你自动确认/);
+  assert.match(consultationServiceAndRuntimeSource, /buildRuntimeToolDescription/);
+  assert.match(consultationServiceAndRuntimeSource, /当前日历生成状态/);
+  assert.match(consultationContractSource, /contentCalendarGeneration/);
 });
 
 test("calendar UI follows the direct team generation path", () => {

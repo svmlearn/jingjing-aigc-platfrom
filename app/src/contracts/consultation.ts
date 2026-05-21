@@ -58,6 +58,16 @@ export type ContentCalendarItemDto = {
   guidance?: ContentCalendarGuidanceDto | null;
 };
 
+export type ContentCalendarGenerationStatusDto = {
+  status: "draft" | "generated" | "modified_after_generation";
+  currentRevisionId: string;
+  generatedFromRevisionId?: string | null;
+  generatedBatchId?: string | null;
+  generatedAt?: string | null;
+  generatedByUserId?: string | null;
+  generatedJobCount?: number | null;
+};
+
 export type StrategySnapshotDto = {
   positioning: string;
   coreSellingPoints: string[];
@@ -66,6 +76,7 @@ export type StrategySnapshotDto = {
   currentSuggestion: string;
   strategyTags: string[];
   contentCalendarDraft: ContentCalendarItemDto[];
+  contentCalendarGeneration?: ContentCalendarGenerationStatusDto | null;
   articleBrief?: {
     workingTitle: string;
     angle: string;

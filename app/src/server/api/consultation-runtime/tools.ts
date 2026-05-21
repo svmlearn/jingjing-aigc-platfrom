@@ -409,10 +409,42 @@ export function buildConsultationAiRuntimeTools(input: {
       type: "function" as const,
       function: {
         name: tool.key,
-        description: `${tool.label}：${tool.purpose} 影响范围：${tool.writes}`,
+        description: buildRuntimeToolDescription(tool, input.state),
         parameters: tool.parameters,
       },
     }));
+}
+
+function buildRuntimeToolDescription(
+  tool: ConsultationRuntimeToolDefinition,
+  state: ConsultationAgentLoopState,
+) {
+  const base = `${tool.label}：${tool.purpose} 影响范围：${tool.writes}`;
+
+  if (tool.key !== "update_content_calendar") {
+    return base;
+  }
+
+  const generation = state.strategySnapshot.contentCalendarGeneration;
+
+  if (!generation) {
+    return `${base} 当前日历尚未生成团队内容；如用户要求生成、补充或修改营销日历，仍由你根据依据和用户意图判断是否调用。`;
+  }
+
+  return [
+    base,
+    `当前日历生成状态：${generation.status}`,
+    `当前日历版本：${generation.currentRevisionId}`,
+    generation.generatedFromRevisionId
+      ? `最近一次团队内容生成基于版本：${generation.generatedFromRevisionId}`
+      : null,
+    generation.generatedBatchId ? `最近生成批次：${generation.generatedBatchId}` : null,
+    generation.generatedAt ? `最近生成时间：${generation.generatedAt}` : null,
+    generation.generatedJobCount != null ? `生成任务数：${generation.generatedJobCount}` : null,
+    "如果用户要求修改已经生成过团队内容的日历，你应自行判断是否先说明影响并询问确认；代码不会硬拦截，也不会替你自动确认。",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 export function isRepeatableConsultationReadTool(toolName: ConsultationAgentToolKey) {

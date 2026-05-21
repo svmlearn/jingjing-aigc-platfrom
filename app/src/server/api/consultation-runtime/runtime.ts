@@ -807,6 +807,7 @@ function getNativeUnavailableToolNames(
       toolResults
         .filter(isKnownConsultationToolResult)
         .filter((result) => !isRepeatableConsultationReadTool(result.toolName))
+        .filter((result) => result.toolName !== "update_content_calendar")
         .map((result) => result.toolName),
     ),
   );

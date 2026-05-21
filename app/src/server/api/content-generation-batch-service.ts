@@ -24,7 +24,18 @@ import {
   getOperationalMerchantWorkspaceByUserId,
   listActiveMerchantTeamMembersByMerchant,
 } from "@/lib/db/merchant-repository";
-import { getConsultationSessionDetail } from "@/lib/db/consultation-repository";
+import {
+  getConsultationSessionDetail,
+  updateConsultationSession,
+} from "@/lib/db/consultation-repository";
+import {
+  buildStrategyAssetMarkdown,
+  upsertMerchantStrategyAssetDocument,
+} from "@/lib/db/merchant-strategy-asset-repository";
+import {
+  buildContentCalendarRevisionId,
+  markContentCalendarTeamContentGenerated,
+} from "@/lib/content-calendar-revision";
 import {
   buildDifyImageRenderUrl,
   mapDifyArticleToMemberPackage,
@@ -160,6 +171,10 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
       days,
       source: consultationCalendar.length ? "consultation_calendar" : "daily_content_tasks",
       consultationSessionId: consultationSession?.id ?? null,
+      calendarRevisionId: consultationCalendar.length
+        ? buildContentCalendarRevisionId(consultationCalendar)
+        : null,
+      contentCalendarGeneration: consultationSession?.strategySnapshot.contentCalendarGeneration ?? null,
       calendarItemIds: consultationCalendar.map((item) => item.id),
     },
     memberScopeSnapshot: {
@@ -172,6 +187,34 @@ export async function createDifyDailyTaskGenerationBatchForUser(input: {
     },
     jobs,
   });
+
+  if (consultationCalendar.length && consultationSession) {
+    const strategySnapshot = markContentCalendarTeamContentGenerated(
+      consultationSession.strategySnapshot,
+      {
+        batchId: result.batch.id,
+        generatedAt: result.batch.createdAt,
+        generatedByUserId: input.userId,
+        generatedJobCount: result.jobs.length,
+      },
+    );
+    const strategyMarkdown = buildStrategyAssetMarkdown(strategySnapshot);
+
+    await Promise.all([
+      updateConsultationSession({
+        merchantId: workspace.merchantProfile.id,
+        sessionId: consultationSession.id,
+        strategySnapshot,
+        summaryText: strategySnapshot.currentSuggestion,
+      }),
+      upsertMerchantStrategyAssetDocument({
+        merchantId: workspace.merchantProfile.id,
+        strategySnapshot,
+        strategyMarkdown,
+        canonicalSnapshot: strategySnapshot,
+      }),
+    ]);
+  }
 
   for (const job of result.jobs) {
     await updateDailyContentTaskGeneratedContent({

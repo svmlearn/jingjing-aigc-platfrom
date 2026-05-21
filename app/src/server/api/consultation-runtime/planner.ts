@@ -222,7 +222,10 @@ function getReadyToolNames(
   return getOrderedEnabledToolNames(state).filter((toolName) => {
     if (
       completed.has(toolName) &&
-      !(options.allowRepeatableReadTools && isRepeatableConsultationReadTool(toolName))
+      !(
+        options.allowRepeatableReadTools &&
+        (isRepeatableConsultationReadTool(toolName) || toolName === "update_content_calendar")
+      )
     ) {
       return false;
     }

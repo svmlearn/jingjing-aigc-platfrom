@@ -112,6 +112,7 @@ import {
   attachGuidanceToContentCalendar,
   buildMerchantKnowledgeCalendarGuidance,
 } from "@/lib/content-calendar-guidance";
+import { withUpdatedContentCalendarGeneration } from "@/lib/content-calendar-revision";
 import {
   AiRuntimeError,
   type AiRuntimeTool,
@@ -1474,10 +1475,7 @@ async function dispatchConsultationTool(
       ? incomingCalendar
       : state.strategySnapshot.contentCalendarDraft;
     const strategySnapshot = incomingCalendar.length
-      ? {
-          ...state.strategySnapshot,
-          contentCalendarDraft: calendar,
-        }
+      ? withUpdatedContentCalendarGeneration(state.strategySnapshot, calendar)
       : state.strategySnapshot;
     const strategyMarkdown = buildStrategyAssetMarkdown(strategySnapshot);
 
@@ -1915,6 +1913,8 @@ function buildNativeToolCallingMessages(input: {
         "strategySnapshot.contentCalendarDraft 可能是历史资产，只能作为上下文；当用户明确要求生成、重新生成或规划下周营销日历时，不要把历史日历当成本轮已完成，仍需基于本轮 tool_result 调用 update_content_calendar。",
         "如果用户明确列出多个检索维度，例如项目优势、选房方法论、异议转化话术、素材边界，你应把这些维度拆成不同 query 逐轮读取；不要只用一个大 query 命中几个 chunk 后直接写日历。",
         "当用户要求生成内容日历、营销日历或团队选题时，你应在检索和判断足够后，自己调用 update_content_calendar 写入可执行日历；不要只自然语言承诺已经生成。",
+        "当用户要求修改某一条日历标题、摘要、日期、内容类型或选题角度时，也必须通过 update_content_calendar 写入修改后的日历；不能只在自然语言中说已调整。",
+        "如果 currentStrategySnapshot.contentCalendarGeneration 显示当前日历已经生成过团队内容，你应基于这个事实自行判断是否先说明影响并询问用户确认；代码不会硬拦截，也不会替你自动确认。",
         "生成视频选题、脚本方向或日历隐藏上下文时，画面描述必须根据已返回的素材能力、用户确认的场景或可补拍方式来写；没有素材依据的镜头不要写成确定方案。",
         "只有寒暄、轻问答、流程说明或完全不需要受控上下文时，才可以不调用工具直接回复。",
         "只有在用户明确要求沉淀、补充、写进右侧策略资产，或当前信息已经足够形成业务结论时，才调用 update_strategy_snapshot。",
@@ -2008,6 +2008,8 @@ function buildJsonToolLoopMessages(input: {
         "strategySnapshot.contentCalendarDraft 可能是历史资产，只能作为上下文；当用户明确要求生成、重新生成或规划下周营销日历时，不要把历史日历当成本轮已完成，仍需基于本轮 tool_result 调用 update_content_calendar。",
         "写类工具要在信息足够后再调用；当用户要求生成内容日历、营销日历或团队选题时，你应在检索和判断足够后，自行调用 update_content_calendar 写入可执行日历，而不是只在 finalResponse 里承诺。",
         "如果 retrieve_knowledge_base 返回了新的素材能力、话术或方法论，并且 availableTools 中仍有 update_content_calendar，应继续调用 update_content_calendar 写入或修订日历；如果写入工具已不可用，最终回复不要声称日历已经吸收后续检索结果。",
+        "当用户要求修改某一条日历标题、摘要、日期、内容类型或选题角度时，也必须通过 update_content_calendar 写入修改后的日历；不能只在自然语言中说已调整。",
+        "如果 currentStrategySnapshot.contentCalendarGeneration 显示当前日历已经生成过团队内容，你应基于这个事实自行判断是否先说明影响并询问用户确认；代码不会硬拦截，也不会替你自动确认。",
         "生成视频选题、脚本方向或日历隐藏上下文时，画面描述必须根据已返回的素材能力、用户确认的场景或可补拍方式来写；没有素材依据的镜头不要写成确定方案。",
         "如果 tool_result 表示失败或不可用，你应读取错误内容并修正下一次 tool_use；不要声称失败工具已经完成。",
         "只有寒暄、轻问答、流程说明或完全不需要受控上下文时，才可以直接输出 final。",
@@ -2070,6 +2072,16 @@ function buildNativeStrategySnapshotSummary(snapshot: StrategySnapshotDto) {
           }
         : null,
     })),
+    contentCalendarGeneration: snapshot.contentCalendarGeneration
+      ? {
+          status: snapshot.contentCalendarGeneration.status,
+          currentRevisionId: snapshot.contentCalendarGeneration.currentRevisionId,
+          generatedFromRevisionId: snapshot.contentCalendarGeneration.generatedFromRevisionId ?? null,
+          generatedBatchId: snapshot.contentCalendarGeneration.generatedBatchId ?? null,
+          generatedAt: snapshot.contentCalendarGeneration.generatedAt ?? null,
+          generatedJobCount: snapshot.contentCalendarGeneration.generatedJobCount ?? null,
+        }
+      : null,
     articleBrief: snapshot.articleBrief
       ? {
           workingTitle: snapshot.articleBrief.workingTitle,
@@ -2200,6 +2212,7 @@ function buildStrategySnapshot(input: {
     currentSuggestion,
     strategyTags,
     contentCalendarDraft: input.previousSnapshot?.contentCalendarDraft ?? [],
+    contentCalendarGeneration: input.previousSnapshot?.contentCalendarGeneration ?? null,
     articleBrief: input.previousSnapshot?.articleBrief ?? null,
     videoBrief: input.previousSnapshot?.videoBrief ?? null,
   };
