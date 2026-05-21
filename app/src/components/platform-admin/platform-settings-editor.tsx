@@ -49,16 +49,6 @@ const consultationSkillOptions: Array<{
     label: "更新内容日历",
     description: "生成图文/视频混合的一周内容草案。",
   },
-  {
-    key: "generate_article_brief",
-    label: "生成图文草案",
-    description: "准备图文工作台的默认选题与标题方向。",
-  },
-  {
-    key: "generate_video_brief",
-    label: "生成视频草案",
-    description: "准备视频钩子、脚本方向和执行目标。",
-  },
 ];
 
 const adminUserApiErrorMessages: Record<string, string> = {

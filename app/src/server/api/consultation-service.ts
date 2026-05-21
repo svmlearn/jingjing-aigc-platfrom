@@ -1946,7 +1946,6 @@ function buildNativeToolCallingMessages(input: {
         "不要先写日历再补查依据。在调用 update_content_calendar 前，应先判断当前知识库和素材能力依据是否足够。",
         "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",
         "如果当前日历已经生成过团队内容，修改前必须提醒用户后续团队内容可能需要重新生成，并确认是否继续。",
-        "工具返回 skipped、failed、guardrail rejected 或未完成时，最终回复必须承认本轮未写入或未完成，不能声称已经更新。",
         "最终可见回复只输出给用户的中文自然语言，不要输出内部工具名、JSON、Markdown 表格或 debug payload。",
       ]
         .filter((item): item is string => Boolean(item))
@@ -2007,12 +2006,12 @@ function buildJsonToolLoopMessages(input: {
         "你必须只输出 JSON object，不要输出 Markdown、表格、解释文本或代码块。",
         "当你要调用工具时，输出：{\"action\":\"tool_use\",\"tool_use\":{\"name\":\"工具名\",\"input\":{...}},\"reason\":\"一句中文理由\"}。",
         "当你认为已经足够回答用户时，输出：{\"action\":\"final\",\"finalResponse\":\"给用户看的中文自然语言回复\"}。",
+        "JSON tool_use 参数最小契约：调用 update_content_calendar 时，input 里必须包含 calendar 数组；每项至少包含 dayLabel、contentType、title、summary。",
         "JSON 工具循环中，业务结果以前序 tool_result 消息为准。",
         "写入类工具仍要在信息足够后再调用。",
         "不要先写日历再补查依据。在调用 update_content_calendar 前，应先判断当前知识库和素材能力依据是否足够。",
         "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",
         "如果当前日历已经生成过团队内容，修改前必须提醒用户后续团队内容可能需要重新生成，并确认是否继续。",
-        "工具返回 skipped、failed、guardrail rejected 或未完成时，最终回复必须承认本轮未写入或未完成，不能声称已经更新。",
         "最终可见回复只输出给用户的中文自然语言，不要输出内部工具名、JSON、Markdown 表格或 debug payload。",
       ]
         .filter((item): item is string => Boolean(item))

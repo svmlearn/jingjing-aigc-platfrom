@@ -133,6 +133,40 @@ rg -n "generate_article_brief|generate_video_brief|不再通过用户端图文�
 
 本轮不 push、不 merge。主 worktree 进入本轮前已有的未提交文档改动未覆盖、未纳入本轮说明。
 
+## 2026-05-21 follow-up 小补丁
+
+触发原因：`c6b224f` 后继续修 4 个小问题，不重做大改。
+
+本次补丁完成：
+
+1. JSON tool loop 继续不把 schema 放回 `tool_loop_state`，但在 JSON loop system protocol 中补了 `update_content_calendar` 的极简参数契约：`calendar[]`，每项至少 `dayLabel` / `contentType` / `title` / `summary`。
+2. skipped / failed / guardrail rejected 诚实规则只保留在 `buildSlimContextPackSystemPrompt` 这一处，native prompt 和 JSON prompt 不再重复注入。
+3. `parseNativeConsultationToolCall` 增加 `isLlmVisibleConsultationTool` 防御；即使模型猜出 legacy brief 工具名，也会被 rejected，不进入 dispatch。
+4. `generate_article_brief` / `generate_video_brief` 从平台默认 `enabledTools` 和平台管理端工具勾选 UI 中移除；legacy schema、registry 和 handler 暂不删除。
+
+本次补丁验证：
+
+```bash
+node --test src/server/api/consultation-service.test.ts
+git diff --check
+corepack pnpm typecheck
+```
+
+`rg` 自查命令：
+
+```bash
+rg -n "generate_article_brief|generate_video_brief|decisionRules|observations.*summary|工具返回 skipped|工具结果是 skipped|tool_loop_state" app/src/server/api app/src/components app/src/lib
+```
+
+自查结论：
+
+- `decisionRules`：无命中。
+- `observations.*summary`：无命中。
+- `工具返回 skipped`：无命中。
+- `工具结果是 skipped`：只剩 `buildSlimContextPackSystemPrompt` 一处，符合去重目标。
+- `tool_loop_state`：仅 runtime 构造和测试断言。
+- `generate_article_brief` / `generate_video_brief`：剩余命中仅在 legacy schema、legacy tool registry、legacy handler 和 hidden set；默认 enabledTools 和平台管理端勾选 UI 已无命中。
+
 ## 下一步建议
 
 1. 如继续做 V2.7 P1，优先实现预算 preflight enforcer，而不是继续增加 prompt 规则。

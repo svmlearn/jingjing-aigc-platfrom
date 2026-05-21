@@ -491,6 +491,15 @@ export function parseNativeConsultationToolCall(
     };
   }
 
+  if (!isLlmVisibleConsultationTool(tool.key)) {
+    return {
+      ok: false,
+      toolCallId: toolCall.id,
+      rawToolName,
+      error: "该工具不对当前 LLM 工具调用路径开放。",
+    };
+  }
+
   if (!state.consultationAgent.enabledTools.includes(tool.key)) {
     return {
       ok: false,

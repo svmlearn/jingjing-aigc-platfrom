@@ -513,7 +513,7 @@ export function buildSlimContextPackSystemPrompt(
     "currentKnowledgeMatches 只代表本轮被选择的 evidence；未出现在其中的历史知识命中，不要当成本轮依据。",
     "工具结果的权威来源只能是 native role=tool 消息或 JSON tool_result；不要依赖 user JSON 中的重复工具摘要。",
     "内部调试字段只用于 runtimeSnapshot，不要向用户暴露。",
-    "如果工具结果是 skipped、failed 或 rejected，最终回复必须承认本轮未完成对应写入，不能声称已经更新。",
+    "如果工具结果是 skipped、failed、guardrail rejected 或未完成，最终回复必须承认本轮未写入或未完成，不能声称已经更新。",
   ];
 
   if (contextPack.selectedKnowledgeMatches.length > 0) {

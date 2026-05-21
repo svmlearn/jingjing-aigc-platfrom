@@ -148,8 +148,6 @@ const defaultConsultationAgent: ConsultationAgentSettingsDto = {
     "retrieve_knowledge_base",
     "update_strategy_snapshot",
     "update_content_calendar",
-    "generate_article_brief",
-    "generate_video_brief",
     "read_history",
   ],
   visibleExecutionMode: "cards",

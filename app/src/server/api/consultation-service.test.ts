@@ -38,6 +38,10 @@ const platformAdminRepositorySource = readFileSync(
   new URL("../../lib/db/platform-admin-repository.ts", import.meta.url),
   "utf8",
 );
+const platformSettingsEditorSource = readFileSync(
+  new URL("../../components/platform-admin/platform-settings-editor.tsx", import.meta.url),
+  "utf8",
+);
 const consultationWorkspaceSource = readFileSync(
   new URL("../../components/merchant/consultation-workspace.tsx", import.meta.url),
   "utf8",
@@ -250,6 +254,11 @@ test("consultation runtime exposes right panel assets through bounded business t
   assert.match(consultationServiceAndRuntimeSource, /toolChoice/);
   assert.match(consultationServiceAndRuntimeSource, /update_content_calendar/);
   assert.match(consultationServiceAndRuntimeSource, /isLlmVisibleConsultationTool/);
+  assert.match(consultationRuntimeSource, /该工具不对当前 LLM 工具调用路径开放/);
+  assert.doesNotMatch(platformAdminRepositorySource, new RegExp("generate_" + "article_brief"));
+  assert.doesNotMatch(platformAdminRepositorySource, new RegExp("generate_" + "video_brief"));
+  assert.doesNotMatch(platformSettingsEditorSource, new RegExp("generate_" + "article_brief"));
+  assert.doesNotMatch(platformSettingsEditorSource, new RegExp("generate_" + "video_brief"));
   assert.match(
     consultationServiceAndRuntimeSource,
     /strategySnapshot as one editor document: positioning \/ coreSellingPoints \/ targetAudiences \/ keyScenes \/ currentSuggestion/,
@@ -267,6 +276,8 @@ test("consultation planner supports Claude Code style JSON tool loop", () => {
   assert.match(consultationRuntimeSource, /failedToolNames/);
   assert.match(consultationRuntimeSource, /skippedToolNames/);
   assert.match(consultationRuntimeSource, /writeToolsAlreadyUsed/);
+  assert.match(serviceSource, /JSON tool_use 参数最小契约/);
+  assert.match(serviceSource, /dayLabel、contentType、title、summary/);
   assert.match(consultationServiceAndRuntimeSource, /tool_result/);
   assert.match(consultationServiceAndRuntimeSource, /source: "model_json_tool_use"/);
   assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_loop_v1/);
