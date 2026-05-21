@@ -1,4 +1,5 @@
 import type { MaterialPlatform, MaterialType } from "@/contracts/material";
+import type { NormalizedComment } from "@/server/import-providers/types";
 import type { TikHubBenchmarkFindMethod, TikHubMaterialItem } from "@/server/import-providers/tikhub/types";
 
 type NormalizeInput = {
@@ -15,8 +16,7 @@ export function normalizeTikHubMaterialItems(input: NormalizeInput): TikHubMater
     input.platform === "xiaohongshu"
       ? collectXiaohongshuItems(input.payload)
       : collectDouyinAwemeItems(input.payload);
-  const sourceType: "creator" | "search" =
-    input.findMethod === "profile" ? "creator" : "search";
+  const sourceType = mapFindMethodToSourceType(input.findMethod);
 
   const normalizedItems = candidates
     .map((candidate, index) => {
@@ -62,6 +62,21 @@ export function buildTikHubBenchmarkCacheKey(input: {
     input.findMethod,
     normalizeCacheText(input.target),
   ].join(":");
+}
+
+export function normalizeTikHubComments(input: {
+  platform: MaterialPlatform;
+  payload: unknown;
+  limit: number;
+}): NormalizedComment[] {
+  const candidates =
+    input.platform === "xiaohongshu"
+      ? collectXiaohongshuCommentItems(input.payload)
+      : collectDouyinCommentItems(input.payload);
+
+  return dedupeComments(candidates)
+    .filter((comment) => comment.content.trim().length > 0)
+    .slice(0, input.limit);
 }
 
 function collectXiaohongshuItems(payload: unknown): Record<string, unknown>[] {
@@ -123,7 +138,7 @@ function normalizeXiaohongshuItem(
     platform: "xiaohongshu",
     materialType,
     sourceKind: "benchmark",
-    sourceType: input.findMethod === "profile" ? "creator" : "search",
+    sourceType: mapFindMethodToSourceType(input.findMethod),
     externalItemId,
     sourceUrl,
     creatorId: getString(user.userId ?? user.user_id ?? user.id),
@@ -147,6 +162,7 @@ function normalizeXiaohongshuItem(
       providerEndpointFamily: "xiaohongshu",
       noteType: noteType ?? materialType,
       coverUrl,
+      tags: collectTagNames(noteCard.tags ?? noteCard.tagList ?? noteCard.tag_list),
       rank: index + 1,
     },
     tracePayload: {
@@ -170,6 +186,125 @@ function dedupeTikHubMaterialItems(items: TikHubMaterialItem[]) {
         : item.sourceUrl
           ? `${item.platform}:url:${item.sourceUrl}`
           : `${item.platform}:title:${item.title}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function mapFindMethodToSourceType(findMethod: TikHubBenchmarkFindMethod): "detail" | "creator" | "search" {
+  if (findMethod === "detail") return "detail";
+  if (findMethod === "profile") return "creator";
+  return "search";
+}
+
+function collectXiaohongshuCommentItems(payload: unknown): NormalizedComment[] {
+  return collectObjects(payload).flatMap((record) => {
+    const comment = toRecord(record.comment ?? record);
+    const content = firstString([
+      comment.content,
+      comment.text,
+      comment.comment,
+    ]);
+
+    if (!content || !hasCommentShape(comment)) {
+      return [];
+    }
+
+    const user = toRecord(comment.user_info ?? comment.userInfo ?? comment.user ?? record.user_info);
+
+    return [{
+      externalCommentId: getString(comment.id ?? comment.commentId ?? comment.comment_id) ?? undefined,
+      parentExternalCommentId: getString(
+        comment.parent_id ??
+          comment.parentId ??
+          comment.parent_comment_id ??
+          comment.parentCommentId,
+      ) ?? undefined,
+      authorName: getString(user.nickname ?? user.name ?? comment.nickname) ?? undefined,
+      content,
+      likeCount: parseCount(comment.like_count ?? comment.likeCount ?? comment.likes) ?? undefined,
+      replyCount: parseCount(
+        comment.sub_comment_count ??
+          comment.subCommentCount ??
+          comment.reply_count ??
+          comment.replyCount,
+      ) ?? undefined,
+      publishedAt: parsePlatformTime(comment.create_time ?? comment.createTime ?? comment.createdAt),
+      tracePayload: record,
+    }];
+  });
+}
+
+function collectDouyinCommentItems(payload: unknown): NormalizedComment[] {
+  return collectObjects(payload).flatMap((record) => {
+    const content = firstString([
+      record.text,
+      record.content,
+      record.comment,
+    ]);
+
+    if (!content || !hasCommentShape(record)) {
+      return [];
+    }
+
+    const user = toRecord(record.user ?? record.userInfo ?? record.user_info);
+
+    return [{
+      externalCommentId: getString(record.cid ?? record.id ?? record.commentId ?? record.comment_id) ?? undefined,
+      parentExternalCommentId: getString(
+        record.reply_to_comment_id ??
+          record.replyToCommentId ??
+          record.parent_id ??
+          record.parentId,
+      ) ?? undefined,
+      authorName: getString(user.nickname ?? user.name ?? record.nickname) ?? undefined,
+      content,
+      likeCount: parseCount(record.digg_count ?? record.diggCount ?? record.like_count ?? record.likeCount) ?? undefined,
+      replyCount: parseCount(
+        record.reply_comment_total ??
+          record.replyCommentTotal ??
+          record.reply_count ??
+          record.replyCount,
+      ) ?? undefined,
+      publishedAt: parsePlatformTime(record.create_time ?? record.createTime ?? record.createdAt),
+      tracePayload: record,
+    }];
+  });
+}
+
+function hasCommentShape(record: Record<string, unknown>) {
+  return Boolean(
+    record.cid ||
+      record.commentId ||
+      record.comment_id ||
+      record.parent_id ||
+      record.parentId ||
+      record.sub_comments ||
+      record.subComments ||
+      record.reply_count ||
+      record.replyCount ||
+      record.like_count ||
+      record.likeCount ||
+      record.digg_count ||
+      record.diggCount ||
+      record.user_info ||
+      record.userInfo ||
+      record.user,
+  );
+}
+
+function dedupeComments(comments: NormalizedComment[]) {
+  const seen = new Set<string>();
+
+  return comments.filter((comment) => {
+    const key = comment.externalCommentId
+      ? `id:${comment.externalCommentId}`
+      : `content:${comment.authorName ?? ""}:${comment.content}`;
 
     if (seen.has(key)) {
       return false;
@@ -205,7 +340,7 @@ function normalizeDouyinItem(
     platform: "douyin",
     materialType: "video",
     sourceKind: "benchmark",
-    sourceType: input.findMethod === "profile" ? "creator" : "search",
+    sourceType: mapFindMethodToSourceType(input.findMethod),
     externalItemId: awemeId,
     sourceUrl: getString(aweme.share_url ?? aweme.shareUrl) ?? (awemeId ? `https://www.douyin.com/video/${awemeId}` : null),
     creatorId: getString(author.uid ?? author.sec_uid ?? author.secUid),
@@ -233,6 +368,7 @@ function normalizeDouyinItem(
       providerEndpointFamily: "douyin",
       coverUrl,
       durationMs: parseCount(video.duration),
+      tags: collectTagNames(aweme.text_extra ?? aweme.textExtra),
       rank: index + 1,
     },
     tracePayload: {
@@ -287,6 +423,31 @@ function firstString(values: unknown[]) {
   return null;
 }
 
+function collectTagNames(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const tags = value.flatMap((item) => {
+    if (typeof item === "string") {
+      return [item];
+    }
+
+    const record = toRecord(item);
+    const tag = getString(
+      record.name ??
+        record.tagName ??
+        record.tag_name ??
+        record.hashtagName ??
+        record.hashtag_name,
+    );
+
+    return tag ? [tag] : [];
+  });
+
+  return Array.from(new Set(tags.map((tag) => tag.replace(/^#/, "").trim()).filter(Boolean)));
+}
+
 function parseCount(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
 
@@ -301,6 +462,25 @@ function parseCount(value: unknown): number | null {
   const compact = Number(normalized.replace(/[^\d.]/g, ""));
 
   return Number.isFinite(compact) ? Math.round(compact * multiplier) : null;
+}
+
+function parsePlatformTime(value: unknown): string | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const milliseconds = value > 1_000_000_000_000 ? value : value * 1000;
+    return new Date(milliseconds).toISOString();
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return undefined;
+  }
+
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    return parsePlatformTime(numeric);
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? undefined : new Date(timestamp).toISOString();
 }
 
 function formatEngagementLabel(input: {

@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   FileText,
   Filter,
   Library,
   Link2,
-  PenLine,
   Plus,
   Search,
   User,
@@ -25,11 +23,11 @@ const platformLabels: Record<MaterialPlatform, string> = {
   douyin: "抖音",
 };
 const sourceKindLabels = {
-  uploaded: "用户上传",
-  benchmark: "对标库",
+  uploaded: "单条解析",
+  benchmark: "TikHub解析",
 } as const;
 
-type FindMethod = "keyword" | "profile";
+type FindMethod = "keyword" | "profile" | "detail";
 
 const materialTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
   month: "2-digit",
@@ -39,7 +37,6 @@ const materialTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
 });
 
 export function MerchantContentCenter() {
-  const router = useRouter();
   const [materials, setMaterials] = useState<MaterialLibraryItemDto[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -57,8 +54,8 @@ export function MerchantContentCenter() {
   const [findKeyword, setFindKeyword] = useState("");
   const [findCount, setFindCount] = useState("5");
   const [findProfileUrl, setFindProfileUrl] = useState("");
+  const [findDetailUrl, setFindDetailUrl] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [sendingMaterialId, setSendingMaterialId] = useState<string | null>(null);
 
   const filteredMaterials = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -81,13 +78,17 @@ export function MerchantContentCenter() {
 
   const selectedItem =
     filteredMaterials.find((item) => item.id === selectedId) ?? filteredMaterials[0] ?? null;
+  const selectedMetrics = selectedItem ? getEngagementMetrics(selectedItem) : [];
+  const selectedComments = selectedItem ? getMaterialComments(selectedItem).slice(0, 8) : [];
+  const selectedTags = selectedItem ? getMaterialTags(selectedItem).slice(0, 12) : [];
+  const selectedProviderSummary = selectedItem ? getProviderSummary(selectedItem) : [];
 
   async function loadMaterials() {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch("/api/materials", {
+      const response = await fetch("/api/materials?limit=80", {
         cache: "no-store",
       });
       const data = (await response.json()) as {
@@ -99,7 +100,9 @@ export function MerchantContentCenter() {
         throw new Error(data.error?.message ?? "素材读取失败");
       }
 
-      const nextMaterials = data.materials ?? [];
+      const nextMaterials = (data.materials ?? []).filter(
+        (item) => item.usageType === "viral_reference",
+      );
       setMaterials(nextMaterials);
       setSelectedId((currentSelectedId) =>
         currentSelectedId && nextMaterials.some((item) => item.id === currentSelectedId)
@@ -159,7 +162,12 @@ export function MerchantContentCenter() {
   }
 
   async function handleBenchmarkSearch() {
-    const searchTarget = findMethod === "keyword" ? findKeyword.trim() : findProfileUrl.trim();
+    const searchTarget =
+      findMethod === "keyword"
+        ? findKeyword.trim()
+        : findMethod === "profile"
+          ? findProfileUrl.trim()
+          : findDetailUrl.trim();
     if (!searchTarget) {
       return;
     }
@@ -178,7 +186,8 @@ export function MerchantContentCenter() {
           findMethod,
           keyword: findMethod === "keyword" ? searchTarget : undefined,
           profileUrl: findMethod === "profile" ? searchTarget : undefined,
-          count: Number(findCount),
+          detailUrl: findMethod === "detail" ? searchTarget : undefined,
+          count: findMethod === "detail" ? 1 : Number(findCount),
         }),
       });
       const data = (await response.json()) as {
@@ -187,55 +196,16 @@ export function MerchantContentCenter() {
       };
 
       if (!response.ok || !data.materials) {
-        throw new Error(data.error?.message ?? "对标素材检索失败");
+        throw new Error(data.error?.message ?? "社媒爆款内容检索失败");
       }
 
       setMaterials((current) => [...data.materials!, ...current]);
       setSelectedId(data.materials[0]?.id ?? null);
       setShowFindModal(false);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "对标素材检索失败");
+      setError(requestError instanceof Error ? requestError.message : "社媒爆款内容检索失败");
     } finally {
       setIsSearching(false);
-    }
-  }
-
-  async function sendToWorkbench(material: MaterialLibraryItemDto) {
-    const targetWorkbench = material.materialType === "article" ? "article" : "video";
-    setSendingMaterialId(material.id);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/materials/${material.id}/send-to-workbench`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ targetWorkbench }),
-      });
-      const data = (await response.json()) as {
-        reference?: { id: string };
-        error?: { message?: string };
-      };
-
-      if (!response.ok || !data.reference) {
-        throw new Error(data.error?.message ?? "素材送入工作台失败");
-      }
-
-      const params = new URLSearchParams({
-        source: "material_center",
-        materialId: material.id,
-        materialReferenceId: data.reference.id,
-      });
-      if (targetWorkbench === "article") {
-        params.set("mode", "rewrite");
-      }
-
-      router.push(`/dashboard/${targetWorkbench}?${params.toString()}`);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "素材送入工作台失败");
-    } finally {
-      setSendingMaterialId(null);
     }
   }
 
@@ -244,10 +214,10 @@ export function MerchantContentCenter() {
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-6">
         <div>
           <h1 className="text-xl tracking-tight [font-family:var(--font-cormorant)]">
-            素材中心
+            社媒爆款内容库
           </h1>
           <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">
-            对标素材与上传素材
+            TikHub 解析内容 · 正文评论互动数据
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -257,7 +227,7 @@ export function MerchantContentCenter() {
             className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white/70 transition-colors hover:bg-white/10 hover:text-white"
           >
             <Plus className="h-3.5 w-3.5" />
-            上传素材
+            解析单条
           </button>
           <button
             type="button"
@@ -265,7 +235,7 @@ export function MerchantContentCenter() {
             className="inline-flex items-center gap-2 rounded-xl bg-amber-600/80 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white shadow-[0_18px_60px_rgba(180,83,9,0.22)] transition-colors hover:bg-amber-600"
           >
             <Search className="h-3.5 w-3.5" />
-            找对标
+            找爆款
           </button>
         </div>
       </header>
@@ -286,10 +256,10 @@ export function MerchantContentCenter() {
             <Library className="h-10 w-10" />
           </div>
           <h2 className="text-2xl text-[#e0e0e0] [font-family:var(--font-cormorant)]">
-            Your Library is Empty
+            社媒爆款内容库为空
           </h2>
           <p className="mt-4 max-w-md text-sm leading-7 text-white/40 [font-family:var(--font-cormorant)]">
-            在这里管理优秀对标内容，或上传自己的历史素材。图文工作台和视频工作台会从这里取参考素材，而不是把草稿混在素材库里。
+            这里只沉淀小红书和抖音的社媒爆款内容，包括正文、标签、互动数据和评论。项目图片和项目视频素材继续留在资料库，不放进这里。
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
             <button
@@ -297,14 +267,14 @@ export function MerchantContentCenter() {
               onClick={() => setShowUploadModal(true)}
               className="rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-[10px] uppercase tracking-[0.25em] text-white/75 transition-colors hover:bg-white/10 hover:text-white"
             >
-              本地上传
+              解析单条
             </button>
             <button
               type="button"
               onClick={() => setShowFindModal(true)}
               className="rounded-xl bg-amber-600 px-6 py-3 text-[10px] uppercase tracking-[0.25em] text-white shadow-[0_18px_60px_rgba(180,83,9,0.24)] transition-colors hover:bg-amber-500"
             >
-              去库里找找
+              去找爆款
             </button>
           </div>
         </div>
@@ -318,7 +288,7 @@ export function MerchantContentCenter() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   type="text"
-                  placeholder="Search materials..."
+                  placeholder="搜索标题、正文、作者..."
                   className="h-10 w-full rounded-xl border border-white/10 bg-[#050505] pl-11 pr-4 text-xs text-[#e0e0e0] outline-none placeholder:text-white/25 focus:border-amber-500/50"
                 />
               </div>
@@ -409,38 +379,107 @@ export function MerchantContentCenter() {
                       </div>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="inline-flex shrink-0 items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-white/40 transition-colors hover:text-amber-500"
-                  >
-                    查看详情
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </button>
+                  {selectedItem.originalUrl ? (
+                    <a
+                      href={selectedItem.originalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex shrink-0 items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-white/40 transition-colors hover:text-amber-500"
+                    >
+                      原文链接
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </a>
+                  ) : null}
                 </section>
 
-                <section className="min-h-[260px] flex-1 p-8 text-sm leading-8 text-[#e0e0e0] whitespace-pre-wrap [font-family:var(--font-cormorant)]">
-                  {selectedItem.description}
-                  <p className="mt-8 text-xs italic text-white/30">
-                    当前记录已保存到素材库。后续接素材解析 provider 后，这里会展示完整拆解、封面结构、评论洞察与可复用脚本。
-                  </p>
-                </section>
+                <section className="min-h-[260px] flex-1 space-y-8 p-8 text-sm leading-8 text-[#e0e0e0] [font-family:var(--font-cormorant)]">
+                  <div>
+                    <h3 className="mb-3 text-[10px] uppercase tracking-[0.22em] text-white/35">
+                      正文 / 文案
+                    </h3>
+                    <div className="whitespace-pre-wrap text-base leading-8">
+                      {selectedItem.description || "TikHub 暂未返回正文。"}
+                    </div>
+                  </div>
 
-                <section className="flex justify-end border-t border-white/10 bg-[#050505] p-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void sendToWorkbench(selectedItem);
-                    }}
-                    disabled={sendingMaterialId === selectedItem.id}
-                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-[#e0e0e0] transition-colors hover:bg-white/15"
-                  >
-                    {selectedItem.materialType === "article" ? (
-                      <PenLine className="h-4 w-4" />
+                  {selectedTags.length > 0 ? (
+                    <div>
+                      <h3 className="mb-3 text-[10px] uppercase tracking-[0.22em] text-white/35">
+                        标签
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white/65"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {selectedMetrics.length > 0 ? (
+                    <div>
+                      <h3 className="mb-3 text-[10px] uppercase tracking-[0.22em] text-white/35">
+                        互动数据
+                      </h3>
+                      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                        {selectedMetrics.map((metric) => (
+                          <div key={metric.label} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                            <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">
+                              {metric.label}
+                            </div>
+                            <div className="mt-2 text-xl text-amber-400">{metric.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <h3 className="mb-3 text-[10px] uppercase tracking-[0.22em] text-white/35">
+                      评论
+                    </h3>
+                    {selectedComments.length > 0 ? (
+                      <div className="space-y-3">
+                        {selectedComments.map((comment, index) => (
+                          <div
+                            key={`${comment.externalCommentId ?? comment.content}-${index}`}
+                            className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                          >
+                            <div className="mb-2 flex items-center justify-between gap-3 text-[10px] uppercase tracking-[0.18em] text-white/35">
+                              <span>{comment.authorName || "匿名用户"}</span>
+                              <span>{formatCommentStats(comment)}</span>
+                            </div>
+                            <p className="text-sm leading-7 text-white/70">{comment.content}</p>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <Video className="h-4 w-4" />
+                      <p className="text-sm text-white/35">
+                        本条内容暂未保存评论，可能是平台风控字段缺失或 TikHub 评论接口未返回。
+                      </p>
                     )}
-                    {sendingMaterialId === selectedItem.id ? "送入中..." : "送去工作台"}
-                  </button>
+                  </div>
+
+                  <div>
+                    <h3 className="mb-3 text-[10px] uppercase tracking-[0.22em] text-white/35">
+                      TikHub 解析字段
+                    </h3>
+                    <div className="grid gap-2 text-xs text-white/55 md:grid-cols-2">
+                      {selectedProviderSummary.map((row) => (
+                        <div key={row.label} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
+                          <span className="text-white/35">{row.label}：</span>
+                          <span>{row.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-4 text-xs leading-6 text-white/30">
+                      原始 TikHub payload 已随内容保存，普通用户页面不展示 raw JSON。
+                    </p>
+                  </div>
                 </section>
               </div>
             ) : (
@@ -455,7 +494,7 @@ export function MerchantContentCenter() {
       {showUploadModal ? (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
           <div className="flex w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0a0a0a] shadow-[0_24px_120px_rgba(0,0,0,0.55)]">
-            <ModalHeader title="上传解析素材" onClose={() => setShowUploadModal(false)} />
+            <ModalHeader title="解析单条爆款内容" onClose={() => setShowUploadModal(false)} />
             <div className="space-y-6 p-8">
               <OptionGroup
                 label="选择平台"
@@ -465,7 +504,7 @@ export function MerchantContentCenter() {
               />
               <div>
                 <label className="mb-3 block text-[10px] uppercase tracking-[0.22em] text-white/55">
-                  发布链接
+                  单条内容链接
                 </label>
                 <div className="relative">
                   <Link2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
@@ -473,7 +512,7 @@ export function MerchantContentCenter() {
                     value={uploadLink}
                     onChange={(event) => setUploadLink(event.target.value)}
                     type="text"
-                    placeholder="粘贴小红书、抖音或视频号链接..."
+                    placeholder="粘贴小红书笔记或抖音视频链接..."
                     className="w-full rounded-xl border border-white/10 bg-[#050505] py-3 pl-12 pr-4 text-sm text-[#e0e0e0] outline-none placeholder:text-white/25 focus:border-amber-500/50"
                   />
                 </div>
@@ -486,7 +525,7 @@ export function MerchantContentCenter() {
                   className="inline-flex items-center gap-2 rounded-xl bg-amber-600/80 px-6 py-3 text-[10px] uppercase tracking-[0.22em] text-white transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isParsing ? <Search className="h-3.5 w-3.5 animate-spin" /> : null}
-                  {isParsing ? "解析中..." : "提交解析"}
+                  {isParsing ? "解析中..." : "解析入库"}
                 </button>
               </div>
             </div>
@@ -500,8 +539,9 @@ export function MerchantContentCenter() {
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 bg-[#050505] px-8 pt-4">
               <div className="flex">
                 {[
-                  ["keyword", "搜关键词找"],
-                  ["profile", "给博主主页找"],
+                  ["keyword", "关键词"],
+                  ["profile", "博主主页"],
+                  ["detail", "单条链接"],
                 ].map(([value, label]) => (
                   <button
                     key={value}
@@ -523,7 +563,7 @@ export function MerchantContentCenter() {
                 type="button"
                 onClick={() => setShowFindModal(false)}
                 className="mb-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/45 transition-colors hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-400"
-                aria-label="关闭找对标弹窗"
+                aria-label="关闭社媒爆款检索弹窗"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -562,7 +602,7 @@ export function MerchantContentCenter() {
                     suffix="篇"
                   />
                 </>
-              ) : (
+              ) : findMethod === "profile" ? (
                 <div>
                   <label className="mb-3 block text-[10px] uppercase tracking-[0.22em] text-white/55">
                     博主主页链接
@@ -578,7 +618,26 @@ export function MerchantContentCenter() {
                     />
                   </div>
                   <p className="mt-3 text-xs leading-6 text-white/35">
-                    会优先拉取该博主近期互动表现更好的内容，供后续图文和视频工作台参考。
+                    会优先拉取该博主近期互动表现更好的内容，供咨询和选题 Agent 查询。
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="mb-3 block text-[10px] uppercase tracking-[0.22em] text-white/55">
+                    单条内容链接
+                  </label>
+                  <div className="relative">
+                    <Link2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                    <input
+                      value={findDetailUrl}
+                      onChange={(event) => setFindDetailUrl(event.target.value)}
+                      type="text"
+                      placeholder="粘贴小红书笔记或抖音视频链接..."
+                      className="w-full rounded-xl border border-white/10 bg-[#050505] py-3 pl-12 pr-4 text-sm text-[#e0e0e0] outline-none placeholder:text-white/25 focus:border-amber-500/50"
+                    />
+                  </div>
+                  <p className="mt-3 text-xs leading-6 text-white/35">
+                    单条链接会解析正文、互动数据和评论；视频不会进入视频剪辑素材库。
                   </p>
                 </div>
               )}
@@ -590,12 +649,13 @@ export function MerchantContentCenter() {
                   disabled={
                     isSearching ||
                     (findMethod === "keyword" && !findKeyword.trim()) ||
-                    (findMethod === "profile" && !findProfileUrl.trim())
+                    (findMethod === "profile" && !findProfileUrl.trim()) ||
+                    (findMethod === "detail" && !findDetailUrl.trim())
                   }
                   className="inline-flex items-center gap-2 rounded-xl bg-amber-600/80 px-6 py-3 text-[10px] uppercase tracking-[0.22em] text-white transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSearching ? <Search className="h-3.5 w-3.5 animate-spin" /> : null}
-                  {isSearching ? "找寻中..." : "开始找寻"}
+                  {isSearching ? "解析中..." : "开始解析"}
                 </button>
               </div>
             </div>
@@ -604,6 +664,123 @@ export function MerchantContentCenter() {
       ) : null}
     </div>
   );
+}
+
+type DisplayComment = {
+  externalCommentId?: string | null;
+  authorName?: string | null;
+  content: string;
+  likeCount?: number | null;
+  replyCount?: number | null;
+};
+
+function getEngagementMetrics(item: MaterialLibraryItemDto) {
+  const engagement = toRecord(item.analysisPayload.engagementSnapshot);
+  const metricMap: Array<[string, string]> = [
+    ["likedCount", "点赞"],
+    ["commentCount", "评论"],
+    ["collectedCount", "收藏"],
+    ["shareCount", "转发"],
+    ["playCount", "播放"],
+  ];
+
+  return metricMap.flatMap(([key, label]) => {
+    const value = engagement[key];
+    return typeof value === "number" && Number.isFinite(value)
+      ? [{ label, value: formatLargeNumber(value) }]
+      : [];
+  });
+}
+
+function getMaterialComments(item: MaterialLibraryItemDto): DisplayComment[] {
+  const tracePayload = toRecord(item.analysisPayload.tracePayload);
+  const comments = tracePayload.materialComments;
+
+  if (!Array.isArray(comments)) {
+    return [];
+  }
+
+  return comments.flatMap((comment) => {
+    const record = toRecord(comment);
+    const content = typeof record.content === "string" ? record.content.trim() : "";
+
+    if (!content) {
+      return [];
+    }
+
+    return [{
+      externalCommentId: typeof record.externalCommentId === "string" ? record.externalCommentId : null,
+      authorName: typeof record.authorName === "string" ? record.authorName : null,
+      content,
+      likeCount: typeof record.likeCount === "number" ? record.likeCount : null,
+      replyCount: typeof record.replyCount === "number" ? record.replyCount : null,
+    }];
+  });
+}
+
+function getMaterialTags(item: MaterialLibraryItemDto) {
+  const structureSummary = toRecord(item.analysisPayload.structureSummary);
+  const tags = structureSummary.tags;
+
+  if (!Array.isArray(tags)) {
+    return [];
+  }
+
+  return tags
+    .map((tag) => typeof tag === "string" ? tag.replace(/^#/, "").trim() : "")
+    .filter(Boolean);
+}
+
+function getProviderSummary(item: MaterialLibraryItemDto) {
+  const structureSummary = toRecord(item.analysisPayload.structureSummary);
+  const tracePayload = toRecord(item.analysisPayload.tracePayload);
+  const benchmark = toRecord(tracePayload.materialBenchmark);
+  const rows = [
+    { label: "来源方式", value: formatFindMethod(typeof benchmark.findMethod === "string" ? benchmark.findMethod : "") },
+    { label: "内容形态", value: item.materialType === "video" ? "视频" : "图文" },
+    { label: "Provider", value: typeof structureSummary.provider === "string" ? structureSummary.provider : "tikhub" },
+    { label: "评论状态", value: formatCommentFetchStatus(toRecord(tracePayload.materialCommentFetch)) },
+  ];
+
+  return rows.filter((row) => Boolean(row.value));
+}
+
+function formatFindMethod(value: string) {
+  if (value === "keyword") return "关键词";
+  if (value === "profile") return "博主主页";
+  if (value === "detail") return "单条链接";
+  return "";
+}
+
+function formatCommentFetchStatus(value: Record<string, unknown>) {
+  if (value.status === "ready") return `已保存 ${typeof value.count === "number" ? value.count : 0} 条`;
+  if (value.status === "empty") return "未返回评论";
+  if (value.status === "skipped") return "缺少评论接口必要参数";
+  if (value.status === "failed") return "拉取失败";
+  return "";
+}
+
+function formatCommentStats(comment: DisplayComment) {
+  const parts = [
+    typeof comment.likeCount === "number" ? `赞 ${formatLargeNumber(comment.likeCount)}` : null,
+    typeof comment.replyCount === "number" ? `回复 ${formatLargeNumber(comment.replyCount)}` : null,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" · ") : "评论";
+}
+
+function formatLargeNumber(value: number) {
+  if (value >= 10000) {
+    return `${Number((value / 10000).toFixed(1))}万`;
+  }
+
+  return String(value);
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
 }
 
 function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {

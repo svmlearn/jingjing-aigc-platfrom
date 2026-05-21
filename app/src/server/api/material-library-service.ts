@@ -46,34 +46,21 @@ export async function createUploadedMaterialForUser(input: {
   url: string;
 }): Promise<MaterialLibraryItemDto> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const materialType = inferMaterialType(input.platform, input.url);
-  const compactedUrl = compactUrl(input.url);
-  const platformLabel = platformLabels[input.platform];
-
-  return createMaterialLibraryItem({
+  const [material] = await createBenchmarkMaterialsForMerchant({
     merchantId: merchant.id,
     createdByUserId: input.userId,
+    merchantName: merchant.name,
     platform: input.platform,
-    materialType,
-    sourceKind: "uploaded",
-    usageType: "viral_reference",
-    title: `${platformLabel} 上传素材 · ${compactedUrl}`,
-    description: [
-      `已保存素材链接：${input.url}`,
-      "",
-      "当前已完成入库与基础识别。后续素材解析 worker 接入后，会补全标题、正文、脚本、评论洞察、封面结构和可复用拆解。",
-    ].join("\n"),
-    originalUrl: input.url,
-    engagementLabel: "待分析",
-    analysisPayload: {
-      parser: "pending_provider_integration",
-      originalUrl: input.url,
-      inferredMaterialType: materialType,
-      materialUsageType: "viral_reference",
-      retrievalTargets: ["copy_context", "script_context"],
-      merchantName: merchant.name,
-    },
+    findMethod: "detail",
+    detailUrl: input.url,
+    count: 1,
   });
+
+  if (!material) {
+    throw new ApiError(502, "TIKHUB_EMPTY_MATERIAL_RESULT", "单条链接没有解析出可用内容。");
+  }
+
+  return material;
 }
 
 export async function createProjectMediaMaterialForUser(input: {
@@ -129,9 +116,10 @@ export async function createProjectMediaMaterialForUser(input: {
 export async function createBenchmarkMaterialsForUser(input: {
   userId: string;
   platform: MaterialPlatform;
-  findMethod: "keyword" | "profile";
+  findMethod: "keyword" | "profile" | "detail";
   keyword?: string;
   profileUrl?: string;
+  detailUrl?: string;
   count?: number;
 }): Promise<MaterialLibraryItemDto[]> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
@@ -144,6 +132,7 @@ export async function createBenchmarkMaterialsForUser(input: {
     findMethod: input.findMethod,
     keyword: input.keyword,
     profileUrl: input.profileUrl,
+    detailUrl: input.detailUrl,
     count: input.count,
   });
 }
@@ -153,15 +142,20 @@ export async function createBenchmarkMaterialsForMerchant(input: {
   createdByUserId: string;
   merchantName?: string | null;
   platform: MaterialPlatform;
-  findMethod: "keyword" | "profile";
+  findMethod: "keyword" | "profile" | "detail";
   keyword?: string;
   profileUrl?: string;
+  detailUrl?: string;
   count?: number;
 }): Promise<MaterialLibraryItemDto[]> {
   const platformLabel = platformLabels[input.platform];
   const count = Math.min(Math.max(input.count ?? 5, 1), 20);
   const searchTarget =
-    input.findMethod === "keyword" ? input.keyword?.trim() ?? "" : input.profileUrl?.trim() ?? "";
+    input.findMethod === "keyword"
+      ? input.keyword?.trim() ?? ""
+      : input.findMethod === "profile"
+        ? input.profileUrl?.trim() ?? ""
+        : input.detailUrl?.trim() ?? "";
 
   if (!searchTarget) {
     throw new ApiError(400, "MATERIAL_BENCHMARK_TARGET_REQUIRED", "Search target is required.");
@@ -215,6 +209,7 @@ export async function createBenchmarkMaterialsForMerchant(input: {
             endpoint: response.endpoint,
             method: response.method,
             requestPayload: response.requestPayload,
+            responsePayload: response.responsePayload,
           })),
         },
       })),
@@ -229,7 +224,9 @@ export async function createBenchmarkMaterialsForMerchant(input: {
     const title =
       input.findMethod === "keyword"
         ? `${searchTarget} · ${platformLabel} 高互动对标 ${rank}`
-        : `${platformLabel} 博主主页高赞素材 ${rank}`;
+        : input.findMethod === "profile"
+          ? `${platformLabel} 博主主页高赞素材 ${rank}`
+          : `${platformLabel} 单条链接待解析素材`;
 
     createdItems.push(
       await createMaterialLibraryItem({
@@ -243,8 +240,15 @@ export async function createBenchmarkMaterialsForMerchant(input: {
         description:
           input.findMethod === "keyword"
             ? `TikHub API key 尚未配置，暂未真实检索「${searchTarget}」。配置 TIKHUB_API_KEY 后，这里会保存平台返回的标题、链接、互动数据和拆解结果。`
-            : `TikHub API key 尚未配置，暂未真实解析该博主主页。配置 TIKHUB_API_KEY 后，会优先保存近期互动表现更好的内容。`,
-        originalUrl: input.findMethod === "profile" ? input.profileUrl ?? null : null,
+            : input.findMethod === "profile"
+              ? `TikHub API key 尚未配置，暂未真实解析该博主主页。配置 TIKHUB_API_KEY 后，会优先保存近期互动表现更好的内容。`
+              : `TikHub API key 尚未配置，暂未真实解析该单条链接。配置 TIKHUB_API_KEY 后，会保存正文、互动数据和评论。`,
+        originalUrl:
+          input.findMethod === "profile"
+            ? input.profileUrl ?? null
+            : input.findMethod === "detail"
+              ? input.detailUrl ?? null
+              : null,
         creatorName: input.findMethod === "profile" ? "待解析博主" : null,
         engagementLabel: "TikHub 未配置",
         status: "failed",
@@ -278,20 +282,6 @@ export async function sendMaterialToWorkbenchForUser(input: {
     targetWorkbench: input.targetWorkbench,
     createdByUserId: input.userId,
   });
-}
-
-function inferMaterialType(platform: MaterialPlatform, url: string): MaterialType {
-  const normalizedUrl = url.toLowerCase();
-
-  if (platform === "douyin" || normalizedUrl.includes("video") || normalizedUrl.includes("douyin")) {
-    return "video";
-  }
-
-  return "article";
-}
-
-function compactUrl(url: string) {
-  return url.replace(/^https?:\/\//, "").replace(/^www\./, "").slice(0, 44);
 }
 
 function compactStrings(values: Array<string | null | undefined>) {

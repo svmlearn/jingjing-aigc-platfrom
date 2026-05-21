@@ -13,6 +13,7 @@ import type {
   StrategySnapshotDto,
 } from "@/contracts/consultation";
 import type { MerchantProfileDto } from "@/contracts/merchant";
+import type { MaterialLibraryItemDto } from "@/contracts/material";
 import type {
   ConsultationAgentSettingsDto,
   KnowledgeRuntimeSettingsDto,
@@ -1604,21 +1605,27 @@ async function dispatchBenchmarkMaterialTool(
   state: ConsultationAgentLoopState,
 ): Promise<ConsultationAgentToolResult> {
   const platform = parseBenchmarkPlatform(call.args.platform);
-  const findMethod = call.args.findMethod === "profile" ? "profile" : "keyword";
+  const findMethod =
+    call.args.findMethod === "profile"
+      ? "profile"
+      : call.args.findMethod === "detail"
+        ? "detail"
+        : "keyword";
   const keyword = typeof call.args.keyword === "string" ? call.args.keyword.trim() : "";
   const profileUrl = typeof call.args.profileUrl === "string" ? call.args.profileUrl.trim() : "";
+  const detailUrl = typeof call.args.detailUrl === "string" ? call.args.detailUrl.trim() : "";
   const count =
     typeof call.args.count === "number" && Number.isFinite(call.args.count)
       ? Math.min(Math.max(Math.trunc(call.args.count), 1), 10)
       : 5;
-  const target = findMethod === "profile" ? profileUrl : keyword;
+  const target = findMethod === "profile" ? profileUrl : findMethod === "detail" ? detailUrl : keyword;
 
   if (!target) {
     return {
       callId: call.id,
       toolName: call.toolName,
       status: "skipped",
-      summary: "对标素材检索缺少关键词或博主主页链接，本轮跳过。",
+      summary: "社媒爆款内容检索缺少关键词、博主主页链接或单条内容链接，本轮跳过。",
       payload: {
         reason: "missing_benchmark_target",
       },
@@ -1634,6 +1641,7 @@ async function dispatchBenchmarkMaterialTool(
       findMethod,
       keyword: findMethod === "keyword" ? target : undefined,
       profileUrl: findMethod === "profile" ? target : undefined,
+      detailUrl: findMethod === "detail" ? target : undefined,
       count,
     });
     const readyMaterials = materials.filter((material) => material.status === "ready");
@@ -1644,8 +1652,8 @@ async function dispatchBenchmarkMaterialTool(
       status: readyMaterials.length > 0 ? "completed" : "skipped",
       summary:
         readyMaterials.length > 0
-          ? `已检索并沉淀 ${readyMaterials.length} 条${platform === "douyin" ? "抖音" : "小红书"}对标素材，可用于选题和爆款结构拆解。`
-          : "对标素材检索未拿到可用结果，已保留配置或失败状态供排查。",
+          ? `已检索并沉淀 ${readyMaterials.length} 条${platform === "douyin" ? "抖音" : "小红书"}社媒爆款内容，可用于选题和咨询分析。`
+          : "社媒爆款内容检索未拿到可用结果，已保留配置或失败状态供排查。",
       payload: {
         platform,
         findMethod,
@@ -1655,8 +1663,12 @@ async function dispatchBenchmarkMaterialTool(
           id: material.id,
           title: material.title,
           materialType: material.materialType,
+          bodyText: material.description,
           creatorName: material.creatorName,
           engagementLabel: material.engagementLabel,
+          engagementSnapshot: toRecord(material.analysisPayload.engagementSnapshot),
+          structureSummary: toRecord(material.analysisPayload.structureSummary),
+          comments: getMaterialCommentsForAgent(material).slice(0, 20),
           originalUrl: material.originalUrl,
           status: material.status,
         })),
@@ -1669,8 +1681,8 @@ async function dispatchBenchmarkMaterialTool(
       status: "skipped",
       summary:
         error instanceof Error
-          ? `对标素材检索失败：${error.message}`
-          : "对标素材检索失败。",
+          ? `社媒爆款内容检索失败：${error.message}`
+          : "社媒爆款内容检索失败。",
       payload: {
         platform,
         findMethod,
@@ -1683,6 +1695,38 @@ async function dispatchBenchmarkMaterialTool(
 
 function parseBenchmarkPlatform(value: unknown): "xiaohongshu" | "douyin" {
   return value === "douyin" ? "douyin" : "xiaohongshu";
+}
+
+function getMaterialCommentsForAgent(material: MaterialLibraryItemDto) {
+  const tracePayload = toRecord(material.analysisPayload.tracePayload);
+  const comments = tracePayload.materialComments;
+
+  if (!Array.isArray(comments)) {
+    return [];
+  }
+
+  return comments.flatMap((comment) => {
+    const record = toRecord(comment);
+    const content = typeof record.content === "string" ? record.content.trim() : "";
+
+    if (!content) {
+      return [];
+    }
+
+    return [{
+      authorName: typeof record.authorName === "string" ? record.authorName : null,
+      content,
+      likeCount: typeof record.likeCount === "number" ? record.likeCount : null,
+      replyCount: typeof record.replyCount === "number" ? record.replyCount : null,
+      publishedAt: typeof record.publishedAt === "string" ? record.publishedAt : null,
+    }];
+  });
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
 }
 
 function buildGreetingMessage(merchant: MerchantProfileDto) {
@@ -1920,7 +1964,7 @@ function buildNativeToolCallingMessages(input: {
         "只有在用户明确要求沉淀、补充、写进右侧策略资产，或当前信息已经足够形成业务结论时，才调用 update_strategy_snapshot。",
         "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",
         "轻问答、寒暄、流程追问、信息不足时，不要调用 update_strategy_snapshot；应该直接回答或追问一个关键事实。",
-        "用户要求找对标、竞品、爆款、博主主页或提供小红书/抖音链接时，优先调用 search_benchmark_materials。",
+        "用户要求找对标、竞品、爆款、博主主页或提供小红书/抖音链接时，优先调用 search_benchmark_materials；该工具读取和沉淀的是社媒爆款内容库，不是项目图片/视频素材库。",
         "需要方法论、案例、用户资料依据时，调用 retrieve_knowledge_base；用户提到刚才、上次、前面时，调用 read_history。",
         "工具返回 skipped 或 guardrail 拒写时，最终回复必须承认本轮未写入，不能声称已经更新。",
         "最终可见回复只输出给用户的中文自然语言，不要输出内部工具名、JSON、Markdown 表格或 debug payload。",

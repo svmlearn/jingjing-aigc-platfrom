@@ -15,6 +15,7 @@ export async function POST(request: Request) {
       findMethod: payload.findMethod,
       keyword: payload.keyword,
       profileUrl: payload.profileUrl,
+      detailUrl: payload.detailUrl,
       count: payload.count,
     });
 
