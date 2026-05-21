@@ -172,3 +172,45 @@ rg -n "generate_article_brief|generate_video_brief|decisionRules|observations.*s
 1. 如继续做 V2.7 P1，优先实现预算 preflight enforcer，而不是继续增加 prompt 规则。
 2. 如要彻底清除 `generate_article_brief` / `generate_video_brief` 的源码命中，需要另起任务决定是否删除 legacy schema、tool registry 和 handler。
 3. 合并前建议再次确认默认 agent 配置和平台管理端工具配置 UI 是否还展示 legacy brief 工具。
+
+## 2026-05-22 P1 预算硬执行补丁
+
+触发目标：把 consultation agent context budget 从 report/debug 升级为真正的 preflight enforcer，在发送 LLM 前对主模型消息做裁剪和 omit，不再只记录 `over_budget`。
+
+本次补丁完成：
+
+1. 新增 `enforceConsultationMessageBudget`，策略为 `consultation_context_preflight_enforcer_v1`。
+2. 在发送模型前执行 message preflight：
+   - native tool calling 每轮：`native_tool_calling_turn_${turn}`
+   - native final：`native_tool_calling_final`
+   - JSON tool loop 每轮：`json_tool_loop_turn_${turn}`
+   - JSON final：`json_tool_loop_final`
+   - fallback assistant reply：`assistant_reply`
+   - strategy asset editor：`strategy_asset_editor`
+3. 裁剪/压缩策略：
+   - system message 超限时中段裁剪，避免无限注入 skill body / references。
+   - user JSON 会压缩 `strategySnapshot`、`currentStrategySnapshot`、`currentKnowledgeMatches`、`recentConversation`、`recentUserMessages`。
+   - tool result 会压缩长 `payload` 为 `tool_payload_preview_v1`，并裁剪 `knowledgeMatches[].content`。
+   - 总字符仍超限时按消息组保留最近上下文，保留 native assistant tool call + tool result 配对，不拆 pair。
+4. `runtimeSnapshot.contextBoundary.compactBoundary` 现在记录：
+   - `status: applied | not_applied`
+   - `reason`
+   - `reports`
+   - 每个 report 含 original/final chars、clipped/omitted message count 和 action 明细。
+5. budget/report 仍不进入主模型消息；完整 debug 继续留在 runtimeSnapshot/contextBoundary。
+
+本次补丁验证：
+
+```bash
+corepack pnpm typecheck
+corepack pnpm lint
+node --test src/server/api/consultation-service.test.ts
+corepack pnpm build
+git diff --check
+```
+
+说明：
+
+- `node --test` 通过 46 项。
+- `corepack pnpm lint` 通过，但仍有 10 个既有 unused warnings，均不在本轮改动文件内。
+- 新增测试 `consultation preflight enforces payload budget before model calls`，保护 enforcer、tool payload compact、message omit、各模型调用路径和 debug report。

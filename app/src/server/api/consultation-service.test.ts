@@ -213,19 +213,39 @@ test("consultation context records budget and session summary", () => {
   assert.match(consultationServiceAndRuntimeSource, /sessionSummary/);
   assert.match(consultationServiceAndRuntimeSource, /char_budget_v1/);
   assert.match(consultationServiceAndRuntimeSource, /contextBudget/);
+  assert.match(consultationServiceAndRuntimeSource, /ConsultationContextPreflightReport/);
+  assert.match(consultationServiceAndRuntimeSource, /enforceConsultationMessageBudget/);
+  assert.match(consultationServiceAndRuntimeSource, /consultation_context_preflight_enforcer_v1/);
 });
 
 test("consultation context records replayable context boundary snapshots", () => {
   assert.match(consultationRuntimeSource, /buildContextBoundarySnapshot/);
   assert.match(consultationRuntimeSource, /consultation_context_boundary_v1/);
   assert.match(consultationRuntimeSource, /context_compact_boundary_v1/);
-  assert.match(consultationRuntimeSource, /phase_3_snapshot_only_no_compaction_yet/);
+  assert.match(consultationRuntimeSource, /consultation_context_preflight_enforcer_v1_applied_before_llm_call/);
+  assert.match(consultationRuntimeSource, /reports: preflightReports/);
   assert.match(consultationRuntimeSource, /state\.contextBoundary = contextBoundary/);
   assert.match(consultationRuntimeSource, /state\.contextBudget = contextBoundary\.budget/);
   assert.match(consultationRuntimeSource, /contextBoundary: state\.contextBoundary \?\? null/);
   assert.match(consultationServiceAndRuntimeSource, /recentConversation/);
   assert.match(consultationServiceAndRuntimeSource, /memoryMatchIds/);
   assert.match(serviceSource, /runtimeSnapshot\.toolCallSummary\.contextBoundary/);
+});
+
+test("consultation preflight enforces payload budget before model calls", () => {
+  assert.match(consultationServiceAndRuntimeSource, /prepareConsultationMessagesForCompletion/);
+  assert.match(consultationServiceAndRuntimeSource, /phase: `native_tool_calling_turn_\$\{turn\}`/);
+  assert.match(consultationServiceAndRuntimeSource, /phase: `json_tool_loop_turn_\$\{turn\}`/);
+  assert.match(consultationServiceAndRuntimeSource, /phase: "assistant_reply"/);
+  assert.match(consultationServiceAndRuntimeSource, /phase: "strategy_asset_editor"/);
+  assert.match(consultationServiceAndRuntimeSource, /compactToolResultContent/);
+  assert.match(consultationServiceAndRuntimeSource, /tool_payload_preview_v1/);
+  assert.match(consultationServiceAndRuntimeSource, /message_omitted/);
+  assert.match(consultationServiceAndRuntimeSource, /maxTotalChars: 28_000/);
+  assert.match(consultationServiceAndRuntimeSource, /clipMiddle/);
+  assert.match(consultationServiceAndRuntimeSource, /payload: payload && payloadChars > limits\.maxToolPayloadChars/);
+  assert.match(consultationServiceAndRuntimeSource, /input\.state\.contextPreflightReports/);
+  assert.match(consultationServiceAndRuntimeSource, /budgeted\.messages/);
 });
 
 test("consultation slim context keeps debug-only fields out of main model payload", () => {

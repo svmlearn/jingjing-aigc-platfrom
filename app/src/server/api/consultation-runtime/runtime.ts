@@ -21,6 +21,7 @@ import {
 import { buildSkillDependencyWarnings } from "@/server/api/consultation-runtime/skills";
 import {
   buildContextBoundarySnapshot,
+  enforceConsultationMessageBudget,
   buildLatestExpertTurnNote,
 } from "@/server/api/consultation-runtime/context";
 import {
@@ -334,10 +335,15 @@ async function runModelJsonToolLoop(input: {
     let response: Awaited<ReturnType<typeof createChatCompletion>>;
 
     try {
+      const budgetedMessages = prepareConsultationMessagesForCompletion({
+        state: input.input.state,
+        phase: `json_tool_loop_turn_${turn}`,
+        messages: [...messages, loopStateMessage],
+      });
       response = await createChatCompletion({
         runtime: input.input.state.llmRuntime,
         model: input.input.state.consultationAgent.model,
-        messages: [...messages, loopStateMessage],
+        messages: budgetedMessages,
         responseFormat: "json_object",
       });
     } catch (error) {
@@ -553,17 +559,21 @@ async function runModelJsonToolLoop(input: {
     const finalResponse = await createChatCompletion({
       runtime: input.input.state.llmRuntime,
       model: input.input.state.consultationAgent.model,
-      messages: [
-        ...messages,
-        {
-          role: "user",
-          content: JSON.stringify({
-            type: "final_instruction",
-            instruction:
-              "请停止调用工具，基于已经返回的 tool_result 给用户一个中文自然语言回复。输出 JSON：{\"action\":\"final\",\"finalResponse\":\"...\"}。",
-          }),
-        },
-      ],
+      messages: prepareConsultationMessagesForCompletion({
+        state: input.input.state,
+        phase: "json_tool_loop_final",
+        messages: [
+          ...messages,
+          {
+            role: "user",
+            content: JSON.stringify({
+              type: "final_instruction",
+              instruction:
+                "请停止调用工具，基于已经返回的 tool_result 给用户一个中文自然语言回复。输出 JSON：{\"action\":\"final\",\"finalResponse\":\"...\"}。",
+            }),
+          },
+        ],
+      }),
       responseFormat: "json_object",
     });
     const parsed = parseJsonToolLoopDecision(finalResponse.content);
@@ -620,10 +630,15 @@ async function runNativeToolCallingLoop(input: {
     let response: Awaited<ReturnType<typeof createChatCompletion>>;
 
     try {
+      const budgetedMessages = prepareConsultationMessagesForCompletion({
+        state: input.input.state,
+        phase: `native_tool_calling_turn_${turn}`,
+        messages,
+      });
       response = await createChatCompletion({
         runtime: input.input.state.llmRuntime,
         model: input.input.state.consultationAgent.model,
-        messages,
+        messages: budgetedMessages,
         tools,
         toolChoice: "auto",
       });
@@ -746,14 +761,18 @@ async function runNativeToolCallingLoop(input: {
     const finalResponse = await createChatCompletion({
       runtime: input.input.state.llmRuntime,
       model: input.input.state.consultationAgent.model,
-      messages: [
-        ...messages,
-        {
-          role: "user",
-          content:
-            "请停止调用工具，基于已经返回的工具结果给用户一个中文自然语言回复。不要声称未完成的工具已经执行，不要输出内部工具名。",
-        },
-      ],
+      messages: prepareConsultationMessagesForCompletion({
+        state: input.input.state,
+        phase: "native_tool_calling_final",
+        messages: [
+          ...messages,
+          {
+            role: "user",
+            content:
+              "请停止调用工具，基于已经返回的工具结果给用户一个中文自然语言回复。不要声称未完成的工具已经执行，不要输出内部工具名。",
+          },
+        ],
+      }),
     });
     const content = finalResponse.content.trim();
 
@@ -1079,6 +1098,23 @@ function buildNativeFallbackResult(reason: string): NativeToolCallingResult {
     fallbackReason: reason,
     terminalReason: "fallback_deterministic",
   };
+}
+
+function prepareConsultationMessagesForCompletion(input: {
+  state: ConsultationAgentLoopState;
+  phase: string;
+  messages: ChatMessage[];
+}) {
+  const result = enforceConsultationMessageBudget({
+    messages: input.messages,
+    phase: input.phase,
+  });
+  input.state.contextPreflightReports = [
+    ...(input.state.contextPreflightReports ?? []),
+    result.report,
+  ];
+
+  return result.messages;
 }
 
 function buildNativeToolResultContent(result: ConsultationAgentToolResult) {

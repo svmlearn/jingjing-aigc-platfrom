@@ -64,6 +64,7 @@ import {
   buildSharedConsultationState,
   buildKnowledgeContextBlock,
   buildSlimContextPackSystemPrompt,
+  enforceConsultationMessageBudget,
 } from "@/server/api/consultation-runtime/context";
 import {
   resolveConsultationAgentRuntime,
@@ -1311,6 +1312,8 @@ async function runConsultationAgentLoop(input: {
         sharedConsultationState: currentState.sharedConsultationState,
         expertTurnNotes: currentState.expertTurnNotes,
         mentionRouting: currentState.mentionRouting,
+        contextPreflightReports:
+          currentState.contextPreflightReports ?? (currentState.contextPreflightReports = []),
       }),
     buildNativeToolCallingMessages: ({ state: currentState, toolResults }) =>
       buildNativeToolCallingMessages({
@@ -1763,6 +1766,7 @@ async function buildAssistantReplyWithModel(input: {
   sharedConsultationState: ConsultationAgentLoopState["sharedConsultationState"];
   expertTurnNotes: ConsultationAgentLoopState["expertTurnNotes"];
   mentionRouting: ConsultationMentionRouting;
+  contextPreflightReports?: ConsultationAgentLoopState["contextPreflightReports"];
 }): Promise<{
   content: string;
   mode: "llm" | "fallback_no_key" | "fallback_error";
@@ -1792,46 +1796,52 @@ async function buildAssistantReplyWithModel(input: {
   }
 
   try {
+    const messages: ChatMessage[] = [
+      {
+        role: "system",
+        content: [
+          input.consultationAgent.systemPrompt,
+          buildAgentSoulPrompt(input.consultationAgent),
+          buildExpertContainerPrompt(input.consultationAgent),
+          buildSkillCatalogPrompt(input.consultationAgent),
+          buildActiveSkillPrompt(input.consultationAgent.activeSkills),
+          buildSkillReferencePrompt(input.consultationAgent.activeSkills),
+          buildBusinessToolPrompt(input.consultationAgent.enabledTools),
+          buildSlimContextPackSystemPrompt(slimContextPack),
+          "你只输出给用户的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
+          "回答时可以使用策略快照和 currentKnowledgeMatches 里的受控知识库片段；如果信息不足，可以提出一个最关键的追问。",
+          "当 currentKnowledgeMatches 已包含用户知识库片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
+          "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshot 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
+        ]
+          .filter((item): item is string => Boolean(item))
+          .join("\n"),
+      },
+      {
+        role: "user",
+        content: JSON.stringify({
+          merchant: {
+            name: input.merchant.name,
+            industry: input.merchant.industry,
+            serviceItems: input.merchant.serviceItems,
+            defaultCta: input.merchant.defaultCta,
+          },
+          userMessage: input.userContent,
+          round: input.round,
+          expertRouting: slimContextPack.expertRouting,
+          strategySnapshot: input.strategySnapshot,
+          currentKnowledgeMatches: slimContextPack.selectedKnowledgeMatches,
+        }),
+      },
+    ];
+    const budgeted = enforceConsultationMessageBudget({
+      messages,
+      phase: "assistant_reply",
+    });
+    input.contextPreflightReports?.push(budgeted.report);
     const response = await createChatCompletion({
       runtime: input.llmRuntime,
       model: input.consultationAgent.model,
-      messages: [
-        {
-          role: "system",
-          content: [
-            input.consultationAgent.systemPrompt,
-            buildAgentSoulPrompt(input.consultationAgent),
-            buildExpertContainerPrompt(input.consultationAgent),
-            buildSkillCatalogPrompt(input.consultationAgent),
-            buildActiveSkillPrompt(input.consultationAgent.activeSkills),
-            buildSkillReferencePrompt(input.consultationAgent.activeSkills),
-            buildBusinessToolPrompt(input.consultationAgent.enabledTools),
-            buildSlimContextPackSystemPrompt(slimContextPack),
-            "你只输出给用户的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
-            "回答时可以使用策略快照和 currentKnowledgeMatches 里的受控知识库片段；如果信息不足，可以提出一个最关键的追问。",
-            "当 currentKnowledgeMatches 已包含用户知识库片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
-            "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshot 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
-          ]
-            .filter((item): item is string => Boolean(item))
-            .join("\n"),
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            merchant: {
-              name: input.merchant.name,
-              industry: input.merchant.industry,
-              serviceItems: input.merchant.serviceItems,
-              defaultCta: input.merchant.defaultCta,
-            },
-            userMessage: input.userContent,
-            round: input.round,
-            expertRouting: slimContextPack.expertRouting,
-            strategySnapshot: input.strategySnapshot,
-            currentKnowledgeMatches: slimContextPack.selectedKnowledgeMatches,
-          }),
-        },
-      ],
+      messages: budgeted.messages,
     });
 
     return {
@@ -2558,10 +2568,19 @@ async function createStrategyAssetEditorCompletion(input: {
   messages: ChatMessage[];
   model?: string;
 }) {
+  const budgeted = enforceConsultationMessageBudget({
+    messages: input.messages,
+    phase: "strategy_asset_editor",
+  });
+  input.state.contextPreflightReports = [
+    ...(input.state.contextPreflightReports ?? []),
+    budgeted.report,
+  ];
+
   return createChatCompletion({
     runtime: input.state.llmRuntime,
     model: input.model || input.state.consultationAgent.model,
-    messages: input.messages,
+    messages: budgeted.messages,
     tools: [strategyAssetEditorTool],
     toolChoice: {
       type: "function",
