@@ -46,3 +46,31 @@ node --test src/server/import-providers/tikhub/normalizers.test.ts
 - 默认评论抓取条数由 `TIKHUB_MATERIAL_COMMENT_COUNT` 控制，默认 20，设为 0 可关闭默认评论抓取。
 - 跨商家缓存复用沿用已有 provider cache key 机制；命中缓存时会复制 trace 中的规范化评论并再次尝试写入当前 source item 的评论表。
 - 本轮没有新增 raw JSON 管理后台入口，符合用户确认。
+
+## 2026-05-21 补充：媒体链接转存 OSS 待办
+
+用户确认后，本轮继续补了两项能力：
+
+1. 博主主页导入支持 `5 / 20 / 50 / 全量` 选项。
+2. TikHub normalizer 会从 raw payload 里结构化抽取 `coverUrl`、`imageUrls`、`videoUrls`，随社媒爆款内容保存到 `structureSummary`。
+
+同时记录一个明确未完成事项：
+
+- **尚未实现导入后自动下载媒体并上传 OSS**。
+
+当前事实：
+
+1. TikHub 返回的小红书主页样本中包含图片 CDN URL 和视频 mp4 URL。
+2. 已在阿里云服务器用真实返回样本做下载探测：
+   - 图片链接返回 `206 image/webp`。
+   - 视频链接返回 `206 video/mp4`。
+3. 因此，媒体“下载后上传 OSS”技术上可行。
+4. 当前实现只保存 TikHub/CDN 原始链接和 raw payload，不保证这些链接长期有效。
+
+建议后续单独做 `TikHub 媒体转存 OSS` 任务：
+
+1. 在 TikHub 内容入库后创建媒体转存任务。
+2. 下载 `coverUrl`、`imageUrls`、`videoUrls` 中的资源。
+3. 上传到 OSS，并以 `source_item.id` 作为 owner 写入 `asset_objects`。
+4. 在素材详情页优先展示 OSS 资产；OSS 不存在时再 fallback 到 TikHub/CDN 原链接。
+5. 爆款视频仍保持“社媒参考内容”定位，不自动进入 video worker 的项目视频素材库，除非后续另行确认。
