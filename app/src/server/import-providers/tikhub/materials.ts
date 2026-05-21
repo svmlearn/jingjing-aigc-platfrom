@@ -22,7 +22,7 @@ export async function fetchTikHubBenchmarkMaterials(
   input: TikHubBenchmarkRequest,
 ): Promise<TikHubBenchmarkResult> {
   const cacheKey = buildTikHubBenchmarkCacheKey(input);
-  const count = Math.min(Math.max(input.count, 1), 20);
+  const count = clampBenchmarkCount(input.count, input.fetchAll);
   const result =
     input.platform === "xiaohongshu"
       ? await fetchXiaohongshuBenchmark({ ...input, count, cacheKey })
@@ -112,34 +112,109 @@ async function fetchXiaohongshuProfileBenchmark(
 
   for (const attempt of attempts) {
     try {
-      const payload = await requestTikHub({
-        endpoint: attempt.endpoint,
-        query: attempt.query,
-      });
-
-      return {
-        cacheKey: input.cacheKey,
-        providerResponses: [{
-          endpoint: attempt.endpoint,
-          method: "GET",
-          requestPayload: attempt.query,
-          responsePayload: payload,
-        }],
-        items: normalizeTikHubMaterialItems({
-          platform: "xiaohongshu",
-          findMethod: input.findMethod,
-          target: input.target,
-          cacheKey: input.cacheKey,
-          payload,
-          limit: input.count,
-        }),
-      };
+      return attempt.endpoint.includes("app_v2")
+        ? await fetchXiaohongshuProfilePages({
+            ...input,
+            endpoint: attempt.endpoint,
+            initialQuery: attempt.query,
+          })
+        : await fetchSingleXiaohongshuProfilePage({
+            ...input,
+            endpoint: attempt.endpoint,
+            query: attempt.query,
+          });
     } catch (error) {
       lastError = error;
     }
   }
 
   throw lastError;
+}
+
+async function fetchSingleXiaohongshuProfilePage(
+  input: TikHubBenchmarkRequest & {
+    cacheKey: string;
+    endpoint: string;
+    query: Record<string, string | number>;
+  },
+): Promise<TikHubBenchmarkResult> {
+  const payload = await requestTikHub({
+    endpoint: input.endpoint,
+    query: input.query,
+  });
+
+  return {
+    cacheKey: input.cacheKey,
+    providerResponses: [{
+      endpoint: input.endpoint,
+      method: "GET",
+      requestPayload: input.query,
+      responsePayload: payload,
+    }],
+    items: normalizeTikHubMaterialItems({
+      platform: "xiaohongshu",
+      findMethod: input.findMethod,
+      target: input.target,
+      cacheKey: input.cacheKey,
+      payload,
+      limit: input.count,
+    }),
+  };
+}
+
+async function fetchXiaohongshuProfilePages(
+  input: TikHubBenchmarkRequest & {
+    cacheKey: string;
+    endpoint: string;
+    initialQuery: Record<string, string | number>;
+  },
+): Promise<TikHubBenchmarkResult> {
+  const providerResponses: TikHubCachedResponse[] = [];
+  const items: TikHubMaterialItem[] = [];
+  const seenCursors = new Set<string>();
+  let cursor = "";
+
+  while (items.length < input.count) {
+    const query = {
+      ...input.initialQuery,
+      cursor,
+    };
+    const payload = await requestTikHub({
+      endpoint: input.endpoint,
+      query,
+    });
+
+    providerResponses.push({
+      endpoint: input.endpoint,
+      method: "GET",
+      requestPayload: query,
+      responsePayload: payload,
+    });
+    items.push(
+      ...normalizeTikHubMaterialItems({
+        platform: "xiaohongshu",
+        findMethod: input.findMethod,
+        target: input.target,
+        cacheKey: input.cacheKey,
+        payload,
+        limit: input.count,
+      }),
+    );
+
+    const pageState = getXiaohongshuProfilePageState(payload);
+    if (!pageState.hasMore || !pageState.nextCursor || seenCursors.has(pageState.nextCursor)) {
+      break;
+    }
+
+    seenCursors.add(pageState.nextCursor);
+    cursor = pageState.nextCursor;
+  }
+
+  return {
+    cacheKey: input.cacheKey,
+    providerResponses,
+    items: dedupeTikHubMaterialItems(items).slice(0, input.count),
+  };
 }
 
 async function fetchXiaohongshuDetailBenchmark(
@@ -419,8 +494,14 @@ async function attachDefaultComments(input: {
 
   const providerResponses: TikHubCachedResponse[] = [];
   const items: TikHubMaterialItem[] = [];
+  const maxMaterialCommentFetch = getTikHubMaterialCommentFetchMaxItems();
 
-  for (const item of input.items) {
+  for (const [index, item] of input.items.entries()) {
+    if (index >= maxMaterialCommentFetch) {
+      items.push(markCommentFetchSkipped(item, "bulk_comment_fetch_limit"));
+      continue;
+    }
+
     const commentFetch = await fetchCommentsForMaterial({
       platform: input.platform,
       target: input.target,
@@ -598,6 +679,95 @@ function extractFirstUrl(value: string) {
 function getTikHubMaterialCommentCount() {
   const count = Number(process.env.TIKHUB_MATERIAL_COMMENT_COUNT ?? 20);
   return Number.isFinite(count) ? Math.min(Math.max(Math.trunc(count), 0), 100) : 20;
+}
+
+function getTikHubMaterialCommentFetchMaxItems() {
+  const count = Number(process.env.TIKHUB_MATERIAL_COMMENT_FETCH_MAX_ITEMS ?? 20);
+  return Number.isFinite(count) ? Math.min(Math.max(Math.trunc(count), 0), 100) : 20;
+}
+
+function clampBenchmarkCount(count: number, fetchAll?: boolean) {
+  const max = fetchAll ? getTikHubProfileImportAllMaxItems() : 50;
+  return Math.min(Math.max(Math.trunc(count), 1), max);
+}
+
+function getTikHubProfileImportAllMaxItems() {
+  const count = Number(process.env.TIKHUB_PROFILE_IMPORT_ALL_MAX_ITEMS ?? 200);
+  return Number.isFinite(count) ? Math.min(Math.max(Math.trunc(count), 50), 500) : 200;
+}
+
+function getXiaohongshuProfilePageState(payload: unknown) {
+  const notes = getArrayByPath(payload, ["data", "data", "notes"]);
+  const lastNote = notes.length > 0 ? toRecord(notes[notes.length - 1]) : {};
+  const nextCursor =
+    getStringByPath(payload, ["data", "data", "cursor"]) ??
+    getStringByPath(payload, ["data", "cursor"]) ??
+    getString(lastNote.cursor) ??
+    getString(lastNote.id);
+  const hasMore =
+    getBooleanByPath(payload, ["data", "data", "has_more"]) ??
+    getBooleanByPath(payload, ["data", "has_more"]) ??
+    (notes.length > 0);
+
+  return {
+    hasMore,
+    nextCursor,
+  };
+}
+
+function dedupeTikHubMaterialItems(items: TikHubMaterialItem[]) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key =
+      item.externalItemId
+        ? `${item.platform}:external:${item.externalItemId}`
+        : item.sourceUrl
+          ? `${item.platform}:url:${item.sourceUrl}`
+          : `${item.platform}:title:${item.title}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function getArrayByPath(value: unknown, path: Array<string | number>) {
+  const result = getPath(value, path);
+  return Array.isArray(result) ? result : [];
+}
+
+function getStringByPath(value: unknown, path: Array<string | number>) {
+  return getString(getPath(value, path));
+}
+
+function getBooleanByPath(value: unknown, path: Array<string | number>) {
+  const result = getPath(value, path);
+  return typeof result === "boolean" ? result : null;
+}
+
+function getPath(value: unknown, path: Array<string | number>): unknown {
+  return path.reduce<unknown>((current, key) => {
+    if (Array.isArray(current) && typeof key === "number") return current[key];
+    if (current && typeof current === "object" && !Array.isArray(current) && typeof key === "string") {
+      return (current as Record<string, unknown>)[key];
+    }
+
+    return undefined;
+  }, value);
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function getString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function findValueByKey(value: unknown, keys: string[]): string | null {

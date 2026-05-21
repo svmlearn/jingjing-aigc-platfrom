@@ -667,7 +667,8 @@ export const benchmarkMaterialSearchSchema = z
     keyword: z.string().trim().max(120).optional(),
     profileUrl: z.string().trim().max(2000).optional(),
     detailUrl: z.string().trim().max(2000).optional(),
-    count: z.number().int().min(1).max(20).optional(),
+    count: z.number().int().min(1).max(50).optional(),
+    fetchAll: z.boolean().optional(),
   })
   .refine(
     (value) => {

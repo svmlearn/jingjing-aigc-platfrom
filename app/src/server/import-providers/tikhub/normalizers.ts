@@ -146,6 +146,19 @@ function normalizeXiaohongshuItem(
     getPath(noteCard, ["video_info_v2", "image", "thumbnail"]),
     getPath(noteCard, ["video_info_v2", "image", "first_frame"]),
   ]);
+  const imageUrls = collectUrlStrings([
+    noteCard.image_list,
+    noteCard.images_list,
+    noteCard.images,
+    noteCard.imageList,
+    noteCard.cover,
+  ]);
+  const videoUrls = collectUrlStrings([
+    noteCard.video_info,
+    noteCard.videoInfo,
+    noteCard.video_info_v2,
+    noteCard.videoInfoV2,
+  ]).filter((url) => /\.mp4(?:[?#]|$)|video|sns-video|stream\//i.test(url));
   const likedCount = parseCount(
     interactInfo.likedCount ??
       interactInfo.likeCount ??
@@ -215,6 +228,8 @@ function normalizeXiaohongshuItem(
       providerEndpointFamily: "xiaohongshu",
       noteType: noteType ?? materialType,
       coverUrl,
+      imageUrls,
+      videoUrls,
       tags: collectTagNames(
         noteCard.tags ??
           noteCard.tagList ??
@@ -390,6 +405,14 @@ function normalizeDouyinItem(
     getPath(video, ["origin_cover", "url_list", 0]),
     getPath(video, ["dynamic_cover", "url_list", 0]),
   ]);
+  const imageUrls = collectUrlStrings([
+    getPath(video, ["cover", "url_list"]),
+    getPath(video, ["origin_cover", "url_list"]),
+    getPath(video, ["dynamic_cover", "url_list"]),
+  ]);
+  const videoUrls = collectUrlStrings([video]).filter((url) =>
+    /\.mp4(?:[?#]|$)|video|douyin|byte/i.test(url),
+  );
   const title = getString(aweme.desc) ?? `${input.target} · 抖音对标视频 ${index + 1}`;
   const likedCount = parseCount(statistics.digg_count ?? statistics.like_count);
   const commentCount = parseCount(statistics.comment_count);
@@ -428,6 +451,8 @@ function normalizeDouyinItem(
       provider: "tikhub",
       providerEndpointFamily: "douyin",
       coverUrl,
+      imageUrls,
+      videoUrls,
       durationMs: parseCount(video.duration),
       tags: collectTagNames(aweme.text_extra ?? aweme.textExtra),
       rank: index + 1,
@@ -507,6 +532,28 @@ function collectTagNames(value: unknown): string[] {
   });
 
   return Array.from(new Set(tags.map((tag) => tag.replace(/^#/, "").trim()).filter(Boolean)));
+}
+
+function collectUrlStrings(values: unknown[]): string[] {
+  const urls = values.flatMap(collectUrlStringsFromValue);
+
+  return Array.from(new Set(urls));
+}
+
+function collectUrlStringsFromValue(value: unknown): string[] {
+  if (typeof value === "string") {
+    return /^https?:\/\//i.test(value) ? [value] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap(collectUrlStringsFromValue);
+  }
+
+  if (!isRecord(value)) {
+    return [];
+  }
+
+  return Object.values(value).flatMap(collectUrlStringsFromValue);
 }
 
 function parseCount(value: unknown): number | null {

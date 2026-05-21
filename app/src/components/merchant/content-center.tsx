@@ -28,6 +28,7 @@ const sourceKindLabels = {
 } as const;
 
 type FindMethod = "keyword" | "profile" | "detail";
+type FindCount = "5" | "20" | "50" | "all";
 
 const materialTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
   month: "2-digit",
@@ -52,7 +53,7 @@ export function MerchantContentCenter() {
   const [findPlatform, setFindPlatform] = useState<MaterialPlatform>("xiaohongshu");
   const [findMethod, setFindMethod] = useState<FindMethod>("keyword");
   const [findKeyword, setFindKeyword] = useState("");
-  const [findCount, setFindCount] = useState("5");
+  const [findCount, setFindCount] = useState<FindCount>("5");
   const [findProfileUrl, setFindProfileUrl] = useState("");
   const [findDetailUrl, setFindDetailUrl] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -187,7 +188,13 @@ export function MerchantContentCenter() {
           keyword: findMethod === "keyword" ? searchTarget : undefined,
           profileUrl: findMethod === "profile" ? searchTarget : undefined,
           detailUrl: findMethod === "detail" ? searchTarget : undefined,
-          count: findMethod === "detail" ? 1 : Number(findCount),
+          count:
+            findMethod === "detail"
+              ? 1
+              : findMethod === "profile" && findCount === "all"
+                ? undefined
+                : findCount === "all" ? 5 : Number(findCount),
+          fetchAll: findMethod === "profile" && findCount === "all",
         }),
       });
       const data = (await response.json()) as {
@@ -206,6 +213,13 @@ export function MerchantContentCenter() {
       setError(requestError instanceof Error ? requestError.message : "社媒爆款内容检索失败");
     } finally {
       setIsSearching(false);
+    }
+  }
+
+  function handleFindMethodChange(nextMethod: FindMethod) {
+    setFindMethod(nextMethod);
+    if (nextMethod !== "profile" && findCount === "all") {
+      setFindCount("5");
     }
   }
 
@@ -546,7 +560,7 @@ export function MerchantContentCenter() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() => setFindMethod(value as FindMethod)}
+                    onClick={() => handleFindMethodChange(value as FindMethod)}
                     className={cn(
                       "relative px-5 py-3 text-xs uppercase tracking-[0.2em] transition-colors",
                       findMethod === value ? "text-amber-500" : "text-white/40 hover:text-white/75",
@@ -596,7 +610,7 @@ export function MerchantContentCenter() {
                   </div>
                   <OptionGroup
                     label="寻找数量"
-                    options={["5", "10", "20"] as const}
+                    options={["5", "20", "50"] as const}
                     value={findCount}
                     onChange={setFindCount}
                     suffix="篇"
@@ -620,6 +634,18 @@ export function MerchantContentCenter() {
                   <p className="mt-3 text-xs leading-6 text-white/35">
                     会优先拉取该博主近期互动表现更好的内容，供咨询和选题 Agent 查询。
                   </p>
+                  <div className="mt-6">
+                    <OptionGroup
+                      label="导入数量"
+                      options={["5", "20", "50", "all"] as const}
+                      value={findCount}
+                      onChange={setFindCount}
+                      suffix="篇"
+                    />
+                    <p className="mt-3 text-xs leading-6 text-white/30">
+                      全量会分页拉取，当前服务器有保护上限，避免一次性请求过多。
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div>
@@ -833,7 +859,7 @@ function OptionGroup<T extends string>({
             )}
           >
             {formatOptionLabel(option)}
-            {suffix}
+            {option === "all" ? "" : suffix}
           </button>
         ))}
       </div>
@@ -842,6 +868,7 @@ function OptionGroup<T extends string>({
 }
 
 function formatOptionLabel(option: string) {
+  if (option === "all") return "全量";
   return option in platformLabels ? platformLabels[option as MaterialPlatform] : option;
 }
 

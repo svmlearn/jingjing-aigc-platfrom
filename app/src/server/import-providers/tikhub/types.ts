@@ -8,6 +8,7 @@ export type TikHubBenchmarkRequest = {
   findMethod: TikHubBenchmarkFindMethod;
   target: string;
   count: number;
+  fetchAll?: boolean;
 };
 
 export type TikHubMaterialItem = {

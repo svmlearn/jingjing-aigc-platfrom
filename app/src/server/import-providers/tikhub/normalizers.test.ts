@@ -92,6 +92,7 @@ test("normalizes Xiaohongshu App note detail payloads", () => {
   assert.equal(item.engagementSnapshot.collectedCount, 340);
   assert.deepEqual(item.structureSummary.tags, ["庭院设计"]);
   assert.equal(item.structureSummary.coverUrl, "https://example.com/cover.jpg");
+  assert.deepEqual(item.structureSummary.imageUrls, ["https://example.com/cover.jpg"]);
 });
 
 test("normalizes Xiaohongshu App V2 profile note list payloads", () => {
@@ -117,6 +118,13 @@ test("normalizes Xiaohongshu App V2 profile note list payloads", () => {
               view_count: "120万",
               user: { id: "61b46d790000000010008153", nickname: "高赞博主" },
               images_list: [{ url: "https://example.com/profile-cover.jpg" }],
+              video_info_v2: {
+                media: {
+                  stream: {
+                    url: "https://example.com/profile-video.mp4",
+                  },
+                },
+              },
             },
           ],
         },
@@ -132,6 +140,8 @@ test("normalizes Xiaohongshu App V2 profile note list payloads", () => {
   assert.equal(item.engagementSnapshot.likedCount, 88000);
   assert.equal(item.engagementSnapshot.playCount, 1200000);
   assert.equal(item.structureSummary.coverUrl, "https://example.com/profile-cover.jpg");
+  assert.deepEqual(item.structureSummary.imageUrls, ["https://example.com/profile-cover.jpg"]);
+  assert.deepEqual(item.structureSummary.videoUrls, ["https://example.com/profile-video.mp4"]);
 });
 
 test("normalizes TikHub comment payloads for storage", () => {

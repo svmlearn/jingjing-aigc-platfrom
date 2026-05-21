@@ -121,6 +121,7 @@ export async function createBenchmarkMaterialsForUser(input: {
   profileUrl?: string;
   detailUrl?: string;
   count?: number;
+  fetchAll?: boolean;
 }): Promise<MaterialLibraryItemDto[]> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
 
@@ -134,6 +135,7 @@ export async function createBenchmarkMaterialsForUser(input: {
     profileUrl: input.profileUrl,
     detailUrl: input.detailUrl,
     count: input.count,
+    fetchAll: input.fetchAll,
   });
 }
 
@@ -147,9 +149,14 @@ export async function createBenchmarkMaterialsForMerchant(input: {
   profileUrl?: string;
   detailUrl?: string;
   count?: number;
+  fetchAll?: boolean;
 }): Promise<MaterialLibraryItemDto[]> {
   const platformLabel = platformLabels[input.platform];
-  const count = Math.min(Math.max(input.count ?? 5, 1), 20);
+  const count = getBenchmarkMaterialRequestCount({
+    findMethod: input.findMethod,
+    count: input.count,
+    fetchAll: input.fetchAll,
+  });
   const searchTarget =
     input.findMethod === "keyword"
       ? input.keyword?.trim() ?? ""
@@ -188,6 +195,7 @@ export async function createBenchmarkMaterialsForMerchant(input: {
       findMethod: input.findMethod,
       target: searchTarget,
       count,
+      fetchAll: input.fetchAll,
     });
 
     if (result.items.length === 0) {
@@ -309,4 +317,22 @@ function getTikHubMaterialCacheTtlMs() {
   const boundedHours = Number.isFinite(hours) ? Math.min(Math.max(hours, 1), 24 * 30) : 72;
 
   return boundedHours * 60 * 60 * 1000;
+}
+
+function getBenchmarkMaterialRequestCount(input: {
+  findMethod: "keyword" | "profile" | "detail";
+  count?: number;
+  fetchAll?: boolean;
+}) {
+  if (input.findMethod === "profile" && input.fetchAll) {
+    return getProfileFetchAllLimit();
+  }
+
+  const max = input.findMethod === "detail" ? 1 : 50;
+  return Math.min(Math.max(Math.trunc(input.count ?? 5), 1), max);
+}
+
+function getProfileFetchAllLimit() {
+  const count = Number(process.env.TIKHUB_PROFILE_IMPORT_ALL_MAX_ITEMS ?? 200);
+  return Number.isFinite(count) ? Math.min(Math.max(Math.trunc(count), 50), 500) : 200;
 }
