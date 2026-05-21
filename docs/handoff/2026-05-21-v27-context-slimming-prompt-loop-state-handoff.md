@@ -214,3 +214,33 @@ git diff --check
 - `node --test` 通过 46 项。
 - `corepack pnpm lint` 通过，但仍有 10 个既有 unused warnings，均不在本轮改动文件内。
 - 新增测试 `consultation preflight enforces payload budget before model calls`，保护 enforcer、tool payload compact、message omit、各模型调用路径和 debug report。
+
+## 2026-05-22 hard budget selector 小修
+
+触发原因：`f46ac9d` 后发现 `selectMessagesWithinCharBudget` 仍可能不是严格 hard budget，并且保留最近上下文时可能出现“保留最新、跳过中间、又保留更旧”的断层。
+
+本次小修完成：
+
+1. 将 preflight 执行器拆到 `app/src/server/api/consultation-runtime/context-preflight.ts`，`context.ts` 继续 re-export，现有调用路径不变。
+2. `enforceConsultationMessageBudget` 现在会在最终返回前执行 hard fit；正常情况下 `report.finalChars <= report.maxTotalChars`。
+3. 如果极端情况下连最小消息结构都超过预算，report 会显式记录 `hardBudgetSatisfied: false` 和 `overflowReason`，并追加 `hard_budget_unavoidable` action。
+4. 最近上下文选择改成遇到较新的 group 放不下后立即 omit 并停止向更旧消息回捞，避免历史断层。
+5. native assistant `toolCalls` 与连续 tool result 作为一个 group 保留或省略；hard clip 只压缩 content/payload，不破坏 `toolCallId` 配对。
+6. 新增行为测试覆盖：
+   - 超长 system/user/tool messages 仍满足 hard budget。
+   - assistant tool call + tool result pair 一起保留或一起省略。
+   - 省略较新的历史 group 后不会再保留更旧非 system 消息。
+
+本次验证：
+
+```bash
+corepack pnpm typecheck
+node --test src/server/api/consultation-service.test.ts
+git diff --check
+```
+
+结果：
+
+- `corepack pnpm typecheck` 通过。
+- `node --test src/server/api/consultation-service.test.ts` 通过 49 项。
+- `git diff --check` 通过。

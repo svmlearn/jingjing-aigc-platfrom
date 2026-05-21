@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { __consultationContextPreflightTest } from "./consultation-runtime/context-preflight.ts";
 
 const serviceSource = readFileSync(new URL("./consultation-service.ts", import.meta.url), "utf8");
 const aiRuntimeSource = readFileSync(new URL("./ai-runtime.ts", import.meta.url), "utf8");
 const consultationRuntimeSource = [
   "context.ts",
+  "context-preflight.ts",
   "events.ts",
   "experts.ts",
   "guards.ts",
@@ -246,6 +248,232 @@ test("consultation preflight enforces payload budget before model calls", () => 
   assert.match(consultationServiceAndRuntimeSource, /payload: payload && payloadChars > limits\.maxToolPayloadChars/);
   assert.match(consultationServiceAndRuntimeSource, /input\.state\.contextPreflightReports/);
   assert.match(consultationServiceAndRuntimeSource, /budgeted\.messages/);
+});
+
+test("consultation preflight hard-clips over-budget model payloads", () => {
+  const result = __consultationContextPreflightTest.enforceConsultationMessageBudget({
+    phase: "unit_hard_budget",
+    maxTotalChars: 2_600,
+    messages: [
+      {
+        role: "system",
+        content: `系统规则 ${"s".repeat(8_000)}`,
+      },
+      {
+        role: "user",
+        content: JSON.stringify({
+          userMessage: `请更新本周内容日历 ${"u".repeat(4_000)}`,
+          currentKnowledgeMatches: [
+            {
+              documentTitle: "素材能力",
+              content: "k".repeat(8_000),
+            },
+          ],
+          strategySnapshot: {
+            positioning: "p".repeat(3_000),
+            strategyMarkdown: "m".repeat(12_000),
+          },
+        }),
+      },
+      {
+        role: "assistant",
+        content: `准备调用工具 ${"a".repeat(2_000)}`,
+        toolCalls: [
+          {
+            id: "call-hard",
+            type: "function",
+            function: {
+              name: "update_content_calendar",
+              arguments: JSON.stringify({
+                calendar: [
+                  {
+                    dayLabel: "周一",
+                    contentType: "article",
+                    title: "示例",
+                    summary: "摘要",
+                  },
+                ],
+              }),
+            },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        toolCallId: "call-hard",
+        content: JSON.stringify({
+          ok: true,
+          toolName: "update_content_calendar",
+          status: "completed",
+          summary: "已写入日历".repeat(400),
+          payload: {
+            calendar: "p".repeat(18_000),
+          },
+          knowledgeMatches: [
+            {
+              documentTitle: "长知识",
+              content: "k".repeat(12_000),
+              excerpt: "e".repeat(12_000),
+            },
+          ],
+        }),
+      },
+    ],
+  });
+
+  assert.ok(
+    result.report.finalChars <= result.report.maxTotalChars,
+    `finalChars=${result.report.finalChars}, maxTotalChars=${result.report.maxTotalChars}`,
+  );
+  assert.equal(result.report.hardBudgetSatisfied, true);
+  assert.equal(result.report.overflowReason, null);
+  assert.ok(result.messages.some((message) => message.role === "tool" && message.toolCallId === "call-hard"));
+  assert.match(
+    JSON.stringify(result.messages),
+    /tool_result_hard_budget_v1|tool_payload_preview_v1|context preflight clipped/,
+  );
+});
+
+test("consultation preflight preserves assistant tool-call and tool-result pairs", () => {
+  const retained = __consultationContextPreflightTest.enforceConsultationMessageBudget({
+    phase: "unit_pair_retained",
+    maxTotalChars: 1_200,
+    messages: [
+      {
+        role: "system",
+        content: "系统规则",
+      },
+      {
+        role: "user",
+        content: `旧问题 ${"o".repeat(1_500)}`,
+      },
+      {
+        role: "assistant",
+        content: "调用工具",
+        toolCalls: [
+          {
+            id: "call-retained",
+            type: "function",
+            function: {
+              name: "retrieve_knowledge_base",
+              arguments: JSON.stringify({ query: "素材" }),
+            },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        toolCallId: "call-retained",
+        content: JSON.stringify({
+          ok: true,
+          toolName: "retrieve_knowledge_base",
+          status: "completed",
+          payload: {
+            text: "r".repeat(3_000),
+          },
+        }),
+      },
+    ],
+  });
+  const retainedAssistant = retained.messages.some(
+    (message) =>
+      message.role === "assistant" &&
+      message.toolCalls?.some((toolCall) => toolCall.id === "call-retained"),
+  );
+  const retainedTool = retained.messages.some(
+    (message) => message.role === "tool" && message.toolCallId === "call-retained",
+  );
+
+  assert.equal(retainedAssistant, retainedTool);
+  assert.equal(retainedAssistant, true);
+  assert.ok(retained.report.finalChars <= retained.report.maxTotalChars);
+
+  const omitted = __consultationContextPreflightTest.enforceConsultationMessageBudget({
+    phase: "unit_pair_omitted",
+    maxTotalChars: 700,
+    messages: [
+      {
+        role: "system",
+        content: "系统规则",
+      },
+      {
+        role: "assistant",
+        content: "较旧工具调用",
+        toolCalls: [
+          {
+            id: "call-omitted",
+            type: "function",
+            function: {
+              name: "retrieve_knowledge_base",
+              arguments: JSON.stringify({ query: "旧资料" }),
+            },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        toolCallId: "call-omitted",
+        content: JSON.stringify({
+          ok: true,
+          toolName: "retrieve_knowledge_base",
+          status: "completed",
+          payload: {
+            text: "r".repeat(3_000),
+          },
+        }),
+      },
+      {
+        role: "user",
+        content: `最新问题 ${"n".repeat(500)}`,
+      },
+    ],
+  });
+  const omittedAssistant = omitted.messages.some(
+    (message) =>
+      message.role === "assistant" &&
+      message.toolCalls?.some((toolCall) => toolCall.id === "call-omitted"),
+  );
+  const omittedTool = omitted.messages.some(
+    (message) => message.role === "tool" && message.toolCallId === "call-omitted",
+  );
+
+  assert.equal(omittedAssistant, omittedTool);
+  assert.equal(omittedAssistant, false);
+  assert.ok(omitted.report.finalChars <= omitted.report.maxTotalChars);
+});
+
+test("consultation preflight does not retain older history after a newer group is omitted", () => {
+  const result = __consultationContextPreflightTest.enforceConsultationMessageBudget({
+    phase: "unit_no_history_gap",
+    maxTotalChars: 900,
+    messages: [
+      {
+        role: "system",
+        content: "系统规则",
+      },
+      {
+        role: "user",
+        content: `old-context ${"o".repeat(300)}`,
+      },
+      {
+        role: "user",
+        content: `middle-context ${"m".repeat(4_000)}`,
+      },
+      {
+        role: "user",
+        content: `latest-context ${"l".repeat(200)}`,
+      },
+    ],
+  });
+  const selectedContent = result.messages
+    .filter((message) => message.role !== "system")
+    .map((message) => "content" in message ? message.content ?? "" : "")
+    .join("\n");
+
+  assert.match(selectedContent, /latest-context/);
+  assert.doesNotMatch(selectedContent, /middle-context/);
+  assert.doesNotMatch(selectedContent, /old-context/);
+  assert.ok(result.report.finalChars <= result.report.maxTotalChars);
 });
 
 test("consultation slim context keeps debug-only fields out of main model payload", () => {

@@ -12,6 +12,17 @@ import type {
 } from "@/server/api/consultation-runtime/types";
 import { getConsultationBusinessToolCatalog } from "@/server/api/consultation-runtime/tools";
 import { clipText, uniqueStrings } from "@/server/api/consultation-runtime/utils";
+import type {
+  ConsultationContextPreflightAction,
+  ConsultationContextPreflightReport,
+} from "@/server/api/consultation-runtime/context-preflight";
+export type {
+  ConsultationContextPreflightAction,
+  ConsultationContextPreflightReport,
+} from "@/server/api/consultation-runtime/context-preflight";
+export {
+  enforceConsultationMessageBudget,
+} from "@/server/api/consultation-runtime/context-preflight";
 
 export type ContextBudgetReport = {
   policy: "char_budget_v1";
@@ -22,31 +33,6 @@ export type ContextBudgetReport = {
     limit: number;
     truncated: boolean;
   }>;
-};
-
-export type ConsultationContextPreflightAction = {
-  messageIndex: number;
-  role: ChatMessage["role"];
-  reason:
-    | "system_clipped"
-    | "user_json_compacted"
-    | "user_clipped"
-    | "tool_result_compacted"
-    | "assistant_clipped"
-    | "message_omitted";
-  beforeChars: number;
-  afterChars: number;
-};
-
-export type ConsultationContextPreflightReport = {
-  policy: "consultation_context_preflight_enforcer_v1";
-  phase: string;
-  maxTotalChars: number;
-  originalChars: number;
-  finalChars: number;
-  clippedMessageCount: number;
-  omittedMessageCount: number;
-  actions: ConsultationContextPreflightAction[];
 };
 
 export type ConsultationContextBoundarySnapshot = {
@@ -130,61 +116,6 @@ export type ConsultationSlimContextPack = {
     selectedKnowledgeMatchIds: string[];
   };
 };
-
-const consultationMessageBudgetLimits = {
-  maxTotalChars: 28_000,
-  maxSystemChars: 14_000,
-  maxUserChars: 12_000,
-  maxAssistantChars: 4_000,
-  maxToolResultChars: 4_500,
-  maxToolPayloadChars: 1_800,
-  maxKnowledgeMatchContentChars: 700,
-  maxStrategyMarkdownChars: 6_000,
-};
-
-export function enforceConsultationMessageBudget(input: {
-  messages: ChatMessage[];
-  phase: string;
-  maxTotalChars?: number;
-}): {
-  messages: ChatMessage[];
-  report: ConsultationContextPreflightReport;
-} {
-  const limits = {
-    ...consultationMessageBudgetLimits,
-    maxTotalChars: input.maxTotalChars ?? consultationMessageBudgetLimits.maxTotalChars,
-  };
-  const actions: ConsultationContextPreflightAction[] = [];
-  const originalChars = getMessagesCharCount(input.messages);
-  const compactedMessages = input.messages.map((message, index) =>
-    compactChatMessageForBudget({
-      message,
-      index,
-      limits,
-      actions,
-    }),
-  );
-  const selectedMessages = selectMessagesWithinCharBudget({
-    messages: compactedMessages,
-    maxTotalChars: limits.maxTotalChars,
-    actions,
-  });
-  const finalChars = getMessagesCharCount(selectedMessages);
-
-  return {
-    messages: selectedMessages,
-    report: {
-      policy: "consultation_context_preflight_enforcer_v1",
-      phase: input.phase,
-      maxTotalChars: limits.maxTotalChars,
-      originalChars,
-      finalChars,
-      clippedMessageCount: actions.filter((action) => action.reason !== "message_omitted").length,
-      omittedMessageCount: actions.filter((action) => action.reason === "message_omitted").length,
-      actions,
-    },
-  };
-}
 
 export function buildExpertContainerPrompt(
   consultationAgent: ConsultationAgentRuntimeSettings,
@@ -585,17 +516,25 @@ function normalizePreflightReports(
               afterChars: typeof action.afterChars === "number" ? action.afterChars : 0,
             }))
         : [];
+      const maxTotalChars = typeof record.maxTotalChars === "number" ? record.maxTotalChars : 0;
+      const finalChars = typeof record.finalChars === "number" ? record.finalChars : 0;
 
       return {
         policy: "consultation_context_preflight_enforcer_v1",
         phase: typeof record.phase === "string" ? record.phase : "unknown",
-        maxTotalChars: typeof record.maxTotalChars === "number" ? record.maxTotalChars : 0,
+        maxTotalChars,
         originalChars: typeof record.originalChars === "number" ? record.originalChars : 0,
-        finalChars: typeof record.finalChars === "number" ? record.finalChars : 0,
+        finalChars,
         clippedMessageCount:
           typeof record.clippedMessageCount === "number" ? record.clippedMessageCount : 0,
         omittedMessageCount:
           typeof record.omittedMessageCount === "number" ? record.omittedMessageCount : 0,
+        hardBudgetSatisfied:
+          typeof record.hardBudgetSatisfied === "boolean"
+            ? record.hardBudgetSatisfied
+            : finalChars <= maxTotalChars,
+        overflowReason:
+          typeof record.overflowReason === "string" ? record.overflowReason : null,
         actions,
       };
     })
@@ -615,450 +554,9 @@ function isPreflightActionReason(
     value === "user_clipped" ||
     value === "tool_result_compacted" ||
     value === "assistant_clipped" ||
-    value === "message_omitted"
+    value === "message_omitted" ||
+    value === "hard_budget_unavoidable"
   );
-}
-
-function compactChatMessageForBudget(input: {
-  message: ChatMessage;
-  index: number;
-  limits: typeof consultationMessageBudgetLimits;
-  actions: ConsultationContextPreflightAction[];
-}): ChatMessage {
-  const beforeChars = getMessageCharCount(input.message);
-
-  if (input.message.role === "system") {
-    const content = clipMiddle(input.message.content, input.limits.maxSystemChars);
-    return recordMessageAction({
-      message: { ...input.message, content },
-      index: input.index,
-      role: input.message.role,
-      reason: "system_clipped",
-      beforeChars,
-      actions: input.actions,
-    });
-  }
-
-  if (input.message.role === "tool") {
-    const content = compactToolResultContent({
-      content: input.message.content,
-      limits: input.limits,
-    });
-    return recordMessageAction({
-      message: { ...input.message, content },
-      index: input.index,
-      role: input.message.role,
-      reason: "tool_result_compacted",
-      beforeChars,
-      actions: input.actions,
-    });
-  }
-
-  if (input.message.role === "assistant") {
-    const content =
-      typeof input.message.content === "string"
-        ? clipMiddle(input.message.content, input.limits.maxAssistantChars)
-        : input.message.content;
-
-    return recordMessageAction({
-      message: { ...input.message, content },
-      index: input.index,
-      role: input.message.role,
-      reason: "assistant_clipped",
-      beforeChars,
-      actions: input.actions,
-    });
-  }
-
-  const compactedJson = compactUserJsonContent({
-    content: input.message.content,
-    limits: input.limits,
-  });
-  const content = clipMiddle(compactedJson.content, input.limits.maxUserChars);
-  return recordMessageAction({
-    message: { ...input.message, content },
-    index: input.index,
-    role: input.message.role,
-    reason: compactedJson.changed ? "user_json_compacted" : "user_clipped",
-    beforeChars,
-    actions: input.actions,
-  });
-}
-
-function recordMessageAction<T extends ChatMessage>(input: {
-  message: T;
-  index: number;
-  role: ChatMessage["role"];
-  reason: ConsultationContextPreflightAction["reason"];
-  beforeChars: number;
-  actions: ConsultationContextPreflightAction[];
-}): T {
-  const afterChars = getMessageCharCount(input.message);
-
-  if (afterChars < input.beforeChars) {
-    input.actions.push({
-      messageIndex: input.index,
-      role: input.role,
-      reason: input.reason,
-      beforeChars: input.beforeChars,
-      afterChars,
-    });
-  }
-
-  return input.message;
-}
-
-function compactUserJsonContent(input: {
-  content: string;
-  limits: typeof consultationMessageBudgetLimits;
-}) {
-  const parsed = parseJsonRecord(input.content);
-
-  if (!parsed) {
-    return {
-      content: input.content,
-      changed: false,
-    };
-  }
-
-  const compacted = compactKnownUserPayload(parsed, input.limits);
-  const content = JSON.stringify(compacted);
-
-  return {
-    content,
-    changed: content.length < input.content.length,
-  };
-}
-
-function compactKnownUserPayload(
-  value: Record<string, unknown>,
-  limits: typeof consultationMessageBudgetLimits,
-): Record<string, unknown> {
-  const next: Record<string, unknown> = { ...value };
-
-  if (typeof next.userMessage === "string") {
-    next.userMessage = clipText(next.userMessage, 5_000);
-  }
-
-  if (Array.isArray(next.currentKnowledgeMatches)) {
-    next.currentKnowledgeMatches = compactKnowledgeMatches(next.currentKnowledgeMatches, limits);
-  }
-
-  if (readRecord(next.strategySnapshot)) {
-    next.strategySnapshot = compactStrategySnapshotForBudget(next.strategySnapshot, limits);
-  }
-
-  if (readRecord(next.currentStrategySnapshot)) {
-    next.currentStrategySnapshot = compactStrategySnapshotForBudget(next.currentStrategySnapshot, limits);
-  }
-
-  if (Array.isArray(next.recentConversation)) {
-    next.recentConversation = next.recentConversation.slice(-6).map((item) => {
-      const record = readRecord(item);
-
-      if (!record) {
-        return item;
-      }
-
-      return {
-        ...record,
-        content: typeof record.content === "string" ? clipText(record.content, 600) : record.content,
-      };
-    });
-  }
-
-  if (Array.isArray(next.recentUserMessages)) {
-    next.recentUserMessages = next.recentUserMessages
-      .slice(-4)
-      .map((message) => (typeof message === "string" ? clipText(message, 600) : message));
-  }
-
-  const toolResult = readRecord(next.result);
-
-  if (next.type === "tool_result" && toolResult) {
-    next.result = compactToolResultObject(toolResult, limits);
-  }
-
-  return next;
-}
-
-function compactStrategySnapshotForBudget(
-  value: unknown,
-  limits: typeof consultationMessageBudgetLimits,
-) {
-  const record = readRecord(value);
-
-  if (!record) {
-    return value;
-  }
-
-  return {
-    ...record,
-    positioning: typeof record.positioning === "string" ? clipText(record.positioning, 800) : record.positioning,
-    currentSuggestion:
-      typeof record.currentSuggestion === "string"
-        ? clipText(record.currentSuggestion, 1_000)
-        : record.currentSuggestion,
-    strategyMarkdown:
-      typeof record.strategyMarkdown === "string"
-        ? clipMiddle(record.strategyMarkdown, limits.maxStrategyMarkdownChars)
-        : record.strategyMarkdown,
-    coreSellingPoints: clipStringArray(record.coreSellingPoints, 12, 240),
-    targetAudiences: clipStringArray(record.targetAudiences, 12, 240),
-    keyScenes: clipStringArray(record.keyScenes, 12, 240),
-    strategyTags: clipStringArray(record.strategyTags, 12, 120),
-    contentCalendarDraft: compactObjectArray(record.contentCalendarDraft, 8, 240),
-  };
-}
-
-function compactToolResultContent(input: {
-  content: string;
-  limits: typeof consultationMessageBudgetLimits;
-}) {
-  const parsed = parseJsonRecord(input.content);
-
-  if (!parsed) {
-    return clipMiddle(input.content, input.limits.maxToolResultChars);
-  }
-
-  const compacted = compactToolResultObject(parsed, input.limits);
-  let content = JSON.stringify(compacted);
-
-  if (content.length > input.limits.maxToolResultChars) {
-    const fallback = {
-      ok: compacted.ok,
-      toolName: compacted.toolName,
-      rawToolName: compacted.rawToolName ?? null,
-      status: compacted.status,
-      summary: typeof compacted.summary === "string" ? clipText(compacted.summary, 1_000) : compacted.summary,
-      compactPolicy: "tool_result_payload_omitted_v1",
-      originalChars: input.content.length,
-    };
-    content = JSON.stringify(fallback);
-  }
-
-  return clipMiddle(content, input.limits.maxToolResultChars);
-}
-
-function compactToolResultObject(
-  value: Record<string, unknown>,
-  limits: typeof consultationMessageBudgetLimits,
-): Record<string, unknown> {
-  const result = readRecord(value.result);
-
-  if (result) {
-    return {
-      ...value,
-      result: compactToolResultObject(result, limits),
-    };
-  }
-
-  const payload = readRecord(value.payload);
-  const payloadChars = payload ? JSON.stringify(payload).length : 0;
-
-  return {
-    ...value,
-    summary: typeof value.summary === "string" ? clipText(value.summary, 1_000) : value.summary,
-    payload: payload && payloadChars > limits.maxToolPayloadChars
-      ? {
-          compactPolicy: "tool_payload_preview_v1",
-          preview: clipMiddle(JSON.stringify(payload), limits.maxToolPayloadChars),
-          omittedChars: Math.max(0, payloadChars - limits.maxToolPayloadChars),
-        }
-      : value.payload,
-    knowledgeMatches: Array.isArray(value.knowledgeMatches)
-      ? compactKnowledgeMatches(value.knowledgeMatches, limits)
-      : value.knowledgeMatches,
-  };
-}
-
-function compactKnowledgeMatches(
-  values: unknown[],
-  limits: typeof consultationMessageBudgetLimits,
-) {
-  return values.slice(0, 5).map((value) => {
-    const record = readRecord(value);
-
-    if (!record) {
-      return value;
-    }
-
-    return {
-      ...record,
-      content: typeof record.content === "string"
-        ? clipText(record.content, limits.maxKnowledgeMatchContentChars)
-        : record.content,
-      excerpt: typeof record.excerpt === "string"
-        ? clipText(record.excerpt, limits.maxKnowledgeMatchContentChars)
-        : record.excerpt,
-    };
-  });
-}
-
-function compactObjectArray(value: unknown, limit: number, textLimit: number) {
-  if (!Array.isArray(value)) {
-    return value;
-  }
-
-  return value.slice(0, limit).map((item) => {
-    const record = readRecord(item);
-
-    if (!record) {
-      return item;
-    }
-
-    return Object.fromEntries(
-      Object.entries(record).map(([key, entry]) => [
-        key,
-        typeof entry === "string" ? clipText(entry, textLimit) : entry,
-      ]),
-    );
-  });
-}
-
-function clipStringArray(value: unknown, limit: number, textLimit: number) {
-  return Array.isArray(value)
-    ? value.slice(0, limit).map((item) => (typeof item === "string" ? clipText(item, textLimit) : item))
-    : value;
-}
-
-function selectMessagesWithinCharBudget(input: {
-  messages: ChatMessage[];
-  maxTotalChars: number;
-  actions: ConsultationContextPreflightAction[];
-}) {
-  const total = getMessagesCharCount(input.messages);
-
-  if (total <= input.maxTotalChars) {
-    return input.messages;
-  }
-
-  const systemMessages = input.messages.filter((message) => message.role === "system");
-  const nonSystemMessages = input.messages.filter((message) => message.role !== "system");
-  const maxNonSystemChars = Math.max(1_000, input.maxTotalChars - getMessagesCharCount(systemMessages));
-  const recentGroups: ChatMessage[][] = [];
-  let used = 0;
-
-  for (let index = nonSystemMessages.length - 1; index >= 0;) {
-    const group: ChatMessage[] = [];
-    const message = nonSystemMessages[index];
-
-    if (message?.role === "tool") {
-      while (index >= 0 && nonSystemMessages[index]?.role === "tool") {
-        group.unshift(nonSystemMessages[index] as ChatMessage);
-        index -= 1;
-      }
-
-      const assistant = nonSystemMessages[index];
-
-      if (assistant?.role === "assistant" && assistant.toolCalls?.length) {
-        group.unshift(assistant);
-        index -= 1;
-      }
-    } else if (message) {
-      group.unshift(message);
-      index -= 1;
-    } else {
-      index -= 1;
-    }
-
-    if (group.length === 0) {
-      continue;
-    }
-
-    const groupChars = getMessagesCharCount(group);
-
-    if (used + groupChars > maxNonSystemChars && recentGroups.length > 0) {
-      input.actions.push(...group.map((item) => ({
-        messageIndex: input.messages.indexOf(item),
-        role: item.role,
-        reason: "message_omitted" as const,
-        beforeChars: getMessageCharCount(item),
-        afterChars: 0,
-      })));
-      continue;
-    }
-
-    recentGroups.unshift(group);
-    used += groupChars;
-
-    if (used >= maxNonSystemChars) {
-      break;
-    }
-  }
-
-  const selected = [...systemMessages, ...recentGroups.flat()];
-  const selectedSet = new Set(selected);
-
-  for (const message of input.messages) {
-    if (selectedSet.has(message)) {
-      continue;
-    }
-
-    if (
-      input.actions.some(
-        (action) =>
-          action.reason === "message_omitted" &&
-          action.messageIndex === input.messages.indexOf(message),
-      )
-    ) {
-      continue;
-    }
-
-    input.actions.push({
-      messageIndex: input.messages.indexOf(message),
-      role: message.role,
-      reason: "message_omitted",
-      beforeChars: getMessageCharCount(message),
-      afterChars: 0,
-    });
-  }
-
-  return selected;
-}
-
-function parseJsonRecord(value: string): Record<string, unknown> | null {
-  try {
-    return readRecord(JSON.parse(value));
-  } catch {
-    return null;
-  }
-}
-
-function getMessagesCharCount(messages: ChatMessage[]) {
-  return messages.reduce((sum, message) => sum + getMessageCharCount(message), 0);
-}
-
-function getMessageCharCount(message: ChatMessage) {
-  if (message.role === "assistant") {
-    return JSON.stringify({
-      role: message.role,
-      content: message.content ?? "",
-      toolCalls: message.toolCalls ?? [],
-    }).length;
-  }
-
-  if (message.role === "tool") {
-    return message.content.length + message.toolCallId.length + 16;
-  }
-
-  return message.content.length + message.role.length;
-}
-
-function clipMiddle(value: string, maxLength: number) {
-  if (value.length <= maxLength) {
-    return value;
-  }
-
-  if (maxLength <= 120) {
-    return clipText(value, maxLength);
-  }
-
-  const marker = `\n[context preflight clipped ${value.length - maxLength} chars]\n`;
-  const headLength = Math.max(1, Math.floor((maxLength - marker.length) * 0.7));
-  const tailLength = Math.max(1, maxLength - marker.length - headLength);
-
-  return `${value.slice(0, headLength)}${marker}${value.slice(-tailLength)}`;
 }
 
 function getConsultationContextToolLabel(
