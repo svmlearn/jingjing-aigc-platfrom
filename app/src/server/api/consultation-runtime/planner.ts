@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   buildConsultationToolArgs,
   getConsultationBusinessToolCatalog,
+  isLlmVisibleConsultationTool,
   isConsultationAgentToolKey,
   isRepeatableConsultationReadTool,
 } from "@/server/api/consultation-runtime/tools";
@@ -17,7 +18,11 @@ import type {
   ConsultationPlannerMode,
   ConsultationPlannerTraceItem,
 } from "@/server/api/consultation-runtime/types";
-import { clipText, toStringArrayValue } from "@/server/api/consultation-runtime/utils";
+import {
+  clipText,
+  toStringArrayValue,
+  uniqueStrings,
+} from "@/server/api/consultation-runtime/utils";
 import {
   AiRuntimeError,
   createChatCompletion,
@@ -36,8 +41,6 @@ const orderedTools: ConsultationAgentToolKey[] = [
   "search_benchmark_materials",
   "update_strategy_snapshot",
   "update_content_calendar",
-  "generate_article_brief",
-  "generate_video_brief",
 ];
 
 const plannerDecisionSchema = z
@@ -208,7 +211,9 @@ function buildFallbackPlannerDecision(input: {
 function getOrderedEnabledToolNames(state: ConsultationAgentLoopState) {
   const enabled = new Set<ConsultationAgentToolKey>(state.consultationAgent.enabledTools);
 
-  return orderedTools.filter((toolName) => enabled.has(toolName));
+  return orderedTools.filter(
+    (toolName) => enabled.has(toolName) && isLlmVisibleConsultationTool(toolName),
+  );
 }
 
 function getReadyToolNames(
@@ -249,11 +254,7 @@ function getToolDependencies(toolName: ConsultationAgentToolKey): ConsultationAg
     return ["read_merchant_profile"];
   }
 
-  if (
-    toolName === "update_content_calendar" ||
-    toolName === "generate_article_brief" ||
-    toolName === "generate_video_brief"
-  ) {
+  if (toolName === "update_content_calendar") {
     return ["update_strategy_snapshot"];
   }
 
@@ -285,7 +286,7 @@ function buildPlannerMessages(input: {
         "在 readyTools 非空时必须选择其中一个工具；不要发明工具名。",
         "retrieve_knowledge_base、read_history、read_merchant_profile 是读类工具；当用户明确列出多个检索维度，或上一轮检索只覆盖项目事实、方法论、话术、素材边界中的一部分时，可以继续选择 retrieve_knowledge_base，并用新的具体 query 深挖。",
         "写类工具只在信息足够时调用；不要为了跳过检索而过早写入内容日历。",
-        "策略资产、内容日历、图文 brief、视频 brief 只能通过受控工具推进。",
+        "策略资产和内容日历只能通过受控工具推进。",
       ].join("\n"),
     },
     {
@@ -307,11 +308,16 @@ function buildPlannerMessages(input: {
           currentSuggestion: input.state.strategySnapshot.currentSuggestion,
         },
         completedTools: input.completedToolNames,
-        observations: input.toolResults.map((result) => ({
-          toolName: result.toolName,
-          status: result.status,
-          summary: result.summary,
-        })),
+        failedTools: uniqueStrings(
+          input.toolResults
+            .filter((result) => result.status === "failed")
+            .map((result) => result.rawToolName ?? result.toolName),
+        ),
+        skippedTools: uniqueStrings(
+          input.toolResults
+            .filter((result) => result.status === "skipped")
+            .map((result) => result.rawToolName ?? result.toolName),
+        ),
         activeSkillReferences: buildSkillReferencePlannerHints(input.state.consultationAgent.activeSkills),
         readyTools: toolCatalog,
         allowedToolNames: input.readyToolNames,

@@ -401,6 +401,15 @@ export function getConsultationBusinessToolCatalog() {
   }));
 }
 
+const llmHiddenConsultationToolNames = new Set<ConsultationAgentToolKey>([
+  "generate_article_brief",
+  "generate_video_brief",
+]);
+
+export function isLlmVisibleConsultationTool(toolName: ConsultationAgentToolKey) {
+  return !llmHiddenConsultationToolNames.has(toolName);
+}
+
 export function buildConsultationAiRuntimeTools(input: {
   state: ConsultationAgentLoopState;
   unavailableToolNames?: ConsultationAgentToolKey[];
@@ -409,7 +418,11 @@ export function buildConsultationAiRuntimeTools(input: {
   const unavailable = new Set(input.unavailableToolNames ?? []);
 
   return getConsultationRuntimeToolRegistry()
-    .filter((tool) => enabled.has(tool.key) && !unavailable.has(tool.key))
+    .filter((tool) =>
+      enabled.has(tool.key) &&
+      isLlmVisibleConsultationTool(tool.key) &&
+      !unavailable.has(tool.key),
+    )
     .map((tool) => ({
       type: "function" as const,
       function: {
@@ -588,7 +601,7 @@ export function buildConsultationToolArgs(
 export function buildBusinessToolPrompt(enabledTools: ConsultationAgentToolKey[]) {
   const enabled = new Set(enabledTools);
   const rows = getConsultationBusinessToolCatalog()
-    .filter((tool) => enabled.has(tool.key))
+    .filter((tool) => enabled.has(tool.key) && isLlmVisibleConsultationTool(tool.key))
     .map((tool) => `- ${tool.label}。${tool.purpose} 写入/影响：${tool.writes}。`)
     .join("\n");
 

@@ -249,8 +249,7 @@ test("consultation runtime exposes right panel assets through bounded business t
   assert.match(consultationServiceAndRuntimeSource, /resolveStrategyAssetEditorPatch/);
   assert.match(consultationServiceAndRuntimeSource, /toolChoice/);
   assert.match(consultationServiceAndRuntimeSource, /update_content_calendar/);
-  assert.match(consultationServiceAndRuntimeSource, /generate_article_brief/);
-  assert.match(consultationServiceAndRuntimeSource, /generate_video_brief/);
+  assert.match(consultationServiceAndRuntimeSource, /isLlmVisibleConsultationTool/);
   assert.match(
     consultationServiceAndRuntimeSource,
     /strategySnapshot as one editor document: positioning \/ coreSellingPoints \/ targetAudiences \/ keyScenes \/ currentSuggestion/,
@@ -263,6 +262,11 @@ test("consultation planner supports Claude Code style JSON tool loop", () => {
   assert.match(consultationServiceAndRuntimeSource, /model_json_tool_loop_v1/);
   assert.match(consultationServiceAndRuntimeSource, /buildJsonToolLoopMessages/);
   assert.match(consultationServiceAndRuntimeSource, /tool_loop_state/);
+  assert.match(consultationRuntimeSource, /availableToolNames/);
+  assert.match(consultationRuntimeSource, /completedToolNames/);
+  assert.match(consultationRuntimeSource, /failedToolNames/);
+  assert.match(consultationRuntimeSource, /skippedToolNames/);
+  assert.match(consultationRuntimeSource, /writeToolsAlreadyUsed/);
   assert.match(consultationServiceAndRuntimeSource, /tool_result/);
   assert.match(consultationServiceAndRuntimeSource, /source: "model_json_tool_use"/);
   assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_loop_v1/);
@@ -296,36 +300,28 @@ test("consultation planner supports Claude Code style JSON tool loop", () => {
   assert.match(consultationServiceAndRuntimeSource, /mergePlannerToolArgs/);
   assert.match(consultationServiceAndRuntimeSource, /模型 planner 选择了不可执行工具/);
   assert.match(consultationServiceAndRuntimeSource, /plannerTrace/);
+  assert.doesNotMatch(consultationRuntimeSource, /observations: input\.toolResults\.map/);
 });
 
 test("consultation runtime routes explicit knowledge reads through the retrieval tool", () => {
   assert.match(consultationServiceAndRuntimeSource, /retrieve_knowledge_base/);
   assert.match(consultationRuntimeSource, /isExplicitKnowledgeBaseReadRequest/);
   assert.match(consultationRuntimeSource, /key: "retrieve_knowledge_base"/);
-  assert.match(serviceSource, /请先调用 retrieve_knowledge_base 获取资料/);
-  assert.match(serviceSource, /用新的 query 再调用 retrieve_knowledge_base 深挖/);
-  assert.match(serviceSource, /必须由你根据用户目标和工具结果自行判断/);
+  assert.match(serviceSource, /JSON 工具循环中，业务结果以前序 tool_result 消息为准/);
+  assert.match(serviceSource, /写入类工具仍要在信息足够后再调用/);
   assert.match(serviceSource, /不要先写日历再补查依据/);
-  assert.match(serviceSource, /availableTools 中仍有 update_content_calendar/);
-  assert.match(serviceSource, /内容日历 -> 生成团队内容 -> Dify/);
-  assert.match(serviceSource, /历史日历当成本轮已完成/);
-  assert.match(consultationRuntimeSource, /decisionRules/);
-  assert.match(consultationRuntimeSource, /应优先考虑先调用 retrieve_knowledge_base/);
-  assert.match(consultationRuntimeSource, /历史策略资产，不等于本轮 tool_result/);
-  assert.match(consultationServiceAndRuntimeSource, /仅在用户明确要求图文工作台 brief 时/);
-  assert.match(consultationServiceAndRuntimeSource, /仅在用户明确要求视频工作台 brief 时/);
-  assert.match(serviceSource, /自己调用 update_content_calendar 写入可执行日历/);
+  assert.match(serviceSource, /优先考虑调用 update_content_calendar/);
+  assert.match(serviceSource, /后续团队内容可能需要重新生成/);
+  assert.doesNotMatch(serviceSource, new RegExp("不再通过用户端" + "图文工作台"));
+  assert.doesNotMatch(serviceSource, /observations 里尚未有/);
   assert.match(serviceSource, /buildNativeStrategySnapshotSummary/);
   assert.match(serviceSource, /guidancePresence/);
-  assert.match(serviceSource, /画面描述必须根据已返回的素材能力/);
-  assert.match(serviceSource, /不要声称无法读取用户知识库/);
   assert.match(serviceSource, /buildRecoveredToolResultReply/);
   assert.match(serviceSource, /受控工具已经执行完成/);
   assert.match(consultationRuntimeSource, /knowledgeMatches: \(result\.knowledgeMatches \?\? \[\]\)\.map/);
   assert.match(consultationRuntimeSource, /content: clipText\(match\.content, 1200\)/);
   assert.doesNotMatch(consultationRuntimeSource, /runtime_required_tool_contract/);
   assert.doesNotMatch(consultationRuntimeSource, /runRequiredNativeToolCall/);
-  assert.doesNotMatch(serviceSource, /必须先调用 retrieve_knowledge_base/);
 });
 
 test("consultation-selected merchant knowledge flows into calendar tasks and Dify inputs", () => {
@@ -380,8 +376,7 @@ test("content calendar update remains available after prior calendar writes", ()
     consultationServiceAndRuntimeSource,
     /strategySnapshot\.contentCalendarGeneration/,
   );
-  assert.match(consultationServiceAndRuntimeSource, /不能只在自然语言中说已调整/);
-  assert.match(consultationServiceAndRuntimeSource, /代码不会硬拦截，也不会替你自动确认/);
+  assert.match(consultationServiceAndRuntimeSource, /后续团队内容可能需要重新生成/);
   assert.match(consultationServiceAndRuntimeSource, /buildRuntimeToolDescription/);
   assert.match(consultationServiceAndRuntimeSource, /当前日历生成状态/);
   assert.match(consultationContractSource, /contentCalendarGeneration/);

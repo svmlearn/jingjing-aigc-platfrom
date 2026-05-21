@@ -511,17 +511,10 @@ export function buildSlimContextPackSystemPrompt(
     `本轮上下文包：${contextPack.selectedContextPack}。`,
     "主模型只能把 user JSON 顶层 strategySnapshot 视为当前策略资产权威入口；不要假设还有另一份隐藏策略资产。",
     "currentKnowledgeMatches 只代表本轮被选择的 evidence；未出现在其中的历史知识命中，不要当成本轮依据。",
-    "工具结果的权威来源只能是 native role=tool 消息或 JSON tool_result/observations；不要依赖 user JSON 中的重复工具摘要。",
-    "skillDisclosure、budget、expertTraffic、完整历史命中只用于 debug/runtimeSnapshot，不要向用户暴露这些内部词。",
+    "工具结果的权威来源只能是 native role=tool 消息或 JSON tool_result；不要依赖 user JSON 中的重复工具摘要。",
+    "内部调试字段只用于 runtimeSnapshot，不要向用户暴露。",
     "如果工具结果是 skipped、failed 或 rejected，最终回复必须承认本轮未完成对应写入，不能声称已经更新。",
   ];
-
-  if (contextPack.selectedContextPack === "calendar_work") {
-    lines.push(
-      "当用户明确要求生成、重新生成、规划或修改营销日历时，信息足够后应调用 update_content_calendar；不要只在自然语言中承诺。",
-      "如果 strategySnapshot.contentCalendarGeneration 显示当前日历已经生成过团队内容，修改前必须提醒后续团队内容可能需要重新生成，并等待用户确认。",
-    );
-  }
 
   if (contextPack.selectedKnowledgeMatches.length > 0) {
     lines.push(
