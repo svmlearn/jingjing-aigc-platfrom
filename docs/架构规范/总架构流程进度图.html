@@ -1,0 +1,1479 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>静境内容生产总架构流程图</title>
+  <style>
+    :root {
+      --bg: #f5f4ef;
+      --ink: #181818;
+      --muted: #66635d;
+      --soft: #8f8a80;
+      --line: rgba(24, 24, 24, 0.13);
+      --panel: #fffdf8;
+      --panel-2: #f0eee7;
+      --teal: #1d756e;
+      --teal-soft: #dff0ec;
+      --gold: #a86b00;
+      --gold-soft: #fff0cf;
+      --blue: #285f9e;
+      --blue-soft: #e3edf8;
+      --red: #a33a30;
+      --red-soft: #fbe6e2;
+      --shadow: 0 18px 42px rgba(24, 24, 24, 0.08);
+      --radius: 8px;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(29, 117, 110, 0.07), transparent 360px),
+        var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+
+    main {
+      width: min(1480px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .hero-card,
+    .panel,
+    .lane,
+    .node,
+    .hover-card,
+    .contract-card,
+    .event {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+    }
+
+    .hero-card {
+      padding: 32px;
+      min-height: 300px;
+    }
+
+    .kicker {
+      margin: 0 0 12px;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 980px;
+      margin: 0;
+      font-size: clamp(34px, 4.8vw, 64px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      max-width: 900px;
+      margin: 20px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .pill,
+    .chip,
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      border-radius: 999px;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      font-size: 12px;
+      font-weight: 720;
+      white-space: nowrap;
+    }
+
+    .pill {
+      background: #faf7ef;
+      color: rgba(24, 24, 24, 0.72);
+    }
+
+    .chip {
+      background: var(--panel-2);
+      color: var(--muted);
+    }
+
+    .chip.done {
+      background: var(--teal-soft);
+      color: var(--teal);
+      border-color: rgba(29, 117, 110, 0.25);
+    }
+
+    .chip.warn {
+      background: var(--gold-soft);
+      color: var(--gold);
+      border-color: rgba(168, 107, 0, 0.22);
+    }
+
+    .chip.blue {
+      background: var(--blue-soft);
+      color: var(--blue);
+      border-color: rgba(40, 95, 158, 0.22);
+    }
+
+    .status-board {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      padding: 18px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #faf8f1;
+      padding: 16px;
+      min-height: 118px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 34px;
+      line-height: 1;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 18px 0 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(245, 244, 239, 0.9);
+      backdrop-filter: blur(12px);
+    }
+
+    nav a {
+      text-decoration: none;
+    }
+
+    section {
+      margin-top: 24px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 12px;
+    }
+
+    h2,
+    h3,
+    h4 {
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      line-height: 1.3;
+    }
+
+    h4 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .section-note {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .macro-flow,
+    .runtime-grid,
+    .tool-grid,
+    .skill-grid,
+    .contract-grid,
+    .worker-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .macro-flow {
+      grid-template-columns: repeat(6, minmax(190px, 1fr));
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .node {
+      position: relative;
+      min-width: 190px;
+      padding: 14px;
+    }
+
+    .node::after {
+      content: "";
+      position: absolute;
+      right: -13px;
+      top: 50%;
+      width: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .node:last-child::after {
+      display: none;
+    }
+
+    .node strong {
+      display: block;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .node small {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .tag {
+      margin-top: 10px;
+      background: var(--teal-soft);
+      color: var(--teal);
+      border-color: rgba(29, 117, 110, 0.24);
+      font-size: 11px;
+    }
+
+    .tag.warn {
+      background: var(--gold-soft);
+      color: var(--gold);
+      border-color: rgba(168, 107, 0, 0.24);
+    }
+
+    .tag.blue {
+      background: var(--blue-soft);
+      color: var(--blue);
+      border-color: rgba(40, 95, 158, 0.24);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.78fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .lanes {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .lane {
+      padding: 16px;
+    }
+
+    .lane > p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .hover-card {
+      position: relative;
+      padding: 13px;
+      outline: none;
+    }
+
+    .hover-card:hover,
+    .hover-card:focus-within {
+      border-color: rgba(29, 117, 110, 0.42);
+    }
+
+    .hover-card .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .hover-card p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .popover {
+      position: absolute;
+      left: 12px;
+      top: calc(100% + 8px);
+      z-index: 40;
+      display: none;
+      width: min(460px, calc(100vw - 54px));
+      max-height: 420px;
+      overflow: auto;
+      border: 1px solid rgba(24, 24, 24, 0.18);
+      border-radius: var(--radius);
+      background: #111;
+      color: #f8f5ec;
+      padding: 14px;
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+    }
+
+    .hover-card:hover .popover,
+    .hover-card:focus-within .popover {
+      display: block;
+    }
+
+    .popover strong {
+      display: block;
+      margin: 0 0 6px;
+      color: #f1c15b;
+      font-size: 13px;
+    }
+
+    .popover p,
+    .popover li {
+      color: rgba(248, 245, 236, 0.86);
+      font-size: 12px;
+    }
+
+    .popover p {
+      margin: 8px 0 0;
+    }
+
+    .popover ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+
+    .popover code,
+    .code,
+    pre {
+      font-family: var(--mono);
+    }
+
+    .popover code,
+    .code {
+      border-radius: 4px;
+      padding: 1px 4px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .tooltip-anchor {
+      display: inline-flex;
+      width: 22px;
+      height: 22px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: default;
+    }
+
+    .prompt-stack {
+      display: grid;
+      gap: 8px;
+      counter-reset: prompt;
+    }
+
+    .prompt-item {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #faf8f1;
+      padding: 10px;
+    }
+
+    .prompt-item::before {
+      counter-increment: prompt;
+      content: counter(prompt);
+      display: inline-flex;
+      width: 26px;
+      height: 26px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: var(--ink);
+      color: #f1c15b;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .prompt-item strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .prompt-item span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .skill-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .tool-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .runtime-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .contract-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .contract-card {
+      padding: 15px;
+    }
+
+    .contract-card p,
+    .contract-card li {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .contract-card ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .contract-card li + li {
+      margin-top: 6px;
+    }
+
+    pre {
+      margin: 10px 0 0;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #171717;
+      color: #f8f5ec;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .dify-flow {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(180px, 1fr));
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .worker-grid {
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+    }
+
+    .stage-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .stage-row {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #faf8f1;
+      padding: 10px;
+    }
+
+    .stage-row b {
+      color: var(--teal);
+      font-size: 12px;
+    }
+
+    .stage-row span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .event {
+      display: grid;
+      grid-template-columns: 126px minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .event time {
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 780;
+    }
+
+    .event p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .footnote {
+      margin: 24px 0 0;
+      color: rgba(24, 24, 24, 0.5);
+      font-size: 12px;
+    }
+
+    @media (max-width: 1180px) {
+      .hero,
+      .split,
+      .worker-grid,
+      .lanes {
+        grid-template-columns: 1fr;
+      }
+
+      .skill-grid,
+      .tool-grid,
+      .runtime-grid,
+      .contract-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      main {
+        padding: 16px;
+      }
+
+      .hero-card {
+        padding: 22px;
+      }
+
+      .status-board,
+      .skill-grid,
+      .tool-grid,
+      .runtime-grid,
+      .contract-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head {
+        display: block;
+      }
+
+      .section-note {
+        margin-top: 6px;
+        text-align: left;
+      }
+
+      .event,
+      .stage-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <div class="hero-card">
+        <p class="kicker">Jingjing End-to-End Architecture</p>
+        <h1>选题 Agent 到成片 Worker 的全链路地图</h1>
+        <p class="hero-copy">
+          本页把当前已经打通的链路拆成三段：咨询台选题 Agentic RAG、营销日历到 Dify 批量生成、成员端视频任务到 video-worker 成片。
+          这里记录的是代码与运行链路的事实层，方便后续排查“哪个节点输入了什么、输出了什么、由谁控制”。
+        </p>
+        <div class="meta">
+          <span class="pill">更新时间：2026-05-21</span>
+          <span class="pill">主分支：main</span>
+          <span class="pill">当前状态：主链路已打通</span>
+          <span class="pill">最新 release：a4be02e</span>
+        </div>
+      </div>
+
+      <aside class="panel status-board">
+        <div class="metric">
+          <strong>3</strong>
+          <span>主流程段：选题、Dify、video-worker</span>
+        </div>
+        <div class="metric">
+          <strong>8</strong>
+          <span>咨询 Agent 可配置 Skills</span>
+        </div>
+        <div class="metric">
+          <strong>8</strong>
+          <span>咨询业务 Tools，其中 2 个对 LLM 隐藏</span>
+        </div>
+        <div class="metric">
+          <strong>7</strong>
+          <span>video-worker 进度模块</span>
+        </div>
+      </aside>
+    </header>
+
+    <nav aria-label="页面导航">
+      <a class="chip done" href="#overview">总览</a>
+      <a class="chip done" href="#agent">选题 Agent</a>
+      <a class="chip done" href="#skills">Skills</a>
+      <a class="chip done" href="#tools">Tools</a>
+      <a class="chip done" href="#dify">营销日历到 Dify</a>
+      <a class="chip done" href="#video-worker">video-worker</a>
+      <a class="chip blue" href="#contracts">关键合同</a>
+      <a class="chip warn" href="#records">跑通记录</a>
+    </nav>
+
+    <section id="overview">
+      <div class="section-head">
+        <h2>一张总图</h2>
+        <p class="section-note">业务事实从咨询台进入策略资产和内容日历；生产事实从 Dify 和 video-worker 回写任务、草稿、成片和资产对象。</p>
+      </div>
+
+      <div class="macro-flow" aria-label="端到端总流程">
+        <article class="node">
+          <strong>1. 用户在咨询台讨论选题</strong>
+          <small>围绕项目优势、客户异议、内容方向、图文/视频选题、素材边界提出问题。</small>
+          <span class="tag">输入：自然语言</span>
+        </article>
+        <article class="node">
+          <strong>2. Agentic RAG 与受控工具</strong>
+          <small>runtime 注入 prompt、skill、context、knowledge matches，并让 LLM 自主选择工具。</small>
+          <span class="tag">输出：策略 / 日历</span>
+        </article>
+        <article class="node">
+          <strong>3. 内容日历资产</strong>
+          <small>UI 展示轻量卡片，后台保留知识引用、素材提示、镜头边界和生成状态。</small>
+          <span class="tag">写入 strategySnapshot</span>
+        </article>
+        <article class="node">
+          <strong>4. 生成团队内容</strong>
+          <small>点击按钮后展开成员任务，创建 batch/jobs，并把日历上下文压缩进 Dify inputs。</small>
+          <span class="tag blue">批量调度</span>
+        </article>
+        <article class="node">
+          <strong>5. Dify 单条生成</strong>
+          <small>每个 job 调一次 workflow，返回图文包和视频脚本 final_result_json。</small>
+          <span class="tag blue">单条 worker</span>
+        </article>
+        <article class="node">
+          <strong>6. 成员执行与成片</strong>
+          <small>成员端查看图文/视频脚本，上传素材或声音，video-worker 调 OpenStoryline/FireRed 输出成片。</small>
+          <span class="tag">输出：草稿 / 视频资产</span>
+        </article>
+      </div>
+    </section>
+
+    <section id="agent">
+      <div class="section-head">
+        <h2>选题侧：咨询 Agent Runtime</h2>
+        <p class="section-note">LLM 负责判断，runtime 负责边界。核心原则是“不硬编码替 LLM 决策，但把事实、工具和约束给够”。</p>
+      </div>
+
+      <div class="split">
+        <article class="lane">
+          <h3>Agent 提示词栈</h3>
+          <p>一次 native tool calling 轮次会拼出以下 system prompt 片段，再把商家、策略资产、知识库命中、工具结果和 skillDisclosure 放进 user JSON。</p>
+          <div class="prompt-stack">
+            <div class="prompt-item">
+              <div>
+                <strong>Agent active prompt</strong>
+                <span>默认角色是“静境商家平台里的 AI 商业顾问”，目标是沉淀定位、卖点、客群、关键场景、内容策略和一周内容日历。</span>
+              </div>
+            </div>
+            <div class="prompt-item">
+              <div>
+                <strong>soul.md</strong>
+                <span>定义专家人格、语气、acknowledgement 和互动节奏，但不能覆盖平台硬规则。</span>
+              </div>
+            </div>
+            <div class="prompt-item">
+              <div>
+                <strong>专家容器</strong>
+                <span>当前专家、agentKey、后台描述、知识边界。@ 只切换专家身份，不清空共享上下文。</span>
+              </div>
+            </div>
+            <div class="prompt-item">
+              <div>
+                <strong>Skill 渐进式披露</strong>
+                <span>先给候选 skill 摘要，当前轮命中后才注入最多 3 个 active skill 正文。</span>
+              </div>
+            </div>
+            <div class="prompt-item">
+              <div>
+                <strong>受控业务工具</strong>
+                <span>告诉 LLM 哪些工具能读资料、检索、找对标、写策略和写日历，以及每个工具影响范围。</span>
+              </div>
+            </div>
+            <div class="prompt-item">
+              <div>
+                <strong>ContextInjector</strong>
+                <span>注入商家、会话摘要、策略快照、知识库命中、工具结果、专家共享白板，并记录 char budget。</span>
+              </div>
+            </div>
+            <div class="prompt-item">
+              <div>
+                <strong>Native tool loop 规则</strong>
+                <span>工具必须通过 API tools 字段返回；是否检索、换 query、写日历由 LLM 判断；写日历前需要足够依据。</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="lane">
+          <h3>本轮核心硬规则</h3>
+          <div class="stack">
+            <div class="hover-card" tabindex="0">
+              <div class="card-top">
+                <h4>团队选题先查依据</h4>
+                <span class="tooltip-anchor">i</span>
+              </div>
+              <p>营销日历、团队选题、图文/视频脚本会沉淀为生产任务，prior tool_result 没有依据时应先检索。</p>
+              <div class="popover">
+                <strong>Prompt 片段</strong>
+                <p>如果用户要求的是营销日历、团队选题、图文/视频脚本这类会沉淀为后续生产任务的内容，并且 prior tool_result 尚未提供知识库或素材能力依据，应先调用 retrieve_knowledge_base。</p>
+              </div>
+            </div>
+            <div class="hover-card" tabindex="0">
+              <div class="card-top">
+                <h4>多轮 RAG 由 LLM 决定</h4>
+                <span class="tooltip-anchor">i</span>
+              </div>
+              <p>项目事实、方法论、话术、素材边界可以拆成不同 query 深挖。</p>
+              <div class="popover">
+                <strong>Runtime 事实</strong>
+                <ul>
+                  <li><code>retrieve_knowledge_base</code> 是 repeatable read tool。</li>
+                  <li>native loop 最多 8 轮工具回合。</li>
+                  <li>每轮最多接受 2 个 tool_calls。</li>
+                  <li>工具结果会作为 tool message 回填给模型继续判断。</li>
+                </ul>
+              </div>
+            </div>
+            <div class="hover-card" tabindex="0">
+              <div class="card-top">
+                <h4>修改日历必须写工具</h4>
+                <span class="tooltip-anchor">i</span>
+              </div>
+              <p>标题、摘要、日期、内容类型或选题角度的修改，不能只在自然语言里说“已调整”。</p>
+              <div class="popover">
+                <strong>Prompt 片段</strong>
+                <p>当用户要求修改某一条日历标题、摘要、日期、内容类型或选题角度时，也必须通过 <code>update_content_calendar</code> 写入修改后的日历。</p>
+              </div>
+            </div>
+            <div class="hover-card" tabindex="0">
+              <div class="card-top">
+                <h4>已生成团队内容的日历</h4>
+                <span class="tooltip-anchor">i</span>
+              </div>
+              <p>runtime 暴露 contentCalendarGeneration 标记，LLM 判断是否先提醒并确认，代码不硬拦截。</p>
+              <div class="popover">
+                <strong>当前规则</strong>
+                <ul>
+                  <li>点击“生成团队内容”后记录 <code>generatedFromRevisionId</code>、batch、时间、任务数。</li>
+                  <li>日历修改后可变为 <code>modified_after_generation</code>。</li>
+                  <li><code>update_content_calendar</code> 不再从 available tools 移除。</li>
+                  <li>是否提醒“团队内容可能要整体重做”由 LLM 自行判断。</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="skills">
+      <div class="section-head">
+        <h2>Skills：候选与激活</h2>
+        <p class="section-note">后台挂载的 enabled skills 先参与打分，当前用户消息或最近 3 条消息命中后，最多 3 个正文进入本轮 prompt。悬浮卡片可看内容摘要。</p>
+      </div>
+
+      <div class="skill-grid">
+        <article class="hover-card" tabindex="0">
+          <div class="card-top">
+            <h4>DBS 商业诊断</h4>
+            <span class="tooltip-anchor">i</span>
+          </div>
+          <p>判断方向、变现结构、价值假设和问题本身是否成立。</p>
+          <span class="chip done">dbs_diagnosis</span>
+          <div class="popover">
+            <strong>Skill 内容</strong>
+            <p>任务不是立刻做内容，而是判断方向、问题或商业模式是否成立。</p>
+            <ul>
+              <li>先消解问题，再回答问题。</li>
+              <li>检查语言陷阱、假设错误、逻辑错误、事实缺口。</li>
+              <li>输出核心判断、成立前提、最大风险、最小验证动作。</li>
+              <li>如果已进入标题、开头、脚本、排期，交给营销 Agent。</li>
+            </ul>
+            <p>依赖：<code>retrieve_knowledge_base</code></p>
+          </div>
+        </article>
+
+        <article class="hover-card" tabindex="0">
+          <div class="card-top">
+            <h4>DBS 概念拆解</h4>
+            <span class="tooltip-anchor">i</span>
+          </div>
+          <p>把定位、人设、IP、差异化等模糊词拆成可判断概念。</p>
+          <span class="chip done">dbs_deconstruct</span>
+          <div class="popover">
+            <strong>Skill 内容</strong>
+            <ul>
+              <li>不急着下定义，先看词在不同场景里怎么被使用。</li>
+              <li>还原概念来源，检查挪用后是否保留关键属性。</li>
+              <li>区分 Question 和 Problem，识别词语空转。</li>
+              <li>用大白话重写概念，并说明对领域、价值或对标的影响。</li>
+            </ul>
+            <p>触发：定位、人设、IP、爆款、价值、差异化等模糊词。</p>
+          </div>
+        </article>
+
+        <article class="hover-card" tabindex="0">
+          <div class="card-top">
+            <h4>DBS 对标判断</h4>
+            <span class="tooltip-anchor">i</span>
+          </div>
+          <p>判断对标对象是否值得学、能学什么、不能学什么。</p>
+          <span class="chip done">dbs_benchmark</span>
+          <div class="popover">
+            <strong>Skill 内容</strong>
+            <ul>
+              <li>粉丝多不等于值得对标。</li>
+              <li>五重过滤：他赚钱吗、看得懂吗、能模仿吗、能排除偏好吗、当前阶段是否该先模仿。</li>
+              <li>输出可学部分、不可学部分、第一步模仿动作和风险提醒。</li>
+              <li>不要直接生成标题或脚本。</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="hover-card" tabindex="0">
+          <div class="card-top">
+            <h4>DBS 目标清晰化</h4>
+            <span class="tooltip-anchor">i</span>
+          </div>
+          <p>把“想做 IP、想变现、想涨影响力”改成可检查目标。</p>
+          <span class="chip done">dbs_goal</span>
+          <div class="popover">
+            <strong>Skill 内容</strong>
+            <ul>
+              <li>先判断目标是否可指物、可否证、可验收。</li>
+              <li>识别影响力、长期主义、变现、起号、定位等空转词。</li>
+              <li>输出重写目标、验收 checklist 和下一步事实收集动作。</li>
+              <li>目标未清楚前，不进入标题、脚本、日历或投放建议。</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="hover-card" tabindex="0">
+          <div class="card-top">
+            <h4>DBS 内容创作诊断</h4>
+            <span class="tooltip-anchor">i</span>
+          </div>
+          <p>判断一个选题或内容是否值得做、适合什么形式。</p>
+          <span class="chip blue">dbs_content</span>
+          <div class="popover">
+            <strong>Skill 内容</strong>
+            <p>把已经确认的选题变成“该怎么做”的诊断，不默认替用户写完整内容。</p>
+            <ul>
+              <li>前提：用户应该已有明确选题；没有就先理清方向。</li>
+              <li>判断图文、短视频、长视频、直播、文章等形式匹配。</li>
+              <li>检查表达效率、标题封面、内容价值和 AI 辅助边界。</li>
+              <li>适合团队选题进入图文/视频执行前的质量判断。</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="hover-card" tabindex="0">
+          <div class="card-top">
+            <h4>DBS 短视频开头优化</h4>
+            <span class="tooltip-anchor">i</span>
+          </div>
+          <p>诊断短视频开头，判断 Hook、可信度和素材支撑。</p>
+          <span class="chip blue">dbs_hook</span>
+          <div class="popover">
+            <strong>Skill 内容</strong>
+            <ul>
+              <li>核心信念：写不出好开头，常常是内容本身有问题。</li>
+              <li>开头公式：话题 + Hook + 可信度。</li>
+              <li>只有选题/标题、没有正文时，先停止优化并要求补正文。</li>
+              <li>适合口播稿、短视频开头、完播和悬念优化。</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="hover-card" tabindex="0">
+          <div class="card-top">
+            <h4>DBS 小红书标题公式</h4>
+            <span class="tooltip-anchor">i</span>
+          </div>
+          <p>从小红书标题公式库中匹配触发器并生成标题。</p>
+          <span class="chip blue">dbs_xhs_title</span>
+          <div class="popover">
+            <strong>Skill 内容</strong>
+            <ul>
+              <li>不是万能标题生成器，而是公式匹配器。</li>
+              <li>标题必须能追溯到公式编号。</li>
+              <li>公式按认知冲突、好奇缺口、恐惧损失、身份代入、数字锚定、结果承诺等心理触发器分类。</li>
+              <li>适合小红书标题起名、标题优化和公式解释。</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="hover-card" tabindex="0">
+          <div class="card-top">
+            <h4>DBS AI 写作特征识别</h4>
+            <span class="tooltip-anchor">i</span>
+          </div>
+          <p>识别文案的 AI 味、模板味和过度完美感。</p>
+          <span class="chip blue">dbs_ai_check</span>
+          <div class="popover">
+            <strong>Skill 内容</strong>
+            <ul>
+              <li>默认只识别，不改写。</li>
+              <li>反对简单“去 AI 味”，重点是帮用户看清文字里的生成痕迹。</li>
+              <li>核心判断：AI 味常来自过度完美、过度均匀、缺少毛边。</li>
+              <li>适合文案质检、模板味诊断和表达真实性判断。</li>
+            </ul>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="tools">
+      <div class="section-head">
+        <h2>Tools：LLM 能调用什么</h2>
+        <p class="section-note">工具注册在 consultation-runtime/tools.ts。runtime 做 schema 校验、权限校验和状态回写；LLM 决定是否调用。</p>
+      </div>
+
+      <div class="tool-grid">
+        <article class="hover-card" tabindex="0">
+          <div class="card-top"><h4>读取用户信息</h4><span class="tooltip-anchor">i</span></div>
+          <p><code>read_merchant_profile</code></p>
+          <span class="chip done">读类，可重复</span>
+          <div class="popover">
+            <strong>用途</strong>
+            <p>读取用户基础信息、能力项、背景摘要、表达风格和希望引导的下一步。</p>
+            <p>影响范围：只读上下文。</p>
+          </div>
+        </article>
+        <article class="hover-card" tabindex="0">
+          <div class="card-top"><h4>检索平台与用户知识库</h4><span class="tooltip-anchor">i</span></div>
+          <p><code>retrieve_knowledge_base</code></p>
+          <span class="chip done">读类，可多轮</span>
+          <div class="popover">
+            <strong>参数</strong>
+            <ul>
+              <li><code>query</code>：明确问题或关键词。</li>
+              <li><code>knowledgeDocumentIds</code>：只能来自当前专家绑定范围。</li>
+              <li><code>topK</code>：受 agent 和 runtime 上限约束。</li>
+              <li><code>contextPolicy</code>：固定为 controlled_context_chunks_only。</li>
+            </ul>
+            <p>写入：knowledgeMatches / 受控上下文。</p>
+          </div>
+        </article>
+        <article class="hover-card" tabindex="0">
+          <div class="card-top"><h4>读取历史内容</h4><span class="tooltip-anchor">i</span></div>
+          <p><code>read_history</code></p>
+          <span class="chip done">读类，可重复</span>
+          <div class="popover">
+            <strong>用途</strong>
+            <p>读取当前咨询会话历史和摘要，避免“刚才、上次、前面”的上下文丢失。</p>
+            <p>参数：sessionId、previousMessageCount、previousSummary。</p>
+          </div>
+        </article>
+        <article class="hover-card" tabindex="0">
+          <div class="card-top"><h4>检索对标素材</h4><span class="tooltip-anchor">i</span></div>
+          <p><code>search_benchmark_materials</code></p>
+          <span class="chip warn">写素材缓存</span>
+          <div class="popover">
+            <strong>用途</strong>
+            <p>按关键词或博主主页检索小红书/抖音对标内容，并写入素材中心缓存。</p>
+            <p>参数：platform、findMethod、keyword/profileUrl、count、cachePolicy。</p>
+          </div>
+        </article>
+        <article class="hover-card" tabindex="0">
+          <div class="card-top"><h4>编辑策略资产</h4><span class="tooltip-anchor">i</span></div>
+          <p><code>update_strategy_snapshot</code></p>
+          <span class="chip warn">写 strategySnapshot</span>
+          <div class="popover">
+            <strong>写入范围</strong>
+            <p>把产品定位、核心卖点、目标客群、关键场景、当前建议作为一个整体资产编辑。</p>
+            <p>轻问答、寒暄、流程追问、信息不足时不应调用。</p>
+          </div>
+        </article>
+        <article class="hover-card" tabindex="0">
+          <div class="card-top"><h4>更新内容日历</h4><span class="tooltip-anchor">i</span></div>
+          <p><code>update_content_calendar</code></p>
+          <span class="chip warn">写日历，可再次出现</span>
+          <div class="popover">
+            <strong>参数</strong>
+            <ul>
+              <li><code>calendar</code>：1 到 14 条。</li>
+              <li>每条包含 dayLabel、contentType、title、summary、可选 strategyTag。</li>
+              <li>runtime 会补 merchantId、round、stage 和稳定 ID。</li>
+            </ul>
+            <p>写入：strategySnapshot.contentCalendarDraft，并维护 contentCalendarGeneration 修订状态。</p>
+          </div>
+        </article>
+        <article class="hover-card" tabindex="0">
+          <div class="card-top"><h4>生成图文任务草案</h4><span class="tooltip-anchor">i</span></div>
+          <p><code>generate_article_brief</code></p>
+          <span class="chip">对 LLM 隐藏</span>
+          <div class="popover">
+            <strong>边界</strong>
+            <p>仅在用户明确要求图文工作台 brief 时使用。团队内容日历直接生成链路不要把它作为前置。</p>
+          </div>
+        </article>
+        <article class="hover-card" tabindex="0">
+          <div class="card-top"><h4>生成视频任务草案</h4><span class="tooltip-anchor">i</span></div>
+          <p><code>generate_video_brief</code></p>
+          <span class="chip">对 LLM 隐藏</span>
+          <div class="popover">
+            <strong>边界</strong>
+            <p>仅在用户明确要求视频工作台 brief 时使用。当前团队内容生成链路是内容日历 -> 生成团队内容 -> Dify。</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="section-head" style="margin-top: 18px;">
+        <h2>Runtime 控制面</h2>
+        <p class="section-note">runtime 不替模型做业务判断，但控制上下文、工具可用性、执行边界、事件和失败处理。</p>
+      </div>
+      <div class="runtime-grid">
+        <article class="contract-card">
+          <h3>工具循环</h3>
+          <ul>
+            <li><code>nativeMaxToolTurns = 8</code></li>
+            <li><code>nativeMaxToolCallsPerTurn = 2</code></li>
+            <li>toolChoice 为 auto。</li>
+            <li>没有 tool_calls 时直接进入最终回复。</li>
+          </ul>
+        </article>
+        <article class="contract-card">
+          <h3>工具可用性</h3>
+          <ul>
+            <li>读类工具可重复：profile、knowledge、history。</li>
+            <li><code>update_content_calendar</code> 不因已调用而移除。</li>
+            <li>其他写类工具默认避免同轮重复。</li>
+            <li>hidden tools 不暴露给 LLM。</li>
+          </ul>
+        </article>
+        <article class="contract-card">
+          <h3>安全校验</h3>
+          <ul>
+            <li>校验工具名、enabledTools、JSON arguments 和 zod schema。</li>
+            <li>检索文档 ID 只能来自当前专家绑定范围。</li>
+            <li>工具失败或 skipped 时，最终回复不能声称已完成。</li>
+          </ul>
+        </article>
+        <article class="contract-card">
+          <h3>上下文预算</h3>
+          <ul>
+            <li>merchant 1600 chars。</li>
+            <li>strategySnapshot 2600 chars。</li>
+            <li>strategyMarkdown 8000 chars。</li>
+            <li>activeSkillBodies 4200 chars。</li>
+            <li>knowledgeMatches 4200 chars。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="dify">
+      <div class="section-head">
+        <h2>营销日历到 Dify</h2>
+        <p class="section-note">Dify 当前只负责“单条内容生成”。系统负责批量展开、队列、限流、重试、入库和成员端展示。</p>
+      </div>
+
+      <div class="dify-flow" aria-label="Dify 生成流程">
+        <article class="node">
+          <strong>用户点击生成团队内容</strong>
+          <small>输入 consultationSessionId、日期、天数、成员范围、extraRequirement。</small>
+          <span class="tag">前端动作</span>
+        </article>
+        <article class="node">
+          <strong>读取运营工作区</strong>
+          <small>确认 merchant、owner/member 角色、活跃团队成员和当前日历草稿。</small>
+          <span class="tag">app server</span>
+        </article>
+        <article class="node">
+          <strong>展开 daily tasks</strong>
+          <small>consultationCalendar 存在时，按内容日历写入或更新成员的 daily_content_tasks。</small>
+          <span class="tag">任务生成</span>
+        </article>
+        <article class="node">
+          <strong>创建 batch/jobs</strong>
+          <small>每个成员、日期、calendarItem 形成一个 content_generation_job。</small>
+          <span class="tag blue">队列</span>
+        </article>
+        <article class="node">
+          <strong>记录日历生成标记</strong>
+          <small>标记 generatedFromRevisionId、batchId、generatedAt、generatedJobCount。</small>
+          <span class="tag warn">防误改</span>
+        </article>
+        <article class="node">
+          <strong>content-generation-worker</strong>
+          <small>常驻轮询 /api/content-generation/jobs/run-next，claim pending job。</small>
+          <span class="tag blue">后台 worker</span>
+        </article>
+        <article class="node">
+          <strong>Dify workflow</strong>
+          <small>POST /workflows/run，response_mode 可 blocking 或 streaming，默认超时 900 秒。</small>
+          <span class="tag blue">单条生成</span>
+        </article>
+        <article class="node">
+          <strong>回写草稿与任务</strong>
+          <small>解析 final_result_json，写 content_drafts、note/video_script variants、daily task 生成结果。</small>
+          <span class="tag">成员端可见</span>
+        </article>
+      </div>
+
+      <div class="contract-grid" style="margin-top: 14px;">
+        <article class="contract-card">
+          <h3>Dify 接收到的 inputs</h3>
+          <p>实际由 <code>readDifyWorkflowInputs</code> 输出到 workflow。</p>
+          <pre>{
+  "calendar_task_json": "...",
+  "viral_references_json": "...",
+  "image_assets_json": "...",
+  "fallback_knowledge_text": "...",
+  "extra_requirement": "...",
+  "member_profile_json": "...",
+  "account_profile_json": "..."
+}</pre>
+        </article>
+        <article class="contract-card">
+          <h3>每个输入承载什么</h3>
+          <ul>
+            <li><code>calendar_task_json</code>：日历任务、UI 可见任务、隐藏 guidance、知识引用、视频素材能力。</li>
+            <li><code>viral_references_json</code>：知识库片段、话术、方法论、对标素材摘要。</li>
+            <li><code>image_assets_json</code>：图文可用图片素材和预览 URL。</li>
+            <li><code>fallback_knowledge_text</code>：项目概况、任务摘要、事实、话术、素材限制的人类可读压缩版。</li>
+            <li><code>member/account profile</code>：成员身份、项目名、项目摘要和默认 CTA。</li>
+          </ul>
+        </article>
+        <article class="contract-card">
+          <h3>Dify 必须输出什么</h3>
+          <pre>{
+  "status": "passed | needs_review | blocked",
+  "article": {
+    "title": "",
+    "coverCopy": "",
+    "images": [{ "cosPath": "", "role": "" }],
+    "copyText": ""
+  },
+  "video": {
+    "storyOutline": "",
+    "estimatedDuration": "",
+    "bgm": "",
+    "toneOfVoice": "",
+    "scenes": []
+  },
+  "quality": { "riskTerms": [] }
+}</pre>
+        </article>
+      </div>
+
+      <div class="contract-grid" style="margin-top: 14px;">
+        <article class="contract-card">
+          <h3>Job 状态</h3>
+          <ul>
+            <li><code>pending</code>：等待 worker claim。</li>
+            <li><code>running</code>：Dify 调用或落库中。</li>
+            <li><code>succeeded</code>：草稿和 daily task 已回写。</li>
+            <li><code>failed_retryable</code>：可重试失败。</li>
+            <li><code>failed_manual</code>：配置或合同错误，需要人工处理。</li>
+          </ul>
+        </article>
+        <article class="contract-card">
+          <h3>输出映射</h3>
+          <ul>
+            <li>article -> <code>DailyArticleContentPackageDto</code>。</li>
+            <li>video.scenes -> <code>DailyVideoScriptPackageDto</code>。</li>
+            <li>创建 content draft，生成 note 与 video_script 两个 variant。</li>
+            <li>daily_content_tasks 回写 article/video 的 draftId、variantId 和 succeeded 状态。</li>
+          </ul>
+        </article>
+        <article class="contract-card">
+          <h3>删除的历史字段</h3>
+          <ul>
+            <li>不再恢复 <code>quality.missingInputs</code>。</li>
+            <li>不再恢复 <code>quality.blockingReasons</code>。</li>
+            <li>不再把 <code>imageBriefIfMissing</code> 塞回成员端质量提示。</li>
+            <li>缺素材应由素材池、任务进度或运营待办处理。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="video-worker">
+      <div class="section-head">
+        <h2>video-worker 成片链路</h2>
+        <p class="section-note">app 只创建合同化 video_edit_jobs；worker 是稳定执行器；OpenStoryline/FireRed 是内部引擎，不上浮到 app。</p>
+      </div>
+
+      <div class="worker-grid">
+        <article class="lane">
+          <h3>从成员任务到成片</h3>
+          <div class="stage-list">
+            <div class="stage-row">
+              <b>成员端</b>
+              <span>读取 Dify 生成的视频脚本，上传口播视频、项目素材或 voice_profile，确认需要 AI 剪辑。</span>
+            </div>
+            <div class="stage-row">
+              <b>app 门禁</b>
+              <span>脚本必须锁定；素材必须有可下载对象；组装 <code>video_edit_jobs.input_payload</code>。</span>
+            </div>
+            <div class="stage-row">
+              <b>poller</b>
+              <span>video-worker 轮询并 claim <code>video_edit_jobs</code>，进入 preparing/running。</span>
+            </div>
+            <div class="stage-row">
+              <b>directive</b>
+              <span>把 input_payload 校验并标准化为 <code>ProductionDirective</code>。</span>
+            </div>
+            <div class="stage-row">
+              <b>输入素材</b>
+              <span>下载用户上传素材、素材库匹配素材、voice_profile 参考音频到本地 workspace。</span>
+            </div>
+            <div class="stage-row">
+              <b>OpenStoryline</b>
+              <span>调用 <code>/v1/runs/stream</code>，把 ProductionDirective 映射到 FireRed worker API。</span>
+            </div>
+            <div class="stage-row">
+              <b>FireRed</b>
+              <span>执行 load/search/split/group/script/voiceover/timeline/lip_sync/render 等节点。</span>
+            </div>
+            <div class="stage-row">
+              <b>结果回写</b>
+              <span>校验 final video、cover、subtitles；上传 OSS/COS；写 result_payload、log_payload 和 asset_objects。</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="lane">
+          <h3>worker 进度模块</h3>
+          <div class="tool-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+            <div class="hover-card" tabindex="0">
+              <div class="card-top"><h4>素材准备</h4><span class="tooltip-anchor">i</span></div>
+              <p><code>material_preparation</code></p>
+              <div class="popover"><strong>映射</strong><p>下载 input_assets、素材库资产、voice_profile 参考音频。失败归因到 <code>upload</code>。</p></div>
+            </div>
+            <div class="hover-card" tabindex="0">
+              <div class="card-top"><h4>素材匹配</h4><span class="tooltip-anchor">i</span></div>
+              <p><code>material_match</code></p>
+              <div class="popover"><strong>映射</strong><p>OpenStoryline 的 load_media、search_media、split_shots、understand_clips、group_clips、filter_clips 等事件。</p></div>
+            </div>
+            <div class="hover-card" tabindex="0">
+              <div class="card-top"><h4>配音生成</h4><span class="tooltip-anchor">i</span></div>
+              <p><code>voiceover</code></p>
+              <div class="popover"><strong>映射</strong><p>generate_voiceover、tts、clone voiceover。clone 模式必须产出可测量 voiceover segments。</p></div>
+            </div>
+            <div class="hover-card" tabindex="0">
+              <div class="card-top"><h4>lip_sync</h4><span class="tooltip-anchor">i</span></div>
+              <p><code>aliyun_videoretalk</code></p>
+              <div class="popover"><strong>规则</strong><ul><li>只处理 talking_head_segments。</li><li>音频支持 wav/mp3/aac，2s 到 120s，30MB 内。</li><li>视频支持 mp4/avi/mov，2s 到 120s，300MB 内。</li><li>render 必须消费 retalked timeline。</li></ul></div>
+            </div>
+            <div class="hover-card" tabindex="0">
+              <div class="card-top"><h4>字幕与时间线</h4><span class="tooltip-anchor">i</span></div>
+              <p><code>subtitles</code></p>
+              <div class="popover"><strong>字幕源</strong><p>默认 <code>script_audio_alignment</code> 不触发 ASR；只有显式 <code>asr_original_audio</code> 才允许 ASR 回退。</p></div>
+            </div>
+            <div class="hover-card" tabindex="0">
+              <div class="card-top"><h4>合成渲染</h4><span class="tooltip-anchor">i</span></div>
+              <p><code>render</code></p>
+              <div class="popover"><strong>规则</strong><p>最终必须产生 render_video artifact，并包含 final_video；可选 cover 和 subtitles。</p></div>
+            </div>
+            <div class="hover-card" tabindex="0">
+              <div class="card-top"><h4>保存成片</h4><span class="tooltip-anchor">i</span></div>
+              <p><code>output_delivery</code></p>
+              <div class="popover"><strong>落点</strong><p>上传 final video、cover、subtitle 到对象存储，并写入 asset_objects。</p></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="contract-grid" style="margin-top: 14px;">
+        <article class="contract-card">
+          <h3>video_edit_jobs.input_payload</h3>
+          <ul>
+            <li><code>script.text</code>：已确认脚本文本。</li>
+            <li><code>script.locked = true</code>：脚本已锁定。</li>
+            <li><code>productionDirective</code>：执行指令。</li>
+            <li><code>input_assets</code>：worker 可下载对象。</li>
+            <li><code>productionConfig</code>：voiceover、BGM、subtitles、lip_sync、render 等配置。</li>
+          </ul>
+        </article>
+        <article class="contract-card">
+          <h3>OpenStoryline prompt</h3>
+          <ul>
+            <li>这是 unattended background worker run。</li>
+            <li>平台已授权执行，不要再问确认。</li>
+            <li>不要改写锁定脚本，除非 ProductionDirective 明确允许。</li>
+            <li>lip_sync 开启时，先 plan_timeline，再 lip_sync，再 render_video。</li>
+            <li>ASR 只允许显式回退模式。</li>
+          </ul>
+        </article>
+        <article class="contract-card">
+          <h3>失败归因</h3>
+          <ul>
+            <li><code>upload</code>：输入素材、下载、合同校验。</li>
+            <li><code>clone_tts</code>：克隆配音参考和 voiceover artifact。</li>
+            <li><code>lip_sync</code>：VideoRetalk 输入、执行或 render 消费校验。</li>
+            <li><code>timeline</code>：素材匹配、字幕、时间线。</li>
+            <li><code>render</code>：输出文件缺失。</li>
+            <li><code>oss</code>：上传或 asset_objects 持久化。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="contracts">
+      <div class="section-head">
+        <h2>关键数据合同</h2>
+        <p class="section-note">这些字段是跨模块协作时最容易断的地方，也是排查链路时的优先检查点。</p>
+      </div>
+
+      <div class="lanes">
+        <article class="lane">
+          <h3>策略与日历</h3>
+          <ul>
+            <li><code>consultation_sessions.strategy_snapshot</code></li>
+            <li><code>contentCalendarDraft[]</code></li>
+            <li><code>contentCalendarGeneration</code></li>
+            <li><code>merchant_strategy_assets</code> markdown 文档</li>
+            <li><code>daily_content_tasks.teamCalendarSource</code></li>
+          </ul>
+        </article>
+        <article class="lane">
+          <h3>Dify 生成</h3>
+          <ul>
+            <li><code>content_generation_batches</code></li>
+            <li><code>content_generation_jobs.input_snapshot</code></li>
+            <li><code>dify_workflow_run_id</code></li>
+            <li><code>content_drafts</code></li>
+            <li><code>content_variants</code>：note / video_script</li>
+          </ul>
+        </article>
+        <article class="lane">
+          <h3>视频成片</h3>
+          <ul>
+            <li><code>video_edit_jobs.input_payload</code></li>
+            <li><code>video_edit_jobs.runtime_payload.progress_modules</code></li>
+            <li><code>video_edit_jobs.result_payload</code></li>
+            <li><code>asset_objects</code>：video / cover / subtitle</li>
+            <li><code>voice_profiles</code> 与参考音频资产</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="records">
+      <div class="section-head">
+        <h2>跑通记录</h2>
+        <p class="section-note">后续每次点亮链路时，把事实记录追加到这里。</p>
+      </div>
+
+      <div class="timeline">
+        <div class="event">
+          <time>2026-05-14</time>
+          <p>内容日历 -> batch/job -> 真实 Dify streaming -> final JSON mapper -> 草稿/variant -> 成员端 week API 跑通。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-14</time>
+          <p>owner 侧团队成员页与邀请码 API 本地冒烟通过：owner 生成邀请码、成员接受邀请码、owner 回看成员与使用次数。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-20</time>
+          <p>团队选题 Agentic RAG 与日历上下文沉淀进入实现：读类工具可多轮检索，日历隐藏上下文进入 Dify inputs。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-20</time>
+          <p>真人口播链路补入口型替换和精准字幕方案：voice_profile -> clone_tts -> lip_sync -> timeline -> render -> OSS。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-21</time>
+          <p>修复内容日历生成团队内容后的再次修改链路：不移除 update_content_calendar，改为暴露 contentCalendarGeneration 标记让 LLM 判断确认策略。</p>
+        </div>
+        <div class="event">
+          <time>2026-05-21</time>
+          <p>main 分支 a4be02e 已推送 Gitee/GitHub 并发布到服务器 release，主应用、内容生成 worker、视频 worker、OpenStoryline、FireRed health check 正常。</p>
+        </div>
+      </div>
+    </section>
+
+    <p class="footnote">
+      维护规则：本页优先记录当前代码事实。若 Dify YAML、Agent tools、skill seed、video-worker 合同发生变化，应同步更新对应 hover 卡片和数据合同，不要只更新进度数字。
+    </p>
+  </main>
+</body>
+</html>
