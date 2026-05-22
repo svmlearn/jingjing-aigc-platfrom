@@ -21,6 +21,7 @@ import {
 import { buildSkillDependencyWarnings } from "@/server/api/consultation-runtime/skills";
 import {
   buildContextBoundarySnapshot,
+  enforceConsultationMessageBudget,
   buildLatestExpertTurnNote,
 } from "@/server/api/consultation-runtime/context";
 import {
@@ -310,11 +311,7 @@ async function runModelJsonToolLoop(input: {
     const availableTools = buildConsultationAiRuntimeTools({
       state: input.input.state,
       unavailableToolNames: getNativeUnavailableToolNames(input.toolResults),
-    }).map((tool) => ({
-      name: tool.function.name,
-      description: tool.function.description ?? "",
-      inputSchema: tool.function.parameters,
-    }));
+    });
 
     if (availableTools.length === 0) {
       break;
@@ -327,30 +324,26 @@ async function runModelJsonToolLoop(input: {
         runtimeDesign: "model_json_tool_loop_v1",
         turn,
         maxTurns: jsonToolLoopMaxTurns,
-        availableTools,
-        completedTools: getPlannerCompletedToolNames(input.toolResults),
-        observations: input.toolResults.map((result) => ({
-          toolName: result.toolName,
-          rawToolName: result.rawToolName ?? null,
-          status: result.status,
-          summary: result.summary,
-        })),
-        decisionRules: [
-          "如果用户要求基于知识库、用户资料、已有素材能力来生成营销日历、团队选题、图文或视频脚本，且 completedTools 不含 retrieve_knowledge_base，应优先考虑先调用 retrieve_knowledge_base 获取本轮依据。",
-          "strategySnapshot.contentCalendarDraft 和 strategyTags 是历史策略资产，不等于本轮 tool_result；不要把历史日历或历史“知识库命中”标签当作本轮已经检索过。",
-          "当前团队内容生成链路是内容日历 -> 生成团队内容 -> Dify；generate_article_brief / generate_video_brief 只在用户明确要求工作台 brief 时使用。",
-          "只有当本轮 tool_result 已经提供足够知识库、话术或素材能力依据后，才选择 update_content_calendar。",
-        ],
+        availableToolNames: availableTools.map((tool) => tool.function.name),
+        completedToolNames: getCompletedToolNames(input.toolResults),
+        failedToolNames: getFailedToolNames(input.toolResults),
+        skippedToolNames: getSkippedToolNames(input.toolResults),
+        writeToolsAlreadyUsed: getWriteToolsAlreadyUsed(input.toolResults),
       }),
     };
 
     let response: Awaited<ReturnType<typeof createChatCompletion>>;
 
     try {
+      const budgetedMessages = prepareConsultationMessagesForCompletion({
+        state: input.input.state,
+        phase: `json_tool_loop_turn_${turn}`,
+        messages: [...messages, loopStateMessage],
+      });
       response = await createChatCompletion({
         runtime: input.input.state.llmRuntime,
         model: input.input.state.consultationAgent.model,
-        messages: [...messages, loopStateMessage],
+        messages: budgetedMessages,
         responseFormat: "json_object",
       });
     } catch (error) {
@@ -480,7 +473,7 @@ async function runModelJsonToolLoop(input: {
         continue;
       }
 
-      const availableToolNames = new Set(availableTools.map((tool) => tool.name));
+      const availableToolNames = new Set(availableTools.map((tool) => tool.function.name));
 
       if (!availableToolNames.has(parsedTool.call.toolName)) {
         const planner: ConsultationPlannerTraceItem = {
@@ -566,17 +559,21 @@ async function runModelJsonToolLoop(input: {
     const finalResponse = await createChatCompletion({
       runtime: input.input.state.llmRuntime,
       model: input.input.state.consultationAgent.model,
-      messages: [
-        ...messages,
-        {
-          role: "user",
-          content: JSON.stringify({
-            type: "final_instruction",
-            instruction:
-              "请停止调用工具，基于已经返回的 tool_result 给用户一个中文自然语言回复。输出 JSON：{\"action\":\"final\",\"finalResponse\":\"...\"}。",
-          }),
-        },
-      ],
+      messages: prepareConsultationMessagesForCompletion({
+        state: input.input.state,
+        phase: "json_tool_loop_final",
+        messages: [
+          ...messages,
+          {
+            role: "user",
+            content: JSON.stringify({
+              type: "final_instruction",
+              instruction:
+                "请停止调用工具，基于已经返回的 tool_result 给用户一个中文自然语言回复。输出 JSON：{\"action\":\"final\",\"finalResponse\":\"...\"}。",
+            }),
+          },
+        ],
+      }),
       responseFormat: "json_object",
     });
     const parsed = parseJsonToolLoopDecision(finalResponse.content);
@@ -633,10 +630,15 @@ async function runNativeToolCallingLoop(input: {
     let response: Awaited<ReturnType<typeof createChatCompletion>>;
 
     try {
+      const budgetedMessages = prepareConsultationMessagesForCompletion({
+        state: input.input.state,
+        phase: `native_tool_calling_turn_${turn}`,
+        messages,
+      });
       response = await createChatCompletion({
         runtime: input.input.state.llmRuntime,
         model: input.input.state.consultationAgent.model,
-        messages,
+        messages: budgetedMessages,
         tools,
         toolChoice: "auto",
       });
@@ -759,14 +761,18 @@ async function runNativeToolCallingLoop(input: {
     const finalResponse = await createChatCompletion({
       runtime: input.input.state.llmRuntime,
       model: input.input.state.consultationAgent.model,
-      messages: [
-        ...messages,
-        {
-          role: "user",
-          content:
-            "请停止调用工具，基于已经返回的工具结果给用户一个中文自然语言回复。不要声称未完成的工具已经执行，不要输出内部工具名。",
-        },
-      ],
+      messages: prepareConsultationMessagesForCompletion({
+        state: input.input.state,
+        phase: "native_tool_calling_final",
+        messages: [
+          ...messages,
+          {
+            role: "user",
+            content:
+              "请停止调用工具，基于已经返回的工具结果给用户一个中文自然语言回复。不要声称未完成的工具已经执行，不要输出内部工具名。",
+          },
+        ],
+      }),
     });
     const content = finalResponse.content.trim();
 
@@ -797,6 +803,40 @@ export function getPlannerCompletedToolNames(
     .filter((result) => result.status !== "failed")
     .filter((result) => result.toolName !== "update_strategy_snapshot" || result.status === "completed")
     .map((result) => result.toolName);
+}
+
+function getCompletedToolNames(toolResults: ConsultationAgentToolResult[]) {
+  return uniqueStrings(
+    toolResults
+      .filter(isKnownConsultationToolResult)
+      .filter((result) => result.status === "completed")
+      .map((result) => result.toolName),
+  );
+}
+
+function getFailedToolNames(toolResults: ConsultationAgentToolResult[]) {
+  return uniqueStrings(
+    toolResults
+      .filter((result) => result.status === "failed")
+      .map((result) => result.rawToolName ?? result.toolName),
+  );
+}
+
+function getSkippedToolNames(toolResults: ConsultationAgentToolResult[]) {
+  return uniqueStrings(
+    toolResults
+      .filter((result) => result.status === "skipped")
+      .map((result) => result.rawToolName ?? result.toolName),
+  );
+}
+
+function getWriteToolsAlreadyUsed(toolResults: ConsultationAgentToolResult[]) {
+  return uniqueStrings(
+    toolResults
+      .filter(isKnownConsultationToolResult)
+      .filter((result) => !isRepeatableConsultationReadTool(result.toolName))
+      .map((result) => result.toolName),
+  );
 }
 
 function getNativeUnavailableToolNames(
@@ -1058,6 +1098,23 @@ function buildNativeFallbackResult(reason: string): NativeToolCallingResult {
     fallbackReason: reason,
     terminalReason: "fallback_deterministic",
   };
+}
+
+function prepareConsultationMessagesForCompletion(input: {
+  state: ConsultationAgentLoopState;
+  phase: string;
+  messages: ChatMessage[];
+}) {
+  const result = enforceConsultationMessageBudget({
+    messages: input.messages,
+    phase: input.phase,
+  });
+  input.state.contextPreflightReports = [
+    ...(input.state.contextPreflightReports ?? []),
+    result.report,
+  ];
+
+  return result.messages;
 }
 
 function buildNativeToolResultContent(result: ConsultationAgentToolResult) {

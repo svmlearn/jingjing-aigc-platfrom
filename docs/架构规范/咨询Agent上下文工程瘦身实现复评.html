@@ -1,0 +1,1056 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>咨询 Agent 上下文工程瘦身实现复评</title>
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --paper: #fffdf8;
+      --paper-2: #fbf8ef;
+      --ink: #171717;
+      --muted: #665f55;
+      --soft: #8c8377;
+      --line: rgba(23, 23, 23, 0.14);
+      --line-strong: rgba(23, 23, 23, 0.26);
+      --teal: #15756d;
+      --teal-soft: #dff1ed;
+      --gold: #9b6400;
+      --gold-soft: #fff0cd;
+      --blue: #285f9e;
+      --blue-soft: #e5eef8;
+      --red: #a13b31;
+      --red-soft: #f9e5e1;
+      --purple: #6450a3;
+      --purple-soft: #ebe7fb;
+      --gray-soft: #eeeae1;
+      --shadow: 0 18px 46px rgba(23, 23, 23, 0.08);
+      --radius: 8px;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(21, 117, 109, 0.08), transparent 360px),
+        var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.56;
+    }
+
+    main {
+      width: min(1500px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 1120px;
+      font-size: clamp(34px, 5vw, 68px);
+      line-height: 1;
+      letter-spacing: 0;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      font-size: clamp(28px, 3vw, 44px);
+      line-height: 1.08;
+      letter-spacing: 0;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 20px;
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+
+    code,
+    pre,
+    .mono {
+      font-family: var(--mono);
+    }
+
+    code {
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: #f0ede5;
+      padding: 1px 5px;
+      font-size: 0.92em;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      color: #eee9df;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.22fr) minmax(320px, 0.78fr);
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 22px;
+    }
+
+    .panel,
+    .hero-card,
+    .mini-card,
+    .flow-node,
+    .review-card,
+    .code-card,
+    .matrix-card,
+    .callout {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: 32px;
+      min-height: 310px;
+    }
+
+    .kicker {
+      margin: 0 0 12px;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .hero-copy {
+      max-width: 1000px;
+      color: var(--muted);
+      font-size: 16px;
+      margin-bottom: 0;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 12px;
+    }
+
+    .mini-card {
+      padding: 18px;
+      min-height: 132px;
+      background: rgba(255, 253, 248, 0.94);
+    }
+
+    .mini-card strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      margin-bottom: 9px;
+    }
+
+    .mini-card span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 248, 0.94);
+      backdrop-filter: blur(12px);
+      padding: 12px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 28px rgba(23, 23, 23, 0.07);
+    }
+
+    .chip,
+    .tag,
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 760;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+
+    .chip {
+      background: var(--paper-2);
+      color: rgba(23, 23, 23, 0.76);
+    }
+
+    .tag.teal,
+    .chip.teal {
+      color: var(--teal);
+      background: var(--teal-soft);
+      border-color: rgba(21, 117, 109, 0.24);
+    }
+
+    .tag.gold,
+    .chip.gold {
+      color: var(--gold);
+      background: var(--gold-soft);
+      border-color: rgba(155, 100, 0, 0.24);
+    }
+
+    .tag.blue,
+    .chip.blue {
+      color: var(--blue);
+      background: var(--blue-soft);
+      border-color: rgba(40, 95, 158, 0.24);
+    }
+
+    .tag.red,
+    .chip.red {
+      color: var(--red);
+      background: var(--red-soft);
+      border-color: rgba(161, 59, 49, 0.24);
+    }
+
+    .tag.purple,
+    .chip.purple {
+      color: var(--purple);
+      background: var(--purple-soft);
+      border-color: rgba(100, 80, 163, 0.24);
+    }
+
+    section {
+      margin: 34px 0;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 16px;
+    }
+
+    .section-note {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 980px;
+      margin-bottom: 0;
+    }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .triple-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .review-card,
+    .matrix-card {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      box-shadow: none;
+      background: rgba(255, 253, 248, 0.94);
+    }
+
+    .review-card strong,
+    .matrix-card strong {
+      display: block;
+      font-size: 17px;
+      line-height: 1.24;
+    }
+
+    .review-card p,
+    .matrix-card p {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 0;
+    }
+
+    .review-card.good {
+      border-color: rgba(21, 117, 109, 0.24);
+      background: linear-gradient(180deg, rgba(223, 241, 237, 0.7), rgba(255, 253, 248, 0.95));
+    }
+
+    .review-card.watch {
+      border-color: rgba(155, 100, 0, 0.24);
+      background: linear-gradient(180deg, rgba(255, 240, 205, 0.75), rgba(255, 253, 248, 0.95));
+    }
+
+    .review-card.risk {
+      border-color: rgba(161, 59, 49, 0.24);
+      background: linear-gradient(180deg, rgba(249, 229, 225, 0.82), rgba(255, 253, 248, 0.95));
+    }
+
+    .flow {
+      display: grid;
+      gap: 12px;
+    }
+
+    .flow-node {
+      position: relative;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 14px;
+      background: #fbf9f2;
+      box-shadow: none;
+    }
+
+    .flow-node::after {
+      content: attr(data-risk);
+      grid-column: 3;
+      grid-row: 1;
+      align-self: start;
+      justify-self: end;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 760;
+      color: var(--muted);
+      background: #eeeae1;
+      border: 1px solid var(--line);
+      white-space: nowrap;
+    }
+
+    .flow-node[data-level="good"]::after {
+      color: var(--teal);
+      background: var(--teal-soft);
+      border-color: rgba(21, 117, 109, 0.24);
+    }
+
+    .flow-node[data-level="watch"]::after {
+      color: var(--gold);
+      background: var(--gold-soft);
+      border-color: rgba(155, 100, 0, 0.24);
+    }
+
+    .flow-node[data-level="risk"]::after {
+      color: var(--red);
+      background: var(--red-soft);
+      border-color: rgba(161, 59, 49, 0.24);
+    }
+
+    .num {
+      display: inline-grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      color: #fffdf8;
+      background: var(--ink);
+      font-weight: 850;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .node-title {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .node-title strong {
+      font-size: 17px;
+    }
+
+    .node-body {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .swimlane {
+      display: grid;
+      grid-template-columns: 180px repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .lane-label,
+    .lane-cell {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      background: rgba(255, 253, 248, 0.95);
+      min-height: 92px;
+    }
+
+    .lane-label {
+      display: grid;
+      align-content: center;
+      font-weight: 850;
+      background: #171717;
+      color: #fffdf8;
+    }
+
+    .lane-cell strong {
+      display: block;
+      margin-bottom: 6px;
+      line-height: 1.2;
+    }
+
+    .lane-cell span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .lane-cell.good {
+      background: var(--teal-soft);
+      border-color: rgba(21, 117, 109, 0.28);
+    }
+
+    .lane-cell.watch {
+      background: var(--gold-soft);
+      border-color: rgba(155, 100, 0, 0.28);
+    }
+
+    .lane-cell.risk {
+      background: var(--red-soft);
+      border-color: rgba(161, 59, 49, 0.28);
+    }
+
+    .code-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .code-card {
+      overflow: hidden;
+      background: #111;
+      box-shadow: none;
+    }
+
+    .code-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      color: #fffdf8;
+      background: #1c1c1c;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .code-body {
+      padding: 14px;
+      overflow: auto;
+      max-height: 520px;
+    }
+
+    .callout {
+      padding: 18px;
+      background: linear-gradient(135deg, rgba(40, 95, 158, 0.12), rgba(255, 253, 248, 0.96));
+    }
+
+    .callout strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    .callout p {
+      margin-bottom: 0;
+      color: var(--muted);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .table th,
+    .table td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+    }
+
+    .table th {
+      background: #eeeae1;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .footer {
+      margin-top: 42px;
+      border-top: 1px solid var(--line);
+      padding-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      main {
+        padding: 18px;
+      }
+
+      .hero,
+      .compare-grid,
+      .triple-grid,
+      .stack-grid,
+      .code-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head {
+        grid-template-columns: 1fr;
+      }
+
+      .swimlane {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <div class="hero-card">
+        <p class="kicker">V2.7 Context Slimming Review</p>
+        <h1>咨询 Agent 上下文工程瘦身实现复评</h1>
+        <p class="hero-copy">
+          基于 <code>bf7b438 feat: slim consultation agent context payload</code>、V2.7 PRD 和 Claude Code reference 的对照结论：
+          主模型的 user JSON 已经明显变轻，但冗余没有完全消失，一部分从 user JSON 转移到了 system prompt 和 JSON tool loop 的状态消息里。
+        </p>
+      </div>
+
+      <aside class="hero-side">
+        <div class="mini-card">
+          <strong>方向对</strong>
+          <span>移除了主 user JSON 中的 <code>contextInjection</code>、<code>toolResults</code>、<code>skillDisclosure</code>、<code>budget</code>、<code>expertTraffic</code>。</span>
+        </div>
+        <div class="mini-card">
+          <strong>还偏重</strong>
+          <span>system prompt 仍携带大量流程型规则，JSON tool loop 仍重复传 <code>observations</code> 摘要。</span>
+        </div>
+        <div class="mini-card">
+          <strong>下一步</strong>
+          <span>把 budget 从报告改成执行器，把工具结果压缩放到消息预处理管线，而不是业务 payload。</span>
+        </div>
+      </aside>
+    </header>
+
+    <nav class="nav">
+      <a class="chip teal" href="#principle">核心思想</a>
+      <a class="chip" href="#actual">当前实际</a>
+      <a class="chip red" href="#redundancy">冗余回流</a>
+      <a class="chip blue" href="#claude">Claude Code 对照</a>
+      <a class="chip gold" href="#target">修改后形态</a>
+      <a class="chip purple" href="#checklist">收口清单</a>
+    </nav>
+
+    <section id="principle">
+      <div class="section-head">
+        <div>
+          <p class="kicker">01 Principle</p>
+          <h2>PRD 里的瘦身核心不是少几个字段，而是分清三条边界</h2>
+          <p class="section-note">
+            主模型只看当前业务决策必要上下文；工具协议只承载真实工具结果；debug/runtimeSnapshot 保留完整工程痕迹，但不参与主模型判断。
+          </p>
+        </div>
+        <span class="tag teal">核心判断</span>
+      </div>
+
+      <div class="triple-grid">
+        <article class="review-card good">
+          <span class="tag teal">LLM 可见</span>
+          <strong>只给本轮必要事实</strong>
+          <p><code>merchant</code>、<code>userMessage</code>、<code>round</code>、<code>expertRouting</code>、<code>strategySnapshot</code>、<code>currentKnowledgeMatches</code>。</p>
+        </article>
+        <article class="review-card good">
+          <span class="tag blue">Tool 协议</span>
+          <strong>工具结果保持消息流权威</strong>
+          <p>native 路径用 <code>role=tool</code>，JSON 路径用 <code>tool_result</code>。失败、跳过、拒写都必须原样回到模型。</p>
+        </article>
+        <article class="review-card good">
+          <span class="tag purple">Debug 内部</span>
+          <strong>完整上下文只留给排查</strong>
+          <p><code>budget</code>、完整历史命中、<code>skillDisclosure</code>、<code>expertTraffic</code>、omission trace 都属于 runtimeSnapshot。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="actual">
+      <div class="section-head">
+        <div>
+          <p class="kicker">02 Actual Implementation</p>
+          <h2>bf7b438 修改后，真实进入模型的路径</h2>
+          <p class="section-note">
+            绿色是符合瘦身目标的部分，黄色是可接受但还要收敛的协议层，红色是冗余回流点。
+          </p>
+        </div>
+        <span class="tag gold">当前状态</span>
+      </div>
+
+      <div class="swimlane">
+        <div class="lane-label">普通回复模型</div>
+        <div class="lane-cell watch">
+          <strong>System</strong>
+          <span>agent prompt、soul、expert、skills、tools、slim_v2 规则，仍偏长。</span>
+        </div>
+        <div class="lane-cell good">
+          <strong>User JSON</strong>
+          <span>只剩 6 类业务字段，符合 PRD 目标形态。</span>
+        </div>
+        <div class="lane-cell good">
+          <strong>Knowledge</strong>
+          <span><code>currentKnowledgeMatches</code> 最多 5 条 selected evidence。</span>
+        </div>
+        <div class="lane-cell good">
+          <strong>Debug</strong>
+          <span>budget、omittedContext、完整命中留在 runtimeSnapshot。</span>
+        </div>
+
+        <div class="lane-label">Native tool loop</div>
+        <div class="lane-cell risk">
+          <strong>System</strong>
+          <span>保留大量日历、检索、写入顺序规则，和“判断原则”目标冲突。</span>
+        </div>
+        <div class="lane-cell good">
+          <strong>User JSON</strong>
+          <span>不再有 <code>contextInjection</code> 和重复 <code>toolResults</code>。</span>
+        </div>
+        <div class="lane-cell good">
+          <strong>Tool result</strong>
+          <span><code>role=tool</code> 成对回填，符合 Claude Code 思路。</span>
+        </div>
+        <div class="lane-cell watch">
+          <strong>Message trim</strong>
+          <span>保留 tool call/result 对，但还不是 token 预算驱动。</span>
+        </div>
+
+        <div class="lane-label">JSON tool loop</div>
+        <div class="lane-cell risk">
+          <strong>System</strong>
+          <span>同样还有大量流程型规则。</span>
+        </div>
+        <div class="lane-cell good">
+          <strong>Initial user</strong>
+          <span>结构已瘦身。</span>
+        </div>
+        <div class="lane-cell risk">
+          <strong>tool_loop_state</strong>
+          <span><code>observations</code> 每轮重复工具摘要，等于换位置注入 <code>toolResults</code>。</span>
+        </div>
+        <div class="lane-cell watch">
+          <strong>Final instruction</strong>
+          <span>可保留，但应避免再次解释内部协议。</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="redundancy">
+      <div class="section-head">
+        <div>
+          <p class="kicker">03 Redundancy Backflow</p>
+          <h2>不符合 PRD 精神的冗余回流点</h2>
+          <p class="section-note">
+            这些不是“代码跑不通”的问题，而是上下文工程质量问题：模型仍会被过多流程、重复摘要和调试状态牵引。
+          </p>
+        </div>
+        <span class="tag red">需要继续改</span>
+      </div>
+
+      <div class="stack-grid">
+        <article class="review-card risk">
+          <span class="tag red">P0</span>
+          <strong>system prompt 仍像流程手册</strong>
+          <p>PRD 要把日历规则改成判断原则，但 native/json tool loop 仍保留多条硬流程说明，例如先检索、再写入、不要反向证明、标题修改必须写入等。</p>
+          <p class="mono">app/src/server/api/consultation-service.ts:1944 / 2020</p>
+        </article>
+
+        <article class="review-card risk">
+          <span class="tag red">P0</span>
+          <strong><code>observations</code> 复活了 toolResults</strong>
+          <p>JSON tool loop 中每轮 <code>tool_loop_state</code> 都把工具结果 summary 重新打包给模型，和“tool_result 是权威来源”相冲突。</p>
+          <p class="mono">app/src/server/api/consultation-runtime/runtime.ts:323</p>
+        </article>
+
+        <article class="review-card watch">
+          <span class="tag gold">P1</span>
+          <strong>budget 是 report，不是 enforcer</strong>
+          <p><code>buildBudgetBucket</code> 只标记超限，未实际裁剪 payload、tool result 或 skill bodies。PRD 里要求硬预算、裁剪和 omit。</p>
+          <p class="mono">app/src/server/api/consultation-runtime/context.ts:463</p>
+        </article>
+
+        <article class="review-card watch">
+          <span class="tag gold">P1</span>
+          <strong>旧 ContextInjection 仍可被误用</strong>
+          <p><code>buildConsultationContextInjection</code> 和 <code>buildContextInjectionSystemPrompt</code> 已脱离主路径，但仍完整导出，保留了下一次回归入口。</p>
+          <p class="mono">app/src/server/api/consultation-runtime/context.ts:141</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="claude">
+      <div class="section-head">
+        <div>
+          <p class="kicker">04 Claude Code Reference</p>
+          <h2>从 Claude Code 对照出来的可借鉴方法</h2>
+          <p class="section-note">
+            这里不是照搬 Claude Code，而是提炼对咨询 Agent 有用的工程原则：消息流是事实源，压缩发生在 API 前处理管线，debug 边界不混入业务 payload。
+          </p>
+        </div>
+        <span class="tag blue">参考方法</span>
+      </div>
+
+      <div class="flow">
+        <article class="flow-node" data-level="good" data-risk="可借鉴">
+          <span class="num">1</span>
+          <div>
+            <div class="node-title">
+              <strong>API 前先做上下文预处理管线</strong>
+              <span class="tag blue">pipeline</span>
+            </div>
+            <div class="node-body">
+              Claude Code 在发 API 前依次做工具结果预算、snip、microcompact、collapse、autocompact。咨询 Agent 现在只有 budget report，还缺真正的 pipeline。
+            </div>
+          </div>
+        </article>
+
+        <article class="flow-node" data-level="good" data-risk="可借鉴">
+          <span class="num">2</span>
+          <div>
+            <div class="node-title">
+              <strong>旧工具输出只压缩消息，不改写事实源</strong>
+              <span class="tag blue">microcompact</span>
+            </div>
+            <div class="node-body">
+              Claude Code 的 MicroCompact 是把旧工具结果替换成占位符，原始内容仍在 transcript/debug 中。咨询 Agent 也应该压缩旧 tool result，而不是额外塞 observations 摘要。
+            </div>
+          </div>
+        </article>
+
+        <article class="flow-node" data-level="good" data-risk="可借鉴">
+          <span class="num">3</span>
+          <div>
+            <div class="node-title">
+              <strong>tool_use / tool_result 必须保持成对</strong>
+              <span class="tag teal">已部分做到</span>
+            </div>
+            <div class="node-body">
+              当前 <code>selectMessagesForChatCompletion</code> 已避免简单 slice 破坏 native tool pair，这是正确方向。下一步应在这个选择器里加入 token/字符预算和工具结果压缩。
+            </div>
+          </div>
+        </article>
+
+        <article class="flow-node" data-level="watch" data-risk="待补">
+          <span class="num">4</span>
+          <div>
+            <div class="node-title">
+              <strong>静态 prompt 和动态 prompt 应该分层</strong>
+              <span class="tag gold">cache friendly</span>
+            </div>
+            <div class="node-body">
+              Claude Code 用动态边界区分静态规则和每轮上下文。咨询 Agent 现在每轮拼一大段 system 字符串，后续可把稳定规则、工具协议、业务 intent 规则拆成独立 sections。
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="target">
+      <div class="section-head">
+        <div>
+          <p class="kicker">05 Target Shape</p>
+          <h2>建议下一版修改后的形态</h2>
+          <p class="section-note">
+            修改目标不是再发明一个大对象，而是把“选择、裁剪、压缩、debug”变成 runtime 管线。主模型仍只看到少量事实和真实 tool messages。
+          </p>
+        </div>
+        <span class="tag gold">建议结构</span>
+      </div>
+
+      <div class="compare-grid">
+        <article class="matrix-card">
+          <span class="tag red">现在</span>
+          <strong>主 payload 已瘦，但协议层又变厚</strong>
+          <div class="flow">
+            <div class="flow-node" data-level="watch" data-risk="偏重">
+              <span class="num">A</span>
+              <div>
+                <div class="node-title"><strong>System prompt</strong></div>
+                <div class="node-body">agent + soul + expert + skills + tools + slim_v2 + 大量流程规则。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="good" data-risk="合格">
+              <span class="num">B</span>
+              <div>
+                <div class="node-title"><strong>User JSON</strong></div>
+                <div class="node-body">六类字段，方向正确。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="risk" data-risk="重复">
+              <span class="num">C</span>
+              <div>
+                <div class="node-title"><strong>JSON loop state</strong></div>
+                <div class="node-body">observations 重复工具结果 summary。</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="matrix-card">
+          <span class="tag teal">建议</span>
+          <strong>主模型只接收事实，runtime 负责裁剪</strong>
+          <div class="flow">
+            <div class="flow-node" data-level="good" data-risk="轻量">
+              <span class="num">A</span>
+              <div>
+                <div class="node-title"><strong>System prompt</strong></div>
+                <div class="node-body">稳定身份 + 工具协议 + 2 条硬规则：工具诚实性、已生成团队内容修改前确认。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="good" data-risk="轻量">
+              <span class="num">B</span>
+              <div>
+                <div class="node-title"><strong>User JSON</strong></div>
+                <div class="node-body">继续保持六类字段。RAG 只放 selected current evidence。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="good" data-risk="管线">
+              <span class="num">C</span>
+              <div>
+                <div class="node-title"><strong>Preflight context pipeline</strong></div>
+                <div class="node-body">select -> budget enforce -> tool result compact -> preserve tool pairs -> debug boundary。</div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <div>
+          <p class="kicker">06 Payload Example</p>
+          <h2>修改后你应该看到的 payload 差异</h2>
+          <p class="section-note">
+            左边是当前仍偏重的地方，右边是建议修完后的目标形态。
+          </p>
+        </div>
+      </div>
+
+      <div class="code-grid">
+        <article class="code-card">
+          <div class="code-head">
+            <span>当前风险点</span>
+            <span class="tag red">冗余回流</span>
+          </div>
+          <div class="code-body">
+            <pre>{
+  "type": "tool_loop_state",
+  "availableTools": ["retrieve_knowledge_base", "update_content_calendar"],
+  "completedTools": ["retrieve_knowledge_base"],
+  "observations": [
+    {
+      "toolName": "retrieve_knowledge_base",
+      "status": "completed",
+      "summary": "检索平台方法论与用户知识库，命中 5 个受控片段。"
+    }
+  ],
+  "decisionRules": [
+    "如果用户要求基于知识库生成营销日历，应优先考虑先调用 retrieve_knowledge_base...",
+    "只有当本轮 tool_result 已经提供足够依据后，才选择 update_content_calendar..."
+  ]
+}</pre>
+          </div>
+        </article>
+
+        <article class="code-card">
+          <div class="code-head">
+            <span>建议目标</span>
+            <span class="tag teal">协议层极简</span>
+          </div>
+          <div class="code-body">
+            <pre>{
+  "type": "tool_loop_state",
+  "turn": 2,
+  "availableToolNames": ["update_content_calendar"],
+  "completedToolNames": ["retrieve_knowledge_base"],
+  "failedToolNames": [],
+  "skippedToolNames": [],
+  "writeToolsAlreadyUsed": [],
+  "stateNote": "Read tool results from prior tool_result messages. Do not rely on summaries here."
+}</pre>
+          </div>
+        </article>
+
+        <article class="code-card">
+          <div class="code-head">
+            <span>主 user JSON 保持</span>
+            <span class="tag teal">合格</span>
+          </div>
+          <div class="code-body">
+            <pre>{
+  "merchant": {
+    "name": "...",
+    "industry": "...",
+    "serviceItems": [],
+    "defaultCta": []
+  },
+  "userMessage": "...",
+  "round": 5,
+  "expertRouting": {},
+  "strategySnapshot": {},
+  "currentKnowledgeMatches": []
+}</pre>
+          </div>
+        </article>
+
+        <article class="code-card">
+          <div class="code-head">
+            <span>runtimeSnapshot 保留</span>
+            <span class="tag purple">debug only</span>
+          </div>
+          <div class="code-body">
+            <pre>{
+  "contextBoundary": {
+    "budget": {},
+    "omittedContext": [],
+    "selectedContextDecision": {},
+    "allKnowledgeMatches": [],
+    "toolResults": [],
+    "skillDisclosure": {},
+    "expertTraffic": {}
+  }
+}</pre>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="checklist">
+      <div class="section-head">
+        <div>
+          <p class="kicker">07 Closeout Checklist</p>
+          <h2>建议给下一位实现 Agent 的收口清单</h2>
+          <p class="section-note">
+            这份清单可以直接作为下一轮小补丁任务边界。重点是少改，但改到真正符合 PRD 思想。
+          </p>
+        </div>
+        <span class="tag purple">可执行</span>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>优先级</th>
+            <th>改动项</th>
+            <th>验收口径</th>
+            <th>建议文件</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="tag red">P0</span></td>
+            <td>压缩 native/json tool loop system prompt 的日历与检索流程规则。</td>
+            <td>保留“工具结果诚实性”和“团队内容已生成时修改前确认”两类硬规则，其余改成简短判断原则。</td>
+            <td><code>consultation-service.ts</code></td>
+          </tr>
+          <tr>
+            <td><span class="tag red">P0</span></td>
+            <td>移除或极简化 JSON tool loop 的 <code>observations</code>。</td>
+            <td>不再重复传每个工具 summary；只保留状态名列表，要求模型读取已有 <code>tool_result</code>。</td>
+            <td><code>runtime.ts</code></td>
+          </tr>
+          <tr>
+            <td><span class="tag gold">P1</span></td>
+            <td>删除或降级旧 <code>ContextInjection</code> builder。</td>
+            <td>主代码不再导出旧大对象；如需保留，只能改名为 legacy debug 并测试确保不可用于主 prompt。</td>
+            <td><code>context.ts</code></td>
+          </tr>
+          <tr>
+            <td><span class="tag gold">P1</span></td>
+            <td>把 budget report 升级为 context preflight enforcer。</td>
+            <td>超限字段实际裁剪或 omit；debug 记录裁剪前后长度和原因。</td>
+            <td><code>context.ts</code>、<code>ai-runtime.ts</code></td>
+          </tr>
+          <tr>
+            <td><span class="tag blue">P2</span></td>
+            <td>补 payload 级单测，而不是只做源码字符串断言。</td>
+            <td>mock <code>createChatCompletion</code>，断言最终 messages 中没有 <code>contextInjection/toolResults/skillDisclosure/budget/expertTraffic</code>，且没有重复 observations summary。</td>
+            <td><code>consultation-service.test.ts</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <div class="callout">
+        <strong>一句话结论</strong>
+        <p>
+          这次实现已经把“主 user JSON 大对象”瘦下来了，方向是对的；但还没有完成“上下文工程瘦身”。真正完成的标志是：
+          流程规则不再长期压住模型、工具结果不再被重复摘要、budget 能实际裁剪、旧 ContextInjection 不再有回归入口。
+        </p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>
+        生成时间：2026-05-21。参考文件：
+        <code>docs/产品文档/V2.7-咨询Agent上下文工程瘦身PRD.md</code>、
+        <code>docs/架构规范/咨询Agent上下文工程对照评审.html</code>、
+        <code>references/open-source/claude-code项目/claude-code-main/docs/context/</code>。
+      </p>
+    </footer>
+  </main>
+</body>
+</html>

@@ -15,7 +15,9 @@ export async function POST(request: Request) {
       findMethod: payload.findMethod,
       keyword: payload.keyword,
       profileUrl: payload.profileUrl,
+      detailUrl: payload.detailUrl,
       count: payload.count,
+      fetchAll: payload.fetchAll,
     });
 
     return Response.json({ materials }, { status: 201 });

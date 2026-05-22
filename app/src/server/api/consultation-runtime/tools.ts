@@ -155,9 +155,10 @@ const readHistoryArgsSchema = z
 const benchmarkArgsSchema = z
   .object({
     platform: z.enum(["xiaohongshu", "douyin"]).optional(),
-    findMethod: z.enum(["keyword", "profile"]).optional(),
+    findMethod: z.enum(["keyword", "profile", "detail"]).optional(),
     keyword: z.string().optional(),
     profileUrl: z.string().optional(),
+    detailUrl: z.string().optional(),
     count: z.number().int().min(1).max(10).optional(),
     cachePolicy: z.enum(["provider_cache_first"]).optional(),
   })
@@ -300,9 +301,9 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
     },
     {
       key: "search_benchmark_materials",
-      label: "检索对标素材",
-      purpose: "按关键词或博主主页检索小红书/抖音对标内容，并写入素材中心缓存，供营销专家分析选题和爆款结构。",
-      writes: "source_items / 素材中心 / 对标素材缓存",
+      label: "检索社媒爆款内容",
+      purpose: "按关键词、博主主页或单条链接检索小红书/抖音爆款内容，并写入社媒爆款内容库，供咨询和选题分析。",
+      writes: "source_items / imported_comments / 社媒爆款内容库",
       parameters: {
         type: "object",
         additionalProperties: false,
@@ -314,8 +315,8 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
           },
           findMethod: {
             type: "string",
-            enum: ["keyword", "profile"],
-            description: "按关键词或博主主页检索。",
+            enum: ["keyword", "profile", "detail"],
+            description: "按关键词、博主主页或单条链接检索。",
           },
           keyword: {
             type: "string",
@@ -324,6 +325,10 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
           profileUrl: {
             type: "string",
             description: "主页链接检索时使用。",
+          },
+          detailUrl: {
+            type: "string",
+            description: "单条内容链接解析时使用。",
           },
           count: {
             type: "number",
@@ -396,6 +401,15 @@ export function getConsultationBusinessToolCatalog() {
   }));
 }
 
+const llmHiddenConsultationToolNames = new Set<ConsultationAgentToolKey>([
+  "generate_article_brief",
+  "generate_video_brief",
+]);
+
+export function isLlmVisibleConsultationTool(toolName: ConsultationAgentToolKey) {
+  return !llmHiddenConsultationToolNames.has(toolName);
+}
+
 export function buildConsultationAiRuntimeTools(input: {
   state: ConsultationAgentLoopState;
   unavailableToolNames?: ConsultationAgentToolKey[];
@@ -404,7 +418,11 @@ export function buildConsultationAiRuntimeTools(input: {
   const unavailable = new Set(input.unavailableToolNames ?? []);
 
   return getConsultationRuntimeToolRegistry()
-    .filter((tool) => enabled.has(tool.key) && !unavailable.has(tool.key))
+    .filter((tool) =>
+      enabled.has(tool.key) &&
+      isLlmVisibleConsultationTool(tool.key) &&
+      !unavailable.has(tool.key),
+    )
     .map((tool) => ({
       type: "function" as const,
       function: {
@@ -470,6 +488,15 @@ export function parseNativeConsultationToolCall(
       toolCallId: toolCall.id,
       rawToolName,
       error: "模型请求了未注册的咨询业务工具。",
+    };
+  }
+
+  if (!isLlmVisibleConsultationTool(tool.key)) {
+    return {
+      ok: false,
+      toolCallId: toolCall.id,
+      rawToolName,
+      error: "该工具不对当前 LLM 工具调用路径开放。",
     };
   }
 
@@ -551,10 +578,11 @@ export function buildConsultationToolArgs(
   }
 
   if (toolName === "search_benchmark_materials") {
-    const profileUrl = extractBenchmarkProfileUrl(state.userContent);
+    const benchmarkUrl = extractBenchmarkUrl(state.userContent);
+    const isProfileUrl = benchmarkUrl ? isBenchmarkProfileUrl(benchmarkUrl) : false;
     const platform = inferBenchmarkPlatform({
       userContent: state.userContent,
-      profileUrl,
+      benchmarkUrl,
     });
     const keyword = buildBenchmarkKeyword({
       userContent: state.userContent,
@@ -563,9 +591,10 @@ export function buildConsultationToolArgs(
 
     return {
       platform,
-      findMethod: profileUrl ? "profile" : "keyword",
-      keyword: profileUrl ? "" : keyword,
-      profileUrl: profileUrl ?? "",
+      findMethod: benchmarkUrl ? (isProfileUrl ? "profile" : "detail") : "keyword",
+      keyword: benchmarkUrl ? "" : keyword,
+      profileUrl: isProfileUrl ? benchmarkUrl : "",
+      detailUrl: benchmarkUrl && !isProfileUrl ? benchmarkUrl : "",
       count: 5,
       cachePolicy: "provider_cache_first",
     };
@@ -581,7 +610,7 @@ export function buildConsultationToolArgs(
 export function buildBusinessToolPrompt(enabledTools: ConsultationAgentToolKey[]) {
   const enabled = new Set(enabledTools);
   const rows = getConsultationBusinessToolCatalog()
-    .filter((tool) => enabled.has(tool.key))
+    .filter((tool) => enabled.has(tool.key) && isLlmVisibleConsultationTool(tool.key))
     .map((tool) => `- ${tool.label}。${tool.purpose} 写入/影响：${tool.writes}。`)
     .join("\n");
 
@@ -652,7 +681,7 @@ function formatSchemaError(error: z.ZodError) {
     .join("；");
 }
 
-function extractBenchmarkProfileUrl(content: string) {
+function extractBenchmarkUrl(content: string) {
   const match = content.match(/https?:\/\/[^\s，。)）]+/i);
   const url = match?.[0]?.trim();
 
@@ -663,11 +692,15 @@ function extractBenchmarkProfileUrl(content: string) {
   return /xiaohongshu|xhslink|douyin|iesdouyin/i.test(url) ? url : null;
 }
 
+function isBenchmarkProfileUrl(url: string) {
+  return /\/user\/profile\/|\/user\//i.test(url) && !/\/(?:explore|discovery\/item|video)\//i.test(url);
+}
+
 function inferBenchmarkPlatform(input: {
   userContent: string;
-  profileUrl: string | null;
+  benchmarkUrl: string | null;
 }) {
-  const source = `${input.profileUrl ?? ""} ${input.userContent}`.toLowerCase();
+  const source = `${input.benchmarkUrl ?? ""} ${input.userContent}`.toLowerCase();
 
   return source.includes("douyin") || source.includes("抖音") || source.includes("iesdouyin")
     ? "douyin"

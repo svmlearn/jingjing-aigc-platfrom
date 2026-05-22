@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { __consultationContextPreflightTest } from "./consultation-runtime/context-preflight.ts";
 
 const serviceSource = readFileSync(new URL("./consultation-service.ts", import.meta.url), "utf8");
 const aiRuntimeSource = readFileSync(new URL("./ai-runtime.ts", import.meta.url), "utf8");
 const consultationRuntimeSource = [
   "context.ts",
+  "context-preflight.ts",
   "events.ts",
   "experts.ts",
   "guards.ts",
@@ -36,6 +38,10 @@ const agentConsoleRepositorySource = readFileSync(
 );
 const platformAdminRepositorySource = readFileSync(
   new URL("../../lib/db/platform-admin-repository.ts", import.meta.url),
+  "utf8",
+);
+const platformSettingsEditorSource = readFileSync(
+  new URL("../../components/platform-admin/platform-settings-editor.tsx", import.meta.url),
   "utf8",
 );
 const consultationWorkspaceSource = readFileSync(
@@ -128,14 +134,18 @@ test("merchant consultation UI keeps expert container as the only visible multi-
   assert.match(consultationWorkspaceSource, /LegacyRoundtableNotice/);
 });
 
-test("consultation runtime treats expert as container and context as shared injection", () => {
+test("consultation runtime treats expert as container and main LLM context as slim packs", () => {
   assert.match(consultationServiceAndRuntimeSource, /ConsultationMentionRouting/);
   assert.match(consultationServiceAndRuntimeSource, /buildExpertContainerPrompt/);
-  assert.match(consultationServiceAndRuntimeSource, /buildConsultationContextInjection/);
-  assert.match(consultationServiceAndRuntimeSource, /consultation_context_injector_v1/);
-  assert.match(consultationServiceAndRuntimeSource, /@ 只切换目标专家，不清空历史与策略资产/);
+  assert.match(consultationServiceAndRuntimeSource, /buildConsultationSlimContextPack/);
+  assert.match(consultationServiceAndRuntimeSource, /consultation_context_pack_selector_v2/);
+  assert.match(consultationServiceAndRuntimeSource, /slim_v2/);
+  assert.match(consultationServiceAndRuntimeSource, /expertRouting/);
+  assert.match(consultationServiceAndRuntimeSource, /selectedContextPack/);
+  assert.match(consultationServiceAndRuntimeSource, /omittedContext/);
   assert.match(consultationServiceAndRuntimeSource, /mentionRouting: routedRuntime\.routing/);
-  assert.match(consultationServiceAndRuntimeSource, /contextInjection/);
+  assert.doesNotMatch(serviceSource, /contextInjection/);
+  assert.doesNotMatch(serviceSource, /priorToolResults/);
 });
 
 test("consultation runtime injects short-term expert traffic handoff notes", () => {
@@ -205,19 +215,282 @@ test("consultation context records budget and session summary", () => {
   assert.match(consultationServiceAndRuntimeSource, /sessionSummary/);
   assert.match(consultationServiceAndRuntimeSource, /char_budget_v1/);
   assert.match(consultationServiceAndRuntimeSource, /contextBudget/);
+  assert.match(consultationServiceAndRuntimeSource, /ConsultationContextPreflightReport/);
+  assert.match(consultationServiceAndRuntimeSource, /enforceConsultationMessageBudget/);
+  assert.match(consultationServiceAndRuntimeSource, /consultation_context_preflight_enforcer_v1/);
 });
 
 test("consultation context records replayable context boundary snapshots", () => {
   assert.match(consultationRuntimeSource, /buildContextBoundarySnapshot/);
   assert.match(consultationRuntimeSource, /consultation_context_boundary_v1/);
   assert.match(consultationRuntimeSource, /context_compact_boundary_v1/);
-  assert.match(consultationRuntimeSource, /phase_3_snapshot_only_no_compaction_yet/);
+  assert.match(consultationRuntimeSource, /consultation_context_preflight_enforcer_v1_applied_before_llm_call/);
+  assert.match(consultationRuntimeSource, /reports: preflightReports/);
   assert.match(consultationRuntimeSource, /state\.contextBoundary = contextBoundary/);
   assert.match(consultationRuntimeSource, /state\.contextBudget = contextBoundary\.budget/);
   assert.match(consultationRuntimeSource, /contextBoundary: state\.contextBoundary \?\? null/);
   assert.match(consultationServiceAndRuntimeSource, /recentConversation/);
   assert.match(consultationServiceAndRuntimeSource, /memoryMatchIds/);
   assert.match(serviceSource, /runtimeSnapshot\.toolCallSummary\.contextBoundary/);
+});
+
+test("consultation preflight enforces payload budget before model calls", () => {
+  assert.match(consultationServiceAndRuntimeSource, /prepareConsultationMessagesForCompletion/);
+  assert.match(consultationServiceAndRuntimeSource, /phase: `native_tool_calling_turn_\$\{turn\}`/);
+  assert.match(consultationServiceAndRuntimeSource, /phase: `json_tool_loop_turn_\$\{turn\}`/);
+  assert.match(consultationServiceAndRuntimeSource, /phase: "assistant_reply"/);
+  assert.match(consultationServiceAndRuntimeSource, /phase: "strategy_asset_editor"/);
+  assert.match(consultationServiceAndRuntimeSource, /compactToolResultContent/);
+  assert.match(consultationServiceAndRuntimeSource, /tool_payload_preview_v1/);
+  assert.match(consultationServiceAndRuntimeSource, /message_omitted/);
+  assert.match(consultationServiceAndRuntimeSource, /maxTotalChars: 28_000/);
+  assert.match(consultationServiceAndRuntimeSource, /clipMiddle/);
+  assert.match(consultationServiceAndRuntimeSource, /payload: payload && payloadChars > limits\.maxToolPayloadChars/);
+  assert.match(consultationServiceAndRuntimeSource, /input\.state\.contextPreflightReports/);
+  assert.match(consultationServiceAndRuntimeSource, /budgeted\.messages/);
+});
+
+test("consultation preflight hard-clips over-budget model payloads", () => {
+  const result = __consultationContextPreflightTest.enforceConsultationMessageBudget({
+    phase: "unit_hard_budget",
+    maxTotalChars: 2_600,
+    messages: [
+      {
+        role: "system",
+        content: `系统规则 ${"s".repeat(8_000)}`,
+      },
+      {
+        role: "user",
+        content: JSON.stringify({
+          userMessage: `请更新本周内容日历 ${"u".repeat(4_000)}`,
+          currentKnowledgeMatches: [
+            {
+              documentTitle: "素材能力",
+              content: "k".repeat(8_000),
+            },
+          ],
+          strategySnapshot: {
+            positioning: "p".repeat(3_000),
+            strategyMarkdown: "m".repeat(12_000),
+          },
+        }),
+      },
+      {
+        role: "assistant",
+        content: `准备调用工具 ${"a".repeat(2_000)}`,
+        toolCalls: [
+          {
+            id: "call-hard",
+            type: "function",
+            function: {
+              name: "update_content_calendar",
+              arguments: JSON.stringify({
+                calendar: [
+                  {
+                    dayLabel: "周一",
+                    contentType: "article",
+                    title: "示例",
+                    summary: "摘要",
+                  },
+                ],
+              }),
+            },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        toolCallId: "call-hard",
+        content: JSON.stringify({
+          ok: true,
+          toolName: "update_content_calendar",
+          status: "completed",
+          summary: "已写入日历".repeat(400),
+          payload: {
+            calendar: "p".repeat(18_000),
+          },
+          knowledgeMatches: [
+            {
+              documentTitle: "长知识",
+              content: "k".repeat(12_000),
+              excerpt: "e".repeat(12_000),
+            },
+          ],
+        }),
+      },
+    ],
+  });
+
+  assert.ok(
+    result.report.finalChars <= result.report.maxTotalChars,
+    `finalChars=${result.report.finalChars}, maxTotalChars=${result.report.maxTotalChars}`,
+  );
+  assert.equal(result.report.hardBudgetSatisfied, true);
+  assert.equal(result.report.overflowReason, null);
+  assert.ok(result.messages.some((message) => message.role === "tool" && message.toolCallId === "call-hard"));
+  assert.match(
+    JSON.stringify(result.messages),
+    /tool_result_hard_budget_v1|tool_payload_preview_v1|context preflight clipped/,
+  );
+});
+
+test("consultation preflight preserves assistant tool-call and tool-result pairs", () => {
+  const retained = __consultationContextPreflightTest.enforceConsultationMessageBudget({
+    phase: "unit_pair_retained",
+    maxTotalChars: 1_200,
+    messages: [
+      {
+        role: "system",
+        content: "系统规则",
+      },
+      {
+        role: "user",
+        content: `旧问题 ${"o".repeat(1_500)}`,
+      },
+      {
+        role: "assistant",
+        content: "调用工具",
+        toolCalls: [
+          {
+            id: "call-retained",
+            type: "function",
+            function: {
+              name: "retrieve_knowledge_base",
+              arguments: JSON.stringify({ query: "素材" }),
+            },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        toolCallId: "call-retained",
+        content: JSON.stringify({
+          ok: true,
+          toolName: "retrieve_knowledge_base",
+          status: "completed",
+          payload: {
+            text: "r".repeat(3_000),
+          },
+        }),
+      },
+    ],
+  });
+  const retainedAssistant = retained.messages.some(
+    (message) =>
+      message.role === "assistant" &&
+      message.toolCalls?.some((toolCall) => toolCall.id === "call-retained"),
+  );
+  const retainedTool = retained.messages.some(
+    (message) => message.role === "tool" && message.toolCallId === "call-retained",
+  );
+
+  assert.equal(retainedAssistant, retainedTool);
+  assert.equal(retainedAssistant, true);
+  assert.ok(retained.report.finalChars <= retained.report.maxTotalChars);
+
+  const omitted = __consultationContextPreflightTest.enforceConsultationMessageBudget({
+    phase: "unit_pair_omitted",
+    maxTotalChars: 700,
+    messages: [
+      {
+        role: "system",
+        content: "系统规则",
+      },
+      {
+        role: "assistant",
+        content: "较旧工具调用",
+        toolCalls: [
+          {
+            id: "call-omitted",
+            type: "function",
+            function: {
+              name: "retrieve_knowledge_base",
+              arguments: JSON.stringify({ query: "旧资料" }),
+            },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        toolCallId: "call-omitted",
+        content: JSON.stringify({
+          ok: true,
+          toolName: "retrieve_knowledge_base",
+          status: "completed",
+          payload: {
+            text: "r".repeat(3_000),
+          },
+        }),
+      },
+      {
+        role: "user",
+        content: `最新问题 ${"n".repeat(500)}`,
+      },
+    ],
+  });
+  const omittedAssistant = omitted.messages.some(
+    (message) =>
+      message.role === "assistant" &&
+      message.toolCalls?.some((toolCall) => toolCall.id === "call-omitted"),
+  );
+  const omittedTool = omitted.messages.some(
+    (message) => message.role === "tool" && message.toolCallId === "call-omitted",
+  );
+
+  assert.equal(omittedAssistant, omittedTool);
+  assert.equal(omittedAssistant, false);
+  assert.ok(omitted.report.finalChars <= omitted.report.maxTotalChars);
+});
+
+test("consultation preflight does not retain older history after a newer group is omitted", () => {
+  const result = __consultationContextPreflightTest.enforceConsultationMessageBudget({
+    phase: "unit_no_history_gap",
+    maxTotalChars: 900,
+    messages: [
+      {
+        role: "system",
+        content: "系统规则",
+      },
+      {
+        role: "user",
+        content: `old-context ${"o".repeat(300)}`,
+      },
+      {
+        role: "user",
+        content: `middle-context ${"m".repeat(4_000)}`,
+      },
+      {
+        role: "user",
+        content: `latest-context ${"l".repeat(200)}`,
+      },
+    ],
+  });
+  const selectedContent = result.messages
+    .filter((message) => message.role !== "system")
+    .map((message) => "content" in message ? message.content ?? "" : "")
+    .join("\n");
+
+  assert.match(selectedContent, /latest-context/);
+  assert.doesNotMatch(selectedContent, /middle-context/);
+  assert.doesNotMatch(selectedContent, /old-context/);
+  assert.ok(result.report.finalChars <= result.report.maxTotalChars);
+});
+
+test("consultation slim context keeps debug-only fields out of main model payload", () => {
+  assert.match(consultationServiceAndRuntimeSource, /buildSlimContextPackSystemPrompt/);
+  assert.match(consultationServiceAndRuntimeSource, /currentKnowledgeMatches/);
+  assert.match(consultationServiceAndRuntimeSource, /selectedKnowledgeMatches/);
+  assert.match(consultationRuntimeSource, /field: "contextInjection"/);
+  assert.match(consultationRuntimeSource, /field: "toolResults"/);
+  assert.match(consultationRuntimeSource, /reason: "duplicate_authority"/);
+  assert.match(consultationRuntimeSource, /field: "skillDisclosure"/);
+  assert.match(consultationRuntimeSource, /reason: "debug_only"/);
+  assert.match(consultationRuntimeSource, /allKnowledgeMatches/);
+  assert.match(consultationRuntimeSource, /selectedContextDecision/);
+  assert.doesNotMatch(serviceSource, /contextInjection:/);
+  assert.doesNotMatch(serviceSource, /priorToolResults:/);
+  assert.doesNotMatch(serviceSource, /skillDisclosure: buildSkillDisclosure\(input\.state/);
+  assert.doesNotMatch(serviceSource, /toolResults: input\.toolResults\.map/);
 });
 
 test("consultation runtime exposes right panel assets through bounded business tools", () => {
@@ -228,8 +501,12 @@ test("consultation runtime exposes right panel assets through bounded business t
   assert.match(consultationServiceAndRuntimeSource, /resolveStrategyAssetEditorPatch/);
   assert.match(consultationServiceAndRuntimeSource, /toolChoice/);
   assert.match(consultationServiceAndRuntimeSource, /update_content_calendar/);
-  assert.match(consultationServiceAndRuntimeSource, /generate_article_brief/);
-  assert.match(consultationServiceAndRuntimeSource, /generate_video_brief/);
+  assert.match(consultationServiceAndRuntimeSource, /isLlmVisibleConsultationTool/);
+  assert.match(consultationRuntimeSource, /该工具不对当前 LLM 工具调用路径开放/);
+  assert.doesNotMatch(platformAdminRepositorySource, new RegExp("generate_" + "article_brief"));
+  assert.doesNotMatch(platformAdminRepositorySource, new RegExp("generate_" + "video_brief"));
+  assert.doesNotMatch(platformSettingsEditorSource, new RegExp("generate_" + "article_brief"));
+  assert.doesNotMatch(platformSettingsEditorSource, new RegExp("generate_" + "video_brief"));
   assert.match(
     consultationServiceAndRuntimeSource,
     /strategySnapshot as one editor document: positioning \/ coreSellingPoints \/ targetAudiences \/ keyScenes \/ currentSuggestion/,
@@ -242,6 +519,13 @@ test("consultation planner supports Claude Code style JSON tool loop", () => {
   assert.match(consultationServiceAndRuntimeSource, /model_json_tool_loop_v1/);
   assert.match(consultationServiceAndRuntimeSource, /buildJsonToolLoopMessages/);
   assert.match(consultationServiceAndRuntimeSource, /tool_loop_state/);
+  assert.match(consultationRuntimeSource, /availableToolNames/);
+  assert.match(consultationRuntimeSource, /completedToolNames/);
+  assert.match(consultationRuntimeSource, /failedToolNames/);
+  assert.match(consultationRuntimeSource, /skippedToolNames/);
+  assert.match(consultationRuntimeSource, /writeToolsAlreadyUsed/);
+  assert.match(serviceSource, /JSON tool_use 参数最小契约/);
+  assert.match(serviceSource, /dayLabel、contentType、title、summary/);
   assert.match(consultationServiceAndRuntimeSource, /tool_result/);
   assert.match(consultationServiceAndRuntimeSource, /source: "model_json_tool_use"/);
   assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_loop_v1/);
@@ -275,36 +559,28 @@ test("consultation planner supports Claude Code style JSON tool loop", () => {
   assert.match(consultationServiceAndRuntimeSource, /mergePlannerToolArgs/);
   assert.match(consultationServiceAndRuntimeSource, /模型 planner 选择了不可执行工具/);
   assert.match(consultationServiceAndRuntimeSource, /plannerTrace/);
+  assert.doesNotMatch(consultationRuntimeSource, /observations: input\.toolResults\.map/);
 });
 
 test("consultation runtime routes explicit knowledge reads through the retrieval tool", () => {
   assert.match(consultationServiceAndRuntimeSource, /retrieve_knowledge_base/);
   assert.match(consultationRuntimeSource, /isExplicitKnowledgeBaseReadRequest/);
   assert.match(consultationRuntimeSource, /key: "retrieve_knowledge_base"/);
-  assert.match(serviceSource, /请先调用 retrieve_knowledge_base 获取资料/);
-  assert.match(serviceSource, /用新的 query 再调用 retrieve_knowledge_base 深挖/);
-  assert.match(serviceSource, /必须由你根据用户目标和工具结果自行判断/);
+  assert.match(serviceSource, /JSON 工具循环中，业务结果以前序 tool_result 消息为准/);
+  assert.match(serviceSource, /写入类工具仍要在信息足够后再调用/);
   assert.match(serviceSource, /不要先写日历再补查依据/);
-  assert.match(serviceSource, /availableTools 中仍有 update_content_calendar/);
-  assert.match(serviceSource, /内容日历 -> 生成团队内容 -> Dify/);
-  assert.match(serviceSource, /历史日历当成本轮已完成/);
-  assert.match(consultationRuntimeSource, /decisionRules/);
-  assert.match(consultationRuntimeSource, /应优先考虑先调用 retrieve_knowledge_base/);
-  assert.match(consultationRuntimeSource, /历史策略资产，不等于本轮 tool_result/);
-  assert.match(consultationServiceAndRuntimeSource, /仅在用户明确要求图文工作台 brief 时/);
-  assert.match(consultationServiceAndRuntimeSource, /仅在用户明确要求视频工作台 brief 时/);
-  assert.match(serviceSource, /自己调用 update_content_calendar 写入可执行日历/);
+  assert.match(serviceSource, /优先考虑调用 update_content_calendar/);
+  assert.match(serviceSource, /后续团队内容可能需要重新生成/);
+  assert.doesNotMatch(serviceSource, new RegExp("不再通过用户端" + "图文工作台"));
+  assert.doesNotMatch(serviceSource, /observations 里尚未有/);
   assert.match(serviceSource, /buildNativeStrategySnapshotSummary/);
   assert.match(serviceSource, /guidancePresence/);
-  assert.match(serviceSource, /画面描述必须根据已返回的素材能力/);
-  assert.match(serviceSource, /不要声称无法读取用户知识库/);
   assert.match(serviceSource, /buildRecoveredToolResultReply/);
   assert.match(serviceSource, /受控工具已经执行完成/);
   assert.match(consultationRuntimeSource, /knowledgeMatches: \(result\.knowledgeMatches \?\? \[\]\)\.map/);
   assert.match(consultationRuntimeSource, /content: clipText\(match\.content, 1200\)/);
   assert.doesNotMatch(consultationRuntimeSource, /runtime_required_tool_contract/);
   assert.doesNotMatch(consultationRuntimeSource, /runRequiredNativeToolCall/);
-  assert.doesNotMatch(serviceSource, /必须先调用 retrieve_knowledge_base/);
 });
 
 test("consultation-selected merchant knowledge flows into calendar tasks and Dify inputs", () => {
@@ -357,10 +633,9 @@ test("content calendar update remains available after prior calendar writes", ()
   assert.match(consultationRuntimeSource, /result\.toolName !== "update_content_calendar"/);
   assert.match(
     consultationServiceAndRuntimeSource,
-    /currentStrategySnapshot\.contentCalendarGeneration/,
+    /strategySnapshot\.contentCalendarGeneration/,
   );
-  assert.match(consultationServiceAndRuntimeSource, /不能只在自然语言中说已调整/);
-  assert.match(consultationServiceAndRuntimeSource, /代码不会硬拦截，也不会替你自动确认/);
+  assert.match(consultationServiceAndRuntimeSource, /后续团队内容可能需要重新生成/);
   assert.match(consultationServiceAndRuntimeSource, /buildRuntimeToolDescription/);
   assert.match(consultationServiceAndRuntimeSource, /当前日历生成状态/);
   assert.match(consultationContractSource, /contentCalendarGeneration/);
@@ -424,6 +699,18 @@ test("knowledge retrieval can directly surface indexed user documents", () => {
   assert.match(consultationRuntimeSource, /keyword_search/);
   assert.match(consultationRuntimeSource, /semantic_vector_search/);
   assert.match(consultationRuntimeSource, /sourceCounts/);
+});
+
+test("knowledge evidence is selected with query, tool call and freshness metadata", () => {
+  assert.match(serviceSource, /toolCallId: call\.id/);
+  assert.match(serviceSource, /freshness: "current_turn"/);
+  assert.match(consultationRuntimeSource, /buildSelectedKnowledgeMatches/);
+  assert.match(consultationRuntimeSource, /selectedKnowledgeMatchIds/);
+  assert.match(consultationRuntimeSource, /selectedMatches/);
+  assert.match(consultationRuntimeSource, /query: match\.query/);
+  assert.match(consultationRuntimeSource, /toolCallId: match\.toolCallId/);
+  assert.match(consultationRuntimeSource, /freshness: match\.freshness/);
+  assert.match(consultationRuntimeSource, /evidenceRole: match\.evidenceRole/);
 });
 
 test("AI runtime preserves native tool call/result pairs when trimming messages", () => {

@@ -1,6 +1,7 @@
 import type { StrategySnapshotDto } from "@/contracts/consultation";
 import type { MerchantProfileDto } from "@/contracts/merchant";
 import type { KnowledgeSearchMatchDto } from "@/contracts/knowledge";
+import type { ChatMessage } from "@/server/api/ai-runtime";
 import type {
   ConsultationAgentLoopState,
   ConsultationAgentRuntimeSettings,
@@ -11,6 +12,17 @@ import type {
 } from "@/server/api/consultation-runtime/types";
 import { getConsultationBusinessToolCatalog } from "@/server/api/consultation-runtime/tools";
 import { clipText, uniqueStrings } from "@/server/api/consultation-runtime/utils";
+import type {
+  ConsultationContextPreflightAction,
+  ConsultationContextPreflightReport,
+} from "@/server/api/consultation-runtime/context-preflight";
+export type {
+  ConsultationContextPreflightAction,
+  ConsultationContextPreflightReport,
+} from "@/server/api/consultation-runtime/context-preflight";
+export {
+  enforceConsultationMessageBudget,
+} from "@/server/api/consultation-runtime/context-preflight";
 
 export type ContextBudgetReport = {
   policy: "char_budget_v1";
@@ -29,11 +41,80 @@ export type ConsultationContextBoundarySnapshot = {
   budget: ContextBudgetReport;
   compactBoundary: {
     policy: "context_compact_boundary_v1";
-    status: "not_applied";
+    status: "applied" | "not_applied";
     reason: string;
+    reports: ConsultationContextPreflightReport[];
   };
   budgetBuckets: ContextBudgetReport["buckets"];
   sources: Record<string, unknown>;
+};
+
+export type ConsultationContextPackMode = "slim_v2";
+
+export type ConsultationSelectedContextPack =
+  | "light_chat"
+  | "strategy_edit"
+  | "knowledge_answer"
+  | "calendar_work"
+  | "benchmark_search"
+  | "history_reference";
+
+export type ConsultationContextOmission = {
+  field: string;
+  reason:
+    | "not_relevant_to_intent"
+    | "over_budget"
+    | "debug_only"
+    | "duplicate_authority"
+    | "legacy_field_removed";
+  availableInDebug: boolean;
+};
+
+export type ConsultationSelectedKnowledgeMatch = {
+  documentTitle: string;
+  chunkId: string;
+  documentId: string;
+  scope: KnowledgeSearchMatchDto["scope"];
+  score: number;
+  content: string;
+  query: string | null;
+  toolCallId: string | null;
+  turn: number | null;
+  freshness: "current_turn" | "history" | "unknown";
+  evidenceRole:
+    | "project_fact"
+    | "methodology"
+    | "sales_talk"
+    | "material_capability"
+    | "benchmark_content"
+    | "merchant_memory"
+    | "conversation_history"
+    | "general";
+};
+
+export type ConsultationSlimContextPack = {
+  policy: "consultation_context_pack_selector_v2";
+  contextPackMode: ConsultationContextPackMode;
+  selectedContextPack: ConsultationSelectedContextPack;
+  expertRouting: {
+    activeAgentKey: string | null;
+    activeDisplayName: string | null;
+    roleDescription: string | null;
+    knowledgeSetIds: string[];
+    knowledgeDocumentIds: string[];
+    rawMention: string | null;
+  };
+  selectedKnowledgeMatches: ConsultationSelectedKnowledgeMatch[];
+  selectedContextDecision: {
+    intent: ConsultationSelectedContextPack;
+    included: string[];
+    omitted: ConsultationContextOmission[];
+  };
+  debug: {
+    budget: ContextBudgetReport;
+    allKnowledgeMatchCount: number;
+    selectedKnowledgeMatchIds: string[];
+  };
 };
 
 export function buildExpertContainerPrompt(
@@ -50,7 +131,7 @@ export function buildExpertContainerPrompt(
     `当前专家：${agent.displayName} (${agent.agentKey})。`,
     agent.roleDescription ? `角色说明：${agent.roleDescription}` : "",
     agent.description ? `后台描述：${agent.description}` : "",
-    "专家只决定本轮身份、能力与知识边界；整场咨询上下文由 runtime 的 ContextInjector 提供。",
+    "专家只决定本轮身份、能力与知识边界；整场咨询上下文由 runtime 选择后的 slim context pack 提供。",
   ]
     .filter(Boolean)
     .join("\n");
@@ -178,27 +259,105 @@ export function buildContextBudgetReport(input: {
   };
 }
 
+export function buildConsultationSlimContextPack(input: {
+  merchant: MerchantProfileDto;
+  round: number;
+  userContent: string;
+  sessionSummary?: string | null;
+  strategySnapshot: StrategySnapshotDto;
+  strategyMarkdown?: string | null;
+  consultationAgent: ConsultationAgentRuntimeSettings;
+  knowledgeMatches: KnowledgeSearchMatchDto[];
+  toolResults: ConsultationAgentToolResult[];
+  sharedConsultationState: SharedConsultationState;
+  expertTurnNotes: ExpertTurnNote[];
+  mentionRouting: ConsultationMentionRouting;
+}): ConsultationSlimContextPack {
+  const selectedContextPack = resolveSelectedContextPack(input.userContent);
+  const budget = buildContextBudgetReport({
+    merchant: input.merchant,
+    strategySnapshot: input.strategySnapshot,
+    strategyMarkdown: input.strategyMarkdown ?? "",
+    userContent: input.userContent,
+    sessionSummary: input.sessionSummary ?? null,
+    consultationAgent: input.consultationAgent,
+    knowledgeMatches: input.knowledgeMatches,
+    toolResults: input.toolResults,
+    sharedConsultationState: input.sharedConsultationState,
+    expertTurnNotes: input.expertTurnNotes,
+  });
+  const selectedKnowledgeMatches = buildSelectedKnowledgeMatches({
+    matches: shouldIncludeKnowledgeInContext(selectedContextPack)
+      ? input.knowledgeMatches
+      : [],
+    round: input.round,
+    limit: 5,
+  });
+  const omitted = buildContextOmissions({
+    selectedContextPack,
+    budget,
+    selectedKnowledgeMatches,
+    allKnowledgeMatchCount: input.knowledgeMatches.length,
+  });
+  const included = [
+    "merchant",
+    "userMessage",
+    "round",
+    "expertRouting",
+    "strategySnapshot",
+    selectedKnowledgeMatches.length > 0 ? "currentKnowledgeMatches" : null,
+  ].filter((field): field is string => Boolean(field));
+
+  return {
+    policy: "consultation_context_pack_selector_v2",
+    contextPackMode: "slim_v2",
+    selectedContextPack,
+    expertRouting: buildExpertRoutingContext({
+      consultationAgent: input.consultationAgent,
+      mentionRouting: input.mentionRouting,
+    }),
+    selectedKnowledgeMatches,
+    selectedContextDecision: {
+      intent: selectedContextPack,
+      included,
+      omitted,
+    },
+    debug: {
+      budget,
+      allKnowledgeMatchCount: input.knowledgeMatches.length,
+      selectedKnowledgeMatchIds: selectedKnowledgeMatches.map((match) => match.chunkId),
+    },
+  };
+}
+
 export function buildContextBoundarySnapshot(input: {
   state: ConsultationAgentLoopState;
   toolResults: ConsultationAgentToolResult[];
 }): ConsultationContextBoundarySnapshot {
   const { state } = input;
-  const budget = buildContextBudgetReport({
+  const slimContextPack = buildConsultationSlimContextPack({
     merchant: state.merchant,
-    strategySnapshot: state.strategySnapshot,
-    strategyMarkdown: state.strategyMarkdown,
+    round: state.nextRound,
     userContent: state.userContent,
     sessionSummary: state.session.summaryText ?? null,
+    strategySnapshot: state.strategySnapshot,
+    strategyMarkdown: state.strategyMarkdown,
     consultationAgent: state.consultationAgent,
     knowledgeMatches: state.knowledgeMatches,
     toolResults: input.toolResults,
     sharedConsultationState: state.sharedConsultationState,
     expertTurnNotes: state.expertTurnNotes,
+    mentionRouting: state.mentionRouting,
   });
+  const budget = slimContextPack.debug.budget;
   const agentContainer = state.consultationAgent.container;
   const recentConversation = state.conversationMessages.slice(-8);
   const memoryMatches = state.knowledgeMatches.filter(
     (match) => match.metadata.contentKind === "merchant_memory",
+  );
+  const preflightReports = normalizePreflightReports(state.contextPreflightReports ?? []);
+  const preflightApplied = preflightReports.some(
+    (report) => report.clippedMessageCount > 0 || report.omittedMessageCount > 0,
   );
 
   return {
@@ -207,8 +366,11 @@ export function buildContextBoundarySnapshot(input: {
     budget,
     compactBoundary: {
       policy: "context_compact_boundary_v1",
-      status: "not_applied",
-      reason: "phase_3_snapshot_only_no_compaction_yet",
+      status: preflightApplied ? "applied" : "not_applied",
+      reason: preflightApplied
+        ? "consultation_context_preflight_enforcer_v1_applied_before_llm_call"
+        : "consultation_context_preflight_enforcer_v1_checked_no_compaction_needed",
+      reports: preflightReports,
     },
     budgetBuckets: budget.buckets,
     sources: {
@@ -261,6 +423,18 @@ export function buildContextBoundarySnapshot(input: {
         policy: "controlled_context_chunks_only",
         matchCount: state.knowledgeMatches.length,
         matchIds: uniqueStrings(state.knowledgeMatches.map((match) => match.chunkId)),
+        selectedMatchIds: slimContextPack.debug.selectedKnowledgeMatchIds,
+        selectedMatches: slimContextPack.selectedKnowledgeMatches.map((match) => ({
+          chunkId: match.chunkId,
+          documentId: match.documentId,
+          documentTitle: match.documentTitle,
+          score: match.score,
+          query: match.query,
+          toolCallId: match.toolCallId,
+          turn: match.turn,
+          freshness: match.freshness,
+          evidenceRole: match.evidenceRole,
+        })),
         matches: state.knowledgeMatches.map((match) => ({
           chunkId: match.chunkId,
           documentId: match.documentId,
@@ -296,6 +470,12 @@ export function buildContextBoundarySnapshot(input: {
         sharedStateOpenQuestions: state.sharedConsultationState.openQuestions.length,
         expertTurnNoteCount: state.expertTurnNotes.length,
       },
+      selectedContext: {
+        contextPackMode: slimContextPack.contextPackMode,
+        selectedContextPack: slimContextPack.selectedContextPack,
+        selectedContextDecision: slimContextPack.selectedContextDecision,
+        omittedContext: slimContextPack.selectedContextDecision.omitted,
+      },
     },
   };
 }
@@ -309,6 +489,74 @@ function buildBudgetBucket(key: string, value: unknown, limit: number) {
     limit,
     truncated: chars > limit,
   };
+}
+
+function normalizePreflightReports(
+  reports: Record<string, unknown>[],
+): ConsultationContextPreflightReport[] {
+  return reports
+    .map((report) => {
+      const record = readRecord(report);
+
+      if (!record || record.policy !== "consultation_context_preflight_enforcer_v1") {
+        return null;
+      }
+
+      const actions = Array.isArray(record.actions)
+        ? record.actions
+            .map((action) => readRecord(action))
+            .filter((action): action is Record<string, unknown> => Boolean(action))
+            .map((action) => ({
+              messageIndex: typeof action.messageIndex === "number" ? action.messageIndex : -1,
+              role: isChatMessageRole(action.role) ? action.role : "user",
+              reason: isPreflightActionReason(action.reason)
+                ? action.reason
+                : "message_omitted",
+              beforeChars: typeof action.beforeChars === "number" ? action.beforeChars : 0,
+              afterChars: typeof action.afterChars === "number" ? action.afterChars : 0,
+            }))
+        : [];
+      const maxTotalChars = typeof record.maxTotalChars === "number" ? record.maxTotalChars : 0;
+      const finalChars = typeof record.finalChars === "number" ? record.finalChars : 0;
+
+      return {
+        policy: "consultation_context_preflight_enforcer_v1",
+        phase: typeof record.phase === "string" ? record.phase : "unknown",
+        maxTotalChars,
+        originalChars: typeof record.originalChars === "number" ? record.originalChars : 0,
+        finalChars,
+        clippedMessageCount:
+          typeof record.clippedMessageCount === "number" ? record.clippedMessageCount : 0,
+        omittedMessageCount:
+          typeof record.omittedMessageCount === "number" ? record.omittedMessageCount : 0,
+        hardBudgetSatisfied:
+          typeof record.hardBudgetSatisfied === "boolean"
+            ? record.hardBudgetSatisfied
+            : finalChars <= maxTotalChars,
+        overflowReason:
+          typeof record.overflowReason === "string" ? record.overflowReason : null,
+        actions,
+      };
+    })
+    .filter((report): report is ConsultationContextPreflightReport => Boolean(report));
+}
+
+function isChatMessageRole(value: unknown): value is ChatMessage["role"] {
+  return value === "system" || value === "user" || value === "assistant" || value === "tool";
+}
+
+function isPreflightActionReason(
+  value: unknown,
+): value is ConsultationContextPreflightAction["reason"] {
+  return (
+    value === "system_clipped" ||
+    value === "user_json_compacted" ||
+    value === "user_clipped" ||
+    value === "tool_result_compacted" ||
+    value === "assistant_clipped" ||
+    value === "message_omitted" ||
+    value === "hard_budget_unavoidable"
+  );
 }
 
 function getConsultationContextToolLabel(
@@ -343,6 +591,28 @@ export function buildContextInjectionSystemPrompt(
   ].join("\n");
 }
 
+export function buildSlimContextPackSystemPrompt(
+  contextPack: ConsultationSlimContextPack,
+) {
+  const lines = [
+    "【上下文包 slim_v2】",
+    `本轮上下文包：${contextPack.selectedContextPack}。`,
+    "主模型只能把 user JSON 顶层 strategySnapshot 视为当前策略资产权威入口；不要假设还有另一份隐藏策略资产。",
+    "currentKnowledgeMatches 只代表本轮被选择的 evidence；未出现在其中的历史知识命中，不要当成本轮依据。",
+    "工具结果的权威来源只能是 native role=tool 消息或 JSON tool_result；不要依赖 user JSON 中的重复工具摘要。",
+    "内部调试字段只用于 runtimeSnapshot，不要向用户暴露。",
+    "如果工具结果是 skipped、failed、guardrail rejected 或未完成，最终回复必须承认本轮未写入或未完成，不能声称已经更新。",
+  ];
+
+  if (contextPack.selectedKnowledgeMatches.length > 0) {
+    lines.push(
+      `本轮 selected evidence 数量：${contextPack.selectedKnowledgeMatches.length}。由你结合用户问题判断如何引用，不能编造未提供的事实。`,
+    );
+  }
+
+  return lines.join("\n");
+}
+
 export function buildKnowledgeContextBlock(matches: KnowledgeSearchMatchDto[]) {
   if (matches.length === 0) {
     return null;
@@ -358,6 +628,258 @@ export function buildKnowledgeContextBlock(matches: KnowledgeSearchMatchDto[]) {
       excerpt: match.content.slice(0, 220),
     })),
   };
+}
+
+function buildExpertRoutingContext(input: {
+  consultationAgent: ConsultationAgentRuntimeSettings;
+  mentionRouting: ConsultationMentionRouting;
+}): ConsultationSlimContextPack["expertRouting"] {
+  const container = input.consultationAgent.container;
+
+  return {
+    activeAgentKey: container?.agent.agentKey ?? input.mentionRouting.targetAgentKey,
+    activeDisplayName: container?.agent.displayName ?? input.mentionRouting.targetDisplayName,
+    roleDescription: container?.agent.roleDescription ?? null,
+    knowledgeSetIds: container?.knowledgeSetIds ?? [],
+    knowledgeDocumentIds: container?.knowledgeDocumentIds ?? [],
+    rawMention: input.mentionRouting.rawMention,
+  };
+}
+
+function resolveSelectedContextPack(userContent: string): ConsultationSelectedContextPack {
+  const normalized = userContent.toLowerCase();
+
+  if (/(刚才|上次|前面|之前|历史|回顾)/u.test(userContent)) {
+    return "history_reference";
+  }
+
+  if (/(对标|爆款|小红书|抖音|博主|竞品|链接|主页|评论区)/u.test(userContent)) {
+    return "benchmark_search";
+  }
+
+  if (/(日历|选题|团队内容|图文|视频|脚本|标题|摘要|周一|周二|周三|周四|周五|周六|周日|下周|本周)/u.test(userContent)) {
+    return "calendar_work";
+  }
+
+  if (/(知识库|资料|文件|文档|总结|盘点|读取|检索|方法论|话术|素材)/u.test(userContent)) {
+    return "knowledge_answer";
+  }
+
+  if (/(策略|定位|卖点|客群|场景|建议|资产|沉淀|补充|修改|更新)/u.test(userContent)) {
+    return "strategy_edit";
+  }
+
+  if (/\b(calendar|strategy|knowledge|benchmark|script|video|title)\b/u.test(normalized)) {
+    return "knowledge_answer";
+  }
+
+  return "light_chat";
+}
+
+function shouldIncludeKnowledgeInContext(pack: ConsultationSelectedContextPack) {
+  return pack === "knowledge_answer" ||
+    pack === "calendar_work" ||
+    pack === "benchmark_search" ||
+    pack === "history_reference";
+}
+
+function buildSelectedKnowledgeMatches(input: {
+  matches: KnowledgeSearchMatchDto[];
+  round: number;
+  limit: number;
+}): ConsultationSelectedKnowledgeMatch[] {
+  const seenDocuments = new Set<string>();
+  const seenChunks = new Set<string>();
+  const sortedMatches = [...input.matches].sort((first, second) => {
+    const firstFreshness = getFreshnessRank(first);
+    const secondFreshness = getFreshnessRank(second);
+
+    if (firstFreshness !== secondFreshness) {
+      return secondFreshness - firstFreshness;
+    }
+
+    return second.score - first.score;
+  });
+  const selected: KnowledgeSearchMatchDto[] = [];
+
+  for (const match of sortedMatches) {
+    if (selected.length >= input.limit || seenChunks.has(match.chunkId)) {
+      continue;
+    }
+
+    if (seenDocuments.has(match.documentId) && selected.length < Math.ceil(input.limit / 2)) {
+      continue;
+    }
+
+    seenChunks.add(match.chunkId);
+    seenDocuments.add(match.documentId);
+    selected.push(match);
+  }
+
+  for (const match of sortedMatches) {
+    if (selected.length >= input.limit) {
+      break;
+    }
+
+    if (seenChunks.has(match.chunkId)) {
+      continue;
+    }
+
+    seenChunks.add(match.chunkId);
+    selected.push(match);
+  }
+
+  return selected.map((match) => ({
+    documentTitle: match.documentTitle,
+    chunkId: match.chunkId,
+    documentId: match.documentId,
+    scope: match.scope,
+    score: match.score,
+    content: clipText(match.content, 900),
+    query: stringMetadata(match, "query"),
+    toolCallId: stringMetadata(match, "toolCallId"),
+    turn: numberMetadata(match, "turn") ?? input.round,
+    freshness: freshnessMetadata(match),
+    evidenceRole: inferEvidenceRole(match),
+  }));
+}
+
+function buildContextOmissions(input: {
+  selectedContextPack: ConsultationSelectedContextPack;
+  budget: ContextBudgetReport;
+  selectedKnowledgeMatches: ConsultationSelectedKnowledgeMatch[];
+  allKnowledgeMatchCount: number;
+}): ConsultationContextOmission[] {
+  const omissions: ConsultationContextOmission[] = [
+    {
+      field: "contextInjection",
+      reason: "legacy_field_removed",
+      availableInDebug: false,
+    },
+    {
+      field: "toolResults",
+      reason: "duplicate_authority",
+      availableInDebug: true,
+    },
+    {
+      field: "skillDisclosure",
+      reason: "debug_only",
+      availableInDebug: true,
+    },
+    {
+      field: "budget",
+      reason: "debug_only",
+      availableInDebug: true,
+    },
+    {
+      field: "expertTraffic",
+      reason: "debug_only",
+      availableInDebug: true,
+    },
+  ];
+
+  if (input.selectedContextPack !== "strategy_edit") {
+    omissions.push({
+      field: "strategyMarkdown",
+      reason: "not_relevant_to_intent",
+      availableInDebug: true,
+    });
+  }
+
+  if (input.allKnowledgeMatchCount > input.selectedKnowledgeMatches.length) {
+    omissions.push({
+      field: "allKnowledgeMatches",
+      reason: "over_budget",
+      availableInDebug: true,
+    });
+  }
+
+  for (const bucket of input.budget.buckets) {
+    if (!bucket.truncated) {
+      continue;
+    }
+
+    omissions.push({
+      field: bucket.key,
+      reason: "over_budget",
+      availableInDebug: true,
+    });
+  }
+
+  return omissions;
+}
+
+function getFreshnessRank(match: KnowledgeSearchMatchDto) {
+  const freshness = freshnessMetadata(match);
+
+  if (freshness === "current_turn") {
+    return 2;
+  }
+
+  if (freshness === "history") {
+    return 1;
+  }
+
+  return 0;
+}
+
+function freshnessMetadata(
+  match: KnowledgeSearchMatchDto,
+): ConsultationSelectedKnowledgeMatch["freshness"] {
+  const value = stringMetadata(match, "freshness");
+
+  if (value === "current_turn" || value === "history") {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function inferEvidenceRole(
+  match: KnowledgeSearchMatchDto,
+): ConsultationSelectedKnowledgeMatch["evidenceRole"] {
+  const contentKind = stringMetadata(match, "contentKind") ?? stringMetadata(match, "kind");
+  const haystack = `${match.documentTitle} ${match.content}`.toLowerCase();
+
+  if (contentKind === "merchant_memory") {
+    return "merchant_memory";
+  }
+
+  if (/(素材|镜头|画面|视频|拍摄|补拍|asset|material)/u.test(haystack)) {
+    return "material_capability";
+  }
+
+  if (/(话术|转化|成交|私信|销售|异议)/u.test(haystack)) {
+    return "sales_talk";
+  }
+
+  if (/(方法论|怎么|如何|步骤|原则|避坑|指南)/u.test(haystack)) {
+    return "methodology";
+  }
+
+  if (/(爆款|对标|小红书|抖音|博主|评论)/u.test(haystack)) {
+    return "benchmark_content";
+  }
+
+  if (/(历史|对话|刚才|上次)/u.test(haystack)) {
+    return "conversation_history";
+  }
+
+  if (match.scope === "merchant") {
+    return "project_fact";
+  }
+
+  return "general";
+}
+
+function stringMetadata(match: KnowledgeSearchMatchDto, key: string) {
+  const value = match.metadata[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function numberMetadata(match: KnowledgeSearchMatchDto, key: string) {
+  const value = match.metadata[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 export function buildSharedConsultationState(input: {

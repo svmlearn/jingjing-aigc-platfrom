@@ -1,0 +1,1921 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>咨询 Agent 上下文工程对照评审</title>
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --paper: #fffdf8;
+      --paper-2: #fbf8ef;
+      --ink: #171717;
+      --muted: #666158;
+      --soft: #898279;
+      --line: rgba(23, 23, 23, 0.14);
+      --line-strong: rgba(23, 23, 23, 0.24);
+      --teal: #15756d;
+      --teal-soft: #dff1ed;
+      --gold: #9b6400;
+      --gold-soft: #fff0cd;
+      --blue: #285f9e;
+      --blue-soft: #e5eef8;
+      --red: #a13b31;
+      --red-soft: #f9e5e1;
+      --purple: #6450a3;
+      --purple-soft: #ebe7fb;
+      --shadow: 0 18px 46px rgba(23, 23, 23, 0.08);
+      --radius: 8px;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(21, 117, 109, 0.08), transparent 360px),
+        var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+
+    main {
+      width: min(1500px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 1100px;
+      font-size: clamp(34px, 5vw, 68px);
+      line-height: 1;
+      letter-spacing: 0;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      font-size: clamp(28px, 3vw, 44px);
+      line-height: 1.08;
+      letter-spacing: 0;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 20px;
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+
+    code,
+    pre,
+    .mono {
+      font-family: var(--mono);
+    }
+
+    code {
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: #f0ede5;
+      padding: 1px 5px;
+      font-size: 0.92em;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      color: #eae6dd;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.22fr) minmax(320px, 0.78fr);
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 22px;
+    }
+
+    .panel,
+    .hero-card,
+    .mini-card,
+    .map-card,
+    .review-card,
+    .flow-node,
+    .legend-card,
+    .callout {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: 32px;
+      min-height: 310px;
+    }
+
+    .kicker {
+      margin: 0 0 12px;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .hero-copy {
+      max-width: 1000px;
+      color: var(--muted);
+      font-size: 16px;
+      margin-bottom: 0;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 12px;
+    }
+
+    .mini-card {
+      padding: 18px;
+      min-height: 132px;
+      background: rgba(255, 253, 248, 0.94);
+    }
+
+    .mini-card strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      margin-bottom: 9px;
+    }
+
+    .mini-card span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 248, 0.94);
+      backdrop-filter: blur(12px);
+      padding: 12px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 28px rgba(23, 23, 23, 0.07);
+    }
+
+    .chip,
+    .tag,
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 760;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+
+    .chip {
+      background: var(--paper-2);
+      color: rgba(23, 23, 23, 0.76);
+    }
+
+    .tag.teal,
+    .chip.teal {
+      color: var(--teal);
+      background: var(--teal-soft);
+      border-color: rgba(21, 117, 109, 0.24);
+    }
+
+    .tag.gold,
+    .chip.gold {
+      color: var(--gold);
+      background: var(--gold-soft);
+      border-color: rgba(155, 100, 0, 0.24);
+    }
+
+    .tag.blue,
+    .chip.blue {
+      color: var(--blue);
+      background: var(--blue-soft);
+      border-color: rgba(40, 95, 158, 0.24);
+    }
+
+    .tag.red,
+    .chip.red {
+      color: var(--red);
+      background: var(--red-soft);
+      border-color: rgba(161, 59, 49, 0.24);
+    }
+
+    .tag.purple,
+    .chip.purple {
+      color: var(--purple);
+      background: var(--purple-soft);
+      border-color: rgba(100, 80, 163, 0.24);
+    }
+
+    section {
+      margin: 34px 0;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 16px;
+    }
+
+    .section-note {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 980px;
+      margin-bottom: 0;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0;
+    }
+
+    .legend-card {
+      padding: 14px;
+      background: rgba(255, 253, 248, 0.94);
+    }
+
+    .legend-card strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .legend-card span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .map-card {
+      padding: 18px;
+      background: rgba(255, 253, 248, 0.94);
+    }
+
+    .map-card > .card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .flow {
+      display: grid;
+      gap: 12px;
+    }
+
+    .flow-node {
+      position: relative;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 14px;
+      background: #fbf9f2;
+      box-shadow: none;
+      transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+    }
+
+    .flow-node:hover,
+    .review-card:hover {
+      border-color: var(--line-strong);
+      background: #fffdf9;
+    }
+
+    .flow-node::after {
+      content: attr(data-risk);
+      grid-column: 3;
+      grid-row: 1;
+      align-self: start;
+      justify-self: end;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 760;
+      color: var(--muted);
+      background: #eeeae1;
+      border: 1px solid var(--line);
+      white-space: nowrap;
+    }
+
+    .inline-review {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 8px;
+      border-top: 1px dashed var(--line);
+      margin-top: 2px;
+      padding-top: 10px;
+    }
+
+    .inline-review-head {
+      display: grid;
+      grid-template-columns: auto minmax(140px, 220px) minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+    }
+
+    .inline-review .review-check {
+      min-height: 32px;
+    }
+
+    .inline-review select,
+    .inline-review textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fffefa;
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+      padding: 8px;
+    }
+
+    .inline-review textarea {
+      min-height: 58px;
+      resize: vertical;
+    }
+
+    .inline-summary {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .flow-node[data-level="good"]::after {
+      color: var(--teal);
+      background: var(--teal-soft);
+      border-color: rgba(21, 117, 109, 0.24);
+    }
+
+    .flow-node[data-level="watch"]::after {
+      color: var(--gold);
+      background: var(--gold-soft);
+      border-color: rgba(155, 100, 0, 0.24);
+    }
+
+    .flow-node[data-level="risk"]::after {
+      color: var(--red);
+      background: var(--red-soft);
+      border-color: rgba(161, 59, 49, 0.24);
+    }
+
+    .num {
+      display: inline-grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      color: #fffdf8;
+      background: var(--ink);
+      font-weight: 850;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .node-title {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .node-title strong {
+      font-size: 17px;
+    }
+
+    .node-body {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .hover-target {
+      cursor: help;
+      border-bottom: 1px dotted rgba(23, 23, 23, 0.32);
+    }
+
+    .hover-panel {
+      position: fixed;
+      z-index: 50;
+      display: none;
+      width: min(560px, calc(100vw - 32px));
+      max-height: min(620px, calc(100vh - 48px));
+      overflow: auto;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: var(--radius);
+      background: #101010;
+      box-shadow: 0 24px 72px rgba(0, 0, 0, 0.32);
+      color: #f4f0e8;
+      padding: 18px;
+    }
+
+    .hover-panel.visible {
+      display: block;
+    }
+
+    .hover-panel h4 {
+      margin: 0 0 10px;
+      color: #ffd36b;
+      font-size: 16px;
+    }
+
+    .hover-panel p,
+    .hover-panel li {
+      color: #d7d1c8;
+      font-size: 13px;
+    }
+
+    .hover-panel ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+
+    .hover-panel .source {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
+      color: #a8b8ff;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .review-card {
+      display: grid;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      padding: 14px;
+      box-shadow: none;
+      min-height: 268px;
+    }
+
+    .review-top {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .review-title {
+      min-width: 0;
+    }
+
+    .review-title strong {
+      display: block;
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    .review-title span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .review-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 30px;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 740;
+      cursor: pointer;
+    }
+
+    .review-check input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--teal);
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .field {
+      display: grid;
+      gap: 4px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .field select,
+    .field textarea,
+    .field input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fffefa;
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+      padding: 8px;
+    }
+
+    .field textarea {
+      min-height: 92px;
+      resize: vertical;
+    }
+
+    .hint {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #f7f3e9;
+      color: var(--muted);
+      padding: 9px;
+      font-size: 13px;
+    }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr 1fr 1.15fr;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .matrix > div {
+      min-height: 58px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 12px;
+      font-size: 13px;
+    }
+
+    .matrix > div:nth-child(4n) {
+      border-right: 0;
+    }
+
+    .matrix .head {
+      background: #eee9df;
+      color: var(--ink);
+      font-weight: 850;
+    }
+
+    .matrix .risk {
+      color: var(--red);
+      font-weight: 760;
+    }
+
+    .callout {
+      padding: 18px;
+      background: #fffaf0;
+      box-shadow: none;
+    }
+
+    .callout strong {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin: 16px 0;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--ink);
+      color: #fffdf8;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 9px 14px;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      color: var(--ink);
+      background: var(--paper);
+    }
+
+    .export-box {
+      display: none;
+      margin-top: 12px;
+    }
+
+    .export-box.visible {
+      display: block;
+    }
+
+    .export-box textarea {
+      width: 100%;
+      min-height: 260px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #101010;
+      color: #f4f0e8;
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 14px;
+    }
+
+    .compact-map {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .compact-step {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      padding: 14px;
+      min-height: 150px;
+    }
+
+    .compact-step strong {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .compact-step span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    footer {
+      margin-top: 40px;
+      padding: 22px 0 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1120px) {
+      main {
+        padding: 18px;
+      }
+
+      .hero,
+      .compare-grid,
+      .stack-grid,
+      .legend {
+        grid-template-columns: 1fr;
+      }
+
+      .compact-map {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .section-head,
+      .field-row,
+      .matrix,
+      .compact-map {
+        grid-template-columns: 1fr;
+      }
+
+      .matrix > div,
+      .matrix > div:nth-child(4n) {
+        border-right: 0;
+      }
+
+      .flow-node {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .flow-node::after {
+        grid-column: 1 / -1;
+        justify-self: start;
+      }
+
+      .inline-review-head {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <div class="hero-card">
+        <p class="kicker">Context Engineering Review</p>
+        <h1>咨询 Agent 上下文工程对照评审</h1>
+        <p class="hero-copy">
+          本页把 Claude Code 的上下文工程拆成可视化流程，再把当前咨询 Agent 的 system prompt 和 user JSON 拆成可评审的上下文块。目标不是判断“能不能塞”，而是判断“这一轮是否需要、是否重复、是否会把模型带偏”。
+        </p>
+      </div>
+      <div class="hero-side">
+        <div class="mini-card">
+          <strong>2 套设计</strong>
+          <span>左侧看 Claude Code 的分层、预算、压缩；右侧看我们当前 native tool calling 的上下文注入。</span>
+        </div>
+        <div class="mini-card">
+          <strong>21 个评审项</strong>
+          <span>每个上下文块都可以勾选、选裁剪建议、写评审意见，结果保存在当前浏览器并可导出。</span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="nav" aria-label="页面导航">
+      <a class="chip teal" href="#claude-code">Claude Code 怎么做</a>
+      <a class="chip gold" href="#jingjing-current">我们现在塞了什么</a>
+      <a class="chip red" href="#duplication">重复与噪音</a>
+      <a class="chip blue" href="#review">逐项评审</a>
+      <a class="chip purple" href="#target">建议目标形态</a>
+    </nav>
+
+    <section id="legend">
+      <div class="legend">
+        <div class="legend-card">
+          <strong>悬浮查看细节</strong>
+          <span>带虚线下划线的词可以悬浮，查看实际内容、来源路径和风险说明。</span>
+        </div>
+        <div class="legend-card">
+          <strong>勾选表示暂时保留</strong>
+          <span>不是最终开发结论，只是产品评审时判断“这一项本轮需要”。</span>
+        </div>
+        <div class="legend-card">
+          <strong>备注像文档审阅</strong>
+          <span>每个模块都有输入框，可以写问题、修改方向或保留理由。</span>
+        </div>
+        <div class="legend-card">
+          <strong>导出给开发</strong>
+          <span>页面底部可以导出 Markdown 评审意见，方便进入 PRD 或改造任务。</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="claude-code">
+      <div class="section-head">
+        <div>
+          <h2>Claude Code：它不是一个大 ContextInjector</h2>
+          <p class="section-note">
+            Claude Code 的核心思路是把上下文分成多条管道，并在每次模型调用前做裁剪、压缩和预算判断。它不会把“项目记忆、工具结果、规则、当前任务、历史对话”全部揉成一个大 JSON 交给模型。
+          </p>
+        </div>
+        <span class="tag teal">参考目录：references/open-source/claude-code项目/claude-code-main</span>
+      </div>
+
+      <div class="compare-grid">
+        <article class="map-card">
+          <div class="card-head">
+            <div>
+              <h3>输入分层</h3>
+              <p class="section-note">稳定规则、会话状态、项目记忆、工具执行状态和消息历史各走各的管道。</p>
+            </div>
+            <span class="tag teal">分层</span>
+          </div>
+          <div class="flow">
+            <div class="flow-node" data-level="good" data-risk="稳定">
+              <span class="num">1</span>
+              <div>
+                <div class="node-title">
+                  <strong class="hover-target" data-tip="cc-system-prompt">systemPrompt 数组</strong>
+                  <span class="tag teal">可缓存</span>
+                </div>
+                <div class="node-body">静态规则和动态 section 分开，便于 prompt cache 和局部变更。</div>
+              </div>
+            </div>
+
+            <div class="flow-node" data-level="good" data-risk="会话级">
+              <span class="num">2</span>
+              <div>
+                <div class="node-title">
+                  <strong class="hover-target" data-tip="cc-system-context">systemContext</strong>
+                  <span class="tag blue">memoize</span>
+                </div>
+                <div class="node-body">如 git status、cache breaker。整个会话只算一次，追加到 system prompt 后面。</div>
+              </div>
+            </div>
+
+            <div class="flow-node" data-level="good" data-risk="提醒式">
+              <span class="num">3</span>
+              <div>
+                <div class="node-title">
+                  <strong class="hover-target" data-tip="cc-user-context">userContext</strong>
+                  <span class="tag blue">system-reminder</span>
+                </div>
+                <div class="node-body">CLAUDE.md 和日期作为首条 meta user message 注入，并明确“不一定相关”。</div>
+              </div>
+            </div>
+
+            <div class="flow-node" data-level="good" data-risk="工具态">
+              <span class="num">4</span>
+              <div>
+                <div class="node-title">
+                  <strong class="hover-target" data-tip="cc-tool-context">toolUseContext</strong>
+                  <span class="tag purple">运行态</span>
+                </div>
+                <div class="node-body">工具权限、工具定义、agentId、content replacement 状态，不混入用户 JSON。</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="map-card">
+          <div class="card-head">
+            <div>
+              <h3>模型调用前的上下文治理</h3>
+              <p class="section-note">真正 call model 前，先减少旧工具结果、压缩旧历史、判断是否触顶。</p>
+            </div>
+            <span class="tag teal">预算</span>
+          </div>
+          <div class="flow">
+            <div class="flow-node" data-level="good" data-risk="先裁剪">
+              <span class="num">5</span>
+              <div>
+                <div class="node-title">
+                  <strong class="hover-target" data-tip="cc-tool-budget">applyToolResultBudget</strong>
+                </div>
+                <div class="node-body">先限制工具结果总体体积，避免单个工具结果把上下文吃完。</div>
+              </div>
+            </div>
+
+            <div class="flow-node" data-level="good" data-risk="局部压缩">
+              <span class="num">6</span>
+              <div>
+                <div class="node-title">
+                  <strong class="hover-target" data-tip="cc-microcompact">microcompact</strong>
+                </div>
+                <div class="node-body">旧 Read/Bash/Grep/WebFetch 等工具结果可替换为短占位。</div>
+              </div>
+            </div>
+
+            <div class="flow-node" data-level="good" data-risk="全局压缩">
+              <span class="num">7</span>
+              <div>
+                <div class="node-title">
+                  <strong class="hover-target" data-tip="cc-autocompact">autocompact</strong>
+                </div>
+                <div class="node-body">接近上下文窗口时自动压缩历史，并插入 compact boundary。</div>
+              </div>
+            </div>
+
+            <div class="flow-node" data-level="good" data-risk="可观测">
+              <span class="num">8</span>
+              <div>
+                <div class="node-title">
+                  <strong class="hover-target" data-tip="cc-context-suggestions">contextSuggestions</strong>
+                </div>
+                <div class="node-body">告诉用户哪里吃 token：工具结果、重复 Read、Memory 文件、是否接近上限。</div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="jingjing-current">
+      <div class="section-head">
+        <div>
+          <h2>我们当前：system prompt 和 user JSON 双层注入</h2>
+          <p class="section-note">
+            当前 native tool calling 路径中，system prompt 负责塞规则、身份、skill、工具和 ContextInjector；user JSON 又塞当前商家、用户消息、上下文对象、策略快照、知识命中、工具结果和 skillDisclosure。
+          </p>
+        </div>
+        <span class="tag gold">核心文件：app/src/server/api/consultation-service.ts</span>
+      </div>
+
+      <div class="compare-grid">
+        <article class="map-card">
+          <div class="card-head">
+            <div>
+              <h3>System Prompt Stack</h3>
+              <p class="section-note">这些内容被 join 成一个 system message，强约束模型行为。</p>
+            </div>
+            <span class="tag gold">规则层</span>
+          </div>
+          <div class="flow">
+            <div class="flow-node" data-level="watch" data-risk="核心身份" data-review-id="agent-prompt">
+              <span class="num">1</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-agent-prompt">agent prompt</strong></div>
+                <div class="node-body">默认咨询 Agent 的身份、目标和硬规则。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="watch" data-risk="人格" data-review-id="soul">
+              <span class="num">2</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-soul">soul</strong></div>
+                <div class="node-body">专家人格、语气、acknowledgement 和互动节奏。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="watch" data-risk="专家切换" data-review-id="expert-container">
+              <span class="num">3</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-expert-container">专家容器</strong></div>
+                <div class="node-body">@ 切换专家时注入当前专家、agentKey、后台描述和知识边界。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="watch" data-risk="候选能力" data-review-id="skill-catalog">
+              <span class="num">4</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-skill-catalog">skill catalog</strong></div>
+                <div class="node-body">全部候选 skill 的 name、description、whenToUse 简述。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="risk" data-risk="正文较重" data-review-id="active-skills">
+              <span class="num">5</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-active-skills">active skills</strong></div>
+                <div class="node-body">当前轮命中的最多 3 个 skill 正文，每个 body 最多 3600 字符。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="watch" data-risk="参考提示" data-review-id="skill-references">
+              <span class="num">6</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-skill-references">skill references</strong></div>
+                <div class="node-body">本轮 active skill 绑定参考资料标题，提示模型必要时调用知识库。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="watch" data-risk="工具目录" data-review-id="business-tools">
+              <span class="num">7</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-business-tools">business tools</strong></div>
+                <div class="node-body">告诉模型有哪些受控工具、每个工具的目的和写入范围。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="risk" data-risk="状态层" data-review-id="context-injector">
+              <span class="num">8</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-context-injector">ContextInjector</strong></div>
+                <div class="node-body">告诉模型 sessionContext 是共享事实层，专家切换不能遗忘。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="risk" data-risk="规则多" data-review-id="native-loop">
+              <span class="num">9</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-native-loop">native tool loop 规则</strong></div>
+                <div class="node-body">规定 tool_calls、最终回复、失败处理、不要输出内部工具名等。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="risk" data-risk="业务强约束" data-review-id="calendar-rules">
+              <span class="num">10</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-calendar-rules">日历规则</strong></div>
+                <div class="node-body">何时写日历、何时改标题、已生成团队内容时如何提醒用户。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="risk" data-risk="检索强约束" data-review-id="rag-rules">
+              <span class="num">11</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-rag-rules">RAG 规则</strong></div>
+                <div class="node-body">何时先检索、如何拆 query、不要先写后查。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="watch" data-risk="兜底" data-review-id="guardrail-rules">
+              <span class="num">12</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-guardrail-rules">guardrail 规则</strong></div>
+                <div class="node-body">工具 skipped/guardrail 拒写时，最终回复不能声称已更新。</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="map-card">
+          <div class="card-head">
+            <div>
+              <h3>User JSON Payload</h3>
+              <p class="section-note">这些内容作为 user message 的 JSON 字符串传给模型，是“本轮数据层”。</p>
+            </div>
+            <span class="tag blue">数据层</span>
+          </div>
+          <div class="flow">
+            <div class="flow-node" data-level="good" data-risk="轻量" data-review-id="merchant">
+              <span class="num">A</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-merchant">merchant</strong></div>
+                <div class="node-body">商家名、行业、服务项目、默认 CTA。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="good" data-risk="必要" data-review-id="user-message">
+              <span class="num">B</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-user-message">userMessage / round</strong></div>
+                <div class="node-body">当前用户输入和轮次。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="risk" data-risk="大对象" data-review-id="context-json">
+              <span class="num">C</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-context-json">contextInjection</strong></div>
+                <div class="node-body">完整上下文对象：targetExpert、sessionContext、expertTraffic、budget 等。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="risk" data-risk="重复" data-review-id="strategy-snapshot">
+              <span class="num">D</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-strategy-snapshot">strategySnapshot</strong></div>
+                <div class="node-body">策略快照摘要：定位、卖点、客群、场景、日历、生成状态等。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="risk" data-risk="可膨胀" data-review-id="knowledge-matches">
+              <span class="num">E</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-knowledge-matches">knowledgeMatches</strong></div>
+                <div class="node-body">知识库命中片段，当前每条传 title、score、content 前 600 字符。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="watch" data-risk="重复" data-review-id="tool-results">
+              <span class="num">F</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-tool-results">toolResults</strong></div>
+                <div class="node-body">已完成或失败的工具结果摘要和 guardrail。</div>
+              </div>
+            </div>
+            <div class="flow-node" data-level="watch" data-risk="重复" data-review-id="skill-disclosure">
+              <span class="num">G</span>
+              <div>
+                <div class="node-title"><strong class="hover-target" data-tip="jj-skill-disclosure">skillDisclosure</strong></div>
+                <div class="node-body">候选 skill 与本轮 active skill 的结构化披露。</div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="duplication">
+      <div class="section-head">
+        <div>
+          <h2>不直观的问题：同一类信息出现了两次甚至三次</h2>
+          <p class="section-note">这不是说所有重复都错，而是重复会让模型不清楚哪个是权威来源，也会占掉上下文预算。</p>
+        </div>
+        <span class="tag red">需要重点评审</span>
+      </div>
+
+      <div class="matrix" role="table" aria-label="重复注入矩阵">
+        <div class="head">信息</div>
+        <div class="head">System Prompt 里</div>
+        <div class="head">User JSON 里</div>
+        <div class="head">为什么可能怪</div>
+
+        <div><strong>策略资产</strong></div>
+        <div>ContextInjector 说 sessionContext 是共享事实层；系统规则要求只能逐字使用 strategySnapshot 已有条目。</div>
+        <div><code>contextInjection.sessionContext.strategySnapshot</code> 和顶层 <code>strategySnapshot</code> 都存在。</div>
+        <div class="risk">模型可能在“历史资产”和“本轮工具结果”之间混淆，尤其是日历已存在但本轮尚未写入时。</div>
+
+        <div><strong>知识库命中</strong></div>
+        <div>RAG 规则要求先检索、拆 query、不要说无法读取知识库。</div>
+        <div><code>contextInjection</code> 里有 knowledgeMatchCount，顶层 <code>knowledgeMatches</code> 又放每条 content。</div>
+        <div class="risk">如果旧命中继续在上下文里，模型可能把旧依据当成本轮新依据。</div>
+
+        <div><strong>工具结果</strong></div>
+        <div>native loop 规则要求读取工具 skipped/guardrail，并据此回复。</div>
+        <div><code>contextInjection.sessionContext.toolResults</code> 和顶层 <code>toolResults</code> 都放摘要。</div>
+        <div class="risk">结果摘要重复时，模型会更倾向围绕工具执行状态说话，聊天会像流程日志。</div>
+
+        <div><strong>Skill</strong></div>
+        <div>system prompt 有 skill catalog、active skill 正文、skill references。</div>
+        <div>user JSON 顶层还有 <code>skillDisclosure</code>。</div>
+        <div class="risk">模型既看到“能力说明”，又看到“能力披露结构”，容易把内部能力当成要对用户解释的对象。</div>
+
+        <div><strong>日历规则</strong></div>
+        <div>多条 system 规则强调何时生成、何时修改、已生成团队内容时要提醒。</div>
+        <div>strategySnapshot.contentCalendarDraft 和 contentCalendarGeneration 又作为数据给模型。</div>
+        <div class="risk">规则和状态都很强，模型可能过度谨慎，简单聊天也会先考虑日历副作用。</div>
+      </div>
+    </section>
+
+    <section id="review">
+      <div class="section-head">
+        <div>
+          <h2>补充评审与导出</h2>
+          <p class="section-note">上面的每个上下文框后面已经可以直接评审。这里仅保留没有对应框的运行态补充项，并提供导出汇总。</p>
+        </div>
+        <span class="tag blue">本地保存</span>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="exportReview">导出评审意见</button>
+        <button type="button" class="secondary" id="clearReview">清空本页评审状态</button>
+        <span class="chip">上方框内评审和这里的补充评审都会一起导出</span>
+      </div>
+
+      <div class="stack-grid" id="reviewGrid"></div>
+
+      <div class="export-box" id="exportBox">
+        <textarea id="exportText" readonly aria-label="导出的评审意见"></textarea>
+      </div>
+    </section>
+
+    <section id="target">
+      <div class="section-head">
+        <div>
+          <h2>建议目标：从“大包注入”改成“按任务选包”</h2>
+          <p class="section-note">参考 Claude Code 的思想，我们不一定要照搬它的 CLI 机制，但可以把当前咨询 Agent 改成更清晰的 ContextPack。</p>
+        </div>
+        <span class="tag purple">ContextPack v2</span>
+      </div>
+
+      <div class="compact-map">
+        <div class="compact-step">
+          <strong>1. Stable Rules</strong>
+          <span>稳定身份、语气、工具调用协议。尽量短，少随业务状态变化。</span>
+        </div>
+        <div class="compact-step">
+          <strong>2. Turn Intent</strong>
+          <span>本轮用户到底要什么：轻问答、查依据、写日历、改某条标题、生成团队内容。</span>
+        </div>
+        <div class="compact-step">
+          <strong>3. Selected State</strong>
+          <span>只放本轮需要的策略资产子集。比如改周五标题，只放周五条目和生成标记。</span>
+        </div>
+        <div class="compact-step">
+          <strong>4. Tool Evidence</strong>
+          <span>只放最近、相关、已完成的工具结果。旧知识命中不默认继续当本轮依据。</span>
+        </div>
+        <div class="compact-step">
+          <strong>5. Review/Debug</strong>
+          <span>预算报告、完整 strategyMarkdown、全量 skillDisclosure 放调试面板，不默认进主模型。</span>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top: 16px;">
+        <strong>一句话结论</strong>
+        当前问题更像“模型在很多重复规则和状态里找主线”，不是工具调用本身坏了。换更强模型会缓解，但更应该先把上下文变成可选择、可计量、可裁剪的 ContextPack。
+      </div>
+    </section>
+
+    <footer>
+      维护说明：本页依据当前代码路径 <code>app/src/server/api/consultation-service.ts</code>、<code>consultation-runtime/context.ts</code>、<code>consultation-runtime/tools.ts</code>、<code>consultation-runtime/skills.ts</code>，以及 reference 目录中的 Claude Code 项目整理。后续如果 prompt 拼装顺序或工具 schema 变化，应同步更新本页。
+    </footer>
+  </main>
+
+  <div class="hover-panel" id="hoverPanel" role="tooltip" aria-hidden="true"></div>
+
+  <script>
+    const tipContent = {
+      "cc-system-prompt": {
+        title: "Claude Code: systemPrompt 数组",
+        html: `
+          <p>System Prompt 不是一整段字符串，而是 string[]。静态区、动态区通过 boundary 分开，便于缓存和局部变化。</p>
+          <ul>
+            <li>静态区：Intro、Rules、Tone、Using Tools 等。</li>
+            <li>动态区：Memory、Env、MCP、Token Budget、Brief 等。</li>
+            <li>关键点：稳定规则不跟每轮业务状态混在一起。</li>
+          </ul>
+          <div class="source">references/.../src/constants/prompts.ts<br>docs/context/system-prompt.mdx</div>
+        `,
+      },
+      "cc-system-context": {
+        title: "Claude Code: systemContext",
+        html: `
+          <p>systemContext 主要是会话级系统状态，例如 git status。它被 memoize，整个会话期间只计算一次。</p>
+          <ul>
+            <li>git status 最多 2000 字符，超过会截断。</li>
+            <li>追加到 system prompt 尾部，而不是塞进 user JSON。</li>
+          </ul>
+          <div class="source">references/.../src/context.ts:116</div>
+        `,
+      },
+      "cc-user-context": {
+        title: "Claude Code: userContext",
+        html: `
+          <p>userContext 包括 CLAUDE.md 和当前日期，会作为 meta user message 放在对话最前面。</p>
+          <p>它有一句非常关键的话：这些上下文 may or may not be relevant，只有高度相关时才使用。</p>
+          <pre>&lt;system-reminder&gt;
+As you answer the user's questions, you can use the following context...
+IMPORTANT: this context may or may not be relevant...
+&lt;/system-reminder&gt;</pre>
+          <div class="source">references/.../src/utils/api.ts:449</div>
+        `,
+      },
+      "cc-tool-context": {
+        title: "Claude Code: toolUseContext",
+        html: `
+          <p>toolUseContext 是运行态，不是给模型的一坨业务 JSON。它包含工具权限、工具定义、agentId、消息、contentReplacementState 等。</p>
+          <p>好处是：工具执行机制和业务上下文分开，模型看到的是必要 schema 和消息结果。</p>
+          <div class="source">references/.../src/Tool.ts</div>
+        `,
+      },
+      "cc-tool-budget": {
+        title: "Claude Code: applyToolResultBudget",
+        html: `
+          <p>在 microcompact 之前先执行，对工具结果总量做预算治理。尤其防止工具输出过长，导致后续模型调用被工具结果淹没。</p>
+          <p>这是“真正裁剪”，不是只输出预算报告。</p>
+          <div class="source">references/.../src/query.ts:369</div>
+        `,
+      },
+      "cc-microcompact": {
+        title: "Claude Code: microcompact",
+        html: `
+          <p>局部压缩旧工具结果。可压缩工具包括 Read、Bash、Grep、Glob、WebSearch、WebFetch、Edit、Write。</p>
+          <pre>[Old tool result content cleared]</pre>
+          <p>保留最近工具结果，清掉旧结果内容，避免对话越聊越重。</p>
+          <div class="source">references/.../src/services/compact/microCompact.ts</div>
+        `,
+      },
+      "cc-autocompact": {
+        title: "Claude Code: autocompact",
+        html: `
+          <p>接近上下文窗口时触发压缩。它会预留输出空间，插入 compact boundary，并用 postCompactMessages 继续本轮调用。</p>
+          <ul>
+            <li>warning buffer：20K tokens</li>
+            <li>auto compact buffer：13K tokens</li>
+            <li>连续失败会 circuit break</li>
+          </ul>
+          <div class="source">references/.../src/services/compact/autoCompact.ts</div>
+        `,
+      },
+      "cc-context-suggestions": {
+        title: "Claude Code: contextSuggestions",
+        html: `
+          <p>它会判断哪些东西正在吃上下文：</p>
+          <ul>
+            <li>工具结果超过 15% context 或 10K tokens。</li>
+            <li>Read 结果超过 5% context 且 10K tokens。</li>
+            <li>Memory 文件超过 5% context 或 5K tokens。</li>
+            <li>上下文超过 80% 时提示 compact。</li>
+          </ul>
+          <div class="source">references/.../src/utils/contextSuggestions.ts:22</div>
+        `,
+      },
+      "jj-agent-prompt": {
+        title: "agent prompt",
+        html: `
+          <p>当前咨询 Agent 的 active systemPrompt，定义默认角色、任务目标和硬规则。</p>
+          <p>它应该是稳定底座，适合保留在 system prompt；但需要避免和后面业务规则反复重复。</p>
+          <div class="source">app/src/server/api/consultation-service.ts:1898</div>
+        `,
+      },
+      "jj-soul": {
+        title: "soul",
+        html: `
+          <p>由 buildAgentSoulPrompt 注入，说明专家人格、语气、acknowledgement 和互动节奏。</p>
+          <p>风险：如果正文太长，会把模型拉向“表演人格”，压过本轮业务目标。</p>
+          <div class="source">app/src/server/api/consultation-runtime/context.ts<br>buildAgentSoulPrompt()</div>
+        `,
+      },
+      "jj-expert-container": {
+        title: "专家容器",
+        html: `
+          <p>注入当前专家 displayName、agentKey、角色说明、后台描述，并强调 @ 只切换专家身份，不清空上下文。</p>
+          <p>适合保留，但应该短。专家身份不应重复承载策略资产状态。</p>
+          <div class="source">app/src/server/api/consultation-runtime/context.ts<br>buildExpertContainerPrompt()</div>
+        `,
+      },
+      "jj-skill-catalog": {
+        title: "skill catalog",
+        html: `
+          <p>候选 Skills 的渐进式披露目录，只列 name、description、whenToUse。</p>
+          <p>当前逻辑：skillCatalog 全量进入 system prompt；本轮命中后 activeSkills 才进入正文。</p>
+          <p>评审点：候选 skill 过多时，是否只保留 top candidates 或只给工具检索入口。</p>
+          <div class="source">app/src/server/api/consultation-runtime/skills.ts:203</div>
+        `,
+      },
+      "jj-active-skills": {
+        title: "active skills",
+        html: `
+          <p>本轮激活 Skill 正文。selectActiveConsultationSkills 会打分，score > 0 的最多取 3 个。</p>
+          <p>每个 skill.body 会 clip 到 3600 字符，最多 3 个就是约 10800 字符上限。</p>
+          <p>风险：如果命中宽泛，模型会被长 skill 正文带偏。</p>
+          <div class="source">app/src/server/api/consultation-runtime/skills.ts:34<br>app/src/server/api/consultation-runtime/skills.ts:227</div>
+        `,
+      },
+      "jj-skill-references": {
+        title: "skill references",
+        html: `
+          <p>本轮激活 Skill 绑定的受控参考资料提示，只给 title/type/usage，不直接给正文。</p>
+          <p>它提醒模型需要方法论、案例、判断标准时，优先调用 retrieve_knowledge_base。</p>
+          <div class="source">app/src/server/api/consultation-runtime/skills.ts:244</div>
+        `,
+      },
+      "jj-business-tools": {
+        title: "business tools",
+        html: `
+          <p>业务工具目录，告诉模型右侧策略资产不是普通文案，必须由受控工具更新。</p>
+          <ul>
+            <li>read_merchant_profile：读取商家资料。</li>
+            <li>retrieve_knowledge_base：检索平台方法论与用户知识库，写入 knowledgeMatches。</li>
+            <li>read_history：读取历史内容。</li>
+            <li>search_benchmark_materials：检索小红书/抖音对标素材。</li>
+            <li>update_strategy_snapshot：编辑策略资产。</li>
+            <li>update_content_calendar：更新内容日历。</li>
+            <li>generate_article_brief / generate_video_brief：仅明确要求工作台 brief 时使用。</li>
+          </ul>
+          <div class="source">app/src/server/api/consultation-runtime/tools.ts:206<br>buildBusinessToolPrompt()</div>
+        `,
+      },
+      "jj-context-injector": {
+        title: "ContextInjector",
+        html: `
+          <p>system prompt 里只放“如何理解上下文”的规则；真正的 contextInjection 对象放在 user JSON。</p>
+          <pre>【上下文工程注入器】
+共享咨询上下文独立于专家容器；
+sessionContext 是本轮共享事实层；
+expertTraffic 是当前 session 内短期共享白板。</pre>
+          <p>风险：它把上下文描述成“必须接住的共享事实”，不像 Claude Code 那样提醒“可能不相关”。</p>
+          <div class="source">app/src/server/api/consultation-runtime/context.ts:331</div>
+        `,
+      },
+      "jj-native-loop": {
+        title: "native tool loop 规则",
+        html: `
+          <p>规定模型必须通过 API tools 字段返回 tool_calls，不要在正文里输出工具 JSON；最终可见回复只给用户中文自然语言。</p>
+          <p>这是必要协议层，但目前和日历、RAG、guardrail 业务规则放在同一个长 system message 中。</p>
+          <div class="source">app/src/server/api/consultation-service.ts:1906</div>
+        `,
+      },
+      "jj-calendar-rules": {
+        title: "日历规则",
+        html: `
+          <p>当前强约束包括：</p>
+          <ul>
+            <li>用户要求生成/修改营销日历时，应调用 update_content_calendar。</li>
+            <li>修改标题、摘要、日期、内容类型，也必须写入日历。</li>
+            <li>如果 contentCalendarGeneration 显示已生成团队内容，应由 LLM 判断是否先说明影响并询问确认。</li>
+          </ul>
+          <p>风险：普通聊天也可能被这些日历规则牵引。</p>
+          <div class="source">app/src/server/api/consultation-service.ts:1913-1921</div>
+        `,
+      },
+      "jj-rag-rules": {
+        title: "RAG 规则",
+        html: `
+          <p>当前规则会要求营销日历、团队选题、图文/视频脚本这类沉淀任务先调用 retrieve_knowledge_base；多维度问题要拆 query 深挖。</p>
+          <p>方向是对的，但应该由本轮 intent selector 控制，不一定每轮都作为强 system 规则铺开。</p>
+          <div class="source">app/src/server/api/consultation-service.ts:1908-1914</div>
+        `,
+      },
+      "jj-guardrail-rules": {
+        title: "guardrail 规则",
+        html: `
+          <p>工具返回 skipped 或 guardrail 拒写时，最终回复必须承认本轮未写入，不能声称已经更新。</p>
+          <p>这是必要安全规则，建议保留，但可以归入稳定工具协议层。</p>
+          <div class="source">app/src/server/api/consultation-service.ts:1925</div>
+        `,
+      },
+      "jj-merchant": {
+        title: "merchant",
+        html: `
+          <p>User JSON 中的商家轻量摘要：</p>
+          <pre>{
+  name,
+  industry,
+  serviceItems,
+  defaultCta
+}</pre>
+          <p>通常必要，且体积可控。</p>
+          <div class="source">app/src/server/api/consultation-service.ts:1934</div>
+        `,
+      },
+      "jj-user-message": {
+        title: "userMessage / round",
+        html: `
+          <p>当前用户输入和轮次，是本轮最核心的 turn intent 来源。应该始终保留。</p>
+          <div class="source">app/src/server/api/consultation-service.ts:1940</div>
+        `,
+      },
+      "jj-context-json": {
+        title: "contextInjection JSON",
+        html: `
+          <p>包含 policy、runtimeBoundary、budget、targetExpert、mentionRouting、sessionContext、expertTraffic。</p>
+          <pre>sessionContext: {
+  merchantId,
+  merchantName,
+  round,
+  sessionSummary,
+  latestUserMessage,
+  strategySnapshot,
+  strategyMarkdown,
+  knowledgeMatchCount,
+  toolResults
+}</pre>
+          <p>风险：这是大包上下文。虽然 native path 对 strategyMarkdown 做了 1200 字符裁剪，但对象层级仍很重。</p>
+          <div class="source">app/src/server/api/consultation-runtime/context.ts:100</div>
+        `,
+      },
+      "jj-strategy-snapshot": {
+        title: "strategySnapshot",
+        html: `
+          <p>顶层 strategySnapshot 是 nativeStrategySnapshotSummary：</p>
+          <ul>
+            <li>positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion</li>
+            <li>strategyTags</li>
+            <li>contentCalendarDraft 前 7 条</li>
+            <li>contentCalendarGeneration 状态</li>
+            <li>articleBrief/videoBrief 摘要</li>
+          </ul>
+          <p>重复点：contextInjection.sessionContext.strategySnapshot 里也有。</p>
+          <div class="source">app/src/server/api/consultation-service.ts:2055</div>
+        `,
+      },
+      "jj-knowledge-matches": {
+        title: "knowledgeMatches",
+        html: `
+          <p>顶层 knowledgeMatches 每条给模型：</p>
+          <pre>{
+  title: match.documentTitle,
+  score: match.score,
+  content: match.content.slice(0, 600)
+}</pre>
+          <p>风险：如果旧命中没有按轮次清理，会被模型当作当前依据。建议标注 sourceTurn/currentTurn 或只保留最近相关命中。</p>
+          <div class="source">app/src/server/api/consultation-service.ts:1944</div>
+        `,
+      },
+      "jj-tool-results": {
+        title: "toolResults",
+        html: `
+          <p>顶层 toolResults 给 label、status、summary、guardrail。contextInjection.sessionContext.toolResults 也给 label/status/summary。</p>
+          <p>保留一个权威位置更好：要么作为 message history/tool result，要么作为 compact priorToolResults，不建议重复两份。</p>
+          <div class="source">app/src/server/api/consultation-service.ts:1949</div>
+        `,
+      },
+      "jj-skill-disclosure": {
+        title: "skillDisclosure",
+        html: `
+          <p>结构化披露候选 skills 和 active skills：</p>
+          <pre>{
+  mode: "progressive_disclosure",
+  candidateSkills,
+  activeSkills
+}</pre>
+          <p>重复点：system prompt 已经有 skill catalog、active skill 正文和 skill references。这个更适合给前端调试，不一定每轮给主模型。</p>
+          <div class="source">app/src/server/api/consultation-runtime/skills.ts:143</div>
+        `,
+      },
+    };
+
+    const reviewItems = [
+      {
+        id: "agent-prompt",
+        title: "agent prompt",
+        group: "system",
+        defaultDecision: "keep",
+        summary: "稳定身份和基础目标，建议保留但去掉与后续规则重复的句子。",
+        hover: "jj-agent-prompt",
+      },
+      {
+        id: "soul",
+        title: "soul",
+        group: "system",
+        defaultDecision: "keep-short",
+        summary: "保留语气与互动节奏，但限制长度，避免压过任务。",
+        hover: "jj-soul",
+      },
+      {
+        id: "expert-container",
+        title: "专家容器",
+        group: "system",
+        defaultDecision: "keep-short",
+        summary: "保留专家身份和知识边界，不要承载完整业务状态。",
+        hover: "jj-expert-container",
+      },
+      {
+        id: "skill-catalog",
+        title: "skill catalog",
+        group: "system",
+        defaultDecision: "conditional",
+        summary: "候选 skill 过多时应只放摘要或 top candidates。",
+        hover: "jj-skill-catalog",
+      },
+      {
+        id: "active-skills",
+        title: "active skills",
+        group: "system",
+        defaultDecision: "conditional",
+        summary: "只在高置信命中时注入正文，必要时进一步裁剪。",
+        hover: "jj-active-skills",
+      },
+      {
+        id: "skill-references",
+        title: "skill references",
+        group: "system",
+        defaultDecision: "conditional",
+        summary: "适合作为检索提示，注意不要替代 retrieve_knowledge_base。",
+        hover: "jj-skill-references",
+      },
+      {
+        id: "business-tools",
+        title: "business tools",
+        group: "system",
+        defaultDecision: "keep-short",
+        summary: "工具目录必要，但 tool schema 已在 tools 字段中，不要重复长描述。",
+        hover: "jj-business-tools",
+      },
+      {
+        id: "context-injector",
+        title: "ContextInjector",
+        group: "system",
+        defaultDecision: "rewrite",
+        summary: "建议从“必须接住全部事实”改成“按当前任务选择相关事实”。",
+        hover: "jj-context-injector",
+      },
+      {
+        id: "native-loop",
+        title: "native tool loop 规则",
+        group: "system",
+        defaultDecision: "keep",
+        summary: "工具调用协议必要，可保留为稳定短规则。",
+        hover: "jj-native-loop",
+      },
+      {
+        id: "calendar-rules",
+        title: "日历规则",
+        group: "system",
+        defaultDecision: "conditional",
+        summary: "仅日历 intent 时注入，轻问答不应长期携带。",
+        hover: "jj-calendar-rules",
+      },
+      {
+        id: "rag-rules",
+        title: "RAG 规则",
+        group: "system",
+        defaultDecision: "conditional",
+        summary: "仅沉淀任务或资料问题时注入，并把检索状态标清楚。",
+        hover: "jj-rag-rules",
+      },
+      {
+        id: "guardrail-rules",
+        title: "guardrail 规则",
+        group: "system",
+        defaultDecision: "keep",
+        summary: "必要安全规则，建议保留但归入工具协议层。",
+        hover: "jj-guardrail-rules",
+      },
+      {
+        id: "merchant",
+        title: "merchant",
+        group: "user-json",
+        defaultDecision: "keep",
+        summary: "轻量商家摘要，通常每轮需要。",
+        hover: "jj-merchant",
+      },
+      {
+        id: "user-message",
+        title: "userMessage / round",
+        group: "user-json",
+        defaultDecision: "keep",
+        summary: "本轮核心输入，必须保留。",
+        hover: "jj-user-message",
+      },
+      {
+        id: "context-json",
+        title: "contextInjection",
+        group: "user-json",
+        defaultDecision: "rewrite",
+        summary: "建议拆成 selectedContext，不再整包注入。",
+        hover: "jj-context-json",
+      },
+      {
+        id: "strategy-snapshot",
+        title: "strategySnapshot",
+        group: "user-json",
+        defaultDecision: "dedupe",
+        summary: "与 contextInjection 内部重复，保留一个权威位置。",
+        hover: "jj-strategy-snapshot",
+      },
+      {
+        id: "knowledge-matches",
+        title: "knowledgeMatches",
+        group: "user-json",
+        defaultDecision: "conditional",
+        summary: "只放当前相关命中，并标注是本轮还是历史命中。",
+        hover: "jj-knowledge-matches",
+      },
+      {
+        id: "tool-results",
+        title: "toolResults",
+        group: "user-json",
+        defaultDecision: "dedupe",
+        summary: "与 contextInjection 重复，建议只保留 compact prior results。",
+        hover: "jj-tool-results",
+      },
+      {
+        id: "skill-disclosure",
+        title: "skillDisclosure",
+        group: "user-json",
+        defaultDecision: "debug-only",
+        summary: "更适合调试面板；主模型已有 skill prompt。",
+        hover: "jj-skill-disclosure",
+      },
+      {
+        id: "model-provider",
+        title: "模型/provider",
+        group: "runtime",
+        defaultDecision: "ab-test",
+        summary: "Qwen/SiliconFlow 可能放大噪音，建议先用瘦身上下文 A/B 再换模型。",
+        hover: "model-provider",
+      },
+      {
+        id: "budget-report",
+        title: "上下文预算报告",
+        group: "runtime",
+        defaultDecision: "enforce",
+        summary: "当前更多是统计，应升级为真正裁剪和 omit 策略。",
+        hover: "budget-report",
+      },
+    ];
+
+    tipContent["model-provider"] = {
+      title: "模型/provider",
+      html: `
+        <p>当前迁移默认值是 SiliconFlow/Qwen：primaryModel = Qwen/Qwen3-32B，fallbackModel = Qwen/Qwen3-14B。</p>
+        <p>判断建议：不要先靠换模型掩盖上下文问题。先做瘦身上下文，再比较 Qwen 与更强模型。</p>
+        <div class="source">app/supabase/migrations/202605010001_unify_llm_runtime_qwen.sql</div>
+      `,
+    };
+
+    tipContent["budget-report"] = {
+      title: "上下文预算报告",
+      html: `
+        <p>buildContextBudgetReport 现在统计 merchant、strategySnapshot、strategyMarkdown、userContent、sessionSummary、soul.md、activeSkillBodies、knowledgeMatches、toolResults 等 bucket。</p>
+        <p>问题：它主要报告 chars 和 truncated，并没有在 buildConsultationContextInjection 阶段真正按 bucket 裁剪或省略。</p>
+        <p>建议：变成 selector + clipper + duplicate detector。</p>
+        <div class="source">app/src/server/api/consultation-runtime/context.ts:147</div>
+      `,
+    };
+
+    const decisionLabels = {
+      "keep": "保留",
+      "keep-short": "保留但缩短",
+      "conditional": "按任务注入",
+      "dedupe": "去重保留一处",
+      "debug-only": "移到调试面板",
+      "rewrite": "重写设计",
+      "ab-test": "A/B 测试",
+      "enforce": "做硬预算",
+      "remove": "移除",
+    };
+
+    const storagePrefix = "jingjing-context-review:";
+    const panel = document.getElementById("hoverPanel");
+
+    function getReviewItem(id) {
+      return reviewItems.find((item) => item.id === id);
+    }
+
+    function getReviewState(item) {
+      return {
+        checked: localStorage.getItem(storagePrefix + item.id + ":checked") === "true",
+        decision: localStorage.getItem(storagePrefix + item.id + ":decision") || item.defaultDecision,
+        comment: localStorage.getItem(storagePrefix + item.id + ":comment") || "",
+        owner: localStorage.getItem(storagePrefix + item.id + ":owner") || "",
+      };
+    }
+
+    function renderDecisionOptions(selected) {
+      return Object.entries(decisionLabels)
+        .map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`)
+        .join("");
+    }
+
+    function renderInlineReviews() {
+      document.querySelectorAll(".flow-node[data-review-id]").forEach((node) => {
+        const item = getReviewItem(node.dataset.reviewId);
+        if (!item) return;
+        node.querySelector(".inline-review")?.remove();
+        const state = getReviewState(item);
+        const review = document.createElement("div");
+        review.className = "inline-review";
+        review.innerHTML = `
+          <div class="inline-review-head">
+            <label class="review-check">
+              <input type="checkbox" data-field="checked" ${state.checked ? "checked" : ""} />
+              本轮需要
+            </label>
+            <select data-field="decision" aria-label="${escapeHtml(item.title)}建议处理">${renderDecisionOptions(state.decision)}</select>
+            <div class="inline-summary">默认建议：${decisionLabels[item.defaultDecision]}。${escapeHtml(item.summary)}</div>
+          </div>
+          <textarea data-field="comment" placeholder="评审备注：这里写为什么保留、哪里重复、应该怎样改。">${escapeHtml(state.comment)}</textarea>
+        `;
+        node.appendChild(review);
+      });
+    }
+
+    function renderReviewCards() {
+      const grid = document.getElementById("reviewGrid");
+      grid.innerHTML = reviewItems.filter((item) => item.group === "runtime").map((item) => {
+        const state = getReviewState(item);
+        return `
+          <article class="review-card" data-review-id="${item.id}">
+            <div class="review-top">
+              <div class="review-title">
+                <strong><span class="hover-target" data-tip="${item.hover}">${item.title}</span></strong>
+                <span>${item.summary}</span>
+              </div>
+              <label class="review-check">
+                <input type="checkbox" data-field="checked" ${state.checked ? "checked" : ""} />
+                本轮需要
+              </label>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>建议处理</label>
+                <select data-field="decision">${renderDecisionOptions(state.decision)}</select>
+              </div>
+              <div class="field">
+                <label>评审人/角色</label>
+                <input type="text" data-field="owner" value="${escapeHtml(state.owner)}" placeholder="例如：W / M / 产品 / 开发" />
+              </div>
+            </div>
+            <div class="hint">分组：${item.group}。默认建议：${decisionLabels[item.defaultDecision]}。</div>
+            <div class="field">
+              <label>评审备注</label>
+              <textarea data-field="comment" placeholder="写这里：为什么保留、哪里重复、建议怎样改。">${escapeHtml(state.comment)}</textarea>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function bindReviewPersistence() {
+      const persist = (event) => {
+        const card = event.target.closest("[data-review-id]");
+        if (!card) return;
+        const id = card.dataset.reviewId;
+        const field = event.target.dataset.field;
+        if (!field) return;
+        const key = storagePrefix + id + ":" + field;
+        const value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+        localStorage.setItem(key, String(value));
+        syncReviewControls(id, field, value, event.target);
+      };
+      document.body.addEventListener("input", persist);
+      document.body.addEventListener("change", persist);
+    }
+
+    function syncReviewControls(id, field, value, source) {
+      document.querySelectorAll(`[data-review-id="${CSS.escape(id)}"] [data-field="${CSS.escape(field)}"]`).forEach((control) => {
+        if (control === source) return;
+        if (control.type === "checkbox") {
+          control.checked = value === true || value === "true";
+        } else {
+          control.value = value;
+        }
+      });
+    }
+
+    function bindHoverCards() {
+      document.body.addEventListener("mouseover", (event) => {
+        const target = event.target.closest("[data-tip]");
+        if (!target) return;
+        const content = tipContent[target.dataset.tip];
+        if (!content) return;
+        panel.innerHTML = `<h4>${content.title}</h4>${content.html}`;
+        panel.classList.add("visible");
+        panel.setAttribute("aria-hidden", "false");
+        positionPanel(event);
+      });
+
+      document.body.addEventListener("mousemove", (event) => {
+        if (panel.classList.contains("visible")) {
+          positionPanel(event);
+        }
+      });
+
+      document.body.addEventListener("mouseout", (event) => {
+        if (!event.relatedTarget || !event.relatedTarget.closest || !event.relatedTarget.closest(".hover-panel")) {
+          const target = event.target.closest("[data-tip]");
+          if (target) hidePanel();
+        }
+      });
+
+      panel.addEventListener("mouseleave", hidePanel);
+    }
+
+    function positionPanel(event) {
+      const margin = 16;
+      const rect = panel.getBoundingClientRect();
+      let left = event.clientX + 18;
+      let top = event.clientY + 18;
+      if (left + rect.width + margin > window.innerWidth) {
+        left = window.innerWidth - rect.width - margin;
+      }
+      if (top + rect.height + margin > window.innerHeight) {
+        top = window.innerHeight - rect.height - margin;
+      }
+      panel.style.left = Math.max(margin, left) + "px";
+      panel.style.top = Math.max(margin, top) + "px";
+    }
+
+    function hidePanel() {
+      panel.classList.remove("visible");
+      panel.setAttribute("aria-hidden", "true");
+    }
+
+    function exportReview() {
+      const lines = [
+        "# 咨询 Agent 上下文工程评审意见",
+        "",
+        `导出时间：${new Date().toLocaleString("zh-CN")}`,
+        "",
+      ];
+
+      for (const item of reviewItems) {
+        const checked = localStorage.getItem(storagePrefix + item.id + ":checked") === "true";
+        const decision = localStorage.getItem(storagePrefix + item.id + ":decision") || item.defaultDecision;
+        const owner = localStorage.getItem(storagePrefix + item.id + ":owner") || "";
+        const comment = localStorage.getItem(storagePrefix + item.id + ":comment") || "";
+        lines.push(`## ${item.title}`);
+        lines.push(`- 分组：${item.group}`);
+        lines.push(`- 本轮需要：${checked ? "是" : "否"}`);
+        lines.push(`- 建议处理：${decisionLabels[decision] || decision}`);
+        if (owner.trim()) lines.push(`- 评审人/角色：${owner.trim()}`);
+        lines.push(`- 默认说明：${item.summary}`);
+        lines.push(`- 评审备注：${comment.trim() || "暂无"}`);
+        lines.push("");
+      }
+
+      const box = document.getElementById("exportBox");
+      const textarea = document.getElementById("exportText");
+      textarea.value = lines.join("\n");
+      box.classList.add("visible");
+      textarea.focus();
+      textarea.select();
+    }
+
+    function clearReview() {
+      if (!confirm("确认清空本页所有勾选和评审备注？")) return;
+      for (const item of reviewItems) {
+        for (const field of ["checked", "decision", "owner", "comment"]) {
+          localStorage.removeItem(storagePrefix + item.id + ":" + field);
+        }
+      }
+      renderInlineReviews();
+      renderReviewCards();
+    }
+
+    renderInlineReviews();
+    renderReviewCards();
+    bindReviewPersistence();
+    bindHoverCards();
+    document.getElementById("exportReview").addEventListener("click", exportReview);
+    document.getElementById("clearReview").addEventListener("click", clearReview);
+  </script>
+</body>
+</html>
