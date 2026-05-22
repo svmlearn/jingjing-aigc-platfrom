@@ -205,21 +205,33 @@ export function buildSkillCatalogPrompt(consultationAgent: ConsultationAgentRunt
     return "";
   }
 
-  const listing = consultationAgent.skillCatalog
-    .map((skill) =>
-      [
-        `- ${skill.name}${skill.skillKey ? ` (${skill.skillKey})` : ""}`,
-        skill.description ? `  Description: ${clipText(skill.description, 160)}` : "",
-        skill.whenToUse ? `  When to use: ${clipText(skill.whenToUse, 180)}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    )
-    .join("\n");
+  const maxCatalogChars = 8_000;
+  const rows: string[] = [];
+  let usedChars = 0;
+
+  for (const skill of consultationAgent.skillCatalog) {
+    const row = [
+      `- ${skill.name}${skill.skillKey ? ` (${skill.skillKey})` : ""}`,
+      skill.description ? `  Description: ${clipText(skill.description, 220)}` : "",
+      skill.whenToUse ? `  When to use: ${clipText(skill.whenToUse, 240)}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    if (usedChars + row.length > maxCatalogChars) {
+      rows.push("- Skill catalog clipped by runtime budget.");
+      break;
+    }
+
+    rows.push(row);
+    usedChars += row.length;
+  }
+
+  const listing = rows.join("\n");
 
   return [
     "【候选 Skills：渐进式披露】",
-    "下面只列出可用 Skill 的简短说明。只有当前轮用户问题命中触发条件时，才会在后续“本轮激活 Skill”中提供完整正文。",
+    "下面只列出可用 Skill 的简短说明。Skill 正文不会自动进入 system prompt；需要方法论依据时优先通过真实检索工具获取。",
     listing,
   ].join("\n");
 }

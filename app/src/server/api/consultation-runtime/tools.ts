@@ -144,14 +144,6 @@ const updateContentCalendarArgsSchema = z
   })
   .strict();
 
-const readHistoryArgsSchema = z
-  .object({
-    sessionId: z.string().optional(),
-    previousMessageCount: z.number().int().min(0).optional(),
-    previousSummary: z.string().nullable().optional(),
-  })
-  .strict();
-
 const benchmarkArgsSchema = z
   .object({
     platform: z.enum(["xiaohongshu", "douyin"]).optional(),
@@ -166,35 +158,6 @@ const benchmarkArgsSchema = z
 
 export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDefinition[] {
   return [
-    {
-      key: "read_merchant_profile",
-      label: "读取用户信息",
-      purpose: "读取用户基础信息、能力项、背景摘要、表达风格和希望引导的下一步。",
-      writes: "只读上下文",
-      parameters: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          merchantId: {
-            type: "string",
-            description: "当前用户资料 ID。可省略，runtime 会从受控上下文读取。",
-          },
-        },
-      },
-      validate: (args, state) => {
-        const parsed = z.object({ merchantId: z.string().optional() }).strict().safeParse(args);
-
-        return parsed.success
-          ? {
-              ok: true,
-              args: {
-                ...buildConsultationToolArgs("read_merchant_profile", state),
-                ...parsed.data,
-              },
-            }
-          : { ok: false, error: formatSchemaError(parsed.error) };
-      },
-    },
     {
       key: "retrieve_knowledge_base",
       label: "检索平台方法论与用户知识库",
@@ -260,43 +223,6 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
             contextPolicy: parsed.data.contextPolicy ?? fallback.contextPolicy,
           },
         };
-      },
-    },
-    {
-      key: "read_history",
-      label: "读取历史内容",
-      purpose: "读取当前咨询会话历史和摘要，避免丢上下文。",
-      writes: "只读上下文",
-      parameters: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          sessionId: {
-            type: "string",
-            description: "当前咨询会话 ID。可省略。",
-          },
-          previousMessageCount: {
-            type: "number",
-            description: "可选历史消息数。",
-          },
-          previousSummary: {
-            type: "string",
-            description: "可选会话摘要。",
-          },
-        },
-      },
-      validate: (args, state) => {
-        const parsed = readHistoryArgsSchema.safeParse(args);
-
-        return parsed.success
-          ? {
-              ok: true,
-              args: {
-                ...buildConsultationToolArgs("read_history", state),
-                ...parsed.data,
-              },
-            }
-          : { ok: false, error: formatSchemaError(parsed.error) };
       },
     },
     {
@@ -478,11 +404,7 @@ function buildRuntimeToolDescription(
 }
 
 export function isRepeatableConsultationReadTool(toolName: ConsultationAgentToolKey) {
-  return (
-    toolName === "read_merchant_profile" ||
-    toolName === "retrieve_knowledge_base" ||
-    toolName === "read_history"
-  );
+  return toolName === "retrieve_knowledge_base";
 }
 
 export function parseNativeConsultationToolCall(
@@ -578,14 +500,6 @@ export function buildConsultationToolArgs(
         Math.min(state.consultationAgent.retrievalTopK, state.knowledgeRuntime.retrievalTopK),
       ),
       contextPolicy: "controlled_context_chunks_only",
-    };
-  }
-
-  if (toolName === "read_history") {
-    return {
-      sessionId: state.session.id,
-      previousMessageCount: state.session.messages.length,
-      previousSummary: state.session.summaryText,
     };
   }
 

@@ -24,6 +24,11 @@ const consultationRuntimeSource = [
   )
   .join("\n");
 const consultationServiceAndRuntimeSource = `${serviceSource}\n${consultationRuntimeSource}`;
+const runtimeContextMessageBuilderSource = extractSourceBlock(
+  consultationRuntimeSource,
+  "export function buildConsultationRuntimeContextMessage",
+  "function getContentCalendarBusinessStatus",
+);
 const roundtableSource = readFileSync(
   new URL("./roundtable-consultation-service.ts", import.meta.url),
   "utf8",
@@ -38,6 +43,10 @@ const agentConsoleRepositorySource = readFileSync(
 );
 const platformAdminRepositorySource = readFileSync(
   new URL("../../lib/db/platform-admin-repository.ts", import.meta.url),
+  "utf8",
+);
+const knowledgeContractSource = readFileSync(
+  new URL("../../contracts/knowledge.ts", import.meta.url),
   "utf8",
 );
 const platformSettingsEditorSource = readFileSync(
@@ -93,6 +102,16 @@ const consultationPromptSoulMigrationSource = readFileSync(
   new URL("../../../supabase/migrations/202605070006_consultation_user_context_language.sql", import.meta.url),
   "utf8",
 );
+
+function extractSourceBlock(source: string, start: string, end: string) {
+  const startIndex = source.indexOf(start);
+  const endIndex = source.indexOf(end, startIndex);
+
+  assert.notEqual(startIndex, -1, `Missing source block start: ${start}`);
+  assert.notEqual(endIndex, -1, `Missing source block end: ${end}`);
+
+  return source.slice(startIndex, endIndex);
+}
 
 test("consultation runtime resolves online agent prompt and skill bindings", () => {
   assert.match(consultationServiceAndRuntimeSource, /getConsultationDefaultRouteBinding/);
@@ -193,20 +212,18 @@ test("llm runtime timeout respects platform settings for native tool calling", (
 test("consultation runtime uses progressive skill disclosure", () => {
   assert.match(consultationServiceAndRuntimeSource, /mode: "progressive_disclosure"/);
   assert.match(consultationServiceAndRuntimeSource, /buildSkillCatalogPrompt/);
-  assert.match(consultationServiceAndRuntimeSource, /buildActiveSkillPrompt/);
-  assert.match(consultationServiceAndRuntimeSource, /buildSkillReferencePrompt/);
   assert.match(consultationServiceAndRuntimeSource, /buildSkillDependencyWarnings/);
   assert.match(consultationServiceAndRuntimeSource, /skillDependencyWarnings/);
   assert.match(consultationServiceAndRuntimeSource, /候选 Skills：渐进式披露/);
-  assert.match(consultationServiceAndRuntimeSource, /本轮激活 Skill/);
-  assert.match(consultationServiceAndRuntimeSource, /本轮 Skill References/);
-  assert.match(consultationServiceAndRuntimeSource, /selectActiveConsultationSkills/);
+  assert.match(consultationServiceAndRuntimeSource, /maxCatalogChars = 8_000/);
+  assert.match(consultationServiceAndRuntimeSource, /Skill 正文不会自动进入 system prompt/);
+  assert.doesNotMatch(serviceSource, /buildActiveSkillPrompt/);
+  assert.doesNotMatch(serviceSource, /buildSkillReferencePrompt/);
   assert.match(consultationServiceAndRuntimeSource, /scoreConsultationSkills/);
   assert.match(consultationServiceAndRuntimeSource, /triggerReasons/);
   assert.match(consultationServiceAndRuntimeSource, /usageSignal/);
   assert.match(consultationServiceAndRuntimeSource, /normalizeSkillMatchText/);
   assert.match(consultationServiceAndRuntimeSource, /metadata\.references/);
-  assert.match(consultationServiceAndRuntimeSource, /activeSkillReferences/);
 });
 
 test("consultation context records budget and session summary", () => {
@@ -514,6 +531,74 @@ test("consultation runtime exposes right panel assets through bounded business t
   assert.match(consultationServiceAndRuntimeSource, /strategySnapshot\.contentCalendarDraft/);
 });
 
+test("consultation visible tools exclude runtime context pseudo read tools", () => {
+  assert.match(knowledgeContractSource, /legacyConsultationAgentToolKeys/);
+  assert.doesNotMatch(schemasSource, /"read_merchant_profile"/);
+  assert.doesNotMatch(schemasSource, /"read_history"/);
+  assert.doesNotMatch(platformAdminRepositorySource, /"read_merchant_profile"/);
+  assert.doesNotMatch(platformAdminRepositorySource, /"read_history"/);
+  assert.match(platformAdminRepositorySource, /consultationAgentToolKeys/);
+  assert.match(platformAdminRepositorySource, /search_benchmark_materials/);
+  assert.doesNotMatch(platformSettingsEditorSource, /key: "read_merchant_profile"/);
+  assert.doesNotMatch(platformSettingsEditorSource, /key: "read_history"/);
+  assert.match(platformSettingsEditorSource, /用户资料与历史会话由 runtime 自动纳入上下文/);
+  assert.doesNotMatch(consultationRuntimeSource, /key: "read_merchant_profile"/);
+  assert.doesNotMatch(consultationRuntimeSource, /key: "read_history"/);
+  assert.doesNotMatch(consultationRuntimeSource, /toolName === "read_merchant_profile"/);
+  assert.doesNotMatch(consultationRuntimeSource, /toolName === "read_history"/);
+  assert.doesNotMatch(serviceSource, /call\.toolName === "read_merchant_profile"/);
+  assert.doesNotMatch(serviceSource, /call\.toolName === "read_history"/);
+});
+
+test("consultation planner no longer orders or depends on pseudo read tools", () => {
+  assert.match(consultationRuntimeSource, /const orderedTools: ConsultationAgentToolKey\[\] = \[/);
+  assert.doesNotMatch(consultationRuntimeSource, /"read_merchant_profile",\n\s*"retrieve_knowledge_base"/);
+  assert.doesNotMatch(consultationRuntimeSource, /"retrieve_knowledge_base",\n\s*"read_history"/);
+  assert.match(consultationRuntimeSource, /toolName === "retrieve_knowledge_base" \|\| toolName === "search_benchmark_materials"/);
+  assert.match(consultationRuntimeSource, /return \["retrieve_knowledge_base"\]/);
+  assert.doesNotMatch(consultationRuntimeSource, /return \["read_merchant_profile"/);
+  assert.doesNotMatch(consultationRuntimeSource, /"read_merchant_profile", "retrieve_knowledge_base"/);
+  assert.match(consultationRuntimeSource, /用户资料、会话摘要和最近历史消息已经由 runtime context 自动提供/);
+});
+
+test("consultation model messages split runtime context from current user message", () => {
+  assert.match(serviceSource, /function buildConsultationModelMessages/);
+  assert.match(serviceSource, /phase: "assistant_reply"/);
+  assert.match(serviceSource, /phase: "native_tool_calling"/);
+  assert.match(serviceSource, /buildConsultationRuntimeContextMessage/);
+  assert.match(serviceSource, /\.\.\.buildConversationHistoryMessages\(input\.state\)/);
+  assert.match(serviceSource, /content: input\.state\.userContent/);
+  assert.match(serviceSource, /当前用户消息是消息数组最后一条 role=user/);
+  assert.doesNotMatch(serviceSource, /content: JSON\.stringify\(\{\n\s*merchant: \{/);
+  assert.doesNotMatch(serviceSource, /userMessage: input\.state\.userContent/);
+});
+
+test("consultation runtime context message carries profile history strategy and evidence", () => {
+  assert.match(consultationRuntimeSource, /buildConsultationRuntimeContextMessage/);
+  assert.match(consultationRuntimeSource, /merchantProfileContext/);
+  assert.match(consultationRuntimeSource, /conversationContext/);
+  assert.match(consultationRuntimeSource, /history: \{/);
+  assert.match(consultationRuntimeSource, /strategySnapshotContext/);
+  assert.match(consultationRuntimeSource, /selectedKnowledgeContext/);
+  assert.match(consultationRuntimeSource, /evidenceCount/);
+  assert.match(consultationRuntimeSource, /selected_evidence_only/);
+  assert.match(consultationRuntimeSource, /toolResultsContext/);
+  assert.match(consultationRuntimeSource, /getConversationHistoryBeforeCurrentTurn/);
+});
+
+test("consultation runtime context hides internal calendar generation fields", () => {
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /contentCalendarGeneration/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /generatedBatchId/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /generatedFromRevisionId/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /currentRevisionId/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /strategyTags/);
+  assert.match(runtimeContextMessageBuilderSource, /contentCalendarStatus/);
+  assert.match(runtimeContextMessageBuilderSource, /contentCalendarNotice/);
+  assert.match(consultationRuntimeSource, /generated_team_content_exists/);
+  assert.match(consultationRuntimeSource, /not_generated/);
+  assert.match(consultationRuntimeSource, /后续团队内容可能需要重新生成/);
+});
+
 test("consultation planner supports Claude Code style JSON tool loop", () => {
   assert.match(consultationServiceAndRuntimeSource, /plannerMode: "model_json_planner"/);
   assert.match(consultationServiceAndRuntimeSource, /model_json_tool_loop_v1/);
@@ -573,8 +658,8 @@ test("consultation runtime routes explicit knowledge reads through the retrieval
   assert.match(serviceSource, /后续团队内容可能需要重新生成/);
   assert.doesNotMatch(serviceSource, new RegExp("不再通过用户端" + "图文工作台"));
   assert.doesNotMatch(serviceSource, /observations 里尚未有/);
-  assert.match(serviceSource, /buildNativeStrategySnapshotSummary/);
-  assert.match(serviceSource, /guidancePresence/);
+  assert.match(serviceSource, /strategySnapshotContext/);
+  assert.match(consultationRuntimeSource, /selectedKnowledgeContext/);
   assert.match(serviceSource, /buildRecoveredToolResultReply/);
   assert.match(serviceSource, /受控工具已经执行完成/);
   assert.match(consultationRuntimeSource, /knowledgeMatches: \(result\.knowledgeMatches \?\? \[\]\)\.map/);
@@ -667,6 +752,7 @@ test("consultation native write tools keep strict schemas and positive argument 
   assert.match(consultationRuntimeSource, /merchantRoundArgsSchema[\s\S]*?\.strict\(\)/);
   assert.match(consultationRuntimeSource, /contentCalendarItemArgsSchema[\s\S]*?\.strict\(\)/);
   assert.match(consultationRuntimeSource, /updateContentCalendarArgsSchema[\s\S]*?\.strict\(\)/);
+  assert.doesNotMatch(consultationRuntimeSource, /\.strip\(/);
   assert.match(consultationRuntimeSource, /arguments 只包含 merchantId、round、stage/);
   assert.match(consultationRuntimeSource, /arguments 只包含 calendar、merchantId、round、stage/);
   assert.doesNotMatch(consultationRuntimeSource, /不要把 currentSuggestion、strategyTags/);
@@ -781,8 +867,10 @@ test("content generation does not return business draft fallbacks", () => {
 });
 
 test("consultation visible tool language uses user context, not merchant context", () => {
-  assert.match(consultationServiceAndRuntimeSource, /读取用户信息/);
   assert.match(consultationServiceAndRuntimeSource, /检索平台方法论与用户知识库/);
+  assert.match(platformSettingsEditorSource, /用户资料与历史会话由 runtime 自动纳入上下文/);
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /读取用户信息/);
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /读取历史内容/);
   assert.doesNotMatch(consultationServiceAndRuntimeSource, /读取商家资料/);
   assert.doesNotMatch(consultationServiceAndRuntimeSource, /检索平台方法论与商家上下文/);
   assert.doesNotMatch(consultationServiceAndRuntimeSource, /商家画像读取/);

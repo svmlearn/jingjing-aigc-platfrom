@@ -25,19 +25,14 @@ const consultationSkillOptions: Array<{
   description: string;
 }> = [
   {
-    key: "read_merchant_profile",
-    label: "读取用户信息",
-    description: "把用户背景、能力项、行动目标和禁忌词纳入上下文。",
-  },
-  {
     key: "retrieve_knowledge_base",
     label: "检索平台方法论与用户知识库",
     description: "按 knowledge runtime 召回平台方法论与当前用户的 indexed chunks。",
   },
   {
-    key: "read_history",
-    label: "读取历史内容",
-    description: "使用当前会话和历史内容做连续诊断。",
+    key: "search_benchmark_materials",
+    label: "检索社媒爆款内容",
+    description: "按关键词、主页或单条链接检索小红书/抖音对标内容。",
   },
   {
     key: "update_strategy_snapshot",
@@ -361,6 +356,9 @@ export function PlatformSettingsEditor({
             <div>
               <p className="mb-3 text-[10px] font-medium uppercase tracking-widest text-white/40">
                 Enabled Tools
+              </p>
+              <p className="mb-3 text-xs leading-5 text-white/42">
+                用户资料与历史会话由 runtime 自动纳入上下文，不再作为可勾选工具。
               </p>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {consultationSkillOptions.map((skill) => {

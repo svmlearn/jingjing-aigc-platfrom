@@ -35,9 +35,7 @@ type ConsultationPlannerDecision = {
 };
 
 const orderedTools: ConsultationAgentToolKey[] = [
-  "read_merchant_profile",
   "retrieve_knowledge_base",
-  "read_history",
   "search_benchmark_materials",
   "update_strategy_snapshot",
   "update_content_calendar",
@@ -242,16 +240,12 @@ function getReadyToolNames(
 }
 
 function getToolDependencies(toolName: ConsultationAgentToolKey): ConsultationAgentToolKey[] {
-  if (toolName === "retrieve_knowledge_base" || toolName === "read_history") {
-    return ["read_merchant_profile"];
+  if (toolName === "retrieve_knowledge_base" || toolName === "search_benchmark_materials") {
+    return [];
   }
 
   if (toolName === "update_strategy_snapshot") {
-    return ["read_merchant_profile", "retrieve_knowledge_base", "read_history"];
-  }
-
-  if (toolName === "search_benchmark_materials") {
-    return ["read_merchant_profile"];
+    return ["retrieve_knowledge_base"];
   }
 
   if (toolName === "update_content_calendar") {
@@ -284,7 +278,8 @@ function buildPlannerMessages(input: {
         "只输出 JSON object，不要输出 Markdown。",
         "JSON schema: {\"action\":\"call_tool\"|\"stop\",\"toolName\":\"工具 key\",\"args\":{},\"reason\":\"一句中文理由\"}",
         "在 readyTools 非空时必须选择其中一个工具；不要发明工具名。",
-        "retrieve_knowledge_base、read_history、read_merchant_profile 是读类工具；当用户明确列出多个检索维度，或上一轮检索只覆盖项目事实、方法论、话术、素材边界中的一部分时，可以继续选择 retrieve_knowledge_base，并用新的具体 query 深挖。",
+        "retrieve_knowledge_base 是可重复的知识检索工具；当用户明确列出多个检索维度，或上一轮检索只覆盖项目事实、方法论、话术、素材边界中的一部分时，可以继续选择 retrieve_knowledge_base，并用新的具体 query 深挖。",
+        "用户资料、会话摘要和最近历史消息已经由 runtime context 自动提供，不要规划读取资料或读取历史的工具。",
         "写类工具只在信息足够时调用；不要为了跳过检索而过早写入内容日历。",
         "策略资产和内容日历只能通过受控工具推进。",
       ].join("\n"),

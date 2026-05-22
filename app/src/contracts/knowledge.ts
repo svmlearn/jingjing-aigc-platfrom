@@ -1,12 +1,21 @@
-export type ConsultationAgentToolKey =
-  | "read_merchant_profile"
-  | "retrieve_knowledge_base"
-  | "update_strategy_snapshot"
-  | "update_content_calendar"
-  | "generate_article_brief"
-  | "generate_video_brief"
-  | "read_history"
-  | "search_benchmark_materials";
+export const consultationAgentToolKeys = [
+  "retrieve_knowledge_base",
+  "search_benchmark_materials",
+  "update_strategy_snapshot",
+  "update_content_calendar",
+  "generate_article_brief",
+  "generate_video_brief",
+] as const;
+
+export const legacyConsultationAgentToolKeys = [
+  "read_merchant_profile",
+  "read_history",
+] as const;
+
+export type ConsultationAgentToolKey = (typeof consultationAgentToolKeys)[number];
+
+export type LegacyConsultationAgentToolKey =
+  (typeof legacyConsultationAgentToolKeys)[number];
 
 export type ConsultationAgentSettingsDto = {
   systemPrompt: string;

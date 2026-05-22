@@ -2,12 +2,13 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
-import type { MerchantProfileDto } from "@/contracts/merchant";
-import type {
-  ConsultationAgentSettingsDto,
-  KnowledgeRuntimeSettingsDto,
-  ScriptProductionAgentSettingsDto,
+import {
+  consultationAgentToolKeys,
+  type ConsultationAgentSettingsDto,
+  type KnowledgeRuntimeSettingsDto,
+  type ScriptProductionAgentSettingsDto,
 } from "@/contracts/knowledge";
+import type { MerchantProfileDto } from "@/contracts/merchant";
 import type {
   PlatformAdminInvitationCodeFilters,
   ImportRuntimeSettingsDto,
@@ -144,11 +145,10 @@ const defaultConsultationAgent: ConsultationAgentSettingsDto = {
   systemPrompt:
     "你是静境平台里的 AI 商业顾问。目标是帮助当前用户或经营者快速澄清自己是谁、可提供的能力或服务、卖点、目标对象、关键场景、内容策略和后续内容创作输入。资料不足时必须先追问，不要替用户假设行业、业务形态或服务范围。",
   enabledTools: [
-    "read_merchant_profile",
     "retrieve_knowledge_base",
+    "search_benchmark_materials",
     "update_strategy_snapshot",
     "update_content_calendar",
-    "read_history",
   ],
   visibleExecutionMode: "cards",
   maxRounds: 6,
@@ -1909,12 +1909,26 @@ function toConsultationToolArray(value: unknown): ConsultationAgentSettingsDto["
     return defaultConsultationAgent.enabledTools;
   }
 
-  const allowed = new Set(defaultConsultationAgent.enabledTools);
-  const next = value.filter(
-    (item): item is ConsultationAgentSettingsDto["enabledTools"][number] =>
-      typeof item === "string" &&
-      allowed.has(item as ConsultationAgentSettingsDto["enabledTools"][number]),
+  const allowed = new Set<ConsultationAgentSettingsDto["enabledTools"][number]>(
+    consultationAgentToolKeys,
   );
+  const seen = new Set<ConsultationAgentSettingsDto["enabledTools"][number]>();
+  const next: ConsultationAgentSettingsDto["enabledTools"] = [];
+
+  for (const item of value) {
+    if (typeof item !== "string") {
+      continue;
+    }
+
+    const toolKey = item as ConsultationAgentSettingsDto["enabledTools"][number];
+
+    if (!allowed.has(toolKey) || seen.has(toolKey)) {
+      continue;
+    }
+
+    seen.add(toolKey);
+    next.push(toolKey);
+  }
 
   return next.length > 0 ? next : defaultConsultationAgent.enabledTools;
 }

@@ -300,12 +300,11 @@ export function buildConsultationSlimContextPack(input: {
     allKnowledgeMatchCount: input.knowledgeMatches.length,
   });
   const included = [
-    "merchant",
-    "userMessage",
-    "round",
-    "expertRouting",
-    "strategySnapshot",
-    selectedKnowledgeMatches.length > 0 ? "currentKnowledgeMatches" : null,
+    "merchantProfileContext",
+    "conversationContext",
+    "expertRoutingContext",
+    "strategySnapshotContext",
+    selectedKnowledgeMatches.length > 0 ? "selectedKnowledgeContext" : null,
   ].filter((field): field is string => Boolean(field));
 
   return {
@@ -597,9 +596,9 @@ export function buildSlimContextPackSystemPrompt(
   const lines = [
     "【上下文包 slim_v2】",
     `本轮上下文包：${contextPack.selectedContextPack}。`,
-    "主模型只能把 user JSON 顶层 strategySnapshot 视为当前策略资产权威入口；不要假设还有另一份隐藏策略资产。",
-    "currentKnowledgeMatches 只代表本轮被选择的 evidence；未出现在其中的历史知识命中，不要当成本轮依据。",
-    "工具结果的权威来源只能是 native role=tool 消息或 JSON tool_result；不要依赖 user JSON 中的重复工具摘要。",
+    "策略资产权威入口是 runtime context 中的 strategySnapshotContext；不要假设还有另一份隐藏策略资产。",
+    "selectedKnowledgeContext 只代表本轮被选择的 evidence；未出现在其中的历史知识命中，不要当成本轮依据。",
+    "工具结果的权威来源只能是 native role=tool 消息或 JSON tool_result；runtime context 里的工具摘要只帮助理解状态。",
     "内部调试字段只用于 runtimeSnapshot，不要向用户暴露。",
     "如果工具结果是 skipped、failed、guardrail rejected 或未完成，最终回复必须承认本轮未写入或未完成，不能声称已经更新。",
   ];
@@ -611,6 +610,120 @@ export function buildSlimContextPackSystemPrompt(
   }
 
   return lines.join("\n");
+}
+
+export function buildConsultationRuntimeContextMessage(input: {
+  state: ConsultationAgentLoopState;
+  contextPack: ConsultationSlimContextPack;
+  toolResults: ConsultationAgentToolResult[];
+}) {
+  const recentHistory = getConversationHistoryBeforeCurrentTurn(input.state).slice(-8);
+
+  return [
+    "<consultation-runtime-context policy=\"consultation_runtime_context_message_v1\">",
+    "# merchantProfileContext",
+    JSON.stringify({
+      merchantId: input.state.merchant.id,
+      name: input.state.merchant.name,
+      industry: input.state.merchant.industry,
+      serviceItems: input.state.merchant.serviceItems,
+      brandSummary: input.state.merchant.brandSummary,
+      regionSummary: input.state.merchant.regionSummary,
+      toneStyle: input.state.merchant.toneStyle,
+      defaultCta: input.state.merchant.defaultCta,
+      forbiddenWords: input.state.merchant.forbiddenWords,
+    }),
+    "# conversationContext",
+    JSON.stringify({
+      sessionId: input.state.session.id,
+      round: input.state.nextRound,
+      stage: input.state.nextStage,
+      summaryText: input.state.session.summaryText ?? null,
+      history: {
+        messageCount: input.state.session.messages.length,
+        recentMessages: recentHistory.map((message) => ({
+          role: message.role,
+          content: clipText(message.content, 900),
+        })),
+      },
+    }),
+    "# expertRoutingContext",
+    JSON.stringify({
+      mentionRouting: {
+        mode: input.state.mentionRouting.mode,
+        rawMention: input.state.mentionRouting.rawMention,
+        targetAgentKey: input.state.mentionRouting.targetAgentKey,
+        targetDisplayName: input.state.mentionRouting.targetDisplayName,
+      },
+      expertRouting: input.contextPack.expertRouting,
+    }),
+    "# strategySnapshotContext",
+    JSON.stringify({
+      positioning: input.state.strategySnapshot.positioning,
+      coreSellingPoints: input.state.strategySnapshot.coreSellingPoints,
+      targetAudiences: input.state.strategySnapshot.targetAudiences,
+      keyScenes: input.state.strategySnapshot.keyScenes,
+      currentSuggestion: input.state.strategySnapshot.currentSuggestion,
+      strategyMarkdown: clipText(input.state.strategyMarkdown, 2400),
+      contentCalendarDraft: input.state.strategySnapshot.contentCalendarDraft.slice(0, 7).map((item) => ({
+        id: item.id,
+        dayLabel: item.dayLabel,
+        contentType: item.contentType,
+        strategyTag: item.strategyTag,
+        title: item.title,
+        summary: clipText(item.summary, 220),
+      })),
+      contentCalendarStatus: getContentCalendarBusinessStatus(input.state.strategySnapshot),
+      contentCalendarNotice: getContentCalendarBusinessNotice(input.state.strategySnapshot),
+    }),
+    "# selectedKnowledgeContext",
+    JSON.stringify({
+      policy: "selected_evidence_only",
+      evidenceCount: input.contextPack.selectedKnowledgeMatches.length,
+      evidence: input.contextPack.selectedKnowledgeMatches,
+    }),
+    "# toolResultsContext",
+    JSON.stringify({
+      results: input.toolResults.map((result) => ({
+        toolName: result.toolName,
+        rawToolName: result.rawToolName ?? null,
+        status: result.status,
+        summary: result.summary,
+        errorType: result.payload.errorType ?? null,
+      })),
+    }),
+    "</consultation-runtime-context>",
+  ].join("\n");
+}
+
+function getContentCalendarBusinessStatus(
+  snapshot: StrategySnapshotDto,
+): "not_generated" | "generated_team_content_exists" {
+  return snapshot.contentCalendarGeneration
+    ? "generated_team_content_exists"
+    : "not_generated";
+}
+
+function getContentCalendarBusinessNotice(snapshot: StrategySnapshotDto) {
+  if (!snapshot.contentCalendarGeneration) {
+    return null;
+  }
+
+  return "当前日历已生成过团队内容，修改前需要提醒用户后续团队内容可能需要重新生成，并确认是否继续。";
+}
+
+function getConversationHistoryBeforeCurrentTurn(state: ConsultationAgentLoopState) {
+  const messages = [...state.conversationMessages];
+  const latest = messages[messages.length - 1];
+
+  if (
+    latest?.role === "user" &&
+    latest.content.trim() === state.userContent.trim()
+  ) {
+    messages.pop();
+  }
+
+  return messages;
 }
 
 export function buildKnowledgeContextBlock(matches: KnowledgeSearchMatchDto[]) {

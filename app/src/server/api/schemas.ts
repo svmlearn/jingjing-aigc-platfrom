@@ -1,16 +1,9 @@
 import "server-only";
 
 import { z } from "zod";
+import { consultationAgentToolKeys } from "@/contracts/knowledge";
 
-const consultationAgentToolSchema = z.enum([
-  "read_merchant_profile",
-  "retrieve_knowledge_base",
-  "update_strategy_snapshot",
-  "update_content_calendar",
-  "generate_article_brief",
-  "generate_video_brief",
-  "read_history",
-]);
+const consultationAgentToolSchema = z.enum(consultationAgentToolKeys);
 
 const jsonObjectSchema = z.record(z.string(), z.unknown());
 

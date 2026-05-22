@@ -63,6 +63,7 @@ import {
   buildExpertContainerPrompt,
   buildSharedConsultationState,
   buildKnowledgeContextBlock,
+  buildConsultationRuntimeContextMessage,
   buildSlimContextPackSystemPrompt,
   enforceConsultationMessageBudget,
 } from "@/server/api/consultation-runtime/context";
@@ -78,12 +79,9 @@ import {
   type StrategyAssetGuardSource,
 } from "@/server/api/consultation-runtime/guards";
 import {
-  buildActiveSkillPrompt,
   buildSkillCatalogPrompt,
   buildSkillDependencyWarnings,
   buildSkillDisclosure,
-  buildSkillReferencePrompt,
-  selectActiveConsultationSkills,
 } from "@/server/api/consultation-runtime/skills";
 import {
   buildBusinessToolPrompt,
@@ -516,6 +514,7 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
       (message): message is typeof message & { role: "user" | "assistant" } =>
         message.role === "user" || message.role === "assistant",
     )
+    .slice(0, -1)
     .map((message) => ({
       role: message.role,
       content: message.content,
@@ -1242,11 +1241,7 @@ async function runConsultationAgentLoop(input: {
     nextStage: initialStage,
     consultationAgent: {
       ...input.consultationAgent,
-      activeSkills: selectActiveConsultationSkills({
-        skills: input.consultationAgent.skillCatalog,
-        userContent: input.userContent,
-        userMessages: input.userMessages,
-      }),
+      activeSkills: [],
     },
     knowledgeRuntime: input.knowledgeRuntime,
     llmRuntime: input.llmRuntime,
@@ -1299,19 +1294,8 @@ async function runConsultationAgentLoop(input: {
       applyToolResultToState(result, currentState),
     buildAssistantReply: ({ state: currentState, toolResults }) =>
       buildAssistantReplyWithModel({
-        merchant: currentState.merchant,
-        round: currentState.nextRound,
-        userContent: currentState.userContent,
-        sessionSummary: currentState.session.summaryText ?? null,
-        strategySnapshot: currentState.strategySnapshot,
-        strategyMarkdown: currentState.strategyMarkdown,
-        knowledgeMatches: currentState.knowledgeMatches,
+        state: currentState,
         toolResults,
-        consultationAgent: currentState.consultationAgent,
-        llmRuntime: currentState.llmRuntime,
-        sharedConsultationState: currentState.sharedConsultationState,
-        expertTurnNotes: currentState.expertTurnNotes,
-        mentionRouting: currentState.mentionRouting,
         contextPreflightReports:
           currentState.contextPreflightReports ?? (currentState.contextPreflightReports = []),
       }),
@@ -1368,20 +1352,6 @@ async function dispatchConsultationTool(
   call: ConsultationAgentToolCall,
   state: ConsultationAgentLoopState,
 ): Promise<ConsultationAgentToolResult> {
-  if (call.toolName === "read_merchant_profile") {
-    return {
-      callId: call.id,
-      toolName: call.toolName,
-      status: "completed",
-      summary: `已读取 ${state.merchant.name} 的用户信息、已填写能力项与背景上下文。`,
-      payload: {
-        merchantId: state.merchant.id,
-        serviceItems: state.merchant.serviceItems,
-        industry: state.merchant.industry,
-      },
-    };
-  }
-
   if (call.toolName === "retrieve_knowledge_base") {
     const topK = typeof call.args.topK === "number" ? call.args.topK : 0;
     const query = typeof call.args.query === "string" ? call.args.query : "";
@@ -1423,19 +1393,6 @@ async function dispatchConsultationTool(
         })),
       },
       knowledgeMatches: matches,
-    };
-  }
-
-  if (call.toolName === "read_history") {
-    return {
-      callId: call.id,
-      toolName: call.toolName,
-      status: state.session.messages.length > 0 ? "completed" : "skipped",
-      summary: `已读取当前会话 ${state.session.messages.length} 条历史消息。`,
-      payload: {
-        previousMessageCount: state.session.messages.length,
-        previousSummary: state.session.summaryText,
-      },
     };
   }
 
@@ -1752,20 +1709,129 @@ function buildGreetingMessage(merchant: MerchantProfileDto) {
   return `你好，欢迎来到静境咨询台。我已经先读取了 ${merchant.name} 的用户信息。不过当前信息里还没有你的职业背景、可提供能力和目标对象，我不会先替你假设行业。先告诉我：你是谁、主要擅长什么、现在最想先厘清个人优势、定位切口还是内容方向？`;
 }
 
+type ConsultationModelMessagePhase =
+  | "assistant_reply"
+  | "native_tool_calling"
+  | "json_tool_loop";
+
+function buildConsultationModelMessages(input: {
+  state: ConsultationAgentLoopState;
+  phase: ConsultationModelMessagePhase;
+  toolResults: ConsultationAgentToolResult[];
+}): ChatMessage[] {
+  const slimContextPack = buildConsultationSlimContextPack({
+    merchant: input.state.merchant,
+    round: input.state.nextRound,
+    userContent: input.state.userContent,
+    sessionSummary: input.state.session.summaryText ?? null,
+    strategySnapshot: input.state.strategySnapshot,
+    strategyMarkdown: input.state.strategyMarkdown,
+    consultationAgent: input.state.consultationAgent,
+    knowledgeMatches: input.state.knowledgeMatches,
+    toolResults: input.toolResults,
+    sharedConsultationState: input.state.sharedConsultationState,
+    expertTurnNotes: input.state.expertTurnNotes,
+    mentionRouting: input.state.mentionRouting,
+  });
+
+  return [
+    {
+      role: "system",
+      content: [
+        input.state.consultationAgent.systemPrompt,
+        buildAgentSoulPrompt(input.state.consultationAgent),
+        buildExpertContainerPrompt(input.state.consultationAgent),
+        buildSkillCatalogPrompt(input.state.consultationAgent),
+        buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
+        buildSlimContextPackSystemPrompt(slimContextPack),
+        ...buildPhaseRuntimeRules(input.phase),
+      ]
+        .filter((item): item is string => Boolean(item))
+        .join("\n"),
+    },
+    {
+      role: "user",
+      content: buildConsultationRuntimeContextMessage({
+        state: input.state,
+        contextPack: slimContextPack,
+        toolResults: input.toolResults,
+      }),
+    },
+    ...buildConversationHistoryMessages(input.state),
+    {
+      role: "user",
+      content: input.state.userContent,
+    },
+  ];
+}
+
+function buildConversationHistoryMessages(state: ConsultationAgentLoopState): ChatMessage[] {
+  const messages = [...state.conversationMessages];
+  const latest = messages[messages.length - 1];
+
+  if (latest?.role === "user" && latest.content.trim() === state.userContent.trim()) {
+    messages.pop();
+  }
+
+  return messages.slice(-12).map((message): ChatMessage =>
+    message.role === "assistant"
+      ? {
+          role: "assistant",
+          content: message.content,
+        }
+      : {
+          role: "user",
+          content: message.content,
+        },
+  );
+}
+
+function buildPhaseRuntimeRules(phase: ConsultationModelMessagePhase) {
+  const sharedRules = [
+    "当前用户消息是消息数组最后一条 role=user；runtime context 只是自动上下文，不是用户原话。",
+    "回答时可以使用 strategySnapshotContext 和 selectedKnowledgeContext 里的受控信息；如果信息不足，可以提出一个最关键的追问。",
+    "当 selectedKnowledgeContext 已包含用户知识库片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
+    "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshotContext 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
+  ];
+
+  if (phase === "assistant_reply") {
+    return [
+      ...sharedRules,
+      "你只输出给用户的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
+    ];
+  }
+
+  if (phase === "native_tool_calling") {
+    return [
+      ...sharedRules,
+      "你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。",
+      "写入类工具仍要在信息足够后再调用。",
+      "不要先写日历再补查依据。在调用 update_content_calendar 前，应先判断当前知识库和素材能力依据是否足够。",
+      "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",
+      "如果当前日历已经生成过团队内容，修改前必须提醒用户后续团队内容可能需要重新生成，并确认是否继续。",
+      "最终可见回复只输出给用户的中文自然语言，不要输出内部工具名、JSON、Markdown 表格或 debug payload。",
+    ];
+  }
+
+  return [
+    ...sharedRules,
+    "你正在运行 model_json_tool_loop_v1：这是一套兼容 Claude Code tool_use/tool_result 思路的 JSON 工具循环。",
+    "你必须只输出 JSON object，不要输出 Markdown、表格、解释文本或代码块。",
+    "当你要调用工具时，输出：{\"action\":\"tool_use\",\"tool_use\":{\"name\":\"工具名\",\"input\":{...}},\"reason\":\"一句中文理由\"}。",
+    "当你认为已经足够回答用户时，输出：{\"action\":\"final\",\"finalResponse\":\"给用户看的中文自然语言回复\"}。",
+    "JSON tool_use 参数最小契约：调用 update_content_calendar 时，input 里必须包含 calendar 数组；每项至少包含 dayLabel、contentType、title、summary。",
+    "JSON 工具循环中，业务结果以前序 tool_result 消息为准。",
+    "写入类工具仍要在信息足够后再调用。",
+    "不要先写日历再补查依据。在调用 update_content_calendar 前，应先判断当前知识库和素材能力依据是否足够。",
+    "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",
+    "如果当前日历已经生成过团队内容，修改前必须提醒用户后续团队内容可能需要重新生成，并确认是否继续。",
+    "最终可见回复只输出给用户的中文自然语言，不要输出内部工具名、JSON、Markdown 表格或 debug payload。",
+  ];
+}
+
 async function buildAssistantReplyWithModel(input: {
-  merchant: MerchantProfileDto;
-  round: number;
-  userContent: string;
-  sessionSummary?: string | null;
-  strategySnapshot: StrategySnapshotDto;
-  strategyMarkdown?: string | null;
-  knowledgeMatches: KnowledgeSearchMatchDto[];
-  toolResults?: ConsultationAgentToolResult[];
-  consultationAgent: ConsultationAgentRuntimeSettings;
-  llmRuntime: Awaited<ReturnType<typeof getPlatformSettings>>["llmRuntime"];
-  sharedConsultationState: ConsultationAgentLoopState["sharedConsultationState"];
-  expertTurnNotes: ConsultationAgentLoopState["expertTurnNotes"];
-  mentionRouting: ConsultationMentionRouting;
+  state: ConsultationAgentLoopState;
+  toolResults: ConsultationAgentToolResult[];
   contextPreflightReports?: ConsultationAgentLoopState["contextPreflightReports"];
 }): Promise<{
   content: string;
@@ -1773,21 +1839,6 @@ async function buildAssistantReplyWithModel(input: {
   model?: string;
   error?: string;
 }> {
-  const slimContextPack = buildConsultationSlimContextPack({
-    merchant: input.merchant,
-    round: input.round,
-    userContent: input.userContent,
-    sessionSummary: input.sessionSummary ?? null,
-    strategySnapshot: input.strategySnapshot,
-    strategyMarkdown: input.strategyMarkdown ?? "",
-    consultationAgent: input.consultationAgent,
-    knowledgeMatches: input.knowledgeMatches,
-    toolResults: input.toolResults ?? [],
-    sharedConsultationState: input.sharedConsultationState,
-    expertTurnNotes: input.expertTurnNotes,
-    mentionRouting: input.mentionRouting,
-  });
-
   if (!getAiRuntimeApiKey()) {
     return {
       content: buildAssistantErrorReply("AI 咨询服务暂时不可用，当前环境没有配置可用的模型密钥。"),
@@ -1796,51 +1847,19 @@ async function buildAssistantReplyWithModel(input: {
   }
 
   try {
-    const messages: ChatMessage[] = [
-      {
-        role: "system",
-        content: [
-          input.consultationAgent.systemPrompt,
-          buildAgentSoulPrompt(input.consultationAgent),
-          buildExpertContainerPrompt(input.consultationAgent),
-          buildSkillCatalogPrompt(input.consultationAgent),
-          buildActiveSkillPrompt(input.consultationAgent.activeSkills),
-          buildSkillReferencePrompt(input.consultationAgent.activeSkills),
-          buildBusinessToolPrompt(input.consultationAgent.enabledTools),
-          buildSlimContextPackSystemPrompt(slimContextPack),
-          "你只输出给用户的中文自然语言回复，不要输出 JSON、Markdown 表格或内部工具名。",
-          "回答时可以使用策略快照和 currentKnowledgeMatches 里的受控知识库片段；如果信息不足，可以提出一个最关键的追问。",
-          "当 currentKnowledgeMatches 已包含用户知识库片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
-          "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshot 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
-        ]
-          .filter((item): item is string => Boolean(item))
-          .join("\n"),
-      },
-      {
-        role: "user",
-        content: JSON.stringify({
-          merchant: {
-            name: input.merchant.name,
-            industry: input.merchant.industry,
-            serviceItems: input.merchant.serviceItems,
-            defaultCta: input.merchant.defaultCta,
-          },
-          userMessage: input.userContent,
-          round: input.round,
-          expertRouting: slimContextPack.expertRouting,
-          strategySnapshot: input.strategySnapshot,
-          currentKnowledgeMatches: slimContextPack.selectedKnowledgeMatches,
-        }),
-      },
-    ];
+    const messages = buildConsultationModelMessages({
+      state: input.state,
+      phase: "assistant_reply",
+      toolResults: input.toolResults,
+    });
     const budgeted = enforceConsultationMessageBudget({
       messages,
       phase: "assistant_reply",
     });
     input.contextPreflightReports?.push(budgeted.report);
     const response = await createChatCompletion({
-      runtime: input.llmRuntime,
-      model: input.consultationAgent.model,
+      runtime: input.state.llmRuntime,
+      model: input.state.consultationAgent.model,
       messages: budgeted.messages,
     });
 
@@ -1857,7 +1876,7 @@ async function buildAssistantReplyWithModel(input: {
           ? error.message
           : "Unknown AI runtime error.";
     const recoveredReply = buildRecoveredToolResultReply({
-      toolResults: input.toolResults ?? [],
+      toolResults: input.toolResults,
       errorMessage,
     });
 
@@ -1923,177 +1942,22 @@ function buildNativeToolCallingMessages(input: {
   state: ConsultationAgentLoopState;
   toolResults: ConsultationAgentToolResult[];
 }): ChatMessage[] {
-  const slimContextPack = buildConsultationSlimContextPack({
-    merchant: input.state.merchant,
-    round: input.state.nextRound,
-    userContent: input.state.userContent,
-    sessionSummary: input.state.session.summaryText ?? null,
-    strategySnapshot: input.state.strategySnapshot,
-    strategyMarkdown: input.state.strategyMarkdown,
-    consultationAgent: input.state.consultationAgent,
-    knowledgeMatches: input.state.knowledgeMatches,
+  return buildConsultationModelMessages({
+    state: input.state,
+    phase: "native_tool_calling",
     toolResults: input.toolResults,
-    sharedConsultationState: input.state.sharedConsultationState,
-    expertTurnNotes: input.state.expertTurnNotes,
-    mentionRouting: input.state.mentionRouting,
   });
-  const nativeStrategySnapshot = buildNativeStrategySnapshotSummary(input.state.strategySnapshot);
-
-  return [
-    {
-      role: "system",
-      content: [
-        input.state.consultationAgent.systemPrompt,
-        buildAgentSoulPrompt(input.state.consultationAgent),
-        buildExpertContainerPrompt(input.state.consultationAgent),
-        buildSkillCatalogPrompt(input.state.consultationAgent),
-        buildActiveSkillPrompt(input.state.consultationAgent.activeSkills),
-        buildSkillReferencePrompt(input.state.consultationAgent.activeSkills),
-        buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
-        buildSlimContextPackSystemPrompt(slimContextPack),
-        "你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。",
-        "写入类工具仍要在信息足够后再调用。",
-        "不要先写日历再补查依据。在调用 update_content_calendar 前，应先判断当前知识库和素材能力依据是否足够。",
-        "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",
-        "如果当前日历已经生成过团队内容，修改前必须提醒用户后续团队内容可能需要重新生成，并确认是否继续。",
-        "最终可见回复只输出给用户的中文自然语言，不要输出内部工具名、JSON、Markdown 表格或 debug payload。",
-      ]
-        .filter((item): item is string => Boolean(item))
-        .join("\n"),
-    },
-    {
-      role: "user",
-      content: JSON.stringify({
-        merchant: {
-          name: input.state.merchant.name,
-          industry: input.state.merchant.industry,
-          serviceItems: input.state.merchant.serviceItems,
-          defaultCta: input.state.merchant.defaultCta,
-        },
-        userMessage: input.state.userContent,
-        round: input.state.nextRound,
-        expertRouting: slimContextPack.expertRouting,
-        strategySnapshot: nativeStrategySnapshot,
-        currentKnowledgeMatches: slimContextPack.selectedKnowledgeMatches,
-      }),
-    },
-  ];
 }
 
 function buildJsonToolLoopMessages(input: {
   state: ConsultationAgentLoopState;
   toolResults: ConsultationAgentToolResult[];
 }): ChatMessage[] {
-  const slimContextPack = buildConsultationSlimContextPack({
-    merchant: input.state.merchant,
-    round: input.state.nextRound,
-    userContent: input.state.userContent,
-    sessionSummary: input.state.session.summaryText ?? null,
-    strategySnapshot: input.state.strategySnapshot,
-    strategyMarkdown: input.state.strategyMarkdown,
-    consultationAgent: input.state.consultationAgent,
-    knowledgeMatches: input.state.knowledgeMatches,
+  return buildConsultationModelMessages({
+    state: input.state,
+    phase: "json_tool_loop",
     toolResults: input.toolResults,
-    sharedConsultationState: input.state.sharedConsultationState,
-    expertTurnNotes: input.state.expertTurnNotes,
-    mentionRouting: input.state.mentionRouting,
   });
-  const strategySnapshot = buildNativeStrategySnapshotSummary(input.state.strategySnapshot);
-
-  return [
-    {
-      role: "system",
-      content: [
-        input.state.consultationAgent.systemPrompt,
-        buildAgentSoulPrompt(input.state.consultationAgent),
-        buildExpertContainerPrompt(input.state.consultationAgent),
-        buildSkillCatalogPrompt(input.state.consultationAgent),
-        buildActiveSkillPrompt(input.state.consultationAgent.activeSkills),
-        buildSkillReferencePrompt(input.state.consultationAgent.activeSkills),
-        buildBusinessToolPrompt(input.state.consultationAgent.enabledTools),
-        buildSlimContextPackSystemPrompt(slimContextPack),
-        "你正在运行 model_json_tool_loop_v1：这是一套兼容 Claude Code tool_use/tool_result 思路的 JSON 工具循环。",
-        "你必须只输出 JSON object，不要输出 Markdown、表格、解释文本或代码块。",
-        "当你要调用工具时，输出：{\"action\":\"tool_use\",\"tool_use\":{\"name\":\"工具名\",\"input\":{...}},\"reason\":\"一句中文理由\"}。",
-        "当你认为已经足够回答用户时，输出：{\"action\":\"final\",\"finalResponse\":\"给用户看的中文自然语言回复\"}。",
-        "JSON tool_use 参数最小契约：调用 update_content_calendar 时，input 里必须包含 calendar 数组；每项至少包含 dayLabel、contentType、title、summary。",
-        "JSON 工具循环中，业务结果以前序 tool_result 消息为准。",
-        "写入类工具仍要在信息足够后再调用。",
-        "不要先写日历再补查依据。在调用 update_content_calendar 前，应先判断当前知识库和素材能力依据是否足够。",
-        "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",
-        "如果当前日历已经生成过团队内容，修改前必须提醒用户后续团队内容可能需要重新生成，并确认是否继续。",
-        "最终可见回复只输出给用户的中文自然语言，不要输出内部工具名、JSON、Markdown 表格或 debug payload。",
-      ]
-        .filter((item): item is string => Boolean(item))
-        .join("\n"),
-    },
-    {
-      role: "user",
-      content: JSON.stringify({
-        type: "initial_user_request",
-        merchant: {
-          name: input.state.merchant.name,
-          industry: input.state.merchant.industry,
-          serviceItems: input.state.merchant.serviceItems,
-          defaultCta: input.state.merchant.defaultCta,
-        },
-        userMessage: input.state.userContent,
-        round: input.state.nextRound,
-        expertRouting: slimContextPack.expertRouting,
-        strategySnapshot,
-        currentKnowledgeMatches: slimContextPack.selectedKnowledgeMatches,
-      }),
-    },
-  ];
-}
-
-function buildNativeStrategySnapshotSummary(snapshot: StrategySnapshotDto) {
-  return {
-    positioning: snapshot.positioning,
-    coreSellingPoints: snapshot.coreSellingPoints,
-    targetAudiences: snapshot.targetAudiences,
-    keyScenes: snapshot.keyScenes,
-    currentSuggestion: snapshot.currentSuggestion,
-    strategyTags: snapshot.strategyTags,
-    contentCalendarDraft: snapshot.contentCalendarDraft.slice(0, 7).map((item) => ({
-      id: item.id,
-      dayLabel: item.dayLabel,
-      contentType: item.contentType,
-      strategyTag: item.strategyTag,
-      title: item.title,
-      summary: clipText(item.summary, 180),
-      guidancePresence: item.guidance
-        ? {
-            hasKnowledgeRefs: item.guidance.knowledgeRefs.length > 0,
-            hasMaterialHints: item.guidance.materialHints.length > 0,
-            hasAssetCapabilityHints: (item.guidance.assetCapabilityHints ?? []).length > 0,
-            hasShotConstraints: (item.guidance.shotConstraints ?? []).length > 0,
-          }
-        : null,
-    })),
-    contentCalendarGeneration: snapshot.contentCalendarGeneration
-      ? {
-          status: snapshot.contentCalendarGeneration.status,
-          currentRevisionId: snapshot.contentCalendarGeneration.currentRevisionId,
-          generatedFromRevisionId: snapshot.contentCalendarGeneration.generatedFromRevisionId ?? null,
-          generatedBatchId: snapshot.contentCalendarGeneration.generatedBatchId ?? null,
-          generatedAt: snapshot.contentCalendarGeneration.generatedAt ?? null,
-          generatedJobCount: snapshot.contentCalendarGeneration.generatedJobCount ?? null,
-        }
-      : null,
-    articleBrief: snapshot.articleBrief
-      ? {
-          workingTitle: snapshot.articleBrief.workingTitle,
-          angle: snapshot.articleBrief.angle,
-        }
-      : null,
-    videoBrief: snapshot.videoBrief
-      ? {
-          workingTitle: snapshot.videoBrief.workingTitle,
-          hook: snapshot.videoBrief.hook,
-        }
-      : null,
-  };
 }
 
 function buildToolCards(input: {
