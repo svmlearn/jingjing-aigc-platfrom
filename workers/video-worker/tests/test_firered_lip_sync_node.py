@@ -260,6 +260,58 @@ class LipSyncNodeTests(unittest.TestCase):
             with self.assertRaisesRegex(Exception, "provider-accessible audio_url"):
                 node._provider_url_for_path(local_file, {}, label="audio")
 
+    def test_lip_sync_auto_uploads_local_file_to_oss_signed_url(self):
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            tmp = Path(raw_tmp)
+            module = _load_module(tmp)
+            node = module.LipSyncNode(types.SimpleNamespace())
+            local_file = tmp / "voice.wav"
+            local_file.write_bytes(b"audio")
+            calls = []
+
+            class Auth:
+                def __init__(self, key_id, key_secret):
+                    self.key_id = key_id
+                    self.key_secret = key_secret
+
+            class Bucket:
+                def __init__(self, auth, endpoint, bucket_name):
+                    self.auth = auth
+                    self.endpoint = endpoint
+                    self.bucket_name = bucket_name
+
+                def put_object_from_file(self, object_key, filename, headers=None):
+                    calls.append(("put", object_key, filename, headers, self.bucket_name))
+
+                def sign_url(self, method, object_key, expires):
+                    calls.append(("sign", method, object_key, expires))
+                    return f"https://oss.example/{object_key}?Signature=mock"
+
+            fake_oss2 = types.SimpleNamespace(Auth=Auth, Bucket=Bucket)
+            sys.modules["oss2"] = fake_oss2
+            try:
+                url = node._provider_url_for_path(
+                    local_file,
+                    {
+                        "upload_url_mode": "auto",
+                        "oss_access_key_id": "key-id",
+                        "oss_access_key_secret": "key-secret",
+                        "oss_bucket": "bucket",
+                        "oss_endpoint": "https://oss-cn-hangzhou.aliyuncs.com",
+                        "oss_prefix": "tmp/lip-sync",
+                        "signed_url_expires_seconds": 60,
+                    },
+                    label="audio",
+                )
+            finally:
+                sys.modules.pop("oss2", None)
+
+        self.assertTrue(url.startswith("https://oss.example/tmp/lip-sync/lip-sync-inputs/"))
+        self.assertEqual("put", calls[0][0])
+        self.assertEqual(str(local_file), calls[0][2])
+        self.assertIn(calls[0][3]["Content-Type"], {"audio/wav", "audio/x-wav"})
+        self.assertEqual(("sign", "GET", calls[0][1], 60), calls[1])
+
 
 if __name__ == "__main__":
     unittest.main()
