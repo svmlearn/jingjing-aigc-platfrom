@@ -109,3 +109,52 @@ git diff --check
 ## 结论
 
 第一阶段 auth/session 运行时已经从 Supabase Auth fallback 收敛到 app-owned / domestic session。置信度：高，依据是源码契约测试、触碰文件 lint、全量 typecheck 和 auth 范围旧词 / 旧调用扫描均通过。
+
+## Review Follow-up：商家 profile 校验失败撤销 session
+
+补丁时间：`2026-05-22`
+
+问题：
+
+- `app/src/app/(auth)/login/actions.ts` 和 `app/src/app/api/auth/merchant-login/route.ts` 在 domestic path 下先调用 `signInDomesticUser()` 写入 `jingjing_session`，再校验 `getOperationalMerchantProfileByOwnerUserId(user.id)`。
+- 如果邮箱/密码正确但用户没有 operational merchant profile，页面会返回登录失败，但浏览器已经持有有效 app-owned session。
+
+处理：
+
+- 两个商家登录入口都拆成两段：
+  - `signInDomesticUser()` 失败：继续返回 `invalid-credentials`。
+  - profile 校验失败：调用 `signOutDomesticUser()` 撤销刚写入的 domestic session，再返回 `no-merchant-profile`。
+- 没有恢复任何 Supabase fallback。
+- 没有扩大范围到 repository / storage / worker。
+- `app/src/lib/auth/postgres-auth-p0-contract.test.mjs` 新增源码契约测试：
+  - 商家 profile check 的 `catch` 内必须出现 `signOutDomesticUser()`。
+  - profile 失败必须返回 `no-merchant-profile`。
+  - 密码失败仍映射到 `invalid-credentials`。
+
+验证结果：
+
+通过：
+
+```bash
+cd app && node --test src/lib/auth/postgres-auth-p0-contract.test.mjs
+```
+
+结果：6 tests passed。
+
+通过：
+
+```bash
+cd app && npm run lint -- src/lib/auth/postgres-auth-p0-contract.test.mjs 'src/app/(auth)/login/actions.ts' src/app/api/auth/merchant-login/route.ts
+```
+
+通过：
+
+```bash
+cd app && npm run typecheck -- --pretty false
+```
+
+通过：
+
+```bash
+git diff --check
+```

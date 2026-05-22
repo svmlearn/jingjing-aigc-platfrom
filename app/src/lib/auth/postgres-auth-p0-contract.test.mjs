@@ -75,6 +75,23 @@ test("merchant and member auth routes fail closed when app-owned session is unav
   }
 });
 
+test("merchant profile check failure revokes the newly-created domestic session", () => {
+  for (const name of ["login-action", "merchant-login-route"]) {
+    const source = sources.get(name) ?? "";
+    assert.match(source, /signOutDomesticUser/);
+    assert.match(
+      source,
+      /getOperationalMerchantProfileByOwnerUserId[\s\S]*catch[\s\S]*signOutDomesticUser[\s\S]*no-merchant-profile/,
+      `${name} should revoke the domestic session and return no-merchant-profile after profile lookup failure.`,
+    );
+    assert.match(
+      source,
+      /signInDomesticUser[\s\S]*catch\(\(\) => null\)[\s\S]*invalid-credentials/,
+      `${name} should keep password failures mapped to invalid-credentials.`,
+    );
+  }
+});
+
 test("proxy keeps host canonicalization without session refresh side effects", () => {
   const proxySource = sources.get("proxy") ?? "";
   assert.match(proxySource, /STAGING_CANONICAL_HOST/);

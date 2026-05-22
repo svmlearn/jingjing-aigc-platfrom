@@ -2,7 +2,11 @@
 
 import { redirect } from "next/navigation";
 
-import { isDomesticSessionEnabled, signInDomesticUser } from "@/lib/auth/domestic-session";
+import {
+  isDomesticSessionEnabled,
+  signInDomesticUser,
+  signOutDomesticUser,
+} from "@/lib/auth/domestic-session";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 
 function getSafeNextPath(value: FormDataEntryValue | null) {
@@ -27,11 +31,17 @@ export async function signInToMerchant(formData: FormData) {
   }
 
   if (isDomesticSessionEnabled()) {
+    const user = await signInDomesticUser({ email, password }).catch(() => null);
+
+    if (!user) {
+      redirect(`/login?error=invalid-credentials&next=${encodeURIComponent(next)}`);
+    }
+
     try {
-      const user = await signInDomesticUser({ email, password });
       await getOperationalMerchantProfileByOwnerUserId(user.id);
     } catch {
-      redirect(`/login?error=invalid-credentials&next=${encodeURIComponent(next)}`);
+      await signOutDomesticUser();
+      redirect(`/login?error=no-merchant-profile&next=${encodeURIComponent(next)}`);
     }
 
     redirect(next);

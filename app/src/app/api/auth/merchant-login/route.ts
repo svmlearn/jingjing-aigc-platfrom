@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { isDomesticSessionEnabled, signInDomesticUser } from "@/lib/auth/domestic-session";
+import {
+  isDomesticSessionEnabled,
+  signInDomesticUser,
+  signOutDomesticUser,
+} from "@/lib/auth/domestic-session";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 
 export const runtime = "nodejs";
@@ -47,12 +51,18 @@ export async function POST(request: NextRequest) {
   }
 
   if (isDomesticSessionEnabled()) {
+    const user = await signInDomesticUser({ email, password }).catch(() => null);
+
+    if (!user) {
+      return redirectToLogin(request, "invalid-credentials", next);
+    }
+
     try {
-      const user = await signInDomesticUser({ email, password });
       await getOperationalMerchantProfileByOwnerUserId(user.id);
       return redirectToPath(request, next);
     } catch {
-      return redirectToLogin(request, "invalid-credentials", next);
+      await signOutDomesticUser();
+      return redirectToLogin(request, "no-merchant-profile", next);
     }
   }
 
