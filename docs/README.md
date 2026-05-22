@@ -1,10 +1,20 @@
 # docs
 
-状态时间：`2026-05-14 13:14:11 CST`
+状态时间：`2026-05-22 15:57:23 CST`
 
 这是 `小红书抖音矩阵获客平台` 的文档主入口。
 
 当前文档原则：少而准。默认只读当前真相源，不再把早期探索稿、旧分阶段计划、旧增长 Agent 方案当作实现依据。
+
+## 当前运行口径
+
+截至 `2026-05-22`，当前主线已经不是 Supabase Cloud / Vercel / 新加坡 COS 口径。
+
+- 数据库：当前主线按自建 PostgreSQL / 国内 PostgreSQL 运行；app 使用 `APP_DATABASE_URL` / `DATABASE_URL`，worker 使用 `WORKER_DATABASE_URL`。
+- 部署：当前目标和已发布链路是国内云服务器自托管 Next.js / Node API、content-generation worker、video-worker、OpenStoryline / FireRed。
+- 对象存储：新写入默认使用 `aliyun_oss`；历史 `tencent_cos` / COS 和 `supabase_storage` 只作为旧数据、旧文档、兼容读取或回滚参考。
+- Supabase：这是过往架构，当前运行主线已经完全改掉，正式运行和新开发不再使用 Supabase。代码里仍有部分 Supabase fallback / 旧错误文案残留，处理时按 `progress/2026-05-21-postgres-supabase-residual-note.md` 追踪，不要把这些残留误读成当前架构目标。
+- 历史索引：遇到 2026-05-20 之前的 Supabase / Vercel / COS / staging 检索结果，先看 `历史架构与非当前口径索引.md` 判断它是否只是历史流水账。
 
 ## 推荐阅读顺序
 
@@ -15,20 +25,23 @@
 5. `产品文档/V2.1-内容日历到图文视频工作台协作PRD.md`
 6. `架构规范/2026-04-28-current-architecture.md`
 7. `架构规范/2026-05-12-内容日历批量生成与Dify过渡架构决策.md`
-8. `架构规范/2026-05-13-国内化部署与ba-ba-ke域名备案决策.md`
-9. `架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`
-10. `架构规范/2026-05-20-Agent架构易错点.md`
-11. `架构规范/2026-05-15-Dify主链路国内自托管方案/`
-12. `progress/2026-04-25-supabase-migration-current-state.md`
-13. `progress/2026-05-13-staging-server-resource-log-analysis.md`
+8. `架构规范/2026-05-15-Dify主链路国内自托管方案/`
+9. `架构规范/2026-05-13-国内化部署与ba-ba-ke域名备案决策.md`
+10. `../app/db/README.md`
+11. `progress/2026-05-20-main-domestic-infra-merge.md`
+12. `progress/2026-05-19-cos-to-oss-local-migration.md`
+13. `progress/2026-05-21-voice-fix-main-release.md`
+14. `progress/2026-05-21-postgres-supabase-residual-note.md`
+15. `历史架构与非当前口径索引.md`
+16. `架构规范/2026-05-20-Agent架构易错点.md`
 
 如果是在接续当前未完成事项，再读 `current-task.md`。如果是在规划 V2.2 合并后的下一阶段，再读 `需求池.md` 和 `探索/2026-04-28-热点抓取与咨询Agent优化待验证事项.md`。
 
-如果是在执行国内化技术验证，先读 `handoff/2026-05-13-国内化技术验证采购与迁移执行计划.md`。
+如果是在执行新的国内化技术验证，先读 `progress/2026-05-20-main-domestic-infra-merge.md` 和 `progress/2026-05-21-voice-fix-main-release.md`，再读具体任务相关 handoff。
 
-如果是在开分支做国内化代码改造，先读 `handoff/2026-05-13-国内化代码改造与迁移计划表.md`。
+如果是在追溯早期国内化代码改造计划，再读 `handoff/2026-05-13-国内化代码改造与迁移计划表.md`。
 
-如果是在购买国内资源后恢复国内化验证，先读 `架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`，再进入 `../jingjing-domestic-infra-migration` worktree 继续。
+如果是在追溯 `codex/domestic-infra-migration` 历史 worktree，再读 `架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`。当前主线状态以 2026-05-20 之后的 progress / release 记录为准。
 
 ## 当前真相源
 
@@ -44,7 +57,6 @@
 - `架构规范/2026-04-28-current-architecture.md`
 - `架构规范/2026-05-12-内容日历批量生成与Dify过渡架构决策.md`
 - `架构规范/2026-05-13-国内化部署与ba-ba-ke域名备案决策.md`
-- `架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`
 - `架构规范/2026-05-20-Agent架构易错点.md`
 - `架构规范/2026-05-15-Dify主链路国内自托管方案/`
 
@@ -54,16 +66,16 @@
 - 脚本制作 agent
 - app 确认和合同化
 - `video_edit_jobs.input_payload`
-- COS 媒体资产
+- 对象存储媒体资产：当前新写入默认 `aliyun_oss`，历史兼容 `tencent_cos` / COS
 - video-worker
 - Docker FireRed/OpenStoryline
 - 预览审核和修订分流
 
 `2026-05-12-内容日历批量生成与Dify过渡架构决策.md` 补充定义内容日历批量生成的运行方式：Dify / 后续 LangGraph.js 只负责单条生成，系统负责批量展开、队列、限流、重试、进度和落库。
 
-`2026-05-13-国内化部署与ba-ba-ke域名备案决策.md` 补充定义国内生产部署方向：`ba-ba-ke.com` 域名规划、ICP备案取舍、从 Vercel / Supabase Cloud / 新加坡链路迁到国内服务器、国内 PostgreSQL、国内 COS 和自有 Node API 的分阶段方案。
+`2026-05-13-国内化部署与ba-ba-ke域名备案决策.md` 补充定义国内生产部署方向：`ba-ba-ke.com` 域名规划、ICP备案取舍、从 Vercel / Supabase Cloud / 新加坡链路迁到国内服务器、国内 PostgreSQL、国内对象存储和自有 Node API 的分阶段方案。该文档是迁移方向依据；当前落地状态以 2026-05-19 之后的 OSS / release 记录为准。
 
-`2026-05-13-国内化改造分支冻结与恢复断点.md` 是国内化改造的架构级恢复入口，记录 `codex/domestic-infra-migration` 分支、worktree、冻结 commit、已完成验证、真实资源阻塞项和买完服务器后的继续验证命令。
+`2026-05-13-国内化改造分支冻结与恢复断点.md` 是国内化改造历史恢复入口，记录 `codex/domestic-infra-migration` 分支、worktree、冻结 commit 和当时阻塞项。它不再代表当前 main 的最新状态。
 
 `2026-05-20-Agent架构易错点.md` 记录编写 Agent runtime、RAG、工具调用和 workflow 输入组装时容易犯的分层错误：不要把模型判断、业务判断或创意判断写死在代码默认值里；代码负责传递真实事实和 trace，prompt/LLM 负责基于事实做生成判断。
 
@@ -71,20 +83,32 @@
 
 旧的增长 Agent 文档、旧 skeleton 默认路径、旧分阶段 worker / FireRed work-plan 不再作为当前依据。
 
-### 数据库和部署状态
+### 数据库、存储和部署状态
 
-- `progress/2026-04-25-supabase-migration-current-state.md`
-- `progress/2026-05-13-staging-server-resource-log-analysis.md`
-- `handoff/2026-05-13-国内化技术验证采购与迁移执行计划.md`
-- `handoff/2026-05-13-国内化代码改造与迁移计划表.md`
+- `../app/db/README.md`
+- `progress/2026-05-20-main-domestic-infra-merge.md`
+- `progress/2026-05-19-cos-to-oss-local-migration.md`
+- `progress/2026-05-21-voice-fix-main-release.md`
+- `progress/2026-05-21-postgres-supabase-residual-note.md`
 
-Supabase migration 当前状态记录涉及数据库、worker 表结构、资产表和作业表，处理这些内容时优先读取。
+当前主线口径：
 
-staging 服务器资源日志分析记录了当前 2 核 4G 服务器的 CPU / 内存峰值、worker 单并发事实、FireRed / OpenStoryline 资源判断，以及第一阶段建议购买 1 台国内 8 核 16G 单机混跑服务器的依据。
+- `app/db/README.md` 和 `app/db/migrations/` 是普通 PostgreSQL baseline 和后续自托管 schema 的当前入口。
+- `2026-05-20-main-domestic-infra-merge.md` 记录国内化迁移内容合入 main 的事实和验证结果。
+- `2026-05-19-cos-to-oss-local-migration.md` 记录从 COS 口径切到 Aliyun OSS 默认值的本地改造、验证和已知 caveat。
+- `2026-05-21-voice-fix-main-release.md` 记录服务器 release 后 health check：`database=postgres`、`storage=aliyun_oss`。
+- `2026-05-21-postgres-supabase-residual-note.md` 记录 PostgreSQL 迁移后 Supabase fallback / 旧错误文案残留，属于待清理技术债，不是当前正式依赖。
 
-国内化技术验证采购与迁移执行计划记录第一批国内资源采购清单、迁移范围、D0-D5 执行路线、IP 验证边界和验收标准。执行国内服务器 / 国内 PostgreSQL / 国内 COS 验证时优先读取。
+历史追溯时再读：
 
-国内化代码改造与迁移计划表记录后续独立分支改造范围：迁移哪些模块、如何替换 Supabase/Vercel、如何接国内 PostgreSQL 和 COS、如何处理 Auth、worker、PWA、验收和回滚。
+- `progress/2026-04-25-supabase-migration-current-state.md`：旧 Supabase staging / migration 状态。
+- `progress/2026-05-13-staging-server-resource-log-analysis.md`：早期 staging 服务器资源分析。
+- `handoff/2026-05-13-国内化技术验证采购与迁移执行计划.md`：采购和迁移早期计划。
+- `handoff/2026-05-13-国内化代码改造与迁移计划表.md`：国内化改造分支早期任务表。
+
+处理数据库、对象存储、部署和登录问题时，不要再优先读取旧 Supabase migration 文档。除非任务明确要求追溯旧 staging，否则先看 PostgreSQL / Aliyun OSS / 国内服务器 release 记录。
+
+如果模型或协作者通过搜索命中了 2026-05-20 之前的 Supabase / Vercel / COS / staging 文档，先按 `历史架构与非当前口径索引.md` 判定其历史层级，再决定是否继续阅读。`progress/` 和 `handoff/` 中的旧记录默认表示“当时发生过什么”，不自动代表当前真相源。
 
 ### 协作
 
@@ -136,6 +160,10 @@ staging 服务器资源日志分析记录了当前 2 核 4G 服务器的 CPU / �
 - `docs/架构规范/2026-04-28-current-architecture.md`
 - `docs/架构规范/2026-05-13-国内化部署与ba-ba-ke域名备案决策.md`
 - `docs/架构规范/2026-05-15-Dify主链路国内自托管方案/`
-- `docs/架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`，仅当接续国内化分支时提供
-- `docs/progress/2026-04-25-supabase-migration-current-state.md`
+- `app/db/README.md`
+- `docs/progress/2026-05-20-main-domestic-infra-merge.md`
+- `docs/progress/2026-05-21-voice-fix-main-release.md`
+- `docs/progress/2026-05-21-postgres-supabase-residual-note.md`，仅当处理 Supabase fallback / 旧错误文案残留时提供
+- `docs/历史架构与非当前口径索引.md`
+- `docs/架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`，仅当追溯历史国内化分支时提供
 - `docs/current-task.md`，仅当任务正在接续时提供
