@@ -134,6 +134,7 @@ export const aliyunOssProvider: ObjectStorageProvider = {
       uploadHeaders: {
         "Content-Type": contentType,
       },
+      // Deprecated compatibility field for older upload clients; prefer storageKey/uploadKey.
       cosKey: input.storageKey,
       expiredTime: Math.floor(expiresAt.getTime() / 1000),
       expiresAt: expiresAt.toISOString(),

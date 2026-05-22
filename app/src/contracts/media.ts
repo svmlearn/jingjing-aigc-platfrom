@@ -6,7 +6,8 @@ export type MediaOwnerType =
 
 export type MediaAssetType = "image" | "video" | "cover" | "subtitle" | "audio";
 
-export type MediaStorageProvider = "tencent_cos" | "aliyun_oss" | "supabase_storage";
+// `tencent_cos` and `supabase_storage` are deprecated compatibility values for historical assets.
+export type MediaStorageProvider = "aliyun_oss" | "tencent_cos" | "supabase_storage";
 
 export type MediaAssetDto = {
   id: string;
@@ -47,6 +48,7 @@ export type MediaUploadIntentDto = {
   uploadMethod?: "PUT";
   uploadHeaders?: Record<string, string>;
   expiresAt?: string;
+  /** @deprecated Use storageKey/uploadKey. Kept for older COS-compatible clients. */
   cosKey?: string;
   TmpSecretId?: string;
   TmpSecretKey?: string;

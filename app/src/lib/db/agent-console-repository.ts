@@ -326,7 +326,7 @@ const demoInitialAgent: AgentConfigDto = {
   agentKey: "initial_consultation_agent",
   displayName: "初始咨询 Agent",
   roleDescription: "用户内容咨询顾问",
-  description: "本地 demo fallback，仅在 Supabase service role 未配置时使用。",
+  description: "本地 demo fallback，仅在平台数据源未配置时使用。",
   serviceStatus: "enabled",
   serviceFlags: {
     systemPromptEnabled: true,
@@ -344,7 +344,7 @@ const demoBaseKnowledgeSet: KnowledgeSetDto = {
   id: "demo_base_platform_knowledge",
   setKey: "base_platform_knowledge",
   name: "基础平台知识集",
-  description: "本地 demo fallback，仅在 Supabase service role 未配置时使用。",
+  description: "本地 demo fallback，仅在平台数据源未配置时使用。",
   scope: "platform",
   merchantId: null,
   status: "enabled",
@@ -4492,7 +4492,27 @@ function mapMerchantCreditLedger(row: MerchantCreditLedgerRow): MerchantCreditLe
 
 function requireSupabaseAdmin(code: string) {
   if (!isSupabaseAdminConfigured()) {
-    throw new ApiError(503, code, "Supabase admin client is not configured.");
+    if (isAppPostgresPreferred()) {
+      if (!isAppPostgresConfigured()) {
+        throw new ApiError(
+          503,
+          "APP_DATABASE_NOT_CONFIGURED",
+          "APP_DATABASE_URL or DATABASE_URL is required for PostgreSQL Agent Console.",
+        );
+      }
+
+      throw new ApiError(
+        503,
+        code,
+        "Agent Console repository is not configured for this PostgreSQL environment.",
+      );
+    }
+
+    throw new ApiError(
+      503,
+      code,
+      "Legacy Agent Console fallback is not configured for this environment.",
+    );
   }
 }
 

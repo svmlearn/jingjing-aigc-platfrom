@@ -29,6 +29,7 @@ import {
   pgSelectMerchantWorkspaceForUser,
   pgUpdateMerchantProfile,
 } from "@/lib/db/postgres-video-chain-repository";
+import { isAppPostgresConfigured, isAppPostgresPreferred } from "@/lib/server-db/postgres";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
@@ -983,10 +984,26 @@ function assertMerchantTeamOwner(workspace: Pick<MerchantWorkspaceDto, "role">) 
 }
 
 function cloudSupabaseRequiredError() {
+  if (isAppPostgresPreferred()) {
+    if (!isAppPostgresConfigured()) {
+      return new ApiError(
+        503,
+        "APP_DATABASE_NOT_CONFIGURED",
+        "APP_DATABASE_URL or DATABASE_URL is required for PostgreSQL mode.",
+      );
+    }
+
+    return new ApiError(
+      503,
+      "APP_DATABASE_REPOSITORY_UNAVAILABLE",
+      "PostgreSQL merchant repository path is not available for this operation.",
+    );
+  }
+
   return new ApiError(
     503,
-    "SUPABASE_NOT_CONFIGURED",
-    "Cloud Supabase environment variables are required.",
+    "LEGACY_AUTH_FALLBACK_NOT_CONFIGURED",
+    "Legacy Supabase fallback is not configured for this environment.",
   );
 }
 

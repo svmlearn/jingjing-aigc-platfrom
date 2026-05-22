@@ -1,5 +1,6 @@
 import { isAppPostgresConfigured, queryAppDb } from "@/lib/server-db/postgres";
 import { getConfiguredObjectStorageProvider } from "@/server/storage";
+import { defaultStorageProviderName } from "@/server/storage/object-storage";
 
 export const runtime = "nodejs";
 
@@ -60,7 +61,7 @@ async function checkStorageConfig() {
   } catch (error) {
     return {
       status: "error",
-      provider: process.env.STORAGE_PROVIDER?.trim() || "tencent_cos",
+      provider: process.env.STORAGE_PROVIDER?.trim() || defaultStorageProviderName,
       message: error instanceof Error ? error.message : "Object storage health check failed.",
     };
   }

@@ -543,7 +543,7 @@ function DraftVideoPanelsContent({
           <div>
             <h2 className="text-base font-semibold">素材上传</h2>
             <p className="mt-1 text-sm text-[#5d6b7a]">
-              先向 `/api/media/upload-intents` 领临时凭证，再直传 COS，最后通过 `/api/media/complete`
+              先向 `/api/media/upload-intents` 领临时凭证，再直传 OSS，最后通过 `/api/media/complete`
               归档到 `content_draft` 资产。
             </p>
           </div>

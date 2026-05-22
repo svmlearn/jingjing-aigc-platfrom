@@ -49,7 +49,8 @@ const consultationSkillOptions: Array<{
 const adminUserApiErrorMessages: Record<string, string> = {
   FORBIDDEN: "当前账号没有管理员账号管理权限。",
   LAST_SUPER_ADMIN_REQUIRED: "至少要保留一个 active 状态的 super_admin。",
-  PLATFORM_ADMIN_AUTH_USER_CREATE_FAILED: "Supabase Auth 用户创建失败，请检查邮箱或密码。",
+  PLATFORM_ADMIN_AUTH_USER_CREATE_FAILED: "平台账号创建失败，请检查邮箱或密码。",
+  PLATFORM_ADMIN_AUTH_NOT_CONFIGURED: "平台账号系统暂未配置，请检查 PostgreSQL 会话配置。",
   PLATFORM_ADMIN_USER_CREATE_FAILED: "后台管理员身份创建失败，请检查是否已存在同邮箱账号。",
   PLATFORM_ADMIN_USER_NOT_FOUND: "后台管理员记录不存在，请刷新后再试。",
   PLATFORM_ADMIN_USER_UPDATE_FAILED: "后台管理员更新失败，请稍后重试。",
@@ -674,7 +675,7 @@ function PlatformAdminUsersPanel({
     <AdminPanel>
       <AdminPanelHeader
         eyebrow="管理员账号"
-        description="密码由 Supabase Auth 管理；这里的角色和状态写入 platform_admin_users，用于后台页面和 API 的 RBAC。"
+        description="密码由平台账号系统管理；这里的角色和状态写入 platform_admin_users，用于后台页面和 API 的 RBAC。"
       />
       <div className="grid gap-5 p-5">
         {error ? <AdminNotice tone="danger">{error}</AdminNotice> : null}

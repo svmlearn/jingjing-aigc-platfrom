@@ -4,6 +4,7 @@ import { getObjectStorageProvider, type AppObjectStorageProviderName } from "@/s
 
 export const runtime = "nodejs";
 
+// Legacy route name retained for old Dify payloads; new callers should use /api/media/object-preview.
 export async function GET(request: Request) {
   try {
     await getAuthenticatedUser();
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
     const rawPath = url.searchParams.get("path")?.trim() ?? "";
 
     if (!rawPath) {
-      throw new ApiError(400, "COS_PREVIEW_PATH_REQUIRED", "图片路径不能为空。");
+      throw new ApiError(400, "OBJECT_PREVIEW_PATH_REQUIRED", "图片路径不能为空。");
     }
 
     if (/^https?:\/\//i.test(rawPath)) {
@@ -39,7 +40,7 @@ function parseDifyStoragePath(rawPath: string): {
   const value = rawPath.replace(/^(cos|oss):\/\//i, "").replace(/^\/+/, "");
 
   if (!value) {
-    throw new ApiError(400, "COS_PREVIEW_PATH_INVALID", "图片路径无效。");
+    throw new ApiError(400, "OBJECT_PREVIEW_PATH_INVALID", "图片路径无效。");
   }
 
   const segments = value.split("/").filter(Boolean);

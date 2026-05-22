@@ -90,7 +90,7 @@ class ObjectStorageClient:
                 self._settings.cos_region,
             ]
         ):
-            raise RuntimeError("Tencent COS is not configured for this worker")
+            raise RuntimeError("Legacy object storage compatibility is not configured for this worker")
         if self._tencent_client is None:
             config = CosConfig(
                 Region=self._settings.cos_region,

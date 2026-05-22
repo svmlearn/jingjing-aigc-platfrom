@@ -323,11 +323,7 @@ export async function createPlatformAdminUser(
   }
 
   if (!isSupabaseAdminConfigured()) {
-    throw new ApiError(
-      503,
-      "PLATFORM_ADMIN_AUTH_NOT_CONFIGURED",
-      "Supabase service role is required to manage platform admins.",
-    );
+    throw platformAdminAuthNotConfiguredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -506,11 +502,7 @@ export async function updatePlatformAdminUser(
   }
 
   if (!isSupabaseAdminConfigured()) {
-    throw new ApiError(
-      503,
-      "PLATFORM_ADMIN_AUTH_NOT_CONFIGURED",
-      "Supabase service role is required to manage platform admins.",
-    );
+    throw platformAdminAuthNotConfiguredError();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -1360,6 +1352,30 @@ function shouldUseAppPostgres() {
 
 function shouldUseDemoFallback() {
   return !shouldUseAppPostgres() && !isSupabaseAdminConfigured();
+}
+
+function platformAdminAuthNotConfiguredError() {
+  if (isAppPostgresPreferred()) {
+    if (!isAppPostgresConfigured()) {
+      return new ApiError(
+        503,
+        "APP_DATABASE_NOT_CONFIGURED",
+        "APP_DATABASE_URL or DATABASE_URL is required for PostgreSQL platform admin auth.",
+      );
+    }
+
+    return new ApiError(
+      503,
+      "PLATFORM_ADMIN_AUTH_NOT_CONFIGURED",
+      "Platform account system is not configured for this PostgreSQL environment.",
+    );
+  }
+
+  return new ApiError(
+    503,
+    "PLATFORM_ADMIN_AUTH_NOT_CONFIGURED",
+    "Legacy platform admin auth fallback is not configured for this environment.",
+  );
 }
 
 async function insertAppOwnedPlatformAdminUser(
