@@ -122,6 +122,7 @@ type ContentVariantRow = {
   script_text: string | null;
   hashtags: unknown;
   cta_text: string | null;
+  production_scenes?: unknown;
   review_status: ContentVariantDto["reviewStatus"];
   created_at: Timestamp;
   updated_at: Timestamp;
@@ -813,8 +814,9 @@ export async function pgCreateDraftWithVariants(input: {
           script_text,
           hashtags,
           cta_text,
+          production_scenes,
           review_status
-        ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
+        ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11)
         returning ${contentVariantSelect}
         `,
         [
@@ -827,6 +829,7 @@ export async function pgCreateDraftWithVariants(input: {
           variant.scriptText ?? null,
           JSON.stringify(variant.hashtags ?? []),
           variant.ctaText ?? null,
+          JSON.stringify(variant.productionScenes ?? []),
           variant.reviewStatus ?? "editing",
         ],
       );
@@ -1003,8 +1006,9 @@ export async function pgAppendContentVariantToDraft(input: {
         script_text,
         hashtags,
         cta_text,
+        production_scenes,
         review_status
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11)
       returning ${contentVariantSelect}
       `,
       [
@@ -1017,6 +1021,7 @@ export async function pgAppendContentVariantToDraft(input: {
         input.scriptText ?? null,
         JSON.stringify(input.hashtags ?? []),
         input.ctaText ?? null,
+        JSON.stringify(input.productionScenes ?? []),
         input.reviewStatus ?? "review_pending",
       ],
     );
@@ -1137,6 +1142,7 @@ export async function pgAssertContentVariantAccess(input: {
     scriptText: variant.scriptText,
     hashtags: variant.hashtags,
     ctaText: variant.ctaText,
+    productionScenes: variant.productionScenes,
     reviewStatus: variant.reviewStatus,
     inputSnapshot: row.draft_input_snapshot ?? null,
   };
@@ -1837,7 +1843,7 @@ function mapContentVariant(row: ContentVariantRow): ContentVariantDto {
     scriptText: row.script_text,
     hashtags: toStringArray(row.hashtags),
     ctaText: row.cta_text,
-    productionScenes: [],
+    productionScenes: toProductionScenes(row.production_scenes),
     reviewStatus: row.review_status,
     createdAt: toIsoString(row.created_at),
     updatedAt: toIsoString(row.updated_at),
@@ -1910,6 +1916,55 @@ function toStringArray(value: unknown) {
   }
 
   return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function toProductionScenes(value: unknown): ContentVariantDto["productionScenes"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const scenes: NonNullable<ContentVariantDto["productionScenes"]> = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      continue;
+    }
+
+    const record = item as Record<string, unknown>;
+    scenes.push({
+      sceneNo: toPositiveInteger(record.sceneNo) ?? 0,
+      timeRange: toStringValue(record.timeRange),
+      sceneType: toNullableStringValue(record.sceneType),
+      requiresUserUpload: toNullableBooleanValue(record.requiresUserUpload),
+      shotRequirement: toStringValue(record.shotRequirement),
+      visual: toStringValue(record.visual),
+      voiceover: toStringValue(record.voiceover),
+      subtitle: toStringValue(record.subtitle),
+      materials: toStringArray(record.materials),
+      cameraMovement: toStringValue(record.cameraMovement),
+      purpose: toStringValue(record.purpose),
+      fallbackShot: toStringValue(record.fallbackShot),
+    });
+  }
+
+  return scenes;
+}
+
+function toStringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function toNullableStringValue(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+function toNullableBooleanValue(value: unknown) {
+  return typeof value === "boolean" ? value : null;
+}
+
+function toPositiveInteger(value: unknown) {
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
 }
 
 function toIsoString(value: Timestamp) {
@@ -1999,6 +2054,7 @@ const contentVariantSelect = [
   "script_text",
   "hashtags",
   "cta_text",
+  "production_scenes",
   "review_status",
   "created_at",
   "updated_at",

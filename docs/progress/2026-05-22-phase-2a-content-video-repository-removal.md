@@ -121,3 +121,69 @@ git diff --check
 - 未处理 `knowledge-repository.ts`、`platform-admin-repository.ts`、`agent-console-repository.ts`。
 - 未处理 storage provider、worker、Supabase package/client shims。
 - 未 push，未部署。
+
+## Review Follow-Up: PostgreSQL `productionScenes`
+
+Review 发现 Phase 2A 删除 Supabase fallback 后暴露了一个 PostgreSQL 主线缺口：
+
+- `content-draft-repository.ts` 仍接受 `variant.productionScenes` / `input.productionScenes`。
+- 但真正执行写入的 `postgres-video-chain-repository.ts` 没有把 `productionScenes` 写入 `content_variants`。
+- `mapContentVariant()` 固定返回 `productionScenes: []`。
+- 当前 app DB baseline 也没有 `content_variants.production_scenes`。
+- 下游 `video-edit-jobs-service.ts` 会读取 approved variant 的 `productionScenes` 构造视频任务 payload，所以这是 Phase 2A 必须补上的 PostgreSQL 主线缺口，不是 Phase 2B 范围。
+
+本次 follow-up 修复：
+
+- 新增 app DB migration：
+  - `app/db/migrations/202605220001_content_variant_production_scenes.sql`
+  - 增加 `production_scenes jsonb not null default '[]'::jsonb`
+  - 增加 idempotent check constraint：`content_variants_production_scenes_array`
+- 更新 `app/src/lib/db/postgres-video-chain-repository.ts`：
+  - `ContentVariantRow` 增加 `production_scenes`
+  - `contentVariantSelect` 增加 `"production_scenes"`
+  - `pgCreateDraftWithVariants()` 写入 `JSON.stringify(variant.productionScenes ?? [])`
+  - `pgAppendContentVariantToDraft()` 写入 `JSON.stringify(input.productionScenes ?? [])`
+  - `mapContentVariant()` 改为 `toProductionScenes(row.production_scenes)`
+  - `pgAssertContentVariantAccess()` 返回 `productionScenes`，保证视频任务 access path 能读到该字段
+- 更新 `app/src/lib/db/content-video-repository-phase-2a-contract.test.mjs`：
+  - 覆盖 app DB migration 中的 column/default/constraint
+  - 覆盖 PostgreSQL insert/select/mapper 里的 `production_scenes`
+  - 覆盖 `productionScenes` 不再固定为 `[]`
+
+Follow-up 验证已通过：
+
+```bash
+cd app && node --test src/lib/db/content-video-repository-phase-2a-contract.test.mjs
+```
+
+结果：6 tests passed。
+
+```bash
+cd app && npm run lint -- \
+  src/lib/db/postgres-video-chain-repository.ts \
+  src/lib/db/content-video-repository-phase-2a-contract.test.mjs
+```
+
+结果：通过。
+
+```bash
+cd app && npm run typecheck -- --pretty false
+```
+
+结果：通过。
+
+```bash
+rg -n -S "createSupabaseAdminClient|isSupabaseAdminConfigured|cloudSupabaseRequiredError|requireCloudSupabaseAdmin|@/lib/supabase|Supabase|supabase" \
+  app/src/lib/db/content-draft-repository.ts \
+  app/src/lib/db/video-edit-job-repository.ts \
+  app/src/lib/db/media-repository.ts \
+  app/src/lib/db/daily-content-task-repository.ts
+```
+
+结果：无命中，未恢复任何 Supabase fallback。
+
+```bash
+git diff --check
+```
+
+结果：通过。

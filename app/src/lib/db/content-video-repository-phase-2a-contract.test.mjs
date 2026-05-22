@@ -12,6 +12,11 @@ const sources = new Map(
   ].map(([name, path]) => [name, readFileSync(new URL(path, import.meta.url), "utf8")]),
 );
 
+const productionScenesMigrationSource = readFileSync(
+  new URL("../../../db/migrations/202605220001_content_variant_production_scenes.sql", import.meta.url),
+  "utf8",
+);
+
 const phase2aRepositoryNames = [
   "content-draft",
   "video-edit-job",
@@ -96,6 +101,58 @@ test("daily content task repository public functions use app database queries", 
   assert.match(source, /from public\.daily_content_tasks/);
   assert.match(source, /insert into public\.daily_content_tasks/);
   assert.match(source, /update public\.daily_content_tasks/);
+});
+
+test("PostgreSQL content variants persist and map production scenes", () => {
+  const postgresVideoChainSource = sources.get("postgres-video-chain") ?? "";
+
+  assert.match(
+    productionScenesMigrationSource,
+    /production_scenes jsonb not null default '\[\]'::jsonb/,
+  );
+  assert.match(
+    productionScenesMigrationSource,
+    /content_variants_production_scenes_array/,
+  );
+  assert.match(
+    productionScenesMigrationSource,
+    /jsonb_typeof\(production_scenes\) = 'array'/,
+  );
+
+  assert.match(
+    postgresVideoChainSource,
+    /const contentVariantSelect = \[[\s\S]*"production_scenes"[\s\S]*\]\.join/,
+  );
+  assert.match(
+    postgresVideoChainSource,
+    /export async function pgCreateDraftWithVariants[\s\S]*insert into public\.content_variants \([\s\S]*production_scenes[\s\S]*JSON\.stringify\(variant\.productionScenes \?\? \[\]\)/,
+  );
+  assert.match(
+    postgresVideoChainSource,
+    /export async function pgAppendContentVariantToDraft[\s\S]*insert into public\.content_variants \([\s\S]*production_scenes[\s\S]*JSON\.stringify\(input\.productionScenes \?\? \[\]\)/,
+  );
+  assert.match(
+    postgresVideoChainSource,
+    /productionScenes: toProductionScenes\(row\.production_scenes\)/,
+  );
+  assert.doesNotMatch(postgresVideoChainSource, /productionScenes:\s*\[\]/);
+
+  for (const field of [
+    "sceneNo",
+    "timeRange",
+    "sceneType",
+    "requiresUserUpload",
+    "shotRequirement",
+    "visual",
+    "voiceover",
+    "subtitle",
+    "materials",
+    "cameraMovement",
+    "purpose",
+    "fallbackShot",
+  ]) {
+    assert.match(postgresVideoChainSource, new RegExp(`${field}:`));
+  }
 });
 
 function escapeRegExp(value) {
