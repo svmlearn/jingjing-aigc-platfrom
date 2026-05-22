@@ -1,0 +1,1437 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>咨询 Agent 工具调用与上下文现状评审</title>
+  <style>
+    :root {
+      --bg: #f7f4ed;
+      --paper: #fffdfa;
+      --paper-2: #f2efe7;
+      --ink: #171717;
+      --muted: #686158;
+      --soft: #8b8379;
+      --line: rgba(23, 23, 23, 0.14);
+      --line-strong: rgba(23, 23, 23, 0.24);
+      --green: #14746b;
+      --green-soft: #e0f1ee;
+      --blue: #315f9c;
+      --blue-soft: #e6edf7;
+      --gold: #9b6500;
+      --gold-soft: #fff1cf;
+      --red: #a13b31;
+      --red-soft: #f9e5e1;
+      --purple: #5d4fa0;
+      --purple-soft: #ece8fb;
+      --shadow: 0 16px 42px rgba(23, 23, 23, 0.08);
+      --radius: 8px;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(20, 116, 107, 0.08), transparent 360px),
+        var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+
+    main {
+      width: min(1480px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 1120px;
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: 1;
+      letter-spacing: 0;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-size: clamp(26px, 3vw, 42px);
+      line-height: 1.08;
+      letter-spacing: 0;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 20px;
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+
+    code,
+    pre,
+    .mono {
+      font-family: var(--mono);
+    }
+
+    code {
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: #efebe1;
+      padding: 1px 5px;
+      font-size: 0.92em;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #eee8df;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 22px;
+    }
+
+    .panel,
+    .metric,
+    .flow-node,
+    .card,
+    .table-wrap,
+    .callout {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      padding: 32px;
+      min-height: 318px;
+    }
+
+    .kicker {
+      margin: 0 0 12px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .hero-copy {
+      max-width: 980px;
+      color: var(--muted);
+      font-size: 16px;
+      margin-bottom: 0;
+    }
+
+    .metrics {
+      display: grid;
+      gap: 12px;
+    }
+
+    .metric {
+      padding: 18px;
+      min-height: 98px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 250, 0.94);
+      backdrop-filter: blur(12px);
+      padding: 12px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 28px rgba(23, 23, 23, 0.07);
+    }
+
+    .chip,
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 760;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+
+    .chip {
+      background: var(--paper-2);
+      color: rgba(23, 23, 23, 0.76);
+    }
+
+    .badge.good {
+      color: var(--green);
+      background: var(--green-soft);
+      border-color: rgba(20, 116, 107, 0.24);
+    }
+
+    .badge.warn {
+      color: var(--gold);
+      background: var(--gold-soft);
+      border-color: rgba(155, 101, 0, 0.25);
+    }
+
+    .badge.bad {
+      color: var(--red);
+      background: var(--red-soft);
+      border-color: rgba(161, 59, 49, 0.24);
+    }
+
+    .badge.info {
+      color: var(--blue);
+      background: var(--blue-soft);
+      border-color: rgba(49, 95, 156, 0.24);
+    }
+
+    section {
+      margin-bottom: 24px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+
+    .section-head p {
+      margin: 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .card {
+      padding: 18px;
+    }
+
+    .card p:last-child,
+    .callout p:last-child {
+      margin-bottom: 0;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .small {
+      font-size: 13px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .flow-node {
+      position: relative;
+      min-height: 170px;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .flow-node::after {
+      content: attr(data-step);
+      position: absolute;
+      right: 12px;
+      bottom: 8px;
+      color: rgba(23, 23, 23, 0.08);
+      font-size: 54px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .flow-node h3,
+    .flow-node p,
+    .flow-node .badge {
+      position: relative;
+      z-index: 1;
+    }
+
+    .table-wrap {
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--paper);
+    }
+
+    th,
+    td {
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+      padding: 14px;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: var(--paper-2);
+      color: rgba(23, 23, 23, 0.78);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .codebox {
+      border-radius: var(--radius);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: #181612;
+      padding: 14px;
+      overflow: auto;
+    }
+
+    .callout {
+      padding: 18px;
+      border-left: 5px solid var(--green);
+    }
+
+    .callout.warn {
+      border-left-color: var(--gold);
+    }
+
+    .callout.bad {
+      border-left-color: var(--red);
+    }
+
+    .source {
+      margin-top: 12px;
+      color: var(--soft);
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .mini-list {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .mini-list li {
+      margin: 7px 0;
+    }
+
+    .verdict {
+      display: grid;
+      grid-template-columns: 0.85fr 1.15fr;
+      gap: 14px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #f5f0e5;
+      padding: 7px 12px;
+      font-weight: 800;
+      font-size: 12px;
+      margin: 3px 6px 3px 0;
+    }
+
+    .review-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    button,
+    .button {
+      appearance: none;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      background: var(--paper);
+      color: var(--ink);
+      padding: 8px 12px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button:hover,
+    .button:hover {
+      border-color: rgba(20, 116, 107, 0.42);
+      background: var(--green-soft);
+    }
+
+    .review-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .review-item {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .review-item.is-changed {
+      border-color: rgba(155, 101, 0, 0.34);
+      background: #fffaf0;
+    }
+
+    .review-item-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: start;
+      margin-bottom: 10px;
+    }
+
+    .review-item h3 {
+      margin-bottom: 4px;
+    }
+
+    .review-summary {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 0;
+    }
+
+    .hover-tip {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      top: calc(100% - 8px);
+      z-index: 30;
+      display: none;
+      max-height: 360px;
+      overflow: auto;
+      border: 1px solid rgba(23, 23, 23, 0.2);
+      border-radius: var(--radius);
+      background: #181612;
+      box-shadow: 0 20px 54px rgba(23, 23, 23, 0.24);
+      padding: 14px;
+    }
+
+    .review-item:hover .hover-tip {
+      display: block;
+    }
+
+    .review-body {
+      display: none;
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+      margin-top: 12px;
+    }
+
+    .review-item.is-open .review-body {
+      display: block;
+    }
+
+    textarea,
+    select,
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+      color: var(--ink);
+      padding: 10px;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+    }
+
+    textarea.content-editor {
+      min-height: 220px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .review-actions {
+      display: grid;
+      grid-template-columns: 170px minmax(0, 1fr);
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .export-box {
+      min-height: 220px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .inline-note {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 8px 0 0;
+    }
+
+    @media (max-width: 1100px) {
+      .hero,
+      .grid-2,
+      .grid-3,
+      .grid-4,
+      .flow,
+      .verdict,
+      .review-grid,
+      .review-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="hero">
+      <div class="hero-card">
+        <p class="kicker">2026-05-22 / 当前分支评审</p>
+        <h1>咨询 Agent 工具调用与上下文现状评审</h1>
+        <p class="hero-copy">
+          这份页面重新梳理当前咨询台 native tool calling 的真实结构：哪些内容进入 system prompt，哪些内容进入
+          <code>tools[].function.description</code>，哪些由 JSON Schema 和 runtime 严格校验，以及内部工具参数错误如何被记录但不再打断商家聊天体验。
+        </p>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <strong>Strict</strong>
+          <span>Zod 参数校验保持 <code>.strict()</code>，schema 外字段仍是错误。</span>
+        </div>
+        <div class="metric">
+          <strong>ABC</strong>
+          <span>工具描述只说允许字段，不再列举“不要输出”的 DE 字段。</span>
+        </div>
+        <div class="metric">
+          <strong>Debug</strong>
+          <span>内部参数错误进入 trace / event / snapshot，不进入商家可见执行卡。</span>
+        </div>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="页面导航">
+      <a class="chip" href="#snapshot">总览</a>
+      <a class="chip" href="#flow">链路</a>
+      <a class="chip" href="#prompt-map">上下文入口</a>
+      <a class="chip" href="#editable-review">可编辑评审</a>
+      <a class="chip" href="#tool-contract">工具契约</a>
+      <a class="chip" href="#display">展示边界</a>
+      <a class="chip" href="#risk">剩余风险</a>
+      <a class="chip" href="#next">下一步</a>
+    </nav>
+
+    <section id="snapshot">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Snapshot</p>
+          <h2>当前结论</h2>
+        </div>
+        <p>这不是把错误参数“吞掉”的方案，而是把严格契约和用户界面解耦。</p>
+      </div>
+
+      <div class="verdict">
+        <div class="callout">
+          <h3>当前架构状态</h3>
+          <p>
+            主模型仍通过原生 <code>tools</code> 返回结构化 <code>tool_calls</code>。
+            工具的参数范围由 <code>parameters</code> 和 runtime Zod schema 共同约束；
+            schema 外字段会被拒绝，不会被 strip。
+          </p>
+          <p>
+            新增变化只发生在两个地方：工具描述变成正向 allowed fields；商家可见 tool card 过滤内部参数校验失败。
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>一句话判断</h3>
+          <p>
+            当前修复方向符合“工具契约严格、提示不反向灌字段、内部错误不要展示给商家”的原则。
+          </p>
+          <div>
+            <span class="status-pill">契约：严格</span>
+            <span class="status-pill">提示：正向字段</span>
+            <span class="status-pill">展示：过滤内部错误</span>
+            <span class="status-pill">调试：保留 trace</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Runtime Flow</p>
+          <h2>从模型输入到用户界面的 5 个层级</h2>
+        </div>
+        <p>关键是分清：提示词、工具元信息、schema 校验、runtime 记录、商家 UI 是五层，不应该混成一个问题。</p>
+      </div>
+
+      <div class="flow">
+        <div class="flow-node" data-step="1">
+          <span class="badge info">Prompt</span>
+          <h3>System Prompt</h3>
+          <p class="small muted">包含 agent prompt、soul、专家容器、skills、业务工具目录、native loop 规则。</p>
+        </div>
+        <div class="flow-node" data-step="2">
+          <span class="badge info">Tool Metadata</span>
+          <h3>工具描述</h3>
+          <p class="small muted">来自 <code>tools[].function.description</code>，不是直接拼进 system prompt。</p>
+        </div>
+        <div class="flow-node" data-step="3">
+          <span class="badge good">Schema</span>
+          <h3>参数契约</h3>
+          <p class="small muted"><code>parameters</code> 使用 <code>additionalProperties: false</code>，runtime 使用 Zod <code>.strict()</code>。</p>
+        </div>
+        <div class="flow-node" data-step="4">
+          <span class="badge warn">Trace</span>
+          <h3>内部记录</h3>
+          <p class="small muted">参数错误生成 <code>native_tool_call_rejected</code>，进入 plannerTrace、event、snapshot。</p>
+        </div>
+        <div class="flow-node" data-step="5">
+          <span class="badge good">Merchant UI</span>
+          <h3>商家可见卡片</h3>
+          <p class="small muted">执行卡只展示商家有意义的工具结果，过滤内部参数校验失败。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="prompt-map">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Prompt Map</p>
+          <h2>当前主模型到底看到了什么</h2>
+        </div>
+        <p>这张表专门回答“工具描述到底塞在哪里”。</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>入口</th>
+              <th>进入位置</th>
+              <th>当前内容</th>
+              <th>评审意见</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Agent systemPrompt</strong></td>
+              <td>system message</td>
+              <td>在线 Agent 配置的主提示词。</td>
+              <td>仍是最大影响源，后续瘦身要优先看这里和 soul。</td>
+            </tr>
+            <tr>
+              <td><strong>Business tool prompt</strong></td>
+              <td>system message</td>
+              <td>业务工具目录：工具 label、purpose、writes。</td>
+              <td>当前已把策略资产 writes 改成“右侧策略资产整体文档”，避免把内部字段清单塞给主模型。</td>
+            </tr>
+            <tr>
+              <td><strong>Native loop rules</strong></td>
+              <td>system message</td>
+              <td>通过 API tools 返回 tool_calls；最终回复只给中文自然语言。</td>
+              <td>必要协议层，但日历和 RAG 业务规则仍偏多，可能继续影响聊天自然度。</td>
+            </tr>
+            <tr>
+              <td><strong>Tool description</strong></td>
+              <td><code>tools[].function.description</code></td>
+              <td>由 <code>buildRuntimeToolDescription()</code> 生成。</td>
+              <td>这是工具元信息，不是 system prompt 正文。当前只写“arguments 只包含 ABC”，不写 DE 字段。</td>
+            </tr>
+            <tr>
+              <td><strong>Tool parameters</strong></td>
+              <td><code>tools[].function.parameters</code></td>
+              <td>JSON Schema，含 <code>additionalProperties: false</code>。</td>
+              <td>应该是参数形状的第一真相源。模型仍可能犯错，所以 runtime 还要严格校验。</td>
+            </tr>
+            <tr>
+              <td><strong>User JSON</strong></td>
+              <td>user message</td>
+              <td><code>merchant</code>、<code>userMessage</code>、<code>round</code>、<code>expertRouting</code>、<code>strategySnapshot</code>、<code>currentKnowledgeMatches</code>。</td>
+              <td>仍包含策略快照摘要，这是回答质量需要的业务事实，不是工具 arguments 契约。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="editable-review">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Editable Review</p>
+          <h2>可悬浮查看、可直接改的上下文清单</h2>
+        </div>
+        <p>
+          这里刻意排除了在线 <code>agent systemPrompt</code> 和 <code>soul.md</code>。
+          其他当前 native path 会给主模型的固定模板、工具元信息和 user JSON 结构都列在下面。
+        </p>
+      </div>
+
+      <div class="callout warn">
+        <h3>保存方式</h3>
+        <p>
+          这个页面是静态 HTML，浏览器不能无权限直接写回源码文件。你可以在页面里直接改内容和写评审，
+          然后点击“导出修改 JSON”。把导出的文件放回本目录，我下一轮就能读取 JSON，并把你改过的内容应用到真实代码或文档里。
+        </p>
+        <p class="inline-note">
+          建议文件名：<code>2026-05-22-咨询Agent工具调用评审修改.json</code>
+        </p>
+      </div>
+
+      <div class="review-toolbar">
+        <button type="button" id="expandAll">全部展开</button>
+        <button type="button" id="collapseAll">全部收起</button>
+        <button type="button" id="copyReviewJson">复制修改 JSON</button>
+        <button type="button" id="downloadReviewJson">导出修改 JSON</button>
+        <label class="button" for="importReviewJson">导入已有 JSON</label>
+        <input id="importReviewJson" type="file" accept="application/json,.json" hidden />
+      </div>
+
+      <div id="reviewList" class="review-grid" aria-live="polite"></div>
+
+      <div class="card" style="margin-top: 14px;">
+        <h3>当前修改 JSON 预览</h3>
+        <p class="muted small">只会导出被你改过正文、写过评审建议或改变处理动作的条目。</p>
+        <textarea id="reviewExport" class="export-box" readonly></textarea>
+      </div>
+    </section>
+
+    <section id="tool-contract">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Tool Contract</p>
+          <h2>当前工具契约：只讲允许字段</h2>
+        </div>
+        <p>这里用 ABC / DE 的方式复盘刚才的问题。</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <span class="badge good">正确方向</span>
+          <h3>告诉模型可传 ABC</h3>
+          <div class="codebox">
+            <pre>update_strategy_snapshot:
+arguments 只包含 merchantId、round、stage
+
+update_content_calendar:
+arguments 只包含 calendar、merchantId、round、stage</pre>
+          </div>
+          <p class="source">app/src/server/api/consultation-runtime/tools.ts:442-465</p>
+        </div>
+
+        <div class="card">
+          <span class="badge bad">避免方向</span>
+          <h3>不再提示 DE 字段</h3>
+          <p>
+            不在工具描述里写“不要输出某某内部字段”。这类反向提示会把本来不该进入当前动作空间的字段重新放到模型注意力里。
+          </p>
+          <p>
+            当前测试已经加了 <code>doesNotMatch</code>，防止这类反向字段提示回流。
+          </p>
+          <p class="source">app/src/server/api/consultation-service.test.ts:666-673</p>
+        </div>
+      </div>
+
+      <div class="grid-3" style="margin-top: 14px;">
+        <div class="card">
+          <h3>工具 schema</h3>
+          <p>OpenAI/LLM tools 侧仍是 <code>additionalProperties: false</code>。</p>
+          <p class="source">app/src/server/api/consultation-runtime/tools.ts:35-60<br>app/src/server/api/consultation-runtime/tools.ts:103-116</p>
+        </div>
+        <div class="card">
+          <h3>runtime schema</h3>
+          <p>Zod 仍使用 <code>.strict()</code>，schema 外字段是错误，不会被 strip。</p>
+          <p class="source">app/src/server/api/consultation-runtime/tools.ts:62-68<br>app/src/server/api/consultation-runtime/tools.ts:127-145</p>
+        </div>
+        <div class="card">
+          <h3>执行入口</h3>
+          <p><code>parseNativeConsultationToolCall()</code> 负责 JSON parse、工具可见性、enabledTools 和 schema 校验。</p>
+          <p class="source">app/src/server/api/consultation-runtime/tools.ts:488-547</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="display">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Display Boundary</p>
+          <h2>内部失败不等于商家执行事实</h2>
+        </div>
+        <p>截图里的“失败工具卡”本质上是内部参数校验错误被当成用户可见执行过程展示了。</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>保留给调试</h3>
+          <p>
+            模型请求无效工具或参数不符合 schema 时，runtime 仍创建 <code>native_tool_call_rejected</code>。
+            它会进入 planner trace、agent.tool.completed event、runtime snapshot 的 failedTools。
+          </p>
+          <p>这保证后续可以追溯模型当时传了什么，以及为什么没有执行。</p>
+          <p class="source">app/src/server/api/consultation-runtime/runtime.ts:693-709<br>app/src/server/api/consultation-runtime/runtime.ts:924-939</p>
+        </div>
+
+        <div class="card">
+          <h3>不展示给商家</h3>
+          <p>
+            商家顶部执行卡现在通过 <code>isMerchantVisibleToolResult()</code> 过滤
+            <code>native_tool_call_rejected</code>。这不是隐藏日志，而是把内部 debug 事实从商家体验里拿掉。
+          </p>
+          <p class="source">app/src/server/api/consultation-service.ts:2099-2118</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="risk">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Remaining Risk</p>
+          <h2>现在还可能让模型僵硬的地方</h2>
+        </div>
+        <p>这次只修工具契约和展示边界，不代表上下文已经完全轻了。</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <span class="badge warn">Risk 1</span>
+          <h3>system message 仍偏长</h3>
+          <p>native path 仍拼入 agent prompt、soul、expert container、skill catalog、active skills、tool prompt、context pack 和 loop 规则。</p>
+          <p class="source">app/src/server/api/consultation-service.ts:1944-1960</p>
+        </div>
+
+        <div class="card">
+          <span class="badge warn">Risk 2</span>
+          <h3>日历规则仍有牵引力</h3>
+          <p>“用户要求生成/调整内容日历时优先考虑调用工具”是合理的，但如果 intent 判断不稳，仍可能把普通聊天拉向写日历。</p>
+          <p class="source">app/src/server/api/consultation-service.ts:1955-1958</p>
+        </div>
+
+        <div class="card">
+          <span class="badge warn">Risk 3</span>
+          <h3>策略快照仍重复出现</h3>
+          <p>主 user JSON 给了 <code>strategySnapshot</code>，slim context pack 里也会有相关上下文。重复事实需要继续瘦身。</p>
+          <p class="source">app/src/server/api/consultation-service.ts:1928-1978</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="next">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Next Review</p>
+          <h2>建议下一步看三件事</h2>
+        </div>
+        <p>如果要继续减少“僵硬感”，下一步不该再往工具描述里加规则，而应该缩小上下文和路由动作空间。</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="callout">
+          <h3>1. 工具目录继续瘦身</h3>
+          <p>保留工具名、用途和影响范围即可。业务工具目录里不要暴露内部字段，也不要塞参数禁令。</p>
+        </div>
+        <div class="callout warn">
+          <h3>2. 日历 intent 单独门控</h3>
+          <p>把日历写入规则从长 system message 中进一步挪到“本轮明确是日历任务”时才出现。</p>
+        </div>
+        <div class="callout">
+          <h3>3. Debug 与商家 UI 分层</h3>
+          <p>继续保留 trace 给平台管理端；商家侧只展示真正执行过或业务上有意义的工具动作。</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 14px;">
+        <h3>当前验收点</h3>
+        <ul class="mini-list">
+          <li>工具参数错误不再显示为商家顶部失败卡。</li>
+          <li>写入类工具 schema 仍严格拒绝 schema 外字段。</li>
+          <li>主模型工具描述只列允许字段，不列不允许字段。</li>
+          <li>调试链路仍能从 runtime snapshot / event 看到 <code>native_tool_call_rejected</code>。</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+  <script>
+    const reviewItems = [
+      {
+        id: "expert-container-prompt",
+        group: "system message",
+        title: "专家容器提示",
+        source: "app/src/server/api/consultation-runtime/context.ts:120",
+        summary: "当前专家身份、角色说明、后台描述和知识边界。",
+        content: `【专家容器】
+当前专家：\${agent.displayName} (\${agent.agentKey})。
+\${agent.roleDescription ? \`角色说明：\${agent.roleDescription}\` : ""}
+\${agent.description ? \`后台描述：\${agent.description}\` : ""}
+专家只决定本轮身份、能力与知识边界；整场咨询上下文由 runtime 选择后的 slim context pack 提供。`,
+      },
+      {
+        id: "skill-catalog-prompt",
+        group: "system message",
+        title: "候选 Skills 渐进式披露",
+        source: "app/src/server/api/consultation-runtime/skills.ts:203",
+        summary: "只列可用 Skill 的 name、description、whenToUse。",
+        content: `【候选 Skills：渐进式披露】
+下面只列出可用 Skill 的简短说明。只有当前轮用户问题命中触发条件时，才会在后续“本轮激活 Skill”中提供完整正文。
+
+- \${skill.name}\${skill.skillKey ? \` (\${skill.skillKey})\` : ""}
+  Description: \${clipText(skill.description, 160)}
+  When to use: \${clipText(skill.whenToUse, 180)}`,
+      },
+      {
+        id: "active-skill-prompt",
+        group: "system message",
+        title: "本轮激活 Skill",
+        source: "app/src/server/api/consultation-runtime/skills.ts:227",
+        summary: "命中后的 Skill 正文，最多 3 个，每个正文 clip 到 3600 字符。",
+        content: `【本轮激活 Skill】
+以下 Skill 正文只用于当前轮咨询判断。不得向用户暴露 Skill 名称、内部字段或配置来源。
+
+## \${skill.name}\${skill.skillKey ? \` (\${skill.skillKey})\` : ""}
+\${skill.body ? clipText(skill.body, 3600) : skill.whenToUse}`,
+      },
+      {
+        id: "skill-reference-prompt",
+        group: "system message",
+        title: "本轮 Skill References",
+        source: "app/src/server/api/consultation-runtime/skills.ts:244",
+        summary: "给参考资料 title/type/usage，引导需要时调用 retrieve_knowledge_base。",
+        content: `【本轮 Skill References】
+以下是本轮激活 Skill 绑定的受控参考资料提示。不要向用户暴露 reference id、URL 或本地路径；需要方法论、案例、定义、判断标准时，优先调用 retrieve_knowledge_base，并把 query 聚焦在用户问题和 reference title 上。
+
+- \${reference.skillName} -> \${reference.title}
+  Type: \${reference.type}; usage: \${reference.usage}`,
+      },
+      {
+        id: "business-tool-prompt",
+        group: "system message",
+        title: "咨询 Agent 受控业务工具目录",
+        source: "app/src/server/api/consultation-runtime/tools.ts:622",
+        summary: "告诉模型右侧策略资产由受控工具更新，并列出 enabled tools。",
+        content: `【咨询 Agent 受控业务工具】
+右侧策略资产不是普通文案，它由以下受控业务工具更新；回答时要尊重这些工具的输出，不要声称执行未启用工具。
+
+- 读取用户信息。读取用户基础信息、能力项、背景摘要、表达风格和希望引导的下一步。写入/影响：只读上下文。
+- 检索平台方法论与用户知识库。检索平台方法论、用户资料和可用于咨询的知识片段。写入/影响：knowledgeMatches / 受控上下文。
+- 读取历史内容。读取当前咨询会话历史和摘要，避免丢上下文。写入/影响：只读上下文。
+- 检索社媒爆款内容。按关键词、博主主页或单条链接检索小红书/抖音爆款内容，并写入社媒爆款内容库，供咨询和选题分析。写入/影响：source_items / imported_comments / 社媒爆款内容库。
+- 编辑策略资产。把产品定位、核心卖点、目标客群、关键场景和当前建议作为一个整体资产编辑。写入/影响：右侧策略资产整体文档。
+- 更新内容日历。在本轮已经取得足够知识库、话术或素材能力依据后，把咨询结论、用户知识库和策略快照转成图文/视频混合营销日历。写入/影响：strategySnapshot.contentCalendarDraft。`,
+      },
+      {
+        id: "slim-context-pack-system-prompt",
+        group: "system message",
+        title: "上下文包 slim_v2 说明",
+        source: "app/src/server/api/consultation-runtime/context.ts:594",
+        summary: "告诉模型哪些 user JSON 字段是权威入口，哪些只是本轮 evidence。",
+        content: `【上下文包 slim_v2】
+本轮上下文包：\${contextPack.selectedContextPack}。
+主模型只能把 user JSON 顶层 strategySnapshot 视为当前策略资产权威入口；不要假设还有另一份隐藏策略资产。
+currentKnowledgeMatches 只代表本轮被选择的 evidence；未出现在其中的历史知识命中，不要当成本轮依据。
+工具结果的权威来源只能是 native role=tool 消息或 JSON tool_result；不要依赖 user JSON 中的重复工具摘要。
+内部调试字段只用于 runtimeSnapshot，不要向用户暴露。
+如果工具结果是 skipped、failed、guardrail rejected 或未完成，最终回复必须承认本轮未写入或未完成，不能声称已经更新。
+
+\${contextPack.selectedKnowledgeMatches.length > 0 ? \`本轮 selected evidence 数量：\${contextPack.selectedKnowledgeMatches.length}。由你结合用户问题判断如何引用，不能编造未提供的事实。\` : ""}`,
+      },
+      {
+        id: "native-loop-rules",
+        group: "system message",
+        title: "native tool calling loop 规则",
+        source: "app/src/server/api/consultation-service.ts:1954",
+        summary: "原生工具调用协议、日历前置判断和最终回复规则。",
+        content: `你正在运行 native_tool_calling_loop_v1：工具必须通过 API tools 字段返回结构化 tool_calls，不要在正文里输出工具 JSON。
+写入类工具仍要在信息足够后再调用。
+不要先写日历再补查依据。在调用 update_content_calendar 前，应先判断当前知识库和素材能力依据是否足够。
+当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。
+如果当前日历已经生成过团队内容，修改前必须提醒用户后续团队内容可能需要重新生成，并确认是否继续。
+最终可见回复只输出给用户的中文自然语言，不要输出内部工具名、JSON、Markdown 表格或 debug payload。`,
+      },
+      {
+        id: "user-json-shape",
+        group: "user message",
+        title: "native path user JSON 结构",
+        source: "app/src/server/api/consultation-service.ts:1965",
+        summary: "主模型 user message 中的顶层 JSON 字段。",
+        content: `{
+  "merchant": {
+    "name": "input.state.merchant.name",
+    "industry": "input.state.merchant.industry",
+    "serviceItems": "input.state.merchant.serviceItems",
+    "defaultCta": "input.state.merchant.defaultCta"
+  },
+  "userMessage": "input.state.userContent",
+  "round": "input.state.nextRound",
+  "expertRouting": "slimContextPack.expertRouting",
+  "strategySnapshot": "nativeStrategySnapshot",
+  "currentKnowledgeMatches": "slimContextPack.selectedKnowledgeMatches"
+}`,
+      },
+      {
+        id: "native-strategy-snapshot-summary",
+        group: "user message",
+        title: "nativeStrategySnapshot 摘要结构",
+        source: "app/src/server/api/consultation-service.ts:2050",
+        summary: "策略资产权威摘要，包含策略字段、日历前 7 条、生成状态和 brief 摘要。",
+        content: `{
+  positioning,
+  coreSellingPoints,
+  targetAudiences,
+  keyScenes,
+  currentSuggestion,
+  strategyTags,
+  contentCalendarDraft: first 7 items with {
+    id,
+    dayLabel,
+    contentType,
+    strategyTag,
+    title,
+    summary: clipText(item.summary, 180),
+    guidancePresence: {
+      hasKnowledgeRefs,
+      hasMaterialHints,
+      hasAssetCapabilityHints,
+      hasShotConstraints
+    }
+  },
+  contentCalendarGeneration: {
+    status,
+    currentRevisionId,
+    generatedFromRevisionId,
+    generatedBatchId,
+    generatedAt,
+    generatedJobCount
+  },
+  articleBrief: { workingTitle, angle },
+  videoBrief: { workingTitle, hook }
+}`,
+      },
+      {
+        id: "selected-knowledge-matches",
+        group: "user message",
+        title: "currentKnowledgeMatches 结构",
+        source: "app/src/server/api/consultation-runtime/context.ts:262",
+        summary: "根据本轮 selectedContextPack 选出的最多 5 条 evidence。",
+        content: `selectedKnowledgeMatches = buildSelectedKnowledgeMatches({
+  matches: shouldIncludeKnowledgeInContext(selectedContextPack)
+    ? input.knowledgeMatches
+    : [],
+  round: input.round,
+  limit: 5
+})
+
+进入 user JSON 的字段名：
+currentKnowledgeMatches: slimContextPack.selectedKnowledgeMatches`,
+      },
+      {
+        id: "tool-description-update-strategy",
+        group: "tools[].function.description",
+        title: "工具描述：编辑策略资产",
+        source: "app/src/server/api/consultation-runtime/tools.ts:442",
+        summary: "正向声明 arguments 只包含 merchantId、round、stage。",
+        content: `编辑策略资产：把产品定位、核心卖点、目标客群、关键场景和当前建议作为一个整体资产编辑。影响范围：右侧策略资产整体文档 arguments 只包含 merchantId、round、stage；策略资产正文由内部 Editor 根据上下文改写。`,
+      },
+      {
+        id: "tool-description-update-calendar",
+        group: "tools[].function.description",
+        title: "工具描述：更新内容日历",
+        source: "app/src/server/api/consultation-runtime/tools.ts:455",
+        summary: "正向声明 arguments 只包含 calendar、merchantId、round、stage。",
+        content: `更新内容日历：在本轮已经取得足够知识库、话术或素材能力依据后，把咨询结论、用户知识库和策略快照转成图文/视频混合营销日历。影响范围：strategySnapshot.contentCalendarDraft arguments 只包含 calendar、merchantId、round、stage。
+
+如果已有生成记录，还会附加：
+当前日历生成状态、当前日历版本、最近一次团队内容生成基于版本、最近生成批次、最近生成时间、生成任务数、修改已生成团队内容前需要自行判断是否先说明影响并询问确认。`,
+      },
+      {
+        id: "tool-parameters-merchant-round",
+        group: "tools[].function.parameters",
+        title: "参数 schema：merchantRoundParameters",
+        source: "app/src/server/api/consultation-runtime/tools.ts:35",
+        summary: "read/write trigger 类工具通用的 merchantId、round、stage schema。",
+        content: `{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "merchantId": {
+      "type": "string",
+      "description": "当前用户资料 ID。可省略，runtime 会以受控上下文补齐。"
+    },
+    "round": {
+      "type": "number",
+      "description": "当前咨询轮次。可省略，runtime 会补齐。"
+    },
+    "stage": {
+      "type": "string",
+      "description": "当前咨询阶段。可省略，runtime 会补齐。"
+    }
+  }
+}`,
+      },
+      {
+        id: "tool-parameters-update-calendar",
+        group: "tools[].function.parameters",
+        title: "参数 schema：updateContentCalendarParameters",
+        source: "app/src/server/api/consultation-runtime/tools.ts:103",
+        summary: "内容日历写入工具的 calendar 数组 schema。",
+        content: `{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "...merchantRoundParameters.properties": true,
+    "calendar": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 14,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "dayLabel": { "type": "string" },
+          "contentType": { "type": "string", "enum": ["article", "video"] },
+          "strategyTag": { "type": "string" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" }
+        },
+        "required": ["dayLabel", "contentType", "title", "summary"]
+      }
+    }
+  }
+}`,
+      },
+      {
+        id: "runtime-strict-validation",
+        group: "runtime validation",
+        title: "runtime 严格校验",
+        source: "app/src/server/api/consultation-runtime/tools.ts:62",
+        summary: "Zod schema 保持 strict，不 strip schema 外字段。",
+        content: `merchantRoundArgsSchema = z.object({
+  merchantId: z.string().optional(),
+  round: z.number().optional(),
+  stage: z.string().optional(),
+}).strict()
+
+contentCalendarItemArgsSchema = z.object({
+  id,
+  dayLabel,
+  contentType,
+  strategyTag,
+  title,
+  summary,
+}).strict()
+
+updateContentCalendarArgsSchema = z.object({
+  merchantId,
+  round,
+  stage,
+  calendar,
+}).strict()`,
+      },
+      {
+        id: "merchant-visible-tool-card-filter",
+        group: "merchant UI",
+        title: "商家可见执行卡过滤",
+        source: "app/src/server/api/consultation-service.ts:2099",
+        summary: "过滤 native_tool_call_rejected，内部参数错误仍在 trace 中。",
+        content: `function buildToolCards(input) {
+  return (input.toolResults ?? [])
+    .filter(isMerchantVisibleToolResult)
+    .map((result) => ({
+      key: result.toolName,
+      label: getConsultationToolDisplayLabel(result.toolName),
+      summary: result.summary,
+      status: result.status,
+    }));
+}
+
+function isMerchantVisibleToolResult(result) {
+  return result.payload.errorType !== "native_tool_call_rejected";
+}`,
+      },
+    ];
+
+    const reviewState = new Map(reviewItems.map((item) => [
+      item.id,
+      {
+        editedContent: item.content,
+        review: "",
+        action: "keep",
+      },
+    ]));
+
+    const reviewList = document.getElementById("reviewList");
+    const exportBox = document.getElementById("reviewExport");
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function renderReviewItems() {
+      reviewList.innerHTML = reviewItems.map((item) => {
+        const state = reviewState.get(item.id);
+        const changed = state.editedContent !== item.content || state.review.trim() || state.action !== "keep";
+        return `
+          <article class="review-item ${changed ? "is-changed" : ""}" data-id="${escapeHtml(item.id)}">
+            <div class="review-item-head">
+              <div>
+                <span class="badge info">${escapeHtml(item.group)}</span>
+                <h3>${escapeHtml(item.title)}</h3>
+                <p class="review-summary">${escapeHtml(item.summary)}</p>
+                <p class="source">${escapeHtml(item.source)}</p>
+              </div>
+              <button type="button" data-action="toggle">${changed ? "继续评审" : "评审"}</button>
+            </div>
+            <div class="hover-tip">
+              <pre>${escapeHtml(state.editedContent)}</pre>
+            </div>
+            <div class="review-body">
+              <div class="review-actions">
+                <select data-field="action" aria-label="处理动作">
+                  <option value="keep" ${state.action === "keep" ? "selected" : ""}>保留</option>
+                  <option value="revise" ${state.action === "revise" ? "selected" : ""}>按编辑稿修改</option>
+                  <option value="remove" ${state.action === "remove" ? "selected" : ""}>建议删除</option>
+                  <option value="split" ${state.action === "split" ? "selected" : ""}>建议拆分/移层</option>
+                  <option value="question" ${state.action === "question" ? "selected" : ""}>需要确认</option>
+                </select>
+                <input type="text" value="${escapeHtml(item.source)}" readonly aria-label="来源路径" />
+              </div>
+              <label>
+                <strong>真实内容编辑稿</strong>
+                <textarea class="content-editor" data-field="editedContent">${escapeHtml(state.editedContent)}</textarea>
+              </label>
+              <label>
+                <strong>评审建议</strong>
+                <textarea data-field="review" placeholder="写你觉得哪里该删、该移、该保留，或者为什么这样改。">${escapeHtml(state.review)}</textarea>
+              </label>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      updateExport();
+    }
+
+    function buildExportPayload() {
+      const changes = reviewItems
+        .map((item) => {
+          const state = reviewState.get(item.id);
+          const changedContent = state.editedContent !== item.content;
+          const hasReview = Boolean(state.review.trim());
+          const hasAction = state.action !== "keep";
+
+          if (!changedContent && !hasReview && !hasAction) {
+            return null;
+          }
+
+          return {
+            id: item.id,
+            title: item.title,
+            group: item.group,
+            source: item.source,
+            action: state.action,
+            review: state.review,
+            originalContent: item.content,
+            editedContent: state.editedContent,
+            changedContent,
+          };
+        })
+        .filter(Boolean);
+
+      return {
+        schema: "consultation-agent-context-review-edits-v1",
+        generatedFrom: "docs/架构规范/2026-05-22-咨询Agent工具调用与上下文现状评审.html",
+        generatedAt: new Date().toISOString(),
+        excluded: ["agent systemPrompt", "soul.md"],
+        changes,
+      };
+    }
+
+    function updateExport() {
+      exportBox.value = JSON.stringify(buildExportPayload(), null, 2);
+    }
+
+    reviewList.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action='toggle']");
+      if (!button) {
+        return;
+      }
+      button.closest(".review-item").classList.toggle("is-open");
+    });
+
+    reviewList.addEventListener("input", (event) => {
+      const field = event.target.dataset.field;
+      if (!field) {
+        return;
+      }
+      const itemElement = event.target.closest(".review-item");
+      const state = reviewState.get(itemElement.dataset.id);
+      state[field] = event.target.value;
+      itemElement.classList.toggle(
+        "is-changed",
+        state.editedContent !== reviewItems.find((item) => item.id === itemElement.dataset.id).content ||
+          Boolean(state.review.trim()) ||
+          state.action !== "keep",
+      );
+      const tip = itemElement.querySelector(".hover-tip pre");
+      if (field === "editedContent") {
+        tip.textContent = state.editedContent;
+      }
+      updateExport();
+    });
+
+    reviewList.addEventListener("change", (event) => {
+      const field = event.target.dataset.field;
+      if (!field) {
+        return;
+      }
+      const itemElement = event.target.closest(".review-item");
+      const state = reviewState.get(itemElement.dataset.id);
+      state[field] = event.target.value;
+      itemElement.classList.toggle(
+        "is-changed",
+        state.editedContent !== reviewItems.find((item) => item.id === itemElement.dataset.id).content ||
+          Boolean(state.review.trim()) ||
+          state.action !== "keep",
+      );
+      updateExport();
+    });
+
+    document.getElementById("expandAll").addEventListener("click", () => {
+      document.querySelectorAll(".review-item").forEach((item) => item.classList.add("is-open"));
+    });
+
+    document.getElementById("collapseAll").addEventListener("click", () => {
+      document.querySelectorAll(".review-item").forEach((item) => item.classList.remove("is-open"));
+    });
+
+    document.getElementById("copyReviewJson").addEventListener("click", async () => {
+      updateExport();
+      await navigator.clipboard.writeText(exportBox.value);
+    });
+
+    document.getElementById("downloadReviewJson").addEventListener("click", () => {
+      updateExport();
+      const blob = new Blob([exportBox.value], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "2026-05-22-咨询Agent工具调用评审修改.json";
+      anchor.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("importReviewJson").addEventListener("change", async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) {
+        return;
+      }
+      const payload = JSON.parse(await file.text());
+      for (const change of payload.changes || []) {
+        if (!reviewState.has(change.id)) {
+          continue;
+        }
+        reviewState.set(change.id, {
+          editedContent: typeof change.editedContent === "string" ? change.editedContent : reviewState.get(change.id).editedContent,
+          review: typeof change.review === "string" ? change.review : "",
+          action: typeof change.action === "string" ? change.action : "keep",
+        });
+      }
+      renderReviewItems();
+    });
+
+    renderReviewItems();
+  </script>
+</body>
+</html>

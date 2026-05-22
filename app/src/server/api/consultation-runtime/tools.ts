@@ -361,7 +361,7 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
       key: "update_strategy_snapshot",
       label: "编辑策略资产",
       purpose: "把产品定位、核心卖点、目标客群、关键场景和当前建议作为一个整体资产编辑。",
-      writes: "strategySnapshot as one editor document: positioning / coreSellingPoints / targetAudiences / keyScenes / currentSuggestion",
+      writes: "右侧策略资产整体文档",
       parameters: merchantRoundParameters,
       validate: validateMerchantRoundArgs("update_strategy_snapshot"),
     },
@@ -439,6 +439,13 @@ function buildRuntimeToolDescription(
 ) {
   const base = `${tool.label}：${tool.purpose} 影响范围：${tool.writes}`;
 
+  if (tool.key === "update_strategy_snapshot") {
+    return [
+      base,
+      "arguments 只包含 merchantId、round、stage；策略资产正文由内部 Editor 根据上下文改写。",
+    ].join(" ");
+  }
+
   if (tool.key !== "update_content_calendar") {
     return base;
   }
@@ -446,11 +453,16 @@ function buildRuntimeToolDescription(
   const generation = state.strategySnapshot.contentCalendarGeneration;
 
   if (!generation) {
-    return `${base} 当前日历尚未生成团队内容；如用户要求生成、补充或修改营销日历，仍由你根据依据和用户意图判断是否调用。`;
+    return [
+      base,
+      "arguments 只包含 calendar、merchantId、round、stage。",
+      "当前日历尚未生成团队内容；如用户要求生成、补充或修改营销日历，仍由你根据依据和用户意图判断是否调用。",
+    ].join(" ");
   }
 
   return [
     base,
+    "arguments 只包含 calendar、merchantId、round、stage。",
     `当前日历生成状态：${generation.status}`,
     `当前日历版本：${generation.currentRevisionId}`,
     generation.generatedFromRevisionId

@@ -509,7 +509,7 @@ test("consultation runtime exposes right panel assets through bounded business t
   assert.doesNotMatch(platformSettingsEditorSource, new RegExp("generate_" + "video_brief"));
   assert.match(
     consultationServiceAndRuntimeSource,
-    /strategySnapshot as one editor document: positioning \/ coreSellingPoints \/ targetAudiences \/ keyScenes \/ currentSuggestion/,
+    /右侧策略资产整体文档/,
   );
   assert.match(consultationServiceAndRuntimeSource, /strategySnapshot\.contentCalendarDraft/);
 });
@@ -659,8 +659,18 @@ test("consultation runtime surfaces native tool call rejections as failed tool f
   assert.match(consultationRuntimeSource, /failedTools/);
   assert.match(consultationContractSource, /status: "completed" \| "skipped" \| "failed"/);
   assert.match(consultationRepositorySource, /function toToolCardStatus/);
-  assert.match(consultationWorkspaceSource, /failedToolCardCount/);
-  assert.match(consultationWorkspaceSource, /getToolCardStatusLabel/);
+  assert.match(serviceSource, /isMerchantVisibleToolResult/);
+  assert.match(serviceSource, /errorType !== "native_tool_call_rejected"/);
+});
+
+test("consultation native write tools keep strict schemas and positive argument descriptions", () => {
+  assert.match(consultationRuntimeSource, /merchantRoundArgsSchema[\s\S]*?\.strict\(\)/);
+  assert.match(consultationRuntimeSource, /contentCalendarItemArgsSchema[\s\S]*?\.strict\(\)/);
+  assert.match(consultationRuntimeSource, /updateContentCalendarArgsSchema[\s\S]*?\.strict\(\)/);
+  assert.match(consultationRuntimeSource, /arguments 只包含 merchantId、round、stage/);
+  assert.match(consultationRuntimeSource, /arguments 只包含 calendar、merchantId、round、stage/);
+  assert.doesNotMatch(consultationRuntimeSource, /不要把 currentSuggestion、strategyTags/);
+  assert.doesNotMatch(consultationRuntimeSource, /不要传 strategyTags、contentCalendarGenerationStatus/);
 });
 
 test("consultation runtime wraps tool execution exceptions as failed tool results", () => {
@@ -792,7 +802,7 @@ test("consultation stage label follows completed tools instead of message count"
 });
 
 test("consultation tool cards only render real executed tool results", () => {
-  assert.match(serviceSource, /return \(input\.toolResults \?\? \[\]\)\.map/);
+  assert.match(serviceSource, /\.filter\(isMerchantVisibleToolResult\)/);
   assert.match(serviceSource, /summary: result\.summary/);
   assert.match(serviceSource, /status: result\.status/);
   assert.doesNotMatch(serviceSource, /本轮尚未写入策略资产/);

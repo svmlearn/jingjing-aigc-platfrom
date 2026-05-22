@@ -2103,12 +2103,18 @@ function buildToolCards(input: {
   knowledgeMatches?: KnowledgeSearchMatchDto[];
   toolResults?: ConsultationAgentToolResult[];
 }): ConsultationToolCardDto[] {
-  return (input.toolResults ?? []).map((result) => ({
-    key: result.toolName,
-    label: getConsultationToolDisplayLabel(result.toolName),
-    summary: result.summary,
-    status: result.status,
-  }));
+  return (input.toolResults ?? [])
+    .filter(isMerchantVisibleToolResult)
+    .map((result) => ({
+      key: result.toolName,
+      label: getConsultationToolDisplayLabel(result.toolName),
+      summary: result.summary,
+      status: result.status,
+    }));
+}
+
+function isMerchantVisibleToolResult(result: ConsultationAgentToolResult) {
+  return result.payload.errorType !== "native_tool_call_rejected";
 }
 
 function buildStrategySnapshot(input: {
