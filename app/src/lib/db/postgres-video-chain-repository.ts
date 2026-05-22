@@ -1897,7 +1897,7 @@ function mapVideoEditJob(row: VideoEditJobRow): VideoEditJobDto {
 }
 
 function normalizeMemberInvitationCode(code: string) {
-  return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return code.trim().toUpperCase();
 }
 
 function generateInvitationCode() {

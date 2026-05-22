@@ -13,8 +13,30 @@ test("merchant team management read path does not require Cloud Supabase before 
   );
 });
 
+test("PostgreSQL member invitation lookup preserves generated hyphenated team codes", () => {
+  const source = readFileSync(
+    new URL("./postgres-video-chain-repository.ts", import.meta.url),
+    "utf8",
+  );
+  const functionBody = extractFunctionBody(source, "normalizeMemberInvitationCode");
+
+  assert.equal(
+    functionBody.includes('replace(/[^A-Z0-9]/g, "")'),
+    false,
+    "PostgreSQL member invite lookup must not strip hyphens from TEAM-... codes.",
+  );
+  assert.match(
+    functionBody,
+    /return code\.trim\(\)\.toUpperCase\(\);/,
+    "PostgreSQL member invite lookup should match the stored hyphenated code format.",
+  );
+});
+
 function extractFunctionBody(source: string, functionName: string) {
-  const signatureIndex = source.indexOf(`export async function ${functionName}`);
+  const exportSignatureIndex = source.indexOf(`export async function ${functionName}`);
+  const functionSignatureIndex = source.indexOf(`function ${functionName}`);
+  const signatureIndex =
+    exportSignatureIndex === -1 ? functionSignatureIndex : exportSignatureIndex;
   assert.notEqual(signatureIndex, -1, `${functionName} should exist.`);
 
   const bodyStart = source.indexOf("{", signatureIndex);
