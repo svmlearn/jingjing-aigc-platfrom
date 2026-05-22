@@ -26,10 +26,6 @@ export async function signInToMerchant(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const next = getSafeNextPath(formData.get("next"));
 
-  if (!isSupabasePublicConfigured()) {
-    redirect(`/login?error=supabase-not-configured&next=${encodeURIComponent(next)}`);
-  }
-
   if (!email || !password) {
     redirect(`/login?error=invalid-credentials&next=${encodeURIComponent(next)}`);
   }
@@ -46,7 +42,7 @@ export async function signInToMerchant(formData: FormData) {
   }
 
   if (!isSupabasePublicConfigured()) {
-    redirect("/dashboard");
+    redirect(`/login?error=auth-not-configured&next=${encodeURIComponent(next)}`);
   }
 
   const supabase = await createSupabaseServerClient();

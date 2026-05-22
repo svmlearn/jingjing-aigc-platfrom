@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!isSupabasePublicConfigured()) {
-    return redirectToLogin(request, "supabase-not-configured", next);
+    return redirectToLogin(request, "auth-not-configured", next);
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

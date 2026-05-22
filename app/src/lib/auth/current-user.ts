@@ -6,7 +6,7 @@ import {
   getDomesticAuthenticatedUser,
   isDomesticSessionEnabled,
 } from "@/lib/auth/domestic-session";
-import { createLocalDemoUser } from "@/lib/demo/local-demo-runtime";
+import { isAppPostgresConfigured, isAppPostgresPreferred } from "@/lib/server-db/postgres";
 import { createSupabaseServerClient, isSupabasePublicConfigured } from "@/lib/supabase/server";
 import { ApiError } from "@/server/api/errors";
 
@@ -15,11 +15,27 @@ export async function getAuthenticatedUser(): Promise<User> {
     return getDomesticAuthenticatedUser();
   }
 
+  if (isAppPostgresPreferred()) {
+    if (!isAppPostgresConfigured()) {
+      throw new ApiError(
+        503,
+        "APP_DATABASE_NOT_CONFIGURED",
+        "APP_DATABASE_URL or DATABASE_URL is required for PostgreSQL session mode.",
+      );
+    }
+
+    throw new ApiError(
+      503,
+      "APP_SESSION_NOT_CONFIGURED",
+      "Application session provider is not configured for PostgreSQL mode.",
+    );
+  }
+
   if (!isSupabasePublicConfigured()) {
     throw new ApiError(
       503,
-      "SUPABASE_NOT_CONFIGURED",
-      "Cloud Supabase environment variables are required.",
+      "APP_SESSION_NOT_CONFIGURED",
+      "Application session provider is not configured.",
     );
   }
 
