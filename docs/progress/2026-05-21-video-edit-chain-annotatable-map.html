@@ -1,0 +1,2715 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>视频剪辑链路可批注图</title>
+  <style>
+    :root {
+      --page: #f5f2ea;
+      --surface: #fffdf8;
+      --surface-2: #f8faf5;
+      --ink: #181816;
+      --muted: #66645f;
+      --line: #d8d2c4;
+      --line-strong: #9f9888;
+      --green: #23715f;
+      --green-bg: #e7f3ee;
+      --amber: #9b6419;
+      --amber-bg: #fff0d1;
+      --red: #a43f36;
+      --red-bg: #fde7e1;
+      --blue: #315e83;
+      --blue-bg: #e7f0f6;
+      --violet: #654a86;
+      --violet-bg: #eee8f5;
+      --shadow: 0 10px 28px rgba(24, 24, 22, 0.08);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: Inter, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
+      line-height: 1.55;
+    }
+
+    button,
+    textarea,
+    input {
+      font: inherit;
+    }
+
+    .wrap {
+      width: min(1560px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 18px;
+    }
+
+    .hero-main,
+    .panel,
+    .flow-node,
+    .edge,
+    .source-card {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+    }
+
+    .hero-main {
+      padding: 26px;
+      min-height: 280px;
+    }
+
+    .kicker {
+      margin: 0 0 10px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 40px;
+      line-height: 1.08;
+      max-width: 860px;
+    }
+
+    .hero-copy {
+      max-width: 920px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 10px;
+      background: #faf8f2;
+      color: #45423c;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: normal;
+    }
+
+    .hero-side {
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+      align-content: stretch;
+    }
+
+    .tool-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .tool-button {
+      min-height: 42px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: #181816;
+      color: #fff9ed;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .tool-button.secondary {
+      background: #fffdf8;
+      color: var(--ink);
+    }
+
+    .tool-button.danger {
+      background: #fffdf8;
+      color: var(--red);
+      border-color: rgba(164, 63, 54, 0.45);
+    }
+
+    .helper {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      padding: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+      background: var(--muted);
+    }
+
+    .dot.green {
+      background: var(--green);
+    }
+
+    .dot.amber {
+      background: var(--amber);
+    }
+
+    .dot.red {
+      background: var(--red);
+    }
+
+    .dot.blue {
+      background: var(--blue);
+    }
+
+    .toc {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 0 16px;
+      background: linear-gradient(180deg, var(--page) 70%, rgba(245, 242, 234, 0));
+    }
+
+    .toc a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 11px;
+      background: rgba(255, 253, 248, 0.92);
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    section {
+      margin-top: 22px;
+      padding-top: 6px;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 0.58fr);
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .panel {
+      padding: 16px;
+    }
+
+    .panel h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .panel p,
+    .panel li {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .panel ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .flow-row {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 64px minmax(220px, 1fr) 64px minmax(220px, 1fr) 64px minmax(220px, 1fr);
+      gap: 10px;
+      align-items: stretch;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .flow-row.compact {
+      grid-template-columns: minmax(230px, 1fr) 64px minmax(230px, 1fr) 64px minmax(230px, 1fr);
+    }
+
+    .flow-node {
+      min-width: 220px;
+      padding: 14px;
+      position: relative;
+    }
+
+    .edge {
+      min-width: 64px;
+      padding: 10px 6px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      justify-items: center;
+      align-items: center;
+      background: #faf7ef;
+    }
+
+    .arrow {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      border: 1px solid var(--line-strong);
+      background: #fffdf8;
+      color: var(--ink);
+      font-weight: 900;
+    }
+
+    .edge-label {
+      margin-top: 8px;
+      color: var(--muted);
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .node-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .node-index {
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: #181816;
+      color: #fff7dd;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .flow-node h3 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.3;
+    }
+
+    .body-text {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .fact-list {
+      display: grid;
+      gap: 6px;
+      margin: 10px 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .fact-list li {
+      border-left: 3px solid var(--line-strong);
+      padding-left: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    code {
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: #f7f3e8;
+      padding: 1px 5px;
+      color: #28251f;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+      word-break: break-word;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 10px 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      border: 1px solid transparent;
+      white-space: normal;
+    }
+
+    .badge.done {
+      color: var(--green);
+      border-color: rgba(35, 113, 95, 0.24);
+      background: var(--green-bg);
+    }
+
+    .badge.partial {
+      color: var(--amber);
+      border-color: rgba(155, 100, 25, 0.3);
+      background: var(--amber-bg);
+    }
+
+    .badge.risk {
+      color: var(--red);
+      border-color: rgba(164, 63, 54, 0.26);
+      background: var(--red-bg);
+    }
+
+    .badge.info {
+      color: var(--blue);
+      border-color: rgba(49, 94, 131, 0.24);
+      background: var(--blue-bg);
+    }
+
+    .badge.wait {
+      color: var(--violet);
+      border-color: rgba(101, 74, 134, 0.24);
+      background: var(--violet-bg);
+    }
+
+    .note {
+      margin-top: 12px;
+      border-top: 1px dashed var(--line);
+      padding-top: 10px;
+    }
+
+    .note label {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: #4b4840;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .note textarea {
+      width: 100%;
+      min-height: 76px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 9px;
+      background: #fffefb;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .note textarea:focus {
+      outline: 2px solid rgba(49, 94, 131, 0.24);
+      border-color: var(--blue);
+    }
+
+    .save-mark {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .wide-card {
+      grid-column: 1 / -1;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+    }
+
+    .detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      font-size: 12px;
+    }
+
+    .detail-table th,
+    .detail-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .detail-table th {
+      background: #f6f1e6;
+      color: #3d3931;
+      font-weight: 850;
+    }
+
+    .detail-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .state-strip {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(120px, 1fr));
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .state-chip {
+      min-height: 82px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+      padding: 10px;
+    }
+
+    .state-chip strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 13px;
+    }
+
+    .state-chip span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 8px;
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .checklist li {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .checklist li::before {
+      content: "✓";
+      display: grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: var(--green-bg);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 900;
+      margin-top: 1px;
+    }
+
+    .lg-map {
+      display: grid;
+      gap: 12px;
+    }
+
+    .lg-map.main-inline-archived {
+      display: none;
+    }
+
+    .linked-page-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 0.35fr);
+      gap: 14px;
+      align-items: center;
+      border: 1px solid rgba(49, 94, 131, 0.28);
+      border-radius: var(--radius);
+      background: var(--blue-bg);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .linked-page-card h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .linked-page-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .linked-page-actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .page-link-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      background: #181816;
+      color: #fff9ed;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 850;
+      text-align: center;
+    }
+
+    .page-link-button.secondary {
+      background: #fffdf8;
+      color: var(--ink);
+    }
+
+    .lg-state-lanes {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .lg-rail {
+      display: grid;
+      grid-template-columns: repeat(9, minmax(132px, 1fr));
+      align-items: stretch;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+
+    .lg-rail-step {
+      position: relative;
+      display: grid;
+      gap: 6px;
+      min-height: 76px;
+      padding: 10px 26px 10px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #faf8f2;
+    }
+
+    .lg-rail-step::after {
+      content: "→";
+      position: absolute;
+      right: 7px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--line-strong);
+      font-size: 17px;
+      font-weight: 900;
+    }
+
+    .lg-rail-step:last-child::after {
+      content: "";
+    }
+
+    .lg-rail-step strong {
+      color: var(--ink);
+      font-size: 12px;
+    }
+
+    .lg-rail-step span {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .lg-node-chain {
+      display: grid;
+      gap: 0;
+    }
+
+    .chain-node {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+      padding: 15px;
+      box-shadow: var(--shadow);
+    }
+
+    .chain-node.state {
+      border-color: rgba(49, 94, 131, 0.34);
+      background: var(--blue-bg);
+    }
+
+    .chain-node.decision {
+      border-color: rgba(155, 100, 25, 0.34);
+      background: var(--amber-bg);
+    }
+
+    .chain-node.material {
+      border-color: rgba(35, 113, 95, 0.24);
+      background: var(--green-bg);
+    }
+
+    .chain-node.edit {
+      border-color: rgba(101, 74, 134, 0.24);
+      background: var(--violet-bg);
+    }
+
+    .chain-node.output {
+      border-color: rgba(35, 113, 95, 0.34);
+      background: #edf7e9;
+    }
+
+    .chain-node.risk {
+      border-color: rgba(164, 63, 54, 0.28);
+      background: var(--red-bg);
+    }
+
+    .chain-connector {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      min-height: 46px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .chain-connector::before,
+    .chain-connector::after {
+      content: "";
+      height: 1px;
+      background: var(--line-strong);
+    }
+
+    .chain-connector span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fffdf8;
+      padding: 4px 10px;
+      white-space: normal;
+    }
+
+    .chain-connector span::before {
+      content: "↓";
+      display: inline-grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: #181816;
+      color: #fff7dd;
+      font-weight: 900;
+    }
+
+    .lg-branch {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 248, 0.58);
+      padding: 12px;
+    }
+
+    .lg-branch.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .branch-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+      padding: 12px;
+    }
+
+    .branch-card h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .branch-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .io-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .node-kv {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 248, 0.8);
+      padding: 9px;
+    }
+
+    .node-kv strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      color: var(--ink);
+    }
+
+    .node-kv span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .plain-example {
+      border-left: 4px solid var(--green);
+      background: rgba(255, 253, 248, 0.76);
+      padding: 9px 10px;
+      margin-top: 10px;
+      color: #403c34;
+      font-size: 12px;
+    }
+
+    .lg-failure-lane,
+    .lg-example-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .edge-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #faf7ef;
+      padding: 12px;
+    }
+
+    .edge-card h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .edge-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .code-block {
+      display: block;
+      overflow-x: auto;
+      white-space: pre;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #171715;
+      color: #fff8e6;
+      padding: 12px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .source-card {
+      padding: 14px;
+    }
+
+    .source-card h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .source-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .callout {
+      border: 1px solid rgba(155, 100, 25, 0.34);
+      border-radius: var(--radius);
+      background: var(--amber-bg);
+      padding: 14px;
+      color: #3e311b;
+      margin-top: 12px;
+    }
+
+    .callout strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--amber);
+    }
+
+    .summary-output {
+      width: 100%;
+      min-height: 140px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 10px;
+      background: #fffefb;
+      color: var(--ink);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      resize: vertical;
+    }
+
+    .fine-print {
+      margin: 24px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 1180px) {
+      .hero,
+      .section-head,
+      .status-grid,
+      .matrix,
+      .source-grid,
+      .detail-grid,
+      .linked-page-card,
+      .lg-branch,
+      .lg-branch.three,
+      .lg-failure-lane,
+      .lg-example-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .wide-card {
+        grid-column: auto;
+      }
+
+      .section-head p {
+        text-align: left;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .wrap {
+        padding: 16px;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+
+      h2 {
+        font-size: 20px;
+      }
+
+      .legend,
+      .tool-row,
+      .io-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        background: white;
+      }
+
+      .wrap {
+        width: 100%;
+        padding: 10px;
+      }
+
+      .toc,
+      .tool-row {
+        display: none;
+      }
+
+      .hero-main,
+      .panel,
+      .flow-node,
+      .edge,
+      .source-card {
+        box-shadow: none;
+      }
+
+      .flow-row,
+      .flow-row.compact {
+        grid-template-columns: 1fr;
+        overflow: visible;
+      }
+
+      .edge {
+        min-height: 72px;
+      }
+
+      .edge-label {
+        writing-mode: horizontal-tb;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="hero">
+      <div class="hero-main">
+        <p class="kicker">2026-05-21 / 可批注链路图</p>
+        <h1>视频剪辑后端链路、对象存储素材库、成员端到服务器连接图</h1>
+        <p class="hero-copy">
+          这份 HTML 的目标是让你直观看到：成员端和商家端分别把什么交给服务器，服务器怎么把脚本、素材、声音、剪辑任务交给 video-worker，worker 又如何调用 OpenStoryline / FireRed 出片并回写预览结果。每个节点和关键连线都有批注框，写完会自动保存在当前浏览器本地。
+        </p>
+        <div class="meta">
+          <span class="pill">产品口径：COS 素材库</span>
+          <span class="pill">当前国内生产存储：阿里云 OSS，兼容历史 Tencent COS</span>
+          <span class="pill">服务器最新 release：20260521103724-858ab12</span>
+          <span class="pill">lip-sync 已发布，真实全链路未验收</span>
+          <span class="pill">商家素材库真实成片已跑通：2026-05-19</span>
+        </div>
+      </div>
+
+      <aside class="panel hero-side" aria-label="批注工具">
+        <div>
+          <h3>批注工具</h3>
+          <p class="helper">你可以直接在每个节点下方填写意见。浏览器会自动保存到 localStorage；换浏览器或清缓存前，请先导出批注。</p>
+        </div>
+        <div class="tool-row">
+          <button class="tool-button" type="button" data-action="export">导出批注 JSON</button>
+          <button class="tool-button secondary" type="button" data-action="print">打印 / 存 PDF</button>
+          <button class="tool-button secondary" type="button" data-action="fill-summary">汇总到下方</button>
+          <button class="tool-button danger" type="button" data-action="clear">清空本页批注</button>
+        </div>
+        <div class="legend" aria-label="状态图例">
+          <span class="legend-item"><span class="dot green"></span>已真实验证</span>
+          <span class="legend-item"><span class="dot amber"></span>代码已接，待真实验收</span>
+          <span class="legend-item"><span class="dot blue"></span>稳定接口 / 边界</span>
+          <span class="legend-item"><span class="dot red"></span>风险或禁止事项</span>
+        </div>
+      </aside>
+    </header>
+
+    <nav class="toc" aria-label="页面导航">
+      <a href="#server">服务器视角</a>
+      <a href="#video-chain">视频剪辑链路</a>
+      <a href="#langgraph-chain">链路节点页</a>
+      <a href="#contracts">接口与数据合同</a>
+      <a href="#states">状态与失败归因</a>
+      <a href="#material-chain">COS / OSS 素材库链路</a>
+      <a href="#asset-rules">素材选择细则</a>
+      <a href="#member-chain">成员端与服务器链路</a>
+      <a href="#lip-sync-detail">口型链路细节</a>
+      <a href="#decision-points">需要你拍板</a>
+      <a href="#notes-export">批注汇总</a>
+      <a href="#sources">依据文件</a>
+    </nav>
+
+    <section id="server">
+      <div class="section-head">
+        <h2>一、服务器视角：哪些服务在同一台后端机器上协作</h2>
+        <p>这里先把“后端服务器上到底谁在工作”摊开，方便你判断问题应该归前端、后端、worker、引擎还是部署。</p>
+      </div>
+
+      <div class="status-grid">
+        <article class="flow-node" data-title="Nginx 入口">
+          <div class="node-head">
+            <h3>Nginx 入口</h3>
+            <span class="node-index">S1</span>
+          </div>
+          <p class="body-text">公网请求先到 Nginx，再反向代理到本机 Next.js app。仓库模板里是 80 端口转 <code>127.0.0.1:3000</code>。</p>
+          <div class="badge-row">
+            <span class="badge info">前端访问入口</span>
+            <span class="badge done">health 已验收</span>
+          </div>
+          <ul class="fact-list">
+            <li>大文件上限模板：<code>client_max_body_size 1024m</code>。</li>
+            <li>不直接暴露 OpenStoryline / FireRed。</li>
+          </ul>
+          <div class="note">
+            <label>批注：入口域名、端口、安全要求 <span class="save-mark"></span></label>
+            <textarea data-note-id="server-nginx" placeholder="例如：这里以后要换 ba-ba-ke.com 域名，还是先保留 IP 验证？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="Next.js App">
+          <div class="node-head">
+            <h3>Next.js App / API</h3>
+            <span class="node-index">S2</span>
+          </div>
+          <p class="body-text">负责登录、商家端、成员端、素材上传签名、脚本确认、创建 <code>video_edit_jobs</code>、预览/下载结果。</p>
+          <div class="badge-row">
+            <span class="badge info">业务门禁</span>
+            <span class="badge done">当前运行</span>
+          </div>
+          <ul class="fact-list">
+            <li>app 不直接调用 FireRed。</li>
+            <li>app 是脚本锁定、素材绑定、权限校验入口。</li>
+          </ul>
+          <div class="note">
+            <label>批注：前端/API 职责边界 <span class="save-mark"></span></label>
+            <textarea data-note-id="server-next-app" placeholder="例如：哪些按钮要让成员看到，哪些只给商家 owner？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="PostgreSQL">
+          <div class="node-head">
+            <h3>PostgreSQL / RDS</h3>
+            <span class="node-index">S3</span>
+          </div>
+          <p class="body-text">保存商家、成员、脚本、素材索引、<code>video_edit_jobs</code>、<code>asset_objects</code>。它是业务真相源，不存大视频文件。</p>
+          <div class="badge-row">
+            <span class="badge info">业务真相源</span>
+            <span class="badge done">国内链路已用</span>
+          </div>
+          <ul class="fact-list">
+            <li>素材文件在对象存储，数据库保存 key 和元数据。</li>
+            <li>worker 通过 DB claim 最老的 pending job。</li>
+          </ul>
+          <div class="note">
+            <label>批注：数据字段和可视化要求 <span class="save-mark"></span></label>
+            <textarea data-note-id="server-postgres" placeholder="例如：你希望后台看到哪些 job 字段、失败阶段、素材命中记录？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="对象存储">
+          <div class="node-head">
+            <h3>对象存储：OSS / COS</h3>
+            <span class="node-index">S4</span>
+          </div>
+          <p class="body-text">保存成员上传视频、商家素材库视频、声音参考音频、worker 输出 final/cover/subtitles。当前国内默认是 <code>aliyun_oss</code>，历史链路兼容 <code>tencent_cos</code>。</p>
+          <div class="badge-row">
+            <span class="badge info">大文件存储层</span>
+            <span class="badge partial">命名仍常叫 COS 素材库</span>
+          </div>
+          <ul class="fact-list">
+            <li>前端临时素材：<code>draft-inputs/*</code>。</li>
+            <li>商家素材库：<code>source-assets/*</code>。</li>
+            <li>成片输出：<code>video-results/*</code>。</li>
+          </ul>
+          <div class="note">
+            <label>批注：素材库命名、保留周期、权限 <span class="save-mark"></span></label>
+            <textarea data-note-id="server-object-storage" placeholder="例如：产品文案继续叫 COS 素材库，还是改成“项目素材库”？"></textarea>
+          </div>
+        </article>
+      </div>
+
+      <div class="matrix" style="margin-top:12px;">
+        <article class="panel">
+          <h3>内容生成 worker</h3>
+          <p>常驻调用 app 内部接口，把内容日历任务送去 Dify，回写图文草稿和视频脚本 variant。它负责“生成内容”，不是剪辑渲染。</p>
+          <div class="note">
+            <label>批注：Dify 与剪辑的交界 <span class="save-mark"></span></label>
+            <textarea data-note-id="server-content-generation-worker" placeholder="例如：Dify 输出的视频脚本要不要允许成员再改？"></textarea>
+          </div>
+        </article>
+        <article class="panel">
+          <h3>video-worker</h3>
+          <p>轮询 <code>video_edit_jobs</code>，下载素材，调用 <code>openstoryline-engine</code>，上传成片，并回写状态。它是稳定执行器，不重写业务策略。</p>
+          <div class="note">
+            <label>批注：worker 失败重试和人工介入 <span class="save-mark"></span></label>
+            <textarea data-note-id="server-video-worker" placeholder="例如：失败几次后要不要通知运营？"></textarea>
+          </div>
+        </article>
+        <article class="panel">
+          <h3>OpenStoryline / FireRed</h3>
+          <p><code>openstoryline-engine</code> 是平台适配层；<code>firered-openstoryline</code> 是真实剪辑引擎。最新 release 已有 lip-sync 工具，但未跑完整真实链路。</p>
+          <div class="note">
+            <label>批注：剪辑效果、口型、字幕策略 <span class="save-mark"></span></label>
+            <textarea data-note-id="server-openstoryline-firered" placeholder="例如：口播类视频必须先追求字幕准确，还是先追求口型自然？"></textarea>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="video-chain">
+      <div class="section-head">
+        <h2>二、视频剪辑主链路：从脚本和素材到成片预览</h2>
+        <p>这一条是你最关心的“点 AI 剪辑之后，后端到底发生了什么”。黄色表示代码已在服务器，但还缺完整真实验收。</p>
+      </div>
+
+      <div class="flow-row" aria-label="视频剪辑主链路第一段">
+        <article class="flow-node" data-title="成员或商家确认脚本">
+          <div class="node-head">
+            <h3>确认视频脚本</h3>
+            <span class="node-index">V1</span>
+          </div>
+          <p class="body-text">Dify 或脚本制作 agent 产出 <code>video_script</code> variant。创建剪辑任务前，app 会确保脚本有正文并处于 approved 状态。</p>
+          <div class="badge-row">
+            <span class="badge done">已落地</span>
+            <span class="badge info">app 门禁</span>
+          </div>
+          <ul class="fact-list">
+            <li>缺脚本文本会返回 <code>VIDEO_SCRIPT_TEXT_REQUIRED</code>。</li>
+            <li>worker 只接受 <code>script.locked = true</code>。</li>
+          </ul>
+          <div class="note">
+            <label>批注：脚本可改范围 <span class="save-mark"></span></label>
+            <textarea data-note-id="video-script-confirm" placeholder="例如：成员能否改标题、CTA、口播语气？哪些改动必须回到脚本 agent？"></textarea>
+          </div>
+        </article>
+
+        <article class="edge" data-title="确认到创建任务">
+          <div class="arrow">→</div>
+          <div class="edge-label">合同化</div>
+          <div class="note">
+            <label>批注 <span class="save-mark"></span></label>
+            <textarea data-note-id="edge-script-to-job" placeholder="这里是否需要人工二次确认？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="组装 video_edit_jobs payload">
+          <div class="node-head">
+            <h3>创建 video_edit_jobs</h3>
+            <span class="node-index">V2</span>
+          </div>
+          <p class="body-text">成员端或商家端调用 <code>POST /api/video-edit-jobs</code>。服务端把脚本、分镜素材、声音配置、BGM、字幕、lip-sync 配置组装为 <code>input_payload</code>。</p>
+          <div class="badge-row">
+            <span class="badge done">已落地</span>
+            <span class="badge info">唯一稳定连接点</span>
+          </div>
+          <ul class="fact-list">
+            <li>输入资产支持 <code>aliyun_oss</code> 和 <code>tencent_cos</code>。</li>
+            <li>真人口播资产会标记 <code>talking_head</code>。</li>
+            <li>重复 in-flight job 会复用，不重复创建。</li>
+          </ul>
+          <div class="note">
+            <label>批注：任务创建按钮体验 <span class="save-mark"></span></label>
+            <textarea data-note-id="video-create-job" placeholder="例如：AI 剪辑按钮要不要展示将使用哪些素材和声音？"></textarea>
+          </div>
+        </article>
+
+        <article class="edge" data-title="DB claim">
+          <div class="arrow">→</div>
+          <div class="edge-label">排队</div>
+          <div class="note">
+            <label>批注 <span class="save-mark"></span></label>
+            <textarea data-note-id="edge-job-to-worker" placeholder="排队时是否要给用户展示预计等待？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="video-worker claim">
+          <div class="node-head">
+            <h3>video-worker 领取任务</h3>
+            <span class="node-index">V3</span>
+          </div>
+          <p class="body-text">worker 扫描 stale job，再用 <code>for update skip locked</code> 领取最老 pending 任务，更新为 queued / running，并持续写 heartbeat。</p>
+          <div class="badge-row">
+            <span class="badge done">已落地</span>
+            <span class="badge info">并发默认 1</span>
+          </div>
+          <ul class="fact-list">
+            <li>合同错误是 <code>failed_manual</code>。</li>
+            <li>下载、引擎、上传等基础设施失败是 <code>failed_retryable</code>。</li>
+          </ul>
+          <div class="note">
+            <label>批注：排队和失败状态可视化 <span class="save-mark"></span></label>
+            <textarea data-note-id="video-worker-claim" placeholder="例如：成员端要看到“排队中/剪辑中/上传中”几个阶段？"></textarea>
+          </div>
+        </article>
+
+        <article class="edge" data-title="下载素材">
+          <div class="arrow">→</div>
+          <div class="edge-label">下载素材</div>
+          <div class="note">
+            <label>批注 <span class="save-mark"></span></label>
+            <textarea data-note-id="edge-worker-download" placeholder="下载失败时是否允许用户换素材重试？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="下载成员素材和素材库素材">
+          <div class="node-head">
+            <h3>下载输入素材</h3>
+            <span class="node-index">V4</span>
+          </div>
+          <p class="body-text">worker 先下载成员/草稿素材，再按脚本素材需求从商家素材库检索并下载项目素材到本地工作目录。</p>
+          <div class="badge-row">
+            <span class="badge done">商家素材库真实跑通</span>
+            <span class="badge info">本地盘仅临时</span>
+          </div>
+          <ul class="fact-list">
+            <li>2026-05-19 验证：用户输入 7 个，运行期素材库补 4 个。</li>
+            <li>日志包含 <code>material_library_inputs_downloaded</code>。</li>
+          </ul>
+          <div class="note">
+            <label>批注：素材优先级 <span class="save-mark"></span></label>
+            <textarea data-note-id="video-download-inputs" placeholder="例如：成员上传素材和商家素材库冲突时，优先用哪个？"></textarea>
+          </div>
+        </article>
+      </div>
+
+      <div class="flow-row" style="margin-top:12px;" aria-label="视频剪辑主链路第二段">
+        <article class="flow-node" data-title="OpenStoryline engine">
+          <div class="node-head">
+            <h3>调用 openstoryline-engine</h3>
+            <span class="node-index">V5</span>
+          </div>
+          <p class="body-text">worker 调用内部 <code>/v1/runs</code>。engine 负责把平台 <code>ProductionDirective</code> 映射为 FireRed worker API。</p>
+          <div class="badge-row">
+            <span class="badge done">fire_red adapter 已用</span>
+            <span class="badge info">不对公网开放</span>
+          </div>
+          <ul class="fact-list">
+            <li>server ready：<code>engine_adapter=fire_red</code>。</li>
+            <li>FireRed 调用使用内部 provider key，不打印 secret。</li>
+          </ul>
+          <div class="note">
+            <label>批注：引擎调用边界 <span class="save-mark"></span></label>
+            <textarea data-note-id="video-openstoryline-engine" placeholder="例如：哪些剪辑参数应该上浮给产品配置？"></textarea>
+          </div>
+        </article>
+
+        <article class="edge" data-title="映射到 FireRed">
+          <div class="arrow">→</div>
+          <div class="edge-label">映射</div>
+          <div class="note">
+            <label>批注 <span class="save-mark"></span></label>
+            <textarea data-note-id="edge-engine-to-firered" placeholder="这里是否需要更清晰的日志命名？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="FireRed 剪辑节点">
+          <div class="node-head">
+            <h3>FireRed 剪辑节点</h3>
+            <span class="node-index">V6</span>
+          </div>
+          <p class="body-text">典型节点包括素材加载、镜头理解、配音、BGM、字幕/时间线、lip-sync、render。worker 会把进度映射成前端可读模块。</p>
+          <div class="badge-row">
+            <span class="badge done">普通成片已跑通</span>
+            <span class="badge partial">lip-sync 待真实验收</span>
+          </div>
+          <ul class="fact-list">
+            <li>默认系统配音真实成功：job <code>58205b68...</code>。</li>
+            <li>商家素材库成片成功：job <code>cfb03f5c...</code>。</li>
+            <li>lip-sync release 已上线，未提交真实 VideoRetalk job。</li>
+          </ul>
+          <div class="note">
+            <label>批注：剪辑质量和节点顺序 <span class="save-mark"></span></label>
+            <textarea data-note-id="video-firered-nodes" placeholder="例如：哪些镜头必须用真人口播，哪些可以用项目素材？"></textarea>
+          </div>
+        </article>
+
+        <article class="edge" data-title="输出产物">
+          <div class="arrow">→</div>
+          <div class="edge-label">产物校验</div>
+          <div class="note">
+            <label>批注 <span class="save-mark"></span></label>
+            <textarea data-note-id="edge-firered-output-validation" placeholder="产物缺封面/字幕时是否允许成片成功？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="上传结果">
+          <div class="node-head">
+            <h3>上传 final / cover / subtitles</h3>
+            <span class="node-index">V7</span>
+          </div>
+          <p class="body-text">worker 校验输出文件后，把成片、封面、字幕上传对象存储，再写入 <code>asset_objects</code>，owner 指向 <code>content_variant</code>。</p>
+          <div class="badge-row">
+            <span class="badge done">已跑通</span>
+            <span class="badge info">结果前缀 video-results</span>
+          </div>
+          <ul class="fact-list">
+            <li>输出 key：<code>video-results/&lt;merchantId&gt;/&lt;jobId&gt;/final.mp4</code>。</li>
+            <li>preview/download 通过 app route 重签，不开放永久公开 URL。</li>
+          </ul>
+          <div class="note">
+            <label>批注：结果保存和下载 <span class="save-mark"></span></label>
+            <textarea data-note-id="video-upload-results" placeholder="例如：成片要保存多久，是否需要水印版/无水印版？"></textarea>
+          </div>
+        </article>
+
+        <article class="edge" data-title="回写前端">
+          <div class="arrow">→</div>
+          <div class="edge-label">回写展示</div>
+          <div class="note">
+            <label>批注 <span class="save-mark"></span></label>
+            <textarea data-note-id="edge-result-to-preview" placeholder="预览页是否要展示失败诊断？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="前端预览和修订">
+          <div class="node-head">
+            <h3>前端预览 / 下载 / 修订</h3>
+            <span class="node-index">V8</span>
+          </div>
+          <p class="body-text">app 读取 job 状态和 result assets。语义修订回到脚本 agent；制作修订基于已完成 sourceJobId 再创建新 job。</p>
+          <div class="badge-row">
+            <span class="badge done">preview/download 已验证</span>
+            <span class="badge partial">修订分流需继续产品化</span>
+          </div>
+          <ul class="fact-list">
+            <li>preview inline，download attachment。</li>
+            <li>失败日志记录阶段：upload / asr / clone_tts / lip_sync / timeline / render / oss。</li>
+          </ul>
+          <div class="note">
+            <label>批注：验片和重剪规则 <span class="save-mark"></span></label>
+            <textarea data-note-id="video-preview-revision" placeholder="例如：成员可以自己重剪吗？需要 owner 审核后才能发布吗？"></textarea>
+          </div>
+        </article>
+      </div>
+
+      <div class="callout">
+        <strong>当前最重要的未验收点</strong>
+        lip-sync / 克隆音色全链路已经发布到服务器，但 release 记录明确写着：没有真实 voice_profile 上传、没有真实 clone TTS 输出、没有提交真实阿里云 VideoRetalk job，也没有跑完整 <code>upload -> clone_tts -> lip_sync -> timeline -> render -> oss</code>。所以它是“可运行能力已上线”，不是“真实业务链路已通过”。
+      </div>
+    </section>
+
+    <section id="langgraph-chain">
+      <div class="section-head">
+        <h2>三、链路节点图：已拆成独立页面</h2>
+        <p>主页面保留总览和联动入口；详细节点单独到链路页查看，每个节点都带输入、处理过程、输出、判断条件和批注位。</p>
+      </div>
+
+      <article class="linked-page-card" data-title="独立链路节点页入口">
+        <div>
+          <h3>打开独立链路节点页</h3>
+          <p>这张主图继续负责服务器、接口、素材库、成员端和状态机总览。详细“脚本 -> 素材 -> 剪辑”链路已经拆到独立页面：每个节点都按“输入 / 处理过程 / 输出 / 判断条件”说明，并且和本页使用同一套本地批注保存。</p>
+          <div class="badge-row">
+            <span class="badge info">独立页面</span>
+            <span class="badge done">带输入/处理/输出/判断条件</span>
+            <span class="badge partial">lip-sync 路径仍需真实验收</span>
+          </div>
+          <ul class="fact-list">
+            <li>主页面到链路页：点击右侧“进入链路节点页”。</li>
+            <li>链路页回主页面：顶部和底部都有返回主页面入口。</li>
+            <li>批注联动：两个页面使用同一个 <code>localStorage</code> 批注池，导出前建议分别汇总检查。</li>
+          </ul>
+        </div>
+        <div class="linked-page-actions">
+          <a class="page-link-button" href="2026-05-22-video-edit-chain-node-map.html">进入链路节点页</a>
+          <a class="page-link-button secondary" href="2026-05-22-video-edit-chain-node-map.html#node-material-route">看素材判断节点</a>
+          <a class="page-link-button secondary" href="2026-05-22-video-edit-chain-node-map.html#node-engine">看剪辑引擎节点</a>
+        </div>
+      </article>
+
+      <div class="detail-grid" style="margin-top:12px;">
+        <article class="panel" data-title="链路页节点范围">
+          <h3>链路页包含哪些节点</h3>
+          <ul class="fact-list">
+            <li><code>START</code>：脚本确认。</li>
+            <li><code>N1</code>：脚本拆成镜头需求。</li>
+            <li><code>N2</code>：判断成员素材 / 商家素材库 / 缺素材。</li>
+            <li><code>N3A / N3B / N3C</code>：成员素材、COS/OSS 素材库、素材确认。</li>
+            <li><code>N4</code>：声音、字幕、lip-sync 判断。</li>
+            <li><code>N5 / N6 / N7 / END</code>：创建任务、worker 准备、FireRed 剪辑、成片回写。</li>
+          </ul>
+          <div class="note">
+            <label>批注：链路页范围是否够用 <span class="save-mark"></span></label>
+            <textarea data-note-id="main-linked-chain-scope" placeholder="例如：还要不要单独加“发布审核节点”或“素材质量评分节点”？"></textarea>
+          </div>
+        </article>
+
+        <article class="panel" data-title="主页面与链路页分工">
+          <h3>主页面和链路页怎么分工</h3>
+          <ul class="fact-list">
+            <li>主页面：看服务器上有哪些服务、前端和后端怎么连、COS/OSS 素材库怎么连、接口和状态机是什么。</li>
+            <li>链路页：只看从脚本进入后，怎样变成素材选择、声音策略、剪辑任务和成片结果。</li>
+            <li>后续你在链路页批注完，可以回到主页面的接口、状态机、素材库章节继续批注实现影响。</li>
+          </ul>
+          <div class="note">
+            <label>批注：两个页面的联动方式 <span class="save-mark"></span></label>
+            <textarea data-note-id="main-linked-chain-navigation" placeholder="例如：主页面是否还需要在每个章节加“跳到链路页对应节点”的入口？"></textarea>
+          </div>
+        </article>
+      </div>
+
+      <div class="lg-map main-inline-archived" aria-hidden="true">
+        <article class="panel wide-card" data-title="LangGraph State Lanes">
+          <h3>先看 State：这条链路里到底在传什么</h3>
+          <p class="body-text">白话理解：State 就是一张不断被补全的“剪辑任务单”。刚开始只有脚本，后面会陆续补上镜头需求、成员素材、商家素材库素材、声音方案、剪辑参数、成片结果和失败原因。</p>
+          <div class="lg-state-lanes">
+            <div class="state-chip">
+              <strong>脚本状态</strong>
+              <span>已确认的脚本文本、口播段落、分镜提示、是否锁定。</span>
+            </div>
+            <div class="state-chip">
+              <strong>素材需求</strong>
+              <span>每一镜需要什么画面，例如真人口播、门头、环境、产品特写。</span>
+            </div>
+            <div class="state-chip">
+              <strong>素材结果</strong>
+              <span>成员上传了什么，商家素材库命中了什么，哪些镜头还缺素材。</span>
+            </div>
+            <div class="state-chip">
+              <strong>声音字幕</strong>
+              <span>系统配音、个人克隆音色、字幕来源、是否需要口型同步。</span>
+            </div>
+            <div class="state-chip">
+              <strong>剪辑任务</strong>
+              <span><code>video_edit_jobs.input_payload</code>、worker 本地文件、FireRed 时间线。</span>
+            </div>
+            <div class="state-chip">
+              <strong>结果状态</strong>
+              <span>成片、封面、字幕、预览链接、失败阶段和重试建议。</span>
+            </div>
+          </div>
+          <div class="plain-example">例子：脚本里写“开头真人口播介绍小院，后面展示庭院环境和座位”。State 会先记下这句话，再拆出“真人口播视频”“庭院环境素材”“座位特写素材”“配音和字幕策略”，最后变成 worker 能执行的剪辑任务。</div>
+          <div class="note">
+            <label>批注：State 是否按你的业务视角够清楚 <span class="save-mark"></span></label>
+            <textarea data-note-id="lg-state-lanes" placeholder="例如：还要不要把门店、平台账号、发布目标、禁用素材、必用素材放进 State？"></textarea>
+          </div>
+        </article>
+
+        <article class="panel wide-card" data-title="LangGraph Link Overview">
+          <h3>总链路节点，从左到右看</h3>
+          <p class="body-text">这不是零散说明，而是一条节点链。先从脚本开始，中间经过素材分支和声音分支，最后进入 worker 与 FireRed，成片再回到前端。</p>
+          <div class="lg-rail" aria-label="脚本到素材到剪辑节点总览">
+            <div class="lg-rail-step"><strong>START</strong><span>脚本已确认</span></div>
+            <div class="lg-rail-step"><strong>N1</strong><span>脚本拆成镜头</span></div>
+            <div class="lg-rail-step"><strong>N2</strong><span>判断素材来源</span></div>
+            <div class="lg-rail-step"><strong>N3</strong><span>成员素材</span></div>
+            <div class="lg-rail-step"><strong>N4</strong><span>COS/OSS 素材库</span></div>
+            <div class="lg-rail-step"><strong>N5</strong><span>声音和字幕</span></div>
+            <div class="lg-rail-step"><strong>N6</strong><span>创建剪辑任务</span></div>
+            <div class="lg-rail-step"><strong>N7</strong><span>worker 准备素材</span></div>
+            <div class="lg-rail-step"><strong>END</strong><span>剪辑成片回写</span></div>
+          </div>
+          <div class="note">
+            <label>批注：总链路节点顺序 <span class="save-mark"></span></label>
+            <textarea data-note-id="lg-rail-overview" placeholder="例如：是否要把“素材确认页”单独放成一个节点，放在 N4 和 N5 之间？"></textarea>
+          </div>
+        </article>
+
+        <div class="lg-node-chain">
+          <article class="chain-node state" data-title="Node START Locked Script">
+            <div class="node-head">
+              <h3>START：脚本已经确认，可以开始剪辑</h3>
+              <span class="node-index">S</span>
+            </div>
+            <p class="body-text">白话解释：这一步像“剪辑师收到定稿文案”。如果脚本还在改，后面的素材匹配和剪辑都会变来变去，所以入口要先确认脚本版本。</p>
+            <div class="io-grid">
+              <div class="node-kv"><strong>读入</strong><span><code>content_variants</code> 里的脚本文本、关联的 draft 和 daily task。</span></div>
+              <div class="node-kv"><strong>写回</strong><span>写入 State 的 <code>lockedScript</code>、<code>variantId</code>、<code>draftId</code>。</span></div>
+              <div class="node-kv"><strong>例子</strong><span>“开头真人口播：今天带你看一个周末放空的小院。”</span></div>
+            </div>
+            <div class="plain-example">现有链路里，这一步发生在商家端或成员端点击“AI 剪辑”之前。产品上可以理解为：先定文案，再交给后端拆素材。</div>
+            <div class="note">
+              <label>批注：脚本入口是否应该有审核门槛 <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-node-start" placeholder="例如：脚本未审核时允许生成内部预览吗？还是必须 owner 确认后才能进入剪辑？"></textarea>
+            </div>
+          </article>
+
+          <div class="chain-connector"><span>把脚本翻译成镜头需求</span></div>
+
+          <article class="chain-node" data-title="Node N1 Script To Scenes">
+            <div class="node-head">
+              <h3>N1：ScriptToScenes，把脚本拆成一个个镜头</h3>
+              <span class="node-index">N1</span>
+            </div>
+            <p class="body-text">白话解释：脚本是人看的，剪辑系统需要的是“第 1 镜用什么画面，第 2 镜用什么画面”。这个节点把一段话拆成剪辑可以执行的镜头清单。</p>
+            <div class="io-grid">
+              <div class="node-kv"><strong>读入</strong><span>脚本文本、<code>productionScenes</code>、内容类型、目标平台。</span></div>
+              <div class="node-kv"><strong>写回</strong><span><code>sceneRequirements</code>、<code>sceneAssetQueries</code>、<code>missingAssetHints</code>。</span></div>
+              <div class="node-kv"><strong>对应位置</strong><span><code>app/src/server/api/video-job-payload.ts</code> 和脚本制作结果。</span></div>
+            </div>
+            <div class="plain-example">例子：脚本“开头真人说一句，后面展示庭院和咖啡座位”会拆成：1. 真人口播；2. 庭院环境；3. 座位细节；4. 结尾行动号召。</div>
+            <div class="note">
+              <label>批注：脚本拆镜规则 <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-node-script-to-scenes" placeholder="例如：脚本里出现“实拍门头”“客户案例”“价格表”时，应该自动生成哪些镜头需求？"></textarea>
+            </div>
+          </article>
+
+          <div class="chain-connector"><span>进入素材分支，先判断每个镜头要去哪找素材</span></div>
+
+          <article class="chain-node decision" data-title="Node N2 Material Route">
+            <div class="node-head">
+              <h3>N2：MaterialRoute，判断素材从哪里来</h3>
+              <span class="node-index">N2</span>
+            </div>
+            <p class="body-text">白话解释：这一步像给每个镜头贴标签。真人口播通常找成员上传；项目环境、门店、产品、户型这类画面通常找商家素材库；如果两边都没有，就要告诉前端“缺素材”。</p>
+            <div class="io-grid">
+              <div class="node-kv"><strong>读入</strong><span>N1 的镜头需求，例如 <code>user_talking_head</code>、<code>merchant_broll</code>。</span></div>
+              <div class="node-kv"><strong>写回</strong><span><code>memberAssetNeeds</code>、<code>libraryAssetNeeds</code>、<code>blockingMissingAssets</code>。</span></div>
+              <div class="node-kv"><strong>例子</strong><span>“真人开场”走成员素材；“庭院空镜”走 COS/OSS 素材库。</span></div>
+            </div>
+            <div class="lg-branch">
+              <div class="branch-card">
+                <h4>分支 A：需要成员素材</h4>
+                <p>适合真人出镜、口播、成员自己拍的现场视频。没有上传时，应该在前端明确提示“还差哪一段”。</p>
+              </div>
+              <div class="branch-card">
+                <h4>分支 B：需要商家素材库</h4>
+                <p>适合门店、环境、产品、项目展示。系统按标签、来源和 query 去 <code>source_items + asset_objects</code> 找素材。</p>
+              </div>
+            </div>
+            <div class="note">
+              <label>批注：素材来源判断是否准确 <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-decision-material-route" placeholder="例如：什么镜头必须真人，什么镜头可以用商家素材库替代？素材不足时要阻断还是生成低保真预览？"></textarea>
+            </div>
+          </article>
+
+          <div class="chain-connector"><span>两条素材支路并行补齐，然后汇合</span></div>
+
+          <div class="lg-branch">
+            <article class="chain-node material" data-title="Node N3 Member Assets">
+              <div class="node-head">
+                <h3>N3A：CollectMemberAssets，收集成员上传素材</h3>
+                <span class="node-index">N3A</span>
+              </div>
+              <p class="body-text">白话解释：如果某个镜头必须由成员本人提供，比如真人口播，这个节点就去 draft 下面找成员已经上传的视频和图片。</p>
+              <div class="io-grid">
+                <div class="node-kv"><strong>读入</strong><span><code>inputAssetIds</code>、<code>asset_objects ownerType=content_draft</code>。</span></div>
+                <div class="node-kv"><strong>写回</strong><span><code>userInputAssets</code>、<code>talkingHeadAssets</code>、缺失提示。</span></div>
+                <div class="node-kv"><strong>例子</strong><span>成员上传一段 20 秒正脸口播，标记为开头口播素材。</span></div>
+              </div>
+              <div class="note">
+                <label>批注：成员素材节点 <span class="save-mark"></span></label>
+                <textarea data-note-id="lg-node-member-assets" placeholder="例如：上传时要不要让成员选择“开头口播/结尾口播/B-roll/证明材料”？"></textarea>
+              </div>
+            </article>
+
+            <article class="chain-node material" data-title="Node N3 Merchant Library">
+              <div class="node-head">
+                <h3>N3B：RetrieveMerchantLibraryAssets，检索 COS/OSS 素材库</h3>
+                <span class="node-index">N3B</span>
+              </div>
+              <p class="body-text">白话解释：这里就是你说的 COS 素材库链路。产品上叫 COS 素材库，当前国内生产默认走阿里云 OSS，兼容历史 Tencent COS 命名。核心是从素材库里给每个镜头找可用片段。</p>
+              <div class="io-grid">
+                <div class="node-kv"><strong>读入</strong><span><code>merchantId</code>、场景 query、<code>source_items + asset_objects</code>。</span></div>
+                <div class="node-kv"><strong>写回</strong><span><code>merchantMaterialAssets</code>、素材来源、对象存储 key。</span></div>
+                <div class="node-kv"><strong>例子</strong><span>query “庭院 安静 座位”命中 4 条商家实拍视频。</span></div>
+              </div>
+              <div class="note">
+                <label>批注：COS/OSS 素材库检索 <span class="save-mark"></span></label>
+                <textarea data-note-id="lg-node-merchant-assets" placeholder="例如：素材库检索要按场景、门店、质量分、时间新旧、横竖屏来排序吗？"></textarea>
+              </div>
+            </article>
+          </div>
+
+          <div class="chain-connector"><span>素材齐了以后，决定声音、字幕和是否口型同步</span></div>
+
+          <article class="chain-node decision" data-title="Node N4 Voice Subtitle Route">
+            <div class="node-head">
+              <h3>N4：VoiceAndSubtitleRoute，决定声音、字幕和 lip-sync</h3>
+              <span class="node-index">N4</span>
+            </div>
+            <p class="body-text">白话解释：画面素材准备好以后，还要决定“谁来念这段脚本”。没有个人音色就用系统配音；有 ready 音色就可用克隆音色；如果有真人口播视频，还可能走口型同步。</p>
+            <div class="lg-branch three">
+              <div class="branch-card">
+                <h4>系统配音</h4>
+                <p>适合没有个人音色的首版视频。当前已有真实成功记录，路径更稳。</p>
+              </div>
+              <div class="branch-card">
+                <h4>个人克隆音色</h4>
+                <p>读取 <code>voice_profiles</code> 和参考音频，生成更像成员本人的配音。</p>
+              </div>
+              <div class="branch-card">
+                <h4>口型同步</h4>
+                <p>当有真人正脸视频和克隆音频时，才尝试 VideoRetalk，把嘴型对到新音频。</p>
+              </div>
+            </div>
+            <div class="io-grid">
+              <div class="node-kv"><strong>读入</strong><span><code>voice_profiles</code>、成员上传口播视频、脚本文本。</span></div>
+              <div class="node-kv"><strong>写回</strong><span><code>productionConfig.voiceover</code>、<code>lipSync.enabled</code>、字幕来源。</span></div>
+              <div class="node-kv"><strong>例子</strong><span>没有音色：<code>mode=system_tts</code>；有音色和口播：<code>mode=voice_profile</code> 且启用 lip-sync。</span></div>
+            </div>
+            <div class="note">
+              <label>批注：声音和字幕策略 <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-node-voice-subtitle" placeholder="例如：没有个人音色时是否允许直接生成？字幕必须跟脚本一致，还是允许按 ASR 修正？"></textarea>
+            </div>
+          </article>
+
+          <div class="chain-connector"><span>把前面所有选择装进 app 到 worker 的任务合同</span></div>
+
+          <article class="chain-node state" data-title="Node N5 Assemble Job">
+            <div class="node-head">
+              <h3>N5：AssembleVideoEditJob，创建 <code>video_edit_jobs</code></h3>
+              <span class="node-index">N5</span>
+            </div>
+            <p class="body-text">白话解释：这一步像把“剪辑任务单”正式交给后端排队。脚本、素材、声音、字幕、口型同步、输出规格都会写进 <code>input_payload</code>，worker 只认这份合同。</p>
+            <div class="io-grid">
+              <div class="node-kv"><strong>读入</strong><span>已补齐的脚本 State、素材 State、声音 State。</span></div>
+              <div class="node-kv"><strong>写回</strong><span><code>video_edit_jobs</code>，状态从 <code>pending</code> 进入 <code>queued</code>。</span></div>
+              <div class="node-kv"><strong>对应位置</strong><span><code>app/src/server/api/video-edit-jobs-service.ts</code>。</span></div>
+            </div>
+            <div class="plain-example">例子：一个 job 会带上 <code>script</code>、<code>productionDirective</code>、<code>materialContext</code>、<code>input_assets</code>、<code>productionConfig</code>。这样 worker 不需要再猜产品意图。</div>
+            <div class="note">
+              <label>批注：创建任务前是否要让前端确认 <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-node-assemble-job" placeholder="例如：点击 AI 剪辑前，是否要弹出“将使用这些素材、这个声音、这个字幕策略”？"></textarea>
+            </div>
+          </article>
+
+          <div class="chain-connector"><span>任务进入服务器后台，worker 领取并准备本地素材</span></div>
+
+          <article class="chain-node edit" data-title="Node N6 Worker Prepare">
+            <div class="node-head">
+              <h3>N6：WorkerClaimAndPrepare，worker 领任务并下载素材</h3>
+              <span class="node-index">N6</span>
+            </div>
+            <p class="body-text">白话解释：app 只是创建任务，真正跑剪辑的是服务器上的 video-worker。它会轮询队列，抢到一个 job 后，把 OSS/COS 里的素材下载到本地临时目录，检查文件是否能读。</p>
+            <div class="io-grid">
+              <div class="node-kv"><strong>读入</strong><span><code>video_edit_jobs.input_payload</code>、对象存储 key、数据库素材记录。</span></div>
+              <div class="node-kv"><strong>写回</strong><span><code>runtime_payload</code>、本地素材路径、进度状态 <code>preparing</code>。</span></div>
+              <div class="node-kv"><strong>对应位置</strong><span><code>workers/video-worker/worker/app/processor.py</code>。</span></div>
+            </div>
+            <div class="plain-example">例子：素材库里是 <code>oss://bucket/materials/courtyard.mp4</code>，worker 会下载成服务器本地文件，例如 <code>/tmp/video-worker/.../courtyard.mp4</code>，再交给剪辑引擎。</div>
+            <div class="note">
+              <label>批注：worker 准备阶段 <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-node-worker-prepare" placeholder="例如：前端进度里是否要显示“正在下载素材”“正在校验音频”“素材不可读”？"></textarea>
+            </div>
+          </article>
+
+          <div class="chain-connector"><span>进入剪辑引擎，把素材和脚本拼成时间线</span></div>
+
+          <article class="chain-node edit" data-title="Node N7 FireRed Edit">
+            <div class="node-head">
+              <h3>N7：OpenStoryline / FireRed，真正剪辑和渲染</h3>
+              <span class="node-index">N7</span>
+            </div>
+            <p class="body-text">白话解释：这里才是真正“剪视频”的地方。worker 把任务交给 OpenStoryline，OpenStoryline 再把它转换成 FireRed 能执行的生产指令，FireRed 完成配音、口型同步、时间线规划和渲染。</p>
+            <div class="lg-rail" aria-label="FireRed 内部节点">
+              <div class="lg-rail-step"><strong>F1</strong><span>读取本地素材</span></div>
+              <div class="lg-rail-step"><strong>F2</strong><span>理解素材片段</span></div>
+              <div class="lg-rail-step"><strong>F3</strong><span>生成配音</span></div>
+              <div class="lg-rail-step"><strong>F4</strong><span>可选 lip-sync</span></div>
+              <div class="lg-rail-step"><strong>F5</strong><span>规划时间线</span></div>
+              <div class="lg-rail-step"><strong>F6</strong><span>渲染 final.mp4</span></div>
+            </div>
+            <div class="io-grid">
+              <div class="node-kv"><strong>读入</strong><span>本地素材路径、脚本、声音配置、字幕配置、目标视频规格。</span></div>
+              <div class="node-kv"><strong>写回</strong><span><code>final.mp4</code>、封面、字幕、时间线 metadata。</span></div>
+              <div class="node-kv"><strong>对应位置</strong><span><code>workers/video-worker/openstoryline/app/engine_adapters.py</code>。</span></div>
+            </div>
+            <div class="plain-example">例子：系统配音版会生成 voiceover，再按脚本长度排 6 个素材片段；lip-sync 版会先把真人口播段替换成对口型后的视频，再放进最终时间线。</div>
+            <div class="note">
+              <label>批注：剪辑引擎节点 <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-node-firered-edit" placeholder="例如：哪些内部节点需要让产品或运营看见？口型同步失败时是否自动降级为普通剪辑？"></textarea>
+            </div>
+          </article>
+
+          <div class="chain-connector"><span>成片上传回对象存储，前端拿到预览和下载</span></div>
+
+          <article class="chain-node output" data-title="Node END Result Preview">
+            <div class="node-head">
+              <h3>END：UploadResultAndPreview，成片回写到前端</h3>
+              <span class="node-index">E</span>
+            </div>
+            <p class="body-text">白话解释：剪完以后，worker 把成片、封面、字幕和诊断信息上传回对象存储，并写入数据库。前端看到的预览、下载和失败提示，都来自这里。</p>
+            <div class="io-grid">
+              <div class="node-kv"><strong>读入</strong><span>FireRed 输出文件、本地渲染日志、最终 metadata。</span></div>
+              <div class="node-kv"><strong>写回</strong><span><code>asset_objects</code>、<code>result_payload</code>、<code>succeeded</code> 或失败状态。</span></div>
+              <div class="node-kv"><strong>例子</strong><span>上传 <code>video-results/.../final.mp4</code>，前端 preview/download 返回 200。</span></div>
+            </div>
+            <div class="note">
+              <label>批注：结果页应该展示哪些信息 <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-node-result-preview" placeholder="例如：成片页要不要展示“用了哪些素材”“哪个音色”“失败发生在哪一步”？"></textarea>
+            </div>
+          </article>
+        </div>
+
+        <div class="lg-failure-lane">
+          <article class="chain-node risk" data-title="Failure Lane">
+            <h3>失败边：不是所有失败都一样</h3>
+            <p class="body-text">LangGraph 里失败也应该是一条明确的边，而不是一句“生成失败”。当前链路已经记录 <code>failure_stage</code>，可以把失败拆成素材失败、声音失败、口型同步失败、渲染失败、上传失败。</p>
+            <ul class="fact-list">
+              <li>素材缺失：通常是 <code>failed_manual</code>，需要成员或商家补素材。</li>
+              <li>对象存储上传或下载失败：通常可归为 <code>failed_retryable</code>，适合后台重试。</li>
+              <li>lip-sync 输入不合规：应提示“口播视频不适合对口型”，不能假装成功。</li>
+              <li>render 没有消费 retalked timeline：必须失败，这是 lip-sync 验收关键点。</li>
+            </ul>
+            <div class="note">
+              <label>批注：失败提示和人工介入 <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-failure-policy" placeholder="例如：哪些失败允许系统自动重试？哪些失败必须提示用户补素材或换视频？"></textarea>
+            </div>
+          </article>
+
+          <article class="chain-node state" data-title="Product Checkpoint">
+            <h3>建议新增的产品节点：素材确认</h3>
+            <p class="body-text">现有后端已经能从脚本和素材库拼 payload，但产品体验上可能还需要一个“确认将使用这些素材”的节点。它可以放在 N3 素材汇合之后、N4 声音策略之前。</p>
+            <ul class="fact-list">
+              <li>用户看到每个镜头将使用哪个素材。</li>
+              <li>用户可替换素材、标记必用素材、删除不合适素材。</li>
+              <li>确认后再进入声音和剪辑任务创建，减少出片后返工。</li>
+            </ul>
+            <div class="note">
+              <label>批注：是否要增加“素材确认节点” <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-product-material-confirm" placeholder="例如：这个节点是必须做，还是先隐藏在高级设置里？谁有权限替换素材？"></textarea>
+            </div>
+          </article>
+        </div>
+
+        <div class="lg-example-grid">
+          <article class="panel" data-title="Node Example A">
+            <h3>例子 A：普通商家素材库出片</h3>
+            <p class="body-text">适合首版稳定链路：没有个人克隆音色，不做 lip-sync，主要靠商家素材库补画面。</p>
+            <ol class="fact-list">
+              <li>START：脚本定稿，“介绍一个适合周末放空的咖啡小院”。</li>
+              <li>N1：拆出“门头、庭院、座位、饮品、结尾 CTA”。</li>
+              <li>N2：判断这些都可以走商家素材库，不要求真人口播。</li>
+              <li>N3B：从素材库命中 6 条视频，筛出 4 条可剪辑片段。</li>
+              <li>N4：没有个人音色，使用系统配音和脚本字幕。</li>
+              <li>N5 到 N7：创建 job，worker 下载素材，FireRed 生成配音、规划时间线并渲染。</li>
+              <li>END：上传 final.mp4，前端展示预览和下载。</li>
+            </ol>
+            <div class="badge-row"><span class="badge done">已有真实成功类型</span></div>
+            <div class="note">
+              <label>批注：普通素材库出片是否作为默认主路径 <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-example-a" placeholder="例如：首版是否先把这条路径做到最稳，再逐步开放真人口播和 lip-sync？"></textarea>
+            </div>
+          </article>
+
+          <article class="panel" data-title="Node Example B">
+            <h3>例子 B：真人口播 + 克隆音色 + lip-sync</h3>
+            <p class="body-text">适合更像真人 IP 的链路：需要成员上传正脸视频，还要有 ready 的个人音色，最后尝试对口型。</p>
+            <ol class="fact-list">
+              <li>START：脚本定稿，“大家好，今天带你看一个适合周末放空的院子”。</li>
+              <li>N1：第 1 镜标记为真人口播，后续镜头为庭院 B-roll。</li>
+              <li>N2：真人口播走成员素材，庭院 B-roll 走商家素材库。</li>
+              <li>N3A：成员上传一段正脸口播视频；N3B：素材库补庭院镜头。</li>
+              <li>N4：读取 ready voice_profile，生成克隆音频，并启用 lip-sync。</li>
+              <li>N7：VideoRetalk 对口播段做口型同步，再和 B-roll 一起进最终时间线。</li>
+              <li>END：只有当最终 render 确认消费了 retalked 片段，才算真正成功。</li>
+            </ol>
+            <div class="badge-row"><span class="badge partial">已发布能力，但真实全链路仍需验收</span></div>
+            <div class="note">
+              <label>批注：真人口播链路是否符合你的目标体验 <span class="save-mark"></span></label>
+              <textarea data-note-id="lg-example-b" placeholder="例如：口播素材要不要强制正脸、安静环境、固定时长？lip-sync 失败是否允许降级？"></textarea>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="contracts">
+      <div class="section-head">
+        <h2>四、接口与数据合同：哪些接口、表和字段在串联</h2>
+        <p>这一块把“看起来是一条线”的链路拆成接口和数据表，方便你批注到具体入口。</p>
+      </div>
+
+      <div class="detail-grid">
+        <article class="panel wide-card" data-title="关键接口清单">
+          <h3>关键接口清单</h3>
+          <div class="table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>用户动作</th>
+                  <th>接口 / 服务</th>
+                  <th>写入或读取</th>
+                  <th>当前职责</th>
+                  <th>可批注点</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>成员/商家上传普通素材</td>
+                  <td><code>POST /api/media/upload-intents</code><br><code>POST /api/media/complete</code></td>
+                  <td><code>asset_objects</code>；对象存储 <code>draft-inputs/*</code></td>
+                  <td>先颁发上传目标，再浏览器直传，最后确认入库。</td>
+                  <td>文件大小、文件类型、失败提示、是否允许移动端断点续传。</td>
+                </tr>
+                <tr>
+                  <td>成员上传克隆声音</td>
+                  <td><code>POST /api/voice-profiles/upload</code></td>
+                  <td><code>voice_profiles</code> + <code>asset_objects</code>；对象存储声音文件</td>
+                  <td>服务端托管上传，规避 OSS prefix 权限问题，并创建 ready 音色记录。</td>
+                  <td>授权确认、音色数量、是否可覆盖旧音色、失败是否要运营介入。</td>
+                </tr>
+                <tr>
+                  <td>确认脚本 / 创建 AI 剪辑</td>
+                  <td><code>POST /api/video-edit-jobs</code></td>
+                  <td><code>video_edit_jobs.input_payload</code>、<code>runtime_payload</code></td>
+                  <td>把脚本、素材、声音、字幕、lip-sync 配置合同化，阻断不合格输入。</td>
+                  <td>创建前是否展示确认清单；哪些字段允许成员调整。</td>
+                </tr>
+                <tr>
+                  <td>前端查看剪辑进度</td>
+                  <td><code>GET /api/video-edit-jobs/[id]</code></td>
+                  <td><code>video_edit_jobs.status/current_stage/progress_pct/result_payload</code></td>
+                  <td>展示排队、素材准备、配音、lip-sync、渲染、保存成片等进度。</td>
+                  <td>前端要展示几个阶段、是否展示预计时间、是否展示失败原因。</td>
+                </tr>
+                <tr>
+                  <td>前端预览 / 下载结果</td>
+                  <td><code>GET /api/video-edit-jobs/[id]/result/[assetId]</code></td>
+                  <td><code>asset_objects</code> + 对象存储签名读 URL</td>
+                  <td>平台内短期重签，预览 inline、下载 attachment。</td>
+                  <td>下载权限、有效期、是否需要水印版、是否要保留下载审计。</td>
+                </tr>
+                <tr>
+                  <td>worker 执行剪辑</td>
+                  <td><code>openstoryline-engine /v1/runs</code><br><code>FireRed /api/worker/runs</code></td>
+                  <td>本地临时目录、FireRed outputs、worker log_payload</td>
+                  <td>把平台合同映射成真实剪辑节点，返回 final/cover/subtitles。</td>
+                  <td>剪辑效果参数、模型/provider、失败归因粒度。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note">
+            <label>批注：接口层需要补什么 <span class="save-mark"></span></label>
+            <textarea data-note-id="contracts-api-table" placeholder="例如：这里要不要加“素材确认接口”或“运营代重试接口”？"></textarea>
+          </div>
+        </article>
+
+        <article class="panel" data-title="video_edit_jobs input_payload">
+          <h3><code>video_edit_jobs.input_payload</code> 最小可读结构</h3>
+          <ul class="fact-list">
+            <li><code>script.text</code>：已确认脚本文本。</li>
+            <li><code>script.locked = true</code>：worker 不允许自由改写。</li>
+            <li><code>productionDirective</code>：平台、比例、输出项、锁定字段。</li>
+            <li><code>productionConfig.voiceover</code>：系统配音或 voice_profile 克隆音色。</li>
+            <li><code>productionConfig.subtitles</code>：字幕样式和 talking-head 字幕来源。</li>
+            <li><code>productionConfig.lipSync</code>：是否启用 VideoRetalk、作用范围和输入要求。</li>
+            <li><code>materialContext</code>：daily task、成员、素材检索、缺素材提示。</li>
+            <li><code>input_assets</code>：成员/草稿输入素材，带 provider/bucket/key。</li>
+          </ul>
+          <div class="note">
+            <label>批注：payload 里还要不要加字段 <span class="save-mark"></span></label>
+            <textarea data-note-id="contracts-input-payload-fields" placeholder="例如：是否要加“必须出现的楼盘镜头”“禁止使用的素材”“目标账号风格”？"></textarea>
+          </div>
+        </article>
+
+        <article class="panel" data-title="关键数据库表">
+          <h3>关键数据库表怎么分工</h3>
+          <ul class="fact-list">
+            <li><code>daily_content_tasks</code>：成员的一天/一周内容任务入口。</li>
+            <li><code>content_drafts</code> / <code>content_variants</code>：Dify 图文和视频脚本结果。</li>
+            <li><code>asset_objects</code>：所有对象存储文件的索引。</li>
+            <li><code>source_items</code>：商家素材库和内容素材索引。</li>
+            <li><code>voice_profiles</code>：成员个人声音配置和当前音色。</li>
+            <li><code>video_edit_jobs</code>：剪辑任务、进度、失败、结果回写。</li>
+          </ul>
+          <div class="note">
+            <label>批注：后台需要展示哪些表的组合视图 <span class="save-mark"></span></label>
+            <textarea data-note-id="contracts-db-views" placeholder="例如：运营后台是否要按成员查看素材、音色、剪辑任务和失败记录？"></textarea>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="states">
+      <div class="section-head">
+        <h2>五、状态机与失败归因：用户看到什么，开发排什么</h2>
+        <p>这一块把 worker 的状态和失败阶段拉出来，方便你决定前端提示和运营介入规则。</p>
+      </div>
+
+      <article class="panel" data-title="视频任务状态流转">
+        <h3>视频任务状态流转</h3>
+        <div class="state-strip" aria-label="video_edit_jobs 状态机">
+          <div class="state-chip"><strong>pending</strong><span>app 创建任务，等待 worker 领取。</span></div>
+          <div class="state-chip"><strong>queued</strong><span>worker claim 成功，准备执行。</span></div>
+          <div class="state-chip"><strong>preparing</strong><span>校验合同、准备工作目录。</span></div>
+          <div class="state-chip"><strong>running</strong><span>下载素材、调用引擎、渲染中。</span></div>
+          <div class="state-chip"><strong>succeeded</strong><span>成片和结果资产已回写。</span></div>
+          <div class="state-chip"><strong>failed_manual</strong><span>上游输入/合同错误，需要人工修。</span></div>
+          <div class="state-chip"><strong>failed_retryable</strong><span>基础设施或运行时失败，可重试。</span></div>
+          <div class="state-chip"><strong>cancelled</strong><span>用户或系统取消。</span></div>
+        </div>
+        <div class="note">
+          <label>批注：状态要怎么翻译给成员看 <span class="save-mark"></span></label>
+          <textarea data-note-id="states-status-copy" placeholder="例如：failed_manual 显示“素材不合格，请重新上传”，failed_retryable 显示“系统繁忙，可重试”。"></textarea>
+        </div>
+      </article>
+
+      <div class="detail-grid" style="margin-top:12px;">
+        <article class="panel" data-title="进度模块">
+          <h3>当前进度模块</h3>
+          <ul class="checklist">
+            <li><span><strong>素材准备</strong>：下载成员素材、读取对象存储。</span></li>
+            <li><span><strong>素材匹配</strong>：素材库检索、镜头理解、clip 分组。</span></li>
+            <li><span><strong>配音生成</strong>：系统 TTS 或 voice_profile 克隆声音。</span></li>
+            <li><span><strong>lip_sync</strong>：只处理 talking_head_segments。</span></li>
+            <li><span><strong>字幕与时间线</strong>：ASR / script alignment / timeline。</span></li>
+            <li><span><strong>合成渲染</strong>：MoviePy / FFmpeg / FireRed render_video。</span></li>
+            <li><span><strong>保存成片</strong>：上传 final/cover/subtitles 并写 asset_objects。</span></li>
+          </ul>
+          <div class="note">
+            <label>批注：前端进度条展示粒度 <span class="save-mark"></span></label>
+            <textarea data-note-id="states-progress-modules" placeholder="例如：成员端只显示 4 步，运营后台显示 7 步。"></textarea>
+          </div>
+        </article>
+
+        <article class="panel" data-title="失败阶段归因">
+          <h3>失败阶段归因</h3>
+          <div class="table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>failure_stage</th>
+                  <th>常见原因</th>
+                  <th>谁处理</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><code>upload</code></td><td>素材 key 缺失、对象存储下载失败、上传未完成。</td><td>成员重新上传 / 运营检查素材。</td></tr>
+                <tr><td><code>asr</code></td><td>ASR provider 缺 key、音频不清晰、原视频无有效人声。</td><td>技术配置 / 成员换素材。</td></tr>
+                <tr><td><code>clone_tts</code></td><td>voice_profile 无权限、参考音频不可用、克隆音频产物不合格。</td><td>成员重录 / 技术查 provider。</td></tr>
+                <tr><td><code>lip_sync</code></td><td>视频不符合 VideoRetalk 要求、URL 不可访问、脸部不清晰。</td><td>成员换口播视频 / 技术查供应商错误码。</td></tr>
+                <tr><td><code>timeline</code></td><td>素材匹配差、字幕/时间线失败、FireRed 节点依赖缺失。</td><td>产品调规则 / 技术查节点。</td></tr>
+                <tr><td><code>render</code></td><td>render_video 失败、输出 final.mp4 缺失。</td><td>技术查引擎和资源。</td></tr>
+                <tr><td><code>oss</code></td><td>上传成片失败、asset_objects 写入失败。</td><td>技术查对象存储/RDS。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note">
+            <label>批注：失败后动作 <span class="save-mark"></span></label>
+            <textarea data-note-id="states-failure-actions" placeholder="例如：lip_sync 失败允许转普通 TTS 成片吗？还是必须让用户换视频？"></textarea>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="material-chain">
+      <div class="section-head">
+        <h2>六、COS / OSS 素材库与商家前端连接链路</h2>
+        <p>这里的“COS素材库”按产品口径理解为商家项目素材库。当前代码实际用 <code>source_items + asset_objects</code> 做索引，不新建历史 <code>merchant_media_*</code> 表。</p>
+      </div>
+
+      <div class="flow-row compact" aria-label="素材库链路">
+        <article class="flow-node" data-title="商家素材入库">
+          <div class="node-head">
+            <h3>商家素材入库</h3>
+            <span class="node-index">M1</span>
+          </div>
+          <p class="body-text">商家端或后台把项目视频、图片、缩略图入库。数据库写 <code>source_items</code>，文件索引写 <code>asset_objects</code>，对象存储保存实际文件。</p>
+          <div class="badge-row">
+            <span class="badge done">素材包已导入过</span>
+            <span class="badge info">按 merchant_id 隔离</span>
+          </div>
+          <ul class="fact-list">
+            <li>2026-05-19：导入 4 条 source_items、4 个视频 asset、4 个缩略图 asset。</li>
+            <li>前缀示例：<code>source-assets/&lt;merchantId&gt;/*</code>。</li>
+          </ul>
+          <div class="note">
+            <label>批注：素材入库入口 <span class="save-mark"></span></label>
+            <textarea data-note-id="material-ingest" placeholder="例如：素材由商家自己传、运营代传，还是批量导入？"></textarea>
+          </div>
+        </article>
+
+        <article class="edge" data-title="素材打标">
+          <div class="arrow">→</div>
+          <div class="edge-label">标记可检索</div>
+          <div class="note">
+            <label>批注 <span class="save-mark"></span></label>
+            <textarea data-note-id="edge-material-tagging" placeholder="素材需要哪些标签维度？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="素材库索引">
+          <div class="node-head">
+            <h3>素材库索引和检索目标</h3>
+            <span class="node-index">M2</span>
+          </div>
+          <p class="body-text">素材通过 <code>trace_payload.materialLibrary = true</code>、<code>retrievalTargets</code>、<code>materialUsageType</code> 等字段进入视频剪辑素材检索池。</p>
+          <div class="badge-row">
+            <span class="badge done">已被 worker 检索</span>
+            <span class="badge info">video_edit_asset</span>
+          </div>
+          <ul class="fact-list">
+            <li>worker 查询限定 <code>si.merchant_id = job.merchant_id</code>。</li>
+            <li>只取 <code>asset_type = video</code> 的素材作为剪辑输入。</li>
+          </ul>
+          <div class="note">
+            <label>批注：检索规则 <span class="save-mark"></span></label>
+            <textarea data-note-id="material-index" placeholder="例如：素材按楼盘、门店、户型、人物、场景怎么分？"></textarea>
+          </div>
+        </article>
+
+        <article class="edge" data-title="脚本需求到素材查询">
+          <div class="arrow">→</div>
+          <div class="edge-label">按脚本找素材</div>
+          <div class="note">
+            <label>批注 <span class="save-mark"></span></label>
+            <textarea data-note-id="edge-script-material-query" placeholder="脚本中 assetQuery 要不要让用户看到？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="worker 运行期补素材">
+          <div class="node-head">
+            <h3>worker 运行期补项目素材</h3>
+            <span class="node-index">M3</span>
+          </div>
+          <p class="body-text">创建 job 时 <code>input_assets</code> 主要保留成员/草稿素材。worker 运行时再根据 <code>materialContext.sceneAssetQueries</code> 和脚本文本，从素材库下载项目素材给 FireRed。</p>
+          <div class="badge-row">
+            <span class="badge done">真实成片已验证</span>
+            <span class="badge info">避免把素材库全塞进 payload</span>
+          </div>
+          <ul class="fact-list">
+            <li>FireRed evidence：<code>split_shots</code> 输入 clips count 14。</li>
+            <li>素材库补充视频标记为 <code>project_material</code> / <code>merchant_material_library</code>。</li>
+          </ul>
+          <div class="note">
+            <label>批注：自动补素材是否可控 <span class="save-mark"></span></label>
+            <textarea data-note-id="material-runtime-fetch" placeholder="例如：是否允许用户锁定某几个素材，禁止 worker 自动替换？"></textarea>
+          </div>
+        </article>
+      </div>
+
+      <div class="matrix" style="margin-top:12px;">
+        <article class="panel">
+          <h3>当前已验证</h3>
+          <ul>
+            <li>素材库真实成片 job：<code>cfb03f5c-d1a0-422b-8840-047592008a48</code>。</li>
+            <li>最终对象：<code>video-results/.../final.mp4</code>，preview/download 200。</li>
+            <li>worker 日志记录素材库补充数量和 asset ids。</li>
+          </ul>
+          <div class="note">
+            <label>批注：已验证是否够你判断 <span class="save-mark"></span></label>
+            <textarea data-note-id="material-verified-evidence" placeholder="例如：还需要看原始素材和成片对比吗？"></textarea>
+          </div>
+        </article>
+        <article class="panel">
+          <h3>当前没有做</h3>
+          <ul>
+            <li>没有创建 <code>merchant_media_assets</code> / <code>merchant_media_clips</code> 历史表。</li>
+            <li>没有把成员临时上传素材长期写入团队素材库。</li>
+            <li>没有开放永久公开对象存储 URL。</li>
+          </ul>
+          <div class="note">
+            <label>批注：哪些“没有做”需要改 <span class="save-mark"></span></label>
+            <textarea data-note-id="material-not-done" placeholder="例如：成员上传素材是否要一键转入团队素材库？"></textarea>
+          </div>
+        </article>
+        <article class="panel">
+          <h3>产品上需要命名清楚</h3>
+          <p>用户可能只理解“素材库”，不关心底层 COS / OSS。建议前端文案统一叫“项目素材库”或“商家素材库”，技术文档再注明对象存储 provider。</p>
+          <div class="note">
+            <label>批注：最终前端叫法 <span class="save-mark"></span></label>
+            <textarea data-note-id="material-product-name" placeholder="例如：保留“COS素材库”还是改成“项目素材库”？"></textarea>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="asset-rules">
+      <div class="section-head">
+        <h2>七、素材选择细则：worker 到底先用谁、后找谁</h2>
+        <p>这里把素材来源拆清楚，避免“成员上传了素材但系统又用了素材库素材”这种体验争议没有规则。</p>
+      </div>
+
+      <div class="detail-grid">
+        <article class="panel" data-title="素材来源分层">
+          <h3>素材来源分层</h3>
+          <ul class="fact-list">
+            <li><strong>成员任务素材</strong>：成员为当前 daily task / draft 上传，ownerType 多为 <code>content_draft</code>。</li>
+            <li><strong>个人声音素材</strong>：成员参考音频，ownerType 为 <code>voice_profile</code>，不作为普通视频素材。</li>
+            <li><strong>商家项目素材库</strong>：<code>source_items + asset_objects</code> 中标记 materialLibrary / video_edit_asset 的素材。</li>
+            <li><strong>worker 本地临时素材</strong>：下载到工作目录，仅供本次剪辑，不是长期真相源。</li>
+            <li><strong>FireRed 运行时素材</strong>：镜头切分、BGM、TTS、render 中间产物，最终必须回写对象存储。</li>
+          </ul>
+          <div class="note">
+            <label>批注：素材来源是否还要新增一层 <span class="save-mark"></span></label>
+            <textarea data-note-id="asset-rules-source-layers" placeholder="例如：是否要加“平台公共素材库”或“运营精选素材池”？"></textarea>
+          </div>
+        </article>
+
+        <article class="panel" data-title="当前素材优先级">
+          <h3>当前素材优先级建议</h3>
+          <ol class="fact-list">
+            <li>用户明确选择 / 锁定的素材最高优先级。</li>
+            <li>分镜要求 <code>requiresUserUpload</code> 或 talking_head 时，优先成员上传口播素材。</li>
+            <li>普通项目镜头优先从商家素材库按脚本 query 检索。</li>
+            <li>没有匹配素材时，记录缺素材提示，不应静默编造业务事实。</li>
+            <li>成员临时上传素材默认不进入团队素材库，除非产品明确设计授权入库。</li>
+          </ol>
+          <div class="note">
+            <label>批注：素材优先级是否正确 <span class="save-mark"></span></label>
+            <textarea data-note-id="asset-rules-priority" placeholder="例如：成员上传素材是否永远压过项目素材库？还是系统可自动替换质量更好的素材？"></textarea>
+          </div>
+        </article>
+
+        <article class="panel wide-card" data-title="素材选择场景表">
+          <h3>典型场景怎么选素材</h3>
+          <div class="table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>场景</th>
+                  <th>当前系统会怎么做</th>
+                  <th>产品风险</th>
+                  <th>建议批注</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>开头真人口播</td>
+                  <td>识别 talking_head / requiresUserUpload，使用成员上传口播素材，必要时启用 voice_profile 和 lip_sync。</td>
+                  <td>成员上传侧脸、多人、画质差时 lip-sync 容易失败。</td>
+                  <td>是否需要上传前质量检测和示例引导。</td>
+                </tr>
+                <tr>
+                  <td>楼盘 / 门店 B-roll</td>
+                  <td>worker 根据脚本文本和 sceneAssetQueries 从商家素材库补项目素材。</td>
+                  <td>自动匹配可能语义接近但不是用户想要的镜头。</td>
+                  <td>是否要 AI 剪辑前确认候选素材。</td>
+                </tr>
+                <tr>
+                  <td>成员上传了多个视频</td>
+                  <td>payload 里保留 inputAssetIds，worker 作为用户输入下载。</td>
+                  <td>用户不知道哪个视频会出现在第几个镜头。</td>
+                  <td>是否要支持拖拽排序、镜头绑定、锁定素材。</td>
+                </tr>
+                <tr>
+                  <td>素材库没有命中</td>
+                  <td>materialContext 记录 missingVideoAssetHints；脚本或任务仍可能走 fallback。</td>
+                  <td>成片可能偏“泛素材”或节奏不自然。</td>
+                  <td>是否阻断剪辑，还是允许先出草稿版。</td>
+                </tr>
+                <tr>
+                  <td>成员临时素材很优质</td>
+                  <td>当前不自动转入团队素材库。</td>
+                  <td>后续不能复用，商家素材库成长慢。</td>
+                  <td>是否增加“授权入库/运营审核入库”。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note">
+            <label>批注：素材选择产品规则 <span class="save-mark"></span></label>
+            <textarea data-note-id="asset-rules-scenario-table" placeholder="例如：哪些场景必须阻断，哪些允许 fallback 出草稿？"></textarea>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="member-chain">
+      <div class="section-head">
+        <h2>八、前端成员与服务器连接链路</h2>
+        <p>这一段专门看成员端：打开任务、上传素材/声音、创建 AI 剪辑、轮询状态、预览下载，分别连到哪些服务。</p>
+      </div>
+
+      <div class="flow-row" aria-label="成员端链路">
+        <article class="flow-node" data-title="成员端页面">
+          <div class="node-head">
+            <h3>成员端页面</h3>
+            <span class="node-index">F1</span>
+          </div>
+          <p class="body-text">成员从 <code>/member/calendar</code> 或 <code>/member/video/[taskId]</code> 进入任务，看到 Dify 写回的视频脚本、分镜素材要求、上传控件和 AI 剪辑按钮。</p>
+          <div class="badge-row">
+            <span class="badge done">已落地</span>
+            <span class="badge info">成员视角</span>
+          </div>
+          <ul class="fact-list">
+            <li>已有 Dify draft/variant 时，直接复用，不再调用旧视频脚本 agent。</li>
+            <li>成员端历史可读 video jobs。</li>
+          </ul>
+          <div class="note">
+            <label>批注：成员端页面体验 <span class="save-mark"></span></label>
+            <textarea data-note-id="front-member-page" placeholder="例如：成员看到脚本时要不要显示素材缺口？"></textarea>
+          </div>
+        </article>
+
+        <article class="edge" data-title="上传素材">
+          <div class="arrow">→</div>
+          <div class="edge-label">上传</div>
+          <div class="note">
+            <label>批注 <span class="save-mark"></span></label>
+            <textarea data-note-id="edge-member-upload" placeholder="移动端上传失败时怎么提示？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="成员上传素材">
+          <div class="node-head">
+            <h3>上传视频 / 图片素材</h3>
+            <span class="node-index">F2</span>
+          </div>
+          <p class="body-text">普通素材走 <code>/api/media/upload-intents</code> 获取对象存储上传地址或临时凭证，浏览器直传对象存储后，再调 <code>/api/media/complete</code> 写 <code>asset_objects</code>。</p>
+          <div class="badge-row">
+            <span class="badge done">已落地</span>
+            <span class="badge info">浏览器直传</span>
+          </div>
+          <ul class="fact-list">
+            <li>ownerType 支持 <code>content_draft</code> 等。</li>
+            <li>音频不能走普通素材上传，声音克隆另走托管上传。</li>
+          </ul>
+          <div class="note">
+            <label>批注：素材上传规则 <span class="save-mark"></span></label>
+            <textarea data-note-id="front-upload-assets" placeholder="例如：每个任务最多允许上传几段视频？"></textarea>
+          </div>
+        </article>
+
+        <article class="edge" data-title="上传声音">
+          <div class="arrow">→</div>
+          <div class="edge-label">声音克隆</div>
+          <div class="note">
+            <label>批注 <span class="save-mark"></span></label>
+            <textarea data-note-id="edge-member-voice" placeholder="成员是否必须录授权确认？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="声音克隆上传">
+          <div class="node-head">
+            <h3>上传个人克隆声音</h3>
+            <span class="node-index">F3</span>
+          </div>
+          <p class="body-text">声音文件走 <code>POST /api/voice-profiles/upload</code> 服务端托管上传。后端写对象存储、<code>asset_objects</code> 和 <code>voice_profiles</code>，避免浏览器直传权限前缀失败。</p>
+          <div class="badge-row">
+            <span class="badge done">M4A 上传已实测</span>
+            <span class="badge partial">真实 clone 成片待验收</span>
+          </div>
+          <ul class="fact-list">
+            <li>M4A / MP4 音频统一规范为 <code>audio/mp4</code>。</li>
+            <li>新 key 前缀：<code>draft-inputs/&lt;merchantId&gt;/&lt;voiceProfileId&gt;/voice-profile-audio/*</code>。</li>
+          </ul>
+          <div class="note">
+            <label>批注：声音克隆产品规则 <span class="save-mark"></span></label>
+            <textarea data-note-id="front-voice-profile" placeholder="例如：一个成员只能保留一个当前音色，还是允许多个？"></textarea>
+          </div>
+        </article>
+
+        <article class="edge" data-title="创建AI剪辑">
+          <div class="arrow">→</div>
+          <div class="edge-label">AI 剪辑</div>
+          <div class="note">
+            <label>批注 <span class="save-mark"></span></label>
+            <textarea data-note-id="edge-member-create-job" placeholder="点 AI 剪辑前要不要弹出确认清单？"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="成员创建剪辑任务">
+          <div class="node-head">
+            <h3>创建并轮询剪辑任务</h3>
+            <span class="node-index">F4</span>
+          </div>
+          <p class="body-text">前端调用 <code>POST /api/video-edit-jobs</code> 创建任务，然后用 <code>GET /api/video-edit-jobs/[id]</code> 轮询阶段和结果。预览下载走 <code>/result/[assetId]</code>。</p>
+          <div class="badge-row">
+            <span class="badge done">普通成片已验证</span>
+            <span class="badge partial">口型链路待验收</span>
+          </div>
+          <ul class="fact-list">
+            <li>无音色时默认系统配音 provider：<code>minimax</code>。</li>
+            <li>有 ready voice_profile 时走 <code>pixelle_clone</code>。</li>
+          </ul>
+          <div class="note">
+            <label>批注：成员看到的进度和结果 <span class="save-mark"></span></label>
+            <textarea data-note-id="front-job-progress" placeholder="例如：要不要显示“素材匹配/配音生成/lip-sync/渲染/保存成片”？"></textarea>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="lip-sync-detail">
+      <div class="section-head">
+        <h2>九、真人口播、克隆声音、口型替换和字幕细节</h2>
+        <p>这块是当前最新但还没真实全链路验收的能力，专门拆给你判断是否继续投入、怎么验收。</p>
+      </div>
+
+      <div class="detail-grid">
+        <article class="panel" data-title="三种字幕来源">
+          <h3>三种字幕来源怎么理解</h3>
+          <div class="table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>字幕来源</th>
+                  <th>适合场景</th>
+                  <th>风险</th>
+                  <th>当前口径</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>script</code></td>
+                  <td>普通视频，系统按锁定脚本生成字幕。</td>
+                  <td>如果真人原声与脚本不同，会音画不一致。</td>
+                  <td>非口播默认路径。</td>
+                </tr>
+                <tr>
+                  <td><code>script_audio_alignment</code></td>
+                  <td>新真人口播主路径：克隆音频读锁定脚本，再按音频/脚本对齐字幕。</td>
+                  <td>需要 clone TTS 和 lip-sync 都真实可用。</td>
+                  <td>lip-sync 分支目标默认。</td>
+                </tr>
+                <tr>
+                  <td><code>asr_original_audio</code></td>
+                  <td>显式回退：识别原视频人声做字幕/时间线辅助。</td>
+                  <td>脚本已锁定时，ASR 原声可能和脚本不一致。</td>
+                  <td>保留为回退，不应作为 lip-sync 主路径。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note">
+            <label>批注：字幕默认路径 <span class="save-mark"></span></label>
+            <textarea data-note-id="lipsync-subtitle-source" placeholder="例如：真人口播必须默认 script_audio_alignment，失败后是否允许 asr_original_audio？"></textarea>
+          </div>
+        </article>
+
+        <article class="panel" data-title="VideoRetalk 输入要求">
+          <h3>VideoRetalk 输入要求</h3>
+          <ul class="fact-list">
+            <li>音频支持 <code>wav/mp3/aac</code>，文件小于 30MB，时长 <code>2s - 120s</code>。</li>
+            <li>视频支持 <code>mp4/avi/mov</code>，文件小于 300MB，时长 <code>2s - 120s</code>。</li>
+            <li>视频帧率 15-60fps，编码 H.264/H.265，宽高各边 640-2048 像素。</li>
+            <li>画面需要清晰、近景、正脸、单人，避免遮挡、多人脸、强运动模糊。</li>
+            <li>供应商需要可访问的 <code>video_url</code> / <code>audio_url</code>，本地路径不合法。</li>
+          </ul>
+          <div class="note">
+            <label>批注：上传前要不要做质量检测 <span class="save-mark"></span></label>
+            <textarea data-note-id="lipsync-input-quality" placeholder="例如：不满足正脸/清晰/时长的素材，是前端阻断还是 worker 失败后提示？"></textarea>
+          </div>
+        </article>
+
+        <article class="panel" data-title="口型链路真实验收清单">
+          <h3>真实验收清单</h3>
+          <ul class="checklist">
+            <li><span>成员成功上传真实 MP3/M4A，生成 ready <code>voice_profile</code>。</span></li>
+            <li><span>创建 job 时 payload 包含 <code>voice_profile</code>、ref audio asset、talking_head asset。</span></li>
+            <li><span>FireRed 产出 clone voiceover artifact，且音频格式/大小/时长合格。</span></li>
+            <li><span><code>lip_sync</code> 只处理 talking_head_segments，不处理 B-roll。</span></li>
+            <li><span><code>render_video</code> 真实消费 retalked timeline，不允许假成功。</span></li>
+            <li><span>final.mp4 上传对象存储，app preview/download 都 200。</span></li>
+            <li><span>失败日志能定位到 <code>clone_tts</code> 或 <code>lip_sync</code>，不是混成 render。</span></li>
+          </ul>
+          <div class="note">
+            <label>批注：你认可的真实验收标准 <span class="save-mark"></span></label>
+            <textarea data-note-id="lipsync-real-acceptance-checklist" placeholder="例如：第一批验收必须用几个真实成员、几条视频、几种失败样例？"></textarea>
+          </div>
+        </article>
+
+        <article class="panel" data-title="口型失败回退策略">
+          <h3>失败回退策略待定</h3>
+          <p>当前架构倾向 fail closed：lip-sync 失败就明确失败，不跳过后伪造成片成功。但产品上可以决定是否允许“降级出普通 TTS 成片”。这个决定会影响用户体验和技术日志。</p>
+          <ul class="fact-list">
+            <li><strong>严格模式</strong>：lip-sync 失败则任务失败，要求用户换视频或重录。</li>
+            <li><strong>降级模式</strong>：lip-sync 失败后出普通 TTS/B-roll 版，标记为降级成片。</li>
+            <li><strong>人工模式</strong>：失败进入运营后台，由运营决定重试、降级或退回成员。</li>
+          </ul>
+          <div class="note">
+            <label>批注：失败后是否允许降级 <span class="save-mark"></span></label>
+            <textarea data-note-id="lipsync-fallback-strategy" placeholder="例如：首版严格失败；后续运营可一键降级出片。"></textarea>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="decision-points">
+      <div class="section-head">
+        <h2>十、需要你精准指导的拍板点</h2>
+        <p>这些是我从链路里提出来的高杠杆批注位。你可以直接在这里写结论，也可以回到上面的具体节点写更细。</p>
+      </div>
+
+      <div class="matrix">
+        <article class="flow-node" data-title="产品命名">
+          <div class="node-head">
+            <h3>1. 前端到底叫“COS素材库”还是“项目素材库”</h3>
+            <span class="node-index">D1</span>
+          </div>
+          <p class="body-text">技术底层已从 COS 过渡到 OSS 默认，继续在前端叫 COS 会让非技术用户误解。建议产品层叫项目素材库，技术层注明对象存储。</p>
+          <div class="note">
+            <label>你的结论 <span class="save-mark"></span></label>
+            <textarea data-note-id="decision-material-naming" placeholder="写：前端统一叫什么、后台统一叫什么、文档怎么解释。"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="成员素材归属">
+          <div class="node-head">
+            <h3>2. 成员临时素材是否进入团队素材库</h3>
+            <span class="node-index">D2</span>
+          </div>
+          <p class="body-text">当前规则是：成员任务上传素材只作为草稿输入，不自动进团队素材库，不长期切片打标。这样更安全，但复用效率较低。</p>
+          <div class="note">
+            <label>你的结论 <span class="save-mark"></span></label>
+            <textarea data-note-id="decision-member-assets-library" placeholder="写：默认不入库、审核后入库，还是成员可勾选授权入库。"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="口型替换验收">
+          <div class="node-head">
+            <h3>3. 真人口播口型替换的验收标准</h3>
+            <span class="node-index">D3</span>
+          </div>
+          <p class="body-text">lip-sync 已发布但未真实跑通。要继续推进，需要先定“什么算通过”：口型自然度、字幕准确度、是否保留原人声、失败时是否回退。</p>
+          <div class="note">
+            <label>你的结论 <span class="save-mark"></span></label>
+            <textarea data-note-id="decision-lipsync-acceptance" placeholder="写：首批验收视频类型、成功标准、失败是否允许普通 TTS 回退。"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="剪辑可控性">
+          <div class="node-head">
+            <h3>4. AI 剪辑前是否需要素材确认页</h3>
+            <span class="node-index">D4</span>
+          </div>
+          <p class="body-text">当前 worker 会自动补商家素材库素材。如果你希望更可控，可以在点击 AI 剪辑前让用户确认“将使用这些素材”。</p>
+          <div class="note">
+            <label>你的结论 <span class="save-mark"></span></label>
+            <textarea data-note-id="decision-asset-confirm-before-edit" placeholder="写：要不要加确认页、确认哪些字段、谁有确认权。"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="失败处理">
+          <div class="node-head">
+            <h3>5. 失败后让用户怎么处理</h3>
+            <span class="node-index">D5</span>
+          </div>
+          <p class="body-text">worker 已能区分合同错误和可重试错误。产品上还要决定：显示技术原因、给替换素材入口、自动重试、还是交给运营处理。</p>
+          <div class="note">
+            <label>你的结论 <span class="save-mark"></span></label>
+            <textarea data-note-id="decision-failure-handling" placeholder="写：成员端失败提示、owner 提醒、运营后台动作。"></textarea>
+          </div>
+        </article>
+
+        <article class="flow-node" data-title="审核发布">
+          <div class="node-head">
+            <h3>6. 成片发布前的审核责任</h3>
+            <span class="node-index">D6</span>
+          </div>
+          <p class="body-text">当前链路到预览/下载为主。真实发小红书/抖音前必须确认商家、门店、平台、账号、测试/正式环境，避免“内容对了，账号错了”。</p>
+          <div class="note">
+            <label>你的结论 <span class="save-mark"></span></label>
+            <textarea data-note-id="decision-publish-review" placeholder="写：成员能否发布、owner 是否审核、平台账号如何确认。"></textarea>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="notes-export">
+      <div class="section-head">
+        <h2>十一、批注汇总区</h2>
+        <p>点击“汇总到下方”会把所有非空批注整理成 JSON，便于发给开发或下一位 Agent。</p>
+      </div>
+      <textarea class="summary-output" id="notesSummary" readonly placeholder="这里会显示批注 JSON 汇总。"></textarea>
+      <p class="fine-print">提示：批注保存在当前浏览器本地，文件本身不会被改写。要把批注交给别人，请导出 JSON 或打印成 PDF。</p>
+    </section>
+
+    <section id="sources">
+      <div class="section-head">
+        <h2>十二、这张图依据的本地真相源</h2>
+        <p>下面列的是本 HTML 整理时读取的关键文档和代码入口，后续如果链路变化，可以从这些文件追。</p>
+      </div>
+
+      <div class="source-grid">
+        <article class="source-card">
+          <h3>架构总说明</h3>
+          <p><code>docs/架构规范/2026-04-28-current-architecture.md</code></p>
+        </article>
+        <article class="source-card">
+          <h3>素材库与声音方案</h3>
+          <p><code>docs/架构规范/2026-05-14-COS私有素材库与个人克隆声音工作方案.md</code></p>
+        </article>
+        <article class="source-card">
+          <h3>口型替换方案</h3>
+          <p><code>docs/架构规范/2026-05-20-真人口播口型替换与精准字幕架构方案.md</code></p>
+        </article>
+        <article class="source-card">
+          <h3>服务器 release</h3>
+          <p><code>docs/progress/2026-05-21-lip-sync-server-release.md</code></p>
+        </article>
+        <article class="source-card">
+          <h3>成员端 E2E</h3>
+          <p><code>docs/progress/2026-05-19-aliyun-member-dify-script-to-video-e2e.md</code></p>
+        </article>
+        <article class="source-card">
+          <h3>OSS 迁移</h3>
+          <p><code>docs/progress/2026-05-19-cos-to-oss-local-migration.md</code></p>
+        </article>
+        <article class="source-card">
+          <h3>App 视频任务 API</h3>
+          <p><code>app/src/server/api/video-edit-jobs-service.ts</code></p>
+        </article>
+        <article class="source-card">
+          <h3>Worker 执行器</h3>
+          <p><code>workers/video-worker/worker/app/processor.py</code></p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const storageKey = "jingjing-video-chain-notes-v1";
+      const textareas = Array.from(document.querySelectorAll("textarea[data-note-id]"))
+        .filter((textarea) => !textarea.closest(".main-inline-archived"));
+      const summary = document.getElementById("notesSummary");
+
+      function readStore() {
+        try {
+          const raw = window.localStorage.getItem(storageKey);
+          return raw ? JSON.parse(raw) : {};
+        } catch {
+          return {};
+        }
+      }
+
+      function writeStore(value) {
+        window.localStorage.setItem(storageKey, JSON.stringify(value));
+      }
+
+      function noteTitle(textarea) {
+        const host = textarea.closest("[data-title]");
+        return host ? host.getAttribute("data-title") : textarea.getAttribute("data-note-id");
+      }
+
+      function setSavedMark(textarea, text) {
+        const note = textarea.closest(".note");
+        const mark = note ? note.querySelector(".save-mark") : null;
+        if (mark) {
+          mark.textContent = text;
+        }
+      }
+
+      function collectNotes() {
+        const now = new Date().toISOString();
+        const notes = textareas
+          .map((textarea) => ({
+            id: textarea.getAttribute("data-note-id"),
+            title: noteTitle(textarea),
+            note: textarea.value.trim(),
+          }))
+          .filter((item) => item.note.length > 0);
+        return {
+          document: "视频剪辑链路可批注图",
+          file: "docs/progress/2026-05-21-video-edit-chain-annotatable-map.html",
+          exportedAt: now,
+          count: notes.length,
+          notes,
+        };
+      }
+
+      function fillSummary() {
+        if (!summary) {
+          return;
+        }
+        summary.value = JSON.stringify(collectNotes(), null, 2);
+      }
+
+      function downloadNotes() {
+        const payload = JSON.stringify(collectNotes(), null, 2);
+        if (summary) {
+          summary.value = payload;
+        }
+        const blob = new Blob([payload], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "video-edit-chain-notes.json";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      const store = readStore();
+      for (const textarea of textareas) {
+        const id = textarea.getAttribute("data-note-id");
+        if (id && typeof store[id] === "string") {
+          textarea.value = store[id];
+        }
+        setSavedMark(textarea, textarea.value.trim() ? "已载入" : "自动保存");
+        textarea.addEventListener("input", () => {
+          const nextStore = readStore();
+          nextStore[id] = textarea.value;
+          writeStore(nextStore);
+          setSavedMark(textarea, "已保存");
+        });
+      }
+
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) {
+          return;
+        }
+        const action = button.getAttribute("data-action");
+        if (action === "export") {
+          downloadNotes();
+        } else if (action === "print") {
+          window.print();
+        } else if (action === "fill-summary") {
+          fillSummary();
+        } else if (action === "clear") {
+          const confirmed = window.confirm("确定清空当前浏览器保存的本页批注吗？");
+          if (!confirmed) {
+            return;
+          }
+          window.localStorage.removeItem(storageKey);
+          for (const textarea of textareas) {
+            textarea.value = "";
+            setSavedMark(textarea, "已清空");
+          }
+          if (summary) {
+            summary.value = "";
+          }
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
