@@ -5,11 +5,6 @@ import {
 } from "@/lib/auth/domestic-session";
 import { redeemInvitationCode } from "@/lib/db/merchant-repository";
 import { queryAppDb } from "@/lib/server-db/postgres";
-import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
-import {
-  createSupabaseServerClient,
-  isSupabasePublicConfigured,
-} from "@/lib/supabase/server";
 import { ApiError, handleApiError } from "@/server/api/errors";
 import { registerWithInviteSchema } from "@/server/api/schemas";
 
@@ -82,7 +77,6 @@ async function deleteDomesticOwnerUser(userId: string) {
 }
 
 export async function POST(request: Request) {
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdminClient> | undefined;
   let createdUserId: string | undefined;
   let merchantRedeemed = false;
 
@@ -90,33 +84,7 @@ export async function POST(request: Request) {
     const payload = registerWithInviteSchema.parse(await request.json());
     const email = payload.email.trim().toLowerCase();
 
-    if (isDomesticSessionEnabled()) {
-      createdUserId = await createDomesticOwnerUser({
-        email,
-        password: payload.password,
-        displayName: payload.merchantProfile.contactName ?? payload.merchantProfile.name,
-      });
-
-      const merchantProfile = await redeemInvitationCode({
-        code: payload.inviteCode,
-        ownerUserId: createdUserId,
-        merchantProfile: payload.merchantProfile,
-      });
-      merchantRedeemed = true;
-
-      const user = await signInDomesticUser({ email, password: payload.password });
-
-      return Response.json(
-        {
-          userId: user.id,
-          merchantProfile,
-          sessionEstablished: true,
-        },
-        { status: 201 },
-      );
-    }
-
-    if (!isSupabasePublicConfigured() || !isSupabaseAdminConfigured()) {
+    if (!isDomesticSessionEnabled()) {
       throw new ApiError(
         503,
         "AUTH_SERVICE_NOT_CONFIGURED",
@@ -124,48 +92,31 @@ export async function POST(request: Request) {
       );
     }
 
-    supabaseAdmin = createSupabaseAdminClient();
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    createdUserId = await createDomesticOwnerUser({
       email,
       password: payload.password,
-      email_confirm: true,
+      displayName: payload.merchantProfile.contactName ?? payload.merchantProfile.name,
     });
-
-    if (error || !data.user) {
-      throw new ApiError(
-        error?.status ?? 500,
-        "AUTH_USER_CREATE_FAILED",
-        error?.message ?? "Failed to create user.",
-      );
-    }
-
-    createdUserId = data.user.id;
 
     const merchantProfile = await redeemInvitationCode({
       code: payload.inviteCode,
-      ownerUserId: data.user.id,
+      ownerUserId: createdUserId,
       merchantProfile: payload.merchantProfile,
     });
     merchantRedeemed = true;
 
-    const supabaseServer = await createSupabaseServerClient();
-    const { error: signInError } = await supabaseServer.auth.signInWithPassword({
-      email,
-      password: payload.password,
-    });
+    const user = await signInDomesticUser({ email, password: payload.password });
 
     return Response.json(
       {
-        userId: data.user.id,
+        userId: user.id,
         merchantProfile,
-        sessionEstablished: !signInError,
+        sessionEstablished: true,
       },
       { status: 201 },
     );
   } catch (error) {
-    if (createdUserId && !merchantRedeemed && supabaseAdmin) {
-      await supabaseAdmin.auth.admin.deleteUser(createdUserId);
-    } else if (createdUserId && !merchantRedeemed && isDomesticSessionEnabled()) {
+    if (createdUserId && !merchantRedeemed) {
       await deleteDomesticOwnerUser(createdUserId);
     }
 

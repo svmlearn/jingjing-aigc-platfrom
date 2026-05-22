@@ -1,8 +1,7 @@
 import "server-only";
 
-import type { User } from "@supabase/supabase-js";
-
 import type { MerchantProfileDto, MerchantProfileInput } from "@/contracts/merchant";
+import type { AuthenticatedUser } from "@/lib/auth/authenticated-user";
 
 export const localDemoUserId = "demo-user-local";
 export const localDemoMerchantId = "demo-merchant-local";
@@ -11,24 +10,28 @@ const localDemoMerchants = new Map<string, MerchantProfileDto>();
 
 export function isLocalDemoRuntime() {
   return !(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.APP_DATABASE_URL ||
+    process.env.DATABASE_URL ||
+    process.env.DATABASE_PROVIDER === "postgres" ||
+    process.env.DOMESTIC_DATABASE_ENABLED === "true"
   );
 }
 
-export function createLocalDemoUser(userId = localDemoUserId): User {
+export function createLocalDemoUser(userId = localDemoUserId): AuthenticatedUser {
+  const displayName = userId === localDemoUserId ? "静境本地 Demo 用户" : "静境本地 Demo 成员";
+
   return {
     id: userId,
-    aud: "authenticated",
-    role: "authenticated",
     email: "demo@jingjing.local",
-    app_metadata: {},
-    user_metadata: {
-      display_name: userId === localDemoUserId ? "静境本地 Demo 用户" : "静境本地 Demo 成员",
+    role: userId === localDemoUserId ? "merchant_owner" : "merchant_member",
+    displayName,
+    appMetadata: {
+      provider: "local_demo",
     },
-    created_at: "2026-04-24T00:00:00.000Z",
-  } as User;
+    userMetadata: {
+      displayName,
+    },
+  };
 }
 
 export function resolveLocalDemoWorkspaceIdentity(userId: string) {

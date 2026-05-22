@@ -5,6 +5,7 @@ import { UserPlus } from "lucide-react";
 import { getOptionalMemberAccess } from "@/lib/auth/member-page-guard";
 
 const errorMessages: Record<string, string> = {
+  auth_service_not_configured: "成员注册服务暂不可用，请联系平台管理员检查数据库会话配置。",
   invalid_type: "请完整填写注册信息。",
   member_username_exists: "这个用户名已经存在，请直接登录。",
   invitation_code_not_found: "邀请码不存在，请检查后重试。",

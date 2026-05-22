@@ -17,11 +17,6 @@ import {
   withAppDbTransaction,
   type DatabaseClient,
 } from "@/lib/server-db/postgres";
-import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
-import {
-  createSupabaseServerClient,
-  isSupabasePublicConfigured,
-} from "@/lib/supabase/server";
 
 export const platformAdminSessionCookieName = "platform_admin_session";
 
@@ -54,19 +49,6 @@ type PlatformAdminLoginResult =
         | "no-admin-access"
         | "disabled-admin";
     };
-
-const platformAdminUserSelect = [
-  "id",
-  "auth_user_id",
-  "email",
-  "display_name",
-  "role",
-  "status",
-  "created_by_admin_id",
-  "last_login_at",
-  "created_at",
-  "updated_at",
-].join(", ");
 
 const appOwnedPlatformAdminUserSelect = [
   "id",
@@ -112,9 +94,7 @@ function getPlatformAdminSecret() {
 }
 
 export function isPlatformAdminAccessConfigured() {
-  return isAppOwnedPlatformAdminAuthEnabled() || (
-    isSupabasePublicConfigured() && isSupabaseAdminConfigured()
-  );
+  return isAppOwnedPlatformAdminAuthEnabled();
 }
 
 export function isPlatformAdminBootstrapSecretConfigured() {
@@ -148,24 +128,7 @@ export async function getCurrentPlatformAdmin(): Promise<PlatformAdminUserDto | 
     return demoPlatformAdminUser;
   }
 
-  if (!isSupabasePublicConfigured() || !isSupabaseAdminConfigured()) {
-    return null;
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.getUser();
-
-  if (error || !data.user) {
-    return null;
-  }
-
-  const adminUser = await getPlatformAdminUserByAuthUserId(data.user.id);
-
-  if (!adminUser || adminUser.status !== "active") {
-    return null;
-  }
-
-  return adminUser;
+  return null;
 }
 
 export async function authenticatePlatformAdminWithPassword(input: {
@@ -176,39 +139,7 @@ export async function authenticatePlatformAdminWithPassword(input: {
     return authenticateAppOwnedPlatformAdminWithPassword(input);
   }
 
-  if (!isSupabasePublicConfigured() || !isSupabaseAdminConfigured()) {
-    return { ok: false, code: "not-configured" };
-  }
-
-  const email = input.email.trim().toLowerCase();
-  const password = input.password;
-
-  if (!email || !password) {
-    return { ok: false, code: "invalid-credentials" };
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error || !data.user) {
-    return { ok: false, code: "invalid-credentials" };
-  }
-
-  const adminUser = await getPlatformAdminUserByAuthUserId(data.user.id);
-
-  if (!adminUser) {
-    await supabase.auth.signOut();
-    return { ok: false, code: "no-admin-access" };
-  }
-
-  if (adminUser.status !== "active") {
-    await supabase.auth.signOut();
-    return { ok: false, code: "disabled-admin" };
-  }
-
-  await touchPlatformAdminLastLogin(adminUser.id);
-
-  return { ok: true, admin: { ...adminUser, lastLoginAt: new Date().toISOString() } };
+  return { ok: false, code: "not-configured" };
 }
 
 export async function createInitialPlatformAdmin(input: {
@@ -220,78 +151,11 @@ export async function createInitialPlatformAdmin(input: {
     return createInitialAppOwnedPlatformAdmin(input);
   }
 
-  if (!isSupabasePublicConfigured() || !isSupabaseAdminConfigured()) {
-    throw new Error("Platform admin access is not configured.");
-  }
-
-  const existingCount = await countPlatformAdminUsers();
-
-  if (existingCount > 0) {
-    throw new Error("Initial platform admin already exists.");
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const email = input.email.trim().toLowerCase();
-  const displayName = input.displayName?.trim() || null;
-
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email,
-    password: input.password,
-    email_confirm: true,
-    user_metadata: {
-      display_name: displayName,
-      platform_admin_role: "super_admin",
-    },
-  });
-
-  if (authError || !authData.user) {
-    throw new Error(authError?.message ?? "Failed to create Supabase auth user.");
-  }
-
-  const { data, error } = await supabase
-    .from("platform_admin_users")
-    .insert({
-      auth_user_id: authData.user.id,
-      email,
-      display_name: displayName,
-      role: "super_admin",
-      status: "active",
-      last_login_at: new Date().toISOString(),
-    })
-    .select(platformAdminUserSelect)
-    .single();
-
-  if (error || !data) {
-    await supabase.auth.admin.deleteUser(authData.user.id);
-    throw new Error(error?.message ?? "Failed to create platform admin user.");
-  }
-
-  return mapPlatformAdminUser(data as unknown as PlatformAdminUserRow);
+  throw new Error("Platform admin access is not configured.");
 }
 
 export async function hasAnyPlatformAdminUsers() {
   return (await countPlatformAdminUsers()) > 0;
-}
-
-export async function getPlatformAdminUserByAuthUserId(
-  authUserId: string,
-): Promise<PlatformAdminUserDto | null> {
-  if (!isSupabaseAdminConfigured()) {
-    return null;
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("platform_admin_users")
-    .select(platformAdminUserSelect)
-    .eq("auth_user_id", authUserId)
-    .maybeSingle();
-
-  if (error || !data) {
-    return null;
-  }
-
-  return mapPlatformAdminUser(data as unknown as PlatformAdminUserRow);
 }
 
 export function isPlatformAdminRoleAllowed(
@@ -302,15 +166,7 @@ export function isPlatformAdminRoleAllowed(
 }
 
 export async function clearPlatformAdminSession() {
-  if (isAppOwnedPlatformAdminAuthEnabled()) {
-    await revokeCurrentAppOwnedPlatformAdminSession();
-  }
-
-  if (isSupabasePublicConfigured()) {
-    const supabase = await createSupabaseServerClient();
-    await supabase.auth.signOut();
-  }
-
+  await revokeCurrentAppOwnedPlatformAdminSession();
   const cookieStore = await cookies();
   cookieStore.delete(platformAdminSessionCookieName);
 }
@@ -500,20 +356,7 @@ async function countPlatformAdminUsers() {
     return countAppOwnedPlatformAdminUsers();
   }
 
-  if (!isSupabaseAdminConfigured()) {
-    return 0;
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { count, error } = await supabase
-    .from("platform_admin_users")
-    .select("*", { count: "exact", head: true });
-
-  if (error) {
-    return 0;
-  }
-
-  return count ?? 0;
+  return 0;
 }
 
 async function countAppOwnedPlatformAdminUsers(client?: DatabaseClient) {
@@ -526,31 +369,6 @@ async function countAppOwnedPlatformAdminUsers(client?: DatabaseClient) {
   );
 
   return Number.parseInt(result.rows[0]?.count ?? "0", 10) || 0;
-}
-
-async function touchPlatformAdminLastLogin(adminUserId: string) {
-  if (isAppOwnedPlatformAdminAuthEnabled()) {
-    await queryAppDb(
-      `
-      update public.platform_admin_users
-      set last_login_at = timezone('utc', now()),
-          updated_at = timezone('utc', now())
-      where id = $1
-      `,
-      [adminUserId],
-    ).catch(() => undefined);
-    return;
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    return;
-  }
-
-  const supabase = createSupabaseAdminClient();
-  await supabase
-    .from("platform_admin_users")
-    .update({ last_login_at: new Date().toISOString() })
-    .eq("id", adminUserId);
 }
 
 async function revokeCurrentAppOwnedPlatformAdminSession() {

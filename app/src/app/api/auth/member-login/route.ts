@@ -6,10 +6,6 @@ import {
   signOutDomesticUser,
 } from "@/lib/auth/domestic-session";
 import { listOperationalMerchantWorkspacesByUserId } from "@/lib/db/merchant-repository";
-import {
-  createSupabaseServerClient,
-  isSupabasePublicConfigured,
-} from "@/lib/supabase/server";
 import { ApiError } from "@/server/api/errors";
 import { memberLoginSchema } from "@/server/api/schemas";
 
@@ -93,9 +89,12 @@ function jsonError(error: unknown) {
 }
 
 export async function POST(request: NextRequest) {
+  let safeNext: string | null | undefined;
+
   try {
     const payload = memberLoginSchema.parse(await readPayload(request));
     const username = payload.username.trim().toLowerCase();
+    safeNext = payload.next;
 
     if (isDomesticSessionEnabled()) {
       const user = await signInDomesticUser({ email: username, password: payload.password });
@@ -118,51 +117,22 @@ export async function POST(request: NextRequest) {
       return redirectToPath(request, nextPath);
     }
 
-    if (!isSupabasePublicConfigured()) {
-      const nextPath = resolveMemberNextPath(payload.next, 1);
-      return wantsJson(request)
-        ? Response.json({ userId: "demo-member", workspaces: [], nextPath, sessionEstablished: true })
-        : redirectToPath(request, nextPath);
-    }
-
-    if (!username.includes("@")) {
-      throw new ApiError(
-        400,
-        "EMAIL_USERNAME_REQUIRED",
-        "This environment only supports email usernames.",
-      );
-    }
-
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: username,
-      password: payload.password,
-    });
-
-    if (error || !data.user) {
-      throw new ApiError(401, "INVALID_CREDENTIALS", "Invalid username or password.");
-    }
-
-    const workspaces = await listOperationalMerchantWorkspacesByUserId(data.user.id);
-    if (workspaces.length === 0) {
-      await supabase.auth.signOut().catch(() => undefined);
-      throw new ApiError(403, "NO_MEMBER_WORKSPACE", "No member workspace is available.");
-    }
-
-    const nextPath = resolveMemberNextPath(payload.next, workspaces.length);
-    if (wantsJson(request)) {
-      return Response.json({
-        userId: data.user.id,
-        workspaces,
-        nextPath,
-        sessionEstablished: true,
-      });
-    }
-
-    return redirectToPath(request, nextPath);
+    throw new ApiError(
+      503,
+      "AUTH_SERVICE_NOT_CONFIGURED",
+      "Member login service is not configured.",
+    );
   } catch (error) {
     if (wantsJson(request)) {
       return jsonError(error);
+    }
+
+    if (error instanceof ApiError && error.code === "AUTH_SERVICE_NOT_CONFIGURED") {
+      return redirectToLogin(request, "auth-not-configured", safeNext);
+    }
+
+    if (error instanceof ApiError && error.code === "NO_MEMBER_WORKSPACE") {
+      return redirectToLogin(request, "no-member-workspace", safeNext);
     }
 
     return redirectToLogin(request, "invalid-credentials");

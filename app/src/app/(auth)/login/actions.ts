@@ -4,10 +4,6 @@ import { redirect } from "next/navigation";
 
 import { isDomesticSessionEnabled, signInDomesticUser } from "@/lib/auth/domestic-session";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
-import {
-  createSupabaseServerClient,
-  isSupabasePublicConfigured,
-} from "@/lib/supabase/server";
 
 function getSafeNextPath(value: FormDataEntryValue | null) {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
@@ -41,23 +37,5 @@ export async function signInToMerchant(formData: FormData) {
     redirect(next);
   }
 
-  if (!isSupabasePublicConfigured()) {
-    redirect(`/login?error=auth-not-configured&next=${encodeURIComponent(next)}`);
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error || !data.user) {
-    redirect(`/login?error=invalid-credentials&next=${encodeURIComponent(next)}`);
-  }
-
-  try {
-    await getOperationalMerchantProfileByOwnerUserId(data.user.id);
-  } catch {
-    await supabase.auth.signOut();
-    redirect("/login?error=no-merchant-profile");
-  }
-
-  redirect(next);
+  redirect(`/login?error=auth-not-configured&next=${encodeURIComponent(next)}`);
 }
