@@ -111,6 +111,79 @@ rg -n --hidden -S "直传 COS|Tencent COS|COS environment|COS_TEMP|COS_ENV|COS o
 - worker 的 `SUPABASE_DB_URL` / `WORKER_COS_*` / `COS_*` 仍可作为 older deployments fallback，但示例和 README 默认不再要求它们。
 - health response 仍保留 `cos` compatibility 字段，仅在实际 provider 是 `tencent_cos` 时返回。
 
+## 合并前风险记录
+
+这里的 legacy compatibility / fallback branch 指代码里的历史兼容路径，不是 Git branch。当前主线仍以 PostgreSQL、app-owned session、Aliyun OSS 为准。
+
+### 风险 1：环境变量混用导致误走旧路径
+
+风险：
+
+- 旧服务器或本机 `.env.local` 可能仍存在 `NEXT_PUBLIC_SUPABASE_*`、`SUPABASE_SERVICE_ROLE_KEY`、`SUPABASE_DB_URL`、`COS_*` 等变量。
+- 如果判断顺序写错，PostgreSQL preferred 环境可能被带回 legacy Supabase / Tencent COS 路径。
+
+当前缓解：
+
+- P0 已调整 `getAuthenticatedUser()`，只要 `isAppPostgresPreferred()` 为 true，就不会落到 legacy Supabase fallback。
+- P1/P2 已调整 repository 缺配置错误，PostgreSQL preferred 下优先抛 `APP_DATABASE_*` 当前口径错误。
+- `.env.example`、worker README、`firered.env.example` 已把 PostgreSQL / Aliyun OSS 放在默认主线位置。
+
+后续注意：
+
+- 新增 auth、repository、worker 配置逻辑时，必须先判断当前 PostgreSQL / Aliyun OSS 主线，再进入 legacy fallback。
+- 不要把存在 legacy env 当成选择 legacy provider 的充分条件。
+
+### 风险 2：兼容字段继续传播旧概念
+
+风险：
+
+- `cosKey`、`cos-preview`、`tencent_cos`、`cos://` 这些名字仍会在代码搜索里出现。
+- 如果新功能继续引用这些名字，会让新代码继续传播 COS 旧口径。
+
+当前缓解：
+
+- 新渲染 URL 已改用 `/api/media/object-preview`。
+- `cosKey` 已标记 deprecated，主字段仍是 `storageKey` / `uploadKey`。
+- `/api/media/cos-preview` 只作为历史 alias 保留。
+
+后续注意：
+
+- 新 API、DTO、UI 文案默认只使用 object storage / OSS / `storageKey`。
+- 只有旧 payload、旧客户端、历史素材读取可以继续接受 `cosKey`、`cos://`、`tencent_cos`。
+
+### 风险 3：彻底删除 legacy 代码会影响回滚或历史数据读取
+
+风险：
+
+- 旧资产、旧 Dify payload、旧 worker 部署或回滚环境可能仍依赖 Supabase / Tencent COS 形态。
+- 现在直接删除 `tencent_cos` provider、`cos://` 解析、Supabase fallback 或旧 env fallback，可能破坏历史数据读取与应急回滚。
+
+当前结论：
+
+- 本轮不做彻底 removal，只做主线默认口径和用户可见错误清理。
+- 是否删除 legacy，需要另开 `legacy Supabase/COS removal` 批次，并先确认旧部署、旧数据和回滚策略都已下线。
+
+### 风险 4：内部代码仍有历史命名
+
+风险：
+
+- `cloudSupabaseRequiredError()`、`requireSupabaseAdmin()`、`cos_client.py` 等内部命名仍带旧架构词。
+- `app/src/lib/auth/platform-admin-session.ts` 的 legacy fallback 内部错误仍有 `Failed to create Supabase auth user.`，但当前 server action 会转为通用 `bootstrap-failed`，不直接暴露给用户。
+
+当前结论：
+
+- 这些属于内部命名 / legacy 分支残留，不阻塞本轮合并。
+- 若后续要降低认知成本，可单独做命名整理，但不应和当前 P1/P2 功能修复混在一起。
+
+### 合并验收边界
+
+本轮可合并的前提是：
+
+- 当前 PostgreSQL preferred 模式不走 legacy Supabase auth / repository fallback。
+- 当前新上传和新 worker 默认口径指向 Aliyun OSS / object storage。
+- 用户可见 UI 和当前主线错误不再出现 Supabase 不可用、Supabase Auth、直传 COS 等旧文案。
+- legacy 路径只作为历史兼容或回滚保留，并在文档、注释、env 示例中明确标注。
+
 ## 验证结果
 
 通过：
