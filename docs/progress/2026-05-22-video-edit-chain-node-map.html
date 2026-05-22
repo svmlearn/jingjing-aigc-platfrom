@@ -1,0 +1,1841 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>视频剪辑链路节点页：输入、处理、输出、判断条件</title>
+  <style>
+    :root {
+      --page: #f5f2ea;
+      --surface: #fffdf8;
+      --surface-2: #f8faf5;
+      --ink: #181816;
+      --muted: #67635b;
+      --line: #d8d2c4;
+      --line-strong: #9f9888;
+      --green: #23715f;
+      --green-bg: #e7f3ee;
+      --amber: #9b6419;
+      --amber-bg: #fff0d1;
+      --red: #a43f36;
+      --red-bg: #fde7e1;
+      --blue: #315e83;
+      --blue-bg: #e7f0f6;
+      --violet: #654a86;
+      --violet-bg: #eee8f5;
+      --shadow: 0 10px 28px rgba(24, 24, 22, 0.08);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: Inter, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
+      line-height: 1.55;
+    }
+
+    button,
+    textarea {
+      font: inherit;
+    }
+
+    .wrap {
+      width: min(1500px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .hero,
+    .panel,
+    .node-card,
+    .summary-box {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+      gap: 18px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .kicker {
+      margin: 0 0 10px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 38px;
+      line-height: 1.1;
+    }
+
+    .hero-copy,
+    .body-text {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .hero-copy {
+      max-width: 900px;
+      margin: 16px 0 0;
+    }
+
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .action,
+    .link-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      background: #181816;
+      color: #fff9ed;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .action.secondary,
+    .link-button.secondary {
+      background: #fffdf8;
+      color: var(--ink);
+    }
+
+    .toc {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 0 16px;
+      background: linear-gradient(180deg, var(--page) 70%, rgba(245, 242, 234, 0));
+    }
+
+    .toc a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 11px;
+      background: rgba(255, 253, 248, 0.94);
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    section {
+      margin-top: 20px;
+      padding-top: 6px;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 0.55fr);
+      gap: 16px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      text-align: right;
+      font-size: 13px;
+    }
+
+    .flow-strip {
+      display: grid;
+      grid-template-columns: repeat(13, minmax(124px, 1fr));
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .flow-step {
+      position: relative;
+      min-height: 86px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+      padding: 10px 28px 10px 10px;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .flow-step::after {
+      content: "→";
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--line-strong);
+      font-size: 17px;
+      font-weight: 900;
+    }
+
+    .flow-step:last-child::after {
+      content: "";
+    }
+
+    .flow-step strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+    }
+
+    .flow-step span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .flow-step.decision {
+      background: var(--amber-bg);
+      border-color: rgba(155, 100, 25, 0.38);
+    }
+
+    .flow-step.material {
+      background: var(--green-bg);
+      border-color: rgba(35, 113, 95, 0.28);
+    }
+
+    .flow-step.engine {
+      background: var(--violet-bg);
+      border-color: rgba(101, 74, 134, 0.28);
+    }
+
+    .flow-step.fail {
+      background: var(--red-bg);
+      border-color: rgba(164, 63, 54, 0.28);
+    }
+
+    .engine-step-strip {
+      display: grid;
+      grid-template-columns: repeat(11, minmax(126px, 1fr));
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px 0;
+    }
+
+    .node-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .node-card {
+      padding: 15px;
+      scroll-margin-top: 80px;
+    }
+
+    .node-card.state {
+      border-color: rgba(49, 94, 131, 0.34);
+      background: var(--blue-bg);
+    }
+
+    .node-card.decision {
+      border-color: rgba(155, 100, 25, 0.36);
+      background: var(--amber-bg);
+    }
+
+    .node-card.material {
+      border-color: rgba(35, 113, 95, 0.28);
+      background: var(--green-bg);
+    }
+
+    .node-card.engine {
+      border-color: rgba(101, 74, 134, 0.28);
+      background: var(--violet-bg);
+    }
+
+    .node-card.fail {
+      border-color: rgba(164, 63, 54, 0.28);
+      background: var(--red-bg);
+    }
+
+    .node-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .node-head h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.28;
+    }
+
+    .node-id {
+      display: inline-grid;
+      place-items: center;
+      min-width: 36px;
+      height: 32px;
+      border-radius: 999px;
+      background: #181816;
+      color: #fff7dd;
+      padding: 0 9px;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .io-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .io-box {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 248, 0.82);
+      padding: 10px;
+      min-height: 118px;
+    }
+
+    .io-box strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .io-box p,
+    .io-box li {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .io-box p {
+      margin: 0;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    code {
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: #f7f3e8;
+      padding: 1px 5px;
+      color: #28251f;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+      word-break: break-word;
+    }
+
+    .example {
+      margin-top: 10px;
+      border-left: 4px solid var(--green);
+      background: rgba(255, 253, 248, 0.82);
+      padding: 10px;
+      color: #403c34;
+      font-size: 12px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .field-box {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 248, 0.86);
+      padding: 10px;
+    }
+
+    .field-box strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .field-box p,
+    .field-box li {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .field-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 248, 0.86);
+      margin-top: 10px;
+    }
+
+    .field-table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .field-table th,
+    .field-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .field-table th {
+      background: #f6f1e6;
+      color: #3d3931;
+      font-weight: 850;
+    }
+
+    .field-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 10px 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 850;
+      border: 1px solid transparent;
+    }
+
+    .badge.done {
+      color: var(--green);
+      border-color: rgba(35, 113, 95, 0.24);
+      background: var(--green-bg);
+    }
+
+    .badge.partial {
+      color: var(--amber);
+      border-color: rgba(155, 100, 25, 0.3);
+      background: var(--amber-bg);
+    }
+
+    .badge.risk {
+      color: var(--red);
+      border-color: rgba(164, 63, 54, 0.26);
+      background: var(--red-bg);
+    }
+
+    .note {
+      margin-top: 12px;
+      border-top: 1px dashed var(--line);
+      padding-top: 10px;
+    }
+
+    .note label {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+      color: #4b4840;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .note textarea,
+    .summary-output {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+      color: var(--ink);
+      padding: 9px;
+      font-size: 13px;
+      line-height: 1.45;
+      resize: vertical;
+    }
+
+    .note textarea {
+      min-height: 76px;
+    }
+
+    .summary-output {
+      min-height: 160px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+
+    .save-mark {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .link-grid,
+    .example-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .summary-box {
+      padding: 14px;
+    }
+
+    .summary-box h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .summary-box p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 1180px) {
+      .hero,
+      .section-head,
+      .io-grid,
+      .field-grid,
+      .link-grid,
+      .example-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head p {
+        text-align: left;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .wrap {
+        padding: 16px;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+
+      h2 {
+        font-size: 20px;
+      }
+
+      .action-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        background: white;
+      }
+
+      .wrap {
+        width: 100%;
+        padding: 10px;
+      }
+
+      .toc,
+      .action-grid {
+        display: none;
+      }
+
+      .hero,
+      .panel,
+      .node-card,
+      .summary-box {
+        box-shadow: none;
+      }
+
+      .io-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="hero">
+      <div>
+        <p class="kicker">2026-05-22 / 独立链路节点页</p>
+        <h1>视频剪辑链路节点图：输入、处理过程、输出、判断条件</h1>
+        <p class="hero-copy">
+          这一页专门看“脚本 -> 素材 -> 剪辑”的节点链路。主页面负责总览服务器、素材库、成员端和接口；本页负责把每个链路节点拆成可批注的四块：输入、处理过程、输出、判断条件。
+        </p>
+      </div>
+      <div>
+        <div class="action-grid">
+          <a class="link-button" href="2026-05-21-video-edit-chain-annotatable-map.html#langgraph-chain">返回主页面摘要</a>
+          <a class="link-button secondary" href="2026-05-21-video-edit-chain-annotatable-map.html#contracts">看主页面接口合同</a>
+          <button class="action secondary" type="button" data-action="fill-summary">汇总本页批注</button>
+          <button class="action secondary" type="button" data-action="export">导出本页批注 JSON</button>
+        </div>
+        <p class="hero-copy">批注会和主页面使用同一份本地保存空间，方便来回跳转后继续写。</p>
+      </div>
+    </header>
+
+    <nav class="toc" aria-label="链路节点导航">
+      <a href="#overview">总览</a>
+      <a href="#node-start">START</a>
+      <a href="#node-script-scenes">N1 脚本拆镜</a>
+      <a href="#node-material-route">N2 素材判断</a>
+      <a href="#node-member-assets">N3A 成员素材</a>
+      <a href="#node-library-assets">N3B 素材库</a>
+      <a href="#node-material-confirm">N3C 素材确认</a>
+      <a href="#node-voice">N4 声音字幕</a>
+      <a href="#node-job">N5 创建任务</a>
+      <a href="#node-worker">N6 worker</a>
+      <a href="#node-engine">N7 剪辑引擎</a>
+      <a href="#engine-field-dictionary">引擎字段字典</a>
+      <a href="#engine-steps">F0-F10 引擎步骤</a>
+      <a href="#music-chain">音乐链路</a>
+      <a href="#node-result">END 成片</a>
+      <a href="#node-failure">失败边</a>
+      <a href="#examples">例子</a>
+    </nav>
+
+    <section id="overview">
+      <div class="section-head">
+        <h2>一、节点总览</h2>
+        <p>点击任一节点可跳到详细说明。黄色代表判断节点，绿色代表素材节点，紫色代表剪辑引擎，红色代表失败分流。</p>
+      </div>
+      <div class="panel" style="padding:14px;">
+        <div class="flow-strip">
+          <a class="flow-step" href="#node-start"><strong>START</strong><span>脚本已确认，任务可以开始。</span></a>
+          <a class="flow-step" href="#node-script-scenes"><strong>N1</strong><span>把脚本拆成镜头需求。</span></a>
+          <a class="flow-step decision" href="#node-material-route"><strong>N2</strong><span>判断素材从哪里来。</span></a>
+          <a class="flow-step material" href="#node-member-assets"><strong>N3A</strong><span>成员上传素材。</span></a>
+          <a class="flow-step material" href="#node-library-assets"><strong>N3B</strong><span>COS/OSS 商家素材库。</span></a>
+          <a class="flow-step decision" href="#node-material-confirm"><strong>N3C</strong><span>确认每个镜头用什么素材。</span></a>
+          <a class="flow-step decision" href="#node-voice"><strong>N4</strong><span>声音、字幕、lip-sync。</span></a>
+          <a class="flow-step" href="#node-job"><strong>N5</strong><span>创建 video_edit_jobs。</span></a>
+          <a class="flow-step" href="#node-worker"><strong>N6</strong><span>worker 领取并下载素材。</span></a>
+          <a class="flow-step engine" href="#node-engine"><strong>N7</strong><span>OpenStoryline / FireRed 剪辑。</span></a>
+          <a class="flow-step engine" href="#engine-steps"><strong>F0-F10</strong><span>剪辑引擎内部每一步。</span></a>
+          <a class="flow-step" href="#node-result"><strong>END</strong><span>上传成片并回写前端。</span></a>
+          <a class="flow-step fail" href="#node-failure"><strong>FAIL</strong><span>失败归因和重试/人工处理。</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes">
+      <div class="section-head">
+        <h2>二、节点详解</h2>
+        <p>每个节点都固定拆成输入、处理过程、输出、判断条件，方便直接批注。</p>
+      </div>
+
+      <div class="node-grid">
+        <article class="node-card state" id="node-start" data-title="START 脚本确认">
+          <div class="node-head">
+            <h3>START：脚本已经确认，可以开始剪辑</h3>
+            <span class="node-id">S</span>
+          </div>
+          <p class="body-text">通俗解释：这一步像剪辑师收到定稿文案。脚本没定，后面的素材、配音和剪辑都会反复变化，所以要先确认脚本版本。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p><code>content_variants</code> 里的脚本文本、关联的 <code>draftId</code>、<code>dailyTaskId</code>、商家和成员身份。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>检查脚本是否为空，确认是否已审核/锁定，把脚本版本固定下来，避免 worker 自己改文案。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>lockedScript</code>、<code>variantId</code>、<code>draftId</code>，作为后续 Graph State 的起点。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>脚本为空或未确认：回到脚本制作；脚本已确认：进入 N1 拆镜。</p></div>
+          </div>
+          <div class="example">例子：脚本为“开头真人口播：今天带你看一个周末放空的小院。”这个版本被锁定后，后续剪辑都围绕它找素材和配音。</div>
+          <div class="note">
+            <label>批注：脚本入口规则 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-start-script" placeholder="例如：脚本未审核时能不能先生成内部预览？谁有权把脚本标记为可剪辑？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card" id="node-script-scenes" data-title="N1 脚本拆镜">
+          <div class="node-head">
+            <h3>N1：ScriptToScenes，把脚本拆成镜头需求</h3>
+            <span class="node-id">N1</span>
+          </div>
+          <p class="body-text">通俗解释：脚本是给人看的，剪辑系统需要的是“第几秒用什么画面”。这个节点把文案翻译成一组镜头需求。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>锁定脚本、<code>productionScenes</code>、内容类型、目标平台、商家/门店上下文。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>按句子和意图拆镜，标记每个镜头需要真人、环境、门头、产品、字幕还是 CTA。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>sceneRequirements</code>、<code>sceneAssetQueries</code>、缺素材提示 <code>missingAssetHints</code>。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>出现“我带你看/大家好/真人口播”倾向成员素材；出现“庭院/门头/户型/产品”倾向商家素材库。</p></div>
+          </div>
+          <div class="example">例子：“开头真人说一句，后面展示庭院和咖啡座位”会被拆成：1. 真人口播；2. 庭院环境；3. 座位细节；4. 结尾 CTA。</div>
+          <div class="note">
+            <label>批注：脚本拆镜规则 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-script-scenes" placeholder="例如：哪些关键词必须触发“真人口播”？哪些词必须触发“素材库检索”？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card decision" id="node-material-route" data-title="N2 素材来源判断">
+          <div class="node-head">
+            <h3>N2：MaterialRoute，判断每个镜头的素材从哪里来</h3>
+            <span class="node-id">N2</span>
+          </div>
+          <p class="body-text">通俗解释：这一步像给每个镜头贴标签。哪些必须成员上传，哪些从商家素材库找，哪些缺素材要拦住，都在这里决定。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>N1 产出的镜头需求，例如 <code>user_talking_head</code>、<code>merchant_broll</code>、<code>product_closeup</code>。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>按镜头角色分流：真人/口播走成员素材，门店/环境/项目展示走素材库，缺关键画面则记录阻断原因。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>memberAssetNeeds</code>、<code>libraryAssetNeeds</code>、<code>blockingMissingAssets</code>。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>必须真人但无成员视频：进入 N3A 等待补素材；素材库镜头：进入 N3B 检索；可替代镜头：允许降级或继续。</p></div>
+          </div>
+          <div class="example">例子：“真人开场”走成员上传；“庭院空镜”和“座位特写”走 COS/OSS 商家素材库。</div>
+          <div class="note">
+            <label>批注：素材来源判断 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-material-route" placeholder="例如：什么镜头必须真人？什么镜头可以用素材库替代？素材不足时阻断还是生成草稿？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card material" id="node-member-assets" data-title="N3A 成员素材">
+          <div class="node-head">
+            <h3>N3A：CollectMemberAssets，收集成员上传素材</h3>
+            <span class="node-id">N3A</span>
+          </div>
+          <p class="body-text">通俗解释：如果镜头需要成员本人出现，比如真人口播，这个节点就去草稿下面找成员上传的视频、图片或音频。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p><code>inputAssetIds</code>、<code>asset_objects ownerType=content_draft</code>、上传文件的 role/tags/metadata。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>检查文件类型、大小、时长和可读性，识别哪些是开头口播、结尾口播、普通 B-roll 或补充证明材料。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>userInputAssets</code>、<code>talkingHeadAssets</code>、成员素材缺失列表。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>必需成员素材缺失：提示补素材；素材可读且符合角色：进入素材确认；素材不可读：失败或要求重传。</p></div>
+          </div>
+          <div class="example">例子：成员上传一段 20 秒正脸视频，系统标记为“开头真人口播”，后续 lip-sync 才可能使用它。</div>
+          <div class="note">
+            <label>批注：成员素材上传和标记 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-member-assets" placeholder="例如：上传时是否必须让成员选择“开头口播/结尾口播/B-roll”？是否要自动检测人脸？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card material" id="node-library-assets" data-title="N3B 商家素材库">
+          <div class="node-head">
+            <h3>N3B：RetrieveMerchantLibraryAssets，检索 COS/OSS 商家素材库</h3>
+            <span class="node-id">N3B</span>
+          </div>
+          <p class="body-text">通俗解释：这里就是“COS 素材库”的核心路径。产品上可继续叫 COS 素材库；当前国内生产默认对象存储是阿里云 OSS，同时兼容历史 Tencent COS 口径。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p><code>merchantId</code>、场景 query、素材库记录 <code>source_items + asset_objects</code>、素材标签和对象存储 key。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>按门店、场景、标签、横竖屏、质量和可用性检索，给每个镜头挑一个或多个候选素材。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>merchantMaterialAssets</code>、素材来源说明、候选素材排序、缺素材提示。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>命中高质量素材：进入确认；无命中：提示商家补素材、允许低保真预览或阻断，取决于产品规则。</p></div>
+          </div>
+          <div class="example">例子：query “庭院 安静 座位”命中 4 条商家实拍视频，系统优先选竖屏、清晰、近期上传的片段。</div>
+          <div class="note">
+            <label>批注：素材库检索规则 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-library-assets" placeholder="例如：素材库排序是否要看门店、场景、质量分、发布时间、横竖屏、是否已用过？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card decision" id="node-material-confirm" data-title="N3C 素材确认">
+          <div class="node-head">
+            <h3>N3C：MaterialConfirm，确认每个镜头到底用哪段素材</h3>
+            <span class="node-id">N3C</span>
+          </div>
+          <p class="body-text">通俗解释：这是建议新增的产品节点。后端可以自动匹配素材，但用户最好能在出片前看到“每个镜头将用什么”，减少成片后返工。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>N3A 的成员素材、N3B 的商家素材库候选、N1 的镜头需求。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>把“镜头需求”和“候选素材”一一绑定，允许用户替换、锁定必用素材、删除不合适素材。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>confirmedSceneAssets</code>、<code>mustUseAssets</code>、<code>forbiddenAssets</code>、素材确认记录。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>用户确认：进入声音策略；用户替换：回到素材检索；关键镜头无素材：阻断并提示补素材。</p></div>
+          </div>
+          <div class="example">例子：第 2 镜“庭院环境”自动匹配了 A 视频，但运营认为 B 视频更好，可以在这里替换并锁定 B 视频。</div>
+          <div class="note">
+            <label>批注：是否需要素材确认节点 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-material-confirm" placeholder="例如：这个节点是必经步骤，还是只在高级模式展示？谁可以替换素材？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card decision" id="node-voice" data-title="N4 声音字幕 lip-sync">
+          <div class="node-head">
+            <h3>N4：VoiceAndSubtitleRoute，决定声音、字幕和 lip-sync</h3>
+            <span class="node-id">N4</span>
+          </div>
+          <p class="body-text">通俗解释：画面素材准备好以后，还要决定“谁来念脚本”。没有个人音色就用系统配音；有个人音色可以用克隆音色；有合格真人口播视频才可能做口型同步。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>确认后的素材、脚本文本、<code>voice_profiles</code>、参考音频、口播视频、平台字幕要求。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>选择系统配音或个人克隆音色，确定字幕来源，判断真人视频是否满足 lip-sync 条件。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>productionConfig.voiceover</code>、<code>subtitlePolicy</code>、<code>lipSyncConfig</code>。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>无 ready 音色：系统配音；有音色但无合格口播：克隆配音不对口型；音色和口播都合格：可启用 lip-sync。</p></div>
+          </div>
+          <div class="example">例子：成员有 ready 音色且上传了清晰正脸视频，则设置 <code>voiceover.mode=voice_profile</code>、<code>lipSync.enabled=true</code>。</div>
+          <div class="note">
+            <label>批注：声音、字幕、口型同步策略 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-voice-route" placeholder="例如：没有个人音色是否允许直接生成？lip-sync 失败是否降级为普通剪辑？字幕必须跟脚本一致吗？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card state" id="node-job" data-title="N5 创建 video_edit_jobs">
+          <div class="node-head">
+            <h3>N5：AssembleVideoEditJob，创建剪辑任务</h3>
+            <span class="node-id">N5</span>
+          </div>
+          <p class="body-text">通俗解释：这一步像把剪辑任务单正式交给后台排队。脚本、素材、声音、字幕和输出要求都会写进 <code>input_payload</code>。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>锁定脚本、确认素材、声音策略、字幕策略、lip-sync 配置、输出比例和平台目标。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>组装 <code>video_edit_jobs.input_payload</code>，写入数据库，建立 app 和 worker 之间的稳定合同。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>jobId</code>、<code>input_payload</code>、初始状态 <code>pending/queued</code>。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>合同字段完整：进入 worker 队列；缺关键字段：<code>failed_manual</code> 或阻止创建。</p></div>
+          </div>
+          <div class="example">例子：一个 job 会带上 <code>script</code>、<code>productionDirective</code>、<code>materialContext</code>、<code>input_assets</code>、<code>productionConfig</code>。</div>
+          <div class="note">
+            <label>批注：任务创建前确认 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-job-payload" placeholder="例如：点击 AI 剪辑前是否要展示“将使用这些素材、这个声音、这个字幕策略”？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card" id="node-worker" data-title="N6 worker 准备">
+          <div class="node-head">
+            <h3>N6：WorkerClaimAndPrepare，worker 领取任务并准备素材</h3>
+            <span class="node-id">N6</span>
+          </div>
+          <p class="body-text">通俗解释：app 创建任务后，真正跑剪辑的是服务器上的 video-worker。它会抢任务、下载素材、检查本地文件，再交给剪辑引擎。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p><code>video_edit_jobs</code> 队列、<code>input_payload</code>、对象存储 key、数据库素材记录。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>用队列锁领取任务，更新 heartbeat，下载成员素材和素材库素材到本地临时目录，校验文件。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>runtime_payload</code>、本地素材路径、状态 <code>preparing/running</code>、worker 日志。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>下载失败：多为 <code>failed_retryable</code>；文件不可读或合同错误：多为 <code>failed_manual</code>。</p></div>
+          </div>
+          <div class="example">例子：素材库里是 <code>oss://bucket/materials/courtyard.mp4</code>，worker 下载为 <code>/tmp/video-worker/.../courtyard.mp4</code>。</div>
+          <div class="note">
+            <label>批注：worker 准备阶段 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-worker-prepare" placeholder="例如：前端进度是否要展示“正在下载素材/正在校验音频/素材不可读”？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="node-engine" data-title="N7 OpenStoryline FireRed">
+          <div class="node-head">
+            <h3>N7：OpenStoryline / FireRed，真正剪辑和渲染</h3>
+            <span class="node-id">N7</span>
+          </div>
+          <p class="body-text">通俗解释：这里才是真正剪视频的节点。worker 把任务交给 OpenStoryline，OpenStoryline 再把它转成 FireRed 能执行的生产指令。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>本地素材路径、脚本、声音配置、字幕配置、lip-sync 配置、目标视频规格。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>这里先作为总入口，内部继续拆成 F0-F10：适配合同、加载素材、切片、理解素材、配音、字幕、时间线、lip-sync、渲染和校验。</p></div>
+            <div class="io-box"><strong>输出</strong><p>交给后续 END 节点的 <code>final.mp4</code>、封面、字幕文件、时间线 metadata、引擎日志。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>任一内部 F 节点失败，都要带着明确阶段返回；lip-sync 启用时，最终 render 必须消费 retalked 片段。</p></div>
+          </div>
+          <div class="engine-step-strip" aria-label="剪辑引擎内部步骤总览">
+            <a class="flow-step engine" href="#engine-f0"><strong>F0</strong><span>适配 worker 合同</span></a>
+            <a class="flow-step engine" href="#engine-f1"><strong>F1</strong><span>加载素材</span></a>
+            <a class="flow-step engine" href="#engine-f2"><strong>F2</strong><span>切镜头/切片</span></a>
+            <a class="flow-step engine" href="#engine-f3"><strong>F3</strong><span>理解素材内容</span></a>
+            <a class="flow-step engine" href="#engine-f4"><strong>F4</strong><span>补检索/候选素材</span></a>
+            <a class="flow-step engine" href="#engine-f5"><strong>F5</strong><span>生成配音</span></a>
+            <a class="flow-step engine" href="#engine-f6"><strong>F6</strong><span>字幕/对齐</span></a>
+            <a class="flow-step engine" href="#engine-f7"><strong>F7</strong><span>规划时间线</span></a>
+            <a class="flow-step engine" href="#engine-f8"><strong>F8</strong><span>可选口型同步</span></a>
+            <a class="flow-step engine" href="#music-chain"><strong>M0-M5</strong><span>音乐/BGM 链路</span></a>
+            <a class="flow-step engine" href="#engine-f9"><strong>F9</strong><span>渲染视频</span></a>
+            <a class="flow-step engine" href="#engine-f10"><strong>F10</strong><span>校验产物</span></a>
+          </div>
+          <div class="example">例子：系统配音版会走 F0-F7-F9-F10；真人口播 lip-sync 版会在 F8 把 talking-head 段替换成对口型后的视频，再进入 F9 渲染。</div>
+          <div class="note">
+            <label>批注：剪辑引擎节点 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-engine-edit" placeholder="例如：哪些内部进度要展示给用户？口型同步失败时降级还是阻断？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-field-dictionary" data-title="剪辑引擎字段字典">
+          <div class="node-head">
+            <h3>剪辑引擎字段字典：这些字段到底是什么要求</h3>
+            <span class="node-id">字段</span>
+          </div>
+          <p class="body-text">通俗解释：下面这张表是 N7/F0-F10 会反复用到的核心字段。产品批注时可以直接指出“这个字段要不要前端可见”“这个字段是否必填”“这个字段失败时怎么提示”。</p>
+          <div class="field-table-wrap">
+            <table class="field-table">
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>类型 / 是否必填</th>
+                  <th>来源</th>
+                  <th>用途</th>
+                  <th>通俗解释和要求</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>job_id</code></td>
+                  <td>字符串，必填</td>
+                  <td><code>video_edit_jobs.id</code></td>
+                  <td>串起 worker、OpenStoryline、FireRed、日志和输出目录。</td>
+                  <td>每次剪辑任务的身份证。没有它，后面无法知道哪个成片属于哪个任务。</td>
+                </tr>
+                <tr>
+                  <td><code>merchant_id</code></td>
+                  <td>字符串，必填</td>
+                  <td>商家上下文</td>
+                  <td>隔离商家素材、输出路径、权限和日志。</td>
+                  <td>防止素材和成片串到别的商家。真实发布链路里这是安全边界。</td>
+                </tr>
+                <tr>
+                  <td><code>draft_id</code> / <code>content_variant_id</code></td>
+                  <td>字符串，必填</td>
+                  <td>草稿和脚本版本</td>
+                  <td>把成片回写到正确草稿、正确脚本版本。</td>
+                  <td>同一个草稿可能有多个版本，成片必须能追溯到哪一版脚本。</td>
+                </tr>
+                <tr>
+                  <td><code>workspace_dir</code></td>
+                  <td>本地路径，必填</td>
+                  <td>worker 创建</td>
+                  <td>FireRed 临时工作目录。</td>
+                  <td>引擎运行时的工作台，放中间文件、临时结果和运行记录。</td>
+                </tr>
+                <tr>
+                  <td><code>output_dir</code></td>
+                  <td>本地路径，必填</td>
+                  <td>worker 创建</td>
+                  <td>约定输出 <code>final.mp4</code>、<code>cover.jpg</code>、<code>subtitles.srt</code>、metadata。</td>
+                  <td>END 节点会从这里拿文件上传对象存储。这个目录不对，后面就找不到成片。</td>
+                </tr>
+                <tr>
+                  <td><code>input_assets[].local_path</code></td>
+                  <td>本地路径，必填</td>
+                  <td>N6 下载素材后写入</td>
+                  <td>F1 加载素材的真实文件路径。</td>
+                  <td>这是云端素材下载到服务器后的路径，不是 OSS/COS key。必须文件存在且可读。</td>
+                </tr>
+                <tr>
+                  <td><code>input_assets[].asset_type</code></td>
+                  <td>字符串，必填</td>
+                  <td>素材记录</td>
+                  <td>区分 video、image、audio 等素材类型。</td>
+                  <td>剪辑用视频/图片，克隆音色用音频。类型错了，后面会走错节点。</td>
+                </tr>
+                <tr>
+                  <td><code>input_assets[].role</code></td>
+                  <td>字符串，建议必填</td>
+                  <td>成员上传或素材匹配</td>
+                  <td>区分 <code>talking_head</code>、B-roll、项目素材等。</td>
+                  <td>lip-sync 判断最依赖这个字段。真人口播没有标出来，就可能不会进入 F8。</td>
+                </tr>
+                <tr>
+                  <td><code>input_assets[].tags / labels / metadata</code></td>
+                  <td>数组/对象，可选但很重要</td>
+                  <td>素材库标签、上传元数据、匹配结果</td>
+                  <td>帮助 F3/F4 理解素材和匹配镜头。</td>
+                  <td>这些是“素材说明书”。越清楚，越不容易乱选素材。</td>
+                </tr>
+                <tr>
+                  <td><code>script_text</code></td>
+                  <td>字符串，必填</td>
+                  <td>锁定脚本</td>
+                  <td>给配音、字幕、时间线规划使用。</td>
+                  <td>这是成片要表达的核心内容。为空就不该继续剪。</td>
+                </tr>
+                <tr>
+                  <td><code>production_directive.desired_outputs</code></td>
+                  <td>字符串数组，默认 <code>["final_video"]</code></td>
+                  <td>app payload</td>
+                  <td>告诉引擎需要 final、cover、subtitles 哪些产物。</td>
+                  <td>如果产品要求封面和字幕也必须有，这里要写清楚，F10 才能校验。</td>
+                </tr>
+                <tr>
+                  <td><code>production_config.voiceover.mode</code></td>
+                  <td><code>system</code> 或 <code>voice_profile</code>，必填</td>
+                  <td>N4 声音策略</td>
+                  <td>决定 F5 走系统配音还是个人克隆音色。</td>
+                  <td>系统配音更稳；个人音色更像真人，但必须有音色和参考音频。</td>
+                </tr>
+                <tr>
+                  <td><code>production_config.voiceover.provider</code></td>
+                  <td>枚举，系统配音必填</td>
+                  <td>N4 声音策略</td>
+                  <td>系统配音 provider，例如 <code>bytedance_bigtts</code>、<code>minimax</code>、<code>302</code>。</td>
+                  <td>选择谁来念。provider 不支持会在创建任务或 F5 失败。</td>
+                </tr>
+                <tr>
+                  <td><code>production_config.bgm.enabled</code></td>
+                  <td>布尔值，必填，默认 true</td>
+                  <td>N4 / 创建任务配置</td>
+                  <td>决定是否进入音乐/BGM 链路。</td>
+                  <td>关掉时不应该要求 <code>music_rec</code> 作为时间线依赖，避免无音乐任务卡住。</td>
+                </tr>
+                <tr>
+                  <td><code>production_config.bgm.userRequest</code></td>
+                  <td>字符串，可为空</td>
+                  <td>脚本策略、产品配置或用户选择</td>
+                  <td>告诉 <code>select_bgm</code> 想要什么音乐风格。</td>
+                  <td>例如“轻盈、温暖、有一点节奏感”。为空时由素材和默认策略选择。</td>
+                </tr>
+                <tr>
+                  <td><code>production_config.bgm.include/exclude</code></td>
+                  <td>对象，可选</td>
+                  <td>产品配置或用户筛选</td>
+                  <td>筛选或排除音乐标签。</td>
+                  <td>只允许 <code>mood</code>、<code>scene</code>、<code>genre</code>、<code>lang</code>、<code>id</code> 这些 key。</td>
+                </tr>
+                <tr>
+                  <td><code>production_config.bgm.volume</code></td>
+                  <td>数字，0 到 3，默认 0.25</td>
+                  <td>产品配置</td>
+                  <td>控制 BGM 混音音量。</td>
+                  <td>这是背景音乐的音量倍数。口播视频一般要低一点，避免盖住人声。</td>
+                </tr>
+                <tr>
+                  <td><code>voiceProfileId</code> / <code>refAudioAssetId</code></td>
+                  <td>字符串，voice_profile 模式必填</td>
+                  <td><code>voice_profiles</code> 和声音资产</td>
+                  <td>F5 克隆配音找到成员音色和参考音频。</td>
+                  <td>个人音色模式没有这两个字段，就不能生成克隆配音。</td>
+                </tr>
+                <tr>
+                  <td><code>production_config.subtitles.talkingHeadSource</code></td>
+                  <td><code>script</code> / <code>script_audio_alignment</code> / <code>asr_original_audio</code></td>
+                  <td>N4 字幕策略</td>
+                  <td>决定 F6 字幕来自哪里。</td>
+                  <td>脚本锁定时建议用脚本或脚本音频对齐；保留真人原声时才考虑 ASR。</td>
+                </tr>
+                <tr>
+                  <td><code>production_config.lip_sync.enabled</code></td>
+                  <td>布尔值，必填</td>
+                  <td>N4 lip-sync 判断</td>
+                  <td>决定是否进入 F8。</td>
+                  <td>开了就必须严格校验；不能开了但最后没用 retalked 片段。</td>
+                </tr>
+                <tr>
+                  <td><code>production_config.lip_sync.scope</code></td>
+                  <td>固定 <code>talking_head_segments</code></td>
+                  <td>app 归一化</td>
+                  <td>限定 lip-sync 只处理真人口播段。</td>
+                  <td>非常重要：不能把整条成片或 B-roll 都送去口型同步。</td>
+                </tr>
+                <tr>
+                  <td><code>production_config.lip_sync.inputRequirements</code></td>
+                  <td>对象，启用 lip-sync 时必看</td>
+                  <td>app 归一化</td>
+                  <td>F8 输入校验：音频/视频格式、大小、时长、fps、人脸要求。</td>
+                  <td>视频要求 mp4/avi/mov、2-120 秒、15-60fps、清晰正脸；音频要求 wav/mp3/aac、2-120 秒、清晰语音。</td>
+                </tr>
+                <tr>
+                  <td><code>production_config.render.aspectRatio</code></td>
+                  <td>当前固定 <code>9:16</code></td>
+                  <td>N4/N5 渲染配置</td>
+                  <td>F9 渲染成片比例。</td>
+                  <td>当前只支持竖屏短视频。传别的比例会被视为不支持。</td>
+                </tr>
+                <tr>
+                  <td><code>service_config</code></td>
+                  <td>对象，F0 生成</td>
+                  <td>OpenStoryline settings + production_config</td>
+                  <td>把 TTS、ASR、lip-sync provider 的运行配置注入 FireRed。</td>
+                  <td>这里会包含 provider、model、timeout 等，但页面和日志不能暴露密钥。</td>
+                </tr>
+                <tr>
+                  <td><code>lip_sync.plan_timeline</code></td>
+                  <td>对象，F8 成功时必有</td>
+                  <td>F8 lip_sync</td>
+                  <td>给 F9 使用的“替换过口播段”的新时间线。</td>
+                  <td>lip-sync 真成功的关键不是 provider 返回成功，而是最终渲染真的用了这条新时间线。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note">
+            <label>批注：字段字典还缺什么 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-field-dictionary" placeholder="例如：是否要把字段分成“产品可配置字段”和“系统内部字段”？哪些字段要在前端展示？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-steps" data-title="F0-F10 剪辑引擎内部步骤总览">
+          <div class="node-head">
+            <h3>F0-F10：剪辑引擎内部每一步</h3>
+            <span class="node-id">F*</span>
+          </div>
+          <p class="body-text">通俗解释：N7 是大门，F0-F10 是门里面真正发生的动作。前端进度、失败归因、质量验收，最好都能落到这些内部步骤上，而不是只说“剪辑中”。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>N6 准备好的本地素材、worker 标准合同、脚本、声音、字幕、lip-sync 开关。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>从合同适配开始，依次完成素材加载、切片、理解、配音、字幕、时间线、口型同步、渲染和校验。</p></div>
+            <div class="io-box"><strong>输出</strong><p>可被 END 上传的成片文件，以及每个内部步骤的结构化日志和失败阶段。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>任何 F 节点失败都要明确归因；关键产物缺失时不能继续伪造成片成功。</p></div>
+          </div>
+          <div class="note">
+            <label>批注：剪辑引擎内部步骤总览 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-steps-overview" placeholder="例如：前端进度条应该显示哪些 F 节点？哪些只给运营后台看？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-f0" data-title="F0 适配 worker 合同">
+          <div class="node-head">
+            <h3>F0：Adapter，把 worker 合同转成 FireRed 生产指令</h3>
+            <span class="node-id">F0</span>
+          </div>
+          <p class="body-text">通俗解释：worker 的任务单是平台自己的格式，FireRed 有自己的执行格式。F0 就是翻译官，把平台任务翻译成 FireRed 能执行的请求。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p><code>RunRequest</code>、<code>ProductionDirective</code>、<code>productionConfig</code>、本地素材路径。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>构造 FireRed <code>/api/worker/runs</code> 请求，注入 provider key、输出目录、素材列表、脚本和配置。</p></div>
+            <div class="io-box"><strong>输出</strong><p>FireRed run payload、run id、引擎调用上下文。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>缺 FireRed base URL 或 provider key：直接失败；合同字段缺失：回到 worker 合同错误。</p></div>
+          </div>
+          <div class="example">例子：<code>video_edit_jobs.input_payload</code> 里有脚本、素材和声音策略，F0 把它转换成 FireRed 的 <code>script / media / production_config</code>。</div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>本步骤重点字段</strong>
+              <ul>
+                <li><code>job_id</code>：必填，用来串日志和输出目录。</li>
+                <li><code>workspace_dir</code> / <code>output_dir</code>：必填，本地路径，不能是云存储 key。</li>
+                <li><code>production_directive</code>：必填，告诉引擎目标平台、输出项和锁定字段。</li>
+                <li><code>production_config</code>：必填，声音、字幕、lip-sync、渲染规则都在这里。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>字段解释</strong>
+              <p>F0 不做创意判断，它只负责把平台字段翻译给 FireRed。这里字段缺失，后面 F1-F10 再聪明也会跑偏，所以缺关键字段要早失败。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：F0 合同适配 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-f0-adapter" placeholder="例如：哪些字段必须在适配前就校验？哪些字段可以留给 FireRed 判断？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-f1" data-title="F1 加载素材">
+          <div class="node-head">
+            <h3>F1：load_media，读取本地素材</h3>
+            <span class="node-id">F1</span>
+          </div>
+          <p class="body-text">通俗解释：这里不是去云上下载素材，下载已经在 N6 做完。F1 是 FireRed 读取 worker 放到本地目录里的视频、图片和音频。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>本地文件路径、素材 role、文件类型、素材来源说明。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>扫描并打开素材，确认文件存在、格式可读、基础 metadata 可取。</p></div>
+            <div class="io-box"><strong>输出</strong><p>FireRed 可使用的 media 列表、素材路径映射、不可读素材列表。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>关键素材不可读：失败；非关键素材不可读：按产品规则跳过或降级。</p></div>
+          </div>
+          <div class="example">例子：<code>/tmp/video-worker/.../courtyard.mp4</code> 被读取为一个可剪辑素材；如果文件不存在，失败应归因到素材准备/加载。</div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>本步骤重点字段</strong>
+              <ul>
+                <li><code>input_assets[].local_path</code>：必填，文件必须存在且可读。</li>
+                <li><code>input_assets[].asset_type</code>：必填，常见为 video、image、audio。</li>
+                <li><code>input_assets[].file_name</code>：可选，用于展示和日志排查。</li>
+                <li><code>input_assets[].metadata</code>：可选但重要，保留来源、存储 key、时长等信息。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>字段解释</strong>
+              <p><code>local_path</code> 是服务器本地文件路径，不是 OSS/COS 地址。F1 只认本地能打开的文件；如果还只是云端 key，说明 N6 没准备好。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：F1 素材加载 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-f1-load-media" placeholder="例如：素材不可读时是直接失败，还是允许换候选素材继续？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-f2" data-title="F2 切镜头切片">
+          <div class="node-head">
+            <h3>F2：split_shots，把素材切成可用片段</h3>
+            <span class="node-id">F2</span>
+          </div>
+          <p class="body-text">通俗解释：一条视频可能很长，不能整条直接塞进成片。F2 会把素材切成多个镜头片段，后面才能挑哪些片段好用。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>F1 的 media 列表、视频时长、镜头变化检测配置、单素材 fallback 规则。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>按镜头边界或兜底规则切片，把长视频拆成多个 clip。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>split_shots.clips</code>，每个 clip 有来源、起止时间、路径或引用。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>没有切出任何片段：失败或使用整段兜底；单素材场景要避免卡在分组。</p></div>
+          </div>
+          <div class="example">例子：2026-05-19 真实成片记录里，FireRed evidence 显示 <code>split_shots</code> 输出 clips count 14。</div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>本步骤重点字段</strong>
+              <ul>
+                <li><code>input_assets[].asset_type=video</code>：只有视频素材才需要切片。</li>
+                <li><code>input_assets[].role</code>：影响切片后是否保留 talking-head 语义。</li>
+                <li><code>metadata.duration</code>：建议有，用于判断是否需要切片和是否超时。</li>
+                <li><code>split_shots.clips[]</code>：输出字段，后续 F3/F7 都依赖。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>字段解释</strong>
+              <p>F2 的目标是把“素材文件”变成“可剪辑片段”。如果 <code>role</code> 在这里丢了，后面就很难知道哪个 clip 是真人口播。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：F2 切片规则 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-f2-split-shots" placeholder="例如：短视频素材是否要切片？单素材时是否直接整段作为候选？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-f3" data-title="F3 理解素材">
+          <div class="node-head">
+            <h3>F3：understand_clips，理解每段素材在拍什么</h3>
+            <span class="node-id">F3</span>
+          </div>
+          <p class="body-text">通俗解释：切出来的片段还只是文件，系统需要知道它是门头、环境、人物、产品还是无效片段，才能和脚本镜头匹配。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>F2 的 clips、缩略帧、已有素材标签、脚本镜头需求。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>对 clip 做内容理解和质量判断，给出场景、主体、可用性和美观度描述。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>understand_clips</code> 结果、clip 标签、质量分、和脚本需求的匹配线索。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>理解失败或质量过低：剔除或降权；关键镜头没有可用 clip：回到素材缺失。</p></div>
+          </div>
+          <div class="example">例子：一段庭院视频被标为“安静庭院、座位、适合 B-roll”，就能匹配脚本里的“周末放空的小院”。</div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>本步骤重点字段</strong>
+              <ul>
+                <li><code>split_shots.clips[].source_path</code>：clip 来源文件。</li>
+                <li><code>input_assets[].tags</code> / <code>labels</code>：已有素材标签。</li>
+                <li><code>materialContext.sceneAssetQueries[]</code>：脚本对画面的需求。</li>
+                <li><code>understand_clips[].description</code>：输出，描述 clip 拍了什么。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>字段解释</strong>
+              <p>F3 是把机器文件变成“人能理解的素材说明”。字段越完整，后面 F7 排时间线时越不容易把不相关素材塞进去。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：F3 素材理解 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-f3-understand-clips" placeholder="例如：素材质量分需要展示给用户吗？哪些素材应该自动剔除？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-f4" data-title="F4 补检索候选素材">
+          <div class="node-head">
+            <h3>F4：search_media / candidate match，补检索和候选素材匹配</h3>
+            <span class="node-id">F4</span>
+          </div>
+          <p class="body-text">通俗解释：如果现有素材不够，或某个镜头需要更多候选，FireRed 这一层可能会做补检索。本项目更希望它优先使用 worker 已经选好的私有素材，不让它随意找外部素材。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>脚本镜头需求、F3 clip 理解结果、私有素材库候选、Pexels 兼容检索配置。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>优先匹配本地/私有素材；必要时通过兼容接口补候选，但不能越过商家权限边界。</p></div>
+            <div class="io-box"><strong>输出</strong><p>每个镜头的候选素材池、匹配理由、缺素材列表。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>私有素材足够：不外检；缺素材但禁止外检：提示补素材；允许外检：记录来源。</p></div>
+          </div>
+          <div class="example">例子：worker 已从 <code>source_items + asset_objects</code> 补到庭院素材，F4 应优先使用这些私有素材，而不是重新找公共素材。</div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>本步骤重点字段</strong>
+              <ul>
+                <li><code>materialContext.merchantMediaMatches[]</code>：商家素材库命中结果。</li>
+                <li><code>materialContext.assetMatchPlan[]</code>：镜头和素材的匹配计划。</li>
+                <li><code>service_config.search_media</code>：可选，私有 Pexels 兼容检索配置。</li>
+                <li><code>materialContext.excludedAssetIds[]</code>：被用户排除的素材。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>字段解释</strong>
+              <p>如果产品规定只用私有素材，F4 就不能自由找公共素材。<code>excludedAssetIds</code> 代表用户明确不要的素材，不能再次被选中。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：F4 候选素材匹配 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-f4-search-media" placeholder="例如：是否允许 FireRed 在私有素材不足时找公共素材？是否必须用户确认来源？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-f5" data-title="F5 生成配音">
+          <div class="node-head">
+            <h3>F5：generate_voiceover，生成系统配音或克隆配音</h3>
+            <span class="node-id">F5</span>
+          </div>
+          <p class="body-text">通俗解释：视频需要有人把脚本念出来。F5 会根据 N4 的声音策略生成配音；没有个人音色用系统配音，有个人音色用克隆配音。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>脚本文本、口播段落、系统 TTS 配置、<code>voice_profile</code>、参考音频。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>调用配音 provider，生成每段 voiceover，记录音频路径、时长和 provider 信息。</p></div>
+            <div class="io-box"><strong>输出</strong><p>配音音频，通常是 <code>.wav</code> 主产物；音频时长；voiceover metadata。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>无 ready 音色走系统配音；clone TTS 失败归因到 <code>clone_tts</code> 或 voiceover 阶段。</p></div>
+          </div>
+          <div class="example">例子：2026-05-19 成功记录里 <code>generate_voiceover</code> 使用 <code>minimax</code>；克隆音色链路已发布但还未真实全链路验收。</div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>本步骤重点字段</strong>
+              <ul>
+                <li><code>production_config.voiceover.enabled</code>：是否生成配音。</li>
+                <li><code>production_config.voiceover.mode</code>：<code>system</code> 或 <code>voice_profile</code>。</li>
+                <li><code>provider</code>：系统配音 provider，支持 <code>bytedance_bigtts</code>、<code>minimax</code>、<code>302</code>。</li>
+                <li><code>voiceProfileId</code> / <code>refAudioAssetId</code>：个人音色模式必填。</li>
+                <li><code>speed</code>：可选，0.5 到 2；<code>volume</code>：0 到 3，默认 2。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>字段解释</strong>
+              <p>系统配音看 provider；克隆音色看 voice profile 和参考音频。用户想要“像本人说话”，就必须走 <code>voice_profile</code> 且字段完整。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：F5 配音生成 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-f5-voiceover" placeholder="例如：系统配音、个人音色、原声保留三者优先级怎么定？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="music-chain" data-title="M0-M5 音乐 BGM 链路">
+          <div class="node-head">
+            <h3>M0-M5：音乐 / BGM 链路</h3>
+            <span class="node-id">M*</span>
+          </div>
+          <p class="body-text">通俗解释：音乐不是一个装饰项，它会影响节奏、转场、音量混合和最终观感。当前系统里 BGM 由 <code>production_config.bgm</code> 控制，FireRed 通过 <code>select_bgm</code> 选择音乐，再进入时间线和渲染。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p><code>production_config.bgm</code>、BGM 资源目录 <code>resource/bgms</code>、音乐标签 <code>meta.json</code>、脚本和素材风格。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>判断是否启用 BGM，按用户要求和标签筛选候选音乐，选择一首，分析节拍和能量，再放入时间线。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>selected_bgm</code> / <code>music_rec.bgm</code>、BGM track、混音音量、最终成片里的背景音乐。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>BGM 关闭则跳过；资源目录缺失或选择超时要明确失败或降级；口播场景要避免音乐盖住人声。</p></div>
+          </div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>音乐链路关键字段</strong>
+              <ul>
+                <li><code>bgm.enabled</code>：是否启用音乐，默认 true。</li>
+                <li><code>bgm.userRequest</code>：用户或产品想要的音乐描述。</li>
+                <li><code>bgm.include/exclude</code>：音乐标签筛选，只允许 mood、scene、genre、lang、id。</li>
+                <li><code>bgm.volume</code>：BGM 音量，0 到 3，默认 0.25。</li>
+                <li><code>music_rec.bgm.path</code>：选中的本地音乐文件。</li>
+                <li><code>music_rec.bgm.bpm/beats</code>：节奏信息，供时间线卡点使用。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>已知风险</strong>
+              <p>2026-05-21 有真实诊断：FireRed 已到 <code>select_bgm</code>，但模型采样 450 秒超时，最终 worker 2700 秒超时失败。所以音乐链路需要明确“超时降级/跳过/失败”的产品规则。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：音乐链路总策略 <span class="save-mark"></span></label>
+            <textarea data-note-id="music-chain-overview" placeholder="例如：BGM 选择超时时，是跳过音乐继续出片，还是失败让用户重试？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="music-m0" data-title="M0 BGM 开关和需求">
+          <div class="node-head">
+            <h3>M0：BgmConfig，决定要不要配音乐</h3>
+            <span class="node-id">M0</span>
+          </div>
+          <p class="body-text">通俗解释：不是每条视频都必须有音乐。M0 先决定这条视频要不要 BGM，以及音乐应该是什么气质。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p><code>production_config.bgm.enabled</code>、<code>userRequest</code>、<code>include</code>、<code>exclude</code>、<code>volume</code>。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>校验字段是否合法，判断音乐是否启用，整理用户的音乐风格要求。</p></div>
+            <div class="io-box"><strong>输出</strong><p>标准化后的 BGM 配置，供 M1/M2 使用。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p><code>enabled=false</code>：跳过 M1-M4；<code>volume</code> 超出 0-3：任务配置错误。</p></div>
+          </div>
+          <div class="example">例子：口播带货视频可以设置 <code>userRequest="轻快但不抢人声"</code>，<code>volume=0.18</code>。</div>
+          <div class="note">
+            <label>批注：M0 音乐开关 <span class="save-mark"></span></label>
+            <textarea data-note-id="music-m0-config" placeholder="例如：默认是否开启 BGM？真人口播视频默认音量应该多少？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="music-m1" data-title="M1 音乐资源检查">
+          <div class="node-head">
+            <h3>M1：BgmResourceReady，检查音乐资源库</h3>
+            <span class="node-id">M1</span>
+          </div>
+          <p class="body-text">通俗解释：要选音乐，服务器上必须有音乐库。FireRed 默认看 <code>resource/bgms</code> 和里面的 <code>meta.json</code> 标签。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p><code>project.bgm_dir</code>、<code>resource/bgms</code>、<code>resource/bgms/meta.json</code>。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>确认目录存在、是目录、有音频文件、有可用标签库。</p></div>
+            <div class="io-box"><strong>输出</strong><p>候选音乐库和标签索引。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>目录不存在、不是目录、无音频文件：音乐链路失败或降级跳过，取决于产品规则。</p></div>
+          </div>
+          <div class="example">例子：ready 检查曾显示 <code>runtime_assets.bgms=true</code>，说明服务器 BGM 资源目录存在。</div>
+          <div class="note">
+            <label>批注：M1 音乐资源库 <span class="save-mark"></span></label>
+            <textarea data-note-id="music-m1-resource" placeholder="例如：没有音乐资源时是否允许无 BGM 出片？音乐库由谁维护？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="music-m2" data-title="M2 筛选候选音乐">
+          <div class="node-head">
+            <h3>M2：FilterCandidates，按标签筛选候选音乐</h3>
+            <span class="node-id">M2</span>
+          </div>
+          <p class="body-text">通俗解释：音乐库里可能有很多首，M2 先按标签筛一轮，比如情绪、场景、曲风、语言、指定 id。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p><code>bgm.include</code>、<code>bgm.exclude</code>、音乐标签库。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>include 多个维度按 AND，同一维度多个值按 OR；exclude 命中的候选会被排除。</p></div>
+            <div class="io-box"><strong>输出</strong><p>候选音乐列表。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>没有候选：失败或回退默认音乐；filter key 不支持：任务配置错误。</p></div>
+          </div>
+          <div class="example">例子：<code>include.scene=["Cafe"]</code>、<code>include.mood=["Chill"]</code> 会优先找咖啡馆、放松感音乐。</div>
+          <div class="note">
+            <label>批注：M2 标签筛选 <span class="save-mark"></span></label>
+            <textarea data-note-id="music-m2-filter" placeholder="例如：音乐筛选要不要给用户可见？是否允许按指定音乐 id 锁定？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="music-m3" data-title="M3 选择音乐">
+          <div class="node-head">
+            <h3>M3：select_bgm，选择一首背景音乐</h3>
+            <span class="node-id">M3</span>
+          </div>
+          <p class="body-text">通俗解释：M3 会结合用户要求和候选音乐，选出最适合的一首。当前实现会调用模型做选择，模型失败时可能降级选第一个候选。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p><code>userRequest</code>、候选音乐 entries、select_bgm prompt。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>模型从候选中选一首；如果模型输出不是合法 JSON 或没有 path，则降级选择候选第一首。</p></div>
+            <div class="io-box"><strong>输出</strong><p>选中的音乐 JSON，至少需要 <code>path</code>，通常还有 <code>id</code>。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>模型采样超时：当前有真实失败记录；需要决定 fail-fast、跳过 BGM 还是 deterministic fallback。</p></div>
+          </div>
+          <div class="example">例子：2026-05-21 失败记录显示任务卡在 <code>select_bgm</code>，模型采样 450 秒超时，最后 worker 2700 秒超时。</div>
+          <div class="note">
+            <label>批注：M3 音乐选择超时策略 <span class="save-mark"></span></label>
+            <textarea data-note-id="music-m3-select" placeholder="例如：select_bgm 超过多少秒就跳过？是否默认选择第一首候选？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="music-m4" data-title="M4 音乐指标分析">
+          <div class="node-head">
+            <h3>M4：AnalyzeMusicMetrics，分析节拍、时长和能量</h3>
+            <span class="node-id">M4</span>
+          </div>
+          <p class="body-text">通俗解释：选中音乐后，还要知道它多长、节奏多快、哪里有节拍，这样时间线才能卡点，渲染时也能循环或截断。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>选中的音乐文件 <code>path</code>、采样率、frame/hop 配置。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>用 librosa 读取音频，计算 duration、bpm、beats、energy_mean、dynamic_range_db。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>bgm_id</code>、<code>path</code>、<code>duration</code>、<code>bpm</code>、<code>beats</code>、<code>energy_mean</code>、<code>dynamic_range_db</code>。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>文件不存在、ffmpeg/librosa 读不了、音乐太短：失败或换候选。</p></div>
+          </div>
+          <div class="example">例子：如果音乐长度短于成片，后续 render 会循环；如果长于成片，会截断到视频长度。</div>
+          <div class="note">
+            <label>批注：M4 音乐指标 <span class="save-mark"></span></label>
+            <textarea data-note-id="music-m4-metrics" placeholder="例如：是否要按 bpm 做转场卡点？音乐能量过强时是否自动降音量？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="music-m5" data-title="M5 音乐进时间线和渲染">
+          <div class="node-head">
+            <h3>M5：BgmTrackToTimeline，音乐进入时间线和最终混音</h3>
+            <span class="node-id">M5</span>
+          </div>
+          <p class="body-text">通俗解释：选好的音乐不是单独存在，它要被放进时间线的 BGM 轨道，最后在 render_video 里和人声、原声一起混成最终音频。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>M4 的 <code>music_rec.bgm</code>、F7 时间线、<code>bgm.volume</code>、最终视频时长。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>构建 <code>tracks.bgm</code>，按视频长度循环或截断音乐，渲染时用 <code>bgm_volume_scale</code> 控制音量。</p></div>
+            <div class="io-box"><strong>输出</strong><p>带 BGM track 的时间线、最终混音后的 <code>final.mp4</code>。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>真人口播/配音存在时，BGM 音量不能盖住人声；缺 BGM 轨时 render 应允许无音乐出片或按规则失败。</p></div>
+          </div>
+          <div class="example">例子：<code>bgm.volume=0.18</code> 适合口播为主的视频；纯环境展示视频可以更高，但仍要防止刺耳。</div>
+          <div class="note">
+            <label>批注：M5 音乐混音 <span class="save-mark"></span></label>
+            <textarea data-note-id="music-m5-mix" placeholder="例如：口播视频 BGM 默认音量多少？是否要淡入淡出？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-f6" data-title="F6 字幕与对齐">
+          <div class="node-head">
+            <h3>F6：subtitle / alignment，生成字幕和音频对齐</h3>
+            <span class="node-id">F6</span>
+          </div>
+          <p class="body-text">通俗解释：字幕不能只是把脚本贴上去，它要和声音时间对上。F6 决定字幕来自脚本、ASR，还是脚本和音频对齐结果。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>脚本文本、F5 配音音频、ASR 配置、字幕策略 <code>subtitlePolicy</code>。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>生成字幕时间戳，必要时跑 ASR 或脚本音频对齐，把文本切成适合展示的字幕段。</p></div>
+            <div class="io-box"><strong>输出</strong><p>字幕 segments、<code>subtitles.srt</code>、脚本音频对齐 metadata。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>脚本锁定且使用 TTS：优先脚本对齐；真人原声：可用 ASR；ASR 失败要明确归因。</p></div>
+          </div>
+          <div class="example">例子：真人口播目标路径里，字幕可以来自 <code>script_audio_alignment</code>，避免 ASR 把营销文案识别错。</div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>本步骤重点字段</strong>
+              <ul>
+                <li><code>production_config.subtitles.enabled</code>：是否输出字幕。</li>
+                <li><code>production_config.subtitles.style</code>：<code>platform_default</code> 或 <code>bold_caption</code>。</li>
+                <li><code>talkingHeadSource</code>：<code>script</code>、<code>script_audio_alignment</code>、<code>asr_original_audio</code>。</li>
+                <li><code>service_config.asr</code>：当走 ASR 时需要 provider、model、sample_rate 等运行配置。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>字段解释</strong>
+              <p><code>script_audio_alignment</code> 更适合“脚本已锁定 + TTS/克隆配音”；<code>asr_original_audio</code> 更适合保留真人原声的情况。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：F6 字幕来源 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-f6-subtitle-alignment" placeholder="例如：字幕必须严格按脚本，还是允许 ASR 修正？不同平台字幕样式要不要在这里定？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-f7" data-title="F7 规划时间线">
+          <div class="node-head">
+            <h3>F7：plan_timeline / plan_timeline_pro，规划最终时间线</h3>
+            <span class="node-id">F7</span>
+          </div>
+          <p class="body-text">通俗解释：前面已经有素材、配音和字幕，F7 要决定最终成片里每一秒放哪段素材、哪段声音、哪句字幕。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>F3/F4 候选素材、F5 配音、F6 字幕、脚本镜头需求、目标时长和比例。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>选择每个镜头使用的 clip，安排起止时间，组合音频、字幕、B-roll 和 talking-head 段。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>plan_timeline</code> 或 <code>plan_timeline_pro</code>，包含 tracks、segments、素材路径和时间戳。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>时间线缺关键轨道：失败；无 voiceover/BGM 时要移除可选依赖，避免卡住。</p></div>
+          </div>
+          <div class="example">例子：2026-05-19 记录显示 <code>plan_timeline_pro</code> succeeded；lip-sync 场景会先产生普通时间线，再交给 F8 替换 talking-head 段。</div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>本步骤重点字段</strong>
+              <ul>
+                <li><code>production_directive.desired_outputs</code>：决定要不要封面、字幕等输出。</li>
+                <li><code>production_config.render.aspectRatio</code>：当前固定 <code>9:16</code>。</li>
+                <li><code>production_config.render.maxDurationSeconds</code>：可选，15 到 180 秒。</li>
+                <li><code>plan_timeline.tracks / segments</code>：输出，F8/F9 直接消费。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>字段解释</strong>
+              <p>F7 是“排片表”。它决定每一秒用哪个素材、哪段音频和哪句字幕。后续 lip-sync 和 render 都不能脱离这张表。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：F7 时间线规划 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-f7-plan-timeline" placeholder="例如：哪些镜头必须固定顺序？哪些素材可以由引擎自由选择？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-f8" data-title="F8 可选口型同步">
+          <div class="node-head">
+            <h3>F8：lip_sync，只对真人口播段做口型同步</h3>
+            <span class="node-id">F8</span>
+          </div>
+          <p class="body-text">通俗解释：lip-sync 不是把整条视频都丢给 VideoRetalk，而是只处理真人口播片段。B-roll 和项目素材不该被口型同步。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>F7 时间线里的 talking-head segments、F5 克隆音频、VideoRetalk 配置、可访问的视频/音频 URL。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>筛选真人口播段，必要时切段，调用 VideoRetalk，生成 retalked 片段，再写回新的 <code>lip_sync.plan_timeline</code>。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>lip_sync.segments</code>、retalked 视频片段、只替换口播段的新时间线。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>未启用 lip-sync：跳过；缺 URL/人脸不合格/音频不合格：失败在 <code>lip_sync</code>，不能假成功。</p></div>
+          </div>
+          <div class="example">例子：只有第 1 镜真人口播会被替换成 retalked 视频；庭院 B-roll 保持原素材不变。</div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>本步骤重点字段</strong>
+              <ul>
+                <li><code>production_config.lip_sync.enabled</code>：是否进入 F8。</li>
+                <li><code>production_config.lip_sync.provider</code>：当前 <code>aliyun_videoretalk</code>。</li>
+                <li><code>production_config.lip_sync.scope</code>：固定 <code>talking_head_segments</code>。</li>
+                <li><code>inputRequirements.audio</code>：wav/mp3/aac，2-120 秒，清晰语音。</li>
+                <li><code>inputRequirements.video</code>：mp4/avi/mov，2-120 秒，15-60fps，清晰正脸。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>字段解释</strong>
+              <p>F8 的硬规则是“只替换真人口播段”。如果没有合格视频 URL、音频 URL 或正脸条件，不允许跳过后伪造成片成功。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：F8 口型同步 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-f8-lip-sync" placeholder="例如：lip-sync 失败时是阻断、降级普通剪辑，还是要求重传口播视频？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-f9" data-title="F9 渲染视频">
+          <div class="node-head">
+            <h3>F9：render_video，渲染 final.mp4</h3>
+            <span class="node-id">F9</span>
+          </div>
+          <p class="body-text">通俗解释：F9 把时间线真正合成为视频文件。素材、配音、字幕、BGM、口型同步后的片段都在这里合到一起。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>普通 <code>plan_timeline</code> 或 F8 产出的 <code>lip_sync.plan_timeline</code>、字幕、音频、输出规格。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>按时间线调用渲染能力，合成视频轨、音频轨、字幕和封面。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>final.mp4</code>、封面图、字幕文件、渲染 metadata。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>lip-sync 开启时必须读取 F8 的 retalked 时间线；缺 final.mp4 或未消费 retalked 片段必须失败。</p></div>
+          </div>
+          <div class="example">例子：2026-05-21 release 已要求 <code>render_video</code> 优先读取 <code>lip_sync.plan_timeline</code>，并记录 <code>lip_sync_segments_consumed</code>。</div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>本步骤重点字段</strong>
+              <ul>
+                <li><code>plan_timeline</code>：普通渲染输入。</li>
+                <li><code>lip_sync.plan_timeline</code>：lip-sync 开启时优先使用。</li>
+                <li><code>production_config.render.includeOriginalAudio</code>：是否保留原声。</li>
+                <li><code>production_config.render.preserveTalkingHeadOriginalAudio</code>：是否特别保留口播原声。</li>
+                <li><code>output_dir/final.mp4</code>：渲染主产物。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>字段解释</strong>
+              <p>lip-sync 开启后，F9 不能再用旧的普通时间线。它必须用 <code>lip_sync.plan_timeline</code>，否则嘴型替换没有真正进入成片。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：F9 渲染规则 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-f9-render-video" placeholder="例如：缺封面或字幕时是否允许成片成功？渲染超时多久算失败？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card engine" id="engine-f10" data-title="F10 产物校验">
+          <div class="node-head">
+            <h3>F10：ValidateEngineOutputs，校验引擎产物</h3>
+            <span class="node-id">F10</span>
+          </div>
+          <p class="body-text">通俗解释：渲染结束不等于可交付。F10 要检查成片文件是否真实存在、大小是否合理、字幕和封面是否齐全，lip-sync 是否真的被消费。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>F9 输出文件、metadata、引擎日志、lip-sync 消费记录。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>检查文件存在、大小、路径、必要 metadata、关键输出项和 lip-sync 验收字段。</p></div>
+            <div class="io-box"><strong>输出</strong><p>可交给 END 上传的产物清单、校验通过/失败原因、最终引擎结果。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>final.mp4 缺失：失败；lip-sync 开启但未消费 retalked segments：失败；非关键输出缺失按产品规则处理。</p></div>
+          </div>
+          <div class="example">例子：如果 F8 生成了 retalked 片段，但 F9 仍用旧口播视频渲染，F10 必须拦住，不能让 END 上传假成功成片。</div>
+          <div class="field-grid">
+            <div class="field-box">
+              <strong>本步骤重点字段</strong>
+              <ul>
+                <li><code>final_video_path</code>：必填，必须存在且是有效视频。</li>
+                <li><code>cover_image_path</code>：可选或按 desired_outputs 决定。</li>
+                <li><code>subtitle_path</code>：可选或按 desired_outputs 决定。</li>
+                <li><code>metadata_path</code>：必填，用来排查引擎执行结果。</li>
+                <li><code>lip_sync_segments_consumed</code>：lip-sync 验收关键字段。</li>
+              </ul>
+            </div>
+            <div class="field-box">
+              <strong>字段解释</strong>
+              <p>F10 是防假成功的最后一道门。尤其是 lip-sync，必须确认 retalked segments 被渲染消费，而不是只看 provider 有没有返回结果。</p>
+            </div>
+          </div>
+          <div class="note">
+            <label>批注：F10 产物校验 <span class="save-mark"></span></label>
+            <textarea data-note-id="engine-f10-validate-outputs" placeholder="例如：什么条件才算 lip-sync 成功？封面、字幕、metadata 缺失时如何处理？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card state" id="node-result" data-title="END 成片回写">
+          <div class="node-head">
+            <h3>END：UploadResultAndPreview，成片上传并回写前端</h3>
+            <span class="node-id">END</span>
+          </div>
+          <p class="body-text">通俗解释：剪完以后，worker 把成片、封面、字幕上传回对象存储，并写入数据库。前端看到的预览和下载都来自这里。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>FireRed 输出文件、封面、字幕、metadata、本地日志。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>校验文件，上传到对象存储，写入 <code>asset_objects</code> 和 <code>result_payload</code>，更新 job 状态。</p></div>
+            <div class="io-box"><strong>输出</strong><p>成片 asset id、封面 asset id、字幕 asset id、前端 preview/download 路由。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>上传成功：<code>succeeded/completed</code>；上传失败：<code>failed_retryable</code>；产物缺关键文件：按产品规则决定成功或失败。</p></div>
+          </div>
+          <div class="example">例子：上传 <code>video-results/&lt;merchantId&gt;/&lt;jobId&gt;/final.mp4</code>，前端 preview/download 返回 200。</div>
+          <div class="note">
+            <label>批注：成片结果页 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-result-preview" placeholder="例如：结果页要不要展示“用了哪些素材、哪个音色、失败发生在哪一步”？"></textarea>
+          </div>
+        </article>
+
+        <article class="node-card fail" id="node-failure" data-title="FAIL 失败分流">
+          <div class="node-head">
+            <h3>FAIL：失败分流和下一步动作</h3>
+            <span class="node-id">FAIL</span>
+          </div>
+          <p class="body-text">通俗解释：失败不能只显示“生成失败”。要告诉用户卡在素材、声音、口型同步、渲染还是上传，以及下一步是自动重试还是人工补东西。</p>
+          <div class="io-grid">
+            <div class="io-box"><strong>输入</strong><p>各节点抛出的错误、<code>failure_stage</code>、worker 日志、引擎日志、对象存储错误。</p></div>
+            <div class="io-box"><strong>处理过程</strong><p>把失败归类为可重试或需人工处理，并生成用户能看懂的诊断文案。</p></div>
+            <div class="io-box"><strong>输出</strong><p><code>failed_retryable</code>、<code>failed_manual</code>、失败阶段、推荐动作、可重试入口。</p></div>
+            <div class="io-box"><strong>判断条件</strong><p>网络/对象存储/临时超时：可重试；缺素材、口播不合格、合同错误：人工处理。</p></div>
+          </div>
+          <div class="example">例子：VideoRetalk 输入视频不合格时，提示“口播视频不适合对口型，请上传清晰正脸视频”，而不是泛化成“系统繁忙”。</div>
+          <div class="note">
+            <label>批注：失败提示和重试策略 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-failure-policy" placeholder="例如：哪些失败允许自动重试？哪些失败要成员补素材？哪些失败要运营介入？"></textarea>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="examples">
+      <div class="section-head">
+        <h2>三、两条典型链路例子</h2>
+        <p>把上面的节点串起来看，方便判断哪条是主路径，哪条是增强路径。</p>
+      </div>
+      <div class="example-grid">
+        <article class="summary-box" data-title="例子 A 普通素材库出片">
+          <h3>例子 A：普通商家素材库出片</h3>
+          <ul>
+            <li>START：脚本定稿，“介绍一个适合周末放空的咖啡小院”。</li>
+            <li>N1：拆出门头、庭院、座位、饮品、结尾 CTA。</li>
+            <li>N2：判断这些都可以走商家素材库，不要求真人口播。</li>
+            <li>N3B：从素材库命中 6 条视频，筛出 4 条可剪辑片段。</li>
+            <li>N4：没有个人音色，使用系统配音和脚本字幕。</li>
+            <li>N5 到 N6：创建 job，worker 下载素材。</li>
+            <li>N7 内部：F0 适配合同，F1 加载素材，F2 切片，F3 理解素材，F5 生成系统配音，M0-M5 选择并混入 BGM，F6 生成字幕，F7 规划时间线，F9 渲染，F10 校验。</li>
+            <li>END：成片上传对象存储，结果回写前端。</li>
+          </ul>
+          <div class="badge-row"><span class="badge done">已有真实成功类型</span></div>
+          <div class="note">
+            <label>批注：默认主路径 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-example-a" placeholder="例如：首版是否先把普通素材库出片做到最稳？"></textarea>
+          </div>
+        </article>
+
+        <article class="summary-box" data-title="例子 B 真人口播 lip-sync">
+          <h3>例子 B：真人口播 + 克隆音色 + lip-sync</h3>
+          <ul>
+            <li>START：脚本定稿，“大家好，今天带你看一个适合周末放空的院子”。</li>
+            <li>N1：第 1 镜标记为真人口播，后续镜头为庭院 B-roll。</li>
+            <li>N2：真人口播走成员素材，庭院 B-roll 走商家素材库。</li>
+            <li>N3A/N3B：成员上传正脸口播，素材库补环境镜头。</li>
+            <li>N4：读取 ready voice_profile，生成克隆音频，并启用 lip-sync。</li>
+            <li>N7 内部：F5 生成克隆音频，M0-M5 选择低音量 BGM，F6 做字幕/对齐，F7 规划普通时间线，F8 只对 talking-head 段做 VideoRetalk。</li>
+            <li>F9/F10：render 必须消费 retalked 时间线，校验通过后才交给 END。</li>
+            <li>END：成片上传对象存储，结果回写前端。</li>
+          </ul>
+          <div class="badge-row"><span class="badge partial">已发布能力，但真实全链路仍需验收</span></div>
+          <div class="note">
+            <label>批注：增强路径 <span class="save-mark"></span></label>
+            <textarea data-note-id="chain-example-b" placeholder="例如：真人口播链路是否作为主路径？lip-sync 失败是否可降级？"></textarea>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="linked-main">
+      <div class="section-head">
+        <h2>四、和主页面的联动入口</h2>
+        <p>本页看节点，主页面看服务器、接口、素材库、成员端和状态机。</p>
+      </div>
+      <div class="link-grid">
+        <a class="link-button secondary" href="2026-05-21-video-edit-chain-annotatable-map.html#video-chain">主页面：视频剪辑主链路</a>
+        <a class="link-button secondary" href="2026-05-21-video-edit-chain-annotatable-map.html#contracts">主页面：接口与数据合同</a>
+        <a class="link-button secondary" href="2026-05-21-video-edit-chain-annotatable-map.html#material-chain">主页面：COS/OSS 素材库</a>
+        <a class="link-button secondary" href="2026-05-21-video-edit-chain-annotatable-map.html#member-chain">主页面：成员端和服务器链路</a>
+        <a class="link-button secondary" href="2026-05-21-video-edit-chain-annotatable-map.html#lip-sync-detail">主页面：lip-sync 细节</a>
+        <a class="link-button secondary" href="2026-05-21-video-edit-chain-annotatable-map.html#states">主页面：状态机与失败归因</a>
+      </div>
+    </section>
+
+    <section id="notes-export">
+      <div class="section-head">
+        <h2>五、本页批注汇总</h2>
+        <p>点击上方按钮会把本页已填写的批注汇总成 JSON。</p>
+      </div>
+      <textarea id="notesSummary" class="summary-output" placeholder="点击“汇总本页批注”后，这里会出现 JSON。"></textarea>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const storageKey = "jingjing-video-chain-notes-v1";
+      const textareas = Array.from(document.querySelectorAll("textarea[data-note-id]"));
+      const summary = document.getElementById("notesSummary");
+
+      function readStore() {
+        try {
+          const raw = window.localStorage.getItem(storageKey);
+          return raw ? JSON.parse(raw) : {};
+        } catch {
+          return {};
+        }
+      }
+
+      function writeStore(value) {
+        window.localStorage.setItem(storageKey, JSON.stringify(value));
+      }
+
+      function noteTitle(textarea) {
+        const host = textarea.closest("[data-title]");
+        return host ? host.getAttribute("data-title") : textarea.getAttribute("data-note-id");
+      }
+
+      function setSavedMark(textarea, text) {
+        const note = textarea.closest(".note");
+        const mark = note ? note.querySelector(".save-mark") : null;
+        if (mark) {
+          mark.textContent = text;
+        }
+      }
+
+      function collectNotes() {
+        const notes = textareas
+          .map((textarea) => ({
+            id: textarea.getAttribute("data-note-id"),
+            title: noteTitle(textarea),
+            note: textarea.value.trim(),
+          }))
+          .filter((item) => item.note.length > 0);
+        return {
+          document: "视频剪辑链路节点页",
+          file: "docs/progress/2026-05-22-video-edit-chain-node-map.html",
+          linkedMainFile: "docs/progress/2026-05-21-video-edit-chain-annotatable-map.html",
+          exportedAt: new Date().toISOString(),
+          count: notes.length,
+          notes,
+        };
+      }
+
+      function fillSummary() {
+        if (summary) {
+          summary.value = JSON.stringify(collectNotes(), null, 2);
+        }
+      }
+
+      function downloadNotes() {
+        const payload = JSON.stringify(collectNotes(), null, 2);
+        if (summary) {
+          summary.value = payload;
+        }
+        const blob = new Blob([payload], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "video-edit-chain-node-notes.json";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      const store = readStore();
+      for (const textarea of textareas) {
+        const id = textarea.getAttribute("data-note-id");
+        if (id && typeof store[id] === "string") {
+          textarea.value = store[id];
+        }
+        setSavedMark(textarea, textarea.value.trim() ? "已载入" : "自动保存");
+        textarea.addEventListener("input", () => {
+          const nextStore = readStore();
+          nextStore[id] = textarea.value;
+          writeStore(nextStore);
+          setSavedMark(textarea, "已保存");
+        });
+      }
+
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) {
+          return;
+        }
+        const action = button.getAttribute("data-action");
+        if (action === "fill-summary") {
+          fillSummary();
+        } else if (action === "export") {
+          downloadNotes();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
