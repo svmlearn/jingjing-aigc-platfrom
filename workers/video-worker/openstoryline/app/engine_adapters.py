@@ -779,6 +779,7 @@ def _build_fire_red_prompt(
             "- Do not call ASR for script_audio_alignment; ASR is only allowed for explicit asr_original_audio rollback mode.",
             "- render_video must consume the retalked talking-head segments produced by lip_sync.",
             "- Use render_video as the final node and include BGM/TTS tracks according to productionConfig.",
+            "- After render_video completes successfully, stop immediately; do not call read_node_history or any other production tool.",
             f"Desired outputs: {', '.join(desired_outputs)}",
             "",
             "Locked script:",

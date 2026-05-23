@@ -298,3 +298,57 @@ Local verification:
 - `python -m pytest workers/video-worker/tests/test_firered_group_clips_contract.py workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_firered_generate_script_locked.py workers/video-worker/tests/test_directive_contract.py workers/video-worker/tests/test_firered_generate_voiceover_contract.py workers/video-worker/tests/test_firered_lip_sync_node.py -q`
 - Result: `56 passed`.
 - `python -m py_compile workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/plan_timeline_pro.py workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/group_clips.py workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/generate_script.py`: passed.
+
+## 2026-05-23 Fourth Runtime Correction: Stop After Render
+
+After releasing commit `00bebc9`, a fresh formal API-created job was started:
+
+- Job: `66bb23c7-da6d-4a2e-aa8f-2ca942bad92f`
+- FireRed session: `16c97a57b1934fb499695a666905a792`
+- Merchant/team: `e7c94a17-cf7d-4eb2-8178-13daa780551a`
+- Member/user: `0b3351a6-778b-4e79-b5f1-6aa18fdb0020`
+
+Formal-chain evidence before cancellation:
+
+- `input_payload.input_assets` contained two deduplicated `talking_head` videos.
+- Runtime material preparation added eight `merchant_material_library` videos from the project material pool.
+- FireRed `load_media` loaded ten videos total.
+- `split_shots` produced eighteen clips.
+- `understand_clips`, `filter_clips`, `group_clips`, `generate_script`, `generate_voiceover`, `lip_sync`, and `render_video` ran.
+- First `group_clips` output had exactly five groups.
+- First `generate_script` output had exactly the five authored spoken lines.
+- `lip_sync` produced four nonzero retalked videos:
+  - `retalked_group_0001_clip_0004.mp4`
+  - `retalked_group_0003_clip_0006.mp4`
+  - `retalked_group_0003_clip_0007.mp4`
+  - `retalked_group_0005_clip_0003.mp4`
+- First `render_video` completed at `2026-05-23 20:20:56+08`:
+  - path: `/srv/jingjing-video-worker/firered/.storyline/.server_cache/16c97a57b1934fb499695a666905a792/render_video_1779538653.0426793/output_86e76259_1779538653091.mp4`
+  - size: `15683434` bytes
+  - logged duration: `114.614` seconds
+
+The job was still cancelled and must not be used as a deliverable:
+
+- After `render_video` succeeded, the FireRed agent continued instead of returning the worker result.
+- It called `read_node_history`, then started a second production cycle: `group_clips -> generate_script -> generate_voiceover -> ...`.
+- The second `generate_script` still stayed at five authored lines, but the duplicate production cycle violated the no-repeat/no-double-upload contract.
+- DB cancellation:
+  - status: `cancelled`
+  - current_stage: `cancelled_invalid_duplicate_second_cycle`
+  - failure_code: `invalid_duplicate_second_cycle_after_render`
+
+New local fix on `5.23-worker-fix`:
+
+- `workers/video-worker/openstoryline/firered/agent_fastapi.py`
+  - detects a successful `render_video` completion event in worker runs.
+  - stops the agent stream immediately after render, then extracts the latest `render_video` artifact for the worker response.
+- `workers/video-worker/openstoryline/app/engine_adapters.py`
+  - reinforces the worker prompt: after `render_video` completes, do not call `read_node_history` or any other production tool.
+
+Verification:
+
+- `python -m py_compile workers/video-worker/openstoryline/firered/agent_fastapi.py workers/video-worker/openstoryline/app/engine_adapters.py workers/video-worker/worker/app/processor.py`: passed.
+- `PYTHONPATH=workers/video-worker;workers/video-worker/openstoryline python -m pytest workers/video-worker/tests/test_firered_group_clips_contract.py workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_firered_generate_script_locked.py workers/video-worker/tests/test_directive_contract.py workers/video-worker/tests/test_firered_generate_voiceover_contract.py workers/video-worker/tests/test_firered_lip_sync_node.py workers/video-worker/tests/test_openstoryline_engine_adapters.py -q`
+- Result: `84 passed`.
+
+Next valid verification must be a fresh job after this fourth fix is committed, merged to `main`, pushed, and released. Do not reuse `66bb23c7-da6d-4a2e-aa8f-2ca942bad92f` as a deliverable.

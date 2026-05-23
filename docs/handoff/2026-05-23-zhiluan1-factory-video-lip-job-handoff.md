@@ -386,3 +386,52 @@ Verification:
 - `python -m py_compile` for `group_clips.py`, `generate_script.py`, and `plan_timeline_pro.py`: passed.
 
 Next valid verification must be another fresh job after this third fix is committed, merged to `main`, pushed, and released. Do not reuse `a43eba52-91ad-4b79-bbec-0a133224585c` as a deliverable.
+
+## Fourth Correction: Stop After Render
+
+After commit `00bebc9` was released, a fresh formal API-created job was started:
+
+- Job: `66bb23c7-da6d-4a2e-aa8f-2ca942bad92f`
+- FireRed session: `16c97a57b1934fb499695a666905a792`
+- Path: real worker chain, not a direct DB/manual render fallback.
+
+Evidence that this was the formal OpenStoryline material path:
+
+- The job input payload had two deduplicated member `talking_head` assets.
+- Runtime material preparation added eight `merchant_material_library` project videos.
+- FireRed loaded ten videos, split them into eighteen clips, then ran `understand_clips`, `filter_clips`, and `group_clips`.
+- First `group_clips`: five groups.
+- First `generate_script`: the five authored spoken lines only.
+- `lip_sync`: four nonzero retalked talking-head clips.
+- First `render_video`: completed successfully with duration `114.614` seconds.
+
+Why the job is still invalid:
+
+- After `render_video` completed, the FireRed agent did not return the worker result.
+- It called `read_node_history` and started a second production cycle: `group_clips -> generate_script -> generate_voiceover -> ...`.
+- This explains the observed duplicate generation/upload behavior and violates the no-repeat contract.
+- The job was stopped and marked:
+  - status: `cancelled`
+  - current_stage: `cancelled_invalid_duplicate_second_cycle`
+  - failure_code: `invalid_duplicate_second_cycle_after_render`
+
+New local fix on branch `5.23-worker-fix`:
+
+- `workers/video-worker/openstoryline/firered/agent_fastapi.py`
+  - stops the worker agent stream immediately after a successful `render_video` completion event.
+  - then extracts the latest render artifact and returns it to the worker.
+- `workers/video-worker/openstoryline/app/engine_adapters.py`
+  - tells the production agent to stop after `render_video`, and not call `read_node_history` or any other production node.
+
+Verification:
+
+- `python -m py_compile workers/video-worker/openstoryline/firered/agent_fastapi.py workers/video-worker/openstoryline/app/engine_adapters.py workers/video-worker/worker/app/processor.py`: passed.
+- Worker/OpenStoryline tests with local `PYTHONPATH`: `84 passed`.
+
+Next valid step:
+
+- Commit this fourth fix on `5.23-worker-fix`.
+- Merge it to `main`.
+- Push to Gitee.
+- Deploy a normal release to the server group.
+- Start a new fresh job; only a new post-release job can be accepted as the final video deliverable.
