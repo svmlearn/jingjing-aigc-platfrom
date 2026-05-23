@@ -638,3 +638,53 @@ Next steps:
 - Deploy normal server release from `5.23-worker-fix`.
 - Apply `scripts/patch-zhiluan1-restored-video-script-contract.mjs --apply` from the released code path.
 - Read back and show the script before any new video job is created.
+
+## 2026-05-24 Seventh Correction Released
+
+Completed:
+
+- Code commit released: `54eae8b506b2106c72d782e2c06ed166c94e1600`
+- Branch pushed: `origin/5.23-worker-fix`
+- `main` was not merged or pushed.
+- Server release:
+  - `/srv/jingjing-domestic/releases/20260524023709-54eae8b`
+  - `/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260524023709-54eae8b`
+- Server build passed:
+  - `corepack pnpm@10.20.0 install --frozen-lockfile`
+  - `corepack pnpm@10.20.0 build`
+- Services are active:
+  - `nginx.service`
+  - `jingjing-domestic-app.service`
+  - `jingjing-content-generation-worker.service`
+  - `jingjing-firered-openstoryline.service`
+  - `jingjing-openstoryline-engine.service`
+  - `jingjing-video-worker.service`
+- Health checks passed:
+  - `/api/health`: ok
+  - OpenStoryline `/ready`: ready
+  - FireRed `/api/ready`: ready
+
+Applied zhiluan1 patch from released path:
+
+```bash
+cd /srv/jingjing-domestic/current/app
+sudo node -- scripts/patch-zhiluan1-restored-video-script-contract.mjs --env-file /srv/jingjing-domestic/shared/env/app.env --apply
+```
+
+DB readback confirmed:
+
+- `title`: `找厂房，别只看租金`
+- `production_scenes`: 6 scenes.
+- `generatedVideoScript.scenes`: 6 scenes.
+- `targetDurationSeconds=64` remains for frontend display.
+- `recommendedProductionConfig.render` has only `aspectRatio` and `includeOriginalAudio`; no `maxDurationSeconds`.
+- `voiceover === subtitle` for all production scenes.
+- `materials=[]`, `shotRequirement=""`, and `fallbackShot=""` for all production scenes.
+- Scene 1 and 6 require member talking-head uploads.
+- Scene 2 to 5 use merchant B-roll material selection.
+- No new video job was created in this step.
+
+Next valid user action:
+
+- The user can continue in the frontend with the updated script.
+- If the user wants a new render after reviewing the script, create a fresh video job; do not reuse the previous completed job as the new deliverable.

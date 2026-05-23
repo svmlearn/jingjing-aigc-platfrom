@@ -566,3 +566,58 @@ Current required next step:
 - Deploy a normal server release from `5.23-worker-fix`.
 - Apply the zhiluan1 patch from the released code path.
 - Read back the script and structured production scenes before creating any new video job.
+
+## 2026-05-24 Seventh Correction Release And DB Readback
+
+Release source:
+
+- Branch: `5.23-worker-fix`
+- Code commit released: `54eae8b506b2106c72d782e2c06ed166c94e1600`
+- Gitee remote `5.23-worker-fix` confirmed at `54eae8b506b2106c72d782e2c06ed166c94e1600`.
+- Gitee remote `main` remained `afd360803c4c0cc850e8b2322e3d165eec00bddc`; `main` was not pushed or merged.
+
+Server release:
+
+- Previous release: `/srv/jingjing-domestic/releases/20260524014000-0622792`
+- New release: `/srv/jingjing-domestic/releases/20260524023709-54eae8b`
+- Current symlink after release:
+  - `/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260524023709-54eae8b`
+- Server build:
+  - `corepack pnpm@10.20.0 install --frozen-lockfile`: passed
+  - `corepack pnpm@10.20.0 build`: passed
+- Restarted/reloaded services:
+  - `jingjing-domestic-app.service`: active
+  - `jingjing-content-generation-worker.service`: active
+  - `jingjing-firered-openstoryline.service`: active
+  - `jingjing-openstoryline-engine.service`: active
+  - `jingjing-video-worker.service`: active
+  - `nginx.service`: active
+
+Health checks:
+
+- `curl -fsS http://127.0.0.1:3000/api/health`: ok, database `postgres`, storage `aliyun_oss`.
+- `curl -fsS http://127.0.0.1:8000/ready`: ready, `engine_adapter=fire_red`.
+- `curl -fsS http://127.0.0.1:7860/api/ready`: ready, `render_video_available=true`.
+
+Script patch applied from released code path:
+
+```bash
+cd /srv/jingjing-domestic/current/app
+sudo node -- scripts/patch-zhiluan1-restored-video-script-contract.mjs --env-file /srv/jingjing-domestic/shared/env/app.env --apply
+```
+
+Independent DB readback confirmed:
+
+- `content_variants.title`: `找厂房，别只看租金`
+- `content_variants.cta_text`: `你要找工业园区厂房，建议实地来看一圈。`
+- `content_variants.production_scenes`: 6 scenes.
+- `daily_content_tasks.video_task.generatedVideoScript.scenes`: 6 scenes.
+- `daily_content_tasks.video_task.generatedVideoScript.targetDurationSeconds`: `64`, retained for frontend display.
+- `daily_content_tasks.video_task.recommendedProductionConfig.render`: `{ aspectRatio: "9:16", includeOriginalAudio: false }`
+- `render.maxDurationSeconds` / `render.max_duration_seconds`: absent.
+- `production_scenes[].voiceover === production_scenes[].subtitle`: true for all scenes.
+- `production_scenes[].materials`: `[]` for all scenes.
+- `production_scenes[].shotRequirement` and `fallbackShot`: blank for all scenes.
+- Scene 1 and scene 6: `talking_head`, `requiresUserUpload=true`.
+- Scene 2 to scene 5: `merchant_broll`, `requiresUserUpload=false`.
+- No new video job was created during this release/readback step.
