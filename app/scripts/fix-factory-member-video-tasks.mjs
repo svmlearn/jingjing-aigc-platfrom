@@ -485,8 +485,8 @@ function normalizeFactoryScene(sceneValue) {
       : scene.title,
     subtitle: spokenText,
     spokenText,
-    materialSlot: isClosingScene ? "" : readString(scene.materialSlot, ""),
-    shootingGuide: isClosingScene ? "" : readString(scene.shootingGuide, ""),
+    materialSlot: "",
+    shootingGuide: "",
     required: isTalkingHeadScene(scene),
   };
 }

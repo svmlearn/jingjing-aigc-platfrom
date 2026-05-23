@@ -472,6 +472,7 @@ New local fix on branch `5.23-worker-fix`:
   - makes every scene `字幕` exactly equal to that scene `口播`.
   - changes scene 5 to generic member closing wording and removes `园区门口` / `园区入口` labels.
   - does not emit `画面` / `镜头要求` / `素材关键词` lines in `script_text`.
+  - clears `generatedVideoScript.scenes[].materialSlot` and `generatedVideoScript.scenes[].shootingGuide`.
   - leaves `production_scenes` material-query fields blank so OpenStoryline chooses shots from the prepared material pool instead of receiving app-authored素材要求.
 - `fix-factory-member-video-tasks.mjs`
   - applies the same normalization for future factory member task clones.
