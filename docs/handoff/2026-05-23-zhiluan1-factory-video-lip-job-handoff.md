@@ -493,3 +493,53 @@ Next valid step:
 - Apply the zhiluan1 script patch only from the released code path.
 - Create a new fresh member-equivalent job without `inputAssetIds`.
 - Treat only a post-release successful MP4 as the deliverable.
+
+## Sixth Correction: Script Structure And Visual Description
+
+User clarified the intended script shape:
+
+- Use `CASE-003 小院咖啡-无素材指定版` as the structure reference.
+- Keep numbered scenes, time ranges, `场景`, `画面`, and `台词/字幕`.
+- Do not include `画面花字`.
+- Do not include `素材` lines or material keywords.
+- Keep visual descriptions based on the existing factory material pool, and send them to the backend as structured scene visual descriptions.
+- Do not turn those descriptions into authored `素材` assignments, material keyword lists, or specific material filenames.
+
+The previous fifth correction was missing the structure layer:
+
+- no standalone scene numbers/time ranges in CASE-003 style.
+- no `场景：...` lines.
+- no `画面：...` lines.
+- `generatedVideoScript.scenes[].camera` and `production_scenes[].visual` were not carrying the useful visual description.
+
+New local fix on branch `5.23-worker-fix`:
+
+- `patch-zhiluan1-restored-video-script-contract.mjs`
+  - writes the restored zhiluan1 script as CASE-003-style text.
+  - uses `台词/字幕` as the single spoken/subtitle field.
+  - keeps no `素材：`, no `素材关键词：`, and no `画面花字：` lines.
+  - restores concise `画面` descriptions for the five scenes.
+  - writes those descriptions into `generatedVideoScript.scenes[].camera` and `production_scenes[].visual`.
+- `fix-factory-member-video-tasks.mjs`
+  - applies the same policy to future factory member clones.
+- `video-job-payload.ts`
+  - sends `production_scenes[].visual` to backend `sceneAssetQueries`.
+  - avoids reparsing `script_text` `画面` lines when production scenes already exist, so the backend receives one structured visual description per scene instead of duplicate extracted lines.
+- `member-workspace.tsx`
+  - keeps `画面` in the member draft prompt and removes `素材`.
+
+Verification:
+
+- `node --check app/scripts/patch-zhiluan1-restored-video-script-contract.mjs`: passed.
+- `node --check app/scripts/fix-factory-member-video-tasks.mjs`: passed.
+- `node --test --experimental-strip-types src/server/api/video-job-payload.test.ts`: `25 passed`.
+- `npm run typecheck`: passed.
+- `git diff --check`: passed.
+
+Current required release rule from user:
+
+- Commit and push only branch `5.23-worker-fix`.
+- Do not push or merge `main`.
+- Deploy the server release from `5.23-worker-fix`.
+- Apply the script patch from the released code path.
+- Then read back and show the script before starting any new video job.

@@ -1384,7 +1384,7 @@ function buildVideoDraftPrompt(script: DailyVideoScriptPackageDto) {
   const scenes = script.scenes
     .map(
       (scene) =>
-        `${scene.order}. ${scene.title}：${scene.spokenText}；画面：${scene.camera}；素材：${scene.materialSlot}`,
+        `${scene.order}. ${scene.title}：${scene.spokenText}；画面：${scene.camera}`,
     )
     .join("\n");
 

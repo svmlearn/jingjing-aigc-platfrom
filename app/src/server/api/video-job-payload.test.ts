@@ -913,6 +913,52 @@ test("buildVideoEditJobInputPayload exposes missing video hints from scene asset
   assert.deepEqual(payload.materialContext.missingVideoAssetHints, ["项目外立面远景"]);
 });
 
+test("buildVideoEditJobInputPayload sends structured visual descriptions to backend scene queries", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      scriptText:
+        "1\n00:00-00:05\n场景：厂房空间介绍\n画面：呈现厂房主体空间和层高感。\n台词/字幕：这个园区一楼有约 2000 平厂房。",
+      productionScenes: [
+        {
+          sceneNo: 1,
+          timeRange: "00:00-00:05",
+          shotRequirement: "",
+          visual: "呈现厂房主体空间和层高感。",
+          materials: [],
+          fallbackShot: "",
+        },
+      ],
+    },
+    materialReferences: [],
+    assets: [],
+  });
+
+  assert.deepEqual(payload.materialContext.sceneAssetQueries, [
+    {
+      sceneNo: 1,
+      timeRange: "00:00-00:05",
+      query: "呈现厂房主体空间和层高感。",
+      visualRequirement: "呈现厂房主体空间和层高感。",
+      fallbackShot: null,
+      sourceRole: "merchant_broll",
+    },
+  ]);
+  assert.deepEqual(payload.materialContext.assetMatchPlan, [
+    {
+      sceneNo: 1,
+      query: "呈现厂房主体空间和层高感。",
+      matchedAssetIds: [],
+      missing: true,
+      reason: "no_video_asset",
+    },
+  ]);
+  assert.deepEqual(payload.materialContext.missingVideoAssetHints, [
+    "呈现厂房主体空间和层高感。",
+  ]);
+});
+
 test("buildVideoEditJobInputPayload only sends video assets to worker and orders input assets", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",

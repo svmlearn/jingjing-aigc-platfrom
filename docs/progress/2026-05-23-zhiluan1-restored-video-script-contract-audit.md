@@ -416,3 +416,52 @@ Verification:
 - `PYTHONPATH=workers/video-worker;workers/video-worker/openstoryline python -m pytest workers/video-worker/tests/test_firered_group_clips_contract.py workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_firered_generate_script_locked.py workers/video-worker/tests/test_directive_contract.py workers/video-worker/tests/test_firered_generate_voiceover_contract.py workers/video-worker/tests/test_firered_lip_sync_node.py workers/video-worker/tests/test_openstoryline_engine_adapters.py -q`: `86 passed`.
 
 Next valid verification must be a fresh job after this fifth fix is committed, merged to `main`, pushed to Gitee, and released through a normal server release. Do not reuse `0eb69ee9-23b4-40f4-a8ec-ef9494472740` as a deliverable.
+
+## 2026-05-24 Sixth Script Structure Correction: CASE-003 Style Visual Descriptions
+
+User correction:
+
+- The previous script normalization was too bare.
+- The desired structure is like `CASE-003 小院咖啡-无素材指定版`: numbered sections, time ranges, `场景`, `画面`, and `台词/字幕`.
+- Do not add `画面花字`.
+- Do not add `素材` lines or material keywords.
+- Do keep concise visual descriptions based on the existing factory materials: factory space/height, park facilities, surrounding environment/traffic/logistics, and member opening/closing talking-head clips.
+- These visual descriptions must be sent to the backend as structured `production_scenes[].visual`; the forbidden part is authored `素材` assignment / material keyword lists, not the visual description itself.
+
+Missing from the previous script:
+
+- `场景：...`
+- `画面：...`
+- CASE-003-style standalone scene number and time range lines.
+- Structured visual descriptions in `generatedVideoScript.scenes[].camera` and `content_variants.production_scenes[].visual`.
+
+New local fix on `5.23-worker-fix`:
+
+- `app/scripts/patch-zhiluan1-restored-video-script-contract.mjs`
+  - writes CASE-003-style script text with scene number, time range, `场景`, `画面`, and `台词/字幕`.
+  - keeps `台词/字幕` exactly equal to the spoken text for each scene.
+  - keeps no `素材：`, no `素材关键词：`, and no `画面花字：` lines.
+  - restores concise visual descriptions into `generatedVideoScript.scenes[].camera`.
+  - stores the same visual descriptions in `content_variants.production_scenes[].visual`.
+  - sends those visual descriptions to the backend through `production_scenes[].visual`.
+- `app/scripts/fix-factory-member-video-tasks.mjs`
+  - applies the same structure and visual-description policy for future factory member task clones.
+- `app/src/server/api/video-job-payload.ts`
+  - sends structured `production_scenes[].visual` into backend `sceneAssetQueries`.
+  - when production scenes exist, does not fall back to reparsing `script_text` `画面` lines, avoiding duplicate query creation.
+- `app/src/components/member/member-workspace.tsx`
+  - removes `素材：${scene.materialSlot}` from the member video draft prompt while preserving `画面：${scene.camera}`.
+
+Verification:
+
+- `node --check app/scripts/patch-zhiluan1-restored-video-script-contract.mjs`: passed.
+- `node --check app/scripts/fix-factory-member-video-tasks.mjs`: passed.
+- `node --test --experimental-strip-types src/server/api/video-job-payload.test.ts`: `25 passed`.
+- `npm run typecheck`: passed.
+- `git diff --check`: passed.
+
+Next valid step:
+
+- Commit and push only `5.23-worker-fix`.
+- Deploy server release from `5.23-worker-fix` without merging or pushing `main`.
+- Apply the zhiluan1 script patch from the released code path, then read back and show the script.

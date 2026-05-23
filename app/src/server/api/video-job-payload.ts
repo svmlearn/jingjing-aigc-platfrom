@@ -405,6 +405,10 @@ function buildSceneAssetQueries(
     return sceneQueries.slice(0, 12);
   }
 
+  if ((variant.productionScenes ?? []).length > 0) {
+    return [];
+  }
+
   return extractSceneAssetQueriesFromScript(variant.scriptText).slice(0, 12);
 }
 

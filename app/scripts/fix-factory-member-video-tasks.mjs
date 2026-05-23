@@ -454,19 +454,31 @@ function buildProductionScenes(videoTask) {
     ? videoTask.generatedVideoScript.scenes
     : [];
 
+  let elapsedSeconds = 0;
+
   return scenes.map((scene, index) => {
     const requiresUserUpload = scene.required === true;
+    const durationSeconds = normalizePositiveNumber(scene.durationSeconds);
+    const sceneDescription = getFactorySceneDescription(scene, index);
+    const timeRange =
+      readString(scene.timeRange, "") ||
+      (durationSeconds ? formatTimeRange(elapsedSeconds, elapsedSeconds + durationSeconds) : "");
+    if (durationSeconds) {
+      elapsedSeconds += durationSeconds;
+    }
+
     return {
       sceneNo: normalizePositiveInteger(scene.order) ?? index + 1,
-      timeRange: "",
+      timeRange,
+      durationSeconds,
       sceneType: requiresUserUpload ? "talking_head" : "merchant_broll",
       requiresUserUpload,
       shotRequirement: "",
-      visual: "",
+      visual: sceneDescription.visual,
       voiceover: readString(scene.spokenText, ""),
       subtitle: readString(scene.spokenText, scene.subtitle),
       materials: [],
-      cameraMovement: readString(scene.camera, ""),
+      cameraMovement: sceneDescription.visual,
       purpose: readString(scene.title, ""),
       fallbackShot: "",
     };
@@ -478,16 +490,19 @@ function normalizeFactoryScene(sceneValue) {
   const spokenText = readString(scene.spokenText, readString(scene.subtitle, ""));
   const sceneNo = normalizePositiveInteger(scene.order);
   const isClosingScene = sceneNo === 5;
+  const sceneDescription = getFactorySceneDescription(scene);
+  const required = isTalkingHeadScene(scene) || scene.required === true;
   return {
     ...scene,
-    title: isClosingScene
-      ? "成员口播收尾。"
-      : scene.title,
+    title: isClosingScene ? "成员口播收尾" : sceneDescription.title,
+    camera: sceneDescription.visual,
     subtitle: spokenText,
     spokenText,
-    materialSlot: "",
-    shootingGuide: "",
-    required: isTalkingHeadScene(scene),
+    materialSlot: required ? sceneDescription.uploadLabel : "",
+    shootingGuide: required
+      ? "真人面对镜头按台词口播，声音保持清晰，背景不需要指定为园区门口。"
+      : sceneDescription.visual,
+    required,
   };
 }
 
@@ -500,6 +515,7 @@ function buildVariantScriptText(scriptValue) {
     .map((scene) => readString(scene.spokenText, ""))
     .filter(Boolean)
     .join("\n");
+  const timeRanges = buildSceneTimeRanges(scenes);
   const targetDurationSeconds =
     normalizePositiveInteger(script.targetDurationSeconds) ??
     scenes.reduce((sum, scene) => sum + (Number(scene.durationSeconds) || 0), 0);
@@ -514,14 +530,14 @@ function buildVariantScriptText(scriptValue) {
     "分镜脚本：",
     ...scenes.flatMap((scene, index) => {
       const sceneNo = normalizePositiveInteger(scene.order) ?? index + 1;
-      const durationSeconds = Number(scene.durationSeconds) || 0;
-      const timeRange = readString(scene.timeRange, "") || "";
-      const headingSuffix = timeRange || (durationSeconds ? `${durationSeconds}秒` : "");
+      const sceneDescription = getFactorySceneDescription(scene, index);
       const spokenText = readString(scene.spokenText, "");
       return [
-        `场景${sceneNo}${headingSuffix ? `（${headingSuffix}）` : ""}`,
-        `口播：${spokenText}`,
-        `字幕：${spokenText}`,
+        String(sceneNo),
+        timeRanges[index] ?? "",
+        `场景：${sceneDescription.title}`,
+        `画面：${sceneDescription.visual}`,
+        `台词/字幕：${spokenText}`,
         "",
       ];
     }),
@@ -529,6 +545,68 @@ function buildVariantScriptText(scriptValue) {
   ];
 
   return blocks.filter((line) => line !== null && line !== undefined).join("\n").trim();
+}
+
+function getFactorySceneDescription(sceneValue, fallbackIndex = 0) {
+  const scene = toRecord(sceneValue);
+  const sceneNo = normalizePositiveInteger(scene.order) ?? fallbackIndex + 1;
+  const descriptions = {
+    1: {
+      title: "成员口播开场",
+      visual: "成员面对镜头开场，先抛出找厂房不要只看价格，要看空间、配套、位置。",
+      uploadLabel: "成员开场口播",
+    },
+    2: {
+      title: "厂房空间介绍",
+      visual: "呈现厂房主体空间和层高感，让观众能看出一楼约 2000 平，生产、仓储、办公改造都比较好安排。",
+      uploadLabel: "",
+    },
+    3: {
+      title: "园区配套介绍",
+      visual: "呈现宿舍、公寓、食堂、电梯、管理处、停车等园区基础配套，表达员工生活和企业使用便利。",
+      uploadLabel: "",
+    },
+    4: {
+      title: "周边环境与通勤物流",
+      visual: "呈现园区周边环境、道路交通和物流条件，表达员工通勤、货物流转都方便。",
+      uploadLabel: "",
+    },
+    5: {
+      title: "成员口播收尾",
+      visual: "成员面对镜头收尾，引导正在找工业园区厂房的人实地看一眼。",
+      uploadLabel: "成员收尾口播",
+    },
+  };
+
+  return descriptions[sceneNo] ?? {
+    title: readString(scene.title, `场景 ${sceneNo}`),
+    visual: readString(scene.camera, "按本段台词呈现对应画面内容。"),
+    uploadLabel: "",
+  };
+}
+
+function buildSceneTimeRanges(scenes) {
+  let elapsedSeconds = 0;
+
+  return scenes.map((scene) => {
+    const durationSeconds = normalizePositiveNumber(scene.durationSeconds);
+    const explicitTimeRange = readString(scene.timeRange, "");
+
+    if (explicitTimeRange) {
+      if (durationSeconds) {
+        elapsedSeconds += durationSeconds;
+      }
+      return explicitTimeRange;
+    }
+
+    if (!durationSeconds) {
+      return "";
+    }
+
+    const timeRange = formatTimeRange(elapsedSeconds, elapsedSeconds + durationSeconds);
+    elapsedSeconds += durationSeconds;
+    return timeRange;
+  });
 }
 
 function buildProductionConfig(sourceConfig) {
@@ -565,6 +643,22 @@ function splitMaterialSlot(value) {
 function normalizePositiveInteger(value) {
   const numeric = Number(value);
   return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+}
+
+function normalizePositiveNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function formatTimeRange(startSeconds, endSeconds) {
+  return `${formatTimestamp(startSeconds)}-${formatTimestamp(endSeconds)}`;
+}
+
+function formatTimestamp(totalSeconds) {
+  const safeSeconds = Math.max(0, Math.round(totalSeconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function readString(value, fallback) {
