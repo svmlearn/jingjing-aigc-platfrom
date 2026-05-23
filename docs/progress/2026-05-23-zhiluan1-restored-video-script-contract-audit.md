@@ -465,3 +465,59 @@ Next valid step:
 - Commit and push only `5.23-worker-fix`.
 - Deploy server release from `5.23-worker-fix` without merging or pushing `main`.
 - Apply the zhiluan1 script patch from the released code path, then read back and show the script.
+
+## 2026-05-24 Server Release And Script Readback
+
+Release source:
+
+- Branch: `5.23-worker-fix`
+- Commit: `182165a5fa1e67d83e2fad74e3adb97ee5fb4595`
+- Gitee remote branch confirmed at the same commit before release.
+- `main` was not merged or pushed.
+
+Server release:
+
+- New release: `/srv/jingjing-domestic/releases/20260524011000-182165a`
+- Current symlink: `/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260524011000-182165a`
+- Server build:
+  - `corepack pnpm@10.20.0 install --frozen-lockfile`: passed
+  - `corepack pnpm@10.20.0 build`: passed
+- Restarted services:
+  - `jingjing-domestic-app.service`: active
+  - `jingjing-content-generation-worker.service`: active
+  - `jingjing-firered-openstoryline.service`: active
+  - `jingjing-openstoryline-engine.service`: active
+  - `jingjing-video-worker.service`: active
+  - `nginx.service`: active after reload
+
+Health checks:
+
+- `curl -fsS http://127.0.0.1:3000/api/health`: ok, database `postgres`, storage `aliyun_oss`.
+- `curl -fsS http://127.0.0.1:8000/ready`: ready, `engine_adapter=fire_red`.
+- `curl -fsS http://127.0.0.1:7860/api/ready`: ready, `render_video_available=true`.
+
+Script patch applied from released code path:
+
+```bash
+cd /srv/jingjing-domestic/current/app
+sudo node -- scripts/patch-zhiluan1-restored-video-script-contract.mjs --env-file /srv/jingjing-domestic/shared/env/app.env --apply
+```
+
+Readback result from DB:
+
+- `content_variants.script_text` contains CASE-003-style blocks with scene number, time range, `场景`, `画面`, and `台词/字幕`.
+- `content_variants.production_scenes`: 5 scenes.
+- `production_scenes[].visual`: populated for all 5 scenes and intended to become backend `sceneAssetQueries`.
+- `production_scenes[].shotRequirement`: `""`.
+- `production_scenes[].materials`: `[]`.
+- `production_scenes[].fallbackShot`: `""`.
+- Scene 1 and scene 5 are `talking_head` / `requiresUserUpload=true`.
+- Scenes 2, 3, and 4 are `merchant_broll` / `requiresUserUpload=false`.
+- `daily_content_tasks.video_task.generatedVideoScript.targetDurationSeconds`: `52`, retained for frontend display.
+- `daily_content_tasks.video_task.recommendedProductionConfig.render` has no `maxDurationSeconds`.
+- No new video job was created during this release/readback step.
+
+Server command issue recorded:
+
+- Added project error-log entry `PE-20260524-001` in `docs/codex-runtime-errors.md`.
+- Scope: Windows PowerShell SSH server command quoting, BOM/CRLF here-string, Node v24 `--env-file`, and root-only `/srv/jingjing-domestic/shared/env/app.env` pitfalls.

@@ -9,6 +9,7 @@
 | PJ-2026-05-22-001 | `TEAM-*` 邀请码注册时报 `MEMBER_INVITATION_CODE_NOT_FOUND` / “邀请码不存在” | 对比数据库里存储的邀请码格式和 repository 的 normalize 逻辑 | 已解决 | [完整复盘](#pj-2026-05-22-001-member-registration-says-invitation-code-does-not-exist-for-team-codes) |
 | PE-20260521-001 | `OpenStoryline stream run timeout after 2700s` / `select_bgm` / `model sampling timed out after 450s` | 查三层日志：`video-worker`、`openstoryline-engine`、`firered-openstoryline`，确认是否卡在 FireRed 内部节点 | 部分解决 | [完整复盘](#pe-20260521-001-openstoryline-stream-2700s-timeout-at-select_bgm) |
 | PE-20260522-001 | `/tmp` 运行 ESM 脚本时报 `ERR_MODULE_NOT_FOUND: Cannot find package 'pg'` | 临时目录加 `node_modules` 链接到当前 release app，再运行 dry-run | 已解决 | [完整复盘](#pe-20260522-001-temp-esm-script-cannot-resolve-project-dependency) |
+| PE-20260524-001 | Windows PowerShell 执行 SSH 发布/修复命令时远端 `grep -E`、here-string、`node --env-file`、root-only env 连续踩坑 | 复杂远端命令改为单引号包裹或脚本 stdin；项目脚本用 `sudo node -- script.mjs --env-file ...` | 已解决 | [完整复盘](#pe-20260524-001-powershell-ssh-server-command-quoting-and-node-env-file-pitfalls) |
 
 ## 快速处理卡
 
@@ -48,6 +49,21 @@ node "$TMP/fix-factory-member-video-tasks.mjs"
 ```
 
 - 验证：同一脚本 dry-run 成功输出 `mode: dry-run`，事务 rollback，没有提交数据库修改。
+
+### PE-20260524-001 PowerShell SSH server command quoting and Node env-file pitfalls
+
+- 适用现象：在 Windows PowerShell 里执行服务器发布、release 验证或数据修复命令时，远端命令被本地 shell 提前解析，出现 `command not found`、`unexpected EOF`、`build\r not found`、`node: /srv/.../app.env: not found`、或 root-only env 读取失败。
+- 先判定：这类失败先按“本地 PowerShell 引号/换行/权限问题”排查，不要马上归因到服务器代码或业务脚本。
+- 推荐写法：
+  - 简短只读命令：`ssh host 'cd /srv/jingjing-domestic/current/app && grep -R -n -E "pattern" file'`，避免在外层双引号里放未转义的 `|`、`(`、`)`。
+  - 多行远端脚本：用本地生成 LF/UTF-8 no-BOM 的脚本 stdin 给 `ssh host 'bash -s'`，不要直接把 PowerShell here-string 原样送进 bash。
+  - 服务器 root-only env：在 release app 目录内运行 `sudo node -- scripts/name.mjs --env-file /srv/jingjing-domestic/shared/env/app.env`。
+  - Node v24 项目脚本：加 `--` 分隔 Node 自身参数和脚本参数，避免 `--env-file` 被 Node 当成内建 env-file 参数解析。
+- 避免写法：
+  - `sudo -u ubuntu node scripts/name.mjs --env-file /srv/.../app.env`，因为 `app.env` 是 root-only，ubuntu 用户读不到。
+  - `node scripts/name.mjs --env-file /srv/.../app.env` 在 Node v24 下可能被 Node 自身抢走 `--env-file`。
+  - PowerShell 外层双引号里直接放远端 `grep -E "a|b|c"`、`$(...)`、或复杂 bash 片段。
+- 验证：正确命令在 2026-05-24 zhiluan1 脚本修复中 dry-run 和 apply 均输出 JSON，`mode` 分别为 `dry-run` / `applied`。
 
 ## 完整复盘
 
@@ -216,3 +232,60 @@ bgm.enabled: true
 ```
 
 脚本未加 `--apply`，事务 rollback，未提交数据库修改。
+
+### PE-20260524-001 PowerShell SSH server command quoting and Node env-file pitfalls
+
+- 日期：2026-05-24
+- 状态：已解决
+- 记录类型：项目部署 / 服务器维护命令 runbook
+- 影响范围：Windows PowerShell 本地终端执行 Aliyun 服务器 release、health check、Node 数据修复脚本
+
+#### 现象
+
+在发布 `5.23-worker-fix` 到 `/srv/jingjing-domestic/releases/20260524011000-182165a` 并从 release 路径运行 zhiluan1 脚本修复时，连续出现几类非业务失败：
+
+```text
+sceneAssetQueries\ : The term 'sceneAssetQueries\' is not recognized...
+bash: -c: line 1: syntax error near unexpected token `('
+bash: line 1: ﻿set: command not found
+ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL Command "build\r" not found
+node: /srv/jingjing-domestic/shared/env/app.env: not found
+```
+
+#### 根因
+
+- PowerShell 外层双引号会先处理部分字符，导致远端 `grep -E "a|b|c"` 里的 `|`、括号或嵌套引号被本地 shell 抢先解释。
+- PowerShell here-string 传给远端 bash 时可能带 BOM/CRLF，远端看到的是 `﻿set` 和 `build\r`，不是干净的 `set` / `build`。
+- Node v24 支持自身的 `--env-file` 参数；执行 `node script.mjs --env-file path` 时，`--env-file` 可能被 Node 当作运行时参数解析，而不是传给项目脚本。
+- `/srv/jingjing-domestic/shared/env/app.env` 是 root-only，`sudo -u ubuntu node ... --env-file ...` 不能读取该文件。
+
+#### 正确处理
+
+发布构建用服务器目标用户执行，不把 PowerShell here-string 原样送入 bash：
+
+```bash
+ssh meng@8.154.28.41 "sudo -u ubuntu bash -lc 'set -euo pipefail; cd /srv/jingjing-domestic/releases/<release>/app; corepack pnpm@10.20.0 install --frozen-lockfile; corepack pnpm@10.20.0 build'"
+```
+
+从已发布 release 路径运行需要读取 root-only app env 的 Node 维护脚本：
+
+```bash
+ssh meng@8.154.28.41 "cd /srv/jingjing-domestic/current/app && sudo node -- scripts/patch-zhiluan1-restored-video-script-contract.mjs --env-file /srv/jingjing-domestic/shared/env/app.env"
+ssh meng@8.154.28.41 "cd /srv/jingjing-domestic/current/app && sudo node -- scripts/patch-zhiluan1-restored-video-script-contract.mjs --env-file /srv/jingjing-domestic/shared/env/app.env --apply"
+```
+
+复杂只读检查优先用远端单引号包裹，或者写成不含管道的多条简单命令。需要管道、正则和多行脚本时，优先把远端脚本保存为 UTF-8 no-BOM/LF 后通过 `ssh host 'bash -s' < script.sh` 执行。
+
+#### 验证
+
+- 服务器 release `/srv/jingjing-domestic/releases/20260524011000-182165a` 完成 `corepack pnpm@10.20.0 install --frozen-lockfile` 和 `corepack pnpm@10.20.0 build`。
+- `sudo node -- scripts/patch-zhiluan1-restored-video-script-contract.mjs --env-file ...` dry-run 成功输出 `mode: dry-run`。
+- `sudo node -- scripts/patch-zhiluan1-restored-video-script-contract.mjs --env-file ... --apply` 成功输出 `mode: applied`。
+- `/api/health`、OpenStoryline `/ready`、FireRed `/api/ready` 均返回 ready/ok。
+
+#### 预防
+
+- Windows 上执行服务器命令时，把“本地 shell 解析”和“远端 bash 解析”分开看；失败信息如果出现在 PowerShell 样式报错里，说明命令还没真正进入远端。
+- 维护脚本参数和 Node 参数之间加 `--`。
+- 读取 `/srv/jingjing-domestic/shared/env/*.env` 时默认按 root-only 处理，不要切到普通运行用户后再读。
+- 发布构建失败时先检查 BOM/CRLF、用户权限和 shell quoting，再判断是否是代码构建失败。

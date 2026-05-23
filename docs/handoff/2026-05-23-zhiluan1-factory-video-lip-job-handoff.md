@@ -543,3 +543,63 @@ Current required release rule from user:
 - Deploy the server release from `5.23-worker-fix`.
 - Apply the script patch from the released code path.
 - Then read back and show the script before starting any new video job.
+
+## 2026-05-24 Release / Script Patch Completed
+
+Completed after the sixth correction:
+
+- Confirmed local branch: `5.23-worker-fix`.
+- Confirmed Gitee `origin/5.23-worker-fix`: `182165a5fa1e67d83e2fad74e3adb97ee5fb4595`.
+- Did not merge or push `main`.
+- Deployed server release from `5.23-worker-fix`:
+  - `/srv/jingjing-domestic/releases/20260524011000-182165a`
+  - `/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260524011000-182165a`
+- Server build passed:
+  - `corepack pnpm@10.20.0 install --frozen-lockfile`
+  - `corepack pnpm@10.20.0 build`
+- Services after restart/reload:
+  - `jingjing-domestic-app.service`: active
+  - `jingjing-content-generation-worker.service`: active
+  - `jingjing-firered-openstoryline.service`: active
+  - `jingjing-openstoryline-engine.service`: active
+  - `jingjing-video-worker.service`: active
+  - `nginx.service`: active
+- Health checks passed:
+  - `/api/health`: ok
+  - OpenStoryline `/ready`: ready
+  - FireRed `/api/ready`: ready
+
+Applied zhiluan1 script patch from released path:
+
+```bash
+cd /srv/jingjing-domestic/current/app
+sudo node -- scripts/patch-zhiluan1-restored-video-script-contract.mjs --env-file /srv/jingjing-domestic/shared/env/app.env --apply
+```
+
+DB readback confirmed:
+
+- `script_text` now uses CASE-003-style structure:
+  - scene number
+  - time range
+  - `场景：...`
+  - `画面：...`
+  - `台词/字幕：...`
+- `production_scenes[].visual` is populated and must be sent to backend as `sceneAssetQueries`.
+- No `素材：...`, no `素材关键词：...`, no `画面花字：...`.
+- `production_scenes[].materials` is `[]`, and `shotRequirement` / `fallbackShot` are blank.
+- Scene 1 and 5 require member talking-head uploads.
+- Scene 2, 3, and 4 use merchant B-roll material selection.
+- `targetDurationSeconds=52` remains for frontend display.
+- `recommendedProductionConfig.render` has no `maxDurationSeconds`, so the backend render cap is not constrained by the displayed estimate.
+
+Important command lesson:
+
+- Recorded as `PE-20260524-001` in `docs/codex-runtime-errors.md`.
+- When running server commands from Windows PowerShell, avoid complex nested SSH quoting and PowerShell here-strings with BOM/CRLF.
+- For released Node maintenance scripts that need root-only env files, use:
+
+```bash
+sudo node -- scripts/<script>.mjs --env-file /srv/jingjing-domestic/shared/env/app.env
+```
+
+No new video job has been started after this script correction.
