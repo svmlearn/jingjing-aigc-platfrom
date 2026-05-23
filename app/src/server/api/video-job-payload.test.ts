@@ -608,9 +608,28 @@ test("buildVideoEditJobInputPayload normalizes production config overrides", () 
     },
     render: {
       aspectRatio: "9:16",
-      maxDurationSeconds: 45,
       includeOriginalAudio: true,
     },
+  });
+  assert.equal("maxDurationSeconds" in payload.productionConfig.render, false);
+});
+
+test("buildVideoEditJobInputPayload does not pass render max duration as a hard cap", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [],
+    productionConfig: {
+      render: {
+        maxDurationSeconds: 45,
+      },
+    },
+  });
+
+  assert.deepEqual(payload.productionConfig.render, {
+    aspectRatio: "9:16",
+    includeOriginalAudio: false,
   });
 });
 

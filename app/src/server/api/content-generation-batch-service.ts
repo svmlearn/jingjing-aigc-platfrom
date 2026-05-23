@@ -905,6 +905,7 @@ function mapDifySceneToProductionScene(
   return {
     sceneNo: scene.sceneNo,
     timeRange: scene.timeRange,
+    durationSeconds: scene.durationSec,
     shotRequirement: scene.taskDescription,
     visual: scene.visualDescription,
     voiceover: scene.voiceover,

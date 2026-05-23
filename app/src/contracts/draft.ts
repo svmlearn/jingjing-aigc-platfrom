@@ -25,6 +25,7 @@ export type ContentDraftDto = {
 export type VideoScriptSceneDto = {
   sceneNo: number;
   timeRange: string;
+  durationSeconds?: number | null;
   sceneType?: string | null;
   requiresUserUpload?: boolean | null;
   shotRequirement: string;

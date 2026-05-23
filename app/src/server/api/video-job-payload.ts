@@ -36,6 +36,7 @@ export type VideoJobPayloadVariant = {
 export type VideoJobPayloadSceneInput = {
   sceneNo?: number | null;
   timeRange?: string | null;
+  durationSeconds?: number | null;
   shotRequirement?: string | null;
   visual?: string | null;
   materials?: string[] | null;
@@ -245,7 +246,6 @@ type NormalizedProductionConfig = {
   };
   render: {
     aspectRatio: "9:16";
-    maxDurationSeconds?: number;
     includeOriginalAudio: boolean;
     preserveTalkingHeadOriginalAudio?: boolean;
   };
@@ -608,17 +608,6 @@ function normalizeProductionConfig(
   if (normalizedRender.aspectRatio !== "9:16") {
     throwInvalidProductionConfig("Unsupported render aspect ratio.");
   }
-  const maxDurationSeconds = normalizeOptionalNumber(
-    render.maxDurationSeconds,
-    "render.maxDurationSeconds",
-    15,
-    180,
-    true,
-  );
-  if (maxDurationSeconds !== undefined) {
-    normalizedRender.maxDurationSeconds = maxDurationSeconds;
-  }
-
   const bgm = input?.bgm ?? {};
   const normalizedVoiceover = normalizeVoiceover(voiceover, voiceoverMode);
 

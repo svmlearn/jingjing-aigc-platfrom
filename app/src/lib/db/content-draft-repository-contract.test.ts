@@ -10,6 +10,10 @@ const videoJobRepositorySource = readFileSync(
   new URL("./video-edit-job-repository.ts", import.meta.url),
   "utf8",
 );
+const postgresVideoChainRepositorySource = readFileSync(
+  new URL("./postgres-video-chain-repository.ts", import.meta.url),
+  "utf8",
+);
 const migrationSource = readFileSync(
   new URL("../../../supabase/migrations/202605150003_content_variant_production_scenes.sql", import.meta.url),
   "utf8",
@@ -28,6 +32,10 @@ test("video edit jobs receive persisted production scenes instead of raw Dify JS
   assert.match(
     videoJobRepositorySource,
     /productionScenes: toProductionScenes\(variant\.production_scenes\)/,
+  );
+  assert.match(
+    postgresVideoChainRepositorySource,
+    /productionScenes: variant\.productionScenes/,
   );
   assert.doesNotMatch(videoJobRepositorySource, /final_result_json/);
   assert.doesNotMatch(videoJobRepositorySource, /difyRawOutputs/);

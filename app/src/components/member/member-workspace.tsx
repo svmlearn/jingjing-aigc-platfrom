@@ -1248,7 +1248,6 @@ function buildMemberVideoProductionConfig(input: {
       },
       render: {
         aspectRatio: "9:16",
-        maxDurationSeconds: input.script.targetDurationSeconds,
         includeOriginalAudio: false,
       },
       subtitles: {
@@ -1276,7 +1275,6 @@ function buildMemberVideoProductionConfig(input: {
     },
     render: {
       aspectRatio: "9:16",
-      maxDurationSeconds: input.script.targetDurationSeconds,
       includeOriginalAudio: false,
     },
     subtitles: {

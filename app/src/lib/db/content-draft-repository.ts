@@ -782,6 +782,7 @@ function toProductionScenes(value: unknown): ContentVariantDto["productionScenes
     scenes.push({
       sceneNo: toPositiveInteger(record.sceneNo) ?? 0,
       timeRange: toStringValue(record.timeRange),
+      durationSeconds: toNullablePositiveNumber(record.durationSeconds),
       sceneType: toNullableStringValue(record.sceneType),
       requiresUserUpload: toNullableBooleanValue(record.requiresUserUpload),
       shotRequirement: toStringValue(record.shotRequirement),
@@ -808,6 +809,11 @@ function toNullableStringValue(value: unknown) {
 
 function toNullableBooleanValue(value: unknown) {
   return typeof value === "boolean" ? value : null;
+}
+
+function toNullablePositiveNumber(value: unknown) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
 }
 
 function toPositiveInteger(value: unknown) {

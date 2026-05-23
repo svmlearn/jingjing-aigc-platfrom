@@ -1138,6 +1138,7 @@ export async function pgAssertContentVariantAccess(input: {
     scriptText: variant.scriptText,
     hashtags: variant.hashtags,
     ctaText: variant.ctaText,
+    productionScenes: variant.productionScenes,
     reviewStatus: variant.reviewStatus,
     inputSnapshot: row.draft_input_snapshot ?? null,
   };
@@ -1929,6 +1930,7 @@ function toProductionScenes(value: unknown): ContentVariantDto["productionScenes
     scenes.push({
       sceneNo: toPositiveInteger(record.sceneNo) ?? 0,
       timeRange: toStringValue(record.timeRange),
+      durationSeconds: toNullablePositiveNumber(record.durationSeconds),
       sceneType: toNullableStringValue(record.sceneType),
       requiresUserUpload: toNullableBooleanValue(record.requiresUserUpload),
       shotRequirement: toStringValue(record.shotRequirement),
@@ -1960,6 +1962,11 @@ function toNullableBooleanValue(value: unknown) {
 function toPositiveInteger(value: unknown) {
   const numeric = Number(value);
   return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+}
+
+function toNullablePositiveNumber(value: unknown) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
 }
 
 function toIsoString(value: Timestamp) {
