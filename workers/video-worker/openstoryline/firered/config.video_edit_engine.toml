@@ -20,7 +20,7 @@ outputs_dir = "./outputs"
 
 # ============= 模型配置 for user / Model Config for User =============
 [llm]
-model = "${OPENSTORYLINE_LLM_MODEL:-glm-4.6}"
+model = "${OPENSTORYLINE_LLM_MODEL:-glm-5.1}"
 base_url = "${OPENSTORYLINE_LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4/}"
 api_key = "${OPENSTORYLINE_LLM_API_KEY:-}"
 temperature = 0.1
@@ -28,7 +28,7 @@ timeout = 420.0
 max_retries = 0
 
 [vlm]
-model = "${OPENSTORYLINE_VLM_MODEL:-glm-4.6v}"
+model = "${OPENSTORYLINE_VLM_MODEL:-glm-5v-turbo}"
 base_url = "${OPENSTORYLINE_VLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4/}"
 api_key = "${OPENSTORYLINE_VLM_API_KEY:-}"
 timeout = 60.0
