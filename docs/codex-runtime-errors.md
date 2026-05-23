@@ -10,6 +10,7 @@
 | PE-20260521-001 | `OpenStoryline stream run timeout after 2700s` / `select_bgm` / `model sampling timed out after 450s` | 查三层日志：`video-worker`、`openstoryline-engine`、`firered-openstoryline`，确认是否卡在 FireRed 内部节点 | 部分解决 | [完整复盘](#pe-20260521-001-openstoryline-stream-2700s-timeout-at-select_bgm) |
 | PE-20260522-001 | `/tmp` 运行 ESM 脚本时报 `ERR_MODULE_NOT_FOUND: Cannot find package 'pg'` | 临时目录加 `node_modules` 链接到当前 release app，再运行 dry-run | 已解决 | [完整复盘](#pe-20260522-001-temp-esm-script-cannot-resolve-project-dependency) |
 | PE-20260524-001 | Windows PowerShell 执行 SSH 发布/修复命令时远端 `grep -E`、here-string、`node --env-file`、root-only env 连续踩坑 | 复杂远端命令改为单引号包裹或脚本 stdin；项目脚本用 `sudo node -- script.mjs --env-file ...` | 已解决 | [完整复盘](#pe-20260524-001-powershell-ssh-server-command-quoting-and-node-env-file-pitfalls) |
+| PE-20260524-002 | `video_edit_jobs` 已成功但 `result_payload.local_outputs` 指向不存在的本地目录 | 先验 OSS `result_payload.outputs` / `asset_objects`，本地取件再回退查 FireRed cache 的 `render_video_*/*.mp4` | 部分解决 | [完整复盘](#pe-20260524-002-video-job-succeeded-but-local_outputs-path-is-missing) |
 
 ## 快速处理卡
 
@@ -64,6 +65,18 @@ node "$TMP/fix-factory-member-video-tasks.mjs"
   - `node scripts/name.mjs --env-file /srv/.../app.env` 在 Node v24 下可能被 Node 自身抢走 `--env-file`。
   - PowerShell 外层双引号里直接放远端 `grep -E "a|b|c"`、`$(...)`、或复杂 bash 片段。
 - 验证：正确命令在 2026-05-24 zhiluan1 脚本修复中 dry-run 和 apply 均输出 JSON，`mode` 分别为 `dry-run` / `applied`。
+
+### PE-20260524-002 video job succeeded but local_outputs path is missing
+
+- 适用现象：`video_edit_jobs.status=succeeded`、`current_stage=completed`，OSS 上传和 `asset_objects` 都已写回，但按 `result_payload.local_outputs.final_video_path` 去服务器取 `/srv/jingjing-video-worker/outputs/jobs/<job-id>/final.mp4` 报 `No such file or directory`。
+- 先判定：不要把“本地路径不存在”误判为任务失败。先以 DB 状态、`result_payload.outputs`、`log_payload.steps[].uploaded_assets` 和 `asset_objects` 为准。
+- 快速命令：
+  1. 查 job：`select status,current_stage,result_payload,log_payload from public.video_edit_jobs where id=$1`
+  2. 查资产：`select id,owner_type,owner_id,asset_type,storage_provider,bucket_name,storage_key,file_size_bytes from public.asset_objects where id=any($1::uuid[])`
+  3. 找真实本地成片：`find /srv/jingjing-video-worker/firered/.storyline/.server_cache/<session-id> -path '*render_video_*/*.mp4' -type f -printf '%s %p\n'`
+- 2026-05-24 验证样例：job `d53fd010-9d7b-4005-a1d1-408ecda0421d` 成功，最终视频资产 `36bad284-81e7-44f2-b6a1-b27b3a5bbbd2`，OSS key `video-results/e7c94a17-cf7d-4eb2-8178-13daa780551a/d53fd010-9d7b-4005-a1d1-408ecda0421d/final.mp4`，文件大小 `7925028`。
+- 取件方式：该次真实本地 mp4 在 FireRed cache：`/srv/jingjing-video-worker/firered/.storyline/.server_cache/5ac1b9d325f240ab9878254cfafdf4a4/render_video_1779559179.9083393/output_4a02a683_1779559179956.mp4`，`ffprobe` 显示 `duration=56.710000`。
+- 后续修复：worker 应在成功上传后同步把产物复制到 `result_payload.local_outputs` 指定目录，或改为不写不可用的 local path；验收脚本应优先验证 OSS/asset_objects，不要只依赖 `local_outputs`。
 
 ## 完整复盘
 
@@ -289,3 +302,77 @@ ssh meng@8.154.28.41 "cd /srv/jingjing-domestic/current/app && sudo node -- scri
 - 维护脚本参数和 Node 参数之间加 `--`。
 - 读取 `/srv/jingjing-domestic/shared/env/*.env` 时默认按 root-only 处理，不要切到普通运行用户后再读。
 - 发布构建失败时先检查 BOM/CRLF、用户权限和 shell quoting，再判断是否是代码构建失败。
+
+### PE-20260524-002 video job succeeded but local_outputs path is missing
+
+- 日期：2026-05-24
+- 状态：部分解决
+- 记录类型：项目视频 worker 产物验收 runbook / 待修复实现问题
+- 影响范围：`video_edit_jobs` 成功后的本地取件、人工验收和后续自动化验收
+
+#### 现象
+
+前端发起的视频任务 `d53fd010-9d7b-4005-a1d1-408ecda0421d` 完整跑通，DB 显示：
+
+```text
+status=succeeded
+current_stage=completed
+progress_pct=100
+```
+
+`result_payload.outputs.final_video` 和 `log_payload.steps[].uploaded_assets` 都指向 Aliyun OSS 成片：
+
+```text
+video-results/e7c94a17-cf7d-4eb2-8178-13daa780551a/d53fd010-9d7b-4005-a1d1-408ecda0421d/final.mp4
+```
+
+但按 `result_payload.local_outputs.final_video_path` 拉本地文件失败：
+
+```text
+/srv/jingjing-video-worker/outputs/jobs/d53fd010-9d7b-4005-a1d1-408ecda0421d/final.mp4: No such file or directory
+```
+
+#### 根因判断
+
+任务本身没有失败，失败的是“本地产物路径记录/复制”：
+
+- `asset_objects` 已有最终视频行：`36bad284-81e7-44f2-b6a1-b27b3a5bbbd2`
+- `asset_objects.storage_key` 已写入 OSS final.mp4
+- `video-worker` 日志显示 `Completed video job d53fd010-9d7b-4005-a1d1-408ecda0421d`
+- FireRed 真实渲染文件存在于 `.storyline/.server_cache/.../render_video_*/*.mp4`
+- `/srv/jingjing-video-worker/outputs/jobs/<job-id>/` 目录未生成或未保留
+
+#### 本次可用取件路径
+
+真实成片在服务器 FireRed cache：
+
+```text
+/srv/jingjing-video-worker/firered/.storyline/.server_cache/5ac1b9d325f240ab9878254cfafdf4a4/render_video_1779559179.9083393/output_4a02a683_1779559179956.mp4
+```
+
+验证结果：
+
+```text
+duration=56.710000
+size=7925028
+```
+
+本地已拉取到：
+
+```text
+D:\Desktop\测试素材\jingjing-video-results\d53fd010-9d7b-4005-a1d1-408ecda0421d\final.mp4
+```
+
+#### 正确验收顺序
+
+1. 先查 `video_edit_jobs.status/current_stage/progress_pct/failure_*`。
+2. 再查 `result_payload.outputs.final_video` 和 `log_payload.steps[].uploaded_assets`。
+3. 用 `asset_objects` 验证最终视频资产是否存在，注意当前表没有 `metadata` 字段，不要写 `metadata->>'job_id'` 查询。
+4. 只在需要人工拉本地文件时，才从 FireRed cache 查 `render_video_*/*.mp4`。
+5. 不要因为 `result_payload.local_outputs` 路径不存在就把成功任务判成失败。
+
+#### 后续修复建议
+
+- worker 成功上传后，将 final/cover/subtitles 同步复制到 `result_payload.local_outputs` 指向的目录；或取消/修正这些不可用路径。
+- 自动验收脚本默认以 OSS key、`asset_objects` 和文件大小为成功依据。
+- 如果前端只需要成片，前端展示/下载应使用最终视频 asset 或签名 OSS URL，不依赖服务器本地路径。
