@@ -204,3 +204,27 @@ Uploaded output verification:
   - OSS headObject: `200`
 
 Operational note: the `result_payload.local_outputs` paths were not present under `/srv/jingjing-video-worker/outputs/jobs/<job-id>` when checked after completion. The durable evidence for this run is the FireRed render cache file, the uploaded Aliyun OSS objects, and the `asset_objects` rows.
+
+## 2026-05-23 Content Review Correction
+
+The fresh job `9c5e17d2-5351-4e2d-95de-72ba575aa0e2` is valid evidence that the formal worker chain ran (`video_edit_jobs -> jingjing-video-worker -> FireRed/OpenStoryline -> Aliyun VideoRetalk -> render -> OSS upload`), but it is not acceptable as a final content result.
+
+Two additional defects were found after reviewing the rendered content and FireRed `generate_script` artifact:
+
+- The locked member script contained both `口播：...` and `字幕：...` lines. FireRed's locked-script interceptor treated standalone `字幕` as another dialogue label, so the same scene was turned into two voiceover/script groups.
+- The member draft had duplicate uploaded video asset rows with the same OSS ETag. The payload builder preserved exact duplicate videos in `input_assets`, so duplicate material could enter the OpenStoryline素材池.
+
+Local fix now prepared on branch `5.23-worker-fix`:
+
+- `workers/video-worker/openstoryline/firered/src/open_storyline/mcp/hooks/node_interceptors.py`
+  - prefers `台词/字幕` / `台词` / `旁白` / `口播` for spoken text.
+  - uses standalone `字幕` only as fallback when no spoken label exists.
+  - keeps numbered locked-script scenes as authored instead of expanding them just to match FireRed group count.
+- `app/src/server/api/video-job-payload.ts`
+  - deduplicates video `input_assets` by `storageProvider + bucketName + ETag + fileSizeBytes`, keeping the newest asset row when timestamps are available.
+
+Local verification before release:
+
+- `python -m pytest workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_firered_generate_script_locked.py workers/video-worker/tests/test_directive_contract.py` with worker `PYTHONPATH`: `42 passed`.
+- `node --test app/src/server/api/video-job-payload.test.ts app/src/components/member/member-workspace-contract.test.ts`: `25 passed`.
+- `npm run typecheck` from `app/`: passed.

@@ -12,6 +12,7 @@ export type VideoJobPayloadAsset = {
   fileSizeBytes?: number | null;
   etag?: string | null;
   sortOrder: number;
+  createdAt?: string | null;
   role?: string | null;
   sceneType?: string | null;
   tags?: string[] | null;
@@ -264,8 +265,9 @@ export function buildVideoEditJobInputPayload(input: {
   assertApprovedScript(input.variant);
 
   const excludedAssets = input.assets.filter((asset) => asset.assetType !== "video");
-  const rawInputAssets = input.assets
-    .filter((asset) => asset.assetType === "video")
+  const rawInputAssets = dedupeVideoInputAssets(
+    input.assets.filter((asset) => asset.assetType === "video"),
+  )
     .map(mapInputAsset)
     .sort(
       (left, right) =>
@@ -797,6 +799,61 @@ function mapInputAsset(asset: VideoJobPayloadAsset): VideoEditJobInputAsset {
     sort_order: asset.sortOrder,
     ...normalizeInputAssetClassification(asset),
   };
+}
+
+function dedupeVideoInputAssets(assets: VideoJobPayloadAsset[]) {
+  const passthroughAssets: VideoJobPayloadAsset[] = [];
+  const byContentSignature = new Map<string, VideoJobPayloadAsset>();
+
+  for (const asset of assets) {
+    const signature = videoInputAssetContentSignature(asset);
+    if (!signature) {
+      passthroughAssets.push(asset);
+      continue;
+    }
+
+    const existing = byContentSignature.get(signature);
+    if (!existing || shouldPreferDuplicateVideoAsset(asset, existing)) {
+      byContentSignature.set(signature, asset);
+    }
+  }
+
+  return [...passthroughAssets, ...byContentSignature.values()];
+}
+
+function videoInputAssetContentSignature(asset: VideoJobPayloadAsset) {
+  const etag = normalizeOptionalString(asset.etag)?.replace(/^"+|"+$/g, "");
+  if (!etag) {
+    return null;
+  }
+
+  return [
+    asset.storageProvider.trim().toLowerCase(),
+    asset.bucketName?.trim().toLowerCase() ?? "",
+    etag.toLowerCase(),
+    asset.fileSizeBytes ?? "",
+  ].join("|");
+}
+
+function shouldPreferDuplicateVideoAsset(
+  candidate: VideoJobPayloadAsset,
+  existing: VideoJobPayloadAsset,
+) {
+  const candidateCreatedAt = normalizeOptionalString(candidate.createdAt);
+  const existingCreatedAt = normalizeOptionalString(existing.createdAt);
+  if (candidateCreatedAt && existingCreatedAt && candidateCreatedAt !== existingCreatedAt) {
+    return candidateCreatedAt > existingCreatedAt;
+  }
+
+  if (candidateCreatedAt && !existingCreatedAt) {
+    return true;
+  }
+
+  if (candidate.sortOrder !== existing.sortOrder) {
+    return candidate.sortOrder > existing.sortOrder;
+  }
+
+  return candidate.id.localeCompare(existing.id) > 0;
 }
 
 function normalizeInputAssetClassification(

@@ -121,6 +121,58 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
   ]);
 });
 
+test("buildVideoEditJobInputPayload deduplicates repeated uploaded videos by content etag", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [
+      {
+        id: "asset-old",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/merchant-1/draft-1/old-copy.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 670717,
+        etag: "\"SAME-CONTENT\"",
+        sortOrder: 0,
+        createdAt: "2026-05-22T23:32:19.000Z",
+      },
+      {
+        id: "asset-new",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/merchant-1/draft-1/new-copy.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 670717,
+        etag: "same-content",
+        sortOrder: 1,
+        createdAt: "2026-05-23T02:12:45.000Z",
+      },
+      {
+        id: "asset-other",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/merchant-1/draft-1/other.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 1055943,
+        etag: "other-content",
+        sortOrder: 2,
+        createdAt: "2026-05-23T02:12:46.000Z",
+      },
+    ],
+    now: "2026-05-23T00:00:00.000Z",
+  });
+
+  assert.deepEqual(
+    payload.input_assets.map((asset) => asset.asset_id),
+    ["asset-new", "asset-other"],
+  );
+});
+
 test("buildVideoEditJobInputPayload adds default production config", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",

@@ -526,7 +526,7 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
 
     def test_locked_worker_script_uses_structured_member_upload_signal_without_talking_head_words(self):
         module = sys.modules["firered_node_interceptors_under_test"]
-        dialogue_label = module._DIALOGUE_RE.pattern.split("|")[0].split("(?:")[1]
+        dialogue_label = "台词/字幕"
         payload = {
             "script_text": (
                 f"1\n00:00-00:05\nScene: member assigned upload\n{dialogue_label}: locked text should be replaced by ASR\n"
@@ -612,7 +612,7 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
 
         self.assertEqual(["split_shots", "group_clips", "asr"], require_kind)
 
-    def test_locked_worker_script_expands_dialogues_to_match_more_groups(self):
+    def test_locked_worker_script_keeps_numbered_scenes_when_group_count_is_larger(self):
         module = sys.modules["firered_node_interceptors_under_test"]
         payload = {
             "script_text": (
@@ -631,9 +631,48 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
 
         custom_script = module._build_custom_script_from_worker_payload(payload, groups)
 
-        self.assertEqual(3, len(custom_script["group_scripts"]))
-        self.assertEqual("group_0003", custom_script["group_scripts"][2]["group_id"])
-        self.assertTrue(custom_script["group_scripts"][2]["raw_text"])
+        self.assertEqual(2, len(custom_script["group_scripts"]))
+        self.assertEqual(
+            [
+                "如果你想找一个不吵、能坐一会儿的咖啡小院，可以看看这家。",
+                "它不是商场里一眼看完的店，更像是走进去以后才发现的安静角落。",
+            ],
+            [item["raw_text"] for item in custom_script["group_scripts"]],
+        )
+
+    def test_locked_worker_script_uses_spoken_text_and_does_not_duplicate_subtitles(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": (
+                "1\n00:00-00:08\n"
+                "场景：真人开头口播\n"
+                "口播：我是智鸾，先带你看这套厂房。\n"
+                "字幕：我是智鸾，先带你看这套厂房。\n"
+                "拍法：正面手持\n"
+                "2\n00:08-00:16\n"
+                "场景：车间动线\n"
+                "口播：这里进出货和生产动线是分开的。\n"
+                "字幕：这里进出货和生产动线是分开的。\n"
+            ),
+            "production_directive": {"script_locked": True},
+        }
+        groups = [
+            {"group_id": "group_0001"},
+            {"group_id": "group_0002"},
+            {"group_id": "group_0003"},
+            {"group_id": "group_0004"},
+        ]
+
+        custom_script = module._build_custom_script_from_worker_payload(payload, groups)
+
+        self.assertEqual(2, len(custom_script["group_scripts"]))
+        self.assertEqual(
+            [
+                "我是智鸾，先带你看这套厂房。",
+                "这里进出货和生产动线是分开的。",
+            ],
+            [item["raw_text"] for item in custom_script["group_scripts"]],
+        )
 
     def test_locked_worker_script_builds_custom_script_for_groups(self):
         module = sys.modules["firered_node_interceptors_under_test"]
@@ -981,7 +1020,7 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
             worker_context,
         )
 
-    def test_locked_worker_script_expands_dialogues_to_match_more_groups(self):
+    def test_locked_worker_script_keeps_numbered_scenes_when_group_count_is_larger_duplicate(self):
         module = sys.modules["firered_node_interceptors_under_test"]
         payload = {
             "script_text": (
@@ -1000,9 +1039,14 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
 
         custom_script = module._build_custom_script_from_worker_payload(payload, groups)
 
-        self.assertEqual(3, len(custom_script["group_scripts"]))
-        self.assertEqual("group_0003", custom_script["group_scripts"][2]["group_id"])
-        self.assertTrue(custom_script["group_scripts"][2]["raw_text"])
+        self.assertEqual(2, len(custom_script["group_scripts"]))
+        self.assertEqual(
+            [
+                "如果你想找一个不吵、能坐一会儿的咖啡小院，可以看看这家。",
+                "它不是商场里一眼看完的店，更像是走进去以后才发现的安静角落。",
+            ],
+            [item["raw_text"] for item in custom_script["group_scripts"]],
+        )
 
 
 if __name__ == "__main__":

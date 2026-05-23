@@ -299,3 +299,27 @@ One operational note: the local path reported under `result_payload.local_output
 - Local branch at the time of final verification: `main`
 - Fix branch `5.23-worker-fix` and `main` both include commit `a393d4d39d1df9a4d4fe8f2683e946ebcaae5a2c`.
 - Push/merge/release: completed for the code fix.
+
+## Later Correction: Content Was Not Acceptable
+
+After reviewing the rendered result and the FireRed `generate_script` artifact, job `9c5e17d2-5351-4e2d-95de-72ba575aa0e2` should not be used as the final deliverable even though the formal worker chain completed and lip-sync ran.
+
+Confirmed issues:
+
+- The locked script parser treated `字幕：...` as a second voiceover/dialogue line when a scene already had `口播：...`, which doubled the spoken script content.
+- Numbered member scenes were expanded to match FireRed group count, which can split an authored member script into extra spoken groups.
+- The draft contains duplicate uploaded video asset rows with matching OSS ETags; the app payload builder did not remove exact duplicate videos before sending `input_assets` to the worker.
+
+Local branch `5.23-worker-fix` now includes an additional fix:
+
+- Spoken script extraction prefers `台词/字幕` / `台词` / `旁白` / `口播`; standalone `字幕` is fallback only.
+- Numbered locked-script scenes are kept one-to-one with the authored scenes instead of expanded to arbitrary group count.
+- Video input assets are deduplicated by content ETag before entering the OpenStoryline material pool.
+
+Verification before next release:
+
+- Python worker tests: `42 passed`.
+- Node app contract tests: `25 passed`.
+- App typecheck: passed.
+
+Next valid verification must create a fresh `video_edit_jobs` row after this second fix is released. Do not reuse job `9c5e17d2-5351-4e2d-95de-72ba575aa0e2` as content success evidence.

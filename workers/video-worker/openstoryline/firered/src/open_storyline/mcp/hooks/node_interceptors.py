@@ -27,7 +27,34 @@ _PREVIEW_MEDIA_SUFFIXES = {".mp4", ".mov", ".webm", ".mkv", ".mp3", ".wav", ".m4
 _SCRIPT_SECTION_RE = re.compile(
     r"(?ms)^\s*(\d{1,2})\s*\n\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\s*\n(.*?)(?=^\s*\d{1,2}\s*\n\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\s*\n|\Z)"
 )
-_DIALOGUE_RE = re.compile(r"(?:台词/字幕|口播|字幕)\s*[：:]\s*(.+?)(?=\n(?:画面花字|素材|场景|画面)\s*[：:]|\Z)", re.S)
+_SCRIPT_LABEL_STOP = (
+    "台词/字幕",
+    "台词",
+    "旁白",
+    "口播",
+    "字幕",
+    "画面花字",
+    "素材",
+    "场景",
+    "画面",
+    "镜头要求",
+    "镜头",
+    "拍法",
+    "提示",
+    "时长",
+    "标题",
+    "CTA",
+    "卖点",
+)
+_SCRIPT_LABEL_STOP_RE = "|".join(re.escape(label) for label in _SCRIPT_LABEL_STOP)
+_DIALOGUE_RE = re.compile(
+    rf"(?:台词/字幕|台词|旁白|口播)\s*[：:]\s*(.+?)(?=\n\s*(?:{_SCRIPT_LABEL_STOP_RE})\s*[：:]|\Z)",
+    re.S,
+)
+_SUBTITLE_RE = re.compile(
+    rf"(?:字幕)\s*[：:]\s*(.+?)(?=\n\s*(?:{_SCRIPT_LABEL_STOP_RE})\s*[：:]|\Z)",
+    re.S,
+)
 _TALKING_HEAD_LABELS = {
     "talking-head",
     "talkinghead",
@@ -225,10 +252,14 @@ def _clean_locked_script_text(value: Any) -> str:
 
 
 def _extract_dialogue_from_section(section: str) -> str:
-    match = _DIALOGUE_RE.search(section or "")
-    if not match:
-        return ""
-    return _clean_locked_script_text(match.group(1))
+    value = section or ""
+    for pattern in (_DIALOGUE_RE, _SUBTITLE_RE):
+        match = pattern.search(value)
+        if match:
+            dialogue = _clean_locked_script_text(match.group(1))
+            if dialogue:
+                return dialogue
+    return ""
 
 
 def _split_locked_dialogue_text(text: str, max_parts: int) -> list[str]:
@@ -614,6 +645,7 @@ def _build_custom_script_from_worker_payload(
             numbered_dialogues.append(dialogue)
             numbered_sections.append(section)
 
+    extracted_from_numbered_sections = bool(numbered_dialogues)
     if not numbered_dialogues:
         for line in script_text.splitlines():
             dialogue = _extract_dialogue_from_section(line)
@@ -624,7 +656,8 @@ def _build_custom_script_from_worker_payload(
     if not numbered_dialogues:
         return {}
 
-    numbered_dialogues = _expand_dialogues_to_group_count(numbered_dialogues, len(group_ids))
+    if not extracted_from_numbered_sections:
+        numbered_dialogues = _expand_dialogues_to_group_count(numbered_dialogues, len(group_ids))
 
     use_asr_for_talking_head = _worker_payload_talking_head_subtitles_from_asr(payload)
     payload_is_talking_head = _worker_payload_is_talking_head(payload)
