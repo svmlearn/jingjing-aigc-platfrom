@@ -16,6 +16,7 @@ class InputAssetContractError(ValueError):
 
 @dataclass(frozen=True)
 class InputAsset:
+    asset_id: str | None
     asset_type: str
     storage_provider: str
     bucket_name: str
@@ -41,6 +42,7 @@ class InputAsset:
         storage_key = _required_string(payload, "storage_key")
         file_name = _safe_file_name(payload.get("file_name") or Path(storage_key).name)
         return cls(
+            asset_id=_optional_string(payload.get("asset_id") or payload.get("id")),
             asset_type=str(payload.get("asset_type", "video")),
             storage_provider=storage_provider,
             bucket_name=_bucket_name(payload, default_buckets, storage_provider),

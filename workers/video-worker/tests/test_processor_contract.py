@@ -403,6 +403,42 @@ class ProcessorContractTests(unittest.TestCase):
             repository.succeeded["result_payload"]["voiceover_artifacts"]["segment_count"],
         )
 
+    def test_downloaded_input_assets_preserve_asset_identity_for_engine(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            engine_client = FakeOpenStorylineClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                engine_client,
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "input_assets": [
+                        {
+                            "asset_id": "member-upload-1",
+                            "asset_type": "video",
+                            "storage_provider": "tencent_cos",
+                            "bucket_name": "input-bucket",
+                            "storage_key": "draft-inputs/merchant-1/draft-1/member-upload.mp4",
+                            "file_name": "member-upload.mp4",
+                        },
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNotNone(engine_client.last_input_assets)
+        self.assertEqual("member-upload-1", engine_client.last_input_assets[0]["asset_id"])
+        self.assertEqual(
+            "draft-inputs/merchant-1/draft-1/member-upload.mp4",
+            engine_client.last_input_assets[0]["storage_key"],
+        )
+
     def test_voice_profile_job_fails_when_clone_voiceover_artifacts_are_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()

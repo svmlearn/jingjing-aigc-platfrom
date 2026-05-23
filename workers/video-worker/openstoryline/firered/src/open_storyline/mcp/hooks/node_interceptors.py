@@ -419,9 +419,28 @@ def _payload_asset_by_media_id(worker_payload: Any) -> dict[str, dict[str, Any]]
     for asset in assets:
         if not isinstance(asset, dict):
             continue
-        media_id = asset.get("media_id")
-        if isinstance(media_id, str) and media_id.strip():
-            out[media_id.strip()] = asset
+        for key in (
+            "media_id",
+            "asset_id",
+            "id",
+            "file_name",
+            "store_file_name",
+            "storage_key",
+            "local_path",
+        ):
+            value = asset.get(key)
+            if isinstance(value, str) and value.strip():
+                out[value.strip()] = asset
+                if key == "storage_key":
+                    out[Path(value).name] = asset
+        metadata = asset.get("metadata")
+        if isinstance(metadata, dict):
+            for key in ("media_id", "asset_id", "id", "file_name", "store_file_name", "storage_key"):
+                value = metadata.get(key)
+                if isinstance(value, str) and value.strip():
+                    out[value.strip()] = asset
+                    if key == "storage_key":
+                        out[Path(value).name] = asset
     return out
 
 
@@ -448,9 +467,8 @@ def _clip_has_talking_head_label(clip: Any, payload_assets_by_media_id: dict[str
         return False
     source_ref = clip.get("source_ref")
     values = _asset_values_for_talking_head(source_ref)
-    media_id = source_ref.get("media_id") if isinstance(source_ref, dict) else None
-    if isinstance(media_id, str) and media_id in payload_assets_by_media_id:
-        values.extend(_asset_values_for_talking_head(payload_assets_by_media_id[media_id]))
+    for asset in _payload_assets_for_clip(clip, payload_assets_by_media_id):
+        values.extend(_asset_values_for_talking_head(asset))
     normalized = {_normalize_token(value) for value in values if str(value).strip()}
     return any(_normalize_token(label) in normalized for label in _TALKING_HEAD_LABELS)
 
@@ -460,11 +478,77 @@ def _clip_is_project_material(clip: Any, payload_assets_by_media_id: dict[str, d
         return False
     source_ref = clip.get("source_ref")
     values = _asset_values_for_talking_head(source_ref)
-    media_id = source_ref.get("media_id") if isinstance(source_ref, dict) else None
-    if isinstance(media_id, str) and media_id in payload_assets_by_media_id:
-        values.extend(_asset_values_for_talking_head(payload_assets_by_media_id[media_id]))
+    for asset in _payload_assets_for_clip(clip, payload_assets_by_media_id):
+        values.extend(_asset_values_for_talking_head(asset))
     normalized = {_normalize_token(value) for value in values if str(value).strip()}
     return bool({"project-material", "merchant-material-library"} & normalized)
+
+
+def _payload_assets_for_clip(
+    clip: Any,
+    payload_assets_by_media_id: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not isinstance(clip, dict):
+        return []
+    source_ref = clip.get("source_ref")
+    if not isinstance(source_ref, dict):
+        return []
+    out: list[dict[str, Any]] = []
+    for key in (
+        "media_id",
+        "asset_id",
+        "id",
+        "file_name",
+        "store_file_name",
+        "storage_key",
+        "orig_path",
+        "path",
+    ):
+        value = source_ref.get(key)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        for candidate in (value.strip(), Path(value).name):
+            asset = payload_assets_by_media_id.get(candidate)
+            if isinstance(asset, dict) and asset not in out:
+                out.append(asset)
+    return out
+
+
+def _worker_payload_user_talking_head_asset_ids(worker_payload: Any) -> set[str]:
+    material_context = (
+        _get_nested_dict(worker_payload, "material_context")
+        or _get_nested_dict(worker_payload, "materialContext")
+    )
+    value = material_context.get("userTalkingHeadAssetIds") or material_context.get("user_talking_head_asset_ids")
+    if not isinstance(value, list | tuple | set):
+        return set()
+    return {str(item).strip() for item in value if str(item).strip()}
+
+
+def _clip_is_member_upload_candidate(
+    clip: Any,
+    payload_assets_by_media_id: dict[str, dict[str, Any]],
+    user_talking_head_asset_ids: set[str],
+) -> bool:
+    if not isinstance(clip, dict):
+        return False
+    source_ref = clip.get("source_ref")
+    if not isinstance(source_ref, dict):
+        return False
+    for key in ("asset_id", "id", "media_id", "file_name", "store_file_name", "storage_key"):
+        value = source_ref.get(key)
+        if isinstance(value, str) and value.strip():
+            candidates = {value.strip(), Path(value).name}
+            if candidates & user_talking_head_asset_ids:
+                return True
+    for asset in _payload_assets_for_clip(clip, payload_assets_by_media_id):
+        for key in ("asset_id", "id", "media_id", "file_name", "store_file_name", "storage_key"):
+            value = asset.get(key)
+            if isinstance(value, str) and value.strip():
+                candidates = {value.strip(), Path(value).name}
+                if candidates & user_talking_head_asset_ids:
+                    return True
+    return False
 
 
 def _group_source_duration_ms(group: dict[str, Any], clip_lookup: dict[str, dict[str, Any]]) -> int:
@@ -547,6 +631,7 @@ def _build_custom_script_from_worker_payload(
     asr_infos = _get_nested_value(asr, "asr_infos")
     clip_lookup = _clip_lookup_from_split_shots(split_shots)
     payload_assets_by_media_id = _payload_asset_by_media_id(payload)
+    user_talking_head_asset_ids = _worker_payload_user_talking_head_asset_ids(payload)
     voiceover_enabled = _worker_payload_voiceover_enabled(payload)
 
     group_scripts = []
@@ -565,10 +650,17 @@ def _build_custom_script_from_worker_payload(
         )
         has_member_upload_candidate = (
             payload_is_talking_head
-            and section_requests_talking_head
             and group_clip_ids
             and any(
-                not _clip_is_project_material(clip_lookup.get(clip_id), payload_assets_by_media_id)
+                _clip_is_member_upload_candidate(
+                    clip_lookup.get(clip_id),
+                    payload_assets_by_media_id,
+                    user_talking_head_asset_ids,
+                )
+                or (
+                    section_requests_talking_head
+                    and not _clip_is_project_material(clip_lookup.get(clip_id), payload_assets_by_media_id)
+                )
                 for clip_id in group_clip_ids
             )
         )
@@ -689,6 +781,21 @@ def _asset_has_talking_head_label(asset: Any) -> bool:
 def _worker_payload_is_talking_head(worker_payload: Any) -> bool:
     if not isinstance(worker_payload, dict):
         return False
+
+    if _worker_payload_user_talking_head_asset_ids(worker_payload):
+        return True
+
+    material_context = (
+        _get_nested_dict(worker_payload, "material_context")
+        or _get_nested_dict(worker_payload, "materialContext")
+    )
+    scene_queries = material_context.get("sceneAssetQueries") or material_context.get("scene_asset_queries")
+    if isinstance(scene_queries, list) and any(
+        isinstance(item, dict)
+        and str(item.get("sourceRole") or item.get("source_role") or "").strip() == "user_talking_head"
+        for item in scene_queries
+    ):
+        return True
 
     input_assets = worker_payload.get("input_assets")
     if isinstance(input_assets, list) and any(

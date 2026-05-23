@@ -361,6 +361,56 @@ test("buildVideoEditJobInputPayload marks intro/outro scenes as user talking hea
   );
 });
 
+test("buildVideoEditJobInputPayload treats requiresUserUpload as member talking-head even without talking-head words", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      productionScenes: [
+        {
+          sceneNo: 1,
+          timeRange: "00:00-00:05",
+          requiresUserUpload: true,
+          shotRequirement: "Please record this assigned scene",
+          visual: "Member records a clear vertical clip",
+          materials: ["member_upload"],
+          fallbackShot: "Use uploaded member clip",
+        },
+        {
+          sceneNo: 2,
+          timeRange: "00:05-00:12",
+          shotRequirement: "Project entrance with nearby shops",
+          visual: "Show entrance and shops",
+          materials: ["entrance", "shops"],
+          fallbackShot: "Use lobby if entrance unavailable",
+        },
+      ],
+    },
+    materialReferences: [],
+    assets: [
+      {
+        id: "member-upload-1",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/merchant-1/draft-1/member-upload.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+      },
+    ],
+    merchantMediaClips: [merchantClip],
+  });
+
+  assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["member-upload-1"]);
+  assert.equal(payload.input_assets[0]?.role, "talking_head");
+  assert.equal(payload.materialContext.sceneAssetQueries[0]?.sourceRole, "user_talking_head");
+  assert.equal(payload.materialContext.sceneAssetQueries[1]?.sourceRole, "merchant_broll");
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "script_audio_alignment");
+  assert.equal(payload.productionConfig.lipSync.enabled, true);
+});
+
 test("buildVideoEditJobInputPayload accepts Aliyun OSS input assets", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",

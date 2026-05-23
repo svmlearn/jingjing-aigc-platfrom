@@ -327,6 +327,9 @@ export async function runNextDifyContentGenerationJob(): Promise<RunNextJobResul
         generationJobId: job.id,
         contentDraftId: draftBundle.draft.id,
         contentVariantId: videoVariant?.id ?? null,
+        memberUploadPolicy: videoPackage.scenes.some((scene) => scene.required)
+          ? "talking_head_required_only"
+          : null,
       },
       status: "generated",
     });
@@ -909,6 +912,7 @@ function mapDifySceneToProductionScene(
     materials: [scene.assetQuery, scene.filmingGuide.location, ...scene.filmingGuide.tips].filter(
       (value): value is string => Boolean(value?.trim()),
     ),
+    requiresUserUpload: scene.requiresUserUpload,
     cameraMovement: scene.shotLanguage.cameraMovement || scene.filmingGuide.method,
     purpose: scene.purpose,
     fallbackShot: scene.filmingGuide.method,

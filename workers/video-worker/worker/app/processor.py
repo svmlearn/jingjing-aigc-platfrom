@@ -988,8 +988,10 @@ class JobProcessor:
         except Exception as exc:
             raise InputDownloadError(asset.storage_key, exc) from exc
         downloaded: dict[str, Any] = {
+            "asset_id": asset.asset_id,
             "asset_type": asset.asset_type,
             "storage_provider": asset.storage_provider,
+            "storage_key": asset.storage_key,
             "file_name": asset.file_name,
             "local_path": str(local_path),
         }

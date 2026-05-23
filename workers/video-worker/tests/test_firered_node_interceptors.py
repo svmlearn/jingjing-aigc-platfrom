@@ -524,6 +524,76 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
         self.assertEqual("团队素材仍使用脚本", second["raw_text"])
         self.assertEqual("voiceover", second["audio_source"])
 
+    def test_locked_worker_script_uses_structured_member_upload_signal_without_talking_head_words(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        dialogue_label = module._DIALOGUE_RE.pattern.split("|")[0].split("(?:")[1]
+        payload = {
+            "script_text": (
+                f"1\n00:00-00:05\nScene: member assigned upload\n{dialogue_label}: locked text should be replaced by ASR\n"
+                f"2\n00:05-00:10\nScene: project material\n{dialogue_label}: project material keeps locked script\n"
+            ),
+            "production_directive": {"script_locked": True},
+            "production_config": {
+                "subtitles": {"talking_head_source": "asr_original_audio"}
+            },
+            "materialContext": {
+                "userTalkingHeadAssetIds": ["member-upload-1"],
+            },
+            "input_assets": [
+                {
+                    "asset_id": "member-upload-1",
+                    "file_name": "member-upload.mp4",
+                    "storage_key": "draft-inputs/merchant-1/draft-1/member-upload.mp4",
+                },
+            ],
+        }
+        groups = [
+            {"group_id": "group_0001", "clip_ids": ["clip_0001"]},
+            {"group_id": "group_0002", "clip_ids": ["clip_0002"]},
+        ]
+        split_shots = {
+            "clips": [
+                {
+                    "clip_id": "clip_0001",
+                    "source_ref": {
+                        "media_id": "media_0001",
+                        "asset_id": "member-upload-1",
+                        "file_name": "member-upload.mp4",
+                        "duration": 5000,
+                    },
+                },
+                {
+                    "clip_id": "clip_0002",
+                    "source_ref": {
+                        "media_id": "media_0002",
+                        "duration": 5000,
+                        "role": "project_material",
+                        "scene_type": "merchant_material_library",
+                    },
+                },
+            ]
+        }
+        asr = {
+            "asr_infos": [
+                {"clip_id": "clip_0001", "asr_text": "member upload ASR result"},
+                {"clip_id": "clip_0002", "asr_text": "project ambient sound"},
+            ]
+        }
+
+        custom_script = module._build_custom_script_from_worker_payload(
+            payload,
+            groups,
+            asr,
+            split_shots,
+        )
+
+        first, second = custom_script["group_scripts"]
+        self.assertEqual("member upload ASR result", first["raw_text"])
+        self.assertEqual("voiceover", first["audio_source"])
+        self.assertEqual("asr_original_audio", first["subtitle_source"])
+        self.assertEqual("project material keeps locked script", second["raw_text"])
+        self.assertEqual("voiceover", second["audio_source"])
+
     def test_generate_script_requires_asr_when_original_talking_head_subtitles_requested(self):
         module = sys.modules["firered_node_interceptors_under_test"]
         context = types.SimpleNamespace(
