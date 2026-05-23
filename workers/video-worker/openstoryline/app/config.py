@@ -45,7 +45,7 @@ class Settings:
     aliyun_videoretalk_model: str = "videoretalk"
     aliyun_videoretalk_timeout_seconds: int = 900
     aliyun_videoretalk_poll_interval_seconds: int = 15
-    aliyun_videoretalk_upload_url_mode: str = "external_url"
+    aliyun_videoretalk_upload_url_mode: str = "auto"
     aliyun_videoretalk_ref_image_url: str = ""
     aliyun_videoretalk_video_extension: bool = False
     aliyun_videoretalk_query_face_threshold: int = 170
@@ -189,8 +189,8 @@ class Settings:
             ),
             aliyun_videoretalk_upload_url_mode=os.getenv(
                 "ALIYUN_VIDEORETALK_UPLOAD_URL_MODE",
-                "external_url",
-            ).strip() or "external_url",
+                "auto",
+            ).strip() or "auto",
             aliyun_videoretalk_ref_image_url=os.getenv(
                 "ALIYUN_VIDEORETALK_REF_IMAGE_URL",
                 "",

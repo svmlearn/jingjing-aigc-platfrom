@@ -767,6 +767,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             retalk_cfg = payload["service_config"]["lip_sync"]["aliyun_videoretalk"]
             self.assertEqual("retalk-key", retalk_cfg["api_key"])
             self.assertEqual("videoretalk", retalk_cfg["model"])
+            self.assertEqual("auto", retalk_cfg["upload_url_mode"])
             self.assertEqual("https://oss.example/ref.png", retalk_cfg["ref_image_url"])
             self.assertTrue(retalk_cfg["video_extension"])
             self.assertEqual(170, retalk_cfg["query_face_threshold"])
