@@ -200,9 +200,102 @@ This branch fixes the app payload creation path so freshly-created member jobs c
 
 After that fix is released, create a fresh video edit job from the member UI. The existing two uploaded asset rows are still present on draft `36fa1e4f-1c92-40e3-a8cd-f228b5e799ae`, so the user should not need to upload again unless they want to replace素材.
 
+## Final Release And Fresh Job Verification
+
+- Fix commit: `a393d4d39d1df9a4d4fe8f2683e946ebcaae5a2c`
+- Commit message: `fix: preserve talking-head production scenes for lip jobs`
+- Pushed branches:
+  - `5.23-worker-fix`
+  - `main`
+- Server release:
+  - `/srv/jingjing-domestic/releases/20260523165418-a393d4d`
+  - `/srv/jingjing-domestic/current` points to that release.
+- Contract patch was applied after release, not as a direct hot edit to the old release.
+
+Post-patch data readback:
+
+- `team_calendar_source.source = manual_factory_script`
+- audit status: `manual_restored_script_not_dify_workflow_output`
+- missing normal Dify fields count: `11`
+- `targetDurationSeconds = 52` remains in the script for frontend display.
+- `recommendedProductionConfig.render` keys: `aspectRatio`, `includeOriginalAudio`
+- `recommendedProductionConfig.render.maxDurationSeconds` and `max_duration_seconds` are absent.
+- `production_scenes` count: `5`
+- talking-head scenes: `[1, 5]`
+- scene durations: `[5, 12, 14, 13, 8]`
+- time ranges: `00:00-00:05`, `00:05-00:17`, `00:17-00:31`, `00:31-00:44`, `00:44-00:52`
+
+Fresh valid job:
+
+- `video_edit_jobs.id = 9c5e17d2-5351-4e2d-95de-72ba575aa0e2`
+- Worker claimed it at `2026-05-23 17:09:31+08`.
+- Worker completed it at `2026-05-23 17:35:50+08`.
+- Final DB status: `succeeded`
+- Current stage: `completed`
+- Failure code/reason: `null`
+
+Fresh job payload facts:
+
+- `materialContext.userTalkingHeadAssetIds` contained all three draft uploaded videos:
+  - `16087728-c740-4e68-afc6-a76e4e7ede5b`
+  - `5c2b3064-22ac-4b59-999e-553cfa9f68d6`
+  - `09d2fe6c-8105-4713-854e-4fbd846bc2f7`
+- All three `input_assets` were classified as:
+  - `role = talking_head`
+  - `scene_type = talking_head`
+  - `storage_provider = aliyun_oss`
+- `render` keys were only `aspectRatio` and `includeOriginalAudio`; no render duration cap was sent.
+- There was no direct lip URL in `input_payload.input_assets`; the payload passes OSS keys. FireRed/VideoRetalk uses runtime upload/signing during the lip-sync step, and those transient URLs are not persisted in the job payload.
+
+FireRed/OpenStoryline evidence:
+
+- Session/output id: `3c0a416dad8c4898afdeb20b3059cc14`
+- `lip_sync` artifact:
+  - `/srv/jingjing-video-worker/firered/outputs/3c0a416dad8c4898afdeb20b3059cc14/lip_sync/lip_sync_1779528516.1624327.json`
+- `lip_sync` JSON had:
+  - provider: `aliyun_videoretalk`
+  - retalked segment count: `3`
+  - timeline lip-sync track count: `3`
+  - URL fields persisted in JSON: `0`
+  - error-like strings: `0`
+- Completed lip-sync segments:
+  - `group_0001/clip_0003`
+  - `group_0010/clip_0004`
+  - `group_0010/clip_0006`
+- Retalked output files exist and are nonzero:
+  - `retalked_group_0001_clip_0003.mp4`: `907894` bytes
+  - `retalked_group_0010_clip_0004.mp4`: `573436` bytes
+  - `retalked_group_0010_clip_0006.mp4`: `374303` bytes
+- Render completed at `2026-05-23 17:35:19+08`.
+- Render cache file:
+  - `/srv/jingjing-video-worker/firered/.storyline/.server_cache/3c0a416dad8c4898afdeb20b3059cc14/render_video_1779528731.1353347/output_9d53ec61_1779528731184.mp4`
+  - size: `14285099` bytes
+  - logged duration: `106.069` seconds
+- Since `targetDurationSeconds` was `52` but the rendered video duration was `106.069` seconds, the target duration was not used as a backend render cap.
+
+Uploaded outputs:
+
+- Final video:
+  - asset id: `5a727b07-37c3-451c-806a-2e2bb95db260`
+  - OSS key: `video-results/e7c94a17-cf7d-4eb2-8178-13daa780551a/9c5e17d2-5351-4e2d-95de-72ba575aa0e2/final.mp4`
+  - size: `14285099` bytes
+  - OSS headObject status: `200`
+- Cover:
+  - asset id: `ad7d3f13-9944-404f-bcd1-ac2a4a618eed`
+  - OSS key: `video-results/e7c94a17-cf7d-4eb2-8178-13daa780551a/9c5e17d2-5351-4e2d-95de-72ba575aa0e2/cover.jpg`
+  - size: `9262` bytes
+  - OSS headObject status: `200`
+- Subtitles:
+  - asset id: `14e999d2-c325-4499-b19a-430c185a2c12`
+  - OSS key: `video-results/e7c94a17-cf7d-4eb2-8178-13daa780551a/9c5e17d2-5351-4e2d-95de-72ba575aa0e2/subtitles.srt`
+  - size: `3191` bytes
+  - OSS headObject status: `200`
+
+One operational note: the local path reported under `result_payload.local_outputs` did not exist after completion when checked, but the FireRed render cache file, uploaded OSS objects, and `asset_objects` rows all existed and matched sizes/ETags.
+
 ## Current Working Tree
 
 - Local worktree: `D:\codexplan\jingjingstart-5.23-worker-lip`
-- Local branch at the time of this handoff: `5.23-worker-fix`
-- Local verification passed and the branch has a fix commit; use `git log -1` or the final release record for the immutable hash.
-- Push/merge/release: pending.
+- Local branch at the time of final verification: `main`
+- Fix branch `5.23-worker-fix` and `main` both include commit `a393d4d39d1df9a4d4fe8f2683e946ebcaae5a2c`.
+- Push/merge/release: completed for the code fix.
