@@ -323,7 +323,7 @@ export function buildVideoEditJobInputPayload(input: {
     source: "video_workbench",
     executionMode: "staging_worker",
     script: {
-      text: input.variant.scriptText!.trim(),
+      text: stripDisplayOnlyDurationLines(input.variant.scriptText!),
       locked: true,
       variantId: input.variant.contentVariantId,
     },
@@ -920,6 +920,14 @@ function extractSceneAssetQueriesFromScript(
         sourceRole: "merchant_broll" as const,
       };
     });
+}
+
+function stripDisplayOnlyDurationLines(scriptText: string) {
+  return scriptText
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*(预计时长|预计成片|目标时长|成片时长|视频时长|总时长)\s*[：:]/.test(line))
+    .join("\n")
+    .trim();
 }
 
 function inferSceneSourceRole(scene: VideoJobPayloadSceneInput): VideoEditJobSceneAssetQuery["sourceRole"] {

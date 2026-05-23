@@ -685,6 +685,24 @@ test("buildVideoEditJobInputPayload does not pass render max duration as a hard 
   });
 });
 
+test("buildVideoEditJobInputPayload strips display-only duration lines from backend script text", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      scriptText:
+        "标题：找厂房，先看这三个点\n预计时长：52秒\n完整口播：\n找厂房别只看价格。\n目标时长：52秒\n画面：厂房空间。",
+    },
+    materialReferences: [],
+    assets: [],
+  });
+
+  assert.equal(payload.script.text.includes("预计时长"), false);
+  assert.equal(payload.script.text.includes("目标时长"), false);
+  assert.equal(payload.script.text.includes("找厂房别只看价格。"), true);
+  assert.equal(payload.script.text.includes("画面：厂房空间。"), true);
+});
+
 test("buildVideoEditJobInputPayload accepts voice profile production config", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",

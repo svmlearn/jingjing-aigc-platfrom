@@ -516,12 +516,8 @@ function buildVariantScriptText(scriptValue) {
     .filter(Boolean)
     .join("\n");
   const timeRanges = buildSceneTimeRanges(scenes);
-  const targetDurationSeconds =
-    normalizePositiveInteger(script.targetDurationSeconds) ??
-    scenes.reduce((sum, scene) => sum + (Number(scene.durationSeconds) || 0), 0);
   const blocks = [
     `标题：${readString(script.title, "找厂房，先看这三个点")}`,
-    targetDurationSeconds ? `预计时长：${targetDurationSeconds}秒` : "",
     "音乐：使用背景音乐，轻快、稳重、有节奏的工业园区招商背景音乐，音量低，不压口播。",
     "",
     "完整口播：",
