@@ -553,6 +553,10 @@ class PlanTimelineProNode(BaseNode):
 
             for text_group_id, text_unit_id, index_in_group, text, text_start_timestamp, text_duration in \
                 zip(text_group_ids, text_unit_ids, text_index_in_group, texts, text_start_timestamps, text_durations):
+                if text_start_timestamp is None:
+                    text_start_timestamp = subtitles[-1]["timeline_window"]["end"] if subtitles else 0
+                if text_duration is None:
+                    text_duration = 0
                 subtitles.append({
                     "group_id": text_group_id,
                     "unit_id": text_unit_id,
@@ -574,6 +578,10 @@ class PlanTimelineProNode(BaseNode):
 
             for tts_group_id, voiceover_id, tts_duration, tts_start_timestamp, tts_path in \
                 zip(tts_group_ids, voiceover_ids, tts_durations, tts_start_timestamps, tts_paths):
+                if tts_start_timestamp is None:
+                    tts_start_timestamp = voiceover[-1]["timeline_window"]["end"] if voiceover else 0
+                if tts_duration is None:
+                    tts_duration = 0
                 voiceover.append({
                     "group_id": tts_group_id,
                     "voiceover_id": voiceover_id,

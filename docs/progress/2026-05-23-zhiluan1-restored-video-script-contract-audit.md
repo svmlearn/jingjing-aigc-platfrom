@@ -249,3 +249,52 @@ Second local fix now prepared:
 Second local verification:
 
 - `python -m pytest workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_firered_generate_script_locked.py workers/video-worker/tests/test_directive_contract.py` with worker `PYTHONPATH`: `43 passed`.
+
+## 2026-05-23 Third Runtime Correction
+
+After releasing `3a8b66d`, job `a43eba52-91ad-4b79-bbec-0a133224585c` was created through the real `POST /api/video-edit-jobs` path.
+
+Formal-chain evidence:
+
+- Worker claimed the job at `2026-05-23 19:08:10+08`.
+- Payload had two deduplicated `talking_head` input assets.
+- FireRed session: `2b6364cec3fb460aa48cacc19d30db66`.
+- `load_media` loaded ten videos total: two member talking-head videos plus eight `merchant_material_library` project materials.
+- `split_shots` produced eighteen clips.
+- `understand_clips`, `filter_clips`, `group_clips`, first `generate_script`, `generate_voiceover`, `select_bgm`, and transition/text nodes ran.
+
+This means the material was not manually assembled into a final cut. The API/worker supplied the material pool; OpenStoryline indexed, understood, filtered, and grouped it.
+
+The job was still cancelled because the content contract failed:
+
+- First `generate_script`: five authored spoken lines, correct.
+- `group_clips`: ten visual groups despite the request for five script scenes.
+- `plan_timeline_pro`: failed on `tts_start_timestamp + tts_duration` where `tts_start_timestamp` was `None`.
+- OpenStoryline retry: called `generate_script` with `Use the locked script exactly as provided:`.
+- Retry result: ten `group_scripts`, with scene 2 and scene 3 duplicated across multiple groups.
+- DB cancellation:
+  - status: `cancelled`
+  - current_stage: `cancelled_invalid_script_second_expansion`
+  - failure_code: `invalid_locked_script_second_expansion`
+
+Missing pieces now fixed locally:
+
+- Enforce requested group count after LLM grouping so a five-scene script does not become ten visual voiceover groups.
+- Recognize the second-call locked-script marker `Use the locked script exactly as provided:`.
+- Parse English `Scene N (time): dialogue | Subtitle: ...` retry prompts without speaking subtitle text.
+- Stop repeating a locked script just because group count is larger than script scene count.
+- Guard `plan_timeline_pro` against missing TTS/subtitle start timestamps to prevent another retry loop.
+
+Local files changed:
+
+- `workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/group_clips.py`
+- `workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/generate_script.py`
+- `workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/plan_timeline_pro.py`
+- `workers/video-worker/tests/test_firered_generate_script_locked.py`
+- `workers/video-worker/tests/test_firered_group_clips_contract.py`
+
+Local verification:
+
+- `python -m pytest workers/video-worker/tests/test_firered_group_clips_contract.py workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_firered_generate_script_locked.py workers/video-worker/tests/test_directive_contract.py workers/video-worker/tests/test_firered_generate_voiceover_contract.py workers/video-worker/tests/test_firered_lip_sync_node.py -q`
+- Result: `56 passed`.
+- `python -m py_compile workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/plan_timeline_pro.py workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/group_clips.py workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/generate_script.py`: passed.

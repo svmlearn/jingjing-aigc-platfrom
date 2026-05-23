@@ -348,3 +348,41 @@ New local fix on `5.23-worker-fix`:
 - Worker tests now include the exact member script heading pattern; result: `43 passed`.
 
 Next valid verification must be a fresh job after this follow-up commit is released. Job `ba6ba828-9bac-45a5-9905-6cf88f86a10f` is cancelled and must not be treated as a deliverable.
+
+## Third Correction: Second Generate-Script Expansion
+
+After releasing commit `3a8b66d`, a fresh API-created job was started:
+
+- `video_edit_jobs.id = a43eba52-91ad-4b79-bbec-0a133224585c`
+- Creation path: real Next API `POST /api/video-edit-jobs`, not direct DB insert.
+- Input request intentionally included five historical draft video asset ids; the server payload deduplicated them to two `talking_head` input assets.
+- FireRed `load_media` loaded ten videos:
+  - two deduplicated member `talking_head` inputs.
+  - eight `merchant_material_library` videos selected by worker material matching.
+- FireRed then ran real nodes: `load_media`, `split_shots`, `understand_clips`, `filter_clips`, `group_clips`, `generate_script`, `generate_voiceover`, `select_bgm`, transition/text nodes.
+
+This proves the run was on the formal worker/OpenStoryline chain and not a manually assembled fallback. However, the job is still invalid as a deliverable.
+
+Why it was cancelled:
+
+- The first `generate_script` artifact had the correct five authored spoken lines.
+- `group_clips` still returned ten visual groups even though the user request asked for five script scenes.
+- `plan_timeline_pro` then failed with `tts_start_timestamp = None`.
+- OpenStoryline retried `generate_script` with `Use the locked script exactly as provided:`.
+- The retry expanded the locked script to ten groups and duplicated scene 2 / scene 3 copy.
+- Job `a43eba52-91ad-4b79-bbec-0a133224585c` was cancelled as `invalid_locked_script_second_expansion`.
+
+New local fix on `5.23-worker-fix`:
+
+- `group_clips.py` now coalesces excess LLM groups back to an explicitly requested scene/group count, using `Scene N` summaries when present and a deterministic consecutive merge fallback otherwise.
+- `generate_script.py` now recognizes `Use the locked script exactly as provided:` and parses English `Scene N (time): dialogue | Subtitle: ...` lines without repeating the locked script to match group count.
+- `plan_timeline_pro.py` guards missing subtitle/TTS start timestamps so a `None + duration` error does not force another script-generation retry.
+- Added `test_firered_group_clips_contract.py`.
+
+Verification:
+
+- `python -m pytest workers/video-worker/tests/test_firered_group_clips_contract.py workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_firered_generate_script_locked.py workers/video-worker/tests/test_directive_contract.py workers/video-worker/tests/test_firered_generate_voiceover_contract.py workers/video-worker/tests/test_firered_lip_sync_node.py -q`
+- Result: `56 passed`.
+- `python -m py_compile` for `group_clips.py`, `generate_script.py`, and `plan_timeline_pro.py`: passed.
+
+Next valid verification must be another fresh job after this third fix is committed, merged to `main`, pushed, and released. Do not reuse `a43eba52-91ad-4b79-bbec-0a133224585c` as a deliverable.

@@ -1,4 +1,5 @@
 from typing import Any, Dict
+import re
 
 from open_storyline.nodes.core_nodes.base_node import BaseNode, NodeMeta
 from open_storyline.nodes.node_state import NodeState
@@ -113,6 +114,8 @@ class GroupClipsNode(BaseNode):
                     groups_raw=groups_raw,
                     selected_ids_set=set(selected_clips),
                 )
+                requested_group_count = _extract_requested_group_count(user_request)
+                groups = _coalesce_groups_to_requested_count(groups, requested_group_count)
                 node_state.node_summary.info_for_user(
                     f"Grouping successful: {len(groups)} groups in total"
                 )
@@ -202,6 +205,81 @@ def _normalize_groups_from_llm(
         g["group_id"] = f"group_{i:04d}"
 
     return normalized_groups
+
+
+def _extract_requested_group_count(user_request: Any) -> int | None:
+    if not isinstance(user_request, str) or not user_request.strip():
+        return None
+    patterns = (
+        r"\b(?:into|to)\s+(\d{1,2})\s+(?:scenes?|groups?)\b",
+        r"\b(\d{1,2})\s+(?:scenes?|groups?)\b",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, user_request, re.I)
+        if match:
+            value = int(match.group(1))
+            if 1 <= value <= 20:
+                return value
+    return None
+
+
+def _scene_number_from_summary(summary: Any) -> int | None:
+    if not isinstance(summary, str):
+        return None
+    match = re.search(r"\bscene\s*(\d{1,2})\b", summary, re.I)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def _merge_group_bucket(bucket: list[dict[str, Any]], index: int) -> dict[str, Any]:
+    clip_ids: list[str] = []
+    summaries: list[str] = []
+    for group in bucket:
+        for clip_id in group.get("clip_ids") or []:
+            if isinstance(clip_id, str) and clip_id not in clip_ids:
+                clip_ids.append(clip_id)
+        summary = group.get("summary")
+        if isinstance(summary, str) and summary.strip() and summary.strip() not in summaries:
+            summaries.append(summary.strip())
+    return {
+        "group_id": f"group_{index:04d}",
+        "summary": " / ".join(summaries) if summaries else "Merged shots for the requested scene.",
+        "clip_ids": clip_ids,
+    }
+
+
+def _coalesce_groups_to_requested_count(
+    groups: list[dict[str, Any]],
+    requested_count: int | None,
+) -> list[dict[str, Any]]:
+    if not requested_count or requested_count <= 0 or len(groups) <= requested_count:
+        return groups
+
+    scene_buckets: list[list[dict[str, Any]]] = [[] for _ in range(requested_count)]
+    assigned_by_scene = 0
+    for group in groups:
+        scene_no = _scene_number_from_summary(group.get("summary"))
+        if scene_no is None or scene_no < 1 or scene_no > requested_count:
+            continue
+        scene_buckets[scene_no - 1].append(group)
+        assigned_by_scene += 1
+
+    if assigned_by_scene == len(groups) and all(scene_buckets):
+        return [
+            _merge_group_bucket(bucket, index)
+            for index, bucket in enumerate(scene_buckets, start=1)
+        ]
+
+    buckets: list[list[dict[str, Any]]] = [[] for _ in range(requested_count)]
+    for index, group in enumerate(groups):
+        bucket_index = min(requested_count - 1, index * requested_count // len(groups))
+        buckets[bucket_index].append(group)
+    return [
+        _merge_group_bucket(bucket, index)
+        for index, bucket in enumerate(buckets, start=1)
+        if bucket
+    ]
 
 
 def _build_clip_lookup(clip_captions: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
