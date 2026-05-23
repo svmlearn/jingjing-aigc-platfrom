@@ -110,6 +110,49 @@ class GroupClipsContractTests(unittest.TestCase):
         self.assertEqual(["clip_0002", "clip_0003", "clip_0004"], result[1]["clip_ids"])
         self.assertEqual(["clip_0005", "clip_0006"], result[2]["clip_ids"])
 
+    def test_coalesces_chinese_scene_summaries_to_locked_script_count(self):
+        module = _load_group_clips_module()
+        groups = [
+            {"group_id": "group_0001", "summary": "场景1-口播开场", "clip_ids": ["clip_0003"]},
+            {"group_id": "group_0002", "summary": "场景2-厂房概览(推入)", "clip_ids": ["clip_0010"]},
+            {"group_id": "group_0003", "summary": "场景2-厂房概览(平移)", "clip_ids": ["clip_0011"]},
+            {"group_id": "group_0004", "summary": "场景2-厂房细节(采光)", "clip_ids": ["clip_0008"]},
+            {"group_id": "group_0005", "summary": "场景2-厂房细节(管线)", "clip_ids": ["clip_0013"]},
+            {"group_id": "group_0006", "summary": "场景2-厂房参照", "clip_ids": ["clip_0014"]},
+            {"group_id": "group_0007", "summary": "场景3-园区配套快速蒙太奇", "clip_ids": ["clip_0005"]},
+            {"group_id": "group_0008", "summary": "场景4-园区环境", "clip_ids": ["clip_0001"]},
+            {"group_id": "group_0009", "summary": "场景5-停车位口播收尾", "clip_ids": ["clip_0006"]},
+        ]
+
+        requested = module._extract_requested_group_count(
+            "场景1 口播\n场景2 厂房\n场景3 配套\n场景4 环境\n场景5 收尾"
+        )
+        result = module._coalesce_groups_to_requested_count(groups, requested)
+
+        self.assertEqual(5, len(result))
+        self.assertEqual([f"group_{index:04d}" for index in range(1, 6)], [g["group_id"] for g in result])
+        self.assertEqual(["clip_0010", "clip_0011", "clip_0008", "clip_0013", "clip_0014"], result[1]["clip_ids"])
+        self.assertEqual(["clip_0005"], result[2]["clip_ids"])
+        self.assertEqual(["clip_0006"], result[4]["clip_ids"])
+
+    def test_infers_requested_count_from_chinese_scene_summaries(self):
+        module = _load_group_clips_module()
+        groups = [
+            {"group_id": "group_0001", "summary": "场景1-口播开场", "clip_ids": ["clip_0001"]},
+            {"group_id": "group_0002", "summary": "场景2-厂房概览", "clip_ids": ["clip_0002"]},
+            {"group_id": "group_0003", "summary": "场景2-厂房细节", "clip_ids": ["clip_0003"]},
+            {"group_id": "group_0004", "summary": "场景3-快速蒙太奇", "clip_ids": ["clip_0004"]},
+            {"group_id": "group_0005", "summary": "场景4-环境", "clip_ids": ["clip_0005"]},
+            {"group_id": "group_0006", "summary": "场景5-收尾", "clip_ids": ["clip_0006"]},
+        ]
+
+        requested = module._infer_requested_group_count_from_groups(groups)
+        result = module._coalesce_groups_to_requested_count(groups, requested)
+
+        self.assertEqual(5, requested)
+        self.assertEqual(5, len(result))
+        self.assertEqual(["clip_0002", "clip_0003"], result[1]["clip_ids"])
+
 
 if __name__ == "__main__":
     unittest.main()

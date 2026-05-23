@@ -225,7 +225,7 @@ async function ensureMemberDraftClone(task) {
       source.variant.variant_type,
       source.variant.title,
       source.variant.body_text,
-      source.variant.script_text,
+      buildVariantScriptText(videoTask.generatedVideoScript),
       JSON.stringify(source.variant.hashtags ?? []),
       source.variant.cta_text,
       source.variant.generation_mode,
@@ -292,7 +292,7 @@ async function refreshMemberDraftClone(input) {
       input.draftId,
       source.variant.title,
       source.variant.body_text,
-      source.variant.script_text,
+      buildVariantScriptText(input.videoTask.generatedVideoScript),
       JSON.stringify(source.variant.hashtags ?? []),
       source.variant.cta_text,
       source.variant.generation_mode,
@@ -418,10 +418,7 @@ async function upsertMemberTask(task, clone) {
 function buildMemberVideoTask(sourceVideoTask) {
   const generatedVideoScript = toRecord(sourceVideoTask.generatedVideoScript);
   const scenes = Array.isArray(generatedVideoScript.scenes)
-    ? generatedVideoScript.scenes.map((scene) => ({
-        ...scene,
-        required: isTalkingHeadScene(scene),
-      }))
+    ? generatedVideoScript.scenes.map((scene) => normalizeFactoryScene(scene))
     : [];
 
   return {
@@ -464,16 +461,74 @@ function buildProductionScenes(videoTask) {
       timeRange: "",
       sceneType: requiresUserUpload ? "talking_head" : "merchant_broll",
       requiresUserUpload,
-      shotRequirement: readString(scene.shootingGuide, scene.title),
-      visual: readString(scene.materialSlot, scene.title),
+      shotRequirement: "",
+      visual: "",
       voiceover: readString(scene.spokenText, ""),
-      subtitle: readString(scene.subtitle, scene.spokenText),
-      materials: splitMaterialSlot(scene.materialSlot),
+      subtitle: readString(scene.spokenText, scene.subtitle),
+      materials: [],
       cameraMovement: readString(scene.camera, ""),
       purpose: readString(scene.title, ""),
-      fallbackShot: readString(scene.materialSlot, ""),
+      fallbackShot: "",
     };
   });
+}
+
+function normalizeFactoryScene(sceneValue) {
+  const scene = toRecord(sceneValue);
+  const spokenText = readString(scene.spokenText, readString(scene.subtitle, ""));
+  const sceneNo = normalizePositiveInteger(scene.order);
+  const isClosingScene = sceneNo === 5;
+  return {
+    ...scene,
+    title: isClosingScene
+      ? "成员口播收尾。"
+      : scene.title,
+    subtitle: spokenText,
+    spokenText,
+    materialSlot: isClosingScene ? "" : readString(scene.materialSlot, ""),
+    shootingGuide: isClosingScene ? "" : readString(scene.shootingGuide, ""),
+    required: isTalkingHeadScene(scene),
+  };
+}
+
+function buildVariantScriptText(scriptValue) {
+  const script = toRecord(scriptValue);
+  const scenes = Array.isArray(script.scenes)
+    ? script.scenes.map((scene) => normalizeFactoryScene(scene))
+    : [];
+  const fullVoiceover = scenes
+    .map((scene) => readString(scene.spokenText, ""))
+    .filter(Boolean)
+    .join("\n");
+  const targetDurationSeconds =
+    normalizePositiveInteger(script.targetDurationSeconds) ??
+    scenes.reduce((sum, scene) => sum + (Number(scene.durationSeconds) || 0), 0);
+  const blocks = [
+    `标题：${readString(script.title, "找厂房，先看这三个点")}`,
+    targetDurationSeconds ? `预计时长：${targetDurationSeconds}秒` : "",
+    "音乐：使用背景音乐，轻快、稳重、有节奏的工业园区招商背景音乐，音量低，不压口播。",
+    "",
+    "完整口播：",
+    fullVoiceover,
+    "",
+    "分镜脚本：",
+    ...scenes.flatMap((scene, index) => {
+      const sceneNo = normalizePositiveInteger(scene.order) ?? index + 1;
+      const durationSeconds = Number(scene.durationSeconds) || 0;
+      const timeRange = readString(scene.timeRange, "") || "";
+      const headingSuffix = timeRange || (durationSeconds ? `${durationSeconds}秒` : "");
+      const spokenText = readString(scene.spokenText, "");
+      return [
+        `场景${sceneNo}${headingSuffix ? `（${headingSuffix}）` : ""}`,
+        `口播：${spokenText}`,
+        `字幕：${spokenText}`,
+        "",
+      ];
+    }),
+    `结尾引导：${readString(script.cta, "")}`,
+  ];
+
+  return blocks.filter((line) => line !== null && line !== undefined).join("\n").trim();
 }
 
 function buildProductionConfig(sourceConfig) {

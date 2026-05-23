@@ -352,3 +352,66 @@ Verification:
 - Result: `84 passed`.
 
 Next valid verification must be a fresh job after this fourth fix is committed, merged to `main`, pushed, and released. Do not reuse `66bb23c7-da6d-4a2e-aa8f-2ca942bad92f` as a deliverable.
+
+## 2026-05-23 Fifth Runtime Correction: Chinese Scene Groups And Montage Buckets
+
+After releasing commit `df67f6a`, a fresh formal member-equivalent API job was started:
+
+- Job: `0eb69ee9-23b4-40f4-a8ec-ef9494472740`
+- FireRed session: `704d2d1bfcf04c5aa0d23ccedc90f02e`
+- Creation path: real `POST /api/video-edit-jobs`, with no `inputAssetIds` in the request.
+- API payload contained the two draft `talking_head` videos; the worker appended eight `merchant_material_library` videos during material preparation.
+
+Formal-chain evidence before failure:
+
+- `load_media`: ten videos.
+- `split_shots`: eighteen clips.
+- `understand_clips`: completed.
+- `filter_clips`: selected all eighteen clips; this was not a node-failure fallback.
+- `group_clips`: returned nine visual groups.
+- `generate_script`: returned five authored spoken lines.
+- `generate_voiceover`: produced five cloned voiceover wavs.
+
+Root cause:
+
+- The nine `group_clips` groups were not nine authored voiceover scenes.
+- `group_0002` through `group_0006` were scene 2 factory subgroups.
+- `group_0007` was scene 3 facilities quick montage.
+- `group_0008` was scene 4 environment.
+- `group_0009` was scene 5 closing.
+- The worker needed to preserve those clips but coalesce them back into the locked five scene groups before script, voiceover, lip-sync, and timeline alignment.
+- Because group coalescing did not recognize Chinese `场景N` summaries, `lip_sync` later looked for a cloned voiceover for `group_0009`, while only `group_0001` to `group_0005` voiceovers existed.
+
+DB failure:
+
+- status: `failed_manual`
+- current_stage: `lip_sync_artifact_validation_failed`
+- reason: `lip_sync enabled but no retalked talking-head segments were produced`
+
+New local fix on `5.23-worker-fix`:
+
+- `workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/group_clips.py`
+  - detects Chinese scene markers in the user request, including `场景N`, `镜头N`, and English `Scene N`.
+  - detects Chinese scene numbers in LLM group summaries.
+  - infers requested scene count from summaries if the user request is not enough.
+  - coalesces excess visual groups into the locked authored scene count, preserving montage clips under the correct scene.
+- `app/scripts/patch-zhiluan1-restored-video-script-contract.mjs`
+  - rewrites the restored zhiluan1 factory script text from normalized scenes.
+  - keeps `targetDurationSeconds` as frontend/audit display only.
+  - writes `content_variants.script_text`.
+  - makes `字幕` exactly equal to `口播`.
+  - changes scene 5 to a generic member talking-head close and removes `园区门口` / `园区入口`.
+  - does not emit `画面` / `镜头要求` / `素材关键词` lines in `script_text`.
+  - leaves `production_scenes` material-query fields blank so OpenStoryline chooses shots from the prepared material pool instead of receiving app-authored素材要求.
+- `app/scripts/fix-factory-member-video-tasks.mjs`
+  - applies the same script normalization to future factory member task clones.
+
+Verification:
+
+- `node --check app/scripts/patch-zhiluan1-restored-video-script-contract.mjs`: passed.
+- `node --check app/scripts/fix-factory-member-video-tasks.mjs`: passed.
+- `python -m py_compile workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/group_clips.py workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/lip_sync.py workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/plan_timeline_pro.py`: passed.
+- `PYTHONPATH=workers/video-worker;workers/video-worker/openstoryline python -m pytest workers/video-worker/tests/test_firered_group_clips_contract.py workers/video-worker/tests/test_firered_generate_script_locked.py workers/video-worker/tests/test_firered_lip_sync_node.py -q`: `12 passed`.
+- `PYTHONPATH=workers/video-worker;workers/video-worker/openstoryline python -m pytest workers/video-worker/tests/test_firered_group_clips_contract.py workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_firered_generate_script_locked.py workers/video-worker/tests/test_directive_contract.py workers/video-worker/tests/test_firered_generate_voiceover_contract.py workers/video-worker/tests/test_firered_lip_sync_node.py workers/video-worker/tests/test_openstoryline_engine_adapters.py -q`: `86 passed`.
+
+Next valid verification must be a fresh job after this fifth fix is committed, merged to `main`, pushed to Gitee, and released through a normal server release. Do not reuse `0eb69ee9-23b4-40f4-a8ec-ef9494472740` as a deliverable.

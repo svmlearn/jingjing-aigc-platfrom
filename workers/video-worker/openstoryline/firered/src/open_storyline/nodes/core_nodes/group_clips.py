@@ -114,7 +114,10 @@ class GroupClipsNode(BaseNode):
                     groups_raw=groups_raw,
                     selected_ids_set=set(selected_clips),
                 )
-                requested_group_count = _extract_requested_group_count(user_request)
+                requested_group_count = (
+                    _extract_requested_group_count(user_request)
+                    or _infer_requested_group_count_from_groups(groups)
+                )
                 groups = _coalesce_groups_to_requested_count(groups, requested_group_count)
                 node_state.node_summary.info_for_user(
                     f"Grouping successful: {len(groups)} groups in total"
@@ -210,6 +213,18 @@ def _normalize_groups_from_llm(
 def _extract_requested_group_count(user_request: Any) -> int | None:
     if not isinstance(user_request, str) or not user_request.strip():
         return None
+    scene_numbers: set[int] = set()
+    for pattern in (
+        r"(?:场景|鏡頭|镜头)\s*(\d{1,2})",
+        r"\bscene\s*(\d{1,2})\b",
+    ):
+        for match in re.finditer(pattern, user_request, re.I):
+            value = int(match.group(1))
+            if 1 <= value <= 20:
+                scene_numbers.add(value)
+    if scene_numbers:
+        return max(scene_numbers)
+
     patterns = (
         r"\b(?:into|to)\s+(\d{1,2})\s+(?:scenes?|groups?)\b",
         r"\b(\d{1,2})\s+(?:scenes?|groups?)\b",
@@ -226,10 +241,22 @@ def _extract_requested_group_count(user_request: Any) -> int | None:
 def _scene_number_from_summary(summary: Any) -> int | None:
     if not isinstance(summary, str):
         return None
-    match = re.search(r"\bscene\s*(\d{1,2})\b", summary, re.I)
+    match = re.search(r"(?:\bscene\s*|场景|鏡頭|镜头)\s*(\d{1,2})", summary, re.I)
     if not match:
         return None
     return int(match.group(1))
+
+
+def _infer_requested_group_count_from_groups(groups: list[dict[str, Any]]) -> int | None:
+    scene_numbers = [
+        scene_no
+        for group in groups
+        if (scene_no := _scene_number_from_summary(group.get("summary"))) is not None
+    ]
+    if len(scene_numbers) < 2:
+        return None
+    requested_count = max(scene_numbers)
+    return requested_count if 1 <= requested_count <= 20 else None
 
 
 def _merge_group_bucket(bucket: list[dict[str, Any]], index: int) -> dict[str, Any]:

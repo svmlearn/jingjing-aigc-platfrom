@@ -435,3 +435,60 @@ Next valid step:
 - Push to Gitee.
 - Deploy a normal release to the server group.
 - Start a new fresh job; only a new post-release job can be accepted as the final video deliverable.
+
+## Fifth Correction: Chinese Scene Group Coalescing And Script Text
+
+After commit `df67f6a` was released, another fresh formal API-created job was created from the member-side equivalent path:
+
+- Job: `0eb69ee9-23b4-40f4-a8ec-ef9494472740`
+- FireRed session: `704d2d1bfcf04c5aa0d23ccedc90f02e`
+- API payload did not pass `inputAssetIds`; it used the draft assets and normal worker material preparation.
+- Worker material pool contained two member `talking_head` videos plus eight `merchant_material_library` videos.
+- FireRed loaded ten videos, split eighteen clips, completed `understand_clips`, and `filter_clips` selected all eighteen clips without node-failure fallback.
+
+Why the job is still invalid:
+
+- `group_clips` returned nine visual groups:
+  - `group_0001`: scene 1 opening.
+  - `group_0002` to `group_0006`: scene 2 factory overview/detail subgroups.
+  - `group_0007`: scene 3 facilities quick montage.
+  - `group_0008`: scene 4 environment.
+  - `group_0009`: scene 5 closing.
+- These extra groups are visual subgroups/montage buckets, not additional authored voiceover scenes.
+- `generate_script` produced only the correct five authored spoken lines and therefore only five cloned voiceover files.
+- `lip_sync` then looked for `group_0009` voiceover and failed with `group_0009 has no cloned voiceover`.
+- Final DB validation rejected the job as `failed_manual`, current stage `lip_sync_artifact_validation_failed`, because no valid retalked talking-head segments were produced.
+
+New local fix on branch `5.23-worker-fix`:
+
+- `group_clips.py`
+  - detects Chinese scene markers such as `场景1`, `镜头1`, and English `Scene 1` from the locked user request.
+  - infers the requested scene count from LLM group summaries when the user request is not enough.
+  - merges excess LLM visual groups back into the locked authored scene count, preserving montage clips under the correct scene.
+- `patch-zhiluan1-restored-video-script-contract.mjs`
+  - normalizes the current zhiluan1 restored factory script.
+  - keeps `targetDurationSeconds` only for frontend display/audit, not as backend render duration cap.
+  - writes `content_variants.script_text` from the normalized scenes.
+  - makes every scene `字幕` exactly equal to that scene `口播`.
+  - changes scene 5 to generic member closing wording and removes `园区门口` / `园区入口` labels.
+  - does not emit `画面` / `镜头要求` / `素材关键词` lines in `script_text`.
+  - leaves `production_scenes` material-query fields blank so OpenStoryline chooses shots from the prepared material pool instead of receiving app-authored素材要求.
+- `fix-factory-member-video-tasks.mjs`
+  - applies the same normalization for future factory member task clones.
+
+Verification:
+
+- `node --check app/scripts/patch-zhiluan1-restored-video-script-contract.mjs`: passed.
+- `node --check app/scripts/fix-factory-member-video-tasks.mjs`: passed.
+- `python -m py_compile workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/group_clips.py workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/lip_sync.py workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/plan_timeline_pro.py`: passed.
+- Focused worker tests: `12 passed`.
+- Extended worker/OpenStoryline contract tests: `86 passed`.
+
+Next valid step:
+
+- Commit this fifth fix on `5.23-worker-fix`.
+- Push `5.23-worker-fix`.
+- Merge to `main`, push `main` to Gitee, and deploy a normal release.
+- Apply the zhiluan1 script patch only from the released code path.
+- Create a new fresh member-equivalent job without `inputAssetIds`.
+- Treat only a post-release successful MP4 as the deliverable.
