@@ -323,3 +323,28 @@ Verification before next release:
 - App typecheck: passed.
 
 Next valid verification must create a fresh `video_edit_jobs` row after this second fix is released. Do not reuse job `9c5e17d2-5351-4e2d-95de-72ba575aa0e2` as content success evidence.
+
+## Second Correction: Real Scene Heading Format
+
+Commit `bc5cfb8` was released and a new formal API job was created:
+
+- Job: `ba6ba828-9bac-45a5-9905-6cf88f86a10f`
+- Creation path: `POST /api/video-edit-jobs`
+- The API request passed five historical draft video asset ids; the server payload correctly deduplicated them to two input assets.
+
+That job was stopped before completion because FireRed still reported:
+
+- `Using locked custom script for 9 group(s)`
+
+The issue was not subtitle duplication anymore. The remaining parser gap was the live script heading format:
+
+- real script: `场景1（0-5秒）`
+- first fix covered: `1` + `00:00-00:05`
+
+New local fix on `5.23-worker-fix`:
+
+- `node_interceptors.py` now recognizes `场景N（...）` sections as structured authored scenes.
+- The live five-scene script should now produce five locked `group_scripts`, not nine.
+- Worker tests now include the exact member script heading pattern; result: `43 passed`.
+
+Next valid verification must be a fresh job after this follow-up commit is released. Job `ba6ba828-9bac-45a5-9905-6cf88f86a10f` is cancelled and must not be treated as a deliverable.

@@ -228,3 +228,24 @@ Local verification before release:
 - `python -m pytest workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_firered_generate_script_locked.py workers/video-worker/tests/test_directive_contract.py` with worker `PYTHONPATH`: `42 passed`.
 - `node --test app/src/server/api/video-job-payload.test.ts app/src/components/member/member-workspace-contract.test.ts`: `25 passed`.
 - `npm run typecheck` from `app/`: passed.
+
+## 2026-05-23 Real Script-Format Follow-up
+
+After releasing commit `bc5cfb8`, a fresh API-created job was started:
+
+- `video_edit_jobs.id = ba6ba828-9bac-45a5-9905-6cf88f86a10f`
+- Created through the real Next API `POST /api/video-edit-jobs`, not by direct `video_edit_jobs` insert.
+- The request intentionally passed all five historical draft video asset ids; the released payload builder correctly deduplicated them to two `input_assets`.
+- The job was cancelled before completion because FireRed still logged `Using locked custom script for 9 group(s)`.
+
+Root cause: the live script format uses headings like `场景1（0-5秒）`, while the first parser fix only treated the old two-line format (`1` then `00:00-00:05`) as structured numbered sections. That meant the real script still fell through to fallback line extraction and expansion.
+
+Second local fix now prepared:
+
+- Add a parser for `场景N（start-end秒）` scene headings.
+- Treat those sections as authored structured scenes, so they are not expanded to FireRed group count.
+- Add `素材关键词` to the label stop list so fallback subtitle extraction does not consume material keywords.
+
+Second local verification:
+
+- `python -m pytest workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_firered_generate_script_locked.py workers/video-worker/tests/test_directive_contract.py` with worker `PYTHONPATH`: `43 passed`.

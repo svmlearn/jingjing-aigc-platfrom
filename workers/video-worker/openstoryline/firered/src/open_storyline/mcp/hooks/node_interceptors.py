@@ -24,8 +24,11 @@ logger = get_logger(__name__)
 # Hosts that indicate Agent and MCP server are on the same machine (path-only, no base64). 0.0.0.0 for Docker.
 _LOCAL_CONNECT_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "0.0.0.0"})
 _PREVIEW_MEDIA_SUFFIXES = {".mp4", ".mov", ".webm", ".mkv", ".mp3", ".wav", ".m4a", ".aac", ".png", ".jpg", ".jpeg", ".gif", ".webp"}
-_SCRIPT_SECTION_RE = re.compile(
+_SCRIPT_NUMBERED_SECTION_RE = re.compile(
     r"(?ms)^\s*(\d{1,2})\s*\n\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\s*\n(.*?)(?=^\s*\d{1,2}\s*\n\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\s*\n|\Z)"
+)
+_SCRIPT_SCENE_HEADING_RE = re.compile(
+    r"(?ms)^\s*场景\s*\d{1,2}\s*[（(][^）)\n]+[）)]\s*\n(.*?)(?=^\s*场景\s*\d{1,2}\s*[（(][^）)\n]+[）)]\s*\n|\Z)"
 )
 _SCRIPT_LABEL_STOP = (
     "台词/字幕",
@@ -34,6 +37,7 @@ _SCRIPT_LABEL_STOP = (
     "口播",
     "字幕",
     "画面花字",
+    "素材关键词",
     "素材",
     "场景",
     "画面",
@@ -260,6 +264,14 @@ def _extract_dialogue_from_section(section: str) -> str:
             if dialogue:
                 return dialogue
     return ""
+
+
+def _extract_locked_script_sections(script_text: str) -> list[str]:
+    sections = [section for _scene_no, section in _SCRIPT_NUMBERED_SECTION_RE.findall(script_text)]
+    scene_heading_sections = _SCRIPT_SCENE_HEADING_RE.findall(script_text)
+    if scene_heading_sections:
+        sections.extend(scene_heading_sections)
+    return sections
 
 
 def _split_locked_dialogue_text(text: str, max_parts: int) -> list[str]:
@@ -639,7 +651,7 @@ def _build_custom_script_from_worker_payload(
 
     numbered_dialogues: list[str] = []
     numbered_sections: list[str] = []
-    for _scene_no, section in _SCRIPT_SECTION_RE.findall(script_text):
+    for section in _extract_locked_script_sections(script_text):
         dialogue = _extract_dialogue_from_section(section)
         if dialogue:
             numbered_dialogues.append(dialogue)

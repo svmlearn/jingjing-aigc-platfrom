@@ -674,6 +674,56 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
             [item["raw_text"] for item in custom_script["group_scripts"]],
         )
 
+    def test_locked_worker_script_keeps_scene_heading_sections_from_member_script(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": (
+                "分镜脚本：\n"
+                "场景1（0-5秒）\n"
+                "画面：成员口播开场，园区入口或门头前半身出镜。\n"
+                "镜头要求：成员口播 园区入口 门头 开场\n"
+                "口播：找厂房别只看价格，先看三个点：空间、配套、位置。\n"
+                "字幕：找厂房，先看空间、配套、位置\n"
+                "素材关键词：园区门口口播、园区入口\n\n"
+                "场景2（5-17秒）\n"
+                "画面：一楼厂房大空间、柱网、绿色地坪、采光窗、消防管线连续扫拍。\n"
+                "口播：这个园区一楼有约 2000 平厂房，层高到楼板 5.56 米，到梁 5 米，做生产、仓储、办公改造都比较好安排。\n"
+                "字幕：一楼约2000平，楼板5.56米，到梁5米\n"
+                "素材关键词：一楼厂房楼梯与夹层入口空间\n\n"
+                "场景3（17-31秒）\n"
+                "画面：停车位、宿舍楼、公寓、食堂、管理处、电梯等配套快速蒙太奇。\n"
+                "口播：园区还有 2 栋宿舍、1 栋公寓，食堂、电梯、管理处、停车位这些基础配套也在。\n"
+                "字幕：宿舍、公寓、食堂、电梯、停车位都有\n"
+                "素材关键词：园区停车通道与厂房外立面\n\n"
+                "场景4（31-44秒）\n"
+                "画面：平峦山远景、园区林荫道路、周边道路与交通环境。\n"
+                "口播：周边靠近平峦山，环境比普通厂房舒服，附近还有地铁和物流园，员工通勤、货物流转都方便。\n"
+                "字幕：靠近平峦山，通勤和货物流转更方便\n"
+                "素材关键词：平峦山远景与园区周边环境\n\n"
+                "场景5（44-52秒）\n"
+                "画面：成员口播收尾，停车位或园区入口背景。\n"
+                "口播：如果你正在找工业园区厂房，这种就值得实地看一眼。\n"
+                "字幕：找厂房，建议实地看一眼\n"
+                "素材关键词：停车位口播、园区门口口播\n"
+            ),
+            "production_directive": {"script_locked": True},
+        }
+        groups = [{"group_id": f"group_{index:04d}"} for index in range(1, 10)]
+
+        custom_script = module._build_custom_script_from_worker_payload(payload, groups)
+
+        self.assertEqual(5, len(custom_script["group_scripts"]))
+        self.assertEqual(
+            [
+                "找厂房别只看价格，先看三个点：空间、配套、位置。",
+                "这个园区一楼有约 2000 平厂房，层高到楼板 5.56 米，到梁 5 米，做生产、仓储、办公改造都比较好安排。",
+                "园区还有 2 栋宿舍、1 栋公寓，食堂、电梯、管理处、停车位这些基础配套也在。",
+                "周边靠近平峦山，环境比普通厂房舒服，附近还有地铁和物流园，员工通勤、货物流转都方便。",
+                "如果你正在找工业园区厂房，这种就值得实地看一眼。",
+            ],
+            [item["raw_text"] for item in custom_script["group_scripts"]],
+        )
+
     def test_locked_worker_script_builds_custom_script_for_groups(self):
         module = sys.modules["firered_node_interceptors_under_test"]
         payload = {
