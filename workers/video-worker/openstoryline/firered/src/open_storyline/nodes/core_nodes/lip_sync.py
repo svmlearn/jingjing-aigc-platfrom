@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import re
 import subprocess
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, Iterable
 
@@ -36,6 +38,7 @@ TALKING_HEAD_TOKENS = {
     "真人口播",
     "口播",
 }
+OSS_UPLOAD_URL_MODES = {"auto", "oss", "aliyun_oss"}
 SECRET_LIKE_QUERY_RE = re.compile(
     r"([?&][A-Za-z0-9_.-]*(?:signature|token|accesskeyid|access_key_id|keyid|key|expires|security-token|x-oss-[^=]*)=)[^&\s\"']+",
     re.IGNORECASE,
@@ -655,7 +658,9 @@ class LipSyncNode(BaseNode):
             return str(override)
         url_mode = str(
             inputs.get("upload_url_mode") or provider_cfg.get("upload_url_mode") or "external_url"
-        ).strip()
+        ).strip().lower()
+        if url_mode in OSS_UPLOAD_URL_MODES:
+            return self._upload_local_file_to_oss(path, inputs, provider_cfg, label=label)
         if url_mode != "external_url":
             raise LipSyncProviderConfigError(
                 f"lip_sync upload_url_mode={url_mode!r} is not implemented in this worker"
@@ -664,3 +669,139 @@ class LipSyncNode(BaseNode):
             f"lip_sync requires provider-accessible {label}_url for local file {path}; "
             "configure temporary OSS/DashScope upload URL plumbing before production verification"
         )
+
+    def _upload_local_file_to_oss(
+        self,
+        path: Path,
+        inputs: dict[str, Any],
+        provider_cfg: dict[str, Any],
+        *,
+        label: str,
+    ) -> str:
+        try:
+            import oss2
+        except Exception as exc:
+            raise LipSyncProviderConfigError(
+                "lip_sync upload_url_mode requires the oss2 package"
+            ) from exc
+
+        access_key_id = self._first_config_value(
+            inputs,
+            provider_cfg,
+            "oss_access_key_id",
+            "aliyun_oss_access_key_id",
+            env=("WORKER_ALIYUN_OSS_ACCESS_KEY_ID", "ALIYUN_OSS_ACCESS_KEY_ID"),
+        )
+        access_key_secret = self._first_config_value(
+            inputs,
+            provider_cfg,
+            "oss_access_key_secret",
+            "aliyun_oss_access_key_secret",
+            env=("WORKER_ALIYUN_OSS_ACCESS_KEY_SECRET", "ALIYUN_OSS_ACCESS_KEY_SECRET"),
+        )
+        bucket_name = self._first_config_value(
+            inputs,
+            provider_cfg,
+            "oss_bucket",
+            "aliyun_oss_bucket",
+            env=("WORKER_ALIYUN_OSS_BUCKET", "ALIYUN_OSS_BUCKET"),
+        )
+        endpoint = self._first_config_value(
+            inputs,
+            provider_cfg,
+            "oss_endpoint",
+            "aliyun_oss_endpoint",
+            env=("WORKER_ALIYUN_OSS_ENDPOINT", "ALIYUN_OSS_ENDPOINT"),
+        )
+        if not all((access_key_id, access_key_secret, bucket_name, endpoint)):
+            raise LipSyncProviderConfigError(
+                "lip_sync upload_url_mode requires Aliyun OSS access_key_id, "
+                "access_key_secret, bucket, and endpoint"
+            )
+
+        prefix = self._first_config_value(
+            inputs,
+            provider_cfg,
+            "oss_prefix",
+            "upload_prefix",
+            "aliyun_oss_prefix",
+            env=(
+                "ALIYUN_VIDEORETALK_OSS_PREFIX",
+                "WORKER_ALIYUN_OSS_RESULT_PREFIX",
+                "WORKER_STORAGE_RESULT_PREFIX",
+                "REAL_IO_SMOKE_STORAGE_PREFIX",
+            ),
+            default="video-results",
+        )
+        expires = int(
+            self._first_config_value(
+                inputs,
+                provider_cfg,
+                "signed_url_expires_seconds",
+                "oss_signed_url_expires_seconds",
+                env=("ALIYUN_VIDEORETALK_SIGNED_URL_EXPIRES_SECONDS",),
+                default="86400",
+            )
+        )
+        object_key = self._oss_object_key(path, inputs, label=label, prefix=prefix)
+        content_type = mimetypes.guess_type(str(path))[0]
+        headers = {"Content-Type": content_type} if content_type else None
+
+        bucket = oss2.Bucket(
+            oss2.Auth(access_key_id, access_key_secret),
+            endpoint,
+            bucket_name,
+        )
+        bucket.put_object_from_file(object_key, str(path), headers=headers)
+        return str(bucket.sign_url("GET", object_key, expires))
+
+    @classmethod
+    def _oss_object_key(
+        cls,
+        path: Path,
+        inputs: dict[str, Any],
+        *,
+        label: str,
+        prefix: str,
+    ) -> str:
+        session_id = cls._safe_object_key_part(inputs.get("session_id") or "session")
+        artifact_id = cls._safe_object_key_part(inputs.get("artifact_id") or "artifact")
+        suffix = path.suffix.lower() or (".wav" if label == "audio" else ".mp4")
+        prefix = cls._safe_object_key_prefix(prefix or "video-results")
+        return (
+            f"{prefix}/lip-sync-inputs/{session_id}/{artifact_id}/"
+            f"{uuid.uuid4().hex}_{cls._safe_object_key_part(label)}{suffix}"
+        )
+
+    @staticmethod
+    def _safe_object_key_prefix(value: Any) -> str:
+        cleaned = str(value or "").strip().strip("/")
+        cleaned = re.sub(r"[^A-Za-z0-9._/-]+", "-", cleaned)
+        return cleaned.strip("/") or "video-results"
+
+    @staticmethod
+    def _safe_object_key_part(value: Any) -> str:
+        cleaned = str(value or "").strip()
+        cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", cleaned)
+        return cleaned.strip("-_.") or "item"
+
+    @staticmethod
+    def _first_config_value(
+        inputs: dict[str, Any],
+        provider_cfg: dict[str, Any],
+        *keys: str,
+        env: tuple[str, ...] = (),
+        default: str = "",
+    ) -> str:
+        for key in keys:
+            value = inputs.get(key)
+            if value not in (None, ""):
+                return str(value).strip()
+            value = provider_cfg.get(key)
+            if value not in (None, ""):
+                return str(value).strip()
+        for name in env:
+            value = os.getenv(name)
+            if value not in (None, ""):
+                return str(value).strip()
+        return default

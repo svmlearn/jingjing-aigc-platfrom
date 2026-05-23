@@ -75,6 +75,8 @@ export type DailyContentTaskItemDto = {
   generationJobId?: string | null;
   contentDraftId?: string | null;
   contentVariantId?: string | null;
+  recommendedProductionConfig?: Record<string, unknown> | null;
+  memberUploadPolicy?: string | null;
 };
 
 export type DailyContentTaskDto = {

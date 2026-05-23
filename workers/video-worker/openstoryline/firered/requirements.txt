@@ -27,3 +27,4 @@ torchaudio==2.11.0
 edge-tts==7.2.7
 comfykit>=0.1.12
 dashscope==1.25.17
+oss2>=2.18,<3
