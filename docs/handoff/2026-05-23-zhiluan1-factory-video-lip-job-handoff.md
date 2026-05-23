@@ -603,3 +603,38 @@ sudo node -- scripts/<script>.mjs --env-file /srv/jingjing-domestic/shared/env/a
 ```
 
 No new video job has been started after this script correction.
+
+## 2026-05-24 Seventh Correction Pending Release
+
+Why this was reopened:
+
+- The completed job `d53fd010-9d7b-4005-a1d1-408ecda0421d` produced a `56.71s` final video, but the script voiceover groups totaled only about `38.09s`.
+- This caused too many visuals without matching narration, and some narration did not line up well with the shown factory material.
+- User asked to adjust only the script, based on existing materials, with more complete coverage and matching `台词/字幕`.
+
+Local change now prepared on `5.23-worker-fix`:
+
+- `app/scripts/patch-zhiluan1-restored-video-script-contract.mjs`
+  - introduces canonical `factoryScriptSpec`.
+  - changes the zhiluan1 script to 6 CASE-003-style scenes covering opening talking-head, main factory space, infrastructure, upper-floor supplemental space, management/public facilities, and living support/closing talking-head.
+  - keeps `台词/字幕` exactly equal to voiceover.
+  - keeps `production_scenes[].visual` populated for backend scene queries.
+  - keeps no `素材：`, no `素材关键词：`, no `画面花字：`, no material filenames, and no asset ids.
+- `app/scripts/fix-factory-member-video-tasks.mjs`
+  - applies the same 6-scene script to future factory member clones.
+  - strips render max-duration keys when cloning recommended production config.
+
+Verification completed locally:
+
+- `node --check app/scripts/patch-zhiluan1-restored-video-script-contract.mjs`: passed.
+- `node --check app/scripts/fix-factory-member-video-tasks.mjs`: passed.
+- `node --test --experimental-strip-types src/server/api/video-job-payload.test.ts`: `26 passed`.
+- `npm run typecheck`: passed.
+- `git diff --check`: passed.
+
+Next steps:
+
+- Commit and push only `5.23-worker-fix`.
+- Deploy normal server release from `5.23-worker-fix`.
+- Apply `scripts/patch-zhiluan1-restored-video-script-contract.mjs --apply` from the released code path.
+- Read back and show the script before any new video job is created.

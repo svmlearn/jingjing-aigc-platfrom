@@ -521,3 +521,48 @@ Server command issue recorded:
 
 - Added project error-log entry `PE-20260524-001` in `docs/codex-runtime-errors.md`.
 - Scope: Windows PowerShell SSH server command quoting, BOM/CRLF here-string, Node v24 `--env-file`, and root-only `/srv/jingjing-domestic/shared/env/app.env` pitfalls.
+
+## 2026-05-24 Seventh Correction: Voiceover Density And Scene Coverage
+
+User correction after reviewing the completed `d53fd010-9d7b-4005-a1d1-408ecda0421d` video:
+
+- The previous script still had too little narration for the actual render.
+- The completed video duration was `56.71s`, but the available voiceover groups totaled only about `38.09s`.
+- Several visual shots had no matching voiceover, and some voiceover did not match the material being shown.
+- The fix must only change the script. Do not manually choose OpenStoryline shots, do not add material filenames, asset ids, `素材：`, or `素材关键词：`.
+- The script must be based on the existing material pool: member talking-head videos, factory space/height, fire and power facilities, floor/elevator access, management service station, dorm/apartment exterior, living passage, and e-bike parking.
+- `台词/字幕` must exactly match the voiceover text.
+- Display duration may remain for the frontend, but backend render config must not receive a hard duration cap.
+
+New local fix on branch `5.23-worker-fix`:
+
+- `app/scripts/patch-zhiluan1-restored-video-script-contract.mjs`
+  - adds one canonical `factoryScriptSpec` used for title, CTA, six scenes, visual descriptions, time ranges, display duration, and voiceover text.
+  - expands the restored zhiluan1 script from 5 scenes to 6 scenes:
+    1. member opening talking-head
+    2. factory space and height
+    3. factory infrastructure
+    4. upper-floor supplemental space and floor circulation
+    5. park management and public facilities
+    6. dorm/apartment living support and member closing talking-head
+  - increases total planned voiceover copy to better cover a roughly 60-second video.
+  - updates `content_variants.title`, `content_variants.cta_text`, `script_text`, `daily_content_tasks.video_task.generatedVideoScript`, and `content_variants.production_scenes`.
+  - keeps `production_scenes[].visual` populated and keeps `shotRequirement`, `materials`, and `fallbackShot` blank.
+- `app/scripts/fix-factory-member-video-tasks.mjs`
+  - applies the same canonical six-scene script for future factory member clones.
+  - strips `recommendedProductionConfig.render.maxDurationSeconds` and `max_duration_seconds` when cloning, so source-task duration estimates cannot become backend render caps.
+
+Verification:
+
+- `node --check app/scripts/patch-zhiluan1-restored-video-script-contract.mjs`: passed.
+- `node --check app/scripts/fix-factory-member-video-tasks.mjs`: passed.
+- `node --test --experimental-strip-types src/server/api/video-job-payload.test.ts`: `26 passed`.
+- `npm run typecheck`: passed.
+- `git diff --check`: passed.
+
+Current required next step:
+
+- Commit and push only branch `5.23-worker-fix`.
+- Deploy a normal server release from `5.23-worker-fix`.
+- Apply the zhiluan1 patch from the released code path.
+- Read back the script and structured production scenes before creating any new video job.

@@ -19,6 +19,78 @@ const bgmConfig = {
     "Light, steady industrial park promotion background music, low volume under voiceover.",
   volume: 0.22,
 };
+const factoryScriptSpec = {
+  title: "找厂房，别只看租金",
+  cta: "你要找工业园区厂房，建议实地来看一圈。",
+  targetDurationSeconds: 64,
+  scenes: [
+    {
+      order: 1,
+      timeRange: "00:00-00:08",
+      durationSeconds: 8,
+      title: "成员口播开场",
+      visual: "成员在园区现场面对镜头开场，带出看厂房不能只看租金，要先判断空间、配套和管理。",
+      spokenText: "找厂房别只看租金，先看空间能不能用、配套能不能跟上、管理是不是省心。",
+      uploadLabel: "成员开场口播",
+      required: true,
+    },
+    {
+      order: 2,
+      timeRange: "00:08-00:20",
+      durationSeconds: 12,
+      title: "厂房空间和层高",
+      visual: "呈现空置厂房空间、柱网、绿色地坪和整体层高感，让观众看到一楼主力厂房的开阔度和可用性。",
+      spokenText:
+        "这边主力是一楼约 2000 平厂房，层高到楼板 5.56 米、到梁 5 米，空区开阔，柱网清楚，生产、仓储、轻加工都好安排。",
+      uploadLabel: "",
+      required: false,
+    },
+    {
+      order: 3,
+      timeRange: "00:20-00:30",
+      durationSeconds: 10,
+      title: "厂房基础设施",
+      visual: "呈现采光窗、消防栓、配电箱、地面标识和安全警示等基础设施，表达后期布置和改造有基础。",
+      spokenText:
+        "现场能看到采光窗、绿色地坪、消防栓、配电箱和安全警示，后期做办公隔断、设备布置，也有基础。",
+      uploadLabel: "",
+      required: false,
+    },
+    {
+      order: 4,
+      timeRange: "00:30-00:41",
+      durationSeconds: 11,
+      title: "楼上补充空间与楼层动线",
+      visual: "呈现楼上可租空间、电梯厅、玻璃门入口、走廊入口和通道，表达空间可以分区使用。",
+      spokenText:
+        "除了主力空间，楼上还有可租补充空间，电梯厅、玻璃门入口和通道都比较清楚，适合把仓储、办公室或者配套功能分开布置。",
+      uploadLabel: "",
+      required: false,
+    },
+    {
+      order: 5,
+      timeRange: "00:41-00:50",
+      durationSeconds: 9,
+      title: "园区管理和公共配套",
+      visual: "呈现管理服务站、消防疏散图、厂区平面图、电梯轿厢和管理信息，表达园区管理与基础配套比较完整。",
+      spokenText:
+        "园区里面有管理服务站，消防疏散图、厂区平面图、电梯和管理信息都能看到，日常使用不用只靠口头承诺。",
+      uploadLabel: "",
+      required: false,
+    },
+    {
+      order: 6,
+      timeRange: "00:50-01:04",
+      durationSeconds: 14,
+      title: "住宿生活配套与成员收尾",
+      visual: "呈现宿舍楼、公寓楼、生活区通道、电动车停放和成员面对镜头收尾，引导实地看厂。",
+      spokenText:
+        "员工这块也有宿舍和公寓，楼下有生活区通道和电动车停放，停车、住宿、通勤会更好安排。找厂房不只是看面积和价格，更要看空间、设施、住宿和管理是不是一起到位，建议实地来看一圈。",
+      uploadLabel: "成员收尾口播",
+      required: true,
+    },
+  ],
+};
 let hasProductionScenesColumn = false;
 
 loadEnvFileFromArgs();
@@ -223,11 +295,11 @@ async function ensureMemberDraftClone(task) {
       draftId,
       source.variant.platform,
       source.variant.variant_type,
-      source.variant.title,
+      factoryScriptSpec.title,
       source.variant.body_text,
       buildVariantScriptText(videoTask.generatedVideoScript),
       JSON.stringify(source.variant.hashtags ?? []),
-      source.variant.cta_text,
+      factoryScriptSpec.cta,
       source.variant.generation_mode,
       source.variant.review_status,
     ],
@@ -290,11 +362,11 @@ async function refreshMemberDraftClone(input) {
     [
       input.variantId,
       input.draftId,
-      source.variant.title,
+      factoryScriptSpec.title,
       source.variant.body_text,
       buildVariantScriptText(input.videoTask.generatedVideoScript),
       JSON.stringify(source.variant.hashtags ?? []),
-      source.variant.cta_text,
+      factoryScriptSpec.cta,
       source.variant.generation_mode,
       source.variant.review_status,
     ],
@@ -417,14 +489,16 @@ async function upsertMemberTask(task, clone) {
 
 function buildMemberVideoTask(sourceVideoTask) {
   const generatedVideoScript = toRecord(sourceVideoTask.generatedVideoScript);
-  const scenes = Array.isArray(generatedVideoScript.scenes)
-    ? generatedVideoScript.scenes.map((scene) => normalizeFactoryScene(scene))
-    : [];
+  const scenes = buildFactoryScriptScenes(generatedVideoScript.scenes);
 
   return {
     ...sourceVideoTask,
+    title: factoryScriptSpec.title,
     generatedVideoScript: {
       ...generatedVideoScript,
+      title: factoryScriptSpec.title,
+      cta: factoryScriptSpec.cta,
+      targetDurationSeconds: factoryScriptSpec.targetDurationSeconds,
       scenes,
     },
     recommendedProductionConfig: buildProductionConfig(sourceVideoTask.recommendedProductionConfig),
@@ -487,20 +561,23 @@ function buildProductionScenes(videoTask) {
 
 function normalizeFactoryScene(sceneValue) {
   const scene = toRecord(sceneValue);
-  const spokenText = readString(scene.spokenText, readString(scene.subtitle, ""));
   const sceneNo = normalizePositiveInteger(scene.order);
-  const isClosingScene = sceneNo === 5;
+  const specScene = getFactoryScriptScene(sceneNo);
+  const spokenText = specScene?.spokenText ?? readString(scene.spokenText, readString(scene.subtitle, ""));
   const sceneDescription = getFactorySceneDescription(scene);
-  const required = isTalkingHeadScene(scene) || scene.required === true;
+  const required = specScene?.required ?? (isTalkingHeadScene(scene) || scene.required === true);
   return {
     ...scene,
-    title: isClosingScene ? "成员口播收尾" : sceneDescription.title,
+    order: specScene?.order ?? scene.order,
+    timeRange: specScene?.timeRange ?? scene.timeRange,
+    durationSeconds: specScene?.durationSeconds ?? scene.durationSeconds,
+    title: sceneDescription.title,
     camera: sceneDescription.visual,
     subtitle: spokenText,
     spokenText,
     materialSlot: required ? sceneDescription.uploadLabel : "",
     shootingGuide: required
-      ? "真人面对镜头按台词口播，声音保持清晰，背景不需要指定为园区门口。"
+      ? "真人面对镜头按台词口播，声音保持清晰，背景保持自然现场环境。"
       : sceneDescription.visual,
     required,
   };
@@ -517,7 +594,7 @@ function buildVariantScriptText(scriptValue) {
     .join("\n");
   const timeRanges = buildSceneTimeRanges(scenes);
   const blocks = [
-    `标题：${readString(script.title, "找厂房，先看这三个点")}`,
+    `标题：${readString(script.title, factoryScriptSpec.title)}`,
     "音乐：使用背景音乐，轻快、稳重、有节奏的工业园区招商背景音乐，音量低，不压口播。",
     "",
     "完整口播：",
@@ -537,7 +614,7 @@ function buildVariantScriptText(scriptValue) {
         "",
       ];
     }),
-    `结尾引导：${readString(script.cta, "")}`,
+    `结尾引导：${readString(script.cta, factoryScriptSpec.cta)}`,
   ];
 
   return blocks.filter((line) => line !== null && line !== undefined).join("\n").trim();
@@ -546,39 +623,45 @@ function buildVariantScriptText(scriptValue) {
 function getFactorySceneDescription(sceneValue, fallbackIndex = 0) {
   const scene = toRecord(sceneValue);
   const sceneNo = normalizePositiveInteger(scene.order) ?? fallbackIndex + 1;
-  const descriptions = {
-    1: {
-      title: "成员口播开场",
-      visual: "成员面对镜头开场，先抛出找厂房不要只看价格，要看空间、配套、位置。",
-      uploadLabel: "成员开场口播",
-    },
-    2: {
-      title: "厂房空间介绍",
-      visual: "呈现厂房主体空间和层高感，让观众能看出一楼约 2000 平，生产、仓储、办公改造都比较好安排。",
-      uploadLabel: "",
-    },
-    3: {
-      title: "园区配套介绍",
-      visual: "呈现宿舍、公寓、食堂、电梯、管理处、停车等园区基础配套，表达员工生活和企业使用便利。",
-      uploadLabel: "",
-    },
-    4: {
-      title: "周边环境与通勤物流",
-      visual: "呈现园区周边环境、道路交通和物流条件，表达员工通勤、货物流转都方便。",
-      uploadLabel: "",
-    },
-    5: {
-      title: "成员口播收尾",
-      visual: "成员面对镜头收尾，引导正在找工业园区厂房的人实地看一眼。",
-      uploadLabel: "成员收尾口播",
-    },
-  };
+  const specScene = getFactoryScriptScene(sceneNo);
 
-  return descriptions[sceneNo] ?? {
+  return specScene
+    ? {
+        title: specScene.title,
+        visual: specScene.visual,
+        uploadLabel: specScene.uploadLabel,
+      }
+    : {
     title: readString(scene.title, `场景 ${sceneNo}`),
     visual: readString(scene.camera, "按本段台词呈现对应画面内容。"),
     uploadLabel: "",
   };
+}
+
+function buildFactoryScriptScenes(sourceScenesValue) {
+  const sourceScenes = Array.isArray(sourceScenesValue) ? sourceScenesValue : [];
+  const sourceByOrder = new Map(
+    sourceScenes
+      .map((scene, index) => [normalizePositiveInteger(toRecord(scene).order) ?? index + 1, toRecord(scene)])
+      .filter(([sceneNo]) => Number.isInteger(sceneNo)),
+  );
+
+  return factoryScriptSpec.scenes.map((specScene) =>
+    normalizeFactoryScene({
+      ...toRecord(sourceByOrder.get(specScene.order)),
+      ...specScene,
+      camera: specScene.visual,
+      subtitle: specScene.spokenText,
+      materialSlot: specScene.required ? specScene.uploadLabel : "",
+      shootingGuide: specScene.required
+        ? "真人面对镜头按台词口播，声音保持清晰，背景保持自然现场环境。"
+        : specScene.visual,
+    }),
+  );
+}
+
+function getFactoryScriptScene(sceneNo) {
+  return factoryScriptSpec.scenes.find((scene) => scene.order === sceneNo);
 }
 
 function buildSceneTimeRanges(scenes) {
@@ -606,9 +689,20 @@ function buildSceneTimeRanges(scenes) {
 }
 
 function buildProductionConfig(sourceConfig) {
+  const config = toRecord(sourceConfig);
+  const render = toRecord(config.render);
+  const renderWithoutDurationLimit = { ...render };
+  delete renderWithoutDurationLimit.maxDurationSeconds;
+  delete renderWithoutDurationLimit.max_duration_seconds;
+
   return {
-    ...toRecord(sourceConfig),
+    ...config,
     bgm: bgmConfig,
+    render: {
+      ...renderWithoutDurationLimit,
+      aspectRatio: readString(render.aspectRatio, "9:16"),
+      includeOriginalAudio: render.includeOriginalAudio === true,
+    },
   };
 }
 
