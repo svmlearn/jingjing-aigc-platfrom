@@ -85,7 +85,7 @@
 cd app && node --test src/lib/db/voice-profile-repository-phase-2d-contract.test.mjs
 ```
 
-结果：7 tests passed。
+结果：8 tests passed。
 
 ```bash
 cd app && npm run lint -- src/lib/db/voice-profile-repository.ts src/lib/db/voice-profile-repository-phase-2d-contract.test.mjs
@@ -110,6 +110,31 @@ git diff --check
 ```
 
 结果：通过。
+
+## Review Follow-up: Local Demo Create Path
+
+Review 发现 `createVoiceProfile()` 在进入 `isLocalDemoRuntime()` 分支前先调用 `assertVoiceProfileAudioAsset()`，而该函数已经改为无条件查询 app DB `public.asset_objects`。这会导致无数据库 local demo 创建 voice profile 时直接失败，实际走不到内存 fallback。
+
+已补修：
+
+- `createVoiceProfile()` 现在先完成 `VOICE_PROFILE_AUTHORIZATION_REQUIRED` 授权校验。
+- local demo 分支在任何 app DB 查询前执行。
+- local demo 分支通过 `createLocalDemoVoiceProfileAudioAsset()` 构造 synthetic `refAudioAsset`：
+  - `ownerType = "voice_profile"`
+  - `ownerId = voiceProfileId`
+  - `assetType = "audio"`
+  - `storageProvider = "aliyun_oss"`
+  - `storageKey = voice-profiles/{merchantId}/{voiceProfileId}/local-demo-ref-audio.wav`
+  - `sortOrder = 0`
+  - `createdAt` / `updatedAt` 使用当前时间
+- synthetic asset 构造后仍调用 `assertVoiceProfileAudioStorageKey()`，保持路径归属约束。
+- 非 local demo 的 PostgreSQL 主线不变：仍先 `assertVoiceProfileAudioAsset()`，再用 transaction 归档旧 `ready` profile 并插入新 `ready` profile。
+
+契约测试新增：
+
+- `createVoiceProfile()` 的 local demo 分支源码顺序必须早于 `assertVoiceProfileAudioAsset({`。
+- local demo 分支里不得出现 `queryAppDb`、`withAppDbTransaction` 或 `assertVoiceProfileAudioAsset`。
+- synthetic local demo audio asset 必须满足 owner/type/provider/storageKey/sortOrder/timestamp/path assertion 约束。
 
 ## Retained / Not Touched
 

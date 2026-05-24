@@ -70,8 +70,9 @@ test("list and access paths use PostgreSQL voice profile table", () => {
 test("create keeps authorization, ready-profile archive, and PostgreSQL insert semantics", () => {
   assertFunctionBody("createVoiceProfile", [
     "VOICE_PROFILE_AUTHORIZATION_REQUIRED",
-    "assertVoiceProfileAudioAsset({",
     "isLocalDemoRuntime()",
+    "createLocalDemoVoiceProfileAudioAsset({",
+    "assertVoiceProfileAudioAsset({",
     "withAppDbTransaction(async (client)",
     "from public.voice_profiles",
     "for update",
@@ -82,6 +83,27 @@ test("create keeps authorization, ready-profile archive, and PostgreSQL insert s
     "values ($1, $2, $3, $4, 'ready', 'pixelle_clone', $5, timezone('utc', now()))",
     "return { ...profile, refAudioAsset }",
   ]);
+});
+
+test("local demo voice profile creation does not query app database before fallback", () => {
+  const functionBody = extractFunctionBody("createVoiceProfile");
+  const localDemoIndex = functionBody.indexOf("if (isLocalDemoRuntime())");
+  const appDbAudioAssetIndex = functionBody.indexOf("const refAudioAsset = await assertVoiceProfileAudioAsset({");
+
+  assert.notEqual(localDemoIndex, -1, "createVoiceProfile should keep a local demo branch.");
+  assert.notEqual(appDbAudioAssetIndex, -1, "createVoiceProfile should still validate audio assets on the app DB path.");
+  assert.ok(
+    localDemoIndex < appDbAudioAssetIndex,
+    "createVoiceProfile local demo branch should run before the app DB audio asset lookup.",
+  );
+
+  const localDemoBranch = functionBody.slice(localDemoIndex, appDbAudioAssetIndex);
+  assert.match(localDemoBranch, /createLocalDemoVoiceProfileAudioAsset/);
+  assert.match(localDemoBranch, /localVoiceProfileStore\.voiceProfiles\.set/);
+  assert.match(localDemoBranch, /status: "ready"/);
+  assert.doesNotMatch(localDemoBranch, /queryAppDb/);
+  assert.doesNotMatch(localDemoBranch, /withAppDbTransaction/);
+  assert.doesNotMatch(localDemoBranch, /assertVoiceProfileAudioAsset/);
 });
 
 test("audio asset lookup stays scoped to voice profile owner, audio type, and current providers", () => {
@@ -99,6 +121,19 @@ test("audio asset lookup stays scoped to voice profile owner, audio type, and cu
     "voice-profiles/${input.merchantId}/${input.voiceProfileId}/",
     "draft-inputs/${input.merchantId}/${input.voiceProfileId}/voice-profile-audio/",
     "Reference audio asset does not belong to this voice profile.",
+  ]);
+
+  assertFunctionBody("createLocalDemoVoiceProfileAudioAsset", [
+    "id: input.assetId",
+    "ownerType: \"voice_profile\"",
+    "ownerId: input.voiceProfileId",
+    "assetType: \"audio\"",
+    "storageProvider: \"aliyun_oss\"",
+    "voice-profiles/${input.merchantId}/${input.voiceProfileId}/local-demo-ref-audio.wav",
+    "sortOrder: 0",
+    "createdAt: input.now",
+    "updatedAt: input.now",
+    "assertVoiceProfileAudioStorageKey(input, asset)",
   ]);
 });
 

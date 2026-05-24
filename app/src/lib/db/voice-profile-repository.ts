@@ -109,15 +109,15 @@ export async function createVoiceProfile(input: {
     );
   }
 
-  const refAudioAsset = await assertVoiceProfileAudioAsset({
-    merchantId: input.merchantId,
-    createdByUserId: input.createdByUserId,
-    voiceProfileId: id,
-    assetId: input.request.refAudioAssetId,
-  });
-
   if (isLocalDemoRuntime()) {
     const now = new Date().toISOString();
+    const refAudioAsset = createLocalDemoVoiceProfileAudioAsset({
+      merchantId: input.merchantId,
+      voiceProfileId: id,
+      assetId: input.request.refAudioAssetId,
+      now,
+    });
+
     for (const profile of localVoiceProfileStore.voiceProfiles.values()) {
       if (
         profile.merchantId === input.merchantId &&
@@ -150,6 +150,13 @@ export async function createVoiceProfile(input: {
     localVoiceProfileStore.voiceProfiles.set(profile.id, profile);
     return profile;
   }
+
+  const refAudioAsset = await assertVoiceProfileAudioAsset({
+    merchantId: input.merchantId,
+    createdByUserId: input.createdByUserId,
+    voiceProfileId: id,
+    assetId: input.request.refAudioAssetId,
+  });
 
   const profile = await withAppDbTransaction(async (client) => {
     const existingResult = await client.query<VoiceProfileRow>(
@@ -215,6 +222,33 @@ export async function createVoiceProfile(input: {
   });
 
   return { ...profile, refAudioAsset };
+}
+
+function createLocalDemoVoiceProfileAudioAsset(input: {
+  merchantId: string;
+  voiceProfileId: string;
+  assetId: string;
+  now: string;
+}): MediaAssetDto {
+  const asset: MediaAssetDto = {
+    id: input.assetId,
+    ownerType: "voice_profile",
+    ownerId: input.voiceProfileId,
+    assetType: "audio",
+    storageProvider: "aliyun_oss",
+    bucketName: null,
+    storageKey: `voice-profiles/${input.merchantId}/${input.voiceProfileId}/local-demo-ref-audio.wav`,
+    originUrl: null,
+    mimeType: "audio/wav",
+    fileSizeBytes: null,
+    etag: null,
+    sortOrder: 0,
+    createdAt: input.now,
+    updatedAt: input.now,
+  };
+
+  assertVoiceProfileAudioStorageKey(input, asset);
+  return asset;
 }
 
 export async function assertVoiceProfileAccess(input: {
