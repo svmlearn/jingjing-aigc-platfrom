@@ -11,6 +11,7 @@
 | PE-20260522-001 | `/tmp` 运行 ESM 脚本时报 `ERR_MODULE_NOT_FOUND: Cannot find package 'pg'` | 临时目录加 `node_modules` 链接到当前 release app，再运行 dry-run | 已解决 | [完整复盘](#pe-20260522-001-temp-esm-script-cannot-resolve-project-dependency) |
 | PE-20260524-001 | Windows PowerShell 执行 SSH 发布/修复命令时远端 `grep -E`、here-string、`node --env-file`、root-only env 连续踩坑 | 复杂远端命令改为单引号包裹或脚本 stdin；项目脚本用 `sudo node -- script.mjs --env-file ...` | 已解决 | [完整复盘](#pe-20260524-001-powershell-ssh-server-command-quoting-and-node-env-file-pitfalls) |
 | PE-20260524-002 | `video_edit_jobs` 已成功但 `result_payload.local_outputs` 指向不存在的本地目录 | 先验 OSS `result_payload.outputs` / `asset_objects`，本地取件再回退查 FireRed cache 的 `render_video_*/*.mp4` | 部分解决 | [完整复盘](#pe-20260524-002-video-job-succeeded-but-local_outputs-path-is-missing) |
+| PE-20260524-003 | release 目录归属用户和构建用户不一致，`pnpm install` 报 `EACCES ... app/_tmp_*` | 构建前让构建用户拥有新 release，构建后再恢复服务运行用户所有权 | 已解决 | [完整复盘](#pe-20260524-003-release-build-eacces-on-app-_tmp_-files) |
 
 ## 快速处理卡
 
@@ -77,6 +78,27 @@ node "$TMP/fix-factory-member-video-tasks.mjs"
 - 2026-05-24 验证样例：job `d53fd010-9d7b-4005-a1d1-408ecda0421d` 成功，最终视频资产 `36bad284-81e7-44f2-b6a1-b27b3a5bbbd2`，OSS key `video-results/e7c94a17-cf7d-4eb2-8178-13daa780551a/d53fd010-9d7b-4005-a1d1-408ecda0421d/final.mp4`，文件大小 `7925028`。
 - 取件方式：该次真实本地 mp4 在 FireRed cache：`/srv/jingjing-video-worker/firered/.storyline/.server_cache/5ac1b9d325f240ab9878254cfafdf4a4/render_video_1779559179.9083393/output_4a02a683_1779559179956.mp4`，`ffprobe` 显示 `duration=56.710000`。
 - 后续修复：worker 应在成功上传后同步把产物复制到 `result_payload.local_outputs` 指定目录，或改为不写不可用的 local path；验收脚本应优先验证 OSS/asset_objects，不要只依赖 `local_outputs`。
+
+### PE-20260524-003 release build EACCES on app _tmp_ files
+
+- 适用现象：新 release 目录已经解包，但在 `app` 下执行 `corepack pnpm@10.20.0 install --frozen-lockfile` 时失败，报 `EACCES: permission denied, open '/srv/jingjing-domestic/releases/<release>/app/_tmp_*'`。
+- 根因：release 目录所有者和实际执行构建的 SSH 用户不一致。例如目录归 `ubuntu:ubuntu`，但命令由 `meng` 用户直接执行。
+- 快速处理：构建前让构建用户拥有新 release，构建和 `next build` 成功后，再把 release 目录恢复给服务运行用户。
+- 推荐命令片段：
+
+```bash
+release=/srv/jingjing-domestic/releases/<timestamp>-<sha>
+sudo rm -rf "$release"
+sudo mkdir -p "$release"
+sudo tar -xf /tmp/jingjing-<sha>.tar -C "$release"
+sudo chown -R meng:meng "$release"
+cd "$release/app"
+corepack pnpm@10.20.0 install --frozen-lockfile
+corepack pnpm@10.20.0 build
+sudo chown -R ubuntu:ubuntu "$release"
+```
+
+- 验证：2026-05-24 release `/srv/jingjing-domestic/releases/20260524190700-802ce22` 用该方式完成 install/build，并成功切换 `current`、重启服务、通过健康检查。
 
 ## 完整复盘
 
@@ -294,6 +316,7 @@ ssh meng@8.154.28.41 "cd /srv/jingjing-domestic/current/app && sudo node -- scri
 - 服务器 release `/srv/jingjing-domestic/releases/20260524011000-182165a` 完成 `corepack pnpm@10.20.0 install --frozen-lockfile` 和 `corepack pnpm@10.20.0 build`。
 - `sudo node -- scripts/patch-zhiluan1-restored-video-script-contract.mjs --env-file ...` dry-run 成功输出 `mode: dry-run`。
 - `sudo node -- scripts/patch-zhiluan1-restored-video-script-contract.mjs --env-file ... --apply` 成功输出 `mode: applied`。
+- 2026-05-24 厂房素材标签 release 的独立 readback 改用本地 here-string 通过 stdin 传给远端 `sudo node --input-type=module`，避免 `node -e` 复杂引号被 PowerShell/SSH 吞掉。
 - `/api/health`、OpenStoryline `/ready`、FireRed `/api/ready` 均返回 ready/ok。
 
 #### 预防
@@ -302,6 +325,66 @@ ssh meng@8.154.28.41 "cd /srv/jingjing-domestic/current/app && sudo node -- scri
 - 维护脚本参数和 Node 参数之间加 `--`。
 - 读取 `/srv/jingjing-domestic/shared/env/*.env` 时默认按 root-only 处理，不要切到普通运行用户后再读。
 - 发布构建失败时先检查 BOM/CRLF、用户权限和 shell quoting，再判断是否是代码构建失败。
+
+### PE-20260524-003 release build EACCES on app _tmp_ files
+
+- 日期：2026-05-24
+- 状态：已解决
+- 记录类型：项目部署 / release 目录权限 runbook
+- 影响范围：`/srv/jingjing-domestic/releases/<release>/app` 内 pnpm/Next.js 构建
+
+#### 现象
+
+发布 `802ce22` 到新 release 目录时，先把快照解包到：
+
+```text
+/srv/jingjing-domestic/releases/20260524190700-802ce22
+```
+
+目录归属被设置为 `ubuntu:ubuntu`，随后以 SSH 登录用户 `meng` 直接执行 `corepack pnpm@10.20.0 install --frozen-lockfile`，报错：
+
+```text
+EACCES EACCES: permission denied, open '/srv/jingjing-domestic/releases/20260524190700-802ce22/app/_tmp_408244_3be354a0f8c70f6f162bea85117834fa'
+```
+
+#### 根因
+
+`pnpm install` 会在 `app` 目录创建 `_tmp_*` 临时文件。新 release 目录属于 `ubuntu:ubuntu`，但构建进程由 `meng` 用户直接执行，所以 `meng` 对该目录没有写权限。
+
+#### 正确处理
+
+两种稳定方式任选其一：
+
+1. 用实际拥有 release 目录的用户执行构建，并避免 PowerShell/SSH 嵌套引号把 `cd <release>/app` 吞掉。
+2. 构建前临时把新 release 目录所有者改为当前 SSH 构建用户，构建后再恢复给服务运行用户。
+
+本次采用方式 2：
+
+```bash
+release=/srv/jingjing-domestic/releases/20260524190700-802ce22
+sudo rm -rf "$release"
+sudo mkdir -p "$release"
+sudo tar -xf /tmp/jingjing-802ce22.tar -C "$release"
+sudo chown -R meng:meng "$release"
+cd "$release/app"
+corepack pnpm@10.20.0 install --frozen-lockfile
+corepack pnpm@10.20.0 build
+sudo chown -R ubuntu:ubuntu "$release"
+```
+
+#### 验证
+
+- `corepack pnpm@10.20.0 install --frozen-lockfile`: passed.
+- `corepack pnpm@10.20.0 build`: passed.
+- `/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260524190700-802ce22`.
+- `jingjing-domestic-app.service`, `jingjing-content-generation-worker.service`, `jingjing-firered-openstoryline.service`, `jingjing-openstoryline-engine.service`, `jingjing-video-worker.service`, and `nginx.service`: active.
+- `/api/health`, OpenStoryline `/ready`, and FireRed `/api/ready`: ok.
+
+#### 预防
+
+- 新 release 构建前先执行 `ls -ld "$release" "$release/app"` 和 `id`，确认构建用户有写权限。
+- 不要把“运行时服务用户”和“SSH 发布用户”混在一起假设；systemd 可用 `ubuntu` 跑 worker，但 release 构建命令仍要由拥有目录写权限的用户执行。
+- 构建成功、切换 `current` 前，再把 release 目录归还给约定的运行用户，避免服务重启后遇到读取/写入权限不一致。
 
 ### PE-20260524-002 video job succeeded but local_outputs path is missing
 

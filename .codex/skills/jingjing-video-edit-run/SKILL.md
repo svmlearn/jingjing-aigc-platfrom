@@ -157,6 +157,27 @@ Useful status meanings:
    - Include scope, cancelled/failed attempts, job id, database status, server/runtime changes, OSS keys, voice clone evidence, lip sync evidence, render evidence, local package path, and push/release status.
    - If the task remains unfinished or awaits another agent, also write a handoff under `docs/handoff/`.
 
+## Server Release Notes
+
+Use a clean release snapshot, not a patched `current` directory:
+
+- Generate the package from a committed tree, such as `git archive`, so untracked local release tarballs are not included.
+- Upload the archive to the server and extract into `/srv/jingjing-domestic/releases/<timestamp>-<sha>`.
+- Build in the new release before switching `/srv/jingjing-domestic/current`.
+- Ensure the user running `pnpm install`/`next build` owns the new release directory. If the release is owned by `ubuntu` but the SSH command runs as `meng`, `pnpm` can fail with `EACCES ... app/_tmp_*`.
+- If needed, temporarily `chown -R <ssh-user>:<ssh-user> <release>` for install/build, then restore the expected service ownership before switching `current`.
+- After build, switch `current`, restart/reload services, and verify app health plus OpenStoryline/FireRed readiness.
+
+Reliable release verification commands:
+
+```bash
+readlink -f /srv/jingjing-domestic/current
+systemctl is-active jingjing-domestic-app.service jingjing-content-generation-worker.service jingjing-firered-openstoryline.service jingjing-openstoryline-engine.service jingjing-video-worker.service nginx.service
+curl -fsS http://127.0.0.1:3000/api/health
+curl -fsS http://127.0.0.1:8000/ready
+curl -fsS http://127.0.0.1:7860/api/ready || curl -fsS http://127.0.0.1:7860/ready
+```
+
 ## Material Library Tag Patch Notes
 
 Use these rules when fixing uploaded/private material tags that affect video-worker retrieval:

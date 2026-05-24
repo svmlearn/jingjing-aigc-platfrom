@@ -121,3 +121,92 @@ Completed before commit:
 - `git diff --check`
 
 Server dry-run/apply and readback must be recorded after the branch is pushed and released.
+
+## 2026-05-24 Server Release And Production Apply
+
+Release source:
+
+- branch: `5.23-worker-fix`
+- released code commit: `802ce224c4a7dff24119fb33c4898cc4b61741c5`
+- Gitee `5.23-worker-fix` was confirmed at the same commit before release.
+- `main` was not merged or pushed.
+
+Server release:
+
+- previous release: `/srv/jingjing-domestic/releases/20260524023709-54eae8b`
+- new release: `/srv/jingjing-domestic/releases/20260524190700-802ce22`
+- current symlink after release: `/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260524190700-802ce22`
+- server build:
+  - `corepack pnpm@10.20.0 install --frozen-lockfile`: passed
+  - `corepack pnpm@10.20.0 build`: passed
+- restarted/reloaded services:
+  - `jingjing-domestic-app.service`: active
+  - `jingjing-content-generation-worker.service`: active
+  - `jingjing-firered-openstoryline.service`: active
+  - `jingjing-openstoryline-engine.service`: active
+  - `jingjing-video-worker.service`: active
+  - `nginx.service`: active
+
+Health checks:
+
+- `curl -fsS http://127.0.0.1:3000/api/health`: ok, database `postgres`, storage `aliyun_oss`.
+- `curl -fsS http://127.0.0.1:8000/ready`: ready, `engine_adapter=fire_red`.
+- `curl -fsS http://127.0.0.1:7860/api/ready`: ready, `render_video_available=true`.
+
+Patch dry-run from released code path:
+
+```bash
+cd /srv/jingjing-domestic/current/app
+sudo node -- scripts/patch-factory-material-library-tags.mjs --env-file /srv/jingjing-domestic/shared/env/app.env
+```
+
+Dry-run result:
+
+- mode: `dry-run`
+- `sourceItemsScanned`: 27
+- `matchedClipCount`: 27
+- `expectedClipCount`: 27
+- no database commit; transaction rolled back.
+
+Patch apply from released code path:
+
+```bash
+cd /srv/jingjing-domestic/current/app
+sudo node -- scripts/patch-factory-material-library-tags.mjs --env-file /srv/jingjing-domestic/shared/env/app.env --apply
+```
+
+Apply result:
+
+- mode: `applied`
+- `sourceItemsScanned`: 27
+- `matchedClipCount`: 27
+- `expectedClipCount`: 27
+- updated 27 `source_items` rows for merchant `e7c94a17-cf7d-4eb2-8178-13daa780551a`
+- no `asset_objects` rows were changed
+- no new `video_edit_jobs` row was created
+
+Independent DB readback:
+
+- material library row count: 27
+- rows with `trace_payload.revisionMarker = factory_material_tags_pexels_style_20260524` and `structure_summary.revisionMarker = factory_material_tags_pexels_style_20260524`: 27
+- scoped visible tag fields had no broad-fact hits for `2000平`, `5.56`, `到梁`, `3个车位`, `2栋宿舍`, `1栋公寓`, or `招商主卖点`
+- worker-indexed strings had no broad-fact hits for the same list
+
+Key readback rows:
+
+- `环境/4fd14cd4421d3ea08073180c1a18af3e.mp4`
+  - source item: `14c66125-41a5-4db6-aab5-3887072bd5b6`
+  - title: `平峦山公园周边林荫道路`
+  - tags include `平峦山公园`, `平峦山公园周边`, `公园周边道路`, `林荫道路`, `园区道路`, `路边停车`, `绿化树木`, `斑马线`, `道路导视牌`
+  - query hints include `平峦山公园周边道路`, `园区林荫道路`, `园区周边环境`
+- `环境/5165c70ee2e6914393cbe44a6d1ff17f.mp4`
+  - source item: `e6b27286-e92e-4867-abf2-973448db5603`
+  - title: `平峦山山体远景与园区周边环境`
+  - tags include `平峦山`, `平峦山远景`, `平峦山山体`, `山体景观`, `山体远景`, `蓝天`, `楼顶视角`, `窗边视角`
+  - query hints include `平峦山远景`, `平峦山山体`, `山体景观`, `蓝天山体`
+
+Operational notes:
+
+- The release snapshot was generated with `git archive` from commit `802ce22`, so untracked historical release tarballs in the local worktree were not included.
+- The first release build attempt hit a permissions issue because the release directory was owned by `ubuntu` but the build command ran as `meng`. The working pattern was to temporarily build with release ownership assigned to `meng`, then restore ownership to `ubuntu:ubuntu` before switching `current`.
+- PowerShell SSH quoting can strip or reinterpret nested quotes in `node -e` readback commands. The reliable readback pattern was piping a local PowerShell here-string to remote `sudo node --input-type=module` via stdin.
