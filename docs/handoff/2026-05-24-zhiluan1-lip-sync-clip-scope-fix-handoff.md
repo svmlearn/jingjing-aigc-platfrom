@@ -49,9 +49,9 @@ D:\Desktop\测试素材\27307400-talking-head-inputs\talking_head_2_frames.jpg
 - 已把本次提交 rebase 到远端 `5.23-worker-fix` 最新头上。
 - 冲突处理原则已执行：保留远端 `5.23-worker-fix` 已有的脚本前推、素材标签、release runbook 等内容，只叠加本次 lip_sync clip 级修复、600 秒参数链路和文档记录。
 - rebase 后最终本地提交：
-  - `b19578f fix: scope lip sync to talking-head clips`
-- push 状态：本地重新验证已通过，待 push。
-- server release 状态：待 push 成功后执行。
+  - `ab2d02c fix: scope lip sync to talking-head clips`
+- push 状态：已推送到 Gitee `origin/5.23-worker-fix`。
+- server release 状态：已发布到 `/srv/jingjing-domestic/releases/20260524213700-ab2d02c`。
 
 ## 已验证
 
@@ -127,6 +127,59 @@ git diff --check
 
 结果：通过，无空白错误。
 
+服务器 release 后验证已通过：
+
+```text
+/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260524213700-ab2d02c
+jingjing-domestic-app.service: active
+jingjing-content-generation-worker.service: active
+jingjing-firered-openstoryline.service: active
+jingjing-openstoryline-engine.service: active
+jingjing-video-worker.service: active
+nginx.service: active
+```
+
+```text
+/api/health: ok, database=postgres, storage=aliyun_oss
+OpenStoryline /ready: ready, engine_adapter=fire_red
+FireRed /api/ready: ready, tool_count=21, render_video_available=true
+```
+
+已确认当前 release 中包含：
+
+```text
+lip_sync_non_talking_head_segment_blocked
+max_duration_seconds
+```
+
+服务器 `app` typecheck 已用 release owner 通过。
+
+## 发布后观察
+
+任务 `27307400-fbb2-4b8f-8cfa-2a3a8199543b` 当前 draft/variant：
+
+```text
+contentDraftId=2372a941-15c3-49e4-b377-58b74f37c51e
+contentVariantId=cae7632a-749c-47f6-872c-30b2a7210e3f
+```
+
+两段真人口播输入仍是：
+
+```text
+84deb4ca-8893-4c20-b0a0-b98c318e4ae4
+76f79705-b045-4d7f-b34a-b54cae58aa12
+```
+
+现有失败 job `53fc3013-02a2-48cd-9152-465eaf98f701` 是 release 前的旧 job。FireRed run `154a49ac38a1405dbfc648cd2454af28` 的 cache 证据：
+
+```text
+clip_0003 group_0001 talking_head: source_window.mp4 + retalked_group_0001_clip_0003.mp4
+clip_0009 group_0006 B-roll/project material: source_window.mp4 only, no retalked output
+clip_0007 group_0006 talking_head: no lip_sync cache target in that failed run
+```
+
+结论：旧逻辑确实把同组 B-roll `clip_0009` 错送进 lip sync；新 release 已修这个扩大范围问题。当前还没有新的 post-release video job，因此还不能把最终成片成功作为已验证事实。
+
 ## 改动文件
 
 本次核心修复：
@@ -166,14 +219,8 @@ docs/progress/2026-05-22-video-edit-chain-node-map.html
 
 ## 下一步
 
-1. push 到：
-
-```text
-origin 5.23-worker-fix
-```
-
-2. push 成功后按 release 流程发布到服务器新 release 目录。
-3. release 后重新跑/观察任务 `27307400-fbb2-4b8f-8cfa-2a3a8199543b`，展示：
+1. 创建一个 fresh post-release video job，不复用旧失败 job `53fc3013-02a2-48cd-9152-465eaf98f701`。
+2. 观察任务 `27307400-fbb2-4b8f-8cfa-2a3a8199543b`，展示：
    - lip_sync target 列表
    - 哪些 talking_head clip 被 retalk
    - 哪些 B-roll 保持原样

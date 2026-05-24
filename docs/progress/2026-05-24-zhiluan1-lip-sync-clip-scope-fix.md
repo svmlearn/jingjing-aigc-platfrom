@@ -162,3 +162,74 @@ On the next release and rerun:
 - `clip_0009` should no longer be submitted to Aliyun VideoRetalk.
 - Render should consume retalked talking-head paths only.
 
+## Push And Server Release
+
+Pushed to Gitee:
+
+```text
+origin/5.23-worker-fix -> ab2d02cab0b8f3c35b7e7e2f2f21db112bbefa12
+```
+
+Released through the normal server release directory flow, not by hot-editing `current`:
+
+```text
+/srv/jingjing-domestic/releases/20260524213700-ab2d02c
+/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260524213700-ab2d02c
+```
+
+Server build:
+
+```text
+corepack pnpm@10.20.0 install --frozen-lockfile
+corepack pnpm@10.20.0 build
+```
+
+Release verification:
+
+```text
+jingjing-domestic-app.service: active
+jingjing-content-generation-worker.service: active
+jingjing-firered-openstoryline.service: active
+jingjing-openstoryline-engine.service: active
+jingjing-video-worker.service: active
+nginx.service: active
+```
+
+Health:
+
+```text
+/api/health: ok, database=postgres, storage=aliyun_oss
+OpenStoryline /ready: ready, engine_adapter=fire_red
+FireRed /api/ready: ready, tool_count=21, render_video_available=true
+```
+
+Post-release source checks confirmed:
+
+```text
+lip_sync_non_talking_head_segment_blocked
+max_duration_seconds
+```
+
+Post-release server typecheck also passed when run as the release owner.
+
+## Observed Pre-Fix Consequence
+
+Existing failed job after release:
+
+```text
+video_edit_job_id=53fc3013-02a2-48cd-9152-465eaf98f701
+fire_red_run_id=154a49ac38a1405dbfc648cd2454af28
+status=failed_manual
+failure_code=lip_sync_artifacts_missing
+```
+
+The pre-fix FireRed cache proves the old behavior:
+
+```text
+clip_0003 group_0001 talking_head: source_window.mp4 + retalked_group_0001_clip_0003.mp4
+clip_0009 group_0006 B-roll/project material: source_window.mp4 only, no retalked output
+clip_0007 group_0006 talking_head: no lip_sync cache target in that failed run
+```
+
+So the observed consequence was: group-level expansion sent `clip_0009` into lip sync because it shared `group_0006` with the talking-head `clip_0007`. The released fix prevents that expansion. No new post-release video job had been created yet at the time of this note, so a fresh run is still needed to observe final render success.
+
