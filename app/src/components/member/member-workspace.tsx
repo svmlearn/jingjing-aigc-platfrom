@@ -82,6 +82,8 @@ type AiEditBusyState = {
   uploadStage?: DraftMediaUploadStage;
 };
 
+const memberVideoRenderMaxDurationSeconds = 600;
+
 type VoiceProfileCreateState = {
   displayName: string;
   authorizationAccepted: boolean;
@@ -1248,6 +1250,7 @@ function buildMemberVideoProductionConfig(input: {
       },
       render: {
         aspectRatio: "9:16",
+        maxDurationSeconds: memberVideoRenderMaxDurationSeconds,
         includeOriginalAudio: false,
       },
       subtitles: {
@@ -1275,6 +1278,7 @@ function buildMemberVideoProductionConfig(input: {
     },
     render: {
       aspectRatio: "9:16",
+      maxDurationSeconds: memberVideoRenderMaxDurationSeconds,
       includeOriginalAudio: false,
     },
     subtitles: {

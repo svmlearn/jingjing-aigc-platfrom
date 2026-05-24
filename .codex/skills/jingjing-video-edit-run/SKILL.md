@@ -35,6 +35,8 @@ Do not assume `merchant_media_assets` / `merchant_media_clips`; those names are 
 - The local artifact package is only a copy of real server/OSS outputs. It is not a render fallback.
 - Do not infer success from logs alone. Success requires DB status/result fields plus real output files and object storage/asset evidence.
 - Do not hot-update production data from a random local checkout. For data patches, commit locally, push to Gitee, deploy a normal server release, run dry-run from `/srv/jingjing-domestic/current`, then apply from that released code path.
+- Lip sync scope is clip/segment-level `talking_head` only. A narrative group may mix B-roll and talking-head clips, but group membership must never expand lip sync to ordinary project material.
+- Any road, park, factory facade, apartment, dormitory, parking, distant-view, or other non-talking-head segment entering lip sync is a contract failure, even if another clip in the same group is `talking_head`.
 
 ## Inputs To Confirm
 
@@ -145,6 +147,7 @@ Useful status meanings:
    - Material matching/filtering completed normally; no all-clips fallback path was used.
    - Voice clone used the requested provider, such as `pixelle_clone`, with non-empty generated segments and measurable durations when voice clone is required.
    - Lip sync evidence exists when lip sync is enabled.
+   - Lip sync targets include only timeline segments whose own `clip_id` or segment metadata is labeled `talking_head`; mixed groups must leave B-roll/project-material segments unchanged.
    - Render produced a real final video in the worker output/cache path.
    - Upload produced Aliyun OSS keys for requested outputs.
    - `asset_objects` rows reference the new job/content variant and have nonzero byte sizes.

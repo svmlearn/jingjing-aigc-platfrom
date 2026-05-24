@@ -24,7 +24,7 @@ test("set_video_script schema requires script and scene fields", () => {
   assert.match(runtimeSource, /mode: z\.enum\(\["create", "revise"\]\)/);
   assert.match(runtimeSource, /title: z\.string\(\)\.trim\(\)\.min\(1\)/);
   assert.match(runtimeSource, /ctaText: z\.string\(\)\.trim\(\)\.min\(1\)/);
-  assert.match(runtimeSource, /targetDurationSeconds: z\.number\(\)\.int\(\)\.min\(5\)\.max\(180\)/);
+  assert.match(runtimeSource, /targetDurationSeconds: z\.number\(\)\.int\(\)\.min\(5\)\.max\(600\)/);
   assert.match(runtimeSource, /scenes: z\.array/);
   assert.match(runtimeSource, /\)\.min\(3\)/);
   assert.match(runtimeSource, /scriptText: z\.string\(\)\.trim\(\)\.min\(1\)/);

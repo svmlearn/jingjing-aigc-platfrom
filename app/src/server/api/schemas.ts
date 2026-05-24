@@ -524,7 +524,7 @@ const productionConfigSchema = z
     render: z
       .object({
         aspectRatio: z.literal("9:16").optional(),
-        maxDurationSeconds: z.number().int().min(15).max(180).nullish(),
+        maxDurationSeconds: z.number().int().min(15).max(600).nullish(),
         includeOriginalAudio: z.boolean().optional(),
         preserveTalkingHeadOriginalAudio: z.boolean().optional(),
       })

@@ -198,7 +198,7 @@ class DirectiveContractTests(unittest.TestCase):
         self.assertEqual("script", directive.production_config["subtitles"]["talking_head_source"])
         self.assertFalse(directive.production_config["lip_sync"]["enabled"])
 
-    def test_directive_ignores_render_max_duration(self):
+    def test_directive_preserves_render_max_duration(self):
         job = make_job(
             {
                 "executionMode": "staging_worker",
@@ -222,7 +222,7 @@ class DirectiveContractTests(unittest.TestCase):
 
         directive = build_production_directive(job)
 
-        self.assertNotIn("max_duration_seconds", directive.production_config["render"])
+        self.assertEqual(45, directive.production_config["render"]["max_duration_seconds"])
 
     def test_directive_normalizes_script_audio_alignment_lip_sync(self):
         job = make_job(

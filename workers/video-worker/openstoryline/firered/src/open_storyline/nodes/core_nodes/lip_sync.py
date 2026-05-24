@@ -295,13 +295,10 @@ class LipSyncNode(BaseNode):
 
         voiceover_by_group = self._voiceover_by_group(inputs.get("tts") or {})
         clip_lookup = self._clip_lookup(inputs.get("split_shots") or {})
-        groups = (inputs.get("group_clips") or {}).get("groups") or []
-        talking_head_group_ids = self._talking_head_group_ids(groups, clip_lookup)
-
         targets = [
             segment
             for segment in video_segments
-            if self._is_lip_sync_target(segment, talking_head_group_ids, clip_lookup)
+            if self._is_lip_sync_target(segment, clip_lookup)
         ]
         if not targets:
             raise ValueError(
@@ -326,6 +323,7 @@ class LipSyncNode(BaseNode):
         for index, segment in enumerate(targets, start=1):
             group_id = str(segment.get("group_id") or "")
             clip_id = str(segment.get("clip_id") or "")
+            self._ensure_talking_head_segment(segment, clip_lookup)
             voiceover = voiceover_by_group.get(group_id)
             if not voiceover:
                 raise ValueError(f"lip_sync target group {group_id} has no cloned voiceover")
@@ -463,36 +461,87 @@ class LipSyncNode(BaseNode):
         }
 
     @classmethod
-    def _talking_head_group_ids(
-        cls,
-        groups: Any,
-        clip_lookup: dict[str, dict[str, Any]],
-    ) -> set[str]:
-        out: set[str] = set()
-        if not isinstance(groups, list):
-            return out
-        for group in groups:
-            if not isinstance(group, dict):
-                continue
-            clip_ids = [str(item) for item in group.get("clip_ids") or []]
-            if any(cls._clip_has_talking_head_label(clip_lookup.get(clip_id)) for clip_id in clip_ids):
-                out.add(str(group.get("group_id") or ""))
-        return {item for item in out if item}
-
-    @classmethod
     def _is_lip_sync_target(
         cls,
         segment: dict[str, Any],
-        talking_head_group_ids: set[str],
         clip_lookup: dict[str, dict[str, Any]],
     ) -> bool:
         if str(segment.get("kind") or "video").lower() != "video":
             return False
-        group_id = str(segment.get("group_id") or "")
-        if group_id in talking_head_group_ids:
+        return cls._segment_has_talking_head_label(segment, clip_lookup)
+
+    @classmethod
+    def _ensure_talking_head_segment(
+        cls,
+        segment: dict[str, Any],
+        clip_lookup: dict[str, dict[str, Any]],
+    ) -> None:
+        if cls._segment_has_talking_head_label(segment, clip_lookup):
+            return
+        clip = cls._clip_for_segment(segment, clip_lookup)
+        source_ref = clip.get("source_ref") if isinstance(clip, dict) else {}
+        if not isinstance(source_ref, dict):
+            source_ref = {}
+        details = {
+            "group_id": segment.get("group_id"),
+            "clip_id": segment.get("clip_id"),
+            "media_id": cls._first_non_empty(
+                segment.get("media_id"),
+                clip.get("media_id") if isinstance(clip, dict) else None,
+                source_ref.get("media_id"),
+            ),
+            "role": cls._first_non_empty(
+                segment.get("role"),
+                clip.get("role") if isinstance(clip, dict) else None,
+                source_ref.get("role"),
+            ),
+            "scene_type": cls._first_non_empty(
+                segment.get("scene_type"),
+                clip.get("scene_type") if isinstance(clip, dict) else None,
+                source_ref.get("scene_type"),
+            ),
+            "source_path": cls._first_non_empty(
+                segment.get("source_path"),
+                segment.get("path"),
+                clip.get("source_path") if isinstance(clip, dict) else None,
+                clip.get("path") if isinstance(clip, dict) else None,
+            ),
+        }
+        raise ValueError(
+            "lip_sync_non_talking_head_segment_blocked: "
+            + ", ".join(
+                f"{key}={value}"
+                for key, value in details.items()
+                if value not in (None, "")
+            )
+        )
+
+    @classmethod
+    def _segment_has_talking_head_label(
+        cls,
+        segment: dict[str, Any],
+        clip_lookup: dict[str, dict[str, Any]],
+    ) -> bool:
+        if cls._clip_has_talking_head_label(segment):
             return True
         clip_id = str(segment.get("clip_id") or "")
         return cls._clip_has_talking_head_label(clip_lookup.get(clip_id))
+
+    @staticmethod
+    def _clip_for_segment(
+        segment: dict[str, Any],
+        clip_lookup: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
+        clip_id = str(segment.get("clip_id") or "")
+        clip = clip_lookup.get(clip_id)
+        return clip if isinstance(clip, dict) else {}
+
+    @staticmethod
+    def _first_non_empty(*values: Any) -> Any:
+        for value in values:
+            if value not in (None, ""):
+                return value
+        return None
 
     @classmethod
     def _clip_has_talking_head_label(cls, clip: Any) -> bool:

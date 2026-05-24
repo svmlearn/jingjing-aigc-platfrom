@@ -247,6 +247,18 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
         normalized_render["audio_policy"] = (
             audio_policy or "preserve_talking_head_original_audio_with_voiceover"
         )
+    max_duration_seconds = _optional_number_value(
+        render,
+        "maxDurationSeconds",
+        "max_duration_seconds",
+        default=None,
+        min_value=15,
+        max_value=600,
+        integer=True,
+    )
+    if max_duration_seconds is not None:
+        normalized_render["max_duration_seconds"] = int(max_duration_seconds)
+
     return {
         "voiceover": normalized_voiceover,
         "bgm": {

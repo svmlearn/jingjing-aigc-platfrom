@@ -12,6 +12,7 @@
 | PE-20260524-001 | Windows PowerShell 执行 SSH 发布/修复命令时远端 `grep -E`、here-string、`node --env-file`、root-only env 连续踩坑 | 复杂远端命令改为单引号包裹或脚本 stdin；项目脚本用 `sudo node -- script.mjs --env-file ...` | 已解决 | [完整复盘](#pe-20260524-001-powershell-ssh-server-command-quoting-and-node-env-file-pitfalls) |
 | PE-20260524-002 | `video_edit_jobs` 已成功但 `result_payload.local_outputs` 指向不存在的本地目录 | 先验 OSS `result_payload.outputs` / `asset_objects`，本地取件再回退查 FireRed cache 的 `render_video_*/*.mp4` | 部分解决 | [完整复盘](#pe-20260524-002-video-job-succeeded-but-local_outputs-path-is-missing) |
 | PE-20260524-003 | release 目录归属用户和构建用户不一致，`pnpm install` 报 `EACCES ... app/_tmp_*` | 构建前让构建用户拥有新 release，构建后再恢复服务运行用户所有权 | 已解决 | [完整复盘](#pe-20260524-003-release-build-eacces-on-app-_tmp_-files) |
+| PE-20260524-004 | `InvalidFile.FaceNotMatch` / non-talking-head B-roll enters `lip_sync` | Inspect `split_shots`, `group_clips`, and `plan_timeline`; verify lip-sync targets are clip-level `talking_head`, not group-level | Solved locally | [Full postmortem](#pe-20260524-004-videoretalk-receives-non-talking-head-segments-from-mixed-groups) |
 
 ## 快速处理卡
 
@@ -459,3 +460,40 @@ D:\Desktop\测试素材\jingjing-video-results\d53fd010-9d7b-4005-a1d1-408ecda04
 - worker 成功上传后，将 final/cover/subtitles 同步复制到 `result_payload.local_outputs` 指向的目录；或取消/修正这些不可用路径。
 - 自动验收脚本默认以 OSS key、`asset_objects` 和文件大小为成功依据。
 - 如果前端只需要成片，前端展示/下载应使用最终视频 asset 或签名 OSS URL，不依赖服务器本地路径。
+
+### PE-20260524-004 VideoRetalk receives non-talking-head segments from mixed groups
+
+- Date: 2026-05-24
+- Status: solved locally
+- Scope: project, video worker, FireRed `lip_sync`
+
+#### Symptom
+
+Aliyun VideoRetalk returned `InvalidFile.FaceNotMatch` even though the two uploaded `talking_head` inputs were correctly labeled. The failed run ended as `lip_sync_artifact_validation_failed` because no valid retalked talking-head segments were consumed by render.
+
+#### Evidence
+
+- `load_media` showed the two user-uploaded talking-head assets as `role=talking_head`, `scene_type=talking_head`, `tags=["talking_head"]`.
+- `split_shots` preserved those labels on the cut clips.
+- `group_0006` mixed ordinary project material with a final talking-head clip: `clip_0009`, `clip_0011`, `clip_0002`, `clip_0007`.
+- `clip_0009` was project material for apartment/amenity exterior footage, but it was selected for lip sync because the old target logic treated a whole group as eligible once any clip in the group was `talking_head`.
+
+#### Fix
+
+In `workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/lip_sync.py`, lip-sync eligibility is now clip/segment-level:
+
+```text
+segment.clip_id or segment metadata must be labeled talking_head
+group_id may be used to find voiceover
+group_id must not expand lip-sync scope to B-roll/project material
+```
+
+The node also has a pre-provider guard that raises `lip_sync_non_talking_head_segment_blocked` with `group_id`, `clip_id`, `media_id`, `role`, `scene_type`, and `source_path` if a non-talking-head segment ever reaches the provider-call path.
+
+#### Verification
+
+Regression coverage was added in `workers/video-worker/tests/test_firered_lip_sync_node.py` with a mixed `group_0006` containing three project-material clips and one `talking_head` clip. Expected behavior: only the `talking_head` clip is retalked, and all B-roll source paths remain unchanged.
+
+#### Prevention
+
+When diagnosing future VideoRetalk face-match failures, inspect the exact lip-sync targets from `plan_timeline`, not just uploaded asset labels. B-roll, road, factory facade, apartment, dormitory, parking, distant-view, and park-environment segments must never enter lip sync because another segment in the same narrative group is `talking_head`.

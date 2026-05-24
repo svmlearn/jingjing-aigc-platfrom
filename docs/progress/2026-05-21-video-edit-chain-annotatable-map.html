@@ -957,9 +957,15 @@
 
     body {
       background:
-        radial-gradient(circle at 18px 18px, rgba(24, 24, 22, 0.16) 0 1.2px, transparent 1.35px) 0 0 / 14px 14px,
-        radial-gradient(circle at 9px 9px, rgba(221, 67, 47, 0.12) 0 1px, transparent 1.25px) 0 0 / 22px 22px,
-        linear-gradient(135deg, #fff6d8 0%, #f6efe1 42%, #e8f6f1 100%);
+        radial-gradient(ellipse at 8% 12%, rgba(111, 74, 38, 0.2) 0 7%, transparent 18%),
+        radial-gradient(ellipse at 90% 4%, rgba(85, 56, 32, 0.16) 0 6%, transparent 19%),
+        radial-gradient(ellipse at 78% 88%, rgba(96, 63, 34, 0.18) 0 8%, transparent 22%),
+        radial-gradient(circle at 1px 1px, rgba(35, 31, 24, 0.18) 0 0.65px, transparent 0.9px) 0 0 / 8px 8px,
+        repeating-linear-gradient(90deg, rgba(70, 55, 36, 0.055) 0 1px, transparent 1px 13px),
+        repeating-linear-gradient(0deg, rgba(64, 47, 28, 0.048) 0 1px, transparent 1px 5px),
+        linear-gradient(135deg, #d3b878 0%, #ead8ad 18%, #cfae6a 44%, #eadbb8 66%, #b98f4e 100%);
+      color: #231f18;
+      font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
     }
 
     body::before {
@@ -968,12 +974,28 @@
       inset: 0;
       z-index: -1;
       pointer-events: none;
-      opacity: 0.62;
       background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.18) 0 1px, transparent 1.35px) 0 0 / 8px 8px,
-        linear-gradient(90deg, rgba(255, 244, 98, 0.18), rgba(70, 174, 168, 0.14), rgba(239, 94, 83, 0.12));
+        linear-gradient(90deg, transparent 0 48.6%, rgba(75, 54, 32, 0.2) 49.3%, rgba(255, 247, 220, 0.26) 50%, rgba(75, 54, 32, 0.18) 50.8%, transparent 52%),
+        linear-gradient(0deg, transparent 0 31.5%, rgba(83, 58, 33, 0.12) 32%, rgba(255, 248, 224, 0.16) 32.4%, transparent 33.2%),
+        radial-gradient(ellipse at 50% 50%, transparent 0 58%, rgba(55, 37, 21, 0.18) 84%, rgba(38, 25, 14, 0.32) 100%),
+        radial-gradient(circle at 18% 72%, rgba(72, 49, 27, 0.13) 0 2px, transparent 28px),
+        radial-gradient(circle at 84% 28%, rgba(72, 49, 27, 0.12) 0 2px, transparent 34px),
+        radial-gradient(circle at 42% 16%, rgba(255, 247, 220, 0.22) 0 1px, transparent 32px);
       mix-blend-mode: multiply;
-      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.74), rgba(0, 0, 0, 0.2) 58%, transparent);
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.55;
+      background:
+        repeating-radial-gradient(circle at 0 0, rgba(37, 29, 20, 0.13) 0 0.45px, transparent 0.7px 3.4px),
+        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 18px),
+        repeating-linear-gradient(23deg, rgba(62, 43, 25, 0.05) 0 1px, transparent 1px 21px);
+      mix-blend-mode: multiply;
     }
 
     .hero-main,
@@ -989,12 +1011,12 @@
     .state-chip {
       position: relative;
       overflow: hidden;
-      border: 2px solid #181816;
-      border-radius: 6px;
-      box-shadow: 6px 6px 0 #181816;
+      border: 1px solid #3f372b;
+      border-radius: 2px;
+      box-shadow: 0 1px 0 rgba(35, 31, 24, 0.18);
       background:
-        radial-gradient(circle at 12px 12px, rgba(24, 24, 22, 0.12) 0 1.2px, transparent 1.35px) 0 0 / 12px 12px,
-        linear-gradient(180deg, rgba(255, 254, 248, 0.96), rgba(255, 247, 221, 0.94));
+        radial-gradient(circle at 1px 1px, rgba(35, 31, 24, 0.08) 0 0.6px, transparent 0.8px) 0 0 / 7px 7px,
+        linear-gradient(180deg, rgba(252, 246, 230, 0.96), rgba(239, 229, 205, 0.94));
     }
 
     .hero-main > *,
@@ -1026,53 +1048,70 @@
       inset: 0;
       pointer-events: none;
       background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.18) 0 1.1px, transparent 1.3px) 0 0 / 10px 10px;
-      opacity: 0.24;
-      mix-blend-mode: multiply;
+        repeating-linear-gradient(90deg, transparent 0 23px, rgba(35, 31, 24, 0.035) 23px 24px),
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(35, 31, 24, 0.025) 31px 32px);
+      opacity: 0.82;
+    }
+
+    .hero-main {
+      border-top: 4px double #231f18;
+      border-bottom: 4px double #231f18;
     }
 
     .hero-main::after {
-      content: "HALFTONE CHAIN MAP";
+      content: "SPECIAL EDITION";
       position: absolute;
-      right: -30px;
+      right: 18px;
       top: 18px;
       z-index: 2;
-      transform: rotate(6deg);
-      border: 2px solid #181816;
-      background: #fff25a;
-      color: #181816;
-      padding: 7px 34px;
-      font-size: 12px;
-      font-weight: 950;
-      letter-spacing: 0;
-      box-shadow: 4px 4px 0 #181816;
+      border: 1px solid #7b211c;
+      background: rgba(247, 239, 216, 0.92);
+      color: #7b211c;
+      padding: 5px 12px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .kicker {
       display: inline-flex;
       align-items: center;
-      min-height: 28px;
-      border: 2px solid #181816;
-      background: #46aea8;
-      color: #0d1f1d;
-      padding: 4px 10px;
-      box-shadow: 3px 3px 0 #181816;
+      min-height: 26px;
+      border-top: 1px solid #231f18;
+      border-bottom: 1px solid #231f18;
+      background: transparent;
+      color: #7b211c;
+      padding: 3px 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 800;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
+    h1,
+    h2,
+    h3 {
+      color: #181511;
+      font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
+    }
+
     h1 {
-      color: #181816;
-      text-shadow: 3px 3px 0 #fff25a, 5px 5px 0 rgba(24, 24, 22, 0.18);
+      font-size: clamp(34px, 4vw, 58px);
+      line-height: 1.02;
+      letter-spacing: 0;
+      text-shadow: none;
     }
 
     h2 {
-      display: inline;
-      background:
-        linear-gradient(transparent 58%, #fff25a 58%),
-        radial-gradient(circle, rgba(24, 24, 22, 0.22) 0 1px, transparent 1.2px) 0 0 / 8px 8px;
-      box-decoration-break: clone;
-      -webkit-box-decoration-break: clone;
-      padding: 0 5px 2px;
+      display: block;
+      border-top: 3px double #231f18;
+      border-bottom: 1px solid #6b604f;
+      background: rgba(247, 239, 216, 0.54);
+      padding: 8px 0 7px;
+      font-size: 26px;
+      text-transform: none;
     }
 
     .hero-copy,
@@ -1087,7 +1126,8 @@
     .state-chip span,
     .node-kv span,
     .fine-print {
-      color: #403c34;
+      color: #504638;
+      font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
     }
 
     .tool-button,
@@ -1096,32 +1136,35 @@
     .pill,
     .badge,
     .legend-item {
-      border: 2px solid #181816;
-      border-radius: 6px;
-      box-shadow: 3px 3px 0 #181816;
-      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+      border: 1px solid #3f372b;
+      border-radius: 2px;
+      box-shadow: none;
+      font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
+      transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
     }
 
     .tool-button:hover,
     .toc a:hover,
     .page-link-button:hover,
     .lg-rail-step:hover {
-      transform: translate(-2px, -2px);
-      box-shadow: 5px 5px 0 #181816;
+      background: #231f18;
+      color: #f3ead4;
+      transform: none;
+      box-shadow: none;
     }
 
     .tool-button:active,
     .toc a:active,
     .page-link-button:active,
     .lg-rail-step:active {
-      transform: translate(1px, 1px);
-      box-shadow: 2px 2px 0 #181816;
+      transform: none;
+      box-shadow: none;
     }
 
     .tool-button,
     .page-link-button {
-      background: #181816;
-      color: #fff8dc;
+      background: #231f18;
+      color: #f3ead4;
     }
 
     .tool-button.secondary,
@@ -1129,39 +1172,38 @@
     .toc a,
     .pill,
     .legend-item {
-      background:
-        radial-gradient(circle at 8px 8px, rgba(24, 24, 22, 0.16) 0 1px, transparent 1.2px) 0 0 / 8px 8px,
-        #fff8dc;
-      color: #181816;
+      background: rgba(247, 239, 216, 0.88);
+      color: #231f18;
     }
 
     .tool-button.danger {
-      background:
-        radial-gradient(circle at 8px 8px, rgba(24, 24, 22, 0.12) 0 1px, transparent 1.2px) 0 0 / 8px 8px,
-        #ffc5b7;
-      color: #181816;
+      background: rgba(123, 33, 28, 0.08);
+      color: #7b211c;
+      border-color: #7b211c;
     }
 
     .toc {
+      border-bottom: 1px solid rgba(63, 55, 43, 0.32);
       background:
-        linear-gradient(180deg, rgba(255, 246, 216, 0.98) 72%, rgba(255, 246, 216, 0)),
-        radial-gradient(circle, rgba(24, 24, 22, 0.14) 0 1px, transparent 1.2px) 0 0 / 12px 12px;
+        linear-gradient(180deg, rgba(238, 226, 201, 0.98) 72%, rgba(238, 226, 201, 0)),
+        radial-gradient(circle at 1px 1px, rgba(44, 39, 31, 0.1) 0 0.7px, transparent 0.9px) 0 0 / 9px 9px;
     }
 
     .node-head {
-      border-bottom: 2px solid rgba(24, 24, 22, 0.75);
-      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(35, 31, 24, 0.54);
+      padding-bottom: 9px;
     }
 
     .node-index {
-      width: 36px;
-      height: 34px;
-      border: 2px solid #181816;
-      border-radius: 999px;
-      background: #ef5e53;
-      color: #181816;
-      box-shadow: 3px 3px 0 #181816;
-      font-weight: 950;
+      width: 32px;
+      height: 30px;
+      border: 1px solid #3f372b;
+      border-radius: 50%;
+      background: rgba(123, 33, 28, 0.1);
+      color: #7b211c;
+      box-shadow: none;
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 800;
     }
 
     .flow-node h3,
@@ -1170,101 +1212,102 @@
     .linked-page-card h3,
     .edge-card h3,
     .branch-card h4 {
-      color: #181816;
-      text-shadow: 2px 2px 0 rgba(255, 242, 90, 0.72);
+      color: #231f18;
+      text-shadow: none;
+      border-bottom: 1px solid rgba(35, 31, 24, 0.18);
+      padding-bottom: 5px;
     }
 
     .edge {
       background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.16) 0 1px, transparent 1.25px) 0 0 / 9px 9px,
-        #fff25a;
+        radial-gradient(circle at 1px 1px, rgba(35, 31, 24, 0.08) 0 0.6px, transparent 0.8px) 0 0 / 7px 7px,
+        rgba(231, 220, 194, 0.9);
     }
 
     .arrow,
     .chain-connector span::before,
     .lg-rail-step::after {
-      border: 2px solid #181816;
-      background: #fff25a;
-      color: #181816;
-      box-shadow: 2px 2px 0 #181816;
+      border: 1px solid #3f372b;
+      background: rgba(247, 239, 216, 0.9);
+      color: #231f18;
+      box-shadow: none;
     }
 
     .lg-rail-step::after {
       content: ">";
-      width: 22px;
-      height: 22px;
-      border-radius: 999px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
       display: grid;
       place-items: center;
-      font-size: 14px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 13px;
       line-height: 1;
     }
 
     .chain-connector::before,
     .chain-connector::after {
-      height: 2px;
-      background:
-        repeating-linear-gradient(90deg, #181816 0 10px, transparent 10px 16px);
+      height: 1px;
+      background: #6b604f;
     }
 
     .chain-connector span {
-      border: 2px solid #181816;
-      border-radius: 6px;
-      background:
-        radial-gradient(circle at 8px 8px, rgba(24, 24, 22, 0.12) 0 1px, transparent 1.2px) 0 0 / 8px 8px,
-        #fff8dc;
-      color: #181816;
-      box-shadow: 3px 3px 0 #181816;
+      border: 1px solid #6b604f;
+      border-radius: 999px;
+      background: rgba(247, 239, 216, 0.92);
+      color: #3f372b;
+      box-shadow: none;
     }
 
     .chain-connector span::before {
       content: ">";
+      color: #7b211c;
     }
 
     .flow-node,
     .chain-node,
     .lg-rail-step {
       background:
-        radial-gradient(circle at 10px 10px, rgba(24, 24, 22, 0.18) 0 1px, transparent 1.2px) 0 0 / 9px 9px,
-        #fff8dc;
+        radial-gradient(circle at 1px 1px, rgba(35, 31, 24, 0.08) 0 0.6px, transparent 0.8px) 0 0 / 7px 7px,
+        rgba(249, 242, 225, 0.92);
+    }
+
+    .chain-node.state,
+    .chain-node.decision,
+    .chain-node.material,
+    .chain-node.output,
+    .chain-node.edit,
+    .chain-node.risk {
+      background:
+        radial-gradient(circle at 1px 1px, rgba(35, 31, 24, 0.08) 0 0.6px, transparent 0.8px) 0 0 / 7px 7px,
+        rgba(249, 242, 225, 0.92);
     }
 
     .chain-node.state {
-      background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.16) 0 1px, transparent 1.25px) 0 0 / 9px 9px,
-        #bfe4ff;
+      border-left: 5px solid #4e5960;
     }
 
     .chain-node.decision {
-      background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.18) 0 1px, transparent 1.25px) 0 0 / 9px 9px,
-        #ffe18a;
+      border-left: 5px solid #8a6f37;
     }
 
     .chain-node.material,
     .chain-node.output {
-      background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.15) 0 1px, transparent 1.25px) 0 0 / 9px 9px,
-        #bfeee2;
+      border-left: 5px solid #586b58;
     }
 
     .chain-node.edit {
-      background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.16) 0 1px, transparent 1.25px) 0 0 / 9px 9px,
-        #ddd0ff;
+      border-left: 5px solid #5e536b;
     }
 
     .chain-node.risk {
-      background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.16) 0 1px, transparent 1.25px) 0 0 / 9px 9px,
-        #ffc5b7;
+      border-left: 5px solid #7b211c;
     }
 
     .lg-branch {
-      border: 2px dashed #181816;
-      background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.12) 0 1px, transparent 1.2px) 0 0 / 10px 10px,
-        rgba(255, 248, 220, 0.76);
+      border: 1px dashed #6b604f;
+      border-radius: 2px;
+      background: rgba(231, 220, 194, 0.45);
     }
 
     .node-kv,
@@ -1274,124 +1317,118 @@
     .callout,
     .note textarea,
     .summary-output {
-      border: 2px solid #181816;
-      border-radius: 6px;
+      border: 1px solid #6b604f;
+      border-radius: 2px;
       background:
-        radial-gradient(circle at 8px 8px, rgba(24, 24, 22, 0.12) 0 1px, transparent 1.2px) 0 0 / 10px 10px,
-        rgba(255, 254, 248, 0.94);
-      box-shadow: 3px 3px 0 rgba(24, 24, 22, 0.92);
+        radial-gradient(circle at 1px 1px, rgba(35, 31, 24, 0.07) 0 0.6px, transparent 0.8px) 0 0 / 7px 7px,
+        rgba(252, 246, 230, 0.92);
+      box-shadow: none;
     }
 
     .node-kv strong,
     .callout strong {
-      display: inline-flex;
-      border: 2px solid #181816;
-      background: #fff25a;
-      color: #181816;
-      padding: 2px 7px;
-      box-shadow: 2px 2px 0 #181816;
+      display: inline;
+      border: 0;
+      background: transparent;
+      color: #7b211c;
+      padding: 0;
+      box-shadow: none;
+      font-weight: 800;
     }
 
     .plain-example {
-      border-left-width: 10px;
-      border-left-color: #46aea8;
+      border-left: 5px solid #7b211c;
+      color: #3f372b;
     }
 
     .callout {
-      background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.13) 0 1px, transparent 1.2px) 0 0 / 10px 10px,
-        #ffe18a;
+      background: rgba(123, 33, 28, 0.07);
+      color: #3f372b;
     }
 
     .code-block {
-      background:
-        radial-gradient(circle, rgba(255, 242, 90, 0.14) 0 1px, transparent 1.2px) 0 0 / 8px 8px,
-        #181816;
-      color: #fff8dc;
+      background: #2d2a24;
+      color: #f3ead4;
     }
 
     code {
-      border: 2px solid #181816;
-      background: #fff25a;
-      color: #181816;
-      box-shadow: 2px 2px 0 rgba(24, 24, 22, 0.18);
+      border: 1px solid rgba(63, 55, 43, 0.48);
+      border-radius: 2px;
+      background: rgba(239, 229, 205, 0.9);
+      color: #231f18;
+      box-shadow: none;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
     }
 
     .detail-table th {
-      background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.18) 0 1px, transparent 1.2px) 0 0 / 8px 8px,
-        #fff25a;
-      color: #181816;
-      border-bottom: 2px solid #181816;
+      background: rgba(35, 31, 24, 0.1);
+      color: #231f18;
+      border-bottom: 2px solid #3f372b;
+      font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
     }
 
     .detail-table th,
     .detail-table td {
-      border-bottom-color: rgba(24, 24, 22, 0.32);
+      border-bottom-color: rgba(63, 55, 43, 0.28);
     }
 
     .badge {
-      color: #181816;
+      color: #231f18;
+      background: rgba(247, 239, 216, 0.8);
     }
 
     .badge.done {
-      background: #bfeee2;
+      border-left: 4px solid #586b58;
     }
 
-    .badge.partial {
-      background: #ffe18a;
+    .badge.partial,
+    .badge.wait,
+    .badge.info {
+      border-left: 4px solid #8a6f37;
     }
 
     .badge.risk {
-      background: #ffc5b7;
-    }
-
-    .badge.info {
-      background: #bfe4ff;
-    }
-
-    .badge.wait {
-      background: #ddd0ff;
+      border-left: 4px solid #7b211c;
+      color: #7b211c;
     }
 
     .note {
-      border-top: 2px dashed #181816;
+      border-top: 1px dashed #6b604f;
     }
 
     .note label {
-      color: #181816;
+      color: #231f18;
+      font-family: "Noto Serif SC", "Songti SC", SimSun, Georgia, serif;
     }
 
     .note textarea,
     .summary-output {
       background:
-        radial-gradient(circle, rgba(24, 24, 22, 0.11) 0 1px, transparent 1.22px) 0 0 / 11px 11px,
-        repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0 27px, rgba(24, 24, 22, 0.12) 28px),
-        #fffef8;
+        repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0 27px, rgba(63, 55, 43, 0.1) 28px),
+        rgba(252, 246, 230, 0.94);
     }
 
     .note textarea:focus,
     .summary-output:focus {
-      outline: 3px solid #fff25a;
+      outline: 2px solid rgba(123, 33, 28, 0.42);
       outline-offset: 2px;
-      border-color: #181816;
+      border-color: #7b211c;
     }
 
     .save-mark {
-      border: 1px solid rgba(24, 24, 22, 0.58);
-      background: #fff8dc;
+      border: 1px solid rgba(63, 55, 43, 0.34);
+      background: rgba(247, 239, 216, 0.82);
       padding: 1px 5px;
-      color: #181816;
+      color: #504638;
     }
 
     .checklist li::before {
-      content: "ok";
-      border: 2px solid #181816;
-      background: #bfeee2;
-      color: #181816;
-      border-radius: 6px;
-      font-size: 9px;
-      box-shadow: 2px 2px 0 #181816;
+      content: "";
+      border: 1px solid #6b604f;
+      background: rgba(247, 239, 216, 0.9);
+      color: #231f18;
+      border-radius: 50%;
+      box-shadow: inset 0 0 0 4px rgba(123, 33, 28, 0.16);
     }
 
     @media (max-width: 1180px) {
