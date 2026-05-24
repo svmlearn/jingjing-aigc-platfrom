@@ -1,0 +1,1907 @@
+[
+  {
+    "clipId": "a5693679-52e7-54c4-aeb9-140c3149d2b1",
+    "assetId": "9aa73ba3-656b-509c-9e3c-0d02671ae06e",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "一楼厂房楼梯与夹层入口",
+    "description": "一楼厂房内部实拍，画面可见绿色环氧地坪、室内楼梯、夹层入口、吊灯照明、柱网和消防管线。",
+    "sourceFolder": "一楼",
+    "sourceRelativePath": "一楼/05c45ff0d18e3534bb44fbbe776659f2.mp4",
+    "originalFilename": "05c45ff0d18e3534bb44fbbe776659f2.mp4",
+    "recommendedRole": "factory_first_floor",
+    "lensPurpose": "transition_detail",
+    "tags": [
+      "竖屏",
+      "role:factory_first_floor",
+      "lens:transition_detail",
+      "一楼厂房",
+      "厂房内部",
+      "绿色环氧地坪",
+      "室内楼梯",
+      "夹层入口",
+      "吊灯照明",
+      "消防管线",
+      "柱网",
+      "地面分区线"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "一楼",
+      "厂房内部",
+      "室内楼梯",
+      "夹层入口",
+      "绿色地坪",
+      "消防管线",
+      "柱网"
+    ],
+    "shotTags": [
+      "室内空间",
+      "室内扫拍",
+      "楼梯展示",
+      "动线展示",
+      "结构细节"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "一楼厂房楼梯",
+      "一楼夹层入口",
+      "绿色环氧地坪",
+      "厂房消防管线",
+      "厂房柱网"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 7.25
+  },
+  {
+    "clipId": "a7c68b32-92a2-592d-8145-548e4fc1b27f",
+    "assetId": "fd774795-96a9-5c26-bdb0-855cdb0dbd35",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "一楼厂房采光窗与消防设施",
+    "description": "一楼厂房内部实拍，画面可见采光窗、吊灯、消防栓、安全警示牌、临时电缆、绿色环氧地坪和消防管线。",
+    "sourceFolder": "一楼",
+    "sourceRelativePath": "一楼/4628122f2c6937d789a0a73e184bfe3f.mp4",
+    "originalFilename": "4628122f2c6937d789a0a73e184bfe3f.mp4",
+    "recommendedRole": "factory_first_floor",
+    "lensPurpose": "detail_proof",
+    "tags": [
+      "竖屏",
+      "role:factory_first_floor",
+      "lens:detail_proof",
+      "一楼厂房",
+      "厂房内部",
+      "绿色环氧地坪",
+      "采光窗",
+      "吊灯照明",
+      "消防栓",
+      "安全警示牌",
+      "临时电缆",
+      "消防管线",
+      "墙面设施"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "一楼",
+      "厂房内部",
+      "采光窗",
+      "消防设施",
+      "安全警示牌",
+      "绿色地坪",
+      "消防管线"
+    ],
+    "shotTags": [
+      "室内空间",
+      "设施细节",
+      "窗面采光",
+      "证明镜头",
+      "室内扫拍"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "厂房采光窗",
+      "厂房消防栓",
+      "安全警示牌",
+      "绿色环氧地坪",
+      "消防管线厂房"
+    ],
+    "tagConfidence": 0.84,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 720,
+    "height": 1280,
+    "orientation": "portrait",
+    "durationSeconds": 12.413789
+  },
+  {
+    "clipId": "4c8a6d67-889f-5bd9-85d6-8dd5caa8179d",
+    "assetId": "1c30026a-fcc2-55f8-8c3f-a45afb843fdb",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "一楼配电箱消防设施与采光窗",
+    "description": "一楼厂房设施细节实拍，画面可见配电箱/设备箱、消防栓、安全警示牌、采光窗、防护窗和地面标线。",
+    "sourceFolder": "一楼",
+    "sourceRelativePath": "一楼/6dba34c062a0600e71340c2f62f61044.mp4",
+    "originalFilename": "6dba34c062a0600e71340c2f62f61044.mp4",
+    "recommendedRole": "factory_first_floor",
+    "lensPurpose": "detail_proof",
+    "tags": [
+      "竖屏",
+      "role:factory_first_floor",
+      "lens:detail_proof",
+      "一楼厂房",
+      "厂房内部",
+      "配电箱",
+      "设备箱",
+      "消防栓",
+      "安全警示牌",
+      "采光窗",
+      "窗户防护栏",
+      "地面标线",
+      "绿色环氧地坪"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "一楼",
+      "厂房内部",
+      "配电箱",
+      "消防设施",
+      "采光窗",
+      "防护窗",
+      "墙面设备"
+    ],
+    "shotTags": [
+      "设施细节",
+      "墙面设备",
+      "窗户特写",
+      "证明镜头",
+      "室内空间"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "厂房配电箱",
+      "厂房消防设施",
+      "安全警示牌",
+      "采光窗",
+      "窗户防护栏"
+    ],
+    "tagConfidence": 0.84,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 720,
+    "height": 1280,
+    "orientation": "portrait",
+    "durationSeconds": 5.178567
+  },
+  {
+    "clipId": "14a7ac7c-7eee-5387-bc9b-67a6a3b1c7ff",
+    "assetId": "e5892436-a9da-50b1-a4e1-e94456b686bf",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "一楼消防疏散图与平面标识",
+    "description": "一楼墙面标识实拍，画面主体为消防疏散示意图、厂区平面图、墙面信息牌和安全管理信息。",
+    "sourceFolder": "一楼",
+    "sourceRelativePath": "一楼/82cea015e0f11ad90477d5efcef8a724.mp4",
+    "originalFilename": "82cea015e0f11ad90477d5efcef8a724.mp4",
+    "recommendedRole": "factory_first_floor",
+    "lensPurpose": "signage_proof",
+    "tags": [
+      "竖屏",
+      "role:factory_first_floor",
+      "lens:signage_proof",
+      "一楼墙面标识",
+      "消防疏散示意图",
+      "厂区平面图",
+      "墙面信息牌",
+      "安全管理信息",
+      "楼层导览",
+      "白墙"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "一楼",
+      "墙面标识",
+      "消防疏散图",
+      "平面图标识",
+      "信息公示牌"
+    ],
+    "shotTags": [
+      "标识特写",
+      "资料证明镜头",
+      "静态特写",
+      "证明镜头"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "消防疏散图",
+      "厂区平面图",
+      "安全管理标识",
+      "楼层导览",
+      "墙面信息牌"
+    ],
+    "tagConfidence": 0.82,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 720,
+    "height": 1280,
+    "orientation": "portrait",
+    "durationSeconds": 6.88
+  },
+  {
+    "clipId": "0f27b2ab-7978-5acb-b976-3646aeec8205",
+    "assetId": "cda6e4a2-cd12-56ac-996b-d36b3456cda8",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "一楼厂房出入口与楼梯动线",
+    "description": "一楼厂房内部实拍，画面可见厂房出入口、室内楼梯、柱网、绿色环氧地坪、吊灯和消防管线。",
+    "sourceFolder": "一楼",
+    "sourceRelativePath": "一楼/8772128fc005f8b0f93279d262e44de7.mp4",
+    "originalFilename": "8772128fc005f8b0f93279d262e44de7.mp4",
+    "recommendedRole": "factory_first_floor",
+    "lensPurpose": "transition_detail",
+    "tags": [
+      "竖屏",
+      "role:factory_first_floor",
+      "lens:transition_detail",
+      "一楼厂房",
+      "厂房内部",
+      "厂房出入口",
+      "室内楼梯",
+      "绿色环氧地坪",
+      "柱网",
+      "吊灯照明",
+      "消防管线",
+      "空间动线"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "一楼",
+      "厂房内部",
+      "出入口",
+      "楼梯",
+      "柱网",
+      "绿色地坪",
+      "消防管线"
+    ],
+    "shotTags": [
+      "室内空间",
+      "空间扫拍",
+      "出入口展示",
+      "楼梯展示",
+      "动线展示"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "厂房出入口",
+      "一楼楼梯空间",
+      "厂房空间动线",
+      "绿色环氧地坪",
+      "消防管线厂房"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 21.863622
+  },
+  {
+    "clipId": "60a5b9ae-6e84-5a42-a92b-998de459bbc6",
+    "assetId": "50a80f4a-c334-5b4c-9524-a05ca5299127",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "一楼大开间柱网与绿色地坪",
+    "description": "一楼厂房大开间实拍，画面可见连续柱网、红色消防管线、吊灯照明、采光窗、绿色环氧地坪和少量远景人物。",
+    "sourceFolder": "一楼",
+    "sourceRelativePath": "一楼/9c2ec46144956b24a3e315511cd6bee7.mp4",
+    "originalFilename": "9c2ec46144956b24a3e315511cd6bee7.mp4",
+    "recommendedRole": "factory_first_floor",
+    "lensPurpose": "primary_showcase",
+    "tags": [
+      "竖屏",
+      "role:factory_first_floor",
+      "lens:primary_showcase",
+      "一楼厂房",
+      "厂房内部",
+      "大开间",
+      "柱网",
+      "红色消防管线",
+      "吊灯照明",
+      "采光窗",
+      "绿色环氧地坪",
+      "空间纵深",
+      "少量远景人物"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "一楼",
+      "厂房内部",
+      "大开间",
+      "柱网",
+      "消防管线",
+      "采光窗",
+      "绿色地坪"
+    ],
+    "shotTags": [
+      "室内空间",
+      "大空间扫拍",
+      "柱网展示",
+      "空间纵深",
+      "人物尺度参考"
+    ],
+    "peopleTags": [
+      "少量远景人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "一楼厂房大开间",
+      "厂房柱网",
+      "绿色环氧地坪空间",
+      "消防管线厂房",
+      "厂房空间纵深"
+    ],
+    "tagConfidence": 0.88,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 13.48
+  },
+  {
+    "clipId": "5389b79b-b139-537a-85d9-845b7cec0415",
+    "assetId": "00bf5523-0003-5c98-b7e7-3f7d437c0e10",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "一楼纵深柱网与消防管线空间",
+    "description": "一楼厂房纵深空间实拍，画面可见柱网、红色消防管线、采光窗、绿色环氧地坪、地面分区线和吊灯照明。",
+    "sourceFolder": "一楼",
+    "sourceRelativePath": "一楼/bc01b17ae3d343d2b30471b1ec5c8161.mp4",
+    "originalFilename": "bc01b17ae3d343d2b30471b1ec5c8161.mp4",
+    "recommendedRole": "factory_first_floor",
+    "lensPurpose": "primary_showcase",
+    "tags": [
+      "竖屏",
+      "role:factory_first_floor",
+      "lens:primary_showcase",
+      "一楼厂房",
+      "厂房内部",
+      "通道纵深",
+      "柱网",
+      "红色消防管线",
+      "采光窗",
+      "绿色环氧地坪",
+      "地面分区线",
+      "吊灯照明"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "一楼",
+      "厂房内部",
+      "通道纵深",
+      "柱网",
+      "消防管线",
+      "采光窗",
+      "绿色地坪"
+    ],
+    "shotTags": [
+      "室内空间",
+      "大空间扫拍",
+      "通道纵深",
+      "柱网展示",
+      "空间结构展示"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "厂房通道纵深",
+      "厂房柱网",
+      "消防管线厂房",
+      "绿色环氧地坪",
+      "地面分区线"
+    ],
+    "tagConfidence": 0.88,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 26.12
+  },
+  {
+    "clipId": "d2ed1e9d-b7a5-5825-868f-573491685421",
+    "assetId": "de959d7c-f415-524f-8d3c-74da3d7f1ad7",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "一楼架空层梁板与低楼板空间",
+    "description": "一楼架空层/局部二层结构实拍，画面可见梁底空间、红色消防管线、采光窗、地面分区线和绿色环氧地坪。",
+    "sourceFolder": "一楼架空层",
+    "sourceRelativePath": "一楼架空层/73dcd3f1206bcd0508c4021263602a53.mp4",
+    "originalFilename": "73dcd3f1206bcd0508c4021263602a53.mp4",
+    "recommendedRole": "factory_mezzanine",
+    "lensPurpose": "structure_detail",
+    "tags": [
+      "竖屏",
+      "role:factory_mezzanine",
+      "lens:structure_detail",
+      "架空层",
+      "局部二层",
+      "梁底空间",
+      "低楼板",
+      "结构梁板",
+      "红色消防管线",
+      "采光窗",
+      "绿色环氧地坪",
+      "地面分区线"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "架空层",
+      "局部二层",
+      "楼板",
+      "结构细节",
+      "梁底",
+      "消防管线",
+      "采光窗",
+      "绿色地坪"
+    ],
+    "shotTags": [
+      "结构展示",
+      "梁板展示",
+      "结构扫拍",
+      "空间纵深",
+      "室内空间"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "架空层梁板",
+      "局部二层结构",
+      "梁底空间",
+      "红色消防管线",
+      "绿色环氧地坪"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 8.629633
+  },
+  {
+    "clipId": "a8f43a73-ea96-59dd-ba70-a2f1c17512c2",
+    "assetId": "c2be9b43-76c5-5789-b4fb-29e2249e18f1",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "一楼架空层楼梯视角与出入口",
+    "description": "一楼架空层动线实拍，画面可见楼梯俯拍视角、出入口、局部夹层、红色消防管线和绿色环氧地坪。",
+    "sourceFolder": "一楼架空层",
+    "sourceRelativePath": "一楼架空层/e7b1e5f682ba8b80c57d2db882a90d69.mp4",
+    "originalFilename": "e7b1e5f682ba8b80c57d2db882a90d69.mp4",
+    "recommendedRole": "factory_mezzanine",
+    "lensPurpose": "transition_detail",
+    "tags": [
+      "竖屏",
+      "role:factory_mezzanine",
+      "lens:transition_detail",
+      "架空层",
+      "局部夹层",
+      "楼梯视角",
+      "楼梯俯拍",
+      "出入口",
+      "红色消防管线",
+      "绿色环氧地坪",
+      "上下动线"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "架空层",
+      "局部二层",
+      "楼梯",
+      "出入口",
+      "局部夹层",
+      "上下动线"
+    ],
+    "shotTags": [
+      "楼梯俯拍",
+      "动线展示",
+      "结构观察",
+      "空间转场",
+      "室内空间"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "架空层楼梯",
+      "局部夹层动线",
+      "厂房出入口",
+      "上下动线",
+      "绿色环氧地坪"
+    ],
+    "tagConfidence": 0.84,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 20.541667
+  },
+  {
+    "clipId": "222453d2-5907-523b-a394-9ae65da102ec",
+    "assetId": "407faba9-4920-5a59-90be-ae30087834ea",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "园区周边十字路口与沿街道路",
+    "description": "园区周边道路实拍，画面可见十字路口、红绿灯、人行道、非机动车道、沿街商业楼、林荫道路和车辆通行。",
+    "sourceFolder": "交通",
+    "sourceRelativePath": "交通/ea2e8c70e7a77d08bc4e201cbd12af82.mp4",
+    "originalFilename": "ea2e8c70e7a77d08bc4e201cbd12af82.mp4",
+    "recommendedRole": "traffic_location",
+    "lensPurpose": "location_context",
+    "tags": [
+      "竖屏",
+      "role:traffic_location",
+      "lens:location_context",
+      "园区周边道路",
+      "交通道路",
+      "十字路口",
+      "红绿灯",
+      "人行道",
+      "非机动车道",
+      "沿街商业楼",
+      "林荫道路",
+      "车辆通行"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "道路",
+      "交通",
+      "园区周边",
+      "十字路口",
+      "红绿灯",
+      "人行道",
+      "沿街商业",
+      "道路交通"
+    ],
+    "shotTags": [
+      "外景",
+      "道路环境",
+      "移动镜头",
+      "外景扫拍",
+      "道路纵深",
+      "区位证明镜头"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "园区周边道路",
+      "十字路口",
+      "红绿灯道路",
+      "沿街商业楼",
+      "林荫道路",
+      "车辆通行"
+    ],
+    "tagConfidence": 0.84,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 7.103444
+  },
+  {
+    "clipId": "e6f11f30-f629-5b0d-a919-69643eb966af",
+    "assetId": "a4ff7317-f5af-592b-9dce-8649f8640be3",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "六楼玻璃隔断与办公装修空间",
+    "description": "六楼室内空间实拍，画面可见玻璃隔断、办公装修、吊顶、木纹地板、方形立柱和采光窗。",
+    "sourceFolder": "六楼",
+    "sourceRelativePath": "六楼/7cfc79bbd4d27452e5e8f6b184f1d187.mp4",
+    "originalFilename": "7cfc79bbd4d27452e5e8f6b184f1d187.mp4",
+    "recommendedRole": "factory_sixth_floor",
+    "lensPurpose": "interior_showcase",
+    "tags": [
+      "竖屏",
+      "role:factory_sixth_floor",
+      "lens:interior_showcase",
+      "六楼",
+      "室内空间",
+      "玻璃隔断",
+      "办公装修",
+      "吊顶",
+      "木纹地板",
+      "方形立柱",
+      "采光窗",
+      "空置办公区"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "六楼",
+      "室内空间",
+      "玻璃隔断",
+      "办公区",
+      "吊顶",
+      "木纹地板",
+      "采光窗"
+    ],
+    "shotTags": [
+      "室内空间",
+      "室内扫拍",
+      "办公空间展示",
+      "隔断展示",
+      "补充镜头"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "六楼办公空间",
+      "玻璃隔断办公室",
+      "木纹地板",
+      "采光窗",
+      "空置办公区"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 10.708333
+  },
+  {
+    "clipId": "d7e13cbf-7f2d-59a8-a6f8-5e5a7c671fd7",
+    "assetId": "ce78f643-377b-539c-8e6a-85c3fa7121be",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "六楼电梯厅与玻璃门入口",
+    "description": "六楼公共入口/电梯厅实拍，画面可见玻璃门、走廊入口、白墙空间、监控摄像头和过渡门厅。",
+    "sourceFolder": "六楼",
+    "sourceRelativePath": "六楼/93050535b2a386f1b99c957204c9a317.mp4",
+    "originalFilename": "93050535b2a386f1b99c957204c9a317.mp4",
+    "recommendedRole": "factory_sixth_floor",
+    "lensPurpose": "transition_detail",
+    "tags": [
+      "竖屏",
+      "role:factory_sixth_floor",
+      "lens:transition_detail",
+      "六楼",
+      "电梯厅",
+      "玻璃门",
+      "走廊入口",
+      "白墙空间",
+      "监控摄像头",
+      "过渡空间",
+      "楼层动线"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "六楼",
+      "电梯厅",
+      "玻璃门",
+      "走廊",
+      "公共入口",
+      "过渡门厅"
+    ],
+    "shotTags": [
+      "入口过渡镜头",
+      "门厅展示",
+      "转场镜头",
+      "室内空间"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "六楼电梯厅",
+      "玻璃门入口",
+      "楼层走廊",
+      "公共门厅",
+      "监控摄像头"
+    ],
+    "tagConfidence": 0.84,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 2.851856
+  },
+  {
+    "clipId": "2eeb7b0a-c32c-534f-93bb-98a33eb9e4f3",
+    "assetId": "f8b29ff3-3cac-506f-bfab-a449cb6e43b7",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "六楼公共走廊与办公入口",
+    "description": "六楼公共走廊/办公入口实拍，画面可见玻璃门、走廊、办公门牌、绿植和公共门厅。",
+    "sourceFolder": "六楼",
+    "sourceRelativePath": "六楼/aea818311ebc7d17568fc217b750e922.mp4",
+    "originalFilename": "aea818311ebc7d17568fc217b750e922.mp4",
+    "recommendedRole": "factory_sixth_floor",
+    "lensPurpose": "transition_detail",
+    "tags": [
+      "竖屏",
+      "role:factory_sixth_floor",
+      "lens:transition_detail",
+      "六楼",
+      "公共走廊",
+      "办公入口",
+      "玻璃门",
+      "办公门牌",
+      "绿植",
+      "公共门厅",
+      "楼层动线"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "六楼",
+      "走廊",
+      "办公入口",
+      "公共门厅",
+      "玻璃门",
+      "绿植"
+    ],
+    "shotTags": [
+      "门厅展示",
+      "走廊转场",
+      "入口过渡镜头",
+      "室内空间"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "六楼公共走廊",
+      "办公入口",
+      "玻璃门门厅",
+      "楼层动线",
+      "办公门牌"
+    ],
+    "tagConfidence": 0.84,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 5.076922
+  },
+  {
+    "clipId": "f5459f23-e8eb-587b-8b8b-40040d85bee1",
+    "assetId": "a6e164b7-06af-53a1-a1a5-f231475d40cd",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "六楼空置厂房与吊顶柱网",
+    "description": "六楼空置室内空间实拍，画面可见吊顶、方形立柱、消防栓、采光窗和绿色环氧地坪。",
+    "sourceFolder": "六楼",
+    "sourceRelativePath": "六楼/eeaa413d28435c634c584323fb54f4c6.mp4",
+    "originalFilename": "eeaa413d28435c634c584323fb54f4c6.mp4",
+    "recommendedRole": "factory_sixth_floor",
+    "lensPurpose": "interior_showcase",
+    "tags": [
+      "竖屏",
+      "role:factory_sixth_floor",
+      "lens:interior_showcase",
+      "六楼",
+      "空置厂房",
+      "室内空间",
+      "吊顶",
+      "方形立柱",
+      "消防栓",
+      "采光窗",
+      "绿色环氧地坪",
+      "柱网"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "六楼",
+      "室内空间",
+      "吊顶",
+      "消防栓",
+      "柱网",
+      "采光窗",
+      "绿色地坪"
+    ],
+    "shotTags": [
+      "室内空间",
+      "空间扫拍",
+      "柱网展示",
+      "采光展示",
+      "补充镜头"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "六楼空置厂房",
+      "吊顶厂房",
+      "绿色环氧地坪",
+      "方形立柱",
+      "采光窗"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 720,
+    "height": 1280,
+    "orientation": "portrait",
+    "durationSeconds": 7.5862
+  },
+  {
+    "clipId": "3fe9501e-fb81-54d9-9c07-dea1fb41eed9",
+    "assetId": "4754e48a-92b2-566a-af74-17fec8eba341",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "六楼绿色地坪空置空间",
+    "description": "六楼空置空间实拍，画面可见吊顶、方形立柱、采光窗、绿色环氧地坪和室内动线。",
+    "sourceFolder": "六楼",
+    "sourceRelativePath": "六楼/六楼1.mp4",
+    "originalFilename": "六楼1.mp4",
+    "recommendedRole": "factory_sixth_floor",
+    "lensPurpose": "interior_showcase",
+    "tags": [
+      "竖屏",
+      "role:factory_sixth_floor",
+      "lens:interior_showcase",
+      "六楼",
+      "空置空间",
+      "吊顶",
+      "方形立柱",
+      "采光窗",
+      "绿色环氧地坪",
+      "室内动线",
+      "柱网"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "六楼",
+      "室内空间",
+      "吊顶",
+      "柱网",
+      "采光窗",
+      "绿色地坪",
+      "室内动线"
+    ],
+    "shotTags": [
+      "室内空间",
+      "空间扫拍",
+      "纵深展示",
+      "楼上空间展示",
+      "补充镜头"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:h264",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "六楼绿色地坪",
+      "六楼空置空间",
+      "方形立柱",
+      "采光窗",
+      "室内动线"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 6.62069
+  },
+  {
+    "clipId": "28c384a4-5ab8-598a-9f87-7b2c5b642fe1",
+    "assetId": "56fd0a96-6dcd-5974-be6e-cf9691859a20",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "六楼消防设施与空置空间",
+    "description": "六楼空置空间实拍，画面可见吊顶、方形立柱、消防设施、采光窗和绿色环氧地坪。",
+    "sourceFolder": "六楼",
+    "sourceRelativePath": "六楼/六楼2.mp4",
+    "originalFilename": "六楼2.mp4",
+    "recommendedRole": "factory_sixth_floor",
+    "lensPurpose": "interior_showcase",
+    "tags": [
+      "竖屏",
+      "role:factory_sixth_floor",
+      "lens:interior_showcase",
+      "六楼",
+      "空置空间",
+      "吊顶",
+      "方形立柱",
+      "消防设施",
+      "采光窗",
+      "绿色环氧地坪",
+      "室内通道"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "六楼",
+      "室内空间",
+      "吊顶",
+      "柱网",
+      "消防设施",
+      "采光窗",
+      "绿色地坪"
+    ],
+    "shotTags": [
+      "室内空间",
+      "空间扫拍",
+      "消防设施入镜",
+      "楼上空间展示",
+      "补充镜头"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:h264",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "六楼消防设施",
+      "六楼空置空间",
+      "绿色环氧地坪",
+      "方形立柱",
+      "采光窗"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 7.689655
+  },
+  {
+    "clipId": "fa66376d-7121-56f4-8771-6f97a4fe8de5",
+    "assetId": "fce9588b-be9b-5349-82a1-e9b3e4a0ea21",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "园区大门与入口道路动线",
+    "description": "园区入口实拍，画面可见园区大门/门岗、斑马线、楼栋外立面、树荫道路、电动车停放和入口动线。",
+    "sourceFolder": "园区入口",
+    "sourceRelativePath": "园区入口/cff2326a6ab30bf4e30392f8d549db86.mp4",
+    "originalFilename": "cff2326a6ab30bf4e30392f8d549db86.mp4",
+    "recommendedRole": "park_entrance",
+    "lensPurpose": "opening_context",
+    "tags": [
+      "竖屏",
+      "role:park_entrance",
+      "lens:opening_context",
+      "园区入口",
+      "园区大门",
+      "入口门岗",
+      "斑马线",
+      "楼栋外立面",
+      "树荫道路",
+      "电动车停放",
+      "入口导视",
+      "入口动线"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "园区入口",
+      "门头",
+      "外立面",
+      "入口动线",
+      "斑马线",
+      "门岗",
+      "楼栋外立面",
+      "树荫道路"
+    ],
+    "shotTags": [
+      "外景",
+      "开场镜头",
+      "环境展示",
+      "外景扫拍",
+      "入口动线",
+      "门头识别"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "园区入口",
+      "园区大门",
+      "园区入口道路",
+      "入口门岗",
+      "斑马线入口",
+      "楼栋外立面"
+    ],
+    "tagConfidence": 0.88,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 9.310333
+  },
+  {
+    "clipId": "9415b9e1-4b04-5078-80a6-daf761df0800",
+    "assetId": "b19b5189-cef7-58f2-83f4-82bd3578fd38",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "园区停车通道与厂房外立面",
+    "description": "园区停车与外立面实拍，画面可见停车位、停车通道、厂房/楼栋外立面、卷帘门、车辆和电动车停放。",
+    "sourceFolder": "宿舍、配套设施、厂房外观",
+    "sourceRelativePath": "宿舍、配套设施、厂房外观/停车位+厂房外立面.mp4",
+    "originalFilename": "停车位+厂房外立面.mp4",
+    "recommendedRole": "park_amenity",
+    "lensPurpose": "amenity_proof",
+    "tags": [
+      "竖屏",
+      "role:park_amenity",
+      "lens:amenity_proof",
+      "园区配套",
+      "停车位",
+      "停车通道",
+      "厂房外立面",
+      "楼栋外立面",
+      "卷帘门",
+      "车辆停放",
+      "电动车停放",
+      "楼栋外墙"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "配套设施",
+      "停车位",
+      "停车通道",
+      "厂房外立面",
+      "卷帘门",
+      "车辆停放"
+    ],
+    "shotTags": [
+      "外景",
+      "配套展示",
+      "停车证明镜头",
+      "楼栋外观展示",
+      "外景扫拍"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "园区停车位",
+      "停车通道",
+      "厂房外立面",
+      "卷帘门厂房",
+      "车辆停放"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 6.428567
+  },
+  {
+    "clipId": "00e768b4-f0b5-5da1-9afe-3b46f37367e3",
+    "assetId": "307e1557-3437-5a78-af0a-cf4fa8053c86",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "园区公寓楼外立面与门厅入口",
+    "description": "园区公寓楼实拍，画面可见公寓楼外立面、阳台晾衣、空调外机、一楼门面/门厅入口和电动车停放。",
+    "sourceFolder": "宿舍、配套设施、厂房外观",
+    "sourceRelativePath": "宿舍、配套设施、厂房外观/公寓.mp4",
+    "originalFilename": "公寓.mp4",
+    "recommendedRole": "park_amenity",
+    "lensPurpose": "amenity_proof",
+    "tags": [
+      "竖屏",
+      "role:park_amenity",
+      "lens:amenity_proof",
+      "园区配套",
+      "公寓楼",
+      "公寓楼外立面",
+      "阳台晾衣",
+      "空调外机",
+      "一楼门面",
+      "门厅入口",
+      "电动车停放",
+      "生活区"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "配套设施",
+      "公寓",
+      "公寓外立面",
+      "门厅入口",
+      "生活区",
+      "阳台晾晒"
+    ],
+    "shotTags": [
+      "外景",
+      "配套展示",
+      "楼栋展示",
+      "配套证明镜头",
+      "外景扫拍"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "园区公寓楼",
+      "公寓楼外立面",
+      "公寓门厅",
+      "阳台晾衣",
+      "电动车停放"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 720,
+    "height": 1280,
+    "orientation": "portrait",
+    "durationSeconds": 3.3793
+  },
+  {
+    "clipId": "8f2b8836-0f63-5e45-a534-61d205491a2d",
+    "assetId": "ba74f48f-8b79-5605-bd39-eb9f101bd074",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "宿舍楼外立面与电动车停放区",
+    "description": "宿舍楼外立面实拍，画面可见防护窗、电动车停放、生活区通道和楼下檐下空间。",
+    "sourceFolder": "宿舍、配套设施、厂房外观",
+    "sourceRelativePath": "宿舍、配套设施、厂房外观/宿舍1.mp4",
+    "originalFilename": "宿舍1.mp4",
+    "recommendedRole": "park_amenity",
+    "lensPurpose": "amenity_proof",
+    "tags": [
+      "竖屏",
+      "role:park_amenity",
+      "lens:amenity_proof",
+      "园区配套",
+      "宿舍楼",
+      "宿舍楼外立面",
+      "防护窗",
+      "电动车停放",
+      "生活区通道",
+      "檐下空间"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "配套设施",
+      "宿舍楼",
+      "宿舍外立面",
+      "电动车停放",
+      "生活区通道",
+      "防护窗"
+    ],
+    "shotTags": [
+      "外景",
+      "配套展示",
+      "楼栋侧立面",
+      "配套证明镜头",
+      "外景扫拍"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "宿舍楼外立面",
+      "宿舍生活区",
+      "电动车停放",
+      "生活区通道",
+      "防护窗"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 4.1818
+  },
+  {
+    "clipId": "bf4c98b3-61b8-59b5-84d7-26a892cef22b",
+    "assetId": "854ff3fb-0196-5885-92bb-32a1f27c073e",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "宿舍楼生活区入口与外立面",
+    "description": "宿舍楼生活区实拍，画面可见防护窗、空调外机、电动车停放、生活区入口和晾晒衣物。",
+    "sourceFolder": "宿舍、配套设施、厂房外观",
+    "sourceRelativePath": "宿舍、配套设施、厂房外观/宿舍2.mp4",
+    "originalFilename": "宿舍2.mp4",
+    "recommendedRole": "park_amenity",
+    "lensPurpose": "amenity_proof",
+    "tags": [
+      "竖屏",
+      "role:park_amenity",
+      "lens:amenity_proof",
+      "园区配套",
+      "宿舍楼",
+      "宿舍楼外立面",
+      "防护窗",
+      "空调外机",
+      "电动车停放",
+      "生活区入口",
+      "晾晒衣物"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "配套设施",
+      "宿舍楼",
+      "宿舍外立面",
+      "生活区入口",
+      "电动车停放",
+      "晾晒衣物"
+    ],
+    "shotTags": [
+      "外景",
+      "配套展示",
+      "楼栋展示",
+      "配套证明镜头",
+      "外景扫拍"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "宿舍生活区",
+      "宿舍楼外立面",
+      "晾晒衣物",
+      "电动车停放",
+      "生活区入口"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 11.241367
+  },
+  {
+    "clipId": "05c90b52-ee76-5539-b2f3-a959e63b7da6",
+    "assetId": "56c0db5f-512f-53bd-be4e-14ad187aebb0",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "园区货梯入口与楼层索引",
+    "description": "园区电梯/货梯入口实拍，画面可见货梯门、楼层索引牌、载货电梯提示、瓷砖外墙和货运通道。",
+    "sourceFolder": "宿舍、配套设施、厂房外观",
+    "sourceRelativePath": "宿舍、配套设施、厂房外观/电梯.mp4",
+    "originalFilename": "电梯.mp4",
+    "recommendedRole": "park_amenity",
+    "lensPurpose": "amenity_proof",
+    "tags": [
+      "竖屏",
+      "role:park_amenity",
+      "lens:amenity_proof",
+      "园区配套",
+      "货梯入口",
+      "货梯门",
+      "楼层索引牌",
+      "载货电梯提示",
+      "瓷砖外墙",
+      "货运通道",
+      "楼层导览",
+      "电梯配套"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "配套设施",
+      "电梯",
+      "货梯入口",
+      "楼层索引",
+      "垂直交通",
+      "货运通道"
+    ],
+    "shotTags": [
+      "外景",
+      "配套展示",
+      "标识特写",
+      "电梯证明镜头",
+      "配套证明镜头"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "园区货梯",
+      "货梯入口",
+      "楼层索引牌",
+      "载货电梯",
+      "货运通道"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 720,
+    "height": 1280,
+    "orientation": "portrait",
+    "durationSeconds": 4.724133
+  },
+  {
+    "clipId": "dfe723be-6431-51e5-8862-b5661ca0324a",
+    "assetId": "4ffd01f0-32de-5165-bf2a-c8b72ffaa651",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "园区电梯轿厢内景",
+    "description": "电梯轿厢内部实拍，画面可见电梯按钮、禁止标识、绿色内壁和真人入镜。",
+    "sourceFolder": "宿舍、配套设施、厂房外观",
+    "sourceRelativePath": "宿舍、配套设施、厂房外观/电梯内.mp4",
+    "originalFilename": "电梯内.mp4",
+    "recommendedRole": "park_amenity",
+    "lensPurpose": "amenity_proof",
+    "tags": [
+      "竖屏",
+      "role:park_amenity",
+      "lens:amenity_proof",
+      "园区配套",
+      "电梯轿厢",
+      "电梯内景",
+      "电梯按钮",
+      "禁止标识",
+      "绿色内壁",
+      "真人入镜",
+      "垂直交通"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "配套设施",
+      "电梯内",
+      "电梯轿厢",
+      "电梯内壁",
+      "电梯按钮",
+      "垂直交通"
+    ],
+    "shotTags": [
+      "电梯内景",
+      "移动镜头",
+      "配套证明镜头",
+      "设施细节"
+    ],
+    "peopleTags": [
+      "真人入镜"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "电梯轿厢内景",
+      "电梯按钮",
+      "电梯内壁",
+      "垂直交通配套",
+      "真人入镜"
+    ],
+    "tagConfidence": 0.84,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 5.32
+  },
+  {
+    "clipId": "57bad18e-836d-57c5-b664-029dc2c66579",
+    "assetId": "001edd8a-f9a9-5110-baa2-e944b107af8e",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "园区管理服务站门头",
+    "description": "园区管理处实拍，画面可见管理服务站门头、玻璃门面、服务窗口、电动车停放和绿化带。",
+    "sourceFolder": "宿舍、配套设施、厂房外观",
+    "sourceRelativePath": "宿舍、配套设施、厂房外观/管理处.mp4",
+    "originalFilename": "管理处.mp4",
+    "recommendedRole": "park_amenity",
+    "lensPurpose": "amenity_proof",
+    "tags": [
+      "竖屏",
+      "role:park_amenity",
+      "lens:amenity_proof",
+      "园区配套",
+      "园区管理处",
+      "管理服务站",
+      "园区管理门头",
+      "玻璃门面",
+      "服务窗口",
+      "电动车停放",
+      "绿化带"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "配套设施",
+      "管理处",
+      "管理服务站",
+      "门头",
+      "玻璃门面",
+      "服务窗口"
+    ],
+    "shotTags": [
+      "外景",
+      "配套展示",
+      "门头特写",
+      "配套证明镜头",
+      "外景证明镜头"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "园区管理服务站",
+      "管理处门头",
+      "服务窗口",
+      "玻璃门面",
+      "绿化带"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 720,
+    "height": 1280,
+    "orientation": "portrait",
+    "durationSeconds": 1.7931
+  },
+  {
+    "clipId": "5f289887-4186-5012-85b4-2ddeb6d2596e",
+    "assetId": "c7379c94-a74a-5896-a6cf-8f0278809db1",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "园区食堂门头与餐饮标识",
+    "description": "园区食堂实拍，画面可见食堂门头、早餐/午餐/晚餐餐饮标识、外墙招牌和绿化带。",
+    "sourceFolder": "宿舍、配套设施、厂房外观",
+    "sourceRelativePath": "宿舍、配套设施、厂房外观/食堂.mp4",
+    "originalFilename": "食堂.mp4",
+    "recommendedRole": "park_amenity",
+    "lensPurpose": "amenity_proof",
+    "tags": [
+      "竖屏",
+      "role:park_amenity",
+      "lens:amenity_proof",
+      "园区配套",
+      "食堂",
+      "食堂门头",
+      "早餐午餐晚餐",
+      "餐饮标识",
+      "餐饮配套",
+      "绿化带",
+      "外墙招牌"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "配套设施",
+      "食堂",
+      "食堂门头",
+      "餐饮招牌",
+      "绿化带"
+    ],
+    "shotTags": [
+      "外景",
+      "配套展示",
+      "门头特写",
+      "配套证明镜头",
+      "外景证明镜头"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "园区食堂",
+      "食堂门头",
+      "早餐午餐晚餐",
+      "餐饮标识",
+      "绿化带"
+    ],
+    "tagConfidence": 0.86,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 720,
+    "height": 1280,
+    "orientation": "portrait",
+    "durationSeconds": 2.862056
+  },
+  {
+    "clipId": "0a07e6ea-0d04-5ff5-9915-47d671612bf4",
+    "assetId": "bd957581-4d1d-51ec-abcf-7b90a828b56d",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "平峦山公园周边林荫道路",
+    "description": "平峦山公园周边环境道路实拍，画面可见林荫道路、园区道路、路边停车、绿化树木、斑马线和道路导视牌。",
+    "sourceFolder": "环境",
+    "sourceRelativePath": "环境/4fd14cd4421d3ea08073180c1a18af3e.mp4",
+    "originalFilename": "4fd14cd4421d3ea08073180c1a18af3e.mp4",
+    "recommendedRole": "environment_mountain",
+    "lensPurpose": "environment_context",
+    "tags": [
+      "竖屏",
+      "role:environment_mountain",
+      "lens:environment_context",
+      "园区环境",
+      "平峦山公园",
+      "平峦山公园周边",
+      "公园周边道路",
+      "林荫道路",
+      "园区道路",
+      "路边停车",
+      "绿化树木",
+      "斑马线",
+      "道路导视牌"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "环境",
+      "平峦山公园",
+      "园区周边",
+      "公园周边道路",
+      "绿化",
+      "林荫路",
+      "园区道路",
+      "路边停车",
+      "周边环境"
+    ],
+    "shotTags": [
+      "外景",
+      "环境展示",
+      "道路环境展示",
+      "外景扫拍",
+      "环境氛围"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "平峦山公园",
+      "平峦山公园周边道路",
+      "园区林荫道路",
+      "园区周边环境",
+      "路边停车",
+      "绿化树木",
+      "道路导视牌"
+    ],
+    "tagConfidence": 0.84,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 540,
+    "height": 960,
+    "orientation": "portrait",
+    "durationSeconds": 10.172411
+  },
+  {
+    "clipId": "7620c216-3ffe-5ac0-9b14-7c611ac24e0a",
+    "assetId": "dc9f8b87-29fe-5c0e-b556-5cbb8759349d",
+    "mediaType": "video",
+    "status": "ready",
+    "title": "平峦山山体远景与园区周边环境",
+    "description": "平峦山远景实拍，画面可见平峦山山体、蓝天、园区屋顶/窗边视角和周边建筑。",
+    "sourceFolder": "环境",
+    "sourceRelativePath": "环境/5165c70ee2e6914393cbe44a6d1ff17f.mp4",
+    "originalFilename": "5165c70ee2e6914393cbe44a6d1ff17f.mp4",
+    "recommendedRole": "environment_mountain",
+    "lensPurpose": "environment_proof",
+    "tags": [
+      "竖屏",
+      "role:environment_mountain",
+      "lens:environment_proof",
+      "园区环境",
+      "平峦山",
+      "平峦山远景",
+      "平峦山山体",
+      "山体景观",
+      "山体远景",
+      "蓝天",
+      "楼顶视角",
+      "窗边视角",
+      "园区外景",
+      "周边建筑"
+    ],
+    "industryTags": [
+      "工业地产",
+      "工业园区",
+      "厂房租赁"
+    ],
+    "sceneTags": [
+      "环境",
+      "平峦山",
+      "平峦山远景",
+      "园区周边",
+      "山体远景",
+      "屋顶视角",
+      "蓝天"
+    ],
+    "shotTags": [
+      "外景",
+      "环境展示",
+      "远景镜头",
+      "环境证明镜头",
+      "静态环境镜头"
+    ],
+    "peopleTags": [
+      "无明显人物"
+    ],
+    "qualityTags": [
+      "真实拍摄",
+      "预览帧复核",
+      "待人工最终确认",
+      "codec:hevc",
+      "检索标签修正版"
+    ],
+    "queryHints": [
+      "平峦山",
+      "平峦山远景",
+      "平峦山山体",
+      "山体景观",
+      "园区周边环境",
+      "蓝天山体",
+      "窗边视角"
+    ],
+    "tagConfidence": 0.92,
+    "tagSource": "visual_preview_3frame_pexels_style_tag_revision",
+    "width": 720,
+    "height": 1280,
+    "orientation": "portrait",
+    "durationSeconds": 6.068956
+  }
+]
