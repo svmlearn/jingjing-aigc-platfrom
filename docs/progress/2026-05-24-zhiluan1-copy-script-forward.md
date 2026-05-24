@@ -79,4 +79,65 @@ The first server dry-run from release `20260524195000-5b57a21` rolled back befor
 
 ## Release/apply status
 
-- Pending commit, Gitee push, release, server dry-run, server apply, and readback.
+- Local commit pushed to Gitee branch `5.23-worker-fix`.
+- Final commit used for script release/apply: `458600f6d3219a2ba1604e65f2229c634b5f45ea`.
+- Final server release path: `/srv/jingjing-domestic/releases/20260524195600-458600f`.
+- `current` symlink after release: `/srv/jingjing-domestic/releases/20260524195600-458600f`.
+- Build passed with `corepack pnpm@10.20.0 build`.
+- Services restarted and verified active:
+  - `jingjing-domestic-app.service`
+  - `jingjing-content-generation-worker.service`
+  - `jingjing-firered-openstoryline.service`
+  - `jingjing-openstoryline-engine.service`
+  - `jingjing-video-worker.service`
+  - `nginx.service`
+- Health checks passed:
+  - `http://127.0.0.1:3000/api/health`
+  - `http://127.0.0.1:8000/ready`
+  - `http://127.0.0.1:7860/api/ready`
+
+## Apply result
+
+Applied from the released code path:
+
+```bash
+cd /srv/jingjing-domestic/current/app
+sudo node -- scripts/patch-zhiluan1-copy-yesterday-script-forward.mjs --env-file /srv/jingjing-domestic/shared/env/app.env --apply
+```
+
+Affected target dates:
+
+| task date | daily task | cloned draft | cloned variant |
+| --- | --- | --- | --- |
+| `2026-05-24` | `27307400-fbb2-4b8f-8cfa-2a3a8199543b` | `2372a941-15c3-49e4-b377-58b74f37c51e` | `cae7632a-749c-47f6-872c-30b2a7210e3f` |
+| `2026-05-25` | `025cd5eb-b296-4f65-8df9-c026620175c6` | `8b965a2d-43c0-4721-afee-181cf6f9ad7c` | `a262fc8d-341a-4ff2-b3ae-8a7b7959bb6d` |
+| `2026-05-26` | `d9b7e24f-3fb2-4192-9ca4-7a96ef1a12d7` | `20acde99-90b4-4b71-9944-77036efb2507` | `139c616a-e0b4-4ca4-aa5d-16a2ccb3603c` |
+| `2026-05-27` | `d1e1aa55-9125-4601-b5a6-c16a2754f64d` | `3025da0f-b270-438c-992c-8881000496ee` | `97b753ff-e38b-44c4-aaeb-218179fdb199` |
+| `2026-05-28` | `07fc7aaa-5913-460b-949c-e51673774ee0` | `62c7f739-c9b0-4c74-82ca-177eaa114347` | `4d8c59e4-1bd2-4553-a368-d60743ad9c79` |
+| `2026-05-29` | `83f52a00-00b1-4f9f-a672-e954bb99b147` | `f380ed6b-976e-476d-ad1d-79ea4aa16963` | `8a8849c5-5947-4c18-b1df-8f942dcee3b8` |
+| `2026-05-30` | `9de5a75f-d9ae-4e45-b93a-f828690422d3` | `50a59f73-9866-48d9-a86a-4ed698cb1951` | `d12c1f32-0406-4c5c-939d-777eefec1323` |
+| `2026-05-31` | `56cebe2d-d28b-4587-86a4-d01cb2d69f29` | `4418a011-f084-4ee3-83ae-21659d90cfa9` | `fb74a055-f68d-4512-976f-9982ba11fa28` |
+
+Readback after apply:
+
+- All target dates now have title `找厂房，别只看租金`.
+- All target dates now have theme `一楼厂房主推`.
+- All target dates now have `daily_content_tasks.status = video_script_created`.
+- All target dates have `generatedVideoScript.scenes = 6`.
+- All cloned variants have `production_scenes = 6`.
+- All target dates have required talking-head scene orders `[1, 6]`.
+- All target dates have `targetDurationSeconds = 64`.
+- All target dates have `memberUploadPolicy = talking_head_required_only`.
+- All target dates have `recommendedProductionConfig` keys:
+  - `bgm`
+  - `render`
+  - `lipSync`
+  - `subtitles`
+  - `voiceover`
+- Each target date has an independent draft and independent variant; readback confirmed `uniqueDraftCount = 8` and `uniqueVariantCount = 8` for `2026-05-24` to `2026-05-31`.
+- The cloned target drafts/variants have no copied uploaded draft input assets, no copied rendered result assets, and no copied `video_edit_jobs`.
+
+Consequence:
+
+- The member calendar now shows the approved factory script on `2026-05-24` through `2026-05-31`.
+- Future video generation from those dates will start from the copied script and production parameters, but will not reuse yesterday's rendered video outputs.
