@@ -6,30 +6,30 @@
 
 ## 1. 先理解这个工作区
 
-这是一个从 0 到 1 逐步展开的项目目录，当前已经从早期方案探索进入“staging 可运行 + V2.1 协作开发”的阶段。
+这是一个从 0 到 1 逐步展开的项目目录，当前已经从早期方案探索进入“国内自托管主线 + PostgreSQL / Aliyun OSS + V2.x 协作开发”的阶段。
 
 当前已知核心文件：
 
 - `AGENTS.md`：协作约定
 - `docs/README.md`：文档入口和推荐阅读顺序
-- `docs/协作/W-M同学协作README.md`：W 同学（产品）和 M 同学（开发）的协作规则
-- `docs/产品文档/V2.1-咨询驱动主链路体验补强-PRD.md`：当前主链路体验补强 PRD
-- `docs/产品文档/V2.1-内容日历到图文视频工作台协作PRD.md`：内容日历、图文/视频工作台、worker 协作契约
 - `docs/架构规范/2026-04-28-current-architecture.md`：当前系统架构总说明，覆盖咨询台、脚本制作 agent、app、worker、FireRed/OpenStoryline、COS、预览修订
-- `docs/progress/2026-04-25-supabase-migration-current-state.md`：staging Supabase 迁移当前状态
-- `app/`：当前 Next.js 商家端、平台管理端、API routes、Supabase migrations 的主应用
+- `docs/progress/2026-05-20-main-domestic-infra-merge.md`：国内化主线合入事实和验证记录
+- `docs/progress/2026-05-21-voice-fix-main-release.md`：服务器 release 后 health check，当前运行口径为 PostgreSQL / Aliyun OSS
+- `app/`：当前 Next.js 商家端、平台管理端、API routes、PostgreSQL schema/migrations 的主应用
+- `.codex/agents/`：项目级 Codex sub-agent 定义
+- `.codex/skills/`：项目级 Codex skills
 
 当前目录分层：
 
 - `docs/handoff/`：交接文档、冻结说明、任务书
 - `docs/progress/`：执行日志、验证记录、阶段结论
 - `docs/探索/`：方案探索、竞品拆解、外部项目研究
-- `docs/协作/`：W-M 协作说明、给对方和 AI 读的沟通约定
+- `docs/协作/`：Agent 协作说明、流程规划、给协作者读的沟通约定
 - `docs/产品文档/`：PRD、信息架构、页面清单、业务规则
 - `docs/架构规范/`：接口约束、状态机、发布链路规则、Prompt 规范
 - `docs/designs/`：历史 UI 原型和视觉参考，不是当前实现入口
 - `references/`：本地外部参考项目副本，已在 `.gitignore` 中忽略，不提交远端
-- `app/`：主应用，包含商家端、平台管理端、API、Supabase migrations
+- `app/`：主应用，包含商家端、平台管理端、API、PostgreSQL schema/migrations
 
 如果实际目录和这里不完全一致，以项目当前真实落地目录为准，但协作分层思路尽量保持一致。
 
@@ -51,13 +51,13 @@
 
 1. 先读本文件 `AGENTS.md`
 2. 读 `docs/README.md`
-3. 如果是 W-M 协作或给 M 同学交付，读 `docs/协作/W-M同学协作README.md`
-4. 如果任务涉及主链路产品判断，读 `docs/产品文档/V2.1-咨询驱动主链路体验补强-PRD.md`
-5. 如果任务涉及内容日历、图文工作台、视频工作台或 worker，读 `docs/产品文档/V2.1-内容日历到图文视频工作台协作PRD.md`
-6. 如果任务涉及 AI 视频、图文数据落点、worker、FireRed/OpenStoryline 或 Supabase，读 `docs/架构规范/2026-04-28-current-architecture.md` 和 `docs/progress/2026-04-25-supabase-migration-current-state.md`
-7. 如果任务是接续某个未完成事项，再读相关 `docs/handoff/` 和 `docs/progress/`
+3. 如果任务涉及产品判断，按 `docs/README.md` 指向读取当前产品真相源，不默认沿用历史 PRD
+4. 如果任务涉及 AI 视频、图文数据落点、worker、FireRed/OpenStoryline、PostgreSQL、Aliyun OSS 或部署，读 `docs/架构规范/2026-04-28-current-architecture.md`、`docs/progress/2026-05-20-main-domestic-infra-merge.md`、`docs/progress/2026-05-21-voice-fix-main-release.md`
+5. 如果任务是接续某个未完成事项，再读相关 `docs/handoff/` 和 `docs/progress/`
 
 旧 `docs/探索/`、旧 `docs/handoff/`、旧 `docs/progress/` 只作为历史资料，不再作为默认真相源。只有当用户明确要求追溯历史、参考旧方案或排查历史部署时再读。
+
+旧 Supabase Cloud / Vercel / COS / staging 文档默认是历史口径。当前主线以 `docs/README.md` 中的国内自托管、PostgreSQL、Aliyun OSS 说明为准。
 
 如果某些目录还没建立，跳过即可，不要因为文档里写了就假设它已经存在。
 
@@ -104,7 +104,7 @@
 - 角色权限规则
 - 商家、门店、账号相关业务规则
 
-当前阶段最重要的产品文档是 V2.1 系列。V0.1 文档是历史资料，除非追溯早期导入/改写设想，否则不要默认采用。
+当前产品真相源以 `docs/README.md` 的索引为准。旧 PRD 和早期导入/改写设想只作历史资料，除非任务明确要求追溯，否则不要默认采用。
 
 ### 4.5 `docs/架构规范/`
 
@@ -122,7 +122,6 @@
 
 这里放：
 
-- W-M 同学协作 README
 - 给产品 / 开发 / 各自 AI 看的协作说明
 - 技术变更的非工程化解释
 - 需要对方确认的问题清单
@@ -199,11 +198,108 @@
 
 尽量避免把用户拖进大冲突手工处理。
 
-## 6. 已验证过的经验
+## 6. 多 Agent + Worktree 协作模式
+
+本项目后续默认采用：
+
+> 主 Agent + worktree 物理隔离 + implementer 编码实现 + code-reviewer 两阶段审查
+
+这不是替代 worktree，而是把过去“用户手动复制提示词给另一个 Agent，再复制结果回来”的流程自动化。
+
+### 6.1 项目级 Codex Sub-Agent
+
+项目级 sub-agent 定义放在：
+
+- `.codex/agents/implementer.toml`
+- `.codex/agents/code-reviewer.toml`
+
+角色分工：
+
+1. `implementer`：在指定 worktree / branch 内完成编码实现、编译验证和自检。
+2. `code-reviewer`：对 implementer 的 worktree 改动做两阶段审查，不直接修复代码。
+
+后续可再扩展：
+
+1. `feedback-observer`：记录用户对 AI 行为和流程的修正。
+2. `evolution-runner`：扫描 feedback，提出 AGENTS / skills / 模板优化建议。
+
+第一版先不启用后二者作为自动流程。
+
+### 6.2 Implementer 派发规则
+
+满足以下任一条件，优先派发 `implementer`：
+
+1. 中大型代码实现。
+2. 已有明确 PRD、handoff、任务书或文件边界。
+3. 需要在独立 worktree 中完成。
+4. 主线程不适合继续塞入实现细节。
+5. 任务可以明确授权修改哪些文件或模块。
+
+主 Agent 给 implementer 的任务书至少包含：
+
+1. 任务目标。
+2. worktree 路径。
+3. branch / base。
+4. 必读文档。
+5. 可改文件范围。
+6. 禁止触碰范围。
+7. 是否启用 `long-task-gate`。
+8. 验证命令。
+9. handoff/progress 要求。
+10. commit / push / merge 策略。
+
+### 6.3 Long-Task 判定
+
+长任务不是 implementer 自己随意声明的状态。
+
+主 Agent 在派发前必须显式判断：
+
+1. 如果启用长任务，任务书写明 `Long-task-gate: enabled`，并提供 task id、completion promise、source docs 和硬校验方向。
+2. 如果不启用长任务，任务书写明 `Long-task-gate: disabled`。
+3. implementer 可以复核判断；如果认为判断错误，应返回 `NEEDS_CONTEXT` 或提出异议，不应擅自扩大流程。
+4. `long-task-gate` 的完成只能由 `.codex/skills/long-task-gate/scripts/check.py` 和独立 verifier 写入，不能由 Agent 口头宣布。
+
+### 6.4 Code Reviewer 触发规则
+
+以下情况优先派发或切换到 `code-reviewer`：
+
+1. implementer 已完成 worktree 改动。
+2. 准备进入合并前判断。
+3. 用户要求 review。
+4. 改动涉及主链路、状态机、数据结构、账号、发布、worker、数据库、存储或部署。
+5. 长任务 gate 已有报告，或者任务明确不启用 gate。
+
+审查分两阶段：
+
+1. Spec Compliance：是否按任务书、PRD、架构、handoff/progress 做对。
+2. Code Quality：是否有 bug、回归、缺测试、契约破坏、假成功或安全问题。
+
+如果 Stage 1 有阻塞问题，先停在 Stage 1，生成返工指令，不用继续展开代码质量细枝末节。
+
+### 6.5 Feedback 与 Memory
+
+本项目暂不新增独立 memory 系统。
+
+项目记忆由这些文件承担：
+
+1. `docs/handoff/`：任务交接和冻结状态。
+2. `docs/progress/`：执行事实和验证证据。
+3. `docs/产品文档/`：稳定产品真相。
+4. `docs/架构规范/`：稳定架构真相。
+5. `AGENTS.md`：Agent 协作规则。
+6. `.codex/skills/`：可复用执行能力。
+
+feedback 是另一类东西，只记录“AI 行为和流程应该如何改进”的信号。
+
+第一版 feedback 不依赖 hook 自动写入。只有用户明确修正 Agent 行为、流程、验证方式或 sub-agent 派发方式，并且该信号可复用时，才考虑用 `feedback-writer` 写入 `.codex/feedback/`。
+
+`evolution-engine` 只能提出建议，任何 AGENTS / skill / hook 改动都必须先给用户逐条确认。
+
+## 7. 已验证过的经验
 
 这些不是理论，而是这类项目协作里最容易踩坑的地方。
 
-### 6.1 先冻结基线，再开工
+### 7.1 先冻结基线，再开工
 
 如果主仓有未提交改动，直接新开 worktree 可能拿不到这些改动。
 
@@ -213,13 +309,13 @@
 2. 或已经导出 patch
 3. 或明确说明“本轮不继承主目录脏改动”
 
-### 6.2 文件独占比“口头说不冲突”更靠谱
+### 7.2 文件独占比“口头说不冲突”更靠谱
 
 并行阶段要先划文件边界。
 
 谁改哪些文件，要在任务书或日志里写明，不要靠记忆。
 
-### 6.3 `docs/` 不是 worktree 自动隔离区
+### 7.3 `docs/` 不是 worktree 自动隔离区
 
 `docs/` 的协作靠纪律，不靠 Git 自动保护。
 
@@ -228,11 +324,11 @@
 1. 先在日志里写 `lock`
 2. 写完后补 `unlock`
 
-### 6.4 默认先“不 push / 不 merge”
+### 7.4 默认先“不 push / 不 merge”
 
 这个项目前期会有很多探索型任务，先冻结结果、待验收，再决定要不要进主线，通常更适合用户。
 
-### 6.5 部署不一定从带 `.git` 的目录做
+### 7.5 部署不一定从带 `.git` 的目录做
 
 如果部署平台、账号权限或 Git author 限制卡住了，不要死磕一种方式。
 
@@ -242,23 +338,11 @@
 2. 明确目标环境，不要误发到错误项目
 3. 先做测试环境验证，再做正式环境动作
 
-### 6.6 发布目标不要搞错
-
-这类项目最危险的错误之一，不是“代码没跑”，而是“内容发对了，账号发错了”。
-
-涉及真实发布时，先确认：
-
-- 目标商家
-- 目标门店
-- 目标平台
-- 目标账号
-- 测试环境还是正式环境
-
-## 7. Handoff 规则
+## 8. Handoff 规则
 
 本项目已经默认采用：`handoff` 比依赖聊天记录更可靠。
 
-### 7.1 什么情况下必须写 handoff
+### 8.1 什么情况下必须写 handoff
 
 以下情况结束前必须留 handoff：
 
@@ -267,7 +351,7 @@
 3. 下一位 Agent 需要接手
 4. 结果需要用户验收后再决定
 
-### 7.2 handoff 最少包含什么
+### 8.2 handoff 最少包含什么
 
 至少写清楚：
 
@@ -281,7 +365,7 @@
 8. 验证结果
 9. 是否 `push / merge`
 
-### 7.3 handoff 放哪
+### 8.3 handoff 放哪
 
 默认放在：
 
@@ -292,7 +376,7 @@
 - `YYYY-MM-DD-<task>-handoff.md`
 - `YYYY-MM-DD-<topic>-zero-memory-handoff.md`
 
-## 8. Progress 规则
+## 9. Progress 规则
 
 如果这轮工作是“执行了什么、修了什么、验证了什么”，优先写到：
 
@@ -307,7 +391,7 @@
 5. 关键命令与输出结论
 6. 账号授权与失效情况
 
-## 9. 任务默认模板
+## 10. 任务默认模板
 
 如果要开始一个正式实现任务，建议先明确这几项：
 
@@ -315,7 +399,15 @@
 2. 涉及目录
 3. 不要碰的文件
 4. 是否需要 worktree
-5. 交付形式：
+5. 是否需要 sub-agent：
+   - 不需要
+   - `implementer`
+   - `code-reviewer`
+   - `implementer + code-reviewer`
+6. 是否是长任务，是否启用 `long-task-gate`
+7. 验证命令和验收口径
+8. 是否需要写 handoff / progress
+9. 交付形式：
    - 只出探索文档
    - 代码 + handoff
    - 代码 + 验证 + 待合并
@@ -325,26 +417,9 @@
 
 `代码 + 验证 + handoff + 不直接合并`
 
-## 10. 当前推荐的 AGENTS 布局
+如果任务满足 worktree 和 sub-agent 条件，默认按：
 
-当前阶段，**优先使用根目录这一份 `AGENTS.md`**。
-
-原因：
-
-1. 这个项目目前还是单项目根目录，不是复杂多仓
-2. 当前最关键的问题是“从方案到实现如何不断层”
-3. 目前最重要的是跨文档、跨模块的接手与收口，不是某个子目录内部规范
-
-所以：
-
-1. `AGENTS.md` 放根目录最合适
-2. 先不要一上来拆很多层级的 `AGENTS.md`
-
-只有在以后出现这种情况，再考虑加子目录 `AGENTS.md`：
-
-1. `apps/admin/` 有非常独立且稳定的前端规则
-2. `services/api/` 有完全不同的服务端约束
-3. 视频 worker 或其他独立服务已复杂到需要自己的局部启动顺序
+`worktree + implementer + 验证 + code-reviewer + handoff/progress + 待合并决策`
 
 ## 11. 对 Agent 的行为要求
 
@@ -357,36 +432,7 @@
 5. 不要把一次性聊天结论当长期真相源
 6. 要优先给用户提供“可接手、可验收、可回退”的结果
 7. 涉及真实账号和真实发布时，默认更保守
-8. 给 M 同学或其他协作者准备上下文时，优先提供当前 V2.1 文档和协作 README，不要默认塞入大量历史探索文档
 
 一句话说：
 
 在 `小红书抖音矩阵获客平台`，Agent 的价值不是“多写一点代码”，而是**把探索、实现、交接、收口都做得让产品经理和后续执行者接得住**。
-
-## 12. 长任务门禁 Skill
-
-本项目新增项目级 Skill：
-
-- `.codex/skills/long-task-gate/`
-
-用途：
-
-- 当用户明确要求“持续执行直到 Completion Gate 通过”时使用
-- 防止 Agent 凭主观感觉过早停止
-- 通过硬校验 + 独立 Codex 验收共同判断是否完成
-
-基本规则：
-
-1. 普通对话不启用长任务模式。
-2. 只有存在 `.codex/long-task/active.json` 且状态为 `active` 时，Stop hook 才会拦截停止。
-3. 主 Agent 可以启动、暂停、恢复或标记外部阻塞，但不能直接标记 `complete`。
-4. `complete` 只能由 `.codex/skills/long-task-gate/scripts/check.py` 在硬校验和独立验收都通过后写入。
-5. `.codex/long-task/` 是本地运行态，已在 `.gitignore` 中忽略，不提交远端。
-
-常用入口：
-
-```bash
-python3 .codex/skills/long-task-gate/scripts/start.py --task-id <id> --completion-promise <TOKEN> --source-doc docs/handoff/<file>.md
-python3 .codex/skills/long-task-gate/scripts/check.py
-python3 .codex/skills/long-task-gate/scripts/status.py show
-```

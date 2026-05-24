@@ -1,0 +1,3 @@
+display_name: Code Review
+short_description: 两阶段审查 worktree 改动
+default_prompt: 使用 code-review 对照任务书、PRD、架构文档、handoff/progress 和验证证据做两阶段审查。

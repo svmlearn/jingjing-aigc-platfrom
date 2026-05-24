@@ -1,0 +1,3 @@
+display_name: 静境开发流程
+short_description: 路由 worktree、subagent、gate、review 和交接
+default_prompt: 使用 Jingjing Dev Workflow 判断本次开发任务是否需要 worktree、implementer、code-reviewer、long-task-gate、handoff 或 progress，并按项目规则执行。

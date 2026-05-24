@@ -1,0 +1,3 @@
+display_name: Evolution Engine
+short_description: 从 feedback 提出规则和 skill 进化建议
+default_prompt: 使用 evolution-engine 扫描 .codex/feedback/，生成待用户确认的 AGENTS 或 skill 优化建议。
