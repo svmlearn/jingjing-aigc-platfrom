@@ -189,6 +189,17 @@ Use these rules when fixing uploaded/private material tags that affect video-wor
 - Include a revision marker in both `structure_summary` and `trace_payload` so readback can prove which patch ran.
 - For the 2026-05-24 factory package, the concrete correction is: `4fd14cd4421d3ea08073180c1a18af3e.mp4` is a `平峦山公园周边道路` / `林荫道路` clip, while `5165c70ee2e6914393cbe44a6d1ff17f.mp4` is the `平峦山远景` / `山体远景` clip.
 
+## Daily Script Forward-Copy Notes
+
+Use these rules when copying a member's approved daily video script to today or later calendar dates:
+
+- Treat the existing approved day as the source of truth; read `daily_content_tasks.video_task`, its linked `content_drafts`, and linked `content_variants` from the deployed DB before writing.
+- Copy the full script contract, not only visible text: `generatedVideoScript`, `memberUploadPolicy`, `recommendedProductionConfig`, `script_text`, `production_scenes`, `team_calendar_source`, `knowledge_refs`, and `material_refs` must stay coherent.
+- Create an independent `content_drafts` and `content_variants` pair for every target date. Do not point multiple days at the same mutable draft/variant unless the user explicitly asks for shared linkage.
+- Do not copy uploaded draft input videos, rendered result assets, or `video_edit_jobs` when the user asks to place a script on future dates. Those are outputs/evidence from another day, not new-day results.
+- Add provenance such as `scriptCopyProvenance` with source date/task/draft/variant and target date/task/draft/variant so readback can prove what changed.
+- Default to dry-run. Apply only from a committed and released code path, then read back every affected date with scene counts, required talking-head scene orders, config keys, and linked draft/variant ids.
+
 ## Failure Handling
 
 When a stage fails:
