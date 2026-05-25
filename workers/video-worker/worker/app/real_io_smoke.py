@@ -71,9 +71,7 @@ class RealSmokeConfig:
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "RealSmokeConfig":
         source = env or os.environ
-        database_url = str(
-            source.get("WORKER_DATABASE_URL") or source.get("SUPABASE_DB_URL") or ""
-        ).strip()
+        database_url = str(source.get("WORKER_DATABASE_URL") or "").strip()
         worker_max_concurrency = _read_worker_max_concurrency(source)
         storage_provider = _storage_provider(source)
         cos_values = {

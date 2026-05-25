@@ -90,11 +90,10 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        legacy_database_url = os.getenv("SUPABASE_DB_URL")
-        database_url = os.getenv("WORKER_DATABASE_URL") or legacy_database_url
+        database_url = os.getenv("WORKER_DATABASE_URL")
         if not database_url:
             raise RuntimeError(
-                "WORKER_DATABASE_URL is required for PostgreSQL worker mode; legacy database URL env is only accepted for older deployments"
+                "WORKER_DATABASE_URL is required for PostgreSQL worker mode"
             )
         storage_provider = _read_storage_provider()
         settings = cls(

@@ -1,6 +1,9 @@
 import unittest
 from pathlib import Path
+import sys
 from tempfile import TemporaryDirectory
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from worker.app.real_io_smoke import (
     InvalidRealSmokeEnvError,
@@ -51,19 +54,19 @@ class RealIoSmokeTests(unittest.TestCase):
         self.assertIn("jingjing-domestic-phase1-hz", rendered)
         self.assertIn("oss-cn-hangzhou", rendered)
 
-    def test_config_accepts_supabase_db_url_as_compatibility_fallback(self):
-        config = RealSmokeConfig.from_env(
-            {
-                "SUPABASE_DB_URL": "postgresql://user:db-password@db.example/postgres",
-                "ALIYUN_OSS_ACCESS_KEY_ID": "aliyun-access-key-id",
-                "ALIYUN_OSS_ACCESS_KEY_SECRET": "aliyun-access-key-secret",
-                "ALIYUN_OSS_BUCKET": "jingjing-domestic-phase1-hz",
-                "ALIYUN_OSS_REGION": "oss-cn-hangzhou",
-                "ALIYUN_OSS_ENDPOINT": "https://oss-cn-hangzhou.aliyuncs.com",
-            }
-        )
+    def test_config_requires_worker_database_url_as_only_database_env(self):
+        with self.assertRaises(MissingRealSmokeEnvError) as raised:
+            RealSmokeConfig.from_env(
+                {
+                    "ALIYUN_OSS_ACCESS_KEY_ID": "aliyun-access-key-id",
+                    "ALIYUN_OSS_ACCESS_KEY_SECRET": "aliyun-access-key-secret",
+                    "ALIYUN_OSS_BUCKET": "jingjing-domestic-phase1-hz",
+                    "ALIYUN_OSS_REGION": "oss-cn-hangzhou",
+                    "ALIYUN_OSS_ENDPOINT": "https://oss-cn-hangzhou.aliyuncs.com",
+                }
+            )
 
-        self.assertEqual("jingjing-domestic-phase1-hz", config.aliyun_oss_bucket)
+        self.assertEqual(["WORKER_DATABASE_URL"], raised.exception.missing_names)
 
     def test_config_prefers_worker_cos_over_shared_cos_environment(self):
         config = RealSmokeConfig.from_env(
