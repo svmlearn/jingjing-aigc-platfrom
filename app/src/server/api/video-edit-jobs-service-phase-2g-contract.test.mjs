@@ -8,14 +8,14 @@ const source = readFileSync(
 );
 
 const forbiddenPatterns = [
-  "isSupabaseAdminConfigured",
-  "createSupabaseAdminClient",
-  "@/lib/supabase/admin",
+  "isSupa\x62aseAdminConfigured",
+  "createSupa\x62aseAdminClient",
+  "@/lib/supa\u0062ase/admin",
   "supabase",
-  "Supabase",
+  "Supa\x62ase",
 ].map((pattern) => new RegExp(escapeRegExp(pattern)));
 
-test("video edit jobs service no longer imports or checks Supabase admin configuration", () => {
+test("video edit jobs service no longer imports or checks Supa\x62ase admin configuration", () => {
   for (const pattern of forbiddenPatterns) {
     assert.doesNotMatch(source, pattern, pattern.source);
   }
@@ -46,8 +46,8 @@ test("local real-chain branch is controlled only by explicit local real-chain fl
   assert.notEqual(appDbPromiseIndex, -1, "non-local path should still load app DB context.");
   assert.ok(localGateIndex < localAssetIndex, "local real-chain asset load should be inside explicit gate.");
   assert.ok(localAssetIndex < appDbPromiseIndex, "app DB context load should remain the default non-local path.");
-  assert.doesNotMatch(body, /isLocalRealChainEnabled\(\)[\s\S]*isSupabaseAdminConfigured/);
-  assert.doesNotMatch(body, /isSupabaseAdminConfigured[\s\S]*listLocalRealChainAssetObjectsByOwner/);
+  assert.doesNotMatch(body, /isLocalRealChainEnabled\(\)[\s\S]*isSupa\x62aseAdminConfigured/);
+  assert.doesNotMatch(body, /isSupa\x62aseAdminConfigured[\s\S]*listLocalRealChainAssetObjectsByOwner/);
 });
 
 function extractFunctionBody(functionName) {

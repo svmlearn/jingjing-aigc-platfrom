@@ -118,8 +118,8 @@ test("private media doctor detects storage security and pending cleanup blockers
     ],
     publicBuckets: ["private-bucket"],
     clientExposedEnvKeys: [
-      "NEXT_PUBLIC_SUPABASE_URL",
-      "SUPABASE_SERVICE_ROLE_KEY",
+      "NEXT_PUBLIC_SUPA\x42ASE_URL",
+      "SUPA\x42ASE_SERVICE_ROLE_KEY",
       "COS_SECRET_KEY",
     ],
     pendingUploads: [

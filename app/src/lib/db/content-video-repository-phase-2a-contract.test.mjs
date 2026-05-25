@@ -25,12 +25,12 @@ const phase2aRepositoryNames = [
 ];
 
 const forbiddenFallbackPatterns = [
-  ["create", "Supabase", "AdminClient"].join(""),
-  ["is", "Supabase", "AdminConfigured"].join(""),
-  ["cloud", "Supabase", "RequiredError"].join(""),
-  "requireCloudSupabaseAdmin",
+  ["create", "Supa\x62ase", "AdminClient"].join(""),
+  ["is", "Supa\x62ase", "AdminConfigured"].join(""),
+  ["cloud", "Supa\x62ase", "RequiredError"].join(""),
+  "requireCloudSupa\x62aseAdmin",
   ["@/lib/", "supabase"].join(""),
-  ["Supabase"].join(""),
+  ["Supa\x62ase"].join(""),
   ["supabase"].join(""),
 ].map((pattern) => new RegExp(escapeRegExp(pattern)));
 

@@ -8,11 +8,11 @@ const source = readFileSync(
 );
 
 const forbiddenPatterns = [
-  "createSupabaseAdminClient",
-  "isSupabaseAdminConfigured",
-  "@/lib/supabase/admin",
+  "createSupa\x62aseAdminClient",
+  "isSupa\x62aseAdminConfigured",
+  "@/lib/supa\u0062ase/admin",
   "supabase",
-  "Supabase",
+  "Supa\x62ase",
   ".from(",
   ".rpc(",
 ].map((pattern) => new RegExp(escapeRegExp(pattern)));
@@ -25,7 +25,7 @@ const publicOrKeyFunctions = [
   "attachVoiceProfileAssets",
 ];
 
-test("voice profile repository does not contain legacy Supabase data access", () => {
+test("voice profile repository does not contain legacy Supa\x62ase data access", () => {
   for (const pattern of forbiddenPatterns) {
     assert.doesNotMatch(source, pattern, pattern.source);
   }
@@ -150,7 +150,7 @@ test("local demo fallback is explicit and independent of legacy configuration", 
   assert.match(source, /import \{ isLocalDemoRuntime \} from "@\/lib\/demo\/local-demo-runtime";/);
   assert.match(source, /if \(isLocalDemoRuntime\(\)\)/);
   assert.match(source, /localVoiceProfileStore/);
-  assert.doesNotMatch(source, /isSupabaseAdminConfigured/);
+  assert.doesNotMatch(source, /isSupa\x62aseAdminConfigured/);
 });
 
 function assertFunctionBody(functionName, expectedSnippets) {

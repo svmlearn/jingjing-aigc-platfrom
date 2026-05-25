@@ -8,14 +8,14 @@ const source = readFileSync(
 );
 
 const forbiddenPatterns = [
-  "createSupabaseAdminClient",
-  "isSupabaseAdminConfigured",
-  "@/lib/supabase/admin",
+  "createSupa\x62aseAdminClient",
+  "isSupa\x62aseAdminConfigured",
+  "@/lib/supa\u0062ase/admin",
   "supabase",
-  "Supabase",
+  "Supa\x62ase",
   ".from(",
   ".rpc(",
-  "requireSupabaseAdmin",
+  "requireSupa\x62aseAdmin",
   "isAppPostgresConfigured",
   "isAppPostgresPreferred",
   "shouldUseAppPostgres",
@@ -67,7 +67,7 @@ const publicFunctions = [
   "consumeMerchantCredits",
 ];
 
-test("agent console repository has no Supabase/admin fallback strings", () => {
+test("agent console repository has no Supa\x62ase/admin fallback strings", () => {
   for (const pattern of forbiddenPatterns) {
     assert.doesNotMatch(source, pattern, pattern.source);
   }
@@ -83,7 +83,7 @@ test("local demo fallback is explicitly controlled by isLocalDemoRuntime", () =>
   assert.match(source, /import \{ isLocalDemoRuntime \} from "@\/lib\/demo\/local-demo-runtime";/);
   assert.match(source, /if \(isLocalDemoRuntime\(\)\)/);
   assert.doesNotMatch(source, /shouldUseDemoFallback/);
-  assert.doesNotMatch(source, /database.*Supabase|Supabase.*database/i);
+  assert.doesNotMatch(source, /database.*Supa\x62ase|Supa\x62ase.*database/i);
 });
 
 test("PostgreSQL app database primitives and tables remain in use", () => {

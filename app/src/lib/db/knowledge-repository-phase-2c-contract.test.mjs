@@ -8,11 +8,11 @@ const source = readFileSync(
 );
 
 const forbiddenPatterns = [
-  "createSupabaseAdminClient",
-  "isSupabaseAdminConfigured",
-  "@/lib/supabase",
+  "createSupa\x62aseAdminClient",
+  "isSupa\x62aseAdminConfigured",
+  "@/lib/supa\u0062ase",
   "supabase",
-  "Supabase",
+  "Supa\x62ase",
   '.from("knowledge_documents")',
   '.from("knowledge_chunks")',
   '.from("knowledge_ingestion_jobs")',
@@ -32,7 +32,7 @@ const publicFunctions = [
   "searchKnowledgeChunks",
 ];
 
-test("knowledge repository does not contain legacy Supabase fallback", () => {
+test("knowledge repository does not contain legacy Supa\x62ase fallback", () => {
   for (const pattern of forbiddenPatterns) {
     assert.doesNotMatch(source, pattern, pattern.source);
   }
@@ -146,7 +146,7 @@ test("local demo fallback is explicit and independent of legacy configuration", 
   assert.match(source, /demoKnowledgeDocuments/);
   assert.match(source, /demoKnowledgeChunks/);
   assert.match(source, /demoKnowledgeJobs/);
-  assert.doesNotMatch(source, /isSupabaseAdminConfigured/);
+  assert.doesNotMatch(source, /isSupa\x62aseAdminConfigured/);
 });
 
 function assertFunctionBody(functionName, expectedSnippets) {

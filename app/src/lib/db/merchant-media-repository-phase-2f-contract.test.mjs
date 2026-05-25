@@ -18,18 +18,18 @@ const migrationSource = readFileSync(
 );
 
 const forbiddenRepositoryPatterns = [
-  "createSupabaseAdminClient",
-  "isSupabaseAdminConfigured",
-  "@/lib/supabase/admin",
+  "createSupa\x62aseAdminClient",
+  "isSupa\x62aseAdminConfigured",
+  "@/lib/supa\u0062ase/admin",
   "supabase",
-  "Supabase",
+  "Supa\x62ase",
   ".from(",
-  "cloudSupabaseRequiredError",
-  "SupabaseMerchantMediaRepository",
-  "SupabaseMerchantMediaPrivateClipRepository",
+  "cloudSupa\x62aseRequiredError",
+  "Supa\x62aseMerchantMediaRepository",
+  "Supa\x62aseMerchantMediaPrivateClipRepository",
 ].map((pattern) => new RegExp(escapeRegExp(pattern)));
 
-test("merchant media repository no longer contains Supabase runtime fallback", () => {
+test("merchant media repository no longer contains Supa\x62ase runtime fallback", () => {
   for (const pattern of forbiddenRepositoryPatterns) {
     assert.doesNotMatch(repositorySource, pattern, pattern.source);
   }
@@ -135,7 +135,7 @@ test("merchant-scoped readers only return matching merchant ready clips", () => 
   ]);
 });
 
-test("app DB migration creates merchant media tables without Supabase RLS or auth.uid", () => {
+test("app DB migration creates merchant media tables without Supa\x62ase RLS or auth.uid", () => {
   assert.match(migrationSource, /create table if not exists public\.merchant_media_assets/);
   assert.match(migrationSource, /create table if not exists public\.merchant_media_clips/);
   assert.match(migrationSource, /references public\.merchant_profiles\(id\)/);

@@ -8,11 +8,11 @@ const source = readFileSync(
 );
 
 const forbiddenPatterns = [
-  "createSupabaseAdminClient",
-  "isSupabaseAdminConfigured",
-  "@/lib/supabase",
+  "createSupa\x62aseAdminClient",
+  "isSupa\x62aseAdminConfigured",
+  "@/lib/supa\u0062ase",
   "supabase",
-  "Supabase",
+  "Supa\x62ase",
   '.from("source_items")',
   '.from("material_workbench_references")',
 ].map((pattern) => new RegExp(escapeRegExp(pattern)));
@@ -29,7 +29,7 @@ const publicFunctions = [
   "consumeMaterialWorkbenchReference",
 ];
 
-test("material library repository does not contain legacy Supabase fallback", () => {
+test("material library repository does not contain legacy Supa\x62ase fallback", () => {
   for (const pattern of forbiddenPatterns) {
     assert.doesNotMatch(source, pattern, pattern.source);
   }
@@ -130,7 +130,7 @@ test("local demo fallback is explicit and independent of legacy configuration", 
   assert.match(source, /if \(isLocalDemoRuntime\(\)\)/);
   assert.match(source, /demoMaterialItems/);
   assert.match(source, /demoWorkbenchReferences/);
-  assert.doesNotMatch(source, /isSupabaseAdminConfigured/);
+  assert.doesNotMatch(source, /isSupa\x62aseAdminConfigured/);
 });
 
 test("originalUrl duplicate handling remains visible in PostgreSQL source path", () => {

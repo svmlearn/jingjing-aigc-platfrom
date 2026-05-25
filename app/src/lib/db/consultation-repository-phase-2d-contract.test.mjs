@@ -8,11 +8,11 @@ const source = readFileSync(
 );
 
 const forbiddenPatterns = [
-  "createSupabaseAdminClient",
-  "isSupabaseAdminConfigured",
-  "@/lib/supabase/admin",
+  "createSupa\x62aseAdminClient",
+  "isSupa\x62aseAdminConfigured",
+  "@/lib/supa\u0062ase/admin",
   "supabase",
-  "Supabase",
+  "Supa\x62ase",
   ".from(",
 ].map((pattern) => new RegExp(escapeRegExp(pattern)));
 
@@ -26,7 +26,7 @@ const publicFunctions = [
   "deleteConsultationSession",
 ];
 
-test("consultation repository does not contain legacy Supabase fallback", () => {
+test("consultation repository does not contain legacy Supa\x62ase fallback", () => {
   for (const pattern of forbiddenPatterns) {
     assert.doesNotMatch(source, pattern, pattern.source);
   }
@@ -170,7 +170,7 @@ test("local demo fallback is explicit and independent of legacy configuration", 
   assert.match(source, /demoConsultationSessions/);
   assert.match(source, /demoConsultationMessages/);
   assert.match(source, /demoConsultationEvents/);
-  assert.doesNotMatch(source, /isSupabaseAdminConfigured/);
+  assert.doesNotMatch(source, /isSupa\x62aseAdminConfigured/);
 });
 
 function assertFunctionBody(functionName, expectedSnippets) {

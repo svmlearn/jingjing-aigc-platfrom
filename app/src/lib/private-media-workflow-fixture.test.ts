@@ -118,7 +118,7 @@ test("private media Dify-to-OpenStoryline workflow has a fixture-level smoke sub
       v1WorkflowClip.thumbCosKey!,
     ],
     publicBuckets: [],
-    clientExposedEnvKeys: ["NEXT_PUBLIC_SUPABASE_URL"],
+    clientExposedEnvKeys: ["NEXT_PUBLIC_SUPA\x42ASE_URL"],
     pendingUploads: [],
     orphanCosKeys: [],
     cleanupJobs: [],

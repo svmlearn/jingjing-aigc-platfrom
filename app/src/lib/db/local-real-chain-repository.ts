@@ -17,7 +17,6 @@ import type {
   VideoEditJobTriggerSource,
 } from "@/contracts/video";
 import { normalizeVideoProgressModules } from "@/lib/ui/video-progress-modules";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import {
   getAppPostgresPool,
   mapPostgresError,
@@ -78,7 +77,7 @@ type VideoEditJobRow = {
 };
 
 export function isLocalRealChainEnabled() {
-  return !isSupabaseAdminConfigured() && Boolean(process.env.LOCAL_REAL_CHAIN_DB_URL?.trim());
+  return Boolean(process.env.LOCAL_REAL_CHAIN_DB_URL?.trim());
 }
 
 export function getLocalRealChainMerchantId() {

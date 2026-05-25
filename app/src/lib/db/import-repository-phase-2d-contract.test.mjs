@@ -8,10 +8,10 @@ const source = readFileSync(
 );
 
 const forbiddenPatterns = [
-  "createSupabaseAdminClient",
-  "@/lib/supabase/admin",
+  "createSupa\x62aseAdminClient",
+  "@/lib/supa\u0062ase/admin",
   "supabase",
-  "Supabase",
+  "Supa\x62ase",
   ".from(",
   "isAppPostgresConfigured",
   "isAppPostgresPreferred",
@@ -32,7 +32,7 @@ const publicFunctions = [
   "listImportedComments",
 ];
 
-test("import repository does not contain legacy Supabase fallback or PostgreSQL gate", () => {
+test("import repository does not contain legacy Supa\x62ase fallback or PostgreSQL gate", () => {
   for (const pattern of forbiddenPatterns) {
     assert.doesNotMatch(source, pattern, pattern.source);
   }

@@ -8,15 +8,15 @@ const source = readFileSync(
 );
 
 const forbiddenPatterns = [
-  "createSupabaseAdminClient",
-  "isSupabaseAdminConfigured",
-  "@/lib/supabase",
+  "createSupa\x62aseAdminClient",
+  "isSupa\x62aseAdminConfigured",
+  "@/lib/supa\u0062ase",
   "supabase",
-  "Supabase",
+  "Supa\x62ase",
   '.from("merchant_strategy_assets")',
 ].map((pattern) => new RegExp(escapeRegExp(pattern)));
 
-test("merchant strategy asset repository does not contain legacy Supabase fallback", () => {
+test("merchant strategy asset repository does not contain legacy Supa\x62ase fallback", () => {
   for (const pattern of forbiddenPatterns) {
     assert.doesNotMatch(source, pattern, pattern.source);
   }

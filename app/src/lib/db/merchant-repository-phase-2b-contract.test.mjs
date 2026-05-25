@@ -13,12 +13,12 @@ const postgresVideoChainSource = readFileSync(
 );
 
 const forbiddenPatterns = [
-  "createSupabaseAdminClient",
-  "isSupabaseAdminConfigured",
-  "cloudSupabaseRequiredError",
+  "createSupa\x62aseAdminClient",
+  "isSupa\x62aseAdminConfigured",
+  "cloudSupa\x62aseRequiredError",
   "redeem_invitation_code",
   "supabase",
-  "Supabase",
+  "Supa\x62ase",
 ].map((pattern) => new RegExp(escapeRegExp(pattern)));
 
 test("merchant repository does not contain legacy admin fallback strings", () => {

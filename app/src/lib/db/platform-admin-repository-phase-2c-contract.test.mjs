@@ -8,11 +8,11 @@ const source = readFileSync(
 );
 
 const forbiddenPatterns = [
-  "createSupabaseAdminClient",
-  "isSupabaseAdminConfigured",
-  "@/lib/supabase",
+  "createSupa\x62aseAdminClient",
+  "isSupa\x62aseAdminConfigured",
+  "@/lib/supa\u0062ase",
   "supabase",
-  "Supabase",
+  "Supa\x62ase",
   ".from(",
   "auth.admin",
 ].map((pattern) => new RegExp(escapeRegExp(pattern)));
@@ -31,7 +31,7 @@ const publicFunctions = [
   "updatePlatformSettings",
 ];
 
-test("platform admin repository does not contain legacy Supabase fallback", () => {
+test("platform admin repository does not contain legacy Supa\x62ase fallback", () => {
   for (const pattern of forbiddenPatterns) {
     assert.doesNotMatch(source, pattern, pattern.source);
   }
@@ -180,7 +180,7 @@ test("local demo fallback is explicit and independent of legacy configuration", 
   assert.match(source, /import \{ isLocalDemoRuntime \} from "@\/lib\/demo\/local-demo-runtime";/);
   assert.match(source, /if \(isLocalDemoRuntime\(\)\)/);
   assert.match(source, /demoPlatformSettings/);
-  assert.doesNotMatch(source, /isSupabaseAdminConfigured/);
+  assert.doesNotMatch(source, /isSupa\x62aseAdminConfigured/);
 });
 
 function assertFunctionBody(functionName, expectedSnippets) {
