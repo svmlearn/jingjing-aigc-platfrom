@@ -24,7 +24,12 @@ test("merchant media manifest stores ready segment clips and keeps them searchab
   });
 
   assert.equal(result.asset.id, assetId);
+  assert.equal(result.asset.sourceCosKey, `merchant-media/${merchantId}/originals/${assetId}/source.mp4`);
+  assert.equal(result.asset.sourceStorageKey, result.asset.sourceCosKey);
   assert.deepEqual(result.clips.map((clip) => clip.id), [clipOneId, clipTwoId]);
+  assert.equal(result.clips[0]?.cosKey, `merchant-media/${merchantId}/clips/${assetId}/entrance.mp4`);
+  assert.equal(result.clips[0]?.storageKey, result.clips[0]?.cosKey);
+  assert.equal(result.clips[0]?.thumbStorageKey, result.clips[0]?.thumbCosKey);
 
   const searchable = searchPrivateMediaClips({
     merchantId,
@@ -34,6 +39,102 @@ test("merchant media manifest stores ready segment clips and keeps them searchab
   });
 
   assert.deepEqual(searchable.map((clip) => clip.id), [clipOneId]);
+});
+
+test("merchant media manifest accepts provider-neutral storage key aliases", async () => {
+  const repository = new InMemoryMerchantMediaRepository();
+  const result = await receiveMerchantMediaManifest({
+    userId,
+    merchantId,
+    repository,
+    now,
+    defaultBucketName: "jj-private-bucket",
+    request: neutralAliasManifest(),
+  });
+
+  assert.equal(result.asset.sourceCosKey, `merchant-media/${merchantId}/originals/${assetId}/source.mp4`);
+  assert.equal(result.asset.sourceStorageKey, result.asset.sourceCosKey);
+  assert.equal(result.clips[0]?.cosKey, `merchant-media/${merchantId}/clips/${assetId}/entrance.mp4`);
+  assert.equal(result.clips[0]?.storageKey, result.clips[0]?.cosKey);
+  assert.equal(result.clips[0]?.thumbCosKey, `merchant-media/${merchantId}/thumbs/${assetId}/entrance.jpg`);
+  assert.equal(result.clips[0]?.thumbStorageKey, result.clips[0]?.thumbCosKey);
+});
+
+test("merchant media manifest accepts matching legacy and provider-neutral keys", async () => {
+  const repository = new InMemoryMerchantMediaRepository();
+  const manifest = validManifest();
+
+  await receiveMerchantMediaManifest({
+    userId,
+    merchantId,
+    repository,
+    now,
+    defaultBucketName: "jj-private-bucket",
+    request: {
+      ...manifest,
+      asset: {
+        ...manifest.asset,
+        sourceStorageKey: manifest.asset.sourceCosKey,
+      },
+      clips: manifest.clips.map((clip) => ({
+        ...clip,
+        storageKey: clip.cosKey,
+        thumbStorageKey: clip.thumbCosKey,
+      })),
+    },
+  });
+
+  assert.equal((await repository.listReadyClipsByMerchant({ merchantId })).length, 2);
+});
+
+test("merchant media manifest rejects conflicting legacy and provider-neutral keys", async () => {
+  const manifest = validManifest();
+
+  await assert.rejects(
+    () =>
+      receiveMerchantMediaManifest({
+        userId,
+        merchantId,
+        repository: new InMemoryMerchantMediaRepository(),
+        now,
+        defaultBucketName: "jj-private-bucket",
+        request: {
+          ...manifest,
+          asset: {
+            ...manifest.asset,
+            sourceStorageKey: `merchant-media/${merchantId}/originals/${assetId}/other.mp4`,
+          },
+        },
+      }),
+    (error) =>
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "MERCHANT_MEDIA_SOURCE_KEY_CONFLICT",
+  );
+
+  await assert.rejects(
+    () =>
+      receiveMerchantMediaManifest({
+        userId,
+        merchantId,
+        repository: new InMemoryMerchantMediaRepository(),
+        now,
+        defaultBucketName: "jj-private-bucket",
+        request: {
+          ...manifest,
+          clips: [
+            {
+              ...manifest.clips[0]!,
+              storageKey: `merchant-media/${merchantId}/clips/${assetId}/other.mp4`,
+            },
+          ],
+        },
+      }),
+    (error) =>
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "MERCHANT_MEDIA_CLIP_KEY_CONFLICT",
+  );
 });
 
 test("merchant media manifest rejects cross-merchant COS keys", async () => {
@@ -144,5 +245,25 @@ function validManifest() {
         tagSource: "manual" as const,
       },
     ],
+  };
+}
+
+function neutralAliasManifest() {
+  const manifest = validManifest();
+
+  return {
+    ...manifest,
+    asset: {
+      ...manifest.asset,
+      sourceCosKey: undefined,
+      sourceStorageKey: manifest.asset.sourceCosKey,
+    },
+    clips: manifest.clips.map((clip) => ({
+      ...clip,
+      cosKey: undefined,
+      storageKey: clip.cosKey,
+      thumbCosKey: undefined,
+      thumbStorageKey: clip.thumbCosKey,
+    })),
   };
 }

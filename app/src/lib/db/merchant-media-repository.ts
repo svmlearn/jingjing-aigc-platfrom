@@ -4,6 +4,8 @@ import type { MerchantMediaAssetRecord } from "@/lib/merchant-media-library-cont
 import {
   assertMerchantMediaRepositoryAsset,
   assertMerchantMediaRepositoryReadyClip,
+  normalizeMerchantMediaAssetStorageAliases,
+  normalizePrivateMediaClipStorageAliases,
   type MerchantMediaRepository,
 } from "@/lib/merchant-media-repository-contract";
 import type { PrivateMediaClipRecord } from "@/lib/private-media-pexels-adapter";
@@ -70,7 +72,8 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
     asset: MerchantMediaAssetRecord;
     idempotencyKey: string;
   }) {
-    assertMerchantMediaRepositoryAsset(input.asset);
+    const asset = normalizeMerchantMediaAssetStorageAliases(input.asset);
+    assertMerchantMediaRepositoryAsset(asset);
 
     try {
       const result = await queryAppDb<MerchantMediaAssetRow>(
@@ -94,13 +97,13 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
         returning ${merchantMediaAssetSelect}
         `,
         [
-          input.asset.id,
-          input.asset.merchantId,
-          input.asset.uploadedByUserId,
-          input.asset.mediaType,
-          input.asset.source,
-          input.asset.sourceCosKey,
-          input.asset.status,
+          asset.id,
+          asset.merchantId,
+          asset.uploadedByUserId,
+          asset.mediaType,
+          asset.source,
+          asset.sourceCosKey,
+          asset.status,
           input.idempotencyKey,
         ],
       );
@@ -116,13 +119,19 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
     assetId: string;
     clip: PrivateMediaClipRecord;
   }) {
-    assertMerchantMediaRepositoryReadyClip(input);
+    const clip = normalizePrivateMediaClipStorageAliases(input.clip);
+    const normalizedInput = {
+      ...input,
+      clip,
+    };
+
+    assertMerchantMediaRepositoryReadyClip(normalizedInput);
 
     try {
       return await withAppDbTransaction(async (client) => {
         await assertMerchantMediaAssetExists(client, {
-          merchantId: input.merchantId,
-          assetId: input.assetId,
+          merchantId: normalizedInput.merchantId,
+          assetId: normalizedInput.assetId,
         });
 
         const result = await client.query<MerchantMediaClipRow>(
@@ -181,32 +190,32 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
           returning ${merchantMediaClipSelect}
           `,
           [
-            input.clip.id,
-            input.assetId,
-            input.merchantId,
-            input.clip.mediaType,
-            input.clip.status,
-            input.clip.clipIndex ?? 0,
-            input.clip.clipType ?? (input.clip.mediaType === "video" ? "full_video" : "image"),
-            input.clip.startTimeSeconds ?? null,
-            input.clip.endTimeSeconds ?? null,
-            input.clip.width,
-            input.clip.height,
-            input.clip.durationSeconds ?? null,
-            input.clip.orientation,
-            input.clip.description,
-            JSON.stringify(input.clip.tags),
-            JSON.stringify(input.clip.industryTags ?? []),
-            JSON.stringify(input.clip.sceneTags ?? []),
-            JSON.stringify(input.clip.shotTags ?? []),
-            JSON.stringify(input.clip.peopleTags ?? []),
-            JSON.stringify(input.clip.qualityTags ?? []),
-            input.clip.tagConfidence ?? null,
-            input.clip.tagSource ?? "manual",
-            input.clip.bucketName,
-            input.clip.cosKey,
-            input.clip.thumbCosKey ?? null,
-            input.clip.mimeType,
+            clip.id,
+            normalizedInput.assetId,
+            normalizedInput.merchantId,
+            clip.mediaType,
+            clip.status,
+            clip.clipIndex ?? 0,
+            clip.clipType ?? (clip.mediaType === "video" ? "full_video" : "image"),
+            clip.startTimeSeconds ?? null,
+            clip.endTimeSeconds ?? null,
+            clip.width,
+            clip.height,
+            clip.durationSeconds ?? null,
+            clip.orientation,
+            clip.description,
+            JSON.stringify(clip.tags),
+            JSON.stringify(clip.industryTags ?? []),
+            JSON.stringify(clip.sceneTags ?? []),
+            JSON.stringify(clip.shotTags ?? []),
+            JSON.stringify(clip.peopleTags ?? []),
+            JSON.stringify(clip.qualityTags ?? []),
+            clip.tagConfidence ?? null,
+            clip.tagSource ?? "manual",
+            clip.bucketName,
+            clip.cosKey,
+            clip.thumbCosKey ?? null,
+            clip.mimeType,
           ],
         );
 
@@ -338,6 +347,7 @@ function mapMerchantMediaAsset(row: MerchantMediaAssetRow): MerchantMediaAssetRe
     mediaType: row.media_type,
     source: row.source,
     sourceCosKey: row.source_cos_key,
+    sourceStorageKey: row.source_cos_key,
     status: row.status,
     createdAt: row.created_at,
   };
@@ -369,7 +379,9 @@ function mapMerchantMediaClip(row: MerchantMediaClipRow): PrivateMediaClipRecord
     tagSource: row.tag_source,
     bucketName: row.bucket_name,
     cosKey: row.cos_key,
+    storageKey: row.cos_key,
     thumbCosKey: row.thumb_cos_key,
+    thumbStorageKey: row.thumb_cos_key,
     mimeType: row.mime_type,
     createdAt: row.created_at,
   };

@@ -33,7 +33,8 @@ export class InMemoryMerchantMediaRepository implements MerchantMediaRepository 
     asset: MerchantMediaAssetRecord;
     idempotencyKey: string;
   }) {
-    assertMerchantMediaRepositoryAsset(input.asset);
+    const asset = normalizeMerchantMediaAssetStorageAliases(input.asset);
+    assertMerchantMediaRepositoryAsset(asset);
     const existingId = this.assetsByIdempotencyKey.get(input.idempotencyKey);
     if (existingId) {
       const existing = this.assetsById.get(existingId);
@@ -42,10 +43,10 @@ export class InMemoryMerchantMediaRepository implements MerchantMediaRepository 
       }
     }
 
-    this.assetsById.set(input.asset.id, input.asset);
-    this.assetsByIdempotencyKey.set(input.idempotencyKey, input.asset.id);
+    this.assetsById.set(asset.id, asset);
+    this.assetsByIdempotencyKey.set(input.idempotencyKey, asset.id);
 
-    return input.asset;
+    return asset;
   }
 
   async upsertReadyClip(input: {
@@ -53,7 +54,11 @@ export class InMemoryMerchantMediaRepository implements MerchantMediaRepository 
     assetId: string;
     clip: PrivateMediaClipRecord;
   }) {
-    assertMerchantMediaRepositoryReadyClip(input);
+    const normalizedClip = normalizePrivateMediaClipStorageAliases(input.clip);
+    assertMerchantMediaRepositoryReadyClip({
+      ...input,
+      clip: normalizedClip,
+    });
 
     const asset = this.assetsById.get(input.assetId);
     if (!asset || asset.merchantId !== input.merchantId) {
@@ -73,7 +78,7 @@ export class InMemoryMerchantMediaRepository implements MerchantMediaRepository 
     }
 
     const clip = {
-      ...input.clip,
+      ...normalizedClip,
       assetId: input.assetId,
     };
     this.clipsById.set(clip.id, clip);
@@ -109,6 +114,7 @@ export class InMemoryMerchantMediaRepository implements MerchantMediaRepository 
 
 export function assertMerchantMediaRepositoryAsset(asset: MerchantMediaAssetRecord) {
   assertMerchantId(asset.merchantId);
+  normalizeMerchantMediaAssetStorageAliases(asset);
   if (asset.mediaType !== "image" && asset.mediaType !== "video") {
     throw new MerchantMediaRepositoryContractError(
       "MERCHANT_MEDIA_ASSET_TYPE_INVALID",
@@ -135,6 +141,7 @@ export function assertMerchantMediaRepositoryReadyClip(input: {
   clip: PrivateMediaClipRecord;
 }) {
   assertMerchantId(input.merchantId);
+  normalizePrivateMediaClipStorageAliases(input.clip);
   if (input.clip.merchantId !== input.merchantId) {
     throw new MerchantMediaRepositoryContractError(
       "MERCHANT_MEDIA_CLIP_TENANT_MISMATCH",
@@ -175,6 +182,99 @@ export function assertMerchantMediaRepositoryReadyClip(input: {
       "V1 image clips must use clip_type = image.",
     );
   }
+}
+
+export function normalizeMerchantMediaAssetStorageAliases(
+  asset: MerchantMediaAssetRecord,
+): MerchantMediaAssetRecord {
+  const sourceStorageKey = resolveStorageKeyAlias({
+    legacyName: "sourceCosKey",
+    aliasName: "sourceStorageKey",
+    legacyValue: asset.sourceCosKey,
+    aliasValue: asset.sourceStorageKey,
+    conflictCode: "MERCHANT_MEDIA_SOURCE_KEY_CONFLICT",
+    required: true,
+  });
+
+  return {
+    ...asset,
+    sourceCosKey: sourceStorageKey,
+    sourceStorageKey,
+  };
+}
+
+export function normalizePrivateMediaClipStorageAliases(
+  clip: PrivateMediaClipRecord,
+): PrivateMediaClipRecord {
+  const storageKey = resolveStorageKeyAlias({
+    legacyName: "cosKey",
+    aliasName: "storageKey",
+    legacyValue: clip.cosKey,
+    aliasValue: clip.storageKey,
+    conflictCode: "MERCHANT_MEDIA_CLIP_KEY_CONFLICT",
+    required: true,
+  });
+  const thumbStorageKey = resolveStorageKeyAlias({
+    legacyName: "thumbCosKey",
+    aliasName: "thumbStorageKey",
+    legacyValue: clip.thumbCosKey,
+    aliasValue: clip.thumbStorageKey,
+    conflictCode: "MERCHANT_MEDIA_THUMB_KEY_CONFLICT",
+    required: false,
+  });
+
+  return {
+    ...clip,
+    cosKey: storageKey,
+    storageKey,
+    thumbCosKey: thumbStorageKey,
+    thumbStorageKey,
+  };
+}
+
+function resolveStorageKeyAlias(input: {
+  legacyName: string;
+  aliasName: string;
+  legacyValue?: string | null;
+  aliasValue?: string | null;
+  conflictCode: string;
+  required: true;
+}): string;
+function resolveStorageKeyAlias(input: {
+  legacyName: string;
+  aliasName: string;
+  legacyValue?: string | null;
+  aliasValue?: string | null;
+  conflictCode: string;
+  required: false;
+}): string | null;
+function resolveStorageKeyAlias(input: {
+  legacyName: string;
+  aliasName: string;
+  legacyValue?: string | null;
+  aliasValue?: string | null;
+  conflictCode: string;
+  required: boolean;
+}) {
+  const legacyValue = input.legacyValue?.trim() ?? "";
+  const aliasValue = input.aliasValue?.trim() ?? "";
+
+  if (legacyValue && aliasValue && legacyValue !== aliasValue) {
+    throw new MerchantMediaRepositoryContractError(
+      input.conflictCode,
+      `${input.aliasName} must match ${input.legacyName} when both are provided.`,
+    );
+  }
+
+  const value = aliasValue || legacyValue;
+  if (!value && input.required !== false) {
+    throw new MerchantMediaRepositoryContractError(
+      "MERCHANT_MEDIA_STORAGE_KEY_REQUIRED",
+      `${input.aliasName} or ${input.legacyName} is required.`,
+    );
+  }
+
+  return value || null;
 }
 
 function assertMerchantId(merchantId: string) {

@@ -130,8 +130,8 @@ function parseOrientation(value: string | null): PexelsSearchInput["orientation"
 
 function isDownloadKindAvailable(clip: PrivateMediaClipRecord, kind: PrivateMediaDownloadKind) {
   if (kind === "thumb") {
-    return Boolean(clip.thumbCosKey);
+    return Boolean(clip.thumbStorageKey ?? clip.thumbCosKey);
   }
 
-  return Boolean(clip.cosKey);
+  return Boolean(clip.storageKey ?? clip.cosKey);
 }

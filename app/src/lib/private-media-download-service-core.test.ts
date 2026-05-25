@@ -108,6 +108,48 @@ test("private media download signs thumbnail key for thumb requests", async () =
   }
 });
 
+test("private media download prefers provider-neutral storage key aliases", async () => {
+  const result = await resolvePrivateMediaDownload({
+    token: tokenFor("alias-video", "video"),
+    secret,
+    now,
+    repository: new InMemoryPrivateMediaClipRepository([
+      {
+        ...readyVideo,
+        id: "alias-video",
+        storageKey: "merchant-media/merchant-a/originals/asset-1/source-alias.mp4",
+        thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-1/clip-alias.jpg",
+      },
+    ]),
+    signReadUrl,
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.location, "https://cos.example.com/signed?key=merchant-media%2Fmerchant-a%2Foriginals%2Fasset-1%2Fsource-alias.mp4&type=video%2Fmp4");
+  }
+
+  const thumb = await resolvePrivateMediaDownload({
+    token: tokenFor("alias-video", "thumb"),
+    secret,
+    now,
+    repository: new InMemoryPrivateMediaClipRepository([
+      {
+        ...readyVideo,
+        id: "alias-video",
+        storageKey: "merchant-media/merchant-a/originals/asset-1/source-alias.mp4",
+        thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-1/clip-alias.jpg",
+      },
+    ]),
+    signReadUrl,
+  });
+
+  assert.equal(thumb.ok, true);
+  if (thumb.ok) {
+    assert.equal(thumb.location, "https://cos.example.com/signed?key=merchant-media%2Fmerchant-a%2Fthumbs%2Fasset-1%2Fclip-alias.jpg&type=image%2Fjpeg");
+  }
+});
+
 function tokenFor(clipId: string, kind: "video" | "thumb") {
   return createPrivateMediaDownloadToken({
     secret,

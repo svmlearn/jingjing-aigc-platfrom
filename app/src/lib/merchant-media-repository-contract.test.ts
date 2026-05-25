@@ -34,7 +34,13 @@ test("merchant media repository lists assets and clips only with explicit mercha
   assert.deepEqual((await repository.listAssetsByMerchant({ merchantId: "merchant-a" })).map((asset) => asset.id), [
     "asset-a",
   ]);
-  assert.deepEqual((await repository.listReadyClipsByMerchant({ merchantId: "merchant-a" })).map((clip) => clip.id), [
+  const listedAssets = await repository.listAssetsByMerchant({ merchantId: "merchant-a" });
+  const listedClips = await repository.listReadyClipsByMerchant({ merchantId: "merchant-a" });
+
+  assert.equal(listedAssets[0]?.sourceStorageKey, listedAssets[0]?.sourceCosKey);
+  assert.equal(listedClips[0]?.storageKey, listedClips[0]?.cosKey);
+  assert.equal(listedClips[0]?.thumbStorageKey, listedClips[0]?.thumbCosKey);
+  assert.deepEqual(listedClips.map((clip) => clip.id), [
     "clip-a",
   ]);
   assert.equal(await repository.getReadyClipByMerchant({ merchantId: "merchant-a", clipId: "clip-b" }), null);
@@ -129,6 +135,68 @@ test("merchant media repository accepts merchant segment clips", async () => {
   assert.deepEqual((await repository.listReadyClipsByMerchant({ merchantId: "merchant-a" })).map((clip) => clip.id), [
     "clip-window",
   ]);
+});
+
+test("merchant media repository accepts matching provider-neutral storage aliases", async () => {
+  const repository = new InMemoryMerchantMediaRepository();
+  const asset = await repository.upsertAsset({
+    asset: {
+      ...assetA,
+      sourceStorageKey: assetA.sourceCosKey,
+    },
+    idempotencyKey: "storage-key-alias-a",
+  });
+  const clip = await repository.upsertReadyClip({
+    merchantId: "merchant-a",
+    assetId: assetA.id,
+    clip: {
+      ...clipA,
+      storageKey: clipA.cosKey,
+      thumbStorageKey: clipA.thumbCosKey,
+    },
+  });
+
+  assert.equal(asset.sourceStorageKey, asset.sourceCosKey);
+  assert.equal(clip.storageKey, clip.cosKey);
+  assert.equal(clip.thumbStorageKey, clip.thumbCosKey);
+});
+
+test("merchant media repository rejects conflicting storage aliases", async () => {
+  const repository = new InMemoryMerchantMediaRepository();
+
+  await assert.rejects(
+    () =>
+      repository.upsertAsset({
+        asset: {
+          ...assetA,
+          sourceStorageKey: "merchant-media/merchant-a/originals/asset-a/other.mp4",
+        },
+        idempotencyKey: "storage-key-conflict-a",
+      }),
+    (error) =>
+      error instanceof MerchantMediaRepositoryContractError &&
+      error.code === "MERCHANT_MEDIA_SOURCE_KEY_CONFLICT",
+  );
+
+  await repository.upsertAsset({
+    asset: assetA,
+    idempotencyKey: "cos-etag-a",
+  });
+
+  await assert.rejects(
+    () =>
+      repository.upsertReadyClip({
+        merchantId: "merchant-a",
+        assetId: assetA.id,
+        clip: {
+          ...clipA,
+          storageKey: "merchant-media/merchant-a/originals/asset-a/other.mp4",
+        },
+      }),
+    (error) =>
+      error instanceof MerchantMediaRepositoryContractError &&
+      error.code === "MERCHANT_MEDIA_CLIP_KEY_CONFLICT",
+  );
 });
 
 test("merchant media repository rejects invalid clip shapes", async () => {

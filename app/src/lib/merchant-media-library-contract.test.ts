@@ -58,7 +58,7 @@ test("ready merchant media asset rejects missing clips and incomplete ready meta
   if (!badClip.ok) {
     assert.ok(badClip.errors.some((error) => error.includes("description")));
     assert.ok(badClip.errors.some((error) => error.includes("three tags")));
-    assert.ok(badClip.errors.some((error) => error.includes("thumb_cos_key")));
+    assert.ok(badClip.errors.some((error) => error.includes("thumb storage key")));
     assert.ok(badClip.errors.some((error) => error.includes("duration_seconds")));
   }
 });
