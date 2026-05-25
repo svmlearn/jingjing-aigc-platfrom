@@ -4,35 +4,35 @@
 
 - Worktree: `D:\codexplan\jingjingstart-5.23-worker-lip`
 - Branch: `5.23-worker-fix`
-- Base before this task: `b1c9bc2`
-- Remote safety check: `origin/5.23-worker-fix` was confirmed as an ancestor of local `5.23-worker-fix` before implementation.
 - Main workspace `D:\codexplan\jingjingstart` was not modified.
+- Existing unrelated untracked files were left unstaged:
+  - `docs/handoff/2026-05-25-openstoryline-scene-query-search-implementation-plan.md`
+  - `jingjing-*.tar`
 
-## Local changes
+## Code changes
 
-- Added app contract/schema/payload support for system TTS provider `aliyun_cosyvoice`.
-- Defaulted system voiceover to:
-  - provider: `aliyun_cosyvoice`
+- System voiceover now defaults to `aliyun_cosyvoice`.
   - model: `cosyvoice-v3-flash`
   - voice: `longanyang`
   - websocket URL: `wss://dashscope.aliyuncs.com/api-ws/v1/inference`
-- Added voice profile provider `aliyun_cosyvoice_clone` and kept `pixelle_clone` as compatibility.
-- Updated `voice_profiles` migrations and replacement RPC defaults to allow/default `aliyun_cosyvoice_clone`.
-- Added a self-host PostgreSQL incremental migration so an already-created `voice_profiles` table drops the old provider check and accepts `aliyun_cosyvoice_clone`.
-- Updated worker directive normalization so `voice_profile` mode accepts clone providers instead of forcing `pixelle_clone`.
-- Added worker-side signed reference audio URL creation for Aliyun OSS and Tencent COS.
-- Added worker-side Aliyun clone enrollment flow:
-  - Uses `voice_profiles.external_voice_id` when present.
-  - When missing, creates a voice through DashScope customization and writes back `external_voice_id` / `external_model_id`.
-  - Uses customization model `voice-enrollment` and target synthesis model `cosyvoice-v3.5-plus`.
-- Added OpenStoryline FireRed service_config mapping for `aliyun_cosyvoice` and `aliyun_cosyvoice_clone`.
-- Added FireRed `GenerateVoiceoverNode` support for Aliyun CosyVoice system TTS and clone TTS.
-- Updated FireRed/OpenStoryline model defaults to:
-  - LLM model: `glm-5.1`
-  - VLM model: `qwen3.6-plus`
-  - Base URL: `https://dashscope.aliyuncs.com/compatible-mode/v1`
-  - API key variable fallback: `OPENSTORYLINE_LLM_API_KEY` / `OPENSTORYLINE_VLM_API_KEY`, with FireRed env fallback to `DASHSCOPE_API_KEY`.
-- Updated env examples and docker-compose defaults. No real API key was written to code or docs.
+- Voice profile clone now defaults to `aliyun_cosyvoice_clone`.
+  - model: `cosyvoice-v3.5-plus`
+  - customization URL: `https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization`
+- App contract/schema/payload builder and UI support the new providers.
+- `voice_profiles` migrations and replacement RPC allow/default `aliyun_cosyvoice_clone`.
+- Worker no longer forces `voice_profile` mode to `pixelle_clone`.
+- Worker keeps using project voice clone contract:
+  - `voice_profiles` + `asset_objects(audio)`
+  - signed reference audio URL
+  - `external_voice_id` reuse when present
+  - missing `external_voice_id` creates provider voice and writes back to `voice_profiles`
+- OpenStoryline adapter maps Aliyun system/clone service config into FireRed.
+- FireRed `generate_voiceover` supports Aliyun system TTS and clone TTS.
+- FireRed DashScope SDK path now maps audio `format` strings to SDK `AudioFormat` enums and does not pass unsupported `sample_rate` into the SDK constructor.
+- LLM/VLM defaults were updated:
+  - LLM: `glm-5.1`
+  - VLM: `qwen3.6-plus`
+  - base URL: `https://dashscope.aliyuncs.com/compatible-mode/v1`
 
 ## Local verification
 
@@ -40,56 +40,101 @@ Executed from `D:\codexplan\jingjingstart-5.23-worker-lip`.
 
 - `git diff --check`
   - Passed. Only Git line-ending warnings were printed.
-- `python -m py_compile workers/video-worker/worker/app/processor.py workers/video-worker/worker/app/cos_client.py workers/video-worker/openstoryline/app/config.py workers/video-worker/openstoryline/app/engine_adapters.py workers/video-worker/openstoryline/firered/agent_fastapi.py workers/video-worker/openstoryline/firered/src/open_storyline/nodes/core_nodes/generate_voiceover.py`
+- Python compile for changed worker/OpenStoryline/FireRed files
   - Passed.
-- `$env:PYTHONPATH = "workers/video-worker;workers/video-worker/openstoryline;workers/video-worker/openstoryline/firered/src"; python -m pytest workers/video-worker/tests/test_directive_contract.py workers/video-worker/tests/test_processor_contract.py workers/video-worker/tests/test_openstoryline_engine_adapters.py workers/video-worker/tests/test_firered_generate_voiceover_contract.py`
-  - Passed: 96 tests.
-- `cd app; corepack pnpm@10.20.0 typecheck`
+- Focused worker/OpenStoryline tests:
+  - `python -m pytest workers/video-worker/tests/test_directive_contract.py workers/video-worker/tests/test_processor_contract.py workers/video-worker/tests/test_openstoryline_engine_adapters.py workers/video-worker/tests/test_firered_generate_voiceover_contract.py`
+  - Passed: 97 tests.
+- App typecheck:
+  - `corepack pnpm@10.20.0 typecheck`
   - Passed.
-- `cd app; node --test src/server/api/video-job-payload.test.ts src/lib/voice-profile-state-machine.test.ts`
+- App contract tests:
+  - `node --test src/server/api/video-job-payload.test.ts src/lib/voice-profile-state-machine.test.ts`
   - Passed: 31 tests.
 
-## Commit and push
+## Commits and push
 
-- Commit: pending.
-- Push target: `origin/5.23-worker-fix`, pending.
-- Unrelated existing untracked files were not staged:
-  - `docs/handoff/2026-05-25-openstoryline-scene-query-search-implementation-plan.md`
-  - `jingjing-*.tar`
+- `854b3bd feat: switch video worker tts to aliyun cosyvoice`
+- `4ec9728 fix: add selfhost cosyvoice voice profile migration`
+- `766944a fix: normalize dashscope cosyvoice sdk format`
+- Pushed to Gitee:
+  - `origin/5.23-worker-fix`
+  - remote head after push: `766944abb26cdd0bbe552c6cda571044c6d2f247`
 
-## Release status
+## Server release
 
-- Server release: pending commit and push.
-- Planned archive source: committed Git tree from `5.23-worker-fix` HEAD.
-- Planned server release root: `/srv/jingjing-domestic/releases/<timestamp>-<sha>`.
-- Planned env backup: `/srv/jingjing-domestic/shared/env/worker.env` to a timestamped backup path.
-- Env values to set/update on server, without recording secret values:
-  - `DASHSCOPE_API_KEY`
-  - `OPENSTORYLINE_LLM_MODEL=glm-5.1`
-  - `OPENSTORYLINE_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1`
-  - `OPENSTORYLINE_LLM_API_KEY` may reuse `DASHSCOPE_API_KEY` value if the service requires explicit variable.
-  - `OPENSTORYLINE_VLM_MODEL=qwen3.6-plus`
-  - `OPENSTORYLINE_VLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1`
-  - `OPENSTORYLINE_VLM_API_KEY` may reuse `DASHSCOPE_API_KEY` value if the service requires explicit variable.
-  - `OPENSTORYLINE_TTS_PROVIDER=aliyun_cosyvoice`
-  - `ALIYUN_COSYVOICE_TTS_MODEL=cosyvoice-v3-flash`
-  - `ALIYUN_COSYVOICE_TTS_VOICE=longanyang`
-  - `ALIYUN_COSYVOICE_TTS_WS_URL=wss://dashscope.aliyuncs.com/api-ws/v1/inference`
-  - `ALIYUN_COSYVOICE_CLONE_PROVIDER=aliyun_cosyvoice_clone`
-  - `ALIYUN_COSYVOICE_CLONE_MODEL=cosyvoice-v3.5-plus`
-  - `ALIYUN_COSYVOICE_CLONE_CUSTOMIZATION_URL=https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization`
-  - `ALIYUN_COSYVOICE_CLONE_TTS_WS_URL=wss://dashscope.aliyuncs.com/api-ws/v1/inference`
+- Superseded release:
+  - `/srv/jingjing-domestic/releases/20260525194415-4ec9728`
+  - Built and briefly released, then superseded after real TTS smoke exposed the DashScope SDK format handling bug.
+- Current release:
+  - archive: `D:\codexplan\jingjing-release\jingjing-766944a.tar`
+  - uploaded archive: `/tmp/jingjing-766944a.tar`
+  - release directory: `/srv/jingjing-domestic/releases/20260525200750-766944a`
+  - `current`: `/srv/jingjing-domestic/releases/20260525200750-766944a`
+- App build in current release:
+  - `corepack pnpm@10.20.0 install --frozen-lockfile`: passed.
+  - `corepack pnpm@10.20.0 build`: passed.
+- Release runtime initialization:
+  - New release was changed to `ubuntu:ubuntu`, matching the FireRed systemd service user.
+  - FireRed runtime symlinks were initialized in the new release:
+    - `.storyline -> /srv/jingjing-video-worker/firered/.storyline`
+    - `resource -> /srv/jingjing-video-worker/firered/resource`
+    - `outputs -> /srv/jingjing-video-worker/firered/outputs`
+  - This fixed the restart loop caused by `ln: failed to create symbolic link ... Permission denied`.
 
-## Server verification plan
+## Env and migration
 
-- Build in the new release before switching `current`:
-  - `corepack pnpm@10.20.0 install --frozen-lockfile`
-  - `corepack pnpm@10.20.0 build`
-- After symlink switch and service restart:
-  - `curl -fsS http://127.0.0.1:3000/api/health`
-  - `curl -fsS http://127.0.0.1:8000/ready`
-  - `curl -fsS http://127.0.0.1:7860/api/ready || curl -fsS http://127.0.0.1:7860/ready`
-  - `systemctl is-active` for the app, content worker, FireRed, OpenStoryline engine, and video worker.
-- Smoke still pending:
-  - Short text system TTS through `aliyun_cosyvoice`.
-  - Voice profile clone smoke confirming provider, `voice_id`, segment count/duration, and DB writeback.
+- Environment file:
+  - `/srv/jingjing-domestic/shared/env/worker.env`
+- Backup:
+  - `/srv/jingjing-domestic/shared/env/worker.env.bak-cosyvoice-20260525194049`
+- Secret handling:
+  - Real DashScope API key is stored only in server env.
+  - No real key is written in Git or docs.
+  - Explicit CosyVoice/LLM/VLM key variables are allowed to fall back to `DASHSCOPE_API_KEY`.
+- Server DB migration applied:
+  - `app/db/migrations/202605250001_selfhost_aliyun_cosyvoice_voice_profiles.sql`
+- Migration readback:
+  - `voice_profiles_provider_check` allows `pixelle_clone` and `aliyun_cosyvoice_clone`.
+  - `voice_profiles.provider` default is `aliyun_cosyvoice_clone`.
+
+## Server verification
+
+- Health/readiness:
+  - `curl -fsS http://127.0.0.1:3000/api/health`: passed.
+  - `curl -fsS http://127.0.0.1:8000/ready`: passed.
+  - `curl -fsS http://127.0.0.1:7860/api/ready`: passed.
+- Services:
+  - `jingjing-domestic-app`: active.
+  - `jingjing-content-generation-worker`: active.
+  - `jingjing-firered-openstoryline`: active.
+  - `jingjing-openstoryline-engine`: active.
+  - `jingjing-video-worker`: active.
+  - `nginx`: active.
+- System TTS smoke:
+  - provider: `aliyun_cosyvoice`
+  - model: `cosyvoice-v3-flash`
+  - voice: `longanyang`
+  - output: `/tmp/cosyvoice-system-smoke-1779711228.wav`
+  - bytes: `33109`
+  - duration: `2074 ms`
+- Voice profile clone smoke:
+  - Verified the project voice clone contract, not just a provider API call:
+    - temp `voice_profiles` + `asset_objects(audio)`
+    - OSS signed reference audio URL
+    - missing `external_voice_id` creates provider voice
+    - `voice_profiles.external_voice_id` writeback
+    - FireRed clone TTS using the returned voice id
+  - provider: `aliyun_cosyvoice_clone`
+  - external model: `cosyvoice-v3.5-plus`
+  - reference audio duration: `22182 ms`
+  - clone output: `/tmp/cosyvoice-smoke-1779712362-5f5caf8b-clone.wav`
+  - clone bytes: `33945`
+  - clone duration: `2126 ms`
+  - segment count: `1`
+  - temp DB rows were cleaned after smoke; readback confirmed `0` rows for the temp profile/asset ids.
+
+## Notes
+
+- A 2-second reference audio failed clone enrollment with HTTP 400. This matches the project expectation that voice clone must use a real voice profile reference audio, not a tiny provider smoke clip. The passing clone smoke used a 22-second reference audio.
+- The first post-switch readiness check saw transient `503`/connection-refused while FireRed was restarting. After release runtime symlink initialization and restart, all health checks and service states passed.

@@ -4,67 +4,68 @@
 
 Switch OpenStoryline/video-worker TTS and voice cloning to Aliyun DashScope CosyVoice, update LLM/VLM runtime defaults, commit and push `5.23-worker-fix`, then release from a committed archive to the domestic server group without hot-editing `current`.
 
-## Worktree and branch
+## Final state
 
-- Worktree: `D:\codexplan\jingjingstart-5.23-worker-lip`
 - Branch: `5.23-worker-fix`
-- Main workspace dirty state was intentionally left untouched.
-- Existing unrelated untracked tarballs and old handoff draft must remain unstaged.
+- Latest pushed commit: `766944a fix: normalize dashscope cosyvoice sdk format`
+- Gitee remote: `origin/5.23-worker-fix`
+- Current server release: `/srv/jingjing-domestic/releases/20260525200750-766944a`
+- Current symlink: `/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260525200750-766944a`
+- Main workspace `D:\codexplan\jingjingstart` was intentionally not modified.
 
 ## Implemented
 
-- App contracts and payload builder support `aliyun_cosyvoice`.
-- UI defaults system voiceover to Aliyun CosyVoice with `longanyang`.
-- Voice profile state/repository/migrations support `aliyun_cosyvoice_clone`.
-- Self-host PostgreSQL has a dedicated incremental migration for the new voice profile provider check.
-- Worker directive accepts clone providers for `voice_profile` mode and defaults voice profiles to `aliyun_cosyvoice_clone`.
-- Worker prepares signed reference-audio URLs and enrolls Aliyun clone voices only when `external_voice_id` is missing.
-- OpenStoryline adapter maps Aliyun system/clone TTS into FireRed `service_config`.
-- FireRed `GenerateVoiceoverNode` can synthesize with Aliyun CosyVoice and create clone `voice_id` via DashScope customization.
-- FireRed/OpenStoryline examples now use:
-  - `OPENSTORYLINE_LLM_MODEL=glm-5.1`
-  - `OPENSTORYLINE_VLM_MODEL=qwen3.6-plus`
-  - `OPENSTORYLINE_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1`
-  - `OPENSTORYLINE_VLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1`
+- System voiceover defaults to Aliyun CosyVoice:
+  - provider: `aliyun_cosyvoice`
+  - model: `cosyvoice-v3-flash`
+  - voice: `longanyang`
+- Voice profile clone defaults to:
+  - provider: `aliyun_cosyvoice_clone`
+  - model: `cosyvoice-v3.5-plus`
+  - customization URL: `https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization`
+- App contracts, schema, payload builder, UI options, DB migrations, and voice profile repository support the new providers.
+- Worker keeps the existing project voice clone contract:
+  - `voice_profiles` and `asset_objects(audio)` remain the business truth.
+  - worker signs the reference audio URL.
+  - existing `voice_profiles.external_voice_id` is reused.
+  - missing `external_voice_id` creates a provider voice and writes it back.
+- OpenStoryline adapter maps Aliyun system/clone configs to FireRed.
+- FireRed `GenerateVoiceoverNode` can synthesize system and clone TTS through DashScope.
+- DashScope SDK format handling was fixed after real smoke found that plain string `format` plus unsupported `sample_rate` caused provider failure.
 
 ## Verification
 
-- `git diff --check`: passed.
-- Python compile check for changed worker/OpenStoryline/FireRed files: passed.
-- Focused Python tests: 95 passed.
-- App typecheck: passed.
-- App changed contract tests: 31 passed.
+- Local:
+  - `git diff --check`: passed.
+  - Python compile check: passed.
+  - Focused worker/OpenStoryline tests: 97 passed.
+  - App typecheck: passed.
+  - App contract tests: 31 passed.
+- Server:
+  - app health: passed.
+  - OpenStoryline engine ready: passed.
+  - FireRed ready: passed.
+  - app/content worker/FireRed/OpenStoryline engine/video worker/nginx: active.
+  - system TTS smoke: passed, `cosyvoice-v3-flash + longanyang`, 33109 bytes, 2074 ms.
+  - voice profile clone smoke: passed through the project contract, not just provider API:
+    - temp `voice_profiles` + audio asset
+    - signed OSS reference audio URL
+    - `external_voice_id` created and written back
+    - FireRed clone TTS produced one segment, 33945 bytes, 2126 ms
+    - temp DB rows were cleaned and read back as 0 rows.
 
-## Pending
+## Server notes
 
-- Commit this work.
-- Push `5.23-worker-fix` to Gitee `origin/5.23-worker-fix`.
-- Archive committed HEAD and upload to `meng@8.154.28.41`.
-- Build under `/srv/jingjing-domestic/releases/<timestamp>-<sha>/app`.
-- Backup and update `/srv/jingjing-domestic/shared/env/worker.env`.
-- Switch `/srv/jingjing-domestic/current`.
-- Restart:
-  - `jingjing-domestic-app`
-  - `jingjing-content-generation-worker`
-  - `jingjing-firered-openstoryline`
-  - `jingjing-openstoryline-engine`
-  - `jingjing-video-worker`
-- Run health checks and TTS/clone smoke tests.
+- Env file: `/srv/jingjing-domestic/shared/env/worker.env`
+- Env backup: `/srv/jingjing-domestic/shared/env/worker.env.bak-cosyvoice-20260525194049`
+- Real DashScope key is only in server env. Do not put it in docs or Git.
+- Current release required runtime initialization before services were stable:
+  - chown release to `ubuntu:ubuntu`
+  - symlink FireRed `.storyline`, `resource`, and `outputs` to `/srv/jingjing-video-worker/firered/*`
+- A short 2-second reference clip failed clone enrollment. Use a real voice profile reference sample; the passing smoke used a 22-second reference.
 
-## Secret handling
+## Follow-up
 
-- Do not write the real DashScope API key to Git, docs, terminal output summaries, or release artifacts.
-- Server env should use existing/provided `DASHSCOPE_API_KEY`; explicit LLM/VLM/TTS API key variables may be populated from the same value inside `worker.env` if runtime requires it, but docs should record only variable names and backup paths.
-
-## Useful commands already proven locally
-
-```powershell
-$env:PYTHONPATH = "workers/video-worker;workers/video-worker/openstoryline;workers/video-worker/openstoryline/firered/src"
-python -m pytest workers/video-worker/tests/test_directive_contract.py workers/video-worker/tests/test_processor_contract.py workers/video-worker/tests/test_openstoryline_engine_adapters.py workers/video-worker/tests/test_firered_generate_voiceover_contract.py
-```
-
-```powershell
-cd app
-corepack pnpm@10.20.0 typecheck
-node --test src/server/api/video-job-payload.test.ts src/lib/voice-profile-state-machine.test.ts
-```
+- Keep `docs/progress/2026-05-25-openstoryline-cosyvoice-tts-release.md` as the detailed release log.
+- For future releases, include the FireRed runtime symlink/chown step in the release checklist before restarting worker services.
+- User-facing voice clone QA should still be run from the member UI with an actual uploaded M4A/MP3 once product wants a full browser-to-worker E2E.
