@@ -411,6 +411,62 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
         paths = [item["path"] for item in result["inputs"]]
         self.assertEqual([search_a, search_b, search_c], paths)
 
+    def test_search_media_result_is_annotated_with_scene_query_diagnostic(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        request = Request(
+            "search_media",
+            {"search_keyword": "一楼厂房空间"},
+            context=types.SimpleNamespace(
+                worker_payload={
+                    "materialContext": {
+                        "sceneAssetQueries": [
+                            {"sceneNo": 1, "query": "一楼厂房空间", "sourceRole": "merchant_broll"}
+                        ]
+                    }
+                }
+            ),
+        )
+        tool_result = {
+            "artifact_id": "search-1",
+            "isError": False,
+            "summary": {},
+            "tool_excute_result": {
+                "search_media": [{"path": "/tmp/factory.mp4"}],
+            },
+        }
+
+        module._annotate_worker_scene_search_result(tool_result, request)
+
+        diagnostic = tool_result["tool_excute_result"]["_worker_scene_search"]
+        self.assertEqual(0, diagnostic["scene_index"])
+        self.assertEqual(1, diagnostic["scene_no"])
+        self.assertEqual("一楼厂房空间", diagnostic["query"])
+        self.assertEqual(1, diagnostic["result_count"])
+
+    def test_generate_script_blocks_when_group_count_is_below_required_scene_count(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(
+            worker_payload={
+                "script_text": (
+                    "1\n00:00-00:05\n台词/字幕：第一段\n"
+                    "2\n00:05-00:10\n台词/字幕：第二段\n"
+                    "3\n00:10-00:15\n台词/字幕：第三段\n"
+                ),
+                "production_directive": {"script_locked": True},
+                "materialContext": {
+                    "sceneAssetQueries": [
+                        {"sceneNo": 1, "query": "一楼厂房空间", "sourceRole": "merchant_broll"},
+                        {"sceneNo": 2, "query": "基础设施", "sourceRole": "merchant_broll"},
+                        {"sceneNo": 3, "query": "园区管理", "sourceRole": "merchant_broll"},
+                    ]
+                },
+            }
+        )
+        args = {"group_clips": {"groups": [{"group_id": "group_0001"}, {"group_id": "group_0002"}]}}
+
+        with self.assertRaisesRegex(Exception, "required_scene_count=3"):
+            module._ensure_worker_required_group_count("generate_script", args, context)
+
     def test_locked_worker_script_builds_custom_script_for_groups(self):
         module = sys.modules["firered_node_interceptors_under_test"]
         payload = {

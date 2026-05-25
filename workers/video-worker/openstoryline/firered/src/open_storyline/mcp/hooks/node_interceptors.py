@@ -96,7 +96,6 @@ _ASSET_METADATA_KEYS = (
     "metadata",
 )
 
-
 def _extract_tool_result_text(result: dict[str, Any]) -> str:
     content = result.get("content", [])
     if isinstance(content, list) and content:
@@ -216,6 +215,58 @@ def _get_nested_value(payload: Any, *keys: str) -> Any:
 
 def _normalize_token(value: Any) -> str:
     return str(value or "").strip().lower().replace("_", "-")
+
+
+def _normalize_scene_query(value: Any) -> str:
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def _worker_material_context(worker_payload: Any) -> dict[str, Any]:
+    return (
+        _get_nested_dict(worker_payload, "material_context")
+        or _get_nested_dict(worker_payload, "materialContext")
+    )
+
+
+def _worker_scene_asset_queries(worker_payload: Any) -> list[dict[str, Any]]:
+    material_context = _worker_material_context(worker_payload)
+    scene_queries = material_context.get("sceneAssetQueries") or material_context.get("scene_asset_queries")
+    if not isinstance(scene_queries, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for index, item in enumerate(scene_queries):
+        if not isinstance(item, dict):
+            continue
+        query = str(item.get("query") or "").strip()
+        if not query:
+            continue
+        out.append(
+            {
+                "index": index,
+                "scene_no": item.get("sceneNo") or item.get("scene_no") or index + 1,
+                "query": query,
+                "source_role": str(item.get("sourceRole") or item.get("source_role") or "").strip(),
+            }
+        )
+    return out
+
+
+def _worker_locked_script_scene_count(worker_payload: Any) -> int:
+    if not isinstance(worker_payload, dict):
+        return 0
+    production_directive = _get_nested_dict(worker_payload, "production_directive")
+    script_text = worker_payload.get("script_text")
+    if not isinstance(script_text, str) or not script_text.strip():
+        script_text = production_directive.get("script_text")
+    if not isinstance(script_text, str) or not script_text.strip():
+        return 0
+    return len(_extract_locked_script_sections(script_text))
+
+
+def _worker_required_scene_count(worker_payload: Any) -> int:
+    scene_count = len(_worker_scene_asset_queries(worker_payload))
+    locked_script_count = _worker_locked_script_scene_count(worker_payload)
+    return max(scene_count, locked_script_count)
 
 
 def _input_asset_metadata_by_basename(worker_payload: Any) -> dict[str, dict[str, Any]]:
@@ -558,10 +609,7 @@ def _payload_assets_for_clip(
 
 
 def _worker_payload_user_talking_head_asset_ids(worker_payload: Any) -> set[str]:
-    material_context = (
-        _get_nested_dict(worker_payload, "material_context")
-        or _get_nested_dict(worker_payload, "materialContext")
-    )
+    material_context = _worker_material_context(worker_payload)
     value = material_context.get("userTalkingHeadAssetIds") or material_context.get("user_talking_head_asset_ids")
     if not isinstance(value, list | tuple | set):
         return set()
@@ -830,10 +878,7 @@ def _worker_payload_is_talking_head(worker_payload: Any) -> bool:
     if _worker_payload_user_talking_head_asset_ids(worker_payload):
         return True
 
-    material_context = (
-        _get_nested_dict(worker_payload, "material_context")
-        or _get_nested_dict(worker_payload, "materialContext")
-    )
+    material_context = _worker_material_context(worker_payload)
     scene_queries = material_context.get("sceneAssetQueries") or material_context.get("scene_asset_queries")
     if isinstance(scene_queries, list) and any(
         isinstance(item, dict)
@@ -878,6 +923,75 @@ def _worker_payload_lip_sync_enabled(worker_payload: Any) -> bool:
         return False
     lip_sync = production_config.get("lip_sync") or production_config.get("lipSync")
     return isinstance(lip_sync, dict) and lip_sync.get("enabled") is True
+
+
+def _search_media_paths_from_payload(payload: Any) -> list[str]:
+    if not isinstance(payload, dict):
+        return []
+    paths = payload.get("search_media")
+    if not isinstance(paths, list):
+        return []
+    out: list[str] = []
+    for item in paths:
+        value: Any = item
+        if isinstance(item, dict):
+            value = item.get("path")
+        if isinstance(value, str) and value.strip():
+            out.append(value.strip())
+    return out
+
+
+def _ensure_worker_required_group_count(node_id: str, args: Any, context: Any) -> None:
+    if node_id != "generate_script" or not isinstance(args, dict):
+        return
+    worker_payload = getattr(context, "worker_payload", None)
+    required_scene_count = _worker_required_scene_count(worker_payload)
+    if required_scene_count <= 0:
+        return
+    groups = _get_nested_dict(args, "group_clips").get("groups")
+    group_count = len(groups) if isinstance(groups, list) else 0
+    if group_count >= required_scene_count:
+        return
+    raise ToolException(
+        "scene_material_insufficient: group_clips produced fewer groups than required scenes; "
+        f"required_scene_count={required_scene_count}, group_count={group_count}"
+    )
+
+
+def _annotate_worker_scene_search_result(
+    tool_result: dict[str, Any],
+    request: MCPToolCallRequest,
+) -> None:
+    if request.name != "search_media":
+        return
+    client_ctx = request.runtime.context
+    worker_payload = getattr(client_ctx, "worker_payload", None)
+    if not isinstance(worker_payload, dict):
+        return
+    args = getattr(request, "args", {}) or {}
+    query = ""
+    if isinstance(args, dict):
+        query = str(args.get("search_keyword") or args.get("query") or "").strip()
+    payload = tool_result.get("tool_excute_result")
+    if not isinstance(payload, dict):
+        return
+    paths = _search_media_paths_from_payload(payload)
+    scene_index = None
+    scene_no = None
+    normalized_query = _normalize_scene_query(query)
+    for scene_query in _worker_scene_asset_queries(worker_payload):
+        if _normalize_scene_query(scene_query["query"]) == normalized_query:
+            scene_index = scene_query["index"]
+            scene_no = scene_query["scene_no"]
+            break
+    payload["_worker_scene_search"] = {
+        "scene_index": scene_index,
+        "scene_no": scene_no,
+        "query": query,
+        "normalized_query": normalized_query,
+        "result_count": len(paths),
+        "media_paths": paths,
+    }
 
 
 def _worker_payload_preserves_talking_head_original_audio(worker_payload: Any) -> bool:
@@ -1226,6 +1340,11 @@ class ToolInterceptor:
                             )
                             if miss_id == "generate_script":
                                 _inject_locked_custom_script(tool_call_input, context)
+                            _ensure_worker_required_group_count(
+                                miss_id,
+                                tool_call_input,
+                                context,
+                            )
                             logger.debug(f"{indent}│  Dependencies satisfied for `{miss_id}`")
                         else:
                             logger.info(
@@ -1275,6 +1394,7 @@ class ToolInterceptor:
             }
             new_req_args.update(request.args)
             new_req_args.update(input_data)
+            _ensure_worker_required_group_count(node_id, new_req_args, context)
             if node_id == "render_video":
                 _ensure_lip_sync_render_input(new_req_args, context)
                 _force_mute_source_audio_for_talking_head(new_req_args, context)
@@ -1313,6 +1433,8 @@ class ToolInterceptor:
                 if _is_storyline_node_request(request):
                     raise ValueError("Unexpected storyline tool result shape")
                 return _generic_tool_command(tool_result, tool_call_id)
+
+            _annotate_worker_scene_search_result(tool_result, request)
 
             artifact_id = tool_result['artifact_id']
             session_id = client_ctx.session_id

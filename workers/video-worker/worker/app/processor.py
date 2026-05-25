@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -101,6 +102,12 @@ BROLL_SUBTITLE_TAIL_ALLOWED_MS = 4_000
 BROLL_SUBTITLE_TAIL_FAIL_MIN_MS = 8_000
 BROLL_SUBTITLE_TAIL_FAIL_RATIO = 0.12
 TIMELINE_COVERAGE_TOLERANCE_MS = 250
+SCRIPT_NUMBERED_SECTION_RE = re.compile(
+    r"(?ms)^\s*(\d{1,2})\s*\n\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\s*\n(.*?)(?=^\s*\d{1,2}\s*\n\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\s*\n|\Z)"
+)
+SCRIPT_SCENE_HEADING_RE = re.compile(
+    r"(?ms)^\s*场景\s*\d{1,2}\s*[（(][^）)\n]+[）)]\s*\n(.*?)(?=^\s*场景\s*\d{1,2}\s*[（(][^）)\n]+[）)]\s*\n|\Z)"
+)
 
 
 PROGRESS_MODULES: tuple[dict[str, str], ...] = (
@@ -381,6 +388,108 @@ def _openstoryline_result_payload(
         "selected_bgm": selected_bgm,
         "voiceover": voiceover,
     }
+
+
+def _scene_asset_queries_from_material_context(material_context: dict[str, Any]) -> list[dict[str, Any]]:
+    scene_queries = material_context.get("sceneAssetQueries") or material_context.get("scene_asset_queries")
+    if not isinstance(scene_queries, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for index, item in enumerate(scene_queries):
+        if not isinstance(item, dict):
+            continue
+        query = str(item.get("query") or "").strip()
+        if not query:
+            continue
+        out.append(
+            {
+                "index": index,
+                "scene_no": item.get("sceneNo") or item.get("scene_no") or index + 1,
+                "query": query,
+                "source_role": str(item.get("sourceRole") or item.get("source_role") or "").strip(),
+            }
+        )
+    return out
+
+
+def _locked_script_scene_count(script_text: str) -> int:
+    if not isinstance(script_text, str) or not script_text.strip():
+        return 0
+    return len(SCRIPT_NUMBERED_SECTION_RE.findall(script_text)) + len(
+        SCRIPT_SCENE_HEADING_RE.findall(script_text)
+    )
+
+
+def _required_scene_count_for_directive(directive: ProductionDirective) -> int:
+    return max(
+        len(_scene_asset_queries_from_material_context(directive.material_context)),
+        _locked_script_scene_count(directive.script_text),
+    )
+
+
+def _extract_generate_script_payload(raw_response: dict[str, Any]) -> dict[str, Any]:
+    candidates = (
+        ("openstoryline", "generate_script"),
+        ("fire_red", "generate_script"),
+        ("fire_red", "raw_response", "generate_script"),
+        ("fire_red_raw_response", "generate_script"),
+        ("generate_script",),
+    )
+    for path in candidates:
+        cur: Any = raw_response
+        for key in path:
+            if not isinstance(cur, dict):
+                cur = None
+                break
+            cur = cur.get(key)
+        if isinstance(cur, dict) and cur:
+            return cur
+    return {}
+
+
+def _validate_scene_material_coverage_for_directive(
+    raw_response: dict[str, Any],
+    directive: ProductionDirective,
+    voiceover_summary: dict[str, Any],
+) -> None:
+    required_scene_count = _required_scene_count_for_directive(directive)
+    if required_scene_count <= 0:
+        return
+
+    generate_script = _extract_generate_script_payload(raw_response)
+    group_scripts = generate_script.get("group_scripts")
+    if isinstance(group_scripts, list) and len(group_scripts) < required_scene_count:
+        raise VoiceoverArtifactValidationError(
+            "OpenStoryline generated fewer script groups than required scenes; "
+            f"required_scene_count={required_scene_count}, group_scripts={len(group_scripts)}",
+            failure_code="scene_material_insufficient",
+        )
+
+    voiceover_config = _nested_dict(directive.production_config, "voiceover")
+    if voiceover_config.get("enabled") is not False:
+        segment_count = int(voiceover_summary.get("segment_count") or 0)
+        if segment_count and segment_count < required_scene_count:
+            raise VoiceoverArtifactValidationError(
+                "OpenStoryline generated fewer voiceover segments than required scenes; "
+                f"required_scene_count={required_scene_count}, voiceover_segments={segment_count}",
+                failure_code="scene_material_insufficient",
+            )
+
+    plan_timeline = _extract_plan_timeline_payload(raw_response)
+    tracks = plan_timeline.get("tracks") if isinstance(plan_timeline, dict) else None
+    video_track = tracks.get("video") if isinstance(tracks, dict) else None
+    if isinstance(video_track, list) and video_track:
+        covered_groups = {
+            str(segment.get("group_id") or "")
+            for segment in video_track
+            if isinstance(segment, dict) and str(segment.get("group_id") or "").strip()
+        }
+        if covered_groups and len(covered_groups) < required_scene_count:
+            raise VoiceoverArtifactValidationError(
+                "OpenStoryline timeline covers fewer groups than required scenes; "
+                f"required_scene_count={required_scene_count}, covered_groups={len(covered_groups)}",
+                failure_code="scene_material_insufficient",
+            )
 
 
 def _extract_fire_red_run_id(raw_response: dict[str, Any] | None) -> str | None:
@@ -1580,6 +1689,15 @@ class JobProcessor:
                 directive.production_config,
             )
             try:
+                _validate_scene_material_coverage_for_directive(
+                    run_result.raw_response,
+                    directive,
+                    voiceover_artifacts,
+                )
+            except VoiceoverArtifactValidationError as exc:
+                exc.validation_stage = "scene_material_validation"
+                raise
+            try:
                 _validate_lip_sync_inputs_for_directive(
                     voiceover_artifacts,
                     directive.production_config,
@@ -1822,6 +1940,8 @@ class JobProcessor:
                 progress_key = "lip_sync"
             elif validation_stage.startswith("timeline"):
                 progress_key = "render"
+            elif validation_stage.startswith("scene_material"):
+                progress_key = "material_match"
             else:
                 progress_key = "voiceover"
             log_payload["steps"].append(

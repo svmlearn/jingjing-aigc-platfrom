@@ -448,8 +448,12 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertIn("Do not ask for confirmation", payload["prompt"])
             self.assertIn("Use generate_voiceover when voiceover.enabled is true.", payload["prompt"])
             self.assertIn("Use select_bgm when bgm.enabled is true.", payload["prompt"])
-            self.assertIn("call search_media to search the current merchant private media library", payload["prompt"])
-            self.assertIn("Never use official Pexels", payload["prompt"])
+            self.assertIn("current merchant private media search capability", payload["prompt"])
+            self.assertIn("如果存在 sceneAssetQueries", payload["prompt"])
+            self.assertNotIn("official Pexels", payload["prompt"])
+            self.assertNotIn("scene_material_insufficient", payload["prompt"])
+            self.assertNotIn("search_keyword", payload["prompt"])
+            self.assertNotIn("per_page", payload["prompt"])
             pexels = payload["service_config"]["search_media"]["pexels"]
             self.assertEqual(
                 f"{PRIVATE_PEXELS_BASE_URL}/merchants/merchant-1",

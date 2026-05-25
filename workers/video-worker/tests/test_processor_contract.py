@@ -681,6 +681,77 @@ class ProcessorContractTests(unittest.TestCase):
         render_module = next(item for item in modules if item["key"] == "render")
         self.assertEqual("failed", render_module["status"])
 
+    def test_processor_fails_when_scene_asset_queries_are_compressed_to_fewer_scripts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            voiceover_payload = {
+                "provider": "bytedance_bigtts",
+                "voiceover": [
+                    {"group_id": "group_0001", "duration": 3000},
+                    {"group_id": "group_0002", "duration": 3000},
+                ],
+            }
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(
+                    voiceover_payload=voiceover_payload,
+                    raw_response_overrides={
+                        "fire_red_raw_response": {
+                            "generate_script": {
+                                "group_scripts": [
+                                    {"group_id": "group_0001", "raw_text": "第一段"},
+                                    {"group_id": "group_0002", "raw_text": "第二段"},
+                                ]
+                            }
+                        }
+                    },
+                ),
+            )
+            job = make_job(
+                {
+                    "script": {
+                        "text": (
+                            "1\n00:00-00:05\n台词/字幕：第一段\n"
+                            "2\n00:05-00:10\n台词/字幕：第二段\n"
+                            "3\n00:10-00:15\n台词/字幕：第三段\n"
+                            "4\n00:15-00:20\n台词/字幕：第四段\n"
+                            "5\n00:20-00:25\n台词/字幕：第五段\n"
+                            "6\n00:25-00:30\n台词/字幕：第六段\n"
+                        ),
+                        "locked": True,
+                    },
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "materialContext": {
+                        "sceneAssetQueries": [
+                            {"sceneNo": index, "query": f"分镜{index}素材", "sourceRole": "merchant_broll"}
+                            for index in range(1, 7)
+                        ]
+                    },
+                    "productionConfig": {"voiceover": {"enabled": True}},
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "bucket_name": "input-bucket",
+                            "storage_key": "draft-inputs/demo.mp4",
+                            "file_name": "demo.mp4",
+                        }
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual("failed_manual", repository.failed["status"])
+        self.assertEqual("scene_material_validation_failed", repository.failed["current_stage"])
+        self.assertIn("scene_material_insufficient", repository.failed["failure_reason"])
+        self.assertIn("required_scene_count=6", repository.failed["failure_reason"])
+        modules = repository.failed["log_payload"]["progress_modules"]
+        material_module = next(item for item in modules if item["key"] == "material_match")
+        self.assertEqual("failed", material_module["status"])
+
     def test_voice_profile_job_fails_when_clone_voiceover_artifacts_are_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
