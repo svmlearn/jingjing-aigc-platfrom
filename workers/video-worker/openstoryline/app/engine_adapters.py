@@ -435,7 +435,7 @@ def _build_fire_red_run_payload(
         "input_assets": [
             _compact_payload(asset.model_dump()) for asset in request.input_assets
         ],
-        "prompt": _build_fire_red_prompt(request, desired_outputs, production_config),
+        "prompt": _build_fire_red_prompt(request, desired_outputs),
     }
     return payload
 
@@ -784,15 +784,9 @@ def _as_bool(value: object) -> bool:
 def _build_fire_red_prompt(
     request: RunRequest,
     desired_outputs: list[str],
-    production_config: dict[str, object],
 ) -> str:
     directive_json = json.dumps(
         request.production_directive or {},
-        ensure_ascii=False,
-        indent=2,
-    )
-    production_config_json = json.dumps(
-        production_config,
         ensure_ascii=False,
         indent=2,
     )
@@ -809,21 +803,9 @@ def _build_fire_red_prompt(
             "This is an unattended background worker run.",
             "Approval to execute has already been granted by the platform.",
             "Do not ask for confirmation; execute the required production tools directly.",
-            "When uploaded media is not enough for the locked script scenes, use the current merchant private media search capability to supplement visual material.",
-            "如果存在 sceneAssetQueries，最终视频应按锁定脚本逐分镜完成素材覆盖。",
+            "Use uploaded media first; when uploaded media does not visually cover the full locked script, call search_media to find additional material.",
             "Do not rewrite the locked script unless ProductionDirective explicitly allows it.",
             "The final step must produce a render_video artifact.",
-            "Required production nodes:",
-            "- Use generate_voiceover when productionConfig.voiceover.enabled is true.",
-            "- Use generate_voiceover when voiceover.enabled is true.",
-            "- Use select_bgm when productionConfig.bgm.enabled is true.",
-            "- Use select_bgm when bgm.enabled is true.",
-            "- When productionConfig.lip_sync.enabled is true, run plan_timeline first, then run lip_sync before render_video.",
-            "- For lip_sync, only replace talking-head segments; keep B-roll and ordinary project media unchanged.",
-            "- Do not call ASR for script_audio_alignment; ASR is only allowed for explicit asr_original_audio rollback mode.",
-            "- render_video must consume the retalked talking-head segments produced by lip_sync.",
-            "- Use render_video as the final node and include BGM/TTS tracks according to productionConfig.",
-            "- After render_video completes successfully, stop immediately; do not call read_node_history or any other production tool.",
             f"Desired outputs: {', '.join(desired_outputs)}",
             "",
             "Locked script:",
@@ -837,9 +819,6 @@ def _build_fire_red_prompt(
             "",
             "ProductionDirective:",
             directive_json,
-            "",
-            "ProductionConfig:",
-            production_config_json,
         ]
     )
 
