@@ -50,6 +50,7 @@ export async function searchPrivateMediaPexels(
     minVideoDuration: parsePositiveInteger(requestUrl.searchParams.get("min_video_duration")),
     maxVideoDuration: parsePositiveInteger(requestUrl.searchParams.get("max_video_duration")),
     now,
+    responseBasePath: requestUrl.pathname,
     signDownloadUrl: (clip: PrivateMediaClipRecord, kind: PrivateMediaDownloadKind) =>
       signPrivateMediaDownloadUrl({
         clip,

@@ -3133,7 +3133,9 @@ def _fallback_worker_prompt(payload: Dict[str, Any]) -> str:
     instruction_text = _s(payload.get("instruction_text"))
     return "\n".join(
         [
-            "Use the uploaded media to render a final video.",
+            "Prioritize explicitly uploaded media already present in this session.",
+            "When a script scene needs more visuals or the uploaded media is insufficient, call search_media to search the current merchant private media library.",
+            "Never use official Pexels or any material outside this merchant's private media library.",
             "The final step must call render_video.",
             "",
             "Locked script:",

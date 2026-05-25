@@ -137,7 +137,7 @@ def search_videos(
         pexels_base_url: str = "",
     ) -> dict[str, Any]:
     url = _pexels_search_url(pexels_base_url, media_type="video")
-    headers = _pexels_headers(pexels_api_key)
+    headers = _pexels_headers(pexels_api_key, private=bool(_normalize_base_url(pexels_base_url)))
     params = {"query": query, "per_page": per_page, "page": page}
 
     for attempt in range(MAX_RETRIES):
@@ -344,7 +344,7 @@ def search_photos(
         pexels_base_url: str = "",
     ) -> dict[str, Any]:
     url = _pexels_search_url(pexels_base_url, media_type="photo")
-    headers = _pexels_headers(pexels_api_key)
+    headers = _pexels_headers(pexels_api_key, private=bool(_normalize_base_url(pexels_base_url)))
     params = {"query": query, "per_page": per_page, "page": page}
 
     for attempt in range(MAX_RETRIES):
@@ -484,9 +484,11 @@ def _normalize_base_url(value: str | None) -> str:
     return normalized.rstrip("/") if normalized else ""
 
 
-def _pexels_headers(pexels_api_key: str) -> dict[str, str]:
+def _pexels_headers(pexels_api_key: str, *, private: bool = False) -> dict[str, str]:
     key = str(pexels_api_key or "").strip()
-    return {"Authorization": key} if key else {}
+    if not key:
+        return {}
+    return {"Authorization": f"Bearer {key}"} if private else {"Authorization": key}
 
 
 def _pexels_search_url(pexels_base_url: str, *, media_type: str) -> str:

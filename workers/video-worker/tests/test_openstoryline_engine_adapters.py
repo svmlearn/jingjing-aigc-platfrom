@@ -16,6 +16,9 @@ from openstoryline.app.engine_adapters import (
 from openstoryline.app.main import app
 from openstoryline.app.schemas import RunRequest
 
+PRIVATE_PEXELS_BASE_URL = "https://app.example.com/api/private-media/pexels"
+PRIVATE_PEXELS_API_KEY = "private-pexels-token"
+
 
 @dataclass
 class MockHttpResponse:
@@ -149,6 +152,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         try:
             with patch(
@@ -354,6 +359,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -441,6 +448,14 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertIn("Do not ask for confirmation", payload["prompt"])
             self.assertIn("Use generate_voiceover when voiceover.enabled is true.", payload["prompt"])
             self.assertIn("Use select_bgm when bgm.enabled is true.", payload["prompt"])
+            self.assertIn("call search_media to search the current merchant private media library", payload["prompt"])
+            self.assertIn("Never use official Pexels", payload["prompt"])
+            pexels = payload["service_config"]["search_media"]["pexels"]
+            self.assertEqual(
+                f"{PRIVATE_PEXELS_BASE_URL}/merchants/merchant-1",
+                pexels["base_url"],
+            )
+            self.assertEqual(PRIVATE_PEXELS_API_KEY, pexels["api_key"])
             self.assertEqual(
                 [{"local_path": str(Path(tmp) / "inputs" / "clip.mp4"), "asset_type": "video", "file_name": "clip.mp4"}],
                 payload["input_assets"],
@@ -460,6 +475,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             tts_provider="minimax",
             tts_minimax_base_url="https://api.minimax.io",
             tts_minimax_api_key="minimax-secret",
@@ -522,6 +539,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=900,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             asr_provider="aliyun_paraformer",
             aliyun_asr_model="paraformer-realtime-v2",
             aliyun_asr_api_key="asr-secret",
@@ -654,6 +673,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=900,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="test-provider-key",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             asr_provider="local_funasr",
             aliyun_asr_api_key="",
         )
@@ -713,6 +734,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=900,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="test-provider-key",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             aliyun_videoretalk_api_key="retalk-key",
             aliyun_videoretalk_base_url="https://dashscope.example/api/v1",
             aliyun_videoretalk_model="videoretalk",
@@ -792,6 +815,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -841,7 +866,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertTrue(payload["service_config"]["worker_rehearsal_fast_path"])
             self.assertEqual("self_hosted_rehearsal_fast_path", payload["execution_mode"])
 
-    def test_fire_red_private_pexels_base_url_can_run_without_real_pexels_key(self):
+    def test_fire_red_private_pexels_requires_private_api_key(self):
         settings = Settings(
             host="127.0.0.1",
             port=8000,
@@ -855,6 +880,41 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_provider_key="provider-secret",
             private_pexels_base_url="https://app.example.com/api/private-media/pexels",
             private_pexels_api_key="",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(UnsupportedEngineAdapterError, "PRIVATE_PEXELS_API_KEY"):
+                adapter.run(
+                    RunRequest(
+                        job_id="fire-red-job",
+                        merchant_id="merchant-1",
+                        draft_id="draft-1",
+                        content_variant_id="variant-1",
+                        workspace_dir=str(Path(tmp) / "workspace"),
+                        output_dir=str(Path(tmp) / "outputs"),
+                        script_text="locked script",
+                        production_directive={
+                            "script_locked": True,
+                            "desired_outputs": ["final_video"],
+                        },
+                    )
+                )
+
+    def test_fire_red_private_pexels_base_url_is_scoped_to_merchant(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=2700,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -887,10 +947,10 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             pexels = post.call_args.kwargs["json"]["service_config"]["search_media"]["pexels"]
             self.assertEqual("custom", pexels["mode"])
             self.assertEqual(
-                "https://app.example.com/api/private-media/pexels",
+                f"{PRIVATE_PEXELS_BASE_URL}/merchants/merchant-1",
                 pexels["base_url"],
             )
-            self.assertNotIn("api_key", pexels)
+            self.assertEqual(PRIVATE_PEXELS_API_KEY, pexels["api_key"])
 
     def test_fire_red_clone_voiceover_uses_runninghub_clone_legacy_pixelle_adapter_name(self):
         settings = Settings(
@@ -904,6 +964,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             tts_pixelle_clone_base_url="https://pixelle.example",
             tts_pixelle_clone_api_key="pixelle-secret",
             tts_runninghub_base_url="https://www.runninghub.cn",
@@ -966,6 +1028,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1036,6 +1100,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             tts_minimax_base_url="https://api.minimax.io",
             tts_minimax_api_key="minimax-secret",
             tts_runninghub_base_url="https://www.runninghub.cn",
@@ -1084,6 +1150,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1140,6 +1208,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1202,6 +1272,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1275,6 +1347,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_stream_idle_timeout_seconds=7,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1318,6 +1392,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_stream_idle_timeout_seconds=60,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1378,6 +1454,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         try:
             with TemporaryDirectory() as tmp, patch(
@@ -1426,6 +1504,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         try:
             with TemporaryDirectory() as tmp, patch(

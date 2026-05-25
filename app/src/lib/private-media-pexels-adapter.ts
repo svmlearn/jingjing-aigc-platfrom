@@ -66,6 +66,7 @@ export type PexelsSearchInput = {
   minVideoDuration?: number | null;
   maxVideoDuration?: number | null;
   now: string;
+  responseBasePath?: string | null;
   signDownloadUrl: PrivateMediaUrlSigner;
 };
 
@@ -77,7 +78,7 @@ export function buildPexelsVideoSearchResponse(input: PexelsSearchInput) {
     mediaType: "video",
     page,
     perPage,
-    requiredKinds: ["thumb", "video"],
+    requiredKinds: ["video"],
   });
 
   return {
@@ -89,7 +90,7 @@ export function buildPexelsVideoSearchResponse(input: PexelsSearchInput) {
       width: clip.width,
       height: clip.height,
       duration: Math.round(clip.durationSeconds ?? 0),
-      image: urls.thumb.url,
+      image: urls.video.url,
       video_files: [
         {
           id: `${clip.id}_hd`,
@@ -102,7 +103,7 @@ export function buildPexelsVideoSearchResponse(input: PexelsSearchInput) {
       ],
     })),
     next_page: buildNextPage({
-      basePath: "/api/private-media/pexels/videos/search",
+      basePath: input.responseBasePath ?? "/api/private-media/pexels/videos/search",
       page,
       perPage,
       totalResults: results.totalResults,
@@ -140,7 +141,7 @@ export function buildPexelsPhotoSearchResponse(input: PexelsSearchInput) {
       },
     })),
     next_page: buildNextPage({
-      basePath: "/api/private-media/pexels/v1/search",
+      basePath: input.responseBasePath ?? "/api/private-media/pexels/v1/search",
       page,
       perPage,
       totalResults: results.totalResults,

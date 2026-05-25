@@ -103,30 +103,6 @@ BROLL_SUBTITLE_TAIL_FAIL_RATIO = 0.12
 TIMELINE_COVERAGE_TOLERANCE_MS = 250
 
 
-def _material_library_query(directive: ProductionDirective) -> str:
-    values: list[str] = []
-    scene_queries = directive.material_context.get("sceneAssetQueries") or directive.material_context.get(
-        "scene_asset_queries"
-    )
-    if isinstance(scene_queries, list):
-        for item in scene_queries:
-            if not isinstance(item, dict):
-                continue
-            for key in ("query", "visualRequirement", "visual_requirement", "fallbackShot", "fallback_shot"):
-                value = item.get(key)
-                if isinstance(value, str) and value.strip():
-                    values.append(value.strip())
-
-    material_context_hints = directive.material_context.get("missingVideoAssetHints") or []
-    if isinstance(material_context_hints, list):
-        values.extend(str(item).strip() for item in material_context_hints if str(item).strip())
-
-    if directive.script_text.strip():
-        values.append(directive.script_text.strip())
-
-    return "\n".join(dict.fromkeys(values))[:12_000]
-
-
 PROGRESS_MODULES: tuple[dict[str, str], ...] = (
     {"key": "material_preparation", "label": "素材准备"},
     {"key": "material_match", "label": "素材匹配"},
@@ -1199,40 +1175,6 @@ class JobProcessor:
             downloaded_assets.append(self._download_input_asset(asset, input_dir))
         return downloaded_assets
 
-    def _download_material_library_inputs(
-        self,
-        job: VideoJob,
-        directive: ProductionDirective,
-        input_dir: Path,
-    ) -> list[dict[str, Any]]:
-        query = _material_library_query(directive)
-        if not query:
-            return []
-
-        default_buckets = getattr(
-            self._settings,
-            "default_input_buckets",
-            getattr(self._settings, "cos_bucket", ""),
-        )
-        raw_assets = self._repository.list_video_material_input_assets(
-            job.merchant_id,
-            query=query,
-            limit=8,
-        )
-        material_dir = input_dir / "merchant-materials"
-        default_storage_provider = getattr(self._settings, "storage_provider", "aliyun_oss")
-        return [
-            self._download_input_asset(
-                InputAsset.from_payload(
-                    raw_asset,
-                    default_buckets,
-                    default_storage_provider=default_storage_provider,
-                ),
-                material_dir,
-            )
-            for raw_asset in raw_assets
-        ]
-
     def _download_input_asset(self, asset: InputAsset, input_dir: Path) -> dict[str, Any]:
         local_path = input_dir / asset.file_name
         try:
@@ -1502,12 +1444,7 @@ class JobProcessor:
         try:
             stage_started_at = time.monotonic()
             user_input_assets = self._download_inputs(job, input_dir)
-            material_input_assets = self._download_material_library_inputs(
-                job,
-                directive,
-                input_dir,
-            )
-            input_assets = [*user_input_assets, *material_input_assets]
+            input_assets = list(user_input_assets)
             directive_production_config = self._prepare_voice_profile_reference(
                 directive.production_config,
                 input_dir,
@@ -1532,12 +1469,7 @@ class JobProcessor:
                     "stage": "downloading_inputs",
                     "inputs_downloaded": len(input_assets),
                     "user_inputs_downloaded": len(user_input_assets),
-                    "material_library_inputs_downloaded": len(material_input_assets),
-                    "material_library_asset_ids": [
-                        str(_nested_dict(asset, "metadata").get("asset_object_id"))
-                        for asset in material_input_assets
-                        if _nested_dict(asset, "metadata").get("asset_object_id")
-                    ],
+                    "material_library_prefetch": "disabled_openstoryline_search_media",
                     "voice_profile_ref_audio_prepared": (
                         directive.production_config.get("voiceover", {}).get("mode")
                         == "voice_profile"

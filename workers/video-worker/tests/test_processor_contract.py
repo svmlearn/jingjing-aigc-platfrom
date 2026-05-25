@@ -1196,7 +1196,7 @@ class ProcessorContractTests(unittest.TestCase):
             engine_client.last_input_assets[0]["metadata"],
         )
 
-    def test_material_library_assets_are_retrieved_inside_worker(self):
+    def test_material_library_prefetch_is_not_used_in_worker(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
             repository.material_input_assets = [
@@ -1250,19 +1250,15 @@ class ProcessorContractTests(unittest.TestCase):
             processor.process(job)
 
         self.assertIsNone(repository.failed)
-        self.assertIn("建筑外立面", repository.material_queries[0]["query"])
-        self.assertEqual(2, len(engine_client.last_input_assets))
+        self.assertEqual([], repository.material_queries)
+        self.assertEqual(1, len(engine_client.last_input_assets))
         self.assertEqual("talking_head", engine_client.last_input_assets[0]["role"])
-        self.assertEqual("project_material", engine_client.last_input_assets[1]["role"])
-        self.assertEqual("aliyun_oss", cos_client.downloads[1]["storage_provider"])
+        self.assertEqual(1, len(cos_client.downloads))
+        self.assertEqual("draft-inputs/member-selfie.mp4", cos_client.downloads[0]["storage_key"])
         self.assertEqual(
-            "merchant-media/merchant/clips/asset/clip.mp4",
-            cos_client.downloads[1]["storage_key"],
-        )
-        self.assertEqual(
-            1,
+            "disabled_openstoryline_search_media",
             repository.succeeded["log_payload"]["steps"][1][
-                "material_library_inputs_downloaded"
+                "material_library_prefetch"
             ],
         )
 

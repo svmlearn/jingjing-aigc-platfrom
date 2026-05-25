@@ -12,6 +12,13 @@ import {
   getPrivateMediaDownloadTokenSecret,
   searchPrivateMediaPexels,
 } from "../../lib/private-media-pexels-service-core.ts";
+import {
+  assertPrivatePexelsServiceBearer,
+  searchPrivateMediaPexelsForMerchantService,
+} from "./private-media-pexels-service.ts";
+
+process.env.PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET ??= "private-media-download-token-secret-for-tests";
+process.env.PRIVATE_PEXELS_API_KEY ??= "private-pexels-token";
 
 const now = "2026-05-15T00:00:00.000Z";
 const requestUrl = "https://app.example.com/api/private-media/pexels/videos/search?query=entrance&per_page=10&page=1";
@@ -34,6 +41,52 @@ test("private Pexels video route service uses repository merchant filter and ret
   assertNoInternalFields(serialized);
 });
 
+test("merchant service private search uses bearer auth without user cookie", async () => {
+  const response = await searchPrivateMediaPexelsForMerchantService({
+    merchantId: "merchant-a",
+    requestUrl,
+    kind: "video",
+    authorizationHeader: "Bearer private-pexels-token",
+    repository: new InMemoryPrivateMediaClipRepository(clips),
+    now,
+  });
+
+  assert.equal("videos" in response, true);
+  if (!("videos" in response)) {
+    throw new Error("expected video search response");
+  }
+  assert.equal(response.videos.length, 1);
+  assert.equal(response.videos[0]?.id, "video-a-1");
+});
+
+test("merchant service private search rejects missing or wrong bearer token", () => {
+  assert.throws(
+    () => assertPrivatePexelsServiceBearer(null),
+    (error) =>
+      error instanceof Error &&
+      (error as Error & { status?: number }).status === 401,
+  );
+  assert.throws(
+    () => assertPrivatePexelsServiceBearer("Bearer wrong-token"),
+    (error) =>
+      error instanceof Error &&
+      (error as Error & { status?: number }).status === 401,
+  );
+});
+
+test("private Pexels video search returns empty Pexels JSON instead of throwing", async () => {
+  const response = await searchPrivateMediaPexels({
+    merchantId: "merchant-a",
+    requestUrl: "https://app.example.com/api/private-media/pexels/videos/search?query=not-found",
+    kind: "video",
+    repository: new InMemoryPrivateMediaClipRepository(clips),
+    now,
+  });
+
+  assert.equal(response.total_results, 0);
+  assert.deepEqual(response.videos, []);
+});
+
 test("private Pexels photo route service returns Pexels-like src fields", async () => {
   const response = await searchPrivateMediaPexels({
     merchantId: "merchant-a",
@@ -46,6 +99,20 @@ test("private Pexels photo route service returns Pexels-like src fields", async 
   assert.equal(response.photos.length, 1);
   assert.equal(response.photos[0]?.src.original.includes("/api/private-media/download/"), true);
   assert.equal(response.photos[0]?.src.landscape.includes("/api/private-media/download/"), true);
+});
+
+test("private Pexels video route accepts ready videos without thumbnail objects", async () => {
+  const response = await searchPrivateMediaPexels({
+    merchantId: "merchant-a",
+    requestUrl: "https://app.example.com/api/private-media/pexels/videos/search?query=warehouse",
+    kind: "video",
+    repository: new InMemoryPrivateMediaClipRepository(clips),
+    now,
+  });
+
+  assert.equal(response.videos.length, 1);
+  assert.equal(response.videos[0]?.id, "video-a-no-thumb");
+  assert.equal(response.videos[0]?.image, response.videos[0]?.video_files[0]?.link);
 });
 
 test("private media download token is at least sixty days and rejects tampering", async () => {
@@ -114,6 +181,23 @@ const clips: PrivateMediaClipRecord[] = [
     bucketName: "private-bucket",
     cosKey: "merchant-media/merchant-a/clips/video-a-1.mp4",
     thumbCosKey: "merchant-media/merchant-a/thumbs/video-a-1.jpg",
+    mimeType: "video/mp4",
+    createdAt: "2026-05-15T00:00:00.000Z",
+  },
+  {
+    id: "video-a-no-thumb",
+    merchantId: "merchant-a",
+    mediaType: "video",
+    status: "ready",
+    width: 1080,
+    height: 1920,
+    durationSeconds: 8,
+    orientation: "portrait",
+    description: "Warehouse corridor private material with no thumbnail.",
+    tags: ["warehouse", "corridor"],
+    bucketName: "private-bucket",
+    cosKey: "merchant-media/merchant-a/clips/video-a-no-thumb.mp4",
+    thumbCosKey: null,
     mimeType: "video/mp4",
     createdAt: "2026-05-15T00:00:00.000Z",
   },

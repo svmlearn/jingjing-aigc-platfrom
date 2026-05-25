@@ -1066,11 +1066,19 @@ class ToolInterceptor:
                                 "orig_md5": None,
                                 **asset_metadata,
                             })
-                # Path-only mode: include auto-searched media from .storyline/.server_cache so they are readable
+                # Path-only mode: include all auto-searched media from .storyline/.server_cache so they are readable
                 if not inline_base64:
-                    latest_search = store.get_latest_meta(node_id='search_media', session_id=session_id)
-                    if latest_search:
-                        _, data = store.load_result(latest_search.artifact_id)
+                    if hasattr(store, "get_metas"):
+                        search_metas = store.get_metas(node_id='search_media', session_id=session_id)
+                    else:
+                        latest_search = store.get_latest_meta(node_id='search_media', session_id=session_id)
+                        search_metas = [latest_search] if latest_search else []
+                    search_metas = sorted(
+                        [meta for meta in search_metas if meta],
+                        key=lambda meta: getattr(meta, "created_at", 0),
+                    )
+                    for search_meta in search_metas:
+                        _, data = store.load_result(search_meta.artifact_id)
                         if isinstance(data, dict):
                             paths = data.get('payload', {}).get('search_media') or []
                             for p in paths:
@@ -1463,8 +1471,8 @@ class ToolInterceptor:
     async def inject_pexels_api_key(request: MCPToolCallRequest, handler):
         """
         Interceptor: Injects runtime.context Pexels config into request.args before invoking media search tools.
-        - If pexels_api_key is empty/None: do nothing (tool will fall back to config/env internally).
-        - If pexels_base_url is set, search_media can use a private Pexels-compatible endpoint.
+        - Worker jobs must provide both a merchant-scoped private base URL and API key.
+        - Non-worker interactive runs keep the original config/env fallback behavior.
         """
         try:
             tool_name = str(getattr(request, "name", "") or "")
@@ -1475,14 +1483,30 @@ class ToolInterceptor:
                 ctx = getattr(runtime, "context", None) if runtime else None
                 key = getattr(ctx, "pexels_api_key", None) if ctx else None
                 key = str(key or "").strip()
+                base_url = getattr(ctx, "pexels_base_url", None) if ctx else None
+                base_url = str(base_url or "").strip()
+                worker_payload = getattr(ctx, "worker_payload", None) if ctx else None
+                if isinstance(worker_payload, dict):
+                    merchant_id = str(worker_payload.get("merchant_id") or "").strip()
+                    expected_suffix = f"/merchants/{merchant_id}" if merchant_id else ""
+                    if not key or not base_url:
+                        raise ToolException(
+                            "worker search_media requires PRIVATE_PEXELS_BASE_URL and PRIVATE_PEXELS_API_KEY; "
+                            "official Pexels fallback is disabled"
+                        )
+                    if not merchant_id or not base_url.rstrip("/").endswith(expected_suffix):
+                        raise ToolException(
+                            "worker search_media requires a merchant-scoped private Pexels base URL; "
+                            "cross-merchant or official Pexels search is disabled"
+                        )
 
                 if key:
                     args["pexels_api_key"] = key
-                base_url = getattr(ctx, "pexels_base_url", None) if ctx else None
-                base_url = str(base_url or "").strip()
                 if base_url:
                     args["pexels_base_url"] = base_url
 
+        except ToolException:
+            raise
         except Exception as e:
             logger.warning(f"Failed to inject pexels API key: {e}")
         return await handler(request)

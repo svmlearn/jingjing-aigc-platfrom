@@ -4,6 +4,7 @@ import sys
 import types
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -132,6 +133,18 @@ class Context:
     pexels_api_key = "pexels-key"
     pexels_base_url = "https://app.example.com/api/private-media/pexels"
     worker_payload = None
+
+
+class WorkerPrivatePexelsContext:
+    pexels_api_key = "private-pexels-token"
+    pexels_base_url = "https://app.example.com/api/private-media/pexels/merchants/merchant-1"
+    worker_payload = {"merchant_id": "merchant-1"}
+
+
+class WorkerMissingPexelsContext:
+    pexels_api_key = ""
+    pexels_base_url = ""
+    worker_payload = {"merchant_id": "merchant-1"}
 
 
 class CloneContext:
@@ -325,6 +338,78 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
             "https://app.example.com/api/private-media/pexels",
             request.args["pexels_base_url"],
         )
+
+    def test_worker_pexels_injection_requires_private_search_config(self):
+        request = Request("search_media", {}, context=WorkerMissingPexelsContext())
+
+        async def handler(_req):
+            raise AssertionError("handler must not run without private search config")
+
+        with self.assertRaisesRegex(Exception, "official Pexels fallback is disabled"):
+            asyncio.run(self.ToolInterceptor.inject_pexels_api_key(request, handler))
+
+    def test_worker_pexels_injection_requires_merchant_scoped_base_url(self):
+        request = Request("search_media", {}, context=WorkerPrivatePexelsContext())
+
+        async def handler(req):
+            return dict(req.args)
+
+        result = asyncio.run(self.ToolInterceptor.inject_pexels_api_key(request, handler))
+
+        self.assertEqual("private-pexels-token", result["pexels_api_key"])
+        self.assertEqual(
+            "https://app.example.com/api/private-media/pexels/merchants/merchant-1",
+            result["pexels_base_url"],
+        )
+
+    def test_load_media_merges_all_search_media_results_for_session(self):
+        request = Request("load_media", {})
+
+        with TemporaryDirectory() as tmp:
+            media_dir = Path(tmp) / "media"
+            media_dir.mkdir()
+            search_a = str(Path(tmp) / "search-a.mp4")
+            search_b = str(Path(tmp) / "search-b.mp4")
+            search_c = str(Path(tmp) / "search-c.mp4")
+
+            class Store:
+                artifacts_dir = Path(tmp) / "artifacts"
+
+                def generate_artifact_id(self, node_id):
+                    return f"{node_id}-artifact"
+
+                def get_metas(self, *, node_id, session_id):
+                    self.node_id = node_id
+                    self.session_id = session_id
+                    return [
+                        types.SimpleNamespace(artifact_id="search-1", created_at=1),
+                        types.SimpleNamespace(artifact_id="search-2", created_at=2),
+                    ]
+
+                def load_result(self, artifact_id):
+                    payloads = {
+                        "search-1": {"payload": {"search_media": [{"path": search_a}, {"path": search_b}]}},
+                        "search-2": {"payload": {"search_media": [{"path": search_b}, {"path": search_c}]}},
+                    }
+                    return None, payloads[artifact_id]
+
+            context = types.SimpleNamespace(
+                session_id="session-1",
+                media_dir=str(media_dir),
+                lang="zh",
+                cfg=types.SimpleNamespace(project=types.SimpleNamespace(media_dir=str(media_dir))),
+                node_manager=types.SimpleNamespace(id_to_tool={}),
+                worker_payload=None,
+            )
+            request.runtime = types.SimpleNamespace(context=context, store=Store())
+
+            async def handler(req):
+                return req.args
+
+            result = asyncio.run(self.ToolInterceptor.inject_media_content_before(request, handler))
+
+        paths = [item["path"] for item in result["inputs"]]
+        self.assertEqual([search_a, search_b, search_c], paths)
 
     def test_locked_worker_script_builds_custom_script_for_groups(self):
         module = sys.modules["firered_node_interceptors_under_test"]

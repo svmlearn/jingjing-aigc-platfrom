@@ -102,15 +102,15 @@ class FireRedSearchMediaPrivateBaseUrlTests(unittest.TestCase):
     def setUpClass(cls):
         cls.search_media = _load_search_media()
 
-    def test_private_video_search_uses_configured_base_url_without_pexels_key(self):
+    def test_private_video_search_uses_configured_base_url_with_bearer_key(self):
         with patch.object(
             self.search_media.requests,
             "get",
             return_value=MockResponse({"videos": [], "next_page": None}),
         ) as get:
             response = self.search_media.search_videos(
-                pexels_api_key="",
-                pexels_base_url="https://app.example.com/api/private-media/pexels/",
+                pexels_api_key="private-token",
+                pexels_base_url="https://app.example.com/api/private-media/pexels/merchants/merchant-1/",
                 query="lobby",
                 per_page=10,
                 page=2,
@@ -118,8 +118,8 @@ class FireRedSearchMediaPrivateBaseUrlTests(unittest.TestCase):
 
         self.assertEqual({"videos": [], "next_page": None}, response)
         get.assert_called_once_with(
-            "https://app.example.com/api/private-media/pexels/videos/search",
-            headers={},
+            "https://app.example.com/api/private-media/pexels/merchants/merchant-1/videos/search",
+            headers={"Authorization": "Bearer private-token"},
             params={"query": "lobby", "per_page": 10, "page": 2},
             timeout=30,
         )
@@ -132,15 +132,15 @@ class FireRedSearchMediaPrivateBaseUrlTests(unittest.TestCase):
         ) as get:
             self.search_media.search_photos(
                 pexels_api_key="private-token",
-                pexels_base_url="https://app.example.com/api/private-media/pexels",
+                pexels_base_url="https://app.example.com/api/private-media/pexels/merchants/merchant-1",
                 query="living room",
                 per_page=5,
                 page=1,
             )
 
         get.assert_called_once_with(
-            "https://app.example.com/api/private-media/pexels/v1/search",
-            headers={"Authorization": "private-token"},
+            "https://app.example.com/api/private-media/pexels/merchants/merchant-1/v1/search",
+            headers={"Authorization": "Bearer private-token"},
             params={"query": "living room", "per_page": 5, "page": 1},
             timeout=30,
         )
