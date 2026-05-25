@@ -72,3 +72,37 @@ The final `rg` returned no matches.
 Additional note:
 
 - `cd app && node --test src/lib/private-media-workflow-fixture.test.ts` still fails under direct Node execution because that existing test imports runtime files that use the project `@/` path alias. That failure predates this storage-provider change and is not used as this batch's validation gate.
+
+## Review Follow-up: App Scripts
+
+Issue:
+
+- Phase 3K removed the app runtime provider and package dependencies, but `app/scripts` still had smoke scripts importing the removed server SDK and checking removed app env names.
+- A clean app install would no longer have those packages, so those scripts could fail before reaching their smoke logic.
+
+Fix:
+
+- Deleted the old provider-specific roundtrip script:
+  - `app/scripts/check-domestic-cos-roundtrip.mjs`
+- Kept the existing Aliyun OSS signed PUT smoke as the current roundtrip command:
+  - `app/scripts/check-aliyun-oss-signed-put-smoke.mjs`
+- Updated app smoke scripts to accept only `aliyun_oss`:
+  - `app/scripts/check-domestic-app-env.mjs`
+  - `app/scripts/check-domestic-storage-provider-smoke.mjs`
+  - `app/scripts/check-domestic-video-chain-api-smoke.mjs`
+  - `app/scripts/check-domestic-video-chain-worker-smoke.mjs`
+- Removed app script imports of removed provider SDKs and removed old provider/env error wording.
+- Kept `cosKey` only as a legacy upload-intent alias read alongside `storageKey` / `uploadKey`.
+- Updated `app/db/README.md` to describe Aliyun OSS / object storage metadata and to point to the Aliyun OSS signed PUT smoke.
+
+Additional validation passed:
+
+```bash
+cd app && node --test src/server/storage/app-storage-provider-phase-3k-contract.test.mjs
+cd app && npm run lint -- scripts/check-domestic-app-env.mjs scripts/check-domestic-storage-provider-smoke.mjs scripts/check-domestic-video-chain-api-smoke.mjs scripts/check-domestic-video-chain-worker-smoke.mjs
+cd app && npm run typecheck -- --pretty false
+git diff --check
+rg -n -S "tencent_cos|Tencent COS|cos-nodejs-sdk-v5|qcloud-cos-sts|COS_NOT_CONFIGURED|COS_SECRET|COS_BUCKET|COS_REGION|cos://|cos-preview|domestic COS" app/scripts app/db/README.md app/package.json app/pnpm-lock.yaml app/.env.example
+```
+
+The follow-up `rg` returned no matches. Remaining `cosKey` reads in the app scripts are only legacy upload-intent alias reads alongside `storageKey` / `uploadKey`.

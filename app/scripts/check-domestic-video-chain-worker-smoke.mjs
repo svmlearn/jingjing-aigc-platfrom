@@ -3,7 +3,6 @@
 import { readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
 
-import COS from "cos-nodejs-sdk-v5";
 import pg from "pg";
 
 import { loadEnvFileFromArgs } from "./lib/env-file.mjs";
@@ -98,7 +97,7 @@ try {
     },
   });
   const uploadIntentPayload = uploadIntent.body?.uploadIntent ?? null;
-  assertUploadIntent(uploadIntentPayload, provider);
+  assertUploadIntent(uploadIntentPayload);
   const putResult = await putObjectWithUploadIntent({
     uploadIntent: uploadIntentPayload,
     body,
@@ -411,16 +410,10 @@ async function fetchPreview(input) {
   };
 }
 
-function assertUploadIntent(uploadIntent, selectedProvider) {
-  const requiredFields =
-    selectedProvider === "aliyun_oss"
-      ? ["bucket", "region", "uploadUrl", "uploadMethod", "expiredTime"]
-      : ["bucket", "region", "cosKey", "TmpSecretId", "TmpSecretKey", "Token"];
+function assertUploadIntent(uploadIntent) {
+  const requiredFields = ["bucket", "region", "uploadUrl", "uploadMethod", "expiredTime"];
   const missing = requiredFields.filter((field) => !uploadIntent?.[field]);
-  if (
-    selectedProvider === "aliyun_oss" &&
-    !firstString(uploadIntent?.storageKey, uploadIntent?.uploadKey, uploadIntent?.cosKey)
-  ) {
+  if (!firstString(uploadIntent?.storageKey, uploadIntent?.uploadKey, uploadIntent?.cosKey)) {
     missing.push("storageKey|uploadKey|cosKey");
   }
 
@@ -430,55 +423,27 @@ function assertUploadIntent(uploadIntent, selectedProvider) {
 }
 
 async function putObjectWithUploadIntent(input) {
-  if (input.provider === "aliyun_oss") {
-    const headers = {
-      ...(typeof input.uploadIntent.uploadHeaders === "object" && input.uploadIntent.uploadHeaders
-        ? input.uploadIntent.uploadHeaders
-        : {}),
-    };
-    headers["Content-Type"] = headers["Content-Type"] || "video/mp4";
-    const response = await fetch(input.uploadIntent.uploadUrl, {
-      method: input.uploadIntent.uploadMethod || "PUT",
-      headers,
-      body: input.body,
-    });
-    if (!response.ok) {
-      throw new Error(`Aliyun OSS signed PUT failed. status=${response.status}`);
-    }
-    return { etag: response.headers.get("etag") };
+  const headers = {
+    ...(typeof input.uploadIntent.uploadHeaders === "object" && input.uploadIntent.uploadHeaders
+      ? input.uploadIntent.uploadHeaders
+      : {}),
+  };
+  headers["Content-Type"] = headers["Content-Type"] || "video/mp4";
+  const response = await fetch(input.uploadIntent.uploadUrl, {
+    method: input.uploadIntent.uploadMethod || "PUT",
+    headers,
+    body: input.body,
+  });
+  if (!response.ok) {
+    throw new Error(`Aliyun OSS signed PUT failed. status=${response.status}`);
   }
-
-  const client = new COS({
-    SecretId: input.uploadIntent.TmpSecretId,
-    SecretKey: input.uploadIntent.TmpSecretKey,
-    SecurityToken: input.uploadIntent.Token,
-  });
-
-  return await new Promise((resolve, reject) => {
-    client.putObject(
-      {
-        Bucket: input.uploadIntent.bucket,
-        Region: input.uploadIntent.region,
-        Key: input.uploadIntent.cosKey,
-        Body: input.body,
-        ContentType: "video/mp4",
-      },
-      (error, data) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve({ etag: data?.ETag ?? null });
-      },
-    );
-  });
+  return { etag: response.headers.get("etag") };
 }
 
 function normalizeStorageProvider(value) {
   const normalized = String(value || "").trim().toLowerCase();
 
-  if (normalized === "tencent_cos" || normalized === "aliyun_oss") {
+  if (normalized === "aliyun_oss") {
     return normalized;
   }
 
@@ -486,7 +451,7 @@ function normalizeStorageProvider(value) {
     {
       status: "invalid_provider",
       provider: value,
-      message: "Provider must be tencent_cos or aliyun_oss.",
+      message: "Provider must be aliyun_oss.",
     },
     2,
   );
