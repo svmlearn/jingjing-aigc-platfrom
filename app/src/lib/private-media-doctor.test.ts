@@ -71,7 +71,7 @@ test("private media doctor detects slice and media readiness violations", () => 
       {
         ...clip,
         id: "clip-no-thumb",
-        thumbCosKey: null,
+        thumbStorageKey: null,
       },
       {
         ...clip,
@@ -158,14 +158,14 @@ test("private media doctor prefers provider-neutral storage key aliases", () => 
     clips: [
       {
         ...clip,
-        storageKey: clip.cosKey,
-        thumbStorageKey: clip.thumbCosKey,
+        storageKey: clip.storageKey,
+        thumbStorageKey: clip.thumbStorageKey,
       },
     ],
     voiceProfiles: [voiceProfile("voice-a")],
     existingStorageKeys: [
-      clip.cosKey,
-      clip.thumbCosKey!,
+      clip.storageKey,
+      clip.thumbStorageKey!,
     ],
   });
 
@@ -178,13 +178,13 @@ test("private media doctor merges existing storage key aliases", () => {
     clips: [
       {
         ...clip,
-        storageKey: clip.cosKey,
-        thumbStorageKey: clip.thumbCosKey,
+        storageKey: clip.storageKey,
+        thumbStorageKey: clip.thumbStorageKey,
       },
     ],
     voiceProfiles: [voiceProfile("voice-a")],
-    existingStorageKeys: [clip.cosKey],
-    existingCosKeys: [clip.thumbCosKey!],
+    existingStorageKeys: [clip.storageKey],
+    existingCosKeys: [clip.thumbStorageKey!],
   });
 
   assert.deepEqual(issues, []);
@@ -225,7 +225,7 @@ const asset: MerchantMediaAssetRecord = {
   uploadedByUserId: "user-a",
   mediaType: "video",
   source: "merchant_upload",
-  sourceCosKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
+  sourceStorageKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
   status: "ready",
   createdAt: now,
 };
@@ -249,8 +249,8 @@ const clip: PrivateMediaClipRecord = {
   tagConfidence: 0.86,
   tagSource: "fixture",
   bucketName: "private-bucket",
-  cosKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
-  thumbCosKey: "merchant-media/merchant-a/thumbs/asset-a/clip-1.jpg",
+  storageKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
+  thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-a/clip-1.jpg",
   mimeType: "video/mp4",
   createdAt: now,
 };
@@ -263,8 +263,8 @@ const segmentClip: PrivateMediaClipRecord = {
   startTimeSeconds: 3,
   endTimeSeconds: 7,
   durationSeconds: 4,
-  cosKey: "merchant-media/merchant-a/clips/asset-a/clip-segment.mp4",
-  thumbCosKey: "merchant-media/merchant-a/thumbs/asset-a/clip-segment.jpg",
+  storageKey: "merchant-media/merchant-a/clips/asset-a/clip-segment.mp4",
+  thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-a/clip-segment.jpg",
 };
 
 function voiceProfile(

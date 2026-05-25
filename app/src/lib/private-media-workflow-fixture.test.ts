@@ -79,7 +79,7 @@ test("private media Dify-to-OpenStoryline workflow has a fixture-level smoke sub
   const videoUrl = pexels.videos[0]?.video_files[0]?.link;
   assert.ok(videoUrl);
   assert.equal(videoUrl.includes("fixture-video-b-entrance"), false);
-  assert.equal(videoUrl.includes("cosKey"), false);
+  assert.equal(videoUrl.includes("storageKey"), false);
   assert.equal(videoUrl.includes("/api/private-media/download/"), true);
 
   const token = decodeURIComponent(new URL(videoUrl).pathname.split("/").at(-1) ?? "");
@@ -114,8 +114,8 @@ test("private media Dify-to-OpenStoryline workflow has a fixture-level smoke sub
     voiceProfiles: [fixtureVoiceProfile],
     now,
     existingCosKeys: [
-      v1WorkflowClip.cosKey,
-      v1WorkflowClip.thumbCosKey!,
+      v1WorkflowClip.storageKey,
+      v1WorkflowClip.thumbStorageKey!,
     ],
     publicBuckets: [],
     clientExposedEnvKeys: ["NEXT_PUBLIC_SUPA\x42ASE_URL"],
@@ -169,7 +169,7 @@ const fixtureAsset: MerchantMediaAssetRecord = {
   uploadedByUserId: "user-a",
   mediaType: "video",
   source: "merchant_upload",
-  sourceCosKey: v1WorkflowClip.cosKey,
+  sourceStorageKey: v1WorkflowClip.storageKey,
   status: "ready",
   createdAt: now,
 };

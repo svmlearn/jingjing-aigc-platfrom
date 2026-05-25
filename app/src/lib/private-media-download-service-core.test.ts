@@ -180,8 +180,8 @@ const readyVideo: PrivateMediaClipRecord = {
   description: "Project entrance.",
   tags: ["project", "entrance", "shops"],
   bucketName: "private-bucket",
-  cosKey: "merchant-media/merchant-a/originals/asset-1/source.mp4",
-  thumbCosKey: "merchant-media/merchant-a/thumbs/asset-1/clip-1.jpg",
+  storageKey: "merchant-media/merchant-a/originals/asset-1/source.mp4",
+  thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-1/clip-1.jpg",
   mimeType: "video/mp4",
   createdAt: now,
 };

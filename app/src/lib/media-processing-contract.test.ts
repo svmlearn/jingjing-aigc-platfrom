@@ -20,7 +20,7 @@ test("merchant raw upload fixture models raw_upload to processed_ready", () => {
       durationSeconds: 8.4,
       mimeType: "video/mp4",
     },
-    thumbnailCosKey: "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg",
+    thumbnailStorageKey: "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg",
     tags: readyTags,
     now,
   });
@@ -43,8 +43,7 @@ test("merchant raw upload fixture models raw_upload to processed_ready", () => {
     assert.equal(result.readyClips[0]?.clipIndex, 0);
     assert.equal(result.readyClips[0]?.startTimeSeconds, 0);
     assert.equal(result.readyClips[0]?.endTimeSeconds, 8.4);
-    assert.equal(result.readyClips[0]?.cosKey, rawUploadAsset.sourceCosKey);
-    assert.equal(result.readyClips[0]?.storageKey, rawUploadAsset.sourceStorageKey ?? rawUploadAsset.sourceCosKey);
+    assert.equal(result.readyClips[0]?.storageKey, rawUploadAsset.sourceStorageKey);
     assert.equal(result.readyClips[0]?.thumbStorageKey, "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg");
     assert.equal(result.readyClips[0]?.durationSeconds, 8.4);
     assert.equal(result.readyClips[0]?.orientation, "portrait");
@@ -56,7 +55,7 @@ test("image raw upload fixture produces one deterministic image clip without vid
     ...rawUploadAsset,
     id: "asset-image-1",
     mediaType: "image",
-    sourceCosKey: "merchant-media/merchant-a/originals/asset-image-1/source.jpg",
+    sourceStorageKey: "merchant-media/merchant-a/originals/asset-image-1/source.jpg",
   };
   const result = processMerchantRawUploadFixture({
     asset: imageAsset,
@@ -68,7 +67,7 @@ test("image raw upload fixture produces one deterministic image clip without vid
       durationSeconds: null,
       mimeType: "image/jpeg",
     },
-    thumbnailCosKey: "merchant-media/merchant-a/thumbs/asset-image-1/clip-1.jpg",
+    thumbnailStorageKey: "merchant-media/merchant-a/thumbs/asset-image-1/clip-1.jpg",
     tags: readyTags,
     now,
   });
@@ -79,8 +78,7 @@ test("image raw upload fixture produces one deterministic image clip without vid
     assert.equal(result.readyClips[0]?.clipType, "image");
     assert.equal(result.readyClips[0]?.clipIndex, 0);
     assert.equal(result.readyClips[0]?.durationSeconds, null);
-    assert.equal(result.readyClips[0]?.cosKey, imageAsset.sourceCosKey);
-    assert.equal(result.readyClips[0]?.storageKey, imageAsset.sourceStorageKey ?? imageAsset.sourceCosKey);
+    assert.equal(result.readyClips[0]?.storageKey, imageAsset.sourceStorageKey);
   }
 });
 
@@ -88,7 +86,7 @@ test("merchant raw upload fixture accepts provider-neutral thumbnail storage key
   const result = processMerchantRawUploadFixture({
     asset: {
       ...rawUploadAsset,
-      sourceStorageKey: rawUploadAsset.sourceCosKey,
+      sourceStorageKey: rawUploadAsset.sourceStorageKey,
     },
     detectedMimeType: "video/mp4",
     metadata: {
@@ -105,12 +103,11 @@ test("merchant raw upload fixture accepts provider-neutral thumbnail storage key
 
   assert.equal(result.ok, true);
   if (result.ok) {
-    assert.equal(result.readyClips[0]?.thumbCosKey, "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg");
-    assert.equal(result.readyClips[0]?.thumbStorageKey, result.readyClips[0]?.thumbCosKey);
+    assert.equal(result.readyClips[0]?.thumbStorageKey, "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg");
   }
 });
 
-test("merchant raw upload fixture rejects conflicting thumbnail key aliases", () => {
+test("merchant raw upload fixture rejects missing thumbnail storage key", () => {
   const result = processMerchantRawUploadFixture({
     asset: rawUploadAsset,
     detectedMimeType: "video/mp4",
@@ -121,15 +118,14 @@ test("merchant raw upload fixture rejects conflicting thumbnail key aliases", ()
       durationSeconds: 8.4,
       mimeType: "video/mp4",
     },
-    thumbnailCosKey: "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg",
-    thumbnailStorageKey: "merchant-media/merchant-a/thumbs/asset-raw-1/other.jpg",
+    thumbnailStorageKey: null,
     tags: readyTags,
     now,
   });
 
   assert.equal(result.ok, false);
   if (!result.ok) {
-    assert.ok(result.errors.some((error) => error.includes("thumbnailStorageKey must match thumbnailCosKey")));
+    assert.ok(result.errors.some((error) => error.includes("thumbnail storage key is required")));
   }
 });
 
@@ -138,7 +134,7 @@ test("raw uploaded MP4 is not a ready clip without parsed metadata and thumbnail
     asset: rawUploadAsset,
     detectedMimeType: "video/mp4",
     metadata: null,
-    thumbnailCosKey: null,
+    thumbnailStorageKey: null,
     tags: readyTags,
     now,
   });
@@ -163,7 +159,7 @@ test("low confidence or incomplete tags go to needs_retag instead of Pexels-read
       durationSeconds: 10,
       mimeType: "video/mp4",
     },
-    thumbnailCosKey: "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg",
+    thumbnailStorageKey: "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg",
     tags: {
       ...readyTags,
       tags: ["project", "entrance"],
@@ -192,7 +188,7 @@ test("overlong video uses needs_reclip gate and does not silently trim the full_
       mimeType: "video/mp4",
     },
     maxAutoReadyVideoDurationSeconds: 180,
-    thumbnailCosKey: "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg",
+    thumbnailStorageKey: "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg",
     tags: readyTags,
     now,
   });
@@ -210,11 +206,11 @@ test("member temporary uploads cannot be promoted into merchant media processing
     asset: {
       ...rawUploadAsset,
       source: "member_task_temp",
-      sourceCosKey: "draft-inputs/merchant-a/draft-1/source.mp4",
+      sourceStorageKey: "draft-inputs/merchant-a/draft-1/source.mp4",
     },
     detectedMimeType: "video/mp4",
     metadata: null,
-    thumbnailCosKey: null,
+    thumbnailStorageKey: null,
     tags: null,
     now,
   });
@@ -232,7 +228,7 @@ const rawUploadAsset: MerchantMediaAssetRecord = {
   uploadedByUserId: "user-a",
   mediaType: "video",
   source: "merchant_upload",
-  sourceCosKey: "merchant-media/merchant-a/originals/asset-raw-1/source.mp4",
+  sourceStorageKey: "merchant-media/merchant-a/originals/asset-raw-1/source.mp4",
   status: "uploaded",
   createdAt: now,
 };

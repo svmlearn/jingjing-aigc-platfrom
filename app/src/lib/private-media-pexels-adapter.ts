@@ -31,9 +31,7 @@ export type PrivateMediaClipRecord = {
   tagConfidence?: number | null;
   tagSource?: string | null;
   bucketName: string;
-  cosKey: string;
-  storageKey?: string;
-  thumbCosKey?: string | null;
+  storageKey: string;
   thumbStorageKey?: string | null;
   mimeType: string;
   createdAt: string;

@@ -30,7 +30,6 @@ export type ProcessMerchantRawUploadInput = {
   detectedMimeType: string;
   metadata?: ExtractedMediaMetadata | null;
   maxAutoReadyVideoDurationSeconds?: number | null;
-  thumbnailCosKey?: string | null;
   thumbnailStorageKey?: string | null;
   tags?: ProcessedMediaTags | null;
   now: string;
@@ -148,9 +147,7 @@ export function processMerchantRawUploadFixture(
     tagConfidence: tags.tagConfidence,
     tagSource: tags.tagSource,
     bucketName: "fixture-private-bucket",
-    cosKey: getMerchantMediaAssetStorageKey(input.asset),
     storageKey: getMerchantMediaAssetStorageKey(input.asset),
-    thumbCosKey: thumbnailStorageKey,
     thumbStorageKey: thumbnailStorageKey,
     mimeType: metadata.mimeType,
     createdAt: input.now,
@@ -213,9 +210,6 @@ function validateProcessingEvidence(input: ProcessMerchantRawUploadInput) {
   const errors: string[] = [];
   const metadata = input.metadata;
 
-  if (hasConflictingThumbnailStorageKeys(input)) {
-    errors.push("thumbnailStorageKey must match thumbnailCosKey when both are provided.");
-  }
   if (!metadata) {
     errors.push("media metadata extraction is required before an asset can become ready.");
     return errors;
@@ -243,15 +237,8 @@ function validateProcessingEvidence(input: ProcessMerchantRawUploadInput) {
   return errors;
 }
 
-function getThumbnailStorageKey(input: Pick<ProcessMerchantRawUploadInput, "thumbnailCosKey" | "thumbnailStorageKey">) {
-  return input.thumbnailStorageKey?.trim() || input.thumbnailCosKey?.trim() || null;
-}
-
-function hasConflictingThumbnailStorageKeys(input: Pick<ProcessMerchantRawUploadInput, "thumbnailCosKey" | "thumbnailStorageKey">) {
-  const thumbnailCosKey = input.thumbnailCosKey?.trim() ?? "";
-  const thumbnailStorageKey = input.thumbnailStorageKey?.trim() ?? "";
-
-  return Boolean(thumbnailCosKey && thumbnailStorageKey && thumbnailCosKey !== thumbnailStorageKey);
+function getThumbnailStorageKey(input: Pick<ProcessMerchantRawUploadInput, "thumbnailStorageKey">) {
+  return input.thumbnailStorageKey?.trim() || null;
 }
 
 function validateReadyTags(tags: ProcessedMediaTags | null | undefined) {

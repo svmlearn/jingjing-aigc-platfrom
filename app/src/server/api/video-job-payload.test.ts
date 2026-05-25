@@ -267,9 +267,7 @@ test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merch
           mediaType: "video",
           clipType: "segment",
           bucketName: "jj-private-bucket",
-          cosKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
           storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
-          thumbCosKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
           thumbStorageKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
           mimeType: "video/mp4",
           durationSeconds: 5,
@@ -318,9 +316,8 @@ test("buildVideoEditJobInputPayload matches merchant media clips by provider-neu
     merchantMediaClips: [
       {
         ...merchantClip,
-        cosKey: "merchant-media/merchant-1/clips/merchant-asset-1/legacy-only-name.mp4",
         storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/unique-storage-token.mp4",
-        thumbStorageKey: merchantClip.thumbCosKey,
+        thumbStorageKey: merchantClip.thumbStorageKey,
       },
     ],
   });
@@ -328,10 +325,6 @@ test("buildVideoEditJobInputPayload matches merchant media clips by provider-neu
   assert.deepEqual(payload.materialContext.merchantMediaMatches[0]?.clipIds, ["merchant-clip-entrance"]);
   assert.equal(
     payload.materialContext.merchantMediaMatches[0]?.clips[0]?.storageKey,
-    "merchant-media/merchant-1/clips/merchant-asset-1/unique-storage-token.mp4",
-  );
-  assert.equal(
-    payload.materialContext.merchantMediaMatches[0]?.clips[0]?.cosKey,
     "merchant-media/merchant-1/clips/merchant-asset-1/unique-storage-token.mp4",
   );
 });
@@ -961,9 +954,7 @@ const merchantClip: PrivateMediaClipRecord = {
   sceneTags: ["exterior"],
   shotTags: ["wide"],
   bucketName: "jj-private-bucket",
-  cosKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
   storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
-  thumbCosKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
   thumbStorageKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
   mimeType: "video/mp4",
   createdAt: "2026-05-15T00:00:00.000Z",

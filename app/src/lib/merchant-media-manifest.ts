@@ -14,8 +14,7 @@ export type MerchantMediaManifestRequest = {
     mediaType: "image" | "video";
     source?: MerchantMediaAssetRecord["source"];
     bucketName?: string | null;
-    sourceCosKey?: string;
-    sourceStorageKey?: string;
+    sourceStorageKey: string;
     mimeType?: string | null;
     idempotencyKey?: string | null;
   };
@@ -28,10 +27,8 @@ export type MerchantMediaManifestRequest = {
     endTimeSeconds?: number | null;
     durationSeconds?: number | null;
     bucketName?: string | null;
-    cosKey?: string;
-    storageKey?: string;
-    thumbCosKey?: string | null;
-    thumbStorageKey?: string | null;
+    storageKey: string;
+    thumbStorageKey: string;
     mimeType?: string | null;
     width: number;
     height: number;
@@ -54,7 +51,6 @@ export type MerchantMediaManifestResult = {
     merchantId: string;
     mediaType: "image" | "video";
     status: "ready";
-    sourceCosKey: string;
     sourceStorageKey: string;
   };
   clips: Array<{
@@ -63,9 +59,7 @@ export type MerchantMediaManifestResult = {
     clipIndex?: number;
     clipType?: PrivateMediaClipRecord["clipType"];
     mediaType: "image" | "video";
-    cosKey: string;
     storageKey: string;
-    thumbCosKey?: string | null;
     thumbStorageKey?: string | null;
     tags: string[];
     sceneTags?: string[];
@@ -103,14 +97,11 @@ export async function receiveMerchantMediaManifest(input: {
   const now = input.now ?? new Date().toISOString();
   const bucketName = resolveBucketName(input.request.asset.bucketName, input.defaultBucketName);
   const assetId = input.request.asset.id ?? randomUUID();
-  const sourceStorageKey = resolveManifestStorageKeyAlias({
-    legacyName: "sourceCosKey",
-    aliasName: "sourceStorageKey",
-    legacyValue: input.request.asset.sourceCosKey,
-    aliasValue: input.request.asset.sourceStorageKey,
-    conflictCode: "MERCHANT_MEDIA_SOURCE_KEY_CONFLICT",
-    requiredCode: "MERCHANT_MEDIA_SOURCE_KEY_REQUIRED",
-  });
+  const sourceStorageKey = requireManifestStorageKey(
+    input.request.asset.sourceStorageKey,
+    "MERCHANT_MEDIA_SOURCE_KEY_REQUIRED",
+    "sourceStorageKey is required.",
+  );
 
   assertMerchantMediaSourceKey({
     merchantId: input.merchantId,
@@ -124,7 +115,6 @@ export async function receiveMerchantMediaManifest(input: {
     uploadedByUserId: input.userId,
     mediaType: input.request.asset.mediaType,
     source: input.request.asset.source ?? "merchant_upload",
-    sourceCosKey: sourceStorageKey,
     sourceStorageKey,
     status: "ready" as const,
     createdAt: now,
@@ -174,8 +164,7 @@ export async function receiveMerchantMediaManifest(input: {
       merchantId: upsertedAsset.merchantId,
       mediaType: upsertedAsset.mediaType,
       status: "ready",
-      sourceCosKey: upsertedAsset.sourceCosKey,
-      sourceStorageKey: upsertedAsset.sourceStorageKey ?? upsertedAsset.sourceCosKey,
+      sourceStorageKey: upsertedAsset.sourceStorageKey,
     },
     clips: upsertedClips.map((clip) => ({
       id: clip.id,
@@ -183,10 +172,8 @@ export async function receiveMerchantMediaManifest(input: {
       clipIndex: clip.clipIndex,
       clipType: clip.clipType,
       mediaType: clip.mediaType,
-      cosKey: clip.cosKey,
-      storageKey: clip.storageKey ?? clip.cosKey,
-      thumbCosKey: clip.thumbCosKey,
-      thumbStorageKey: clip.thumbStorageKey ?? clip.thumbCosKey ?? null,
+      storageKey: clip.storageKey,
+      thumbStorageKey: clip.thumbStorageKey ?? null,
       tags: clip.tags,
       sceneTags: clip.sceneTags,
       shotTags: clip.shotTags,
@@ -204,22 +191,16 @@ function normalizeManifestClip(input: {
   clip: MerchantMediaManifestRequest["clips"][number];
 }): PrivateMediaClipRecord {
   const clipMediaType = input.clip.mediaType ?? input.assetMediaType;
-  const storageKey = resolveManifestStorageKeyAlias({
-    legacyName: "cosKey",
-    aliasName: "storageKey",
-    legacyValue: input.clip.cosKey,
-    aliasValue: input.clip.storageKey,
-    conflictCode: "MERCHANT_MEDIA_CLIP_KEY_CONFLICT",
-    requiredCode: "MERCHANT_MEDIA_CLIP_KEY_REQUIRED",
-  });
-  const thumbStorageKey = resolveManifestStorageKeyAlias({
-    legacyName: "thumbCosKey",
-    aliasName: "thumbStorageKey",
-    legacyValue: input.clip.thumbCosKey,
-    aliasValue: input.clip.thumbStorageKey,
-    conflictCode: "MERCHANT_MEDIA_THUMB_KEY_CONFLICT",
-    requiredCode: "MERCHANT_MEDIA_THUMB_KEY_REQUIRED",
-  });
+  const storageKey = requireManifestStorageKey(
+    input.clip.storageKey,
+    "MERCHANT_MEDIA_CLIP_KEY_REQUIRED",
+    "storageKey is required.",
+  );
+  const thumbStorageKey = requireManifestStorageKey(
+    input.clip.thumbStorageKey,
+    "MERCHANT_MEDIA_THUMB_KEY_REQUIRED",
+    "thumbStorageKey is required.",
+  );
 
   if (clipMediaType !== input.assetMediaType) {
     throw new MerchantMediaManifestContractError(
@@ -270,9 +251,7 @@ function normalizeManifestClip(input: {
     tagConfidence: input.clip.tagConfidence ?? null,
     tagSource: input.clip.tagSource ?? "manual",
     bucketName: input.bucketName,
-    cosKey: storageKey,
     storageKey,
-    thumbCosKey: thumbStorageKey,
     thumbStorageKey,
     mimeType: input.clip.mimeType ?? (clipMediaType === "image" ? "image/jpeg" : "video/mp4"),
     createdAt: input.now,
@@ -290,7 +269,7 @@ function assertMerchantMediaSourceKey(input: {
     throw new MerchantMediaManifestContractError(
       400,
       "MERCHANT_MEDIA_SOURCE_KEY_INVALID",
-      "sourceStorageKey/sourceCosKey must stay under merchant-media/{merchantId}/originals/{assetId}/.",
+      "sourceStorageKey must stay under merchant-media/{merchantId}/originals/{assetId}/.",
       { expectedPrefix },
     );
   }
@@ -315,7 +294,7 @@ function assertMerchantMediaClipKey(input: {
     throw new MerchantMediaManifestContractError(
       400,
       "MERCHANT_MEDIA_CLIP_KEY_INVALID",
-      "clip storageKey/cosKey must stay under merchant-media/{merchantId}/clips/{assetId}/ or use the original object for full_video/image.",
+      "clip storageKey must stay under merchant-media/{merchantId}/clips/{assetId}/ or use the original object for full_video/image.",
       { expectedPrefixes: [clipPrefix, sourcePrefix] },
     );
   }
@@ -341,7 +320,7 @@ function assertMerchantMediaClipKey(input: {
     throw new MerchantMediaManifestContractError(
       400,
       "MERCHANT_MEDIA_THUMB_KEY_INVALID",
-      "thumbStorageKey/thumbCosKey must stay under merchant-media/{merchantId}/thumbs/{assetId}/.",
+      "thumbStorageKey must stay under merchant-media/{merchantId}/thumbs/{assetId}/.",
       { expectedPrefix: thumbPrefix },
     );
   }
@@ -383,35 +362,17 @@ function resolveBucketName(bucketName?: string | null, defaultBucketName?: strin
   );
 }
 
-function resolveManifestStorageKeyAlias(input: {
-  legacyName: string;
-  aliasName: string;
-  legacyValue?: string | null;
-  aliasValue?: string | null;
-  conflictCode: string;
-  requiredCode: string;
-}) {
-  const legacyValue = input.legacyValue?.trim() ?? "";
-  const aliasValue = input.aliasValue?.trim() ?? "";
-
-  if (legacyValue && aliasValue && legacyValue !== aliasValue) {
+function requireManifestStorageKey(value: string | null | undefined, code: string, message: string) {
+  const normalizedValue = value?.trim() ?? "";
+  if (!normalizedValue) {
     throw new MerchantMediaManifestContractError(
       400,
-      input.conflictCode,
-      `${input.aliasName} must match ${input.legacyName} when both are provided.`,
+      code,
+      message,
     );
   }
 
-  const value = aliasValue || legacyValue;
-  if (!value) {
-    throw new MerchantMediaManifestContractError(
-      400,
-      input.requiredCode,
-      `${input.aliasName} or ${input.legacyName} is required.`,
-    );
-  }
-
-  return value;
+  return normalizedValue;
 }
 
 function uniqueTrimmedStrings(values: string[]) {

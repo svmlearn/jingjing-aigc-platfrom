@@ -59,27 +59,26 @@ test("PostgreSQL helpers and table names are the only data access path", () => {
 
 test("asset idempotent upsert uses merchant_id plus idempotency_key", () => {
   assertFunctionBody("upsertAsset", [
-    "normalizeMerchantMediaAssetStorageAliases(input.asset)",
+    "const asset = input.asset",
     "assertMerchantMediaRepositoryAsset(asset)",
     "insert into public.merchant_media_assets",
     "idempotency_key",
     "on conflict (merchant_id, idempotency_key)",
+    "asset.sourceStorageKey",
     "returning ${merchantMediaAssetSelect}",
   ]);
 });
 
 test("ready clip upsert checks merchant asset and keeps asset/index idempotency", () => {
   const upsertReadyClipBody = extractFunctionBody("upsertReadyClip");
-  const normalizeIndex = upsertReadyClipBody.indexOf("normalizePrivateMediaClipStorageAliases(input.clip)");
   const sharedHelperIndex = upsertReadyClipBody.indexOf("assertMerchantMediaRepositoryReadyClip(normalizedInput)");
   const transactionIndex = upsertReadyClipBody.indexOf("withAppDbTransaction(async (client)");
 
-  assert.notEqual(normalizeIndex, -1, "PostgreSQL upsertReadyClip should normalize storage aliases.");
   assert.notEqual(sharedHelperIndex, -1, "PostgreSQL upsertReadyClip should call shared ready clip helper.");
   assert.notEqual(transactionIndex, -1, "PostgreSQL upsertReadyClip should use a transaction.");
   assert.ok(
-    normalizeIndex < sharedHelperIndex && sharedHelperIndex < transactionIndex,
-    "PostgreSQL upsertReadyClip should normalize and validate ready clip contract before any DB transaction.",
+    sharedHelperIndex < transactionIndex,
+    "PostgreSQL upsertReadyClip should validate ready clip contract before any DB transaction.",
   );
 
   assert.ok(
@@ -93,8 +92,8 @@ test("ready clip upsert checks merchant asset and keeps asset/index idempotency"
     "insert into public.merchant_media_clips",
     "on conflict (asset_id, clip_index)",
     "JSON.stringify(clip.tags)",
-    "clip.cosKey",
-    "clip.thumbCosKey ?? null",
+    "clip.storageKey",
+    "clip.thumbStorageKey ?? null",
     "returning ${merchantMediaClipSelect}",
   ]);
   assertFunctionBody("assertMerchantMediaAssetExists", [
@@ -107,10 +106,11 @@ test("ready clip upsert checks merchant asset and keeps asset/index idempotency"
 
 test("ready clip contract is shared by InMemory and PostgreSQL repositories", () => {
   assert.match(repositoryContractSource, /export function assertMerchantMediaRepositoryReadyClip/);
-  assert.match(repositoryContractSource, /export function normalizeMerchantMediaAssetStorageAliases/);
-  assert.match(repositoryContractSource, /export function normalizePrivateMediaClipStorageAliases/);
+  assert.doesNotMatch(repositoryContractSource, /normalizeMerchantMediaAssetStorageAliases/);
+  assert.doesNotMatch(repositoryContractSource, /normalizePrivateMediaClipStorageAliases/);
   assert.match(repositoryContractSource, /sourceStorageKey/);
   assert.match(repositoryContractSource, /thumbStorageKey/);
+  assert.doesNotMatch(repositoryContractSource, /sourceCosKey|thumbCosKey|\bcosKey\b/);
   assert.match(repositoryContractSource, /input\.clip\.merchantId !== input\.merchantId/);
   assert.match(repositoryContractSource, /input\.clip\.assetId && input\.clip\.assetId !== input\.assetId/);
   assert.match(repositoryContractSource, /input\.clip\.status !== "ready"/);
@@ -120,18 +120,15 @@ test("ready clip contract is shared by InMemory and PostgreSQL repositories", ()
   assert.match(repositoryContractSource, /input\.clip\.clipType !== "full_video"/);
   assert.match(repositoryContractSource, /input\.clip\.clipType !== "segment"/);
   assert.match(repositoryContractSource, /input\.clip\.clipType !== "image"/);
-  assert.match(repositoryContractSource, /assertMerchantMediaRepositoryReadyClip\(\{\s*\.\.\.input,\s*clip: normalizedClip,\s*\}\);/);
+  assert.match(repositorySource, /assertMerchantMediaRepositoryReadyClip\(normalizedInput\);/);
 });
 
 test("repository mappers output provider-neutral storage key aliases", () => {
   assertFunctionBody("mapMerchantMediaAsset", [
-    "sourceCosKey: row.source_cos_key",
     "sourceStorageKey: row.source_cos_key",
   ]);
   assertFunctionBody("mapMerchantMediaClip", [
-    "cosKey: row.cos_key",
     "storageKey: row.cos_key",
-    "thumbCosKey: row.thumb_cos_key",
     "thumbStorageKey: row.thumb_cos_key",
   ]);
 });

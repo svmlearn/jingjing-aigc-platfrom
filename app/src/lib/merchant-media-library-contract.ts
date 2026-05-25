@@ -14,8 +14,7 @@ export type MerchantMediaAssetRecord = {
   uploadedByUserId: string;
   mediaType: "image" | "video";
   source: MerchantMediaAssetSource;
-  sourceCosKey: string;
-  sourceStorageKey?: string;
+  sourceStorageKey: string;
   status:
     | "uploaded"
     | "validating"
@@ -183,13 +182,13 @@ function validateReadyClip(input: {
 export class MerchantMediaLibraryContractError extends Error {}
 
 export function getMerchantMediaAssetStorageKey(asset: MerchantMediaAssetRecord) {
-  return asset.sourceStorageKey ?? asset.sourceCosKey;
+  return asset.sourceStorageKey;
 }
 
 export function getPrivateMediaClipStorageKey(clip: PrivateMediaClipRecord) {
-  return clip.storageKey ?? clip.cosKey;
+  return clip.storageKey;
 }
 
 export function getPrivateMediaClipThumbStorageKey(clip: PrivateMediaClipRecord) {
-  return clip.thumbStorageKey ?? clip.thumbCosKey ?? null;
+  return clip.thumbStorageKey ?? null;
 }

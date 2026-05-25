@@ -37,9 +37,9 @@ test("merchant media repository lists assets and clips only with explicit mercha
   const listedAssets = await repository.listAssetsByMerchant({ merchantId: "merchant-a" });
   const listedClips = await repository.listReadyClipsByMerchant({ merchantId: "merchant-a" });
 
-  assert.equal(listedAssets[0]?.sourceStorageKey, listedAssets[0]?.sourceCosKey);
-  assert.equal(listedClips[0]?.storageKey, listedClips[0]?.cosKey);
-  assert.equal(listedClips[0]?.thumbStorageKey, listedClips[0]?.thumbCosKey);
+  assert.equal(listedAssets[0]?.sourceStorageKey, "merchant-media/merchant-a/originals/asset-a/source.mp4");
+  assert.equal(listedClips[0]?.storageKey, "merchant-media/merchant-a/originals/asset-a/source.mp4");
+  assert.equal(listedClips[0]?.thumbStorageKey, "merchant-media/merchant-a/thumbs/asset-a/clip-1.jpg");
   assert.deepEqual(listedClips.map((clip) => clip.id), [
     "clip-a",
   ]);
@@ -83,7 +83,7 @@ test("merchant media repository rejects member temporary material and voice reco
           ...assetA,
           id: "member-temp",
           source: "member_task_temp",
-          sourceCosKey: "draft-inputs/merchant-a/draft-1/source.mp4",
+          sourceStorageKey: "draft-inputs/merchant-a/draft-1/source.mp4",
         },
         idempotencyKey: "member-temp",
       }),
@@ -100,7 +100,7 @@ test("merchant media repository rejects member temporary material and voice reco
           id: "voice-audio",
           mediaType: "video",
           source: "voice_profile",
-          sourceCosKey: "voice-profiles/merchant-a/profile-1/ref.m4a",
+          sourceStorageKey: "voice-profiles/merchant-a/profile-1/ref.m4a",
         },
         idempotencyKey: "voice-audio",
       }),
@@ -128,7 +128,7 @@ test("merchant media repository accepts merchant segment clips", async () => {
       startTimeSeconds: 5,
       endTimeSeconds: 10,
       durationSeconds: 5,
-      cosKey: "merchant-media/merchant-a/clips/asset-a/clip-window.mp4",
+      storageKey: "merchant-media/merchant-a/clips/asset-a/clip-window.mp4",
     },
   });
 
@@ -137,31 +137,24 @@ test("merchant media repository accepts merchant segment clips", async () => {
   ]);
 });
 
-test("merchant media repository accepts matching provider-neutral storage aliases", async () => {
+test("merchant media repository returns provider-neutral storage keys", async () => {
   const repository = new InMemoryMerchantMediaRepository();
   const asset = await repository.upsertAsset({
-    asset: {
-      ...assetA,
-      sourceStorageKey: assetA.sourceCosKey,
-    },
+    asset: assetA,
     idempotencyKey: "storage-key-alias-a",
   });
   const clip = await repository.upsertReadyClip({
     merchantId: "merchant-a",
     assetId: assetA.id,
-    clip: {
-      ...clipA,
-      storageKey: clipA.cosKey,
-      thumbStorageKey: clipA.thumbCosKey,
-    },
+    clip: clipA,
   });
 
-  assert.equal(asset.sourceStorageKey, asset.sourceCosKey);
-  assert.equal(clip.storageKey, clip.cosKey);
-  assert.equal(clip.thumbStorageKey, clip.thumbCosKey);
+  assert.equal(asset.sourceStorageKey, "merchant-media/merchant-a/originals/asset-a/source.mp4");
+  assert.equal(clip.storageKey, "merchant-media/merchant-a/originals/asset-a/source.mp4");
+  assert.equal(clip.thumbStorageKey, "merchant-media/merchant-a/thumbs/asset-a/clip-1.jpg");
 });
 
-test("merchant media repository rejects conflicting storage aliases", async () => {
+test("merchant media repository rejects missing storage keys", async () => {
   const repository = new InMemoryMerchantMediaRepository();
 
   await assert.rejects(
@@ -169,13 +162,13 @@ test("merchant media repository rejects conflicting storage aliases", async () =
       repository.upsertAsset({
         asset: {
           ...assetA,
-          sourceStorageKey: "merchant-media/merchant-a/originals/asset-a/other.mp4",
+          sourceStorageKey: "",
         },
         idempotencyKey: "storage-key-conflict-a",
       }),
     (error) =>
       error instanceof MerchantMediaRepositoryContractError &&
-      error.code === "MERCHANT_MEDIA_SOURCE_KEY_CONFLICT",
+      error.code === "MERCHANT_MEDIA_SOURCE_KEY_REQUIRED",
   );
 
   await repository.upsertAsset({
@@ -190,12 +183,27 @@ test("merchant media repository rejects conflicting storage aliases", async () =
         assetId: assetA.id,
         clip: {
           ...clipA,
-          storageKey: "merchant-media/merchant-a/originals/asset-a/other.mp4",
+          storageKey: "",
         },
       }),
     (error) =>
       error instanceof MerchantMediaRepositoryContractError &&
-      error.code === "MERCHANT_MEDIA_CLIP_KEY_CONFLICT",
+      error.code === "MERCHANT_MEDIA_CLIP_KEY_REQUIRED",
+  );
+
+  await assert.rejects(
+    () =>
+      repository.upsertReadyClip({
+        merchantId: "merchant-a",
+        assetId: assetA.id,
+        clip: {
+          ...clipA,
+          thumbStorageKey: "",
+        },
+      }),
+    (error) =>
+      error instanceof MerchantMediaRepositoryContractError &&
+      error.code === "MERCHANT_MEDIA_THUMB_KEY_REQUIRED",
   );
 });
 
@@ -261,7 +269,7 @@ const assetA: MerchantMediaAssetRecord = {
   uploadedByUserId: "user-a",
   mediaType: "video",
   source: "merchant_upload",
-  sourceCosKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
+  sourceStorageKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
   status: "ready",
   createdAt: now,
 };
@@ -270,7 +278,7 @@ const assetB: MerchantMediaAssetRecord = {
   ...assetA,
   id: "asset-b",
   merchantId: "merchant-b",
-  sourceCosKey: "merchant-media/merchant-b/originals/asset-b/source.mp4",
+  sourceStorageKey: "merchant-media/merchant-b/originals/asset-b/source.mp4",
 };
 
 const clipA: PrivateMediaClipRecord = {
@@ -291,8 +299,8 @@ const clipA: PrivateMediaClipRecord = {
   tags: ["project", "entrance", "shops"],
   tagSource: "fixture",
   bucketName: "private-bucket",
-  cosKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
-  thumbCosKey: "merchant-media/merchant-a/thumbs/asset-a/clip-1.jpg",
+  storageKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
+  thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-a/clip-1.jpg",
   mimeType: "video/mp4",
   createdAt: now,
 };
@@ -302,6 +310,6 @@ const clipB: PrivateMediaClipRecord = {
   id: "clip-b",
   assetId: "asset-b",
   merchantId: "merchant-b",
-  cosKey: "merchant-media/merchant-b/originals/asset-b/source.mp4",
-  thumbCosKey: "merchant-media/merchant-b/thumbs/asset-b/clip-1.jpg",
+  storageKey: "merchant-media/merchant-b/originals/asset-b/source.mp4",
+  thumbStorageKey: "merchant-media/merchant-b/thumbs/asset-b/clip-1.jpg",
 };

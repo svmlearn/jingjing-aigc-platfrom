@@ -4,8 +4,6 @@ import type { MerchantMediaAssetRecord } from "@/lib/merchant-media-library-cont
 import {
   assertMerchantMediaRepositoryAsset,
   assertMerchantMediaRepositoryReadyClip,
-  normalizeMerchantMediaAssetStorageAliases,
-  normalizePrivateMediaClipStorageAliases,
   type MerchantMediaRepository,
 } from "@/lib/merchant-media-repository-contract";
 import type { PrivateMediaClipRecord } from "@/lib/private-media-pexels-adapter";
@@ -72,7 +70,7 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
     asset: MerchantMediaAssetRecord;
     idempotencyKey: string;
   }) {
-    const asset = normalizeMerchantMediaAssetStorageAliases(input.asset);
+    const asset = input.asset;
     assertMerchantMediaRepositoryAsset(asset);
 
     try {
@@ -102,7 +100,7 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
           asset.uploadedByUserId,
           asset.mediaType,
           asset.source,
-          asset.sourceCosKey,
+          asset.sourceStorageKey,
           asset.status,
           input.idempotencyKey,
         ],
@@ -119,7 +117,7 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
     assetId: string;
     clip: PrivateMediaClipRecord;
   }) {
-    const clip = normalizePrivateMediaClipStorageAliases(input.clip);
+    const clip = input.clip;
     const normalizedInput = {
       ...input,
       clip,
@@ -213,8 +211,8 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
             clip.tagConfidence ?? null,
             clip.tagSource ?? "manual",
             clip.bucketName,
-            clip.cosKey,
-            clip.thumbCosKey ?? null,
+            clip.storageKey,
+            clip.thumbStorageKey ?? null,
             clip.mimeType,
           ],
         );
@@ -346,7 +344,6 @@ function mapMerchantMediaAsset(row: MerchantMediaAssetRow): MerchantMediaAssetRe
     uploadedByUserId: row.uploaded_by_user_id,
     mediaType: row.media_type,
     source: row.source,
-    sourceCosKey: row.source_cos_key,
     sourceStorageKey: row.source_cos_key,
     status: row.status,
     createdAt: row.created_at,
@@ -378,9 +375,7 @@ function mapMerchantMediaClip(row: MerchantMediaClipRow): PrivateMediaClipRecord
     tagConfidence: toNullableNumber(row.tag_confidence),
     tagSource: row.tag_source,
     bucketName: row.bucket_name,
-    cosKey: row.cos_key,
     storageKey: row.cos_key,
-    thumbCosKey: row.thumb_cos_key,
     thumbStorageKey: row.thumb_cos_key,
     mimeType: row.mime_type,
     createdAt: row.created_at,
