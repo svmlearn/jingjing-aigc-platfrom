@@ -6,15 +6,45 @@ const source = readFileSync(new URL("./video-workflow.ts", import.meta.url), "ut
 
 test("upload intent resolves object keys from storageKey and uploadKey before legacy cosKey", () => {
   const createUploadIntentBody = extractFunctionBody("createUploadIntent");
-  const storageKeyIndex = createUploadIntentBody.indexOf('readString(source, "storageKey", "storage_key", "uploadKey", "upload_key", "key", "cosKey", "cos_key")');
-  const uploadKeyIndex = createUploadIntentBody.indexOf('readString(source, "uploadKey", "upload_key", "storageKey", "storage_key", "key", "cosKey", "cos_key")');
-  const cosKeyIndex = createUploadIntentBody.indexOf('readString(source, "cosKey", "cos_key", "storageKey", "storage_key", "uploadKey", "upload_key", "key")');
+  const objectKeyFields = extractReadStringFields(createUploadIntentBody, "objectKey");
 
-  assert.ok(storageKeyIndex >= 0, "createUploadIntent should read storageKey first.");
-  assert.ok(uploadKeyIndex > storageKeyIndex, "createUploadIntent should read uploadKey after storageKey.");
-  assert.ok(cosKeyIndex > uploadKeyIndex, "createUploadIntent should keep cosKey as a later legacy alias.");
-  assert.match(createUploadIntentBody, /cosKey,/);
+  assert.deepEqual(
+    objectKeyFields,
+    ["storageKey", "storage_key", "uploadKey", "upload_key", "key", "cosKey", "cos_key"],
+    "createUploadIntent should resolve a provider-neutral object key before setting aliases.",
+  );
+  assert.match(createUploadIntentBody, /const storageKey = objectKey;/);
+  assert.match(createUploadIntentBody, /const uploadKey = objectKey;/);
+  assert.match(createUploadIntentBody, /const cosKey = objectKey;/);
+  assert.doesNotMatch(createUploadIntentBody, /readString\(source,\s*"cosKey"/);
   assert.match(source, /Legacy alias retained for older callers while the current upload path uses storageKey\/uploadKey/);
+});
+
+test("conflicting legacy cosKey is normalized to the resolved object key", () => {
+  const createUploadIntentBody = extractFunctionBody("createUploadIntent");
+  const objectKeyFields = extractReadStringFields(createUploadIntentBody, "objectKey");
+  const responseFields = {
+    storageKey: "new-object-key",
+    uploadKey: "new-object-key",
+    cosKey: "old-object-key",
+  };
+  const resolvedObjectKey = readStringFromFields(responseFields, objectKeyFields);
+
+  assert.equal(resolvedObjectKey, "new-object-key");
+  assert.match(createUploadIntentBody, /const storageKey = objectKey;/);
+  assert.match(createUploadIntentBody, /const uploadKey = objectKey;/);
+  assert.match(createUploadIntentBody, /const cosKey = objectKey;/);
+});
+
+test("legacy-only upload intent responses still populate every key alias", () => {
+  const createUploadIntentBody = extractFunctionBody("createUploadIntent");
+  const objectKeyFields = extractReadStringFields(createUploadIntentBody, "objectKey");
+  const resolvedObjectKey = readStringFromFields({ cos_key: "legacy-object-key" }, objectKeyFields);
+
+  assert.equal(resolvedObjectKey, "legacy-object-key");
+  assert.match(createUploadIntentBody, /const storageKey = objectKey;/);
+  assert.match(createUploadIntentBody, /const uploadKey = objectKey;/);
+  assert.match(createUploadIntentBody, /const cosKey = objectKey;/);
 });
 
 test("Aliyun OSS upload path does not depend on legacy cosKey", () => {
@@ -96,6 +126,29 @@ function extractFunctionBody(functionName) {
   }
 
   throw new Error(`${functionName} body is not closed.`);
+}
+
+function extractReadStringFields(functionBody, variableName) {
+  const expressionPattern = new RegExp(
+    `const\\s+${variableName}\\s*=\\s*readString\\(source,\\s*([^;]+)\\);`,
+  );
+  const match = functionBody.match(expressionPattern);
+
+  assert.ok(match, `${variableName} should be assigned from readString(source, ...).`);
+
+  return Array.from(match[1].matchAll(/"([^"]+)"/g), (fieldMatch) => fieldMatch[1]);
+}
+
+function readStringFromFields(input, fields) {
+  for (const field of fields) {
+    const value = input[field];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 function escapeRegExp(value) {

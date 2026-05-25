@@ -737,9 +737,7 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
   const bucket = readString(source, "bucket");
   const region = readString(source, "region");
   const endpoint = readString(source, "endpoint");
-  const storageKey = readString(source, "storageKey", "storage_key", "uploadKey", "upload_key", "key", "cosKey", "cos_key");
-  const uploadKey = readString(source, "uploadKey", "upload_key", "storageKey", "storage_key", "key", "cosKey", "cos_key");
-  const cosKey = readString(source, "cosKey", "cos_key", "storageKey", "storage_key", "uploadKey", "upload_key", "key");
+  const objectKey = readString(source, "storageKey", "storage_key", "uploadKey", "upload_key", "key", "cosKey", "cos_key");
   const uploadUrl = readString(source, "uploadUrl", "upload_url");
   const uploadMethod = readString(source, "uploadMethod", "upload_method");
   const uploadHeaders = readStringRecord(readNestedRecord(source, "uploadHeaders", "upload_headers"));
@@ -752,9 +750,13 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
     throw new Error("上传意图返回了暂不支持的存储 provider。");
   }
 
-  if (!bucket || !region || !cosKey || !storageKey || !uploadKey || expiredTime === null) {
+  if (!bucket || !region || !objectKey || expiredTime === null) {
     throw new Error("上传意图返回不完整，缺少对象存储目标。");
   }
+
+  const storageKey = objectKey;
+  const uploadKey = objectKey;
+  const cosKey = objectKey;
 
   if (
     provider === "tencent_cos" &&
