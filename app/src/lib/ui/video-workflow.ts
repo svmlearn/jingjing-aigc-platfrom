@@ -70,6 +70,7 @@ export type UploadIntent = {
   endpoint?: string | null;
   storageKey: string;
   uploadKey: string;
+  // Legacy alias retained for older callers while the current upload path uses storageKey/uploadKey.
   cosKey: string;
   tmpSecretId?: string;
   tmpSecretKey?: string;
@@ -492,10 +493,10 @@ async function loadCosSdk() {
             resolve(window.COS);
             return;
           }
-          reject(new Error("COS SDK 已加载，但对象不可用。"));
+          reject(new Error("legacy Tencent 上传 SDK 已加载，但对象不可用。"));
         });
         existingScript.addEventListener("error", () => {
-          reject(new Error("COS SDK 加载失败。"));
+          reject(new Error("legacy Tencent 上传 SDK 加载失败。"));
         });
         return;
       }
@@ -508,10 +509,10 @@ async function loadCosSdk() {
           resolve(window.COS);
           return;
         }
-        reject(new Error("COS SDK 已加载，但对象不可用。"));
+        reject(new Error("legacy Tencent 上传 SDK 已加载，但对象不可用。"));
       };
       script.onerror = () => {
-        reject(new Error("COS SDK 加载失败。"));
+        reject(new Error("legacy Tencent 上传 SDK 加载失败。"));
       };
       document.head.appendChild(script);
     });
@@ -524,15 +525,16 @@ function stripEtagQuotes(value: string) {
   return value.replaceAll('"', "");
 }
 
-async function uploadToCos(params: {
+async function uploadToTencentCompatibleObjectStorage(params: {
   intent: UploadIntent;
   file: File;
   onProgress?: (progress: UploadProgress) => void;
 }) {
   if (!params.intent.tmpSecretId || !params.intent.tmpSecretKey || !params.intent.token) {
-    throw new Error("上传意图返回不完整，缺少 COS 临时凭证。");
+    throw new Error("上传意图返回不完整，缺少 legacy Tencent 对象存储临时凭证。");
   }
 
+  const uploadKey = getUploadObjectKey(params.intent);
   const Cos = await loadCosSdk();
   const cosClient = new Cos({
     getAuthorization(_, callback) {
@@ -547,7 +549,7 @@ async function uploadToCos(params: {
 
   const uploadMethod = cosClient.sliceUploadFile ?? cosClient.putObject;
   if (!uploadMethod) {
-    throw new Error("COS SDK 不支持当前上传方法。");
+    throw new Error("legacy Tencent 上传 SDK 不支持当前上传方法。");
   }
 
   return new Promise<{ etag: string }>((resolve, reject) => {
@@ -594,11 +596,11 @@ async function uploadToCos(params: {
 
     stallTimer = window.setInterval(() => {
       if (Date.now() - lastProgressAt >= COS_UPLOAD_STALL_TIMEOUT_MS) {
-        failUpload(new Error("素材上传到 COS 已长时间没有进度，请检查网络后重试。"));
+        failUpload(new Error("素材上传到对象存储已长时间没有进度，请检查网络后重试。"));
       }
     }, 10_000);
     totalTimer = window.setTimeout(() => {
-      failUpload(new Error("素材上传到 COS 超时，请检查文件大小和网络后重试。"));
+      failUpload(new Error("素材上传到对象存储超时，请检查文件大小和网络后重试。"));
     }, COS_UPLOAD_TOTAL_TIMEOUT_MS);
 
     try {
@@ -607,7 +609,7 @@ async function uploadToCos(params: {
         {
           Bucket: params.intent.bucket,
           Region: params.intent.region,
-          Key: params.intent.cosKey,
+          Key: uploadKey,
           Body: params.file,
           onTaskReady(nextTaskId) {
             taskId = nextTaskId;
@@ -631,18 +633,18 @@ async function uploadToCos(params: {
         },
         (error, data) => {
           if (error) {
-            failUpload(error instanceof Error ? error : new Error("素材上传到 COS 失败。"));
+            failUpload(error instanceof Error ? error : new Error("素材上传到对象存储失败。"));
             return;
           }
 
           const etag =
             (isRecord(data) ? readString(data, "ETag", "etag", "eTag") : null) ??
-            `${params.intent.cosKey}-${params.file.size}`;
+            `${uploadKey}-${params.file.size}`;
           finishUpload(etag);
         },
       );
     } catch (error) {
-      failUpload(error instanceof Error ? error : new Error("素材上传到 COS 失败。"));
+      failUpload(error instanceof Error ? error : new Error("素材上传到对象存储失败。"));
     }
   });
 }
@@ -694,7 +696,11 @@ async function uploadToObjectStorage(params: {
     return uploadToAliyunOss(params);
   }
 
-  return uploadToCos(params);
+  return uploadToTencentCompatibleObjectStorage(params);
+}
+
+function getUploadObjectKey(intent: UploadIntent) {
+  return intent.uploadKey || intent.storageKey || intent.cosKey;
 }
 
 function assetTypeFromMimeType(mimeType: string, fileName?: string): UploadableMediaAssetType {
@@ -731,9 +737,9 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
   const bucket = readString(source, "bucket");
   const region = readString(source, "region");
   const endpoint = readString(source, "endpoint");
-  const cosKey = readString(source, "cosKey", "cos_key", "storageKey", "uploadKey", "key");
-  const storageKey = readString(source, "storageKey", "storage_key", "uploadKey", "cosKey", "key");
-  const uploadKey = readString(source, "uploadKey", "upload_key", "storageKey", "cosKey", "key");
+  const storageKey = readString(source, "storageKey", "storage_key", "uploadKey", "upload_key", "key", "cosKey", "cos_key");
+  const uploadKey = readString(source, "uploadKey", "upload_key", "storageKey", "storage_key", "key", "cosKey", "cos_key");
+  const cosKey = readString(source, "cosKey", "cos_key", "storageKey", "storage_key", "uploadKey", "upload_key", "key");
   const uploadUrl = readString(source, "uploadUrl", "upload_url");
   const uploadMethod = readString(source, "uploadMethod", "upload_method");
   const uploadHeaders = readStringRecord(readNestedRecord(source, "uploadHeaders", "upload_headers"));
@@ -754,7 +760,7 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
     provider === "tencent_cos" &&
     (!tmpSecretId || !tmpSecretKey || !token)
   ) {
-    throw new Error("上传意图返回不完整，缺少 COS 临时凭证。");
+    throw new Error("上传意图返回不完整，缺少 legacy Tencent 对象存储临时凭证。");
   }
 
   if (provider === "aliyun_oss" && !uploadUrl) {
