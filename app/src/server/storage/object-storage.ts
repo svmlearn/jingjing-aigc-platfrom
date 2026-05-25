@@ -82,6 +82,17 @@ export const defaultStsDurationSeconds = 1800;
 export const defaultReadUrlTtlSeconds = 3600;
 export const defaultMediaUploadMaxBytes = 1024 * 1024 * 1024;
 
+export function buildBrowserUploadIntentStorageKeys(
+  storageKey: string,
+): Pick<MediaUploadIntentDto, "storageKey" | "uploadKey" | "cosKey"> {
+  return {
+    storageKey,
+    uploadKey: storageKey,
+    // Deprecated compatibility alias for older browser upload clients.
+    cosKey: storageKey,
+  };
+}
+
 export function normalizeConfiguredStorageProviderName(
   rawValue: string | null | undefined,
 ): AppObjectStorageProviderName {

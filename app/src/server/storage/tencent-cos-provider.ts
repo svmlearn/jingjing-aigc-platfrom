@@ -8,6 +8,7 @@ import * as STS from "qcloud-cos-sts";
 import { ApiError } from "@/server/api/errors";
 import {
   assertObjectRefMatchesPrefix,
+  buildBrowserUploadIntentStorageKeys,
   buildStandardKnowledgeUploadKey,
   buildStandardMediaUploadKeyPrefix,
   defaultMediaUploadMaxBytes,
@@ -148,9 +149,7 @@ export const tencentCosProvider: ObjectStorageProvider = {
       bucket: config.bucket,
       region: config.region,
       endpoint: null,
-      storageKey: input.storageKey,
-      uploadKey: input.storageKey,
-      cosKey: input.storageKey,
+      ...buildBrowserUploadIntentStorageKeys(input.storageKey),
       credentials: {
         provider: "tencent_cos",
         ...credentials,

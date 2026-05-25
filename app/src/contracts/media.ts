@@ -42,13 +42,13 @@ export type MediaUploadIntentDto = {
   bucket: string;
   region: string;
   endpoint?: string | null;
-  storageKey?: string;
-  uploadKey?: string;
+  storageKey: string;
+  uploadKey: string;
   uploadUrl?: string;
   uploadMethod?: "PUT";
   uploadHeaders?: Record<string, string>;
   expiresAt?: string;
-  /** @deprecated Use storageKey/uploadKey. Kept for older COS-compatible clients. */
+  /** @deprecated Legacy client alias only. Use storageKey/uploadKey for current object storage uploads. */
   cosKey?: string;
   TmpSecretId?: string;
   TmpSecretKey?: string;
