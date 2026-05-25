@@ -22,7 +22,7 @@ type MerchantMediaAssetRow = {
   uploaded_by_user_id: string;
   media_type: "image" | "video";
   source: "merchant_upload" | "merchant_confirmed";
-  source_cos_key: string;
+  source_storage_key: string;
   status: MerchantMediaAssetRecord["status"];
   created_at: string;
 };
@@ -51,8 +51,8 @@ type MerchantMediaClipRow = {
   tag_confidence: number | null;
   tag_source: string | null;
   bucket_name: string;
-  cos_key: string;
-  thumb_cos_key: string | null;
+  storage_key: string;
+  thumb_storage_key: string | null;
   mime_type: string;
   created_at: string;
 };
@@ -82,7 +82,7 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
           uploaded_by_user_id,
           media_type,
           source,
-          source_cos_key,
+          source_storage_key,
           status,
           idempotency_key
         ) values ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -90,7 +90,7 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
         do update set uploaded_by_user_id = excluded.uploaded_by_user_id,
                       media_type = excluded.media_type,
                       source = excluded.source,
-                      source_cos_key = excluded.source_cos_key,
+                      source_storage_key = excluded.source_storage_key,
                       status = excluded.status
         returning ${merchantMediaAssetSelect}
         `,
@@ -158,8 +158,8 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
             tag_confidence,
             tag_source,
             bucket_name,
-            cos_key,
-            thumb_cos_key,
+            storage_key,
+            thumb_storage_key,
             mime_type
           ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb, $21, $22, $23, $24, $25, $26)
           on conflict (asset_id, clip_index)
@@ -182,8 +182,8 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
                         tag_confidence = excluded.tag_confidence,
                         tag_source = excluded.tag_source,
                         bucket_name = excluded.bucket_name,
-                        cos_key = excluded.cos_key,
-                        thumb_cos_key = excluded.thumb_cos_key,
+                        storage_key = excluded.storage_key,
+                        thumb_storage_key = excluded.thumb_storage_key,
                         mime_type = excluded.mime_type
           returning ${merchantMediaClipSelect}
           `,
@@ -344,7 +344,7 @@ function mapMerchantMediaAsset(row: MerchantMediaAssetRow): MerchantMediaAssetRe
     uploadedByUserId: row.uploaded_by_user_id,
     mediaType: row.media_type,
     source: row.source,
-    sourceStorageKey: row.source_cos_key,
+    sourceStorageKey: row.source_storage_key,
     status: row.status,
     createdAt: row.created_at,
   };
@@ -375,8 +375,8 @@ function mapMerchantMediaClip(row: MerchantMediaClipRow): PrivateMediaClipRecord
     tagConfidence: toNullableNumber(row.tag_confidence),
     tagSource: row.tag_source,
     bucketName: row.bucket_name,
-    storageKey: row.cos_key,
-    thumbStorageKey: row.thumb_cos_key,
+    storageKey: row.storage_key,
+    thumbStorageKey: row.thumb_storage_key,
     mimeType: row.mime_type,
     createdAt: row.created_at,
   };
@@ -402,7 +402,7 @@ const merchantMediaAssetSelect = [
   "uploaded_by_user_id",
   "media_type",
   "source",
-  "source_cos_key",
+  "source_storage_key",
   "status",
   "created_at",
 ].join(", ");
@@ -431,8 +431,8 @@ const merchantMediaClipSelect = [
   "tag_confidence",
   "tag_source",
   "bucket_name",
-  "cos_key",
-  "thumb_cos_key",
+  "storage_key",
+  "thumb_storage_key",
   "mime_type",
   "created_at",
 ].join(", ");

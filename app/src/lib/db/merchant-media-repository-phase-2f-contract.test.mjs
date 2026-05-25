@@ -17,6 +17,24 @@ const migrationSource = readFileSync(
   "utf8",
 );
 
+const renameMigrationSource = readFileSync(
+  new URL("../../../db/migrations/202605250004_rename_merchant_media_storage_key_columns.sql", import.meta.url),
+  "utf8",
+);
+
+const legacySourceColumn = ["source", "cos", "key"].join("_");
+const legacyStorageColumn = ["cos", "key"].join("_");
+const legacyThumbColumn = ["thumb", "cos", "key"].join("_");
+const legacySourceConstraint = [
+  "merchant",
+  "media",
+  "assets",
+  "source",
+  "cos",
+  "key",
+  "check",
+].join("_");
+
 const forbiddenRepositoryPatterns = [
   "createSupa\x62aseAdminClient",
   "isSupa\x62aseAdminConfigured",
@@ -64,6 +82,7 @@ test("asset idempotent upsert uses merchant_id plus idempotency_key", () => {
     "insert into public.merchant_media_assets",
     "idempotency_key",
     "on conflict (merchant_id, idempotency_key)",
+    "source_storage_key",
     "asset.sourceStorageKey",
     "returning ${merchantMediaAssetSelect}",
   ]);
@@ -92,6 +111,8 @@ test("ready clip upsert checks merchant asset and keeps asset/index idempotency"
     "insert into public.merchant_media_clips",
     "on conflict (asset_id, clip_index)",
     "JSON.stringify(clip.tags)",
+    "storage_key",
+    "thumb_storage_key",
     "clip.storageKey",
     "clip.thumbStorageKey ?? null",
     "returning ${merchantMediaClipSelect}",
@@ -124,12 +145,16 @@ test("ready clip contract is shared by InMemory and PostgreSQL repositories", ()
 });
 
 test("repository mappers output provider-neutral storage key aliases", () => {
+  for (const oldColumn of [legacySourceColumn, legacyStorageColumn, legacyThumbColumn]) {
+    assert.doesNotMatch(repositorySource, new RegExp(escapeRegExp(oldColumn)), oldColumn);
+  }
+
   assertFunctionBody("mapMerchantMediaAsset", [
-    "sourceStorageKey: row.source_cos_key",
+    "sourceStorageKey: row.source_storage_key",
   ]);
   assertFunctionBody("mapMerchantMediaClip", [
-    "storageKey: row.cos_key",
-    "thumbStorageKey: row.thumb_cos_key",
+    "storageKey: row.storage_key",
+    "thumbStorageKey: row.thumb_storage_key",
   ]);
 });
 
@@ -180,8 +205,6 @@ test("migration preserves indexes and constraints required by repository contrac
     "on public.merchant_media_clips (asset_id, clip_index)",
     "idx_merchant_media_clips_merchant_status_created_at",
     "idx_merchant_media_clips_merchant_media_status",
-    "merchant_media_assets_source_cos_key_check",
-    "source_cos_key like 'merchant-media/%/originals/%/%'",
     "merchant_media_clips_media_type_check_v2",
     "merchant_media_clips_clip_index_nonnegative_v2",
     "merchant_media_clips_clip_type_check_v2",
@@ -197,6 +220,20 @@ test("migration preserves indexes and constraints required by repository contrac
     "trg_merchant_media_clips_updated_at",
   ]) {
     assert.match(migrationSource, new RegExp(escapeRegExp(snippet)), snippet);
+  }
+});
+
+test("forward migration renames merchant media storage key columns", () => {
+  for (const snippet of [
+    `rename column ${legacySourceColumn} to source_storage_key`,
+    `rename column ${legacyStorageColumn} to storage_key`,
+    `rename column ${legacyThumbColumn} to thumb_storage_key`,
+    `drop constraint if exists ${legacySourceConstraint}`,
+    "drop constraint if exists merchant_media_assets_source_storage_key_check",
+    "add constraint merchant_media_assets_source_storage_key_check",
+    "check (source_storage_key like 'merchant-media/%/originals/%/%')",
+  ]) {
+    assert.match(renameMigrationSource, new RegExp(escapeRegExp(snippet)), snippet);
   }
 });
 
