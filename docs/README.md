@@ -1,6 +1,6 @@
 # docs
 
-状态时间：`2026-05-22 15:57:23 CST`
+状态时间：`2026-05-26 00:50 CST`
 
 这是 `小红书抖音矩阵获客平台` 的文档主入口。
 
@@ -12,8 +12,8 @@
 
 - 数据库：当前主线按自建 PostgreSQL / 国内 PostgreSQL 运行；app 使用 `APP_DATABASE_URL` / `DATABASE_URL`，worker 使用 `WORKER_DATABASE_URL`。
 - 部署：当前目标和已发布链路是国内云服务器自托管 Next.js / Node API、content-generation worker、video-worker、OpenStoryline / FireRed。
-- 对象存储：新写入默认使用 `aliyun_oss`；历史 `tencent_cos` / COS 和 `supabase_storage` 只作为旧数据、旧文档、兼容读取或回滚参考。
-- Supabase：这是过往架构，当前运行主线已经完全改掉，正式运行和新开发不再使用 Supabase。代码里仍有部分 Supabase fallback / 旧错误文案残留，处理时按 `progress/2026-05-21-postgres-supabase-residual-note.md` 追踪，不要把这些残留误读成当前架构目标。
+- 对象存储：当前 app / worker runtime 只支持 `aliyun_oss` / object storage。`tencent_cos`、COS、`supabase_storage` 只作为历史数据、历史文档、历史迁移记录或迁移 guard 语境存在。
+- Supabase：这是过往架构，当前运行主线已经完全改掉，正式运行和新开发不再使用 Supabase。2026-05-26 本地 `main` 已完成 Supabase runtime / fallback / package / env 清理；如遇旧词命中，先按 `progress/2026-05-25-supabase-cos-removal-final-audit.md` 和 `progress/2026-05-26-supabase-cos-removal-main-merge.md` 区分运行面与历史资料。
 - 历史索引：遇到 2026-05-20 之前的 Supabase / Vercel / COS / staging 检索结果，先看 `历史架构与非当前口径索引.md` 判断它是否只是历史流水账。
 
 ## 推荐阅读顺序
@@ -31,9 +31,10 @@
 11. `progress/2026-05-20-main-domestic-infra-merge.md`
 12. `progress/2026-05-19-cos-to-oss-local-migration.md`
 13. `progress/2026-05-21-voice-fix-main-release.md`
-14. `progress/2026-05-21-postgres-supabase-residual-note.md`
-15. `历史架构与非当前口径索引.md`
-16. `架构规范/2026-05-20-Agent架构易错点.md`
+14. `progress/2026-05-25-supabase-cos-removal-final-audit.md`
+15. `progress/2026-05-26-supabase-cos-removal-main-merge.md`
+16. `历史架构与非当前口径索引.md`
+17. `架构规范/2026-05-20-Agent架构易错点.md`
 
 如果是在接续当前未完成事项，再读 `current-task.md`。如果是在规划 V2.2 合并后的下一阶段，再读 `需求池.md` 和 `探索/2026-04-28-热点抓取与咨询Agent优化待验证事项.md`。
 
@@ -66,7 +67,7 @@
 - 脚本制作 agent
 - app 确认和合同化
 - `video_edit_jobs.input_payload`
-- 对象存储媒体资产：当前新写入默认 `aliyun_oss`，历史兼容 `tencent_cos` / COS
+- 对象存储媒体资产：当前 app / worker runtime 只支持 `aliyun_oss` / object storage；`tencent_cos` / COS 仅作为历史资料或迁移 guard 语境存在
 - video-worker
 - Docker FireRed/OpenStoryline
 - 预览审核和修订分流
@@ -89,7 +90,8 @@
 - `progress/2026-05-20-main-domestic-infra-merge.md`
 - `progress/2026-05-19-cos-to-oss-local-migration.md`
 - `progress/2026-05-21-voice-fix-main-release.md`
-- `progress/2026-05-21-postgres-supabase-residual-note.md`
+- `progress/2026-05-25-supabase-cos-removal-final-audit.md`
+- `progress/2026-05-26-supabase-cos-removal-main-merge.md`
 
 当前主线口径：
 
@@ -97,7 +99,8 @@
 - `2026-05-20-main-domestic-infra-merge.md` 记录国内化迁移内容合入 main 的事实和验证结果。
 - `2026-05-19-cos-to-oss-local-migration.md` 记录从 COS 口径切到 Aliyun OSS 默认值的本地改造、验证和已知 caveat。
 - `2026-05-21-voice-fix-main-release.md` 记录服务器 release 后 health check：`database=postgres`、`storage=aliyun_oss`。
-- `2026-05-21-postgres-supabase-residual-note.md` 记录 PostgreSQL 迁移后 Supabase fallback / 旧错误文案残留，属于待清理技术债，不是当前正式依赖。
+- `2026-05-25-supabase-cos-removal-final-audit.md` 记录 Supabase / COS 运行面清理后的最终审计。
+- `2026-05-26-supabase-cos-removal-main-merge.md` 记录清理分支本地合并回 `main`、follow-up 修复和合并后验证。
 
 历史追溯时再读：
 
@@ -163,7 +166,8 @@
 - `app/db/README.md`
 - `docs/progress/2026-05-20-main-domestic-infra-merge.md`
 - `docs/progress/2026-05-21-voice-fix-main-release.md`
-- `docs/progress/2026-05-21-postgres-supabase-residual-note.md`，仅当处理 Supabase fallback / 旧错误文案残留时提供
+- `docs/progress/2026-05-25-supabase-cos-removal-final-audit.md`
+- `docs/progress/2026-05-26-supabase-cos-removal-main-merge.md`
 - `docs/历史架构与非当前口径索引.md`
 - `docs/架构规范/2026-05-13-国内化改造分支冻结与恢复断点.md`，仅当追溯历史国内化分支时提供
 - `docs/current-task.md`，仅当任务正在接续时提供
