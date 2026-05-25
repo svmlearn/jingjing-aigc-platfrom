@@ -16,6 +16,7 @@ Switch OpenStoryline/video-worker TTS and voice cloning to Aliyun DashScope Cosy
 - App contracts and payload builder support `aliyun_cosyvoice`.
 - UI defaults system voiceover to Aliyun CosyVoice with `longanyang`.
 - Voice profile state/repository/migrations support `aliyun_cosyvoice_clone`.
+- Self-host PostgreSQL has a dedicated incremental migration for the new voice profile provider check.
 - Worker directive accepts clone providers for `voice_profile` mode and defaults voice profiles to `aliyun_cosyvoice_clone`.
 - Worker prepares signed reference-audio URLs and enrolls Aliyun clone voices only when `external_voice_id` is missing.
 - OpenStoryline adapter maps Aliyun system/clone TTS into FireRed `service_config`.

@@ -18,6 +18,7 @@
   - websocket URL: `wss://dashscope.aliyuncs.com/api-ws/v1/inference`
 - Added voice profile provider `aliyun_cosyvoice_clone` and kept `pixelle_clone` as compatibility.
 - Updated `voice_profiles` migrations and replacement RPC defaults to allow/default `aliyun_cosyvoice_clone`.
+- Added a self-host PostgreSQL incremental migration so an already-created `voice_profiles` table drops the old provider check and accepts `aliyun_cosyvoice_clone`.
 - Updated worker directive normalization so `voice_profile` mode accepts clone providers instead of forcing `pixelle_clone`.
 - Added worker-side signed reference audio URL creation for Aliyun OSS and Tencent COS.
 - Added worker-side Aliyun clone enrollment flow:
