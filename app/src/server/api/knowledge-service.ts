@@ -177,7 +177,7 @@ export async function createMerchantMemoryForMerchant(input: {
     merchantId: input.merchantId,
     title,
     sourceName: `${title}.txt`,
-    storageProvider: "supabase_storage",
+    storageProvider: "inline_seed",
     bucketName: null,
     storageKey: null,
     mimeType: "text/plain; charset=utf-8",

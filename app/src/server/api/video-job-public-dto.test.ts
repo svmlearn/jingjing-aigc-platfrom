@@ -210,6 +210,65 @@ test("toPublicVideoEditJob preserves Aliyun OSS worker uploaded assets", () => {
   assert.equal(publicJob.resultAssets[0]?.storageKey, "video-results/final.mp4");
 });
 
+test("toPublicVideoEditJob defaults missing worker result provider to Aliyun OSS", () => {
+  const publicJob = toPublicVideoEditJob({
+    ...baseJob,
+    resultPayload: {
+      uploaded_assets: [
+        {
+          asset_id: "asset-video-missing-provider",
+          asset_type: "video",
+          bucket_name: "jingjing-domestic-phase1-hz",
+          storage_key: "video-results/missing-provider.mp4",
+        },
+      ],
+    },
+  });
+
+  assert.equal(publicJob.resultAssets.length, 1);
+  assert.equal(publicJob.resultAssets[0]?.storageProvider, "aliyun_oss");
+});
+
+test("toPublicVideoEditJob defaults unknown worker result provider to Aliyun OSS", () => {
+  const publicJob = toPublicVideoEditJob({
+    ...baseJob,
+    resultPayload: {
+      uploaded_assets: [
+        {
+          asset_id: "asset-video-unknown-provider",
+          asset_type: "video",
+          bucket_name: "jingjing-domestic-phase1-hz",
+          storage_provider: "unknown_provider",
+          storage_key: "video-results/unknown-provider.mp4",
+        },
+      ],
+    },
+  });
+
+  assert.equal(publicJob.resultAssets.length, 1);
+  assert.equal(publicJob.resultAssets[0]?.storageProvider, "aliyun_oss");
+});
+
+test("toPublicVideoEditJob preserves explicit historical Supabase storage payloads", () => {
+  const publicJob = toPublicVideoEditJob({
+    ...baseJob,
+    resultPayload: {
+      uploaded_assets: [
+        {
+          asset_id: "asset-video-historical-provider",
+          asset_type: "video",
+          bucket_name: "legacy-bucket",
+          storage_provider: "supabase_storage",
+          storage_key: "legacy/video.mp4",
+        },
+      ],
+    },
+  });
+
+  assert.equal(publicJob.resultAssets.length, 1);
+  assert.equal(publicJob.resultAssets[0]?.storageProvider, "supabase_storage");
+});
+
 test("toPublicVideoEditJob keeps explicit result assets before payload assets", () => {
   const publicJob = toPublicVideoEditJob({
     ...baseJob,
