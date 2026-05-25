@@ -97,6 +97,12 @@ def _nested_dict(source: dict[str, Any], *keys: str) -> dict[str, Any]:
     return {}
 
 
+BROLL_SUBTITLE_TAIL_ALLOWED_MS = 4_000
+BROLL_SUBTITLE_TAIL_FAIL_MIN_MS = 8_000
+BROLL_SUBTITLE_TAIL_FAIL_RATIO = 0.12
+TIMELINE_COVERAGE_TOLERANCE_MS = 250
+
+
 def _material_library_query(directive: ProductionDirective) -> str:
     values: list[str] = []
     scene_queries = directive.material_context.get("sceneAssetQueries") or directive.material_context.get(
@@ -673,6 +679,257 @@ def _extract_lip_sync_payload(raw_response: dict[str, Any]) -> dict[str, Any]:
         ("fire_red_raw_response", "lip_sync"),
         ("lip_sync",),
         ("fire_red", "generate_lip_sync"),
+    )
+    for path in candidates:
+        cur: Any = raw_response
+        for key in path:
+            if not isinstance(cur, dict):
+                cur = None
+                break
+            cur = cur.get(key)
+        if isinstance(cur, dict) and cur:
+            return cur
+    return {}
+
+
+def _max_timeline_end_ms(items: Any) -> int:
+    if not isinstance(items, list):
+        return 0
+    max_end = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        timeline = item.get("timeline_window") if isinstance(item.get("timeline_window"), dict) else {}
+        value = _number_value(timeline, "end")
+        if value is not None:
+            max_end = max(max_end, int(value))
+    return max_end
+
+
+def _timeline_start_end_ms(item: dict[str, Any]) -> tuple[int, int]:
+    timeline = item.get("timeline_window") if isinstance(item.get("timeline_window"), dict) else {}
+    start = _number_value(timeline, "start") or 0
+    end = _number_value(timeline, "end") or start
+    return int(start), int(end)
+
+
+def _voiceover_windows_by_group(voiceover_track: Any) -> dict[str, list[tuple[int, int]]]:
+    windows: dict[str, list[tuple[int, int]]] = {}
+    if not isinstance(voiceover_track, list):
+        return windows
+    for item in voiceover_track:
+        if not isinstance(item, dict):
+            continue
+        group_id = str(item.get("group_id") or "")
+        if not group_id:
+            continue
+        start, end = _timeline_start_end_ms(item)
+        if end <= start:
+            continue
+        windows.setdefault(group_id, []).append((start, end))
+    return windows
+
+
+def _retalked_windows_by_segment(segments: Any) -> dict[tuple[str, str], tuple[int, int]]:
+    windows: dict[tuple[str, str], tuple[int, int]] = {}
+    if not isinstance(segments, list):
+        return windows
+    for item in segments:
+        if not isinstance(item, dict):
+            continue
+        group_id = str(item.get("group_id") or "")
+        clip_id = str(item.get("clip_id") or "")
+        if not group_id or not clip_id:
+            continue
+        timeline = item.get("timeline_window")
+        if not isinstance(timeline, dict):
+            continue
+        start = _number_value(timeline, "start") or 0
+        end = _number_value(timeline, "end") or start
+        if end > start:
+            windows[(group_id, clip_id)] = (int(start), int(end))
+    return windows
+
+
+def _iter_talking_head_label_values(payload: Any) -> list[str]:
+    if not isinstance(payload, dict):
+        return []
+    values: list[str] = []
+    for key in ("role", "scene_type", "sceneType", "asset_type", "assetType", "content_type", "contentType"):
+        value = payload.get(key)
+        if isinstance(value, str):
+            values.append(value)
+    for key in ("tags", "labels"):
+        value = payload.get(key)
+        if isinstance(value, list | tuple | set):
+            values.extend(str(item) for item in value)
+    metadata = payload.get("metadata")
+    if isinstance(metadata, dict):
+        values.extend(_iter_talking_head_label_values(metadata))
+    source_ref = payload.get("source_ref")
+    if isinstance(source_ref, dict):
+        values.extend(_iter_talking_head_label_values(source_ref))
+    return values
+
+
+def _timeline_clip_lookup(raw_response: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    split_shots = _extract_split_shots_payload(raw_response)
+    clips = split_shots.get("clips") if isinstance(split_shots, dict) else None
+    if not isinstance(clips, list):
+        return {}
+    return {
+        str(clip.get("clip_id")): clip
+        for clip in clips
+        if isinstance(clip, dict) and clip.get("clip_id") is not None
+    }
+
+
+def _is_talking_head_timeline_segment(
+    segment: dict[str, Any],
+    clip_lookup: dict[str, dict[str, Any]] | None = None,
+) -> bool:
+    values = _iter_talking_head_label_values(segment)
+    if clip_lookup:
+        clip = clip_lookup.get(str(segment.get("clip_id") or ""))
+        if isinstance(clip, dict):
+            values.extend(_iter_talking_head_label_values(clip))
+    normalized = {value.strip().lower().replace("_", "-") for value in values if value.strip()}
+    return bool({"talking-head", "talkinghead", "user-talking-head", "真人口播", "口播"} & normalized)
+
+
+def _validate_timeline_quality_for_directive(
+    raw_response: dict[str, Any],
+    production_config: dict[str, Any],
+) -> None:
+    plan_timeline = _extract_plan_timeline_payload(raw_response)
+    tracks = plan_timeline.get("tracks") if isinstance(plan_timeline, dict) else None
+    if not isinstance(tracks, dict):
+        return
+    video_track = tracks.get("video")
+    if not isinstance(video_track, list) or not video_track:
+        return
+
+    typed_video_track = [segment for segment in video_track if isinstance(segment, dict)]
+    clip_lookup = _timeline_clip_lookup(raw_response)
+    for segment in typed_video_track:
+        playback_rate = _number_value(segment, "playback_rate")
+        if playback_rate is not None and float(playback_rate) < 1.0:
+            raise VoiceoverArtifactValidationError(
+                "timeline video segment uses playback_rate < 1.0 to stretch material duration",
+                failure_code="timeline_video_slowdown_blocked",
+            )
+
+    video_end_ms = _max_timeline_end_ms(typed_video_track)
+    subtitle_end_ms = _max_timeline_end_ms(tracks.get("subtitles"))
+    if video_end_ms > 0 and subtitle_end_ms > 0:
+        tail_gap_ms = video_end_ms - subtitle_end_ms
+        tail_segments = [
+            segment
+            for segment in typed_video_track
+            if _timeline_start_end_ms(segment)[1] > subtitle_end_ms + TIMELINE_COVERAGE_TOLERANCE_MS
+        ]
+        if tail_gap_ms > TIMELINE_COVERAGE_TOLERANCE_MS and any(
+            _is_talking_head_timeline_segment(s, clip_lookup) for s in tail_segments
+        ):
+            raise VoiceoverArtifactValidationError(
+                "talking-head segment continues after subtitle timeline ends",
+                failure_code="timeline_talking_head_after_subtitles",
+            )
+        abnormal_broll_gap = tail_gap_ms > max(
+            BROLL_SUBTITLE_TAIL_FAIL_MIN_MS,
+            int(video_end_ms * BROLL_SUBTITLE_TAIL_FAIL_RATIO),
+        )
+        if tail_gap_ms > BROLL_SUBTITLE_TAIL_ALLOWED_MS and abnormal_broll_gap:
+            raise VoiceoverArtifactValidationError(
+                "subtitle timeline ends too early compared with final video timeline",
+                failure_code="timeline_subtitle_tail_gap_too_long",
+            )
+
+    lip_sync_config = _nested_dict(production_config, "lip_sync", "lipSync")
+    if lip_sync_config.get("enabled") is not True:
+        return
+    lip_payload = _extract_lip_sync_payload(raw_response)
+    retalked_windows = _retalked_windows_by_segment(lip_payload.get("segments"))
+    voiceover_windows = _voiceover_windows_by_group(tracks.get("voiceover"))
+    for (group_id, clip_id), (seg_start, seg_end) in retalked_windows.items():
+        voice_windows = voiceover_windows.get(group_id) or []
+        covered_by_voice = any(
+            start <= seg_start + TIMELINE_COVERAGE_TOLERANCE_MS
+            and end + TIMELINE_COVERAGE_TOLERANCE_MS >= seg_end
+            for start, end in voice_windows
+        )
+        if not covered_by_voice:
+            raise VoiceoverArtifactValidationError(
+                "retalked talking-head segment is not covered by a matching voiceover window",
+                failure_code="lip_sync_talking_head_voiceover_window_gap",
+            )
+    for segment in typed_video_track:
+        if not _is_talking_head_timeline_segment(segment, clip_lookup):
+            continue
+        group_id = str(segment.get("group_id") or "")
+        clip_id = str(segment.get("clip_id") or "")
+        seg_start, seg_end = _timeline_start_end_ms(segment)
+        lip_window = retalked_windows.get((group_id, clip_id))
+        if lip_window is None:
+            raise VoiceoverArtifactValidationError(
+                "talking-head timeline segment was not retalked by lip_sync",
+                failure_code="lip_sync_talking_head_unretalked",
+            )
+        lip_start, lip_end = lip_window
+        covered_by_lip = (
+            lip_start <= seg_start + TIMELINE_COVERAGE_TOLERANCE_MS
+            and lip_end + TIMELINE_COVERAGE_TOLERANCE_MS >= seg_end
+        )
+        if not covered_by_lip:
+            raise VoiceoverArtifactValidationError(
+                "talking-head timeline segment is not fully covered by lip_sync retalked window",
+                failure_code="lip_sync_talking_head_unretalked",
+            )
+        voice_windows = voiceover_windows.get(group_id) or []
+        covered_by_voice = any(
+            start <= seg_start + TIMELINE_COVERAGE_TOLERANCE_MS
+            and end + TIMELINE_COVERAGE_TOLERANCE_MS >= seg_end
+            for start, end in voice_windows
+        )
+        if not covered_by_voice:
+            raise VoiceoverArtifactValidationError(
+                "talking-head timeline segment is not covered by a matching voiceover window",
+                failure_code="lip_sync_talking_head_voiceover_window_gap",
+            )
+
+
+def _extract_plan_timeline_payload(raw_response: dict[str, Any]) -> dict[str, Any]:
+    candidates = (
+        ("openstoryline", "lip_sync", "plan_timeline"),
+        ("fire_red", "lip_sync", "plan_timeline"),
+        ("fire_red", "raw_response", "lip_sync", "plan_timeline"),
+        ("fire_red_raw_response", "lip_sync", "plan_timeline"),
+        ("lip_sync", "plan_timeline"),
+        ("openstoryline", "plan_timeline"),
+        ("fire_red", "plan_timeline"),
+        ("fire_red", "raw_response", "plan_timeline"),
+        ("fire_red_raw_response", "plan_timeline"),
+        ("plan_timeline",),
+    )
+    for path in candidates:
+        cur: Any = raw_response
+        for key in path:
+            if not isinstance(cur, dict):
+                cur = None
+                break
+            cur = cur.get(key)
+        if isinstance(cur, dict) and cur:
+            return cur
+    return {}
+
+
+def _extract_split_shots_payload(raw_response: dict[str, Any]) -> dict[str, Any]:
+    candidates = (
+        ("openstoryline", "split_shots"),
+        ("fire_red", "split_shots"),
+        ("fire_red", "raw_response", "split_shots"),
+        ("fire_red_raw_response", "split_shots"),
+        ("split_shots",),
     )
     for path in candidates:
         cur: Any = raw_response
@@ -1407,6 +1664,14 @@ class JobProcessor:
             except VoiceoverArtifactValidationError as exc:
                 exc.validation_stage = "lip_sync_artifact_validation"
                 raise
+            try:
+                _validate_timeline_quality_for_directive(
+                    run_result.raw_response,
+                    directive.production_config,
+                )
+            except VoiceoverArtifactValidationError as exc:
+                exc.validation_stage = "timeline_quality_validation"
+                raise
             record_timing("output_validation", stage_started_at)
             log_payload["steps"].append(
                 {
@@ -1621,7 +1886,12 @@ class JobProcessor:
             return
         except VoiceoverArtifactValidationError as exc:
             validation_stage = getattr(exc, "validation_stage", "voiceover_artifact_validation")
-            progress_key = "lip_sync" if validation_stage.startswith("lip_sync") else "voiceover"
+            if validation_stage.startswith("lip_sync"):
+                progress_key = "lip_sync"
+            elif validation_stage.startswith("timeline"):
+                progress_key = "render"
+            else:
+                progress_key = "voiceover"
             log_payload["steps"].append(
                 {
                     "stage": validation_stage,

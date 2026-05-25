@@ -109,6 +109,33 @@ class RenderLipSyncTests(unittest.TestCase):
 
         self.assertEqual("retalked.mp4", selected["tracks"]["video"][0]["source_path"])
 
+    def test_build_full_canvas_segment_rejects_slowed_video_playback(self):
+        module = _load_render_module()
+
+        class Clip:
+            duration = 2.0
+
+            def subclipped(self, *_args):
+                return self
+
+        cache = types.SimpleNamespace(get_video=lambda _path: Clip(), _bg_color=None)
+
+        with self.assertRaisesRegex(ValueError, "timeline_video_slowdown_blocked"):
+            module.RenderVideoPipeline._build_full_canvas_segment(
+                segment={
+                    "clip_id": "clip_0010",
+                    "group_id": "group_0002",
+                    "kind": "video",
+                    "source_path": "short.mp4",
+                    "source_window": {"start": 0, "end": 2000},
+                    "playback_rate": 0.25,
+                },
+                media_map={},
+                cache=cache,
+                canvas_size=(576, 1024),
+                expected_duration_s=8.0,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

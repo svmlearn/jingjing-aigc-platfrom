@@ -60,8 +60,15 @@ class TimeLine:
                 new_meterial_durations = meterial_durations
                 time_margins = [0 for _ in range(len(meterial_durations))]
 
+        for index, (_type, old_duration, new_duration) in enumerate(zip(types, meterial_durations, new_meterial_durations)):
+            if _type == "video" and new_duration > old_duration:
+                raise ValueError(
+                    "scene_material_insufficient: "
+                    f"clip_index={index} requested_duration_ms={int(new_duration)} "
+                    f"exceeds source_duration_ms={int(old_duration)}; video slowdown is disabled"
+                )
         # edit speed
-        speeds = [1.0 if old_duration > new_duration or _type == 'img' else old_duration / new_duration for _type, old_duration, new_duration in zip(types, meterial_durations, new_meterial_durations)]
+        speeds = [1.0 if old_duration >= new_duration or _type == 'img' else old_duration / new_duration for _type, old_duration, new_duration in zip(types, meterial_durations, new_meterial_durations)]
         return music_offset, new_meterial_durations, speeds, time_margins
 
     def edit_meterial_durations_tts(

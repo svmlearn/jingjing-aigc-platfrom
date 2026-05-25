@@ -236,8 +236,11 @@ class TimelinePlanner:
 
                 if clip_kind == "video":
                     if planned_duration_ms > source_available_ms:
-                        playback_rate = (source_available_ms / planned_duration_ms) if planned_duration_ms > 0 else 1.0
-                        source_window_start_ms, source_window_end_ms = source_start_ms, source_end_ms
+                        raise ValueError(
+                            "scene_material_insufficient: "
+                            f"group_id={group_id} clip_id={clip_id} requested_duration_ms={int(planned_duration_ms)} "
+                            f"exceeds source_duration_ms={int(source_available_ms)}; video slowdown is disabled"
+                        )
                     else:
                         source_window_start_ms, source_window_end_ms = self._choose_source_window_for_timeline_duration_ms(
                             clip=clip, used_timeline_duration_ms=int(planned_duration_ms)

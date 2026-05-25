@@ -40,7 +40,7 @@ except ModuleNotFoundError:
     sys.modules.setdefault("psycopg.types.json", psycopg_json)
 
 from worker.app.models import EngineRunResult, UploadedAsset, VideoJob
-from worker.app.processor import JobProcessor
+from worker.app.processor import JobProcessor, _validate_timeline_quality_for_directive
 
 
 class Settings:
@@ -220,6 +220,7 @@ class FakeOpenStorylineClient:
         failure_message="engine unavailable",
         voiceover_payload=None,
         lip_sync_payload=None,
+        raw_response_overrides=None,
     ) -> None:
         self.missing_outputs = set(missing_outputs or [])
         self.fail_run = fail_run
@@ -228,6 +229,7 @@ class FakeOpenStorylineClient:
         self.progress_callback_seen = False
         self.voiceover_payload = voiceover_payload
         self.lip_sync_payload = lip_sync_payload
+        self.raw_response_overrides = raw_response_overrides or {}
         self.last_input_assets = None
 
     def run_job(self, job, directive, input_assets, workspace_dir, output_dir, progress_callback=None):
@@ -268,29 +270,32 @@ class FakeOpenStorylineClient:
                     segment["path"] = str(voiceover_audio_path)
         lip_sync_payload = self.lip_sync_payload
 
+        raw_response = {
+            "engine": "fire_red-openstoryline",
+            "engine_adapter": "fire_red",
+            "fire_red": {"session_id": "fire-red-session"},
+            "openstoryline": {
+                "session_id": "fire-red-session",
+                "production_config_used": {
+                    "voiceover": {"provider": "bytedance_bigtts"},
+                },
+                "selected_bgm": {"name": "light_upbeat_01"},
+                "voiceover": voiceover_payload,
+                "lip_sync": lip_sync_payload or {},
+            },
+            "fire_red_raw_response": {
+                "generate_voiceover": voiceover_payload,
+                "lip_sync": lip_sync_payload or {},
+            },
+        }
+        raw_response.update(self.raw_response_overrides)
+
         return EngineRunResult(
             final_video_path=final_video_path,
             cover_image_path=cover_image_path,
             subtitle_path=subtitle_path,
             metadata_path=metadata_path,
-            raw_response={
-                "engine": "fire_red-openstoryline",
-                "engine_adapter": "fire_red",
-                "fire_red": {"session_id": "fire-red-session"},
-                "openstoryline": {
-                    "session_id": "fire-red-session",
-                    "production_config_used": {
-                        "voiceover": {"provider": "bytedance_bigtts"},
-                    },
-                    "selected_bgm": {"name": "light_upbeat_01"},
-                    "voiceover": voiceover_payload,
-                    "lip_sync": lip_sync_payload or {},
-                },
-                "fire_red_raw_response": {
-                    "generate_voiceover": voiceover_payload,
-                    "lip_sync": lip_sync_payload or {},
-                },
-            },
+            raw_response=raw_response,
         )
 
 
@@ -438,6 +443,243 @@ class ProcessorContractTests(unittest.TestCase):
             "draft-inputs/merchant-1/draft-1/member-upload.mp4",
             engine_client.last_input_assets[0]["storage_key"],
         )
+
+    def test_timeline_quality_rejects_large_subtitle_tail_gap(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_1",
+                                "kind": "video",
+                                "timeline_window": {"start": 0, "end": 73800},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 52000}},
+                        ],
+                        "voiceover": [],
+                    }
+                }
+            }
+        }
+
+        with self.assertRaisesRegex(Exception, "subtitle timeline ends too early"):
+            _validate_timeline_quality_for_directive(raw_response, {})
+
+    def test_timeline_quality_allows_small_broll_subtitle_tail_gap(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_broll",
+                                "kind": "video",
+                                "timeline_window": {"start": 0, "end": 56000},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 53000}},
+                        ],
+                        "voiceover": [],
+                    }
+                }
+            }
+        }
+
+        _validate_timeline_quality_for_directive(raw_response, {})
+
+    def test_timeline_quality_rejects_unretalked_talking_head_segment(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_talking",
+                                "group_id": "group_1",
+                                "kind": "video",
+                                "role": "talking_head",
+                                "timeline_window": {"start": 0, "end": 3000},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 3000}},
+                        ],
+                        "voiceover": [
+                            {"group_id": "group_1", "timeline_window": {"start": 0, "end": 3000}},
+                        ],
+                    }
+                },
+                "lip_sync": {"segments": []},
+            }
+        }
+
+        with self.assertRaisesRegex(Exception, "talking-head timeline segment was not retalked"):
+            _validate_timeline_quality_for_directive(raw_response, {"lip_sync": {"enabled": True}})
+
+    def test_timeline_quality_uses_split_shots_for_talking_head_classification(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_talking",
+                                "group_id": "group_1",
+                                "kind": "video",
+                                "timeline_window": {"start": 0, "end": 3000},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 3000}},
+                        ],
+                        "voiceover": [
+                            {"group_id": "group_1", "timeline_window": {"start": 0, "end": 3000}},
+                        ],
+                    }
+                },
+                "split_shots": {
+                    "clips": [
+                        {
+                            "clip_id": "clip_talking",
+                            "source_ref": {"role": "talking_head"},
+                        }
+                    ]
+                },
+                "lip_sync": {"segments": []},
+            }
+        }
+
+        with self.assertRaisesRegex(Exception, "talking-head timeline segment was not retalked"):
+            _validate_timeline_quality_for_directive(raw_response, {"lip_sync": {"enabled": True}})
+
+    def test_timeline_quality_rejects_talking_head_voiceover_window_gap(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_talking",
+                                "group_id": "group_1",
+                                "kind": "video",
+                                "role": "talking_head",
+                                "timeline_window": {"start": 0, "end": 5000},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 5000}},
+                        ],
+                        "voiceover": [
+                            {"group_id": "group_1", "timeline_window": {"start": 0, "end": 3000}},
+                        ],
+                    }
+                },
+                "lip_sync": {
+                    "segments": [
+                        {
+                            "group_id": "group_1",
+                            "clip_id": "clip_talking",
+                            "timeline_window": {"start": 0, "end": 5000},
+                        }
+                    ]
+                },
+            }
+        }
+
+        with self.assertRaisesRegex(Exception, "talking-head.*voiceover window"):
+            _validate_timeline_quality_for_directive(raw_response, {"lip_sync": {"enabled": True}})
+
+    def test_timeline_quality_rejects_talking_head_lip_window_gap(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_talking",
+                                "group_id": "group_1",
+                                "kind": "video",
+                                "role": "talking_head",
+                                "timeline_window": {"start": 0, "end": 5000},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 5000}},
+                        ],
+                        "voiceover": [
+                            {"group_id": "group_1", "timeline_window": {"start": 0, "end": 5000}},
+                        ],
+                    }
+                },
+                "lip_sync": {
+                    "segments": [
+                        {
+                            "group_id": "group_1",
+                            "clip_id": "clip_talking",
+                            "timeline_window": {"start": 0, "end": 3000},
+                        }
+                    ]
+                },
+            }
+        }
+
+        with self.assertRaisesRegex(Exception, "not fully covered by lip_sync"):
+            _validate_timeline_quality_for_directive(raw_response, {"lip_sync": {"enabled": True}})
+
+    def test_processor_fails_before_success_on_timeline_quality_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeCosClient(),
+                FakeOpenStorylineClient(
+                    raw_response_overrides={
+                        "openstoryline": {
+                            "session_id": "fire-red-session",
+                            "production_config_used": {},
+                            "selected_bgm": {"name": "light_upbeat_01"},
+                            "voiceover": {"provider": "bytedance_bigtts"},
+                            "lip_sync": {},
+                            "plan_timeline": {
+                                "tracks": {
+                                    "video": [
+                                        {
+                                            "clip_id": "clip_1",
+                                            "kind": "video",
+                                            "timeline_window": {"start": 0, "end": 73800},
+                                            "playback_rate": 1.0,
+                                        }
+                                    ],
+                                    "subtitles": [
+                                        {"timeline_window": {"start": 0, "end": 52000}},
+                                    ],
+                                    "voiceover": [],
+                                }
+                            },
+                        }
+                    }
+                ),
+            )
+
+            processor.process(make_job())
+
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual("timeline_quality_validation_failed", repository.failed["current_stage"])
+        self.assertIn("timeline_subtitle_tail_gap_too_long", repository.failed["failure_reason"])
+        modules = repository.failed["log_payload"]["progress_modules"]
+        render_module = next(item for item in modules if item["key"] == "render")
+        self.assertEqual("failed", render_module["status"])
 
     def test_voice_profile_job_fails_when_clone_voiceover_artifacts_are_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
