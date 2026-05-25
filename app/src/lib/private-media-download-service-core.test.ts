@@ -17,7 +17,7 @@ const now = "2026-05-15T00:00:00.000Z";
 const expiresAt = "2026-07-14T00:00:00.000Z";
 const secret = "test-private-media-download-secret";
 
-test("private media download resolves valid token to server-signed read URL without exposing COS key in token route", async () => {
+test("private media download resolves valid token to server-signed read URL without exposing storage key in token route", async () => {
   const result = await resolvePrivateMediaDownload({
     token: tokenFor("ready-video", "video"),
     secret,

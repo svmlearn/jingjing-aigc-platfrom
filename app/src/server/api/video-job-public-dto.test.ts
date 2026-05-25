@@ -38,7 +38,7 @@ const baseJob: VideoEditJobDto = {
         id: "asset-1",
         ownerId: "variant-1",
         assetType: "video",
-        storageProvider: "tencent_cos",
+        storageProvider: "aliyun_oss",
         bucketName: "bucket",
         storageKey: "outputs/final.mp4",
         originUrl: "https://example.com/final.mp4",
@@ -109,7 +109,7 @@ test("toPublicVideoEditJob preserves explicit result asset download URL", () => 
           id: "asset-1",
           ownerId: "variant-1",
           assetType: "video",
-          storageProvider: "tencent_cos",
+          storageProvider: "aliyun_oss",
           bucketName: "bucket",
           storageKey: "outputs/final.mp4",
           signedPreviewUrl: "/api/video-edit-jobs/job-1/result/asset-1?disposition=inline",
@@ -138,7 +138,7 @@ test("toPublicVideoEditJob keeps payload result asset types intact", () => {
           id: "asset-cover-1",
           ownerId: "variant-1",
           assetType: "cover",
-          storageProvider: "tencent_cos",
+          storageProvider: "aliyun_oss",
           bucketName: "bucket",
           storageKey: "outputs/cover.jpg",
         },
@@ -146,7 +146,7 @@ test("toPublicVideoEditJob keeps payload result asset types intact", () => {
           id: "asset-subtitle-1",
           ownerId: "variant-1",
           assetType: "subtitle",
-          storageProvider: "tencent_cos",
+          storageProvider: "aliyun_oss",
           bucketName: "bucket",
           storageKey: "outputs/subtitles.srt",
         },
@@ -169,7 +169,7 @@ test("toPublicVideoEditJob maps worker uploaded assets to top-level result asset
           asset_id: "asset-video-1",
           asset_type: "video",
           bucket_name: "bucket",
-          storage_provider: "tencent_cos",
+          storage_provider: "aliyun_oss",
           storage_key: "outputs/final.mp4",
           mime_type: "video/mp4",
           etag: "etag",
@@ -249,7 +249,7 @@ test("toPublicVideoEditJob defaults unknown worker result provider to Aliyun OSS
   assert.equal(publicJob.resultAssets[0]?.storageProvider, "aliyun_oss");
 });
 
-test("toPublicVideoEditJob defaults explicit historical Supabase storage payloads to Aliyun OSS", () => {
+test("toPublicVideoEditJob defaults explicit historical removed storage payloads to Aliyun OSS", () => {
   const publicJob = toPublicVideoEditJob({
     ...baseJob,
     resultPayload: {
@@ -278,7 +278,7 @@ test("toPublicVideoEditJob keeps explicit result assets before payload assets", 
         ownerType: "content_variant",
         ownerId: "variant-1",
         assetType: "video",
-        storageProvider: "tencent_cos",
+        storageProvider: "aliyun_oss",
         bucketName: "bucket",
         storageKey: "outputs/explicit.mp4",
         originUrl: null,

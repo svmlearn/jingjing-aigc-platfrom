@@ -699,12 +699,12 @@ async function uploadSourceToObjectStorage(input: {
       contentType: input.mimeType,
     });
   } catch (error) {
-    if (error instanceof ApiError && error.code === "COS_NOT_CONFIGURED") {
+    if (error instanceof ApiError && error.code === "OSS_NOT_CONFIGURED") {
       return {
         provider: storage.provider,
         bucketName: null,
         storageKey: null,
-        skippedReason: "COS_NOT_CONFIGURED",
+        skippedReason: "OSS_NOT_CONFIGURED",
       };
     }
 

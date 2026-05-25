@@ -137,7 +137,7 @@ test("merchant media manifest rejects conflicting legacy and provider-neutral ke
   );
 });
 
-test("merchant media manifest rejects cross-merchant COS keys", async () => {
+test("merchant media manifest rejects cross-merchant storage keys", async () => {
   await assert.rejects(
     () =>
       receiveMerchantMediaManifest({

@@ -210,7 +210,7 @@ function checkStorageSecurity(input: {
   }
 
   for (const envKey of input.clientExposedEnvKeys ?? []) {
-    if (envKey.endsWith("_SERVICE_ROLE_KEY") || envKey.startsWith("COS_SECRET_")) {
+    if (envKey.endsWith("_SERVICE_ROLE_KEY")) {
       issues.push(issue("service_role_client_leak", envKey, "Server-only secret is exposed to client runtime."));
     }
   }

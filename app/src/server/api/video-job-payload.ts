@@ -172,7 +172,7 @@ const allowedVoiceoverProviders = new Set<VoiceoverProvider>([
   "minimax",
   "302",
 ]);
-const allowedWorkerInputStorageProviders = new Set(["tencent_cos", "aliyun_oss"] as const);
+const allowedWorkerInputStorageProviders = new Set(["aliyun_oss"] as const);
 const allowedSubtitleStyles = new Set(["platform_default", "bold_caption"]);
 const allowedTalkingHeadSubtitleSources = new Set([
   "script",
@@ -203,7 +203,7 @@ const lipSyncInputRequirements = {
   },
 } as const;
 
-type WorkerInputStorageProvider = "tencent_cos" | "aliyun_oss";
+type WorkerInputStorageProvider = "aliyun_oss";
 type TalkingHeadSubtitleSource = "script" | "script_audio_alignment" | "asr_original_audio";
 
 type NormalizedProductionConfig = {
@@ -848,7 +848,7 @@ function normalizeWorkerInputStorageProvider(value: string): WorkerInputStorageP
   throw new VideoJobPayloadValidationError(
     409,
     "VIDEO_INPUT_ASSET_PROVIDER_UNSUPPORTED",
-    "Video worker input assets must use tencent_cos or aliyun_oss storage.",
+    "Video worker input assets must use aliyun_oss storage.",
   );
 }
 

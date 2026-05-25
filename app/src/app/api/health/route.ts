@@ -17,7 +17,6 @@ export async function GET() {
       },
       database,
       storage,
-      cos: storage.provider === "tencent_cos" ? storage : undefined,
     },
     { status: ok ? 200 : 503 },
   );

@@ -5,7 +5,6 @@ import test from "node:test";
 const mediaContractSource = readSource("../../contracts/media.ts");
 const objectStorageSource = readSource("./object-storage.ts");
 const aliyunProviderSource = readSource("./aliyun-oss-provider.ts");
-const tencentProviderSource = readSource("./tencent-cos-provider.ts");
 
 test("MediaUploadIntentDto uses storageKey/uploadKey as required current fields", () => {
   const dtoBody = extractTypeBody(mediaContractSource, "MediaUploadIntentDto");
@@ -35,33 +34,19 @@ test("Aliyun upload intent uses storageKey/uploadKey-first alias helper", () => 
   assert.match(body, /uploadUrl/);
 });
 
-test("Tencent upload intent uses storageKey/uploadKey-first alias helper", () => {
-  const body = extractMethodBody(tencentProviderSource, "issueBrowserUploadIntent");
+test("Aliyun provider cannot return a current browser upload intent with only legacy cosKey", () => {
+  const body = extractMethodBody(aliyunProviderSource, "issueBrowserUploadIntent");
 
-  assert.match(body, /\.\.\.buildBrowserUploadIntentStorageKeys\(input\.storageKey\)/);
-  assert.doesNotMatch(body, /cosKey:\s*input\.storageKey/);
-  assert.match(body, /provider:\s*"tencent_cos"/);
-  assert.match(body, /TmpSecretId/);
-});
-
-test("providers cannot return a current browser upload intent with only legacy cosKey", () => {
-  for (const [label, source] of [
-    ["aliyun", aliyunProviderSource],
-    ["tencent", tencentProviderSource],
-  ]) {
-    const body = extractMethodBody(source, "issueBrowserUploadIntent");
-
-    assert.match(
-      body,
-      /buildBrowserUploadIntentStorageKeys\(input\.storageKey\)/,
-      `${label} provider should include required storageKey/uploadKey fields via the shared helper.`,
-    );
-    assert.doesNotMatch(
-      body,
-      /return\s*{[\s\S]*cosKey:\s*input\.storageKey[\s\S]*}/,
-      `${label} provider should not hand-roll a legacy-only cosKey response.`,
-    );
-  }
+  assert.match(
+    body,
+    /buildBrowserUploadIntentStorageKeys\(input\.storageKey\)/,
+    "Aliyun provider should include required storageKey/uploadKey fields via the shared helper.",
+  );
+  assert.doesNotMatch(
+    body,
+    /return\s*{[\s\S]*cosKey:\s*input\.storageKey[\s\S]*}/,
+    "Aliyun provider should not hand-roll a legacy-only cosKey response.",
+  );
 });
 
 function readSource(path) {

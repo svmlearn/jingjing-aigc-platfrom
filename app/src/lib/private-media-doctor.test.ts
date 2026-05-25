@@ -120,7 +120,6 @@ test("private media doctor detects storage security and pending cleanup blockers
     clientExposedEnvKeys: [
       "NEXT_PUBLIC_SUPA\x42ASE_URL",
       "SUPA\x42ASE_SERVICE_ROLE_KEY",
-      "COS_SECRET_KEY",
     ],
     pendingUploads: [
       {
@@ -146,7 +145,6 @@ test("private media doctor detects storage security and pending cleanup blockers
     "missing_object",
     "public_bucket",
     "public_bucket",
-    "service_role_client_leak",
     "service_role_client_leak",
     "expired_pending_upload",
     "orphan_upload_object",

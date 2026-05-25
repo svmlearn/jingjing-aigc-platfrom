@@ -31,12 +31,16 @@ function parseDifyStoragePath(rawPath: string): {
   storageKey: string;
   bucketName?: string | null;
 } {
-  const provider = /^oss:\/\//i.test(rawPath)
-    ? "aliyun_oss"
-    : /^cos:\/\//i.test(rawPath)
-      ? "tencent_cos"
-      : undefined;
-  const value = rawPath.replace(/^(cos|oss):\/\//i, "").replace(/^\/+/, "");
+  if (/^cos:\/\//i.test(rawPath)) {
+    throw new ApiError(
+      400,
+      "OBJECT_PREVIEW_PROVIDER_UNSUPPORTED",
+      "对象预览只支持 Aliyun OSS 路径或原始 storage key。",
+    );
+  }
+
+  const provider = /^oss:\/\//i.test(rawPath) ? "aliyun_oss" : undefined;
+  const value = rawPath.replace(/^oss:\/\//i, "").replace(/^\/+/, "");
 
   if (!value) {
     throw new ApiError(400, "OBJECT_PREVIEW_PATH_INVALID", "对象预览路径无效。");

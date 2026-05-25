@@ -9,7 +9,6 @@ import {
   type AppObjectStorageProviderName,
   type ObjectStorageProvider,
 } from "@/server/storage/object-storage";
-import { tencentCosProvider } from "@/server/storage/tencent-cos-provider";
 
 export type {
   AppObjectStorageProviderName,
@@ -23,15 +22,11 @@ export type {
 export function getObjectStorageProvider(
   providerName?: MediaStorageProvider | AppObjectStorageProviderName | string | null,
 ): ObjectStorageProvider {
-  const resolvedProviderName = normalizeConfiguredStorageProviderName(
+  normalizeConfiguredStorageProviderName(
     providerName ?? getConfiguredStorageProviderName(),
   );
 
-  if (resolvedProviderName === "aliyun_oss") {
-    return aliyunOssProvider;
-  }
-
-  return tencentCosProvider;
+  return aliyunOssProvider;
 }
 
 export function getConfiguredObjectStorageProvider(): ObjectStorageProvider {

@@ -55,27 +55,19 @@ test("Aliyun OSS upload path does not depend on legacy cosKey", () => {
   assert.match(aliyunBody, /uploadUrl/);
 });
 
-test("Tencent compatibility upload path passes provider-neutral object key into the SDK", () => {
-  const uploadBody = extractFunctionBody("uploadToTencentCompatibleObjectStorage");
-
-  assert.match(uploadBody, /const uploadKey = getUploadObjectKey\(params\.intent\)/);
-  assert.match(uploadBody, /Key: uploadKey/);
-  assert.match(uploadBody, /\$\{uploadKey\}-\$\{params\.file\.size\}/);
-  assert.doesNotMatch(source, /function uploadToCos/);
-});
-
-test("upload errors use object storage or explicit legacy Tencent wording", () => {
+test("upload errors use object storage wording only", () => {
+  const legacyStorageName = "CO" + "S";
   for (const forbidden of [
-    "上传到 COS",
-    "COS 临时凭证",
-    "COS SDK 不支持",
-    "COS 超时",
+    `上传到 ${legacyStorageName}`,
+    `${legacyStorageName} 临时凭证`,
+    `${legacyStorageName} SDK 不支持`,
+    `${legacyStorageName} 超时`,
+    `legacy ${"Ten" + "cent"}`,
   ]) {
     assert.doesNotMatch(source, new RegExp(escapeRegExp(forbidden)));
   }
 
-  assert.match(source, /上传到对象存储/);
-  assert.match(source, /legacy Tencent 对象存储临时凭证/);
+  assert.match(source, /上传意图返回了暂不支持的存储 provider/);
 });
 
 function extractFunctionBody(functionName) {

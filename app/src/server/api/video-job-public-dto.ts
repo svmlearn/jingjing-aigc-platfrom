@@ -98,7 +98,7 @@ export function extractPayloadResultAssets(
 function normalizePayloadStorageProvider(asset: Record<string, unknown>): MediaAssetDto["storageProvider"] {
   const storageProvider = asset.storageProvider ?? asset.storage_provider;
 
-  if (storageProvider === "tencent_cos" || storageProvider === "aliyun_oss") {
+  if (storageProvider === "aliyun_oss") {
     return storageProvider;
   }
 

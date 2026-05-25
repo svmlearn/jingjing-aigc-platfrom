@@ -33,7 +33,7 @@ test("private media Dify-to-OpenStoryline workflow has a fixture-level smoke sub
       {
         id: "fixture-user-talking-head",
         assetType: "video",
-        storageProvider: "tencent_cos",
+        storageProvider: "aliyun_oss",
         bucketName: "fixture-private-bucket",
         storageKey: "draft-inputs/demo-merchant-local/draft-private-media-fixture/opening.mp4",
         mimeType: "video/mp4",

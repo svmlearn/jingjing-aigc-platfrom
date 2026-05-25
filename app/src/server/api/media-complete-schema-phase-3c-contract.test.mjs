@@ -1,35 +1,24 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { z } from "zod";
-
 const schemasSource = readFileSync(new URL("./schemas.ts", import.meta.url), "utf8");
 const mediaCompleteSchemaBlock = extractSourceBlock(
   schemasSource,
   "export const mediaCompleteSchema = z.object({",
   "const merchantMediaManifestTagSchema",
 );
-const providerValues = extractStorageProviderEnumValues(mediaCompleteSchemaBlock);
-const storageProviderSchema = z.enum(providerValues);
 
 test("mediaCompleteSchema accepts Aliyun OSS for current media complete requests", () => {
-  assert.equal(storageProviderSchema.safeParse("aliyun_oss").success, true);
+  assert.match(mediaCompleteSchemaBlock, /storageProvider: z\.literal\("aliyun_oss"\)/);
 });
 
-test("mediaCompleteSchema rejects historical Supabase storage for current media complete requests", () => {
-  assert.equal(storageProviderSchema.safeParse("supabase_storage").success, false);
+test("mediaCompleteSchema rejects historical removed storage for current media complete requests", () => {
   assert.doesNotMatch(mediaCompleteSchemaBlock, /supabase_storage/);
 });
 
-test("mediaCompleteSchema keeps Tencent COS only as schema-level compatibility", () => {
-  assert.equal(storageProviderSchema.safeParse("tencent_cos").success, true);
+test("mediaCompleteSchema rejects non-Aliyun providers for current media complete requests", () => {
+  assert.doesNotMatch(mediaCompleteSchemaBlock, /z\.enum\(\[/);
 });
-
-function extractStorageProviderEnumValues(source) {
-  const match = source.match(/storageProvider:\s*z\.enum\((\[[^\]]+\])\)/);
-  assert.ok(match, "mediaCompleteSchema should define storageProvider with z.enum.");
-  return JSON.parse(match[1]);
-}
 
 function extractSourceBlock(source, start, end) {
   const startIndex = source.indexOf(start);

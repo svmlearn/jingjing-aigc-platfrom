@@ -6,8 +6,7 @@ export type MediaOwnerType =
 
 export type MediaAssetType = "image" | "video" | "cover" | "subtitle" | "audio";
 
-// `tencent_cos` remains a deprecated compatibility value for historical assets.
-export type MediaStorageProvider = "aliyun_oss" | "tencent_cos";
+export type MediaStorageProvider = "aliyun_oss";
 
 export type MediaAssetDto = {
   id: string;
@@ -38,7 +37,7 @@ export type MediaUploadIntentRequest = {
 };
 
 export type MediaUploadIntentDto = {
-  provider?: Extract<MediaStorageProvider, "tencent_cos" | "aliyun_oss">;
+  provider?: MediaStorageProvider;
   bucket: string;
   region: string;
   endpoint?: string | null;

@@ -11,7 +11,6 @@ const merchantMediaManifestServiceSource = readFileSync(
   "utf8",
 );
 const legacyApiHelperUrl = new URL("./cos.ts", import.meta.url);
-const tencentProviderUrl = new URL("../storage/tencent-cos-provider.ts", import.meta.url);
 
 const legacyReadSignerName = "create" + "CosSignedReadUrl";
 const legacyConfigGetterName = "get" + "CosConfig";
@@ -39,9 +38,8 @@ test("merchant media manifest service reads the default bucket from object stora
   assert.match(merchantMediaManifestServiceSource, /receiveMerchantMediaManifest\(/);
 });
 
-test("legacy API helper is removed while Tencent COS runtime provider remains", () => {
+test("legacy API helper remains removed after app storage provider consolidation", () => {
   assert.equal(existsSync(legacyApiHelperUrl), false);
-  assert.equal(existsSync(tencentProviderUrl), true);
 });
 
 function escapeRegExp(value) {

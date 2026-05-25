@@ -41,7 +41,7 @@ test("buildPexelsVideoSearchResponse returns OpenStoryline-compatible video JSON
   assertNoInternalFields(serialized);
 });
 
-test("buildPexelsPhotoSearchResponse returns Pexels-like photo JSON without COS keys or tags", () => {
+test("buildPexelsPhotoSearchResponse returns Pexels-like photo JSON without storage keys or tags", () => {
   const response = buildPexelsPhotoSearchResponse({
     clips,
     merchantId: "merchant-a",

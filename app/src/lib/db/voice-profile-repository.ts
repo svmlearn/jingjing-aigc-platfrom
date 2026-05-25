@@ -303,7 +303,7 @@ export async function assertVoiceProfileAudioAsset(input: {
       and owner_type = 'voice_profile'
       and owner_id = $2
       and asset_type = 'audio'
-      and storage_provider in ('tencent_cos', 'aliyun_oss')
+      and storage_provider = 'aliyun_oss'
     limit 1
     `,
     [input.assetId, input.voiceProfileId],

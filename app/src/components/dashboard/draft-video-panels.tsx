@@ -678,7 +678,7 @@ function DraftVideoPanelsContent({
           <div>
             <h2 className="text-base font-semibold">视频生成与任务状态</h2>
             <p className="mt-1 text-sm text-[#5d6b7a]">
-              只在 `video_script` 版本上开放“生成视频”。结果预览直接消费后端返回的签名 URL，不在前端拼 COS 地址。
+              只在 `video_script` 版本上开放“生成视频”。结果预览直接消费后端返回的签名 URL，不在前端拼对象存储地址。
             </p>
           </div>
           <Button

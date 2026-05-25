@@ -65,7 +65,7 @@ test("local real-chain gate depends only on explicit local real-chain database c
 test("private media doctor keeps a generic server-only secret redline", () => {
   const source = readFileSync(join(srcRoot, "lib", "private-media-doctor.ts"), "utf8");
   assert.match(source, /envKey\.endsWith\("_SERVICE_ROLE_KEY"\)/);
-  assert.match(source, /envKey\.startsWith\("COS_SECRET_"\)/);
+  assert.doesNotMatch(source, new RegExp(`${"CO" + "S"}_${"SECRET_"}`));
   assert.doesNotMatch(source, new RegExp(escapeRegExp(`${legacyUpperPrefix}SERVICE_ROLE_KEY`)));
 });
 

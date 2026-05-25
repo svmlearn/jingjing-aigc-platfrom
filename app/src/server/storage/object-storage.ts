@@ -5,10 +5,7 @@ import type { Buffer } from "node:buffer";
 import type { MediaStorageProvider, MediaUploadIntentDto } from "@/contracts/media";
 import { ApiError } from "@/server/api/errors";
 
-export type AppObjectStorageProviderName = Extract<
-  MediaStorageProvider,
-  "tencent_cos" | "aliyun_oss"
->;
+export type AppObjectStorageProviderName = Extract<MediaStorageProvider, "aliyun_oss">;
 
 export type BrowserUploadOwnerType = "source_item" | "content_draft" | "voice_profile";
 
@@ -98,14 +95,14 @@ export function normalizeConfiguredStorageProviderName(
 ): AppObjectStorageProviderName {
   const value = rawValue?.trim() || defaultStorageProviderName;
 
-  if (value === "tencent_cos" || value === "aliyun_oss") {
+  if (value === "aliyun_oss") {
     return value;
   }
 
   throw new ApiError(
     500,
     "STORAGE_PROVIDER_UNSUPPORTED",
-    "STORAGE_PROVIDER must be tencent_cos or aliyun_oss.",
+    "STORAGE_PROVIDER must be aliyun_oss.",
   );
 }
 
@@ -116,7 +113,7 @@ export function getConfiguredStorageProviderName(): AppObjectStorageProviderName
 export function assertAppObjectStorageProviderName(
   storageProvider: MediaStorageProvider,
 ): AppObjectStorageProviderName {
-  if (storageProvider === "tencent_cos" || storageProvider === "aliyun_oss") {
+  if (storageProvider === "aliyun_oss") {
     return storageProvider;
   }
 

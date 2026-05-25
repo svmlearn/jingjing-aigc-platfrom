@@ -33,7 +33,7 @@ test("knowledge repository smoke inserts inline seed provider for text fixtures"
   assert.doesNotMatch(knowledgeSmokeSource, /'supabase_storage'/);
 });
 
-test("video job public DTO does not default unknown providers to historical Supabase storage", () => {
+test("video job public DTO does not default unknown providers to historical removed storage", () => {
   const functionBody = extractFunctionBody(videoJobPublicDtoSource, "normalizePayloadStorageProvider");
 
   assert.match(videoJobPublicDtoSource, /currentDefaultPayloadStorageProvider[^\n]+ "aliyun_oss"/);

@@ -112,7 +112,7 @@ test("audio asset lookup stays scoped to voice profile owner, audio type, and cu
     "owner_type = 'voice_profile'",
     "owner_id = $2",
     "asset_type = 'audio'",
-    "storage_provider in ('tencent_cos', 'aliyun_oss')",
+    "storage_provider = 'aliyun_oss'",
     "VOICE_PROFILE_AUDIO_ASSET_INVALID",
     "assertVoiceProfileAudioStorageKey(input, asset)",
   ]);
