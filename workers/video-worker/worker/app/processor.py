@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 from .config import Settings
-from .cos_client import ObjectStorageClient
 from .db import VideoJobRepository
 from .directive import (
     DirectiveValidationError,
@@ -14,6 +13,7 @@ from .directive import (
     build_production_directive,
 )
 from .models import EngineRunResult, InputAsset, InputAssetContractError, UploadedAsset, VideoJob
+from .object_storage_client import ObjectStorageClient
 from .openstoryline_client import OpenStorylineClient
 
 
@@ -911,12 +911,12 @@ class JobProcessor:
         self,
         settings: Settings,
         repository: VideoJobRepository,
-        cos_client: ObjectStorageClient,
+        storage_client: ObjectStorageClient,
         openstoryline_client: OpenStorylineClient,
     ) -> None:
         self._settings = settings
         self._repository = repository
-        self._cos_client = cos_client
+        self._storage_client = storage_client
         self._openstoryline_client = openstoryline_client
 
     def _workspace_for(self, job: VideoJob) -> tuple[Path, Path, Path]:
@@ -932,7 +932,7 @@ class JobProcessor:
         default_buckets = getattr(
             self._settings,
             "default_input_buckets",
-            getattr(self._settings, "cos_bucket", ""),
+            getattr(self._settings, "aliyun_oss_bucket", ""),
         )
         default_storage_provider = getattr(self._settings, "storage_provider", "aliyun_oss")
         for asset in job.input_assets(
@@ -955,7 +955,7 @@ class JobProcessor:
         default_buckets = getattr(
             self._settings,
             "default_input_buckets",
-            getattr(self._settings, "cos_bucket", ""),
+            getattr(self._settings, "aliyun_oss_bucket", ""),
         )
         raw_assets = self._repository.list_video_material_input_assets(
             job.merchant_id,
@@ -979,7 +979,7 @@ class JobProcessor:
     def _download_input_asset(self, asset: InputAsset, input_dir: Path) -> dict[str, Any]:
         local_path = input_dir / asset.file_name
         try:
-            self._cos_client.download_file(
+            self._storage_client.download_file(
                 storage_key=asset.storage_key,
                 destination=local_path,
                 bucket_name=asset.bucket_name,
@@ -1032,7 +1032,7 @@ class JobProcessor:
 
         local_path = input_dir / "voice_profile_ref_audio" / Path(storage_key).name
         try:
-            self._cos_client.download_file(
+            self._storage_client.download_file(
                 storage_key=storage_key,
                 destination=local_path,
                 bucket_name=bucket_name or None,
@@ -1060,10 +1060,10 @@ class JobProcessor:
         def upload(local_path: Path, asset_type: str) -> UploadedAsset:
             storage_key = job.output_object_key(
                 asset_type,
-                getattr(self._settings, "storage_result_prefix", self._settings.cos_result_prefix),
+                getattr(self._settings, "storage_result_prefix", "video-results"),
             )
             try:
-                return self._cos_client.upload_file(
+                return self._storage_client.upload_file(
                     local_path=local_path,
                     storage_key=storage_key,
                     asset_type=asset_type,
@@ -1106,12 +1106,12 @@ class JobProcessor:
                 )
             raise OutputValidationError(missing_outputs)
 
-    def _cos_output_configured(self) -> bool:
+    def _output_storage_configured(self) -> bool:
         return bool(
             getattr(
                 self._settings,
                 "output_storage_configured",
-                getattr(self._settings, "cos_output_configured", True),
+                True,
             )
         )
 
@@ -1415,7 +1415,7 @@ class JobProcessor:
             )
             local_outputs = self._local_outputs_payload(run_result)
             upload_mode = "local_only"
-            if self._cos_output_configured():
+            if self._output_storage_configured():
                 self._repository.update_stage(
                     job.id,
                     status="running",

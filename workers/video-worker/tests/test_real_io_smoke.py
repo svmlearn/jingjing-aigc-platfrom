@@ -9,7 +9,7 @@ from worker.app.real_io_smoke import (
     InvalidRealSmokeEnvError,
     MissingRealSmokeEnvError,
     RealSmokeConfig,
-    build_cos_smoke_key,
+    build_storage_smoke_key,
     load_env_file_from_argv,
 )
 
@@ -68,35 +68,10 @@ class RealIoSmokeTests(unittest.TestCase):
 
         self.assertEqual(["WORKER_DATABASE_URL"], raised.exception.missing_names)
 
-    def test_config_prefers_worker_cos_over_shared_cos_environment(self):
-        config = RealSmokeConfig.from_env(
-            {
-                "WORKER_DATABASE_URL": "postgresql://user:db-password@db.example/postgres",
-                "WORKER_STORAGE_PROVIDER": "tencent_cos",
-                "WORKER_COS_SECRET_ID": "worker-cos-secret-id",
-                "WORKER_COS_SECRET_KEY": "worker-cos-secret-key",
-                "WORKER_COS_BUCKET": "worker-bucket-1250000000",
-                "WORKER_COS_REGION": "ap-guangzhou",
-                "WORKER_COS_RESULT_PREFIX": "video-results",
-                "COS_SECRET_ID": "shared-cos-secret-id",
-                "COS_SECRET_KEY": "shared-cos-secret-key",
-                "COS_BUCKET": "shared-bucket-1250000000",
-                "COS_REGION": "ap-singapore",
-            }
-        )
-
-        self.assertEqual("worker-bucket-1250000000", config.cos_bucket)
-        self.assertEqual("ap-guangzhou", config.cos_region)
-        self.assertEqual("video-results", config.cos_prefix)
-
     def test_aliyun_config_requires_aliyun_oss_environment_only(self):
         env = {
             "WORKER_DATABASE_URL": "postgresql://user:secret@db.example/postgres",
             "WORKER_STORAGE_PROVIDER": "aliyun_oss",
-            "WORKER_COS_SECRET_ID": "worker-cos-secret-id",
-            "WORKER_COS_SECRET_KEY": "worker-cos-secret-key",
-            "WORKER_COS_BUCKET": "worker-bucket-1250000000",
-            "WORKER_COS_REGION": "ap-guangzhou",
         }
 
         with self.assertRaises(MissingRealSmokeEnvError) as raised:
@@ -109,7 +84,7 @@ class RealIoSmokeTests(unittest.TestCase):
             message,
         )
         self.assertIn("WORKER_ALIYUN_OSS_BUCKET/ALIYUN_OSS_BUCKET", message)
-        self.assertNotIn("worker-cos-secret-id", message)
+        self.assertNotIn("aliyun-access-key-id", message)
 
     def test_config_accepts_aliyun_oss_environment_without_exposing_secrets(self):
         config = RealSmokeConfig.from_env(
@@ -140,21 +115,22 @@ class RealIoSmokeTests(unittest.TestCase):
                 {
                     "WORKER_DATABASE_URL": "postgresql://user:db-password@db.example/postgres",
                     "WORKER_STORAGE_PROVIDER": "s3",
-                }
-            )
+            }
+        )
 
         self.assertEqual("WORKER_STORAGE_PROVIDER", raised.exception.name)
-        self.assertIn("tencent_cos or aliyun_oss", raised.exception.message)
+        self.assertIn("aliyun_oss", raised.exception.message)
 
     def test_config_rejects_phase_one_worker_concurrency_above_one(self):
         with self.assertRaises(InvalidRealSmokeEnvError) as raised:
             RealSmokeConfig.from_env(
                 {
                     "WORKER_DATABASE_URL": "postgresql://user:db-password@db.example/postgres",
-                    "WORKER_COS_SECRET_ID": "worker-cos-secret-id",
-                    "WORKER_COS_SECRET_KEY": "worker-cos-secret-key",
-                    "WORKER_COS_BUCKET": "worker-bucket-1250000000",
-                    "WORKER_COS_REGION": "ap-guangzhou",
+                    "ALIYUN_OSS_ACCESS_KEY_ID": "aliyun-access-key-id",
+                    "ALIYUN_OSS_ACCESS_KEY_SECRET": "aliyun-access-key-secret",
+                    "ALIYUN_OSS_BUCKET": "jingjing-domestic-phase1-hz",
+                    "ALIYUN_OSS_REGION": "oss-cn-hangzhou",
+                    "ALIYUN_OSS_ENDPOINT": "https://oss-cn-hangzhou.aliyuncs.com",
                     "WORKER_MAX_CONCURRENCY": "2",
                 }
             )
@@ -169,14 +145,14 @@ class RealIoSmokeTests(unittest.TestCase):
                 "\n".join(
                     [
                         "WORKER_DATABASE_URL=postgresql://from-file/db",
-                        "WORKER_COS_BUCKET='bucket-from-file'",
-                        "WORKER_COS_REGION=ap-guangzhou",
+                        "WORKER_ALIYUN_OSS_BUCKET='bucket-from-file'",
+                        "WORKER_ALIYUN_OSS_REGION=oss-cn-hangzhou",
                     ]
                 ),
                 encoding="utf-8",
             )
             env = {
-                "WORKER_COS_BUCKET": "bucket-from-env",
+                "WORKER_ALIYUN_OSS_BUCKET": "bucket-from-env",
             }
 
             loaded = load_env_file_from_argv(
@@ -186,11 +162,11 @@ class RealIoSmokeTests(unittest.TestCase):
 
         self.assertEqual(env_path, loaded)
         self.assertEqual("postgresql://from-file/db", env["WORKER_DATABASE_URL"])
-        self.assertEqual("bucket-from-env", env["WORKER_COS_BUCKET"])
-        self.assertEqual("ap-guangzhou", env["WORKER_COS_REGION"])
+        self.assertEqual("bucket-from-env", env["WORKER_ALIYUN_OSS_BUCKET"])
+        self.assertEqual("oss-cn-hangzhou", env["WORKER_ALIYUN_OSS_REGION"])
 
-    def test_cos_smoke_key_is_scoped_under_configured_prefix(self):
-        key = build_cos_smoke_key(" /worker-real-smoke/ ", run_id="abc123")
+    def test_storage_smoke_key_is_scoped_under_configured_prefix(self):
+        key = build_storage_smoke_key(" /worker-real-smoke/ ", run_id="abc123")
 
         self.assertEqual("worker-real-smoke/abc123.txt", key)
 

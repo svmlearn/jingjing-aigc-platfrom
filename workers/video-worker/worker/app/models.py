@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-SUPPORTED_STORAGE_PROVIDERS = frozenset({"tencent_cos", "aliyun_oss"})
+SUPPORTED_STORAGE_PROVIDERS = frozenset({"aliyun_oss"})
 
 
 class InputAssetContractError(ValueError):
@@ -162,13 +162,13 @@ def _storage_provider(value: Any, *, default_storage_provider: str = "aliyun_oss
         return "aliyun_oss"
     if not isinstance(value, str):
         raise InputAssetContractError(
-            "input asset storage_provider must be tencent_cos or aliyun_oss"
+            "input asset storage_provider must be aliyun_oss"
         )
     normalized = value.strip().lower()
     if normalized in SUPPORTED_STORAGE_PROVIDERS:
         return normalized
     raise InputAssetContractError(
-        "input asset storage_provider must be tencent_cos or aliyun_oss"
+        "input asset storage_provider must be aliyun_oss"
     )
 
 

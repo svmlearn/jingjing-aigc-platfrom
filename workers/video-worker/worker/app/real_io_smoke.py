@@ -10,12 +10,6 @@ from pathlib import Path
 from typing import Mapping
 
 
-COS_ENV_FALLBACKS = {
-    "cos_secret_id": ("WORKER_COS_SECRET_ID", "COS_SECRET_ID"),
-    "cos_secret_key": ("WORKER_COS_SECRET_KEY", "COS_SECRET_KEY"),
-    "cos_bucket": ("WORKER_COS_BUCKET", "COS_BUCKET"),
-    "cos_region": ("WORKER_COS_REGION", "COS_REGION"),
-}
 ALIYUN_OSS_ENV_FALLBACKS = {
     "aliyun_oss_access_key_id": (
         "WORKER_ALIYUN_OSS_ACCESS_KEY_ID",
@@ -29,7 +23,7 @@ ALIYUN_OSS_ENV_FALLBACKS = {
     "aliyun_oss_region": ("WORKER_ALIYUN_OSS_REGION", "ALIYUN_OSS_REGION"),
     "aliyun_oss_endpoint": ("WORKER_ALIYUN_OSS_ENDPOINT", "ALIYUN_OSS_ENDPOINT"),
 }
-SUPPORTED_STORAGE_PROVIDERS = frozenset({"tencent_cos", "aliyun_oss"})
+SUPPORTED_STORAGE_PROVIDERS = frozenset({"aliyun_oss"})
 
 
 class MissingRealSmokeEnvError(RuntimeError):
@@ -52,10 +46,6 @@ class InvalidRealSmokeEnvError(RuntimeError):
 class RealSmokeConfig:
     database_url: str = field(repr=False)
     storage_provider: str = "aliyun_oss"
-    cos_secret_id: str = field(default="", repr=False)
-    cos_secret_key: str = field(default="", repr=False)
-    cos_bucket: str = ""
-    cos_region: str = ""
     aliyun_oss_access_key_id: str = field(default="", repr=False)
     aliyun_oss_access_key_secret: str = field(default="", repr=False)
     aliyun_oss_bucket: str = ""
@@ -64,25 +54,17 @@ class RealSmokeConfig:
     storage_prefix: str = "worker-real-smoke"
     worker_max_concurrency: int = 1
 
-    @property
-    def cos_prefix(self) -> str:
-        return self.storage_prefix
-
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "RealSmokeConfig":
         source = env or os.environ
         database_url = str(source.get("WORKER_DATABASE_URL") or "").strip()
         worker_max_concurrency = _read_worker_max_concurrency(source)
         storage_provider = _storage_provider(source)
-        cos_values = {
-            field: _first_env(source, *env_names)
-            for field, env_names in COS_ENV_FALLBACKS.items()
-        }
         aliyun_values = {
             field: _first_env(source, *env_names)
             for field, env_names in ALIYUN_OSS_ENV_FALLBACKS.items()
         }
-        missing = _missing_storage_env(storage_provider, cos_values, aliyun_values)
+        missing = _missing_storage_env(aliyun_values)
         if not database_url:
             missing.append("WORKER_DATABASE_URL")
         if missing:
@@ -90,22 +72,14 @@ class RealSmokeConfig:
         return cls(
             database_url=database_url,
             storage_provider=storage_provider,
-            cos_secret_id=cos_values["cos_secret_id"],
-            cos_secret_key=cos_values["cos_secret_key"],
-            cos_bucket=cos_values["cos_bucket"],
-            cos_region=cos_values["cos_region"],
             aliyun_oss_access_key_id=aliyun_values["aliyun_oss_access_key_id"],
             aliyun_oss_access_key_secret=aliyun_values["aliyun_oss_access_key_secret"],
             aliyun_oss_bucket=aliyun_values["aliyun_oss_bucket"],
             aliyun_oss_region=aliyun_values["aliyun_oss_region"],
             aliyun_oss_endpoint=aliyun_values["aliyun_oss_endpoint"],
-            storage_prefix=_storage_prefix(source, storage_provider),
+            storage_prefix=_storage_prefix(source),
             worker_max_concurrency=worker_max_concurrency,
         )
-
-
-def build_cos_smoke_key(prefix: str, *, run_id: str | None = None) -> str:
-    return build_storage_smoke_key(prefix, run_id=run_id)
 
 
 def build_storage_smoke_key(prefix: str, *, run_id: str | None = None) -> str:
@@ -148,46 +122,27 @@ def _storage_provider(source: Mapping[str, str]) -> str:
     if value not in SUPPORTED_STORAGE_PROVIDERS:
         raise InvalidRealSmokeEnvError(
             "WORKER_STORAGE_PROVIDER",
-            "must be tencent_cos or aliyun_oss",
+            "must be aliyun_oss",
         )
     return value
 
 
-def _missing_storage_env(
-    storage_provider: str,
-    cos_values: Mapping[str, str],
-    aliyun_values: Mapping[str, str],
-) -> list[str]:
-    if storage_provider == "aliyun_oss":
-        return [
-            "/".join(env_names)
-            for field, env_names in ALIYUN_OSS_ENV_FALLBACKS.items()
-            if not aliyun_values[field]
-        ]
+def _missing_storage_env(aliyun_values: Mapping[str, str]) -> list[str]:
     return [
         "/".join(env_names)
-        for field, env_names in COS_ENV_FALLBACKS.items()
-        if not cos_values[field]
+        for field, env_names in ALIYUN_OSS_ENV_FALLBACKS.items()
+        if not aliyun_values[field]
     ]
 
 
-def _storage_prefix(source: Mapping[str, str], storage_provider: str) -> str:
-    if storage_provider == "aliyun_oss":
-        value = (
-            source.get("REAL_IO_SMOKE_STORAGE_PREFIX")
-            or source.get("REAL_IO_SMOKE_OSS_PREFIX")
-            or source.get("WORKER_ALIYUN_OSS_RESULT_PREFIX")
-            or source.get("WORKER_STORAGE_RESULT_PREFIX")
-            or "worker-real-smoke"
-        )
-    else:
-        value = (
-            source.get("REAL_IO_SMOKE_STORAGE_PREFIX")
-            or source.get("REAL_IO_SMOKE_COS_PREFIX")
-            or source.get("WORKER_COS_RESULT_PREFIX")
-            or source.get("WORKER_STORAGE_RESULT_PREFIX")
-            or "worker-real-smoke"
-        )
+def _storage_prefix(source: Mapping[str, str]) -> str:
+    value = (
+        source.get("REAL_IO_SMOKE_STORAGE_PREFIX")
+        or source.get("REAL_IO_SMOKE_OSS_PREFIX")
+        or source.get("WORKER_ALIYUN_OSS_RESULT_PREFIX")
+        or source.get("WORKER_STORAGE_RESULT_PREFIX")
+        or "worker-real-smoke"
+    )
     return str(value).strip().strip("/") or "worker-real-smoke"
 
 
@@ -265,48 +220,6 @@ def run_database_smoke(config: RealSmokeConfig) -> dict[str, object]:
     }
 
 
-def run_cos_smoke(config: RealSmokeConfig) -> dict[str, object]:
-    from qcloud_cos import CosConfig, CosS3Client
-
-    key = build_storage_smoke_key(config.storage_prefix)
-    body = b"jingjing video worker real cos smoke\n"
-    client = CosS3Client(
-        CosConfig(
-            Region=config.cos_region,
-            SecretId=config.cos_secret_id,
-            SecretKey=config.cos_secret_key,
-            Token=None,
-            Scheme="https",
-        )
-    )
-    with tempfile.TemporaryDirectory() as tmp:
-        destination = Path(tmp) / "cos-smoke.txt"
-        client.put_object(
-            Bucket=config.cos_bucket,
-            Key=key,
-            Body=body,
-            ContentType="text/plain",
-            EnableMD5=False,
-        )
-        client.download_file(
-            Bucket=config.cos_bucket,
-            Key=key,
-            DestFilePath=str(destination),
-        )
-        downloaded = destination.read_bytes()
-    client.delete_object(Bucket=config.cos_bucket, Key=key)
-    return {
-        "status": "ok",
-        "provider": "tencent_cos",
-        "bucket": config.cos_bucket,
-        "region": config.cos_region,
-        "key": key,
-        "bytes": len(downloaded),
-        "roundtrip_matched": downloaded == body,
-        "deleted": True,
-    }
-
-
 def run_aliyun_oss_smoke(config: RealSmokeConfig) -> dict[str, object]:
     import oss2
 
@@ -340,9 +253,7 @@ def run_aliyun_oss_smoke(config: RealSmokeConfig) -> dict[str, object]:
 
 
 def run_storage_smoke(config: RealSmokeConfig) -> dict[str, object]:
-    if config.storage_provider == "aliyun_oss":
-        return run_aliyun_oss_smoke(config)
-    return run_cos_smoke(config)
+    return run_aliyun_oss_smoke(config)
 
 
 def run_real_io_smoke(config: RealSmokeConfig) -> dict[str, object]:
@@ -355,8 +266,6 @@ def run_real_io_smoke(config: RealSmokeConfig) -> dict[str, object]:
         "database": run_database_smoke(config),
         "storage": storage,
     }
-    if config.storage_provider == "tencent_cos":
-        report["cos"] = storage
     return report
 
 

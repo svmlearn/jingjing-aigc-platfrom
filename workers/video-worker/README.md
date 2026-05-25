@@ -206,8 +206,7 @@ absolute paths, Windows drive prefixes, and directory separators are rejected as
 `storage_provider` is present, it must be a supported object storage provider;
 unsupported providers are rejected before download. If `bucket_name` is present,
 it must be a non-empty string; otherwise the worker uses the configured default
-bucket for the selected provider. `tencent_cos` remains a legacy compatibility
-provider for historical assets; new payloads should use `aliyun_oss`.
+bucket for Aliyun OSS. The current worker runtime only accepts `aliyun_oss`.
 
 `productionDirective` is intentionally lightweight in this stage. It records the
 parts of the upstream content decision that the worker and engine must not
@@ -267,7 +266,7 @@ Only requested `desiredOutputs` are uploaded and written back; for example,
 ## Local setup
 
 1. Copy `.env.example` to `.env`.
-2. Set `WORKER_DATABASE_URL`, `WORKER_STORAGE_PROVIDER=aliyun_oss`, `WORKER_ALIYUN_OSS_ACCESS_KEY_ID`, `WORKER_ALIYUN_OSS_ACCESS_KEY_SECRET`, `WORKER_ALIYUN_OSS_BUCKET`, `WORKER_ALIYUN_OSS_REGION`, `WORKER_ALIYUN_OSS_ENDPOINT`, `OPENAI_API_KEY`, and any extra provider keys you need. Legacy database and Tencent COS variables remain compatibility fallbacks for older deployments only.
+2. Set `WORKER_DATABASE_URL`, `WORKER_STORAGE_PROVIDER=aliyun_oss`, `WORKER_ALIYUN_OSS_ACCESS_KEY_ID`, `WORKER_ALIYUN_OSS_ACCESS_KEY_SECRET`, `WORKER_ALIYUN_OSS_BUCKET`, `WORKER_ALIYUN_OSS_REGION`, `WORKER_ALIYUN_OSS_ENDPOINT`, `OPENAI_API_KEY`, and any extra provider keys you need.
 3. Make sure the host directories exist on the worker machine:
 
 ```bash
@@ -291,13 +290,11 @@ $env:PYTHONPATH=(Resolve-Path -LiteralPath '.').Path
 python -m worker.app.real_io_smoke --env-file .env
 ```
 
-The smoke prefers `WORKER_DATABASE_URL` and `WORKER_ALIYUN_OSS_*`. Legacy
-database and Tencent COS variables remain compatibility fallbacks. It performs a read-only
+The smoke requires `WORKER_DATABASE_URL` and `WORKER_ALIYUN_OSS_*`. It performs a read-only
 database check for `video_edit_jobs` and `asset_objects`, enforces
 `WORKER_MAX_CONCURRENCY=1` for domestic phase1, then uploads, downloads,
-verifies, and deletes one small object under `worker-real-smoke/` in the
-configured object storage provider. Missing environment variables are reported
-by name only; secret values are never echoed.
+verifies, and deletes one small object under `worker-real-smoke/` in Aliyun OSS.
+Missing environment variables are reported by name only; secret values are never echoed.
 
 ## Current scope
 
@@ -306,7 +303,7 @@ This is a PoC execution skeleton, not the final production runtime. Today it giv
 - a readable Compose layout
 - a complete worker env template
 - a real polling loop structure
-- object storage download/upload wrappers with Tencent COS legacy compatibility
+- Aliyun OSS download/upload wrappers behind an object storage client
 - an internal OpenStoryline HTTP contract we can swap for the real engine later
 
 It now bundles a trimmed `FireRed-OpenStoryline` source copy for server deployment

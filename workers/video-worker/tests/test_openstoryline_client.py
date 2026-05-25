@@ -18,11 +18,7 @@ from worker.app.openstoryline_client import OpenStorylineClient
 def _settings() -> Settings:
     return Settings(
         database_url="postgresql://example",
-        storage_provider="tencent_cos",
-        cos_secret_id="",
-        cos_secret_key="",
-        cos_bucket="",
-        cos_region="",
+        storage_provider="aliyun_oss",
         aliyun_oss_access_key_id="",
         aliyun_oss_access_key_secret="",
         aliyun_oss_bucket="",
