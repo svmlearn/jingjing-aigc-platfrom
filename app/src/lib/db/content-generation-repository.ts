@@ -10,13 +10,11 @@ import type {
   ContentGenerationJobStatus,
   ContentGenerationProvider,
 } from "@/contracts/content-generation";
+import { isLocalDemoRuntime } from "@/lib/demo/local-demo-runtime";
 import {
-  isAppPostgresConfigured,
-  isAppPostgresPreferred,
   queryAppDb,
   withAppDbTransaction,
 } from "@/lib/server-db/postgres";
-import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
 type Timestamp = string | Date;
@@ -156,77 +154,7 @@ export async function createContentGenerationBatch(input: {
     throw new ApiError(400, "CONTENT_GENERATION_EMPTY_BATCH", "生成批次至少需要一个任务。");
   }
 
-  if (isPostgresContentGenerationEnabled()) {
-    return withAppDbTransaction(async (client) => {
-      const batchResult = await client.query<ContentGenerationBatchRow>(
-        `
-        insert into public.content_generation_batches (
-          merchant_id,
-          created_by_user_id,
-          source,
-          calendar_snapshot,
-          member_scope_snapshot,
-          total_jobs,
-          status,
-          workflow_provider,
-          workflow_version
-        ) values ($1, $2, $3, $4::jsonb, $5::jsonb, $6, 'pending', $7, $8)
-        returning ${batchSelect}
-        `,
-        [
-          input.merchantId,
-          input.createdByUserId ?? null,
-          input.source,
-          JSON.stringify(input.calendarSnapshot ?? {}),
-          JSON.stringify(input.memberScopeSnapshot ?? {}),
-          input.jobs.length,
-          input.workflowProvider,
-          input.workflowVersion,
-        ],
-      );
-      const batch = mapBatch(batchResult.rows[0]);
-      const jobs: ContentGenerationJobDto[] = [];
-
-      for (const job of input.jobs) {
-        const jobResult = await client.query<ContentGenerationJobRow>(
-          `
-          insert into public.content_generation_jobs (
-            batch_id,
-            merchant_id,
-            member_user_id,
-            daily_task_id,
-            task_date,
-            calendar_item_id,
-            idempotency_key,
-            input_snapshot,
-            workflow_provider,
-            workflow_version,
-            current_stage
-          ) values ($1, $2, $3, $4, $5::date, $6, $7, $8::jsonb, $9, $10, 'queued')
-          returning ${jobSelect}
-          `,
-          [
-            batch.id,
-            input.merchantId,
-            job.memberUserId,
-            job.dailyTaskId,
-            job.taskDate,
-            job.calendarItemId ?? null,
-            job.idempotencyKey,
-            JSON.stringify(job.inputSnapshot),
-            input.workflowProvider,
-            input.workflowVersion,
-          ],
-        );
-
-        jobs.push(mapJob(jobResult.rows[0]));
-      }
-
-      return { batch, jobs };
-    });
-  }
-
-  if (!isSupabaseAdminConfigured()) {
+  if (isLocalDemoRuntime()) {
     const now = new Date().toISOString();
     const batch: ContentGenerationBatchDto = {
       id: randomUUID(),
@@ -284,131 +212,80 @@ export async function createContentGenerationBatch(input: {
     return { batch, jobs };
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data: batchData, error: batchError } = await supabase
-    .from("content_generation_batches")
-    .insert({
-      merchant_id: input.merchantId,
-      created_by_user_id: input.createdByUserId ?? null,
-      source: input.source,
-      calendar_snapshot: input.calendarSnapshot ?? {},
-      member_scope_snapshot: input.memberScopeSnapshot ?? {},
-      total_jobs: input.jobs.length,
-      status: "pending",
-      workflow_provider: input.workflowProvider,
-      workflow_version: input.workflowVersion,
-    })
-    .select(batchSelect)
-    .single();
-
-  if (batchError || !batchData) {
-    throw new ApiError(
-      500,
-      "CONTENT_GENERATION_BATCH_CREATE_FAILED",
-      batchError?.message ?? "Create failed.",
+  return withAppDbTransaction(async (client) => {
+    const batchResult = await client.query<ContentGenerationBatchRow>(
+      `
+      insert into public.content_generation_batches (
+        merchant_id,
+        created_by_user_id,
+        source,
+        calendar_snapshot,
+        member_scope_snapshot,
+        total_jobs,
+        status,
+        workflow_provider,
+        workflow_version
+      ) values ($1, $2, $3, $4::jsonb, $5::jsonb, $6, 'pending', $7, $8)
+      returning ${batchSelect}
+      `,
+      [
+        input.merchantId,
+        input.createdByUserId ?? null,
+        input.source,
+        JSON.stringify(input.calendarSnapshot ?? {}),
+        JSON.stringify(input.memberScopeSnapshot ?? {}),
+        input.jobs.length,
+        input.workflowProvider,
+        input.workflowVersion,
+      ],
     );
-  }
+    const batch = mapBatch(batchResult.rows[0]);
+    const jobs: ContentGenerationJobDto[] = [];
 
-  const batch = mapBatch(batchData as unknown as ContentGenerationBatchRow);
-  const { data: jobData, error: jobError } = await supabase
-    .from("content_generation_jobs")
-    .insert(
-      input.jobs.map((job) => ({
-        batch_id: batch.id,
-        merchant_id: input.merchantId,
-        member_user_id: job.memberUserId,
-        daily_task_id: job.dailyTaskId,
-        task_date: job.taskDate,
-        calendar_item_id: job.calendarItemId ?? null,
-        idempotency_key: job.idempotencyKey,
-        input_snapshot: job.inputSnapshot,
-        workflow_provider: input.workflowProvider,
-        workflow_version: input.workflowVersion,
-        current_stage: "queued",
-      })),
-    )
-    .select(jobSelect)
-    .order("task_date", { ascending: true });
+    for (const job of input.jobs) {
+      const jobResult = await client.query<ContentGenerationJobRow>(
+        `
+        insert into public.content_generation_jobs (
+          batch_id,
+          merchant_id,
+          member_user_id,
+          daily_task_id,
+          task_date,
+          calendar_item_id,
+          idempotency_key,
+          input_snapshot,
+          workflow_provider,
+          workflow_version,
+          current_stage
+        ) values ($1, $2, $3, $4, $5::date, $6, $7, $8::jsonb, $9, $10, 'queued')
+        returning ${jobSelect}
+        `,
+        [
+          batch.id,
+          input.merchantId,
+          job.memberUserId,
+          job.dailyTaskId,
+          job.taskDate,
+          job.calendarItemId ?? null,
+          job.idempotencyKey,
+          JSON.stringify(job.inputSnapshot),
+          input.workflowProvider,
+          input.workflowVersion,
+        ],
+      );
 
-  if (jobError || !jobData) {
-    throw new ApiError(
-      500,
-      "CONTENT_GENERATION_JOBS_CREATE_FAILED",
-      jobError?.message ?? "Create failed.",
-    );
-  }
+      jobs.push(mapJob(jobResult.rows[0]));
+    }
 
-  return {
-    batch,
-    jobs: (jobData as unknown as ContentGenerationJobRow[]).map(mapJob),
-  };
+    return { batch, jobs };
+  });
 }
 
 export async function claimNextContentGenerationJob(input: {
   provider?: ContentGenerationProvider;
 } = {}): Promise<ContentGenerationJobDto | null> {
-  if (isPostgresContentGenerationEnabled()) {
-    const updated = await withAppDbTransaction(async (client) => {
-      const params: unknown[] = [];
-      let providerSql = "";
-
-      if (input.provider) {
-        params.push(input.provider);
-        providerSql = `and workflow_provider = $${params.length}`;
-      }
-
-      const pendingResult = await client.query<ContentGenerationJobRow>(
-        `
-        select ${jobSelect}
-        from public.content_generation_jobs
-        where (
-            status = 'pending'
-            or (status = 'failed_retryable' and attempt_count < max_attempts)
-          )
-          ${providerSql}
-        order by created_at asc
-        for update skip locked
-        limit 1
-        `,
-        params,
-      );
-      const pending = pendingResult.rows[0];
-
-      if (!pending) {
-        return null;
-      }
-
-      const updateResult = await client.query<ContentGenerationJobRow>(
-        `
-        update public.content_generation_jobs
-        set status = 'running',
-            current_stage = 'calling_dify',
-            attempt_count = attempt_count + 1,
-            started_at = coalesce(started_at, timezone('utc', now())),
-            error_message = null,
-            updated_at = timezone('utc', now())
-        where id = $1
-          and (
-            status = 'pending'
-            or (status = 'failed_retryable' and attempt_count < max_attempts)
-          )
-        returning ${jobSelect}
-        `,
-        [pending.id],
-      );
-
-      return updateResult.rows[0] ? mapJob(updateResult.rows[0]) : null;
-    });
-
-    if (updated) {
-      await recomputeContentGenerationBatch(updated.batchId);
-    }
-
-    return updated;
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    const job = Array.from(demoStore.jobs.values())
+  if (isLocalDemoRuntime()) {
+    const job = [...demoStore.jobs.values()]
       .filter(
         (item) =>
           item.status === "pending" ||
@@ -420,62 +297,61 @@ export async function claimNextContentGenerationJob(input: {
     return job ? markLocalJobRunning(job) : null;
   }
 
-  const supabase = createSupabaseAdminClient();
-  let query = supabase
-    .from("content_generation_jobs")
-    .select(jobSelect)
-    .in("status", ["pending", "failed_retryable"])
-    .order("created_at", { ascending: true })
-    .limit(20);
+  const updated = await withAppDbTransaction(async (client) => {
+    const params: unknown[] = [];
+    let providerSql = "";
 
-  if (input.provider) {
-    query = query.eq("workflow_provider", input.provider);
+    if (input.provider) {
+      params.push(input.provider);
+      providerSql = `and workflow_provider = $${params.length}`;
+    }
+
+    const pendingResult = await client.query<ContentGenerationJobRow>(
+      `
+      select ${jobSelect}
+      from public.content_generation_jobs
+      where (
+          status = 'pending'
+          or (status = 'failed_retryable' and attempt_count < max_attempts)
+        )
+        ${providerSql}
+      order by created_at asc
+      for update skip locked
+      limit 1
+      `,
+      params,
+    );
+    const pending = pendingResult.rows[0];
+
+    if (!pending) {
+      return null;
+    }
+
+    const updateResult = await client.query<ContentGenerationJobRow>(
+      `
+      update public.content_generation_jobs
+      set status = 'running',
+          current_stage = 'calling_dify',
+          attempt_count = attempt_count + 1,
+          started_at = coalesce(started_at, timezone('utc', now())),
+          error_message = null,
+          updated_at = timezone('utc', now())
+      where id = $1
+        and (
+          status = 'pending'
+          or (status = 'failed_retryable' and attempt_count < max_attempts)
+        )
+      returning ${jobSelect}
+      `,
+      [pending.id],
+    );
+
+    return updateResult.rows[0] ? mapJob(updateResult.rows[0]) : null;
+  });
+
+  if (updated) {
+    await recomputeContentGenerationBatch(updated.batchId);
   }
-
-  const { data, error } = await query;
-
-  if (error) {
-    throw new ApiError(500, "CONTENT_GENERATION_JOB_CLAIM_LOOKUP_FAILED", error.message);
-  }
-
-  const job =
-    (data as unknown as ContentGenerationJobRow[] | null)
-      ?.map(mapJob)
-      .find(
-        (item) =>
-          item.status === "pending" ||
-          (item.status === "failed_retryable" && item.attemptCount < item.maxAttempts),
-      ) ?? null;
-
-  if (!job) {
-    return null;
-  }
-
-  const { data: updatedData, error: updateError } = await supabase
-    .from("content_generation_jobs")
-    .update({
-      status: "running",
-      current_stage: "calling_dify",
-      attempt_count: job.attemptCount + 1,
-      started_at: job.startedAt ?? new Date().toISOString(),
-      error_message: null,
-    })
-    .eq("id", job.id)
-    .in("status", ["pending", "failed_retryable"])
-    .lt("attempt_count", job.maxAttempts)
-    .select(jobSelect)
-    .maybeSingle();
-
-  if (updateError) {
-    throw new ApiError(500, "CONTENT_GENERATION_JOB_CLAIM_FAILED", updateError.message);
-  }
-
-  if (!updatedData) {
-    return null;
-  }
-
-  const updated = mapJob(updatedData as unknown as ContentGenerationJobRow);
-  await recomputeContentGenerationBatch(updated.batchId);
   return updated;
 }
 
@@ -490,46 +366,7 @@ export async function markContentGenerationJobSucceeded(input: {
 }): Promise<ContentGenerationJobDto> {
   const now = new Date().toISOString();
 
-  if (isPostgresContentGenerationEnabled()) {
-    const result = await queryAppDb<ContentGenerationJobRow>(
-      `
-      update public.content_generation_jobs
-      set status = 'succeeded',
-          current_stage = 'persisted',
-          output_json = $2::jsonb,
-          quality_review = $3::jsonb,
-          dify_workflow_run_id = $4,
-          content_draft_id = $5,
-          article_variant_id = $6,
-          video_variant_id = $7,
-          error_message = null,
-          finished_at = $8::timestamptz,
-          updated_at = timezone('utc', now())
-      where id = $1
-      returning ${jobSelect}
-      `,
-      [
-        input.jobId,
-        JSON.stringify(input.outputJson),
-        input.qualityReview ? JSON.stringify(input.qualityReview) : null,
-        input.difyWorkflowRunId ?? null,
-        input.contentDraftId ?? null,
-        input.articleVariantId ?? null,
-        input.videoVariantId ?? null,
-        now,
-      ],
-    );
-
-    if (!result.rows[0]) {
-      throw new ApiError(500, "CONTENT_GENERATION_JOB_SUCCEED_FAILED", "Update failed.");
-    }
-
-    const job = mapJob(result.rows[0]);
-    await recomputeContentGenerationBatch(job.batchId);
-    return job;
-  }
-
-  if (!isSupabaseAdminConfigured()) {
+  if (isLocalDemoRuntime()) {
     const job = assertLocalJob(input.jobId);
     const updated: ContentGenerationJobDto = {
       ...job,
@@ -550,34 +387,40 @@ export async function markContentGenerationJobSucceeded(input: {
     return updated;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("content_generation_jobs")
-    .update({
-      status: "succeeded",
-      current_stage: "persisted",
-      output_json: input.outputJson,
-      quality_review: input.qualityReview ?? null,
-      dify_workflow_run_id: input.difyWorkflowRunId ?? null,
-      content_draft_id: input.contentDraftId ?? null,
-      article_variant_id: input.articleVariantId ?? null,
-      video_variant_id: input.videoVariantId ?? null,
-      error_message: null,
-      finished_at: now,
-    })
-    .eq("id", input.jobId)
-    .select(jobSelect)
-    .single();
+  const result = await queryAppDb<ContentGenerationJobRow>(
+    `
+    update public.content_generation_jobs
+    set status = 'succeeded',
+        current_stage = 'persisted',
+        output_json = $2::jsonb,
+        quality_review = $3::jsonb,
+        dify_workflow_run_id = $4,
+        content_draft_id = $5,
+        article_variant_id = $6,
+        video_variant_id = $7,
+        error_message = null,
+        finished_at = $8::timestamptz,
+        updated_at = timezone('utc', now())
+    where id = $1
+    returning ${jobSelect}
+    `,
+    [
+      input.jobId,
+      JSON.stringify(input.outputJson),
+      input.qualityReview ? JSON.stringify(input.qualityReview) : null,
+      input.difyWorkflowRunId ?? null,
+      input.contentDraftId ?? null,
+      input.articleVariantId ?? null,
+      input.videoVariantId ?? null,
+      now,
+    ],
+  );
 
-  if (error || !data) {
-    throw new ApiError(
-      500,
-      "CONTENT_GENERATION_JOB_SUCCEED_FAILED",
-      error?.message ?? "Update failed.",
-    );
+  if (!result.rows[0]) {
+    throw new ApiError(500, "CONTENT_GENERATION_JOB_SUCCEED_FAILED", "Update failed.");
   }
 
-  const job = mapJob(data as unknown as ContentGenerationJobRow);
+  const job = mapJob(result.rows[0]);
   await recomputeContentGenerationBatch(job.batchId);
   return job;
 }
@@ -590,31 +433,7 @@ export async function markContentGenerationJobFailed(input: {
   const now = new Date().toISOString();
   const nextStatus: ContentGenerationJobStatus = input.retryable ? "failed_retryable" : "failed_manual";
 
-  if (isPostgresContentGenerationEnabled()) {
-    const result = await queryAppDb<ContentGenerationJobRow>(
-      `
-      update public.content_generation_jobs
-      set status = $2,
-          current_stage = 'failed',
-          error_message = $3,
-          finished_at = $4::timestamptz,
-          updated_at = timezone('utc', now())
-      where id = $1
-      returning ${jobSelect}
-      `,
-      [input.jobId, nextStatus, input.errorMessage, now],
-    );
-
-    if (!result.rows[0]) {
-      throw new ApiError(500, "CONTENT_GENERATION_JOB_FAIL_FAILED", "Update failed.");
-    }
-
-    const job = mapJob(result.rows[0]);
-    await recomputeContentGenerationBatch(job.batchId);
-    return job;
-  }
-
-  if (!isSupabaseAdminConfigured()) {
+  if (isLocalDemoRuntime()) {
     const job = assertLocalJob(input.jobId);
     const updated: ContentGenerationJobDto = {
       ...job,
@@ -629,28 +448,25 @@ export async function markContentGenerationJobFailed(input: {
     return updated;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("content_generation_jobs")
-    .update({
-      status: nextStatus,
-      current_stage: "failed",
-      error_message: input.errorMessage,
-      finished_at: now,
-    })
-    .eq("id", input.jobId)
-    .select(jobSelect)
-    .single();
+  const result = await queryAppDb<ContentGenerationJobRow>(
+    `
+    update public.content_generation_jobs
+    set status = $2,
+        current_stage = 'failed',
+        error_message = $3,
+        finished_at = $4::timestamptz,
+        updated_at = timezone('utc', now())
+    where id = $1
+    returning ${jobSelect}
+    `,
+    [input.jobId, nextStatus, input.errorMessage, now],
+  );
 
-  if (error || !data) {
-    throw new ApiError(
-      500,
-      "CONTENT_GENERATION_JOB_FAIL_FAILED",
-      error?.message ?? "Update failed.",
-    );
+  if (!result.rows[0]) {
+    throw new ApiError(500, "CONTENT_GENERATION_JOB_FAIL_FAILED", "Update failed.");
   }
 
-  const job = mapJob(data as unknown as ContentGenerationJobRow);
+  const job = mapJob(result.rows[0]);
   await recomputeContentGenerationBatch(job.batchId);
   return job;
 }
@@ -658,25 +474,7 @@ export async function markContentGenerationJobFailed(input: {
 export async function getContentGenerationBatchById(
   batchId: string,
 ): Promise<ContentGenerationBatchDto> {
-  if (isPostgresContentGenerationEnabled()) {
-    const result = await queryAppDb<ContentGenerationBatchRow>(
-      `
-      select ${batchSelect}
-      from public.content_generation_batches
-      where id = $1
-      limit 1
-      `,
-      [batchId],
-    );
-
-    if (!result.rows[0]) {
-      throw new ApiError(404, "CONTENT_GENERATION_BATCH_NOT_FOUND", "生成批次不存在。");
-    }
-
-    return mapBatch(result.rows[0]);
-  }
-
-  if (!isSupabaseAdminConfigured()) {
+  if (isLocalDemoRuntime()) {
     const batch = demoStore.batches.get(batchId);
 
     if (!batch) {
@@ -686,39 +484,28 @@ export async function getContentGenerationBatchById(
     return batch;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("content_generation_batches")
-    .select(batchSelect)
-    .eq("id", batchId)
-    .single();
+  const result = await queryAppDb<ContentGenerationBatchRow>(
+    `
+    select ${batchSelect}
+    from public.content_generation_batches
+    where id = $1
+    limit 1
+    `,
+    [batchId],
+  );
 
-  if (error || !data) {
+  if (!result.rows[0]) {
     throw new ApiError(404, "CONTENT_GENERATION_BATCH_NOT_FOUND", "生成批次不存在。");
   }
 
-  return mapBatch(data as unknown as ContentGenerationBatchRow);
+  return mapBatch(result.rows[0]);
 }
 
 export async function listContentGenerationJobsByBatchId(
   batchId: string,
 ): Promise<ContentGenerationJobDto[]> {
-  if (isPostgresContentGenerationEnabled()) {
-    const result = await queryAppDb<ContentGenerationJobRow>(
-      `
-      select ${jobSelect}
-      from public.content_generation_jobs
-      where batch_id = $1
-      order by task_date asc, created_at asc
-      `,
-      [batchId],
-    );
-
-    return result.rows.map(mapJob);
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    return Array.from(demoStore.jobs.values())
+  if (isLocalDemoRuntime()) {
+    return [...demoStore.jobs.values()]
       .filter((job) => job.batchId === batchId)
       .sort((a, b) => {
         const taskDateOrder = a.taskDate.localeCompare(b.taskDate);
@@ -726,77 +513,34 @@ export async function listContentGenerationJobsByBatchId(
       });
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("content_generation_jobs")
-    .select(jobSelect)
-    .eq("batch_id", batchId)
-    .order("task_date", { ascending: true })
-    .order("created_at", { ascending: true });
+  const result = await queryAppDb<ContentGenerationJobRow>(
+    `
+    select ${jobSelect}
+    from public.content_generation_jobs
+    where batch_id = $1
+    order by task_date asc, created_at asc
+    `,
+    [batchId],
+  );
 
-  if (error) {
-    throw new ApiError(500, "CONTENT_GENERATION_JOBS_LIST_FAILED", error.message);
-  }
-
-  return ((data ?? []) as unknown as ContentGenerationJobRow[]).map(mapJob);
+  return result.rows.map(mapJob);
 }
 
 async function recomputeContentGenerationBatch(batchId: string) {
-  if (isPostgresContentGenerationEnabled()) {
-    const result = await queryAppDb<{ status: ContentGenerationJobStatus }>(
-      `
-      select status
-      from public.content_generation_jobs
-      where batch_id = $1
-      `,
-      [batchId],
-    );
-
-    const statuses = result.rows.map((row) => row.status);
-    const counts = countJobStatuses(statuses);
-    const status = deriveBatchStatus(statuses);
-    const now = new Date().toISOString();
-    const startedAt = statuses.some((item) => item !== "pending") ? now : null;
-    const finishedAt =
-      status === "completed" || status === "completed_with_errors" || status === "canceled"
-        ? now
-        : null;
-
-    await queryAppDb(
-      `
-      update public.content_generation_batches
-      set succeeded_jobs = $2,
-          failed_jobs = $3,
-          running_jobs = $4,
-          status = $5,
-          started_at = coalesce(started_at, $6::timestamptz),
-          finished_at = $7::timestamptz,
-          updated_at = timezone('utc', now())
-      where id = $1
-      `,
-      [batchId, counts.succeeded, counts.failed, counts.running, status, startedAt, finishedAt],
-    );
-    return;
-  }
-
-  if (!isSupabaseAdminConfigured()) {
+  if (isLocalDemoRuntime()) {
     recomputeLocalBatch(batchId);
     return;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("content_generation_jobs")
-    .select("status")
-    .eq("batch_id", batchId);
-
-  if (error) {
-    throw new ApiError(500, "CONTENT_GENERATION_BATCH_RECOUNT_FAILED", error.message);
-  }
-
-  const statuses = ((data ?? []) as Array<{ status: ContentGenerationJobStatus }>).map(
-    (row) => row.status,
+  const result = await queryAppDb<{ status: ContentGenerationJobStatus }>(
+    `
+    select status
+    from public.content_generation_jobs
+    where batch_id = $1
+    `,
+    [batchId],
   );
+  const statuses = result.rows.map((row) => row.status);
   const counts = countJobStatuses(statuses);
   const status = deriveBatchStatus(statuses);
   const now = new Date().toISOString();
@@ -805,21 +549,21 @@ async function recomputeContentGenerationBatch(batchId: string) {
     status === "completed" || status === "completed_with_errors" || status === "canceled"
       ? now
       : null;
-  const { error: updateError } = await supabase
-    .from("content_generation_batches")
-    .update({
-      succeeded_jobs: counts.succeeded,
-      failed_jobs: counts.failed,
-      running_jobs: counts.running,
-      status,
-      started_at: startedAt,
-      finished_at: finishedAt,
-    })
-    .eq("id", batchId);
 
-  if (updateError) {
-    throw new ApiError(500, "CONTENT_GENERATION_BATCH_UPDATE_FAILED", updateError.message);
-  }
+  await queryAppDb(
+    `
+    update public.content_generation_batches
+    set succeeded_jobs = $2,
+        failed_jobs = $3,
+        running_jobs = $4,
+        status = $5,
+        started_at = coalesce(started_at, $6::timestamptz),
+        finished_at = $7::timestamptz,
+        updated_at = timezone('utc', now())
+    where id = $1
+    `,
+    [batchId, counts.succeeded, counts.failed, counts.running, status, startedAt, finishedAt],
+  );
 }
 
 function markLocalJobRunning(job: ContentGenerationJobDto): ContentGenerationJobDto {
@@ -845,7 +589,7 @@ function recomputeLocalBatch(batchId: string) {
     return;
   }
 
-  const statuses = Array.from(demoStore.jobs.values())
+  const statuses = [...demoStore.jobs.values()]
     .filter((job) => job.batchId === batchId)
     .map((job) => job.status);
   const counts = countJobStatuses(statuses);
@@ -954,10 +698,6 @@ function mapJob(row: ContentGenerationJobRow): ContentGenerationJobDto {
     createdAt: toIsoString(row.created_at),
     updatedAt: toIsoString(row.updated_at),
   };
-}
-
-function isPostgresContentGenerationEnabled() {
-  return isAppPostgresPreferred() && isAppPostgresConfigured();
 }
 
 function toIsoString(value: Timestamp) {
