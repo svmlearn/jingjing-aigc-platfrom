@@ -54,7 +54,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     lockedFields: ["script", "cta", "target_user", "claims"],
   });
   assert.deepEqual(payload.productionConfig, {
-    voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
+    voiceover: { enabled: true, mode: "system", provider: "aliyun_cosyvoice", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
     subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     lipSync: {
@@ -183,7 +183,7 @@ test("buildVideoEditJobInputPayload adds default production config", () => {
   });
 
   assert.deepEqual(payload.productionConfig, {
-    voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
+    voiceover: { enabled: true, mode: "system", provider: "aliyun_cosyvoice", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
     subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     lipSync: {

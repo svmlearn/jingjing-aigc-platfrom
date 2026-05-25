@@ -90,7 +90,7 @@ export type PublicVideoEditJobDto = Pick<
   resultAssets: MediaAssetDto[];
 };
 
-export type VoiceoverProvider = "bytedance_bigtts" | "minimax" | "302";
+export type VoiceoverProvider = "aliyun_cosyvoice" | "bytedance_bigtts" | "minimax" | "302";
 export type VoiceoverMode = "system" | "voice_profile";
 export type TalkingHeadSubtitleSource =
   | "script"

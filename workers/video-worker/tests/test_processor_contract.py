@@ -123,6 +123,7 @@ class FakeRepository:
         self.inserted_assets = []
         self.material_input_assets = []
         self.material_queries = []
+        self.voice_profile_updates = []
         self.fail_insert_output_assets = fail_insert_output_assets
 
     def update_stage(self, job_id, **kwargs):
@@ -157,11 +158,21 @@ class FakeRepository:
         self.material_queries.append({"merchant_id": merchant_id, "query": query, "limit": limit})
         return self.material_input_assets[:limit]
 
+    def update_voice_profile_external_voice(self, profile_id, *, external_voice_id, external_model_id=None):
+        self.voice_profile_updates.append(
+            {
+                "profile_id": profile_id,
+                "external_voice_id": external_voice_id,
+                "external_model_id": external_model_id,
+            }
+        )
+
 
 class FakeCosClient:
     def __init__(self, fail_download=False, fail_upload_asset_type=None) -> None:
         self.downloads = []
         self.uploads = []
+        self.signed_urls = []
         self.fail_download = fail_download
         self.fail_upload_asset_type = fail_upload_asset_type
 
@@ -179,6 +190,24 @@ class FakeCosClient:
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(b"input")
         return destination
+
+    def create_signed_read_url(
+        self,
+        *,
+        storage_key,
+        bucket_name=None,
+        storage_provider="tencent_cos",
+        expires_seconds=3600,
+    ):
+        self.signed_urls.append(
+            {
+                "storage_key": storage_key,
+                "bucket_name": bucket_name,
+                "storage_provider": storage_provider,
+                "expires_seconds": expires_seconds,
+            }
+        )
+        return f"https://signed.example/{storage_key}"
 
     def upload_file(
         self,
@@ -231,9 +260,11 @@ class FakeOpenStorylineClient:
         self.lip_sync_payload = lip_sync_payload
         self.raw_response_overrides = raw_response_overrides or {}
         self.last_input_assets = None
+        self.last_production_config = None
 
     def run_job(self, job, directive, input_assets, workspace_dir, output_dir, progress_callback=None):
         self.last_input_assets = input_assets
+        self.last_production_config = directive.production_config
         if progress_callback is not None:
             self.progress_callback_seen = True
             for event in self.progress_events:
@@ -263,7 +294,7 @@ class FakeOpenStorylineClient:
 
         voiceover_payload = self.voiceover_payload
         if voiceover_payload is None:
-            voiceover_payload = {"provider": "bytedance_bigtts"}
+            voiceover_payload = {"provider": "aliyun_cosyvoice"}
         else:
             for segment in voiceover_payload.get("voiceover", []):
                 if isinstance(segment, dict) and "path" not in segment:
@@ -277,7 +308,7 @@ class FakeOpenStorylineClient:
             "openstoryline": {
                 "session_id": "fire-red-session",
                 "production_config_used": {
-                    "voiceover": {"provider": "bytedance_bigtts"},
+                    "voiceover": {"provider": "aliyun_cosyvoice"},
                 },
                 "selected_bgm": {"name": "light_upbeat_01"},
                 "voiceover": voiceover_payload,
@@ -394,6 +425,10 @@ class ProcessorContractTests(unittest.TestCase):
             "voice-profiles/merchant/profile/ref.wav",
             cos_client.downloads[0]["storage_key"],
         )
+        self.assertEqual(
+            "voice-profiles/merchant/profile/ref.wav",
+            cos_client.signed_urls[0]["storage_key"],
+        )
         self.assertEqual("voice-bucket", cos_client.downloads[0]["bucket_name"])
         self.assertEqual(
             "voice_profile",
@@ -407,6 +442,161 @@ class ProcessorContractTests(unittest.TestCase):
             1,
             repository.succeeded["result_payload"]["voiceover_artifacts"]["segment_count"],
         )
+
+    def test_aliyun_voice_profile_uses_cached_external_voice_id_and_signed_url(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            engine_client = FakeOpenStorylineClient(
+                voiceover_payload={
+                    "provider": "aliyun_cosyvoice_clone",
+                    "voiceover": [
+                        {
+                            "voiceover_id": "voiceover_0001",
+                            "duration": 1200,
+                            "duration_ms": 1200,
+                            "provider": "aliyun_cosyvoice_clone",
+                            "clone": True,
+                        }
+                    ],
+                }
+            )
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                cos_client,
+                engine_client,
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "productionConfig": {
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "aliyun_cosyvoice_clone",
+                            "voiceProfileId": "profile-1",
+                            "refAudioAssetId": "asset-1",
+                            "voiceProfile": {
+                                "id": "profile-1",
+                                "provider": "aliyun_cosyvoice_clone",
+                                "externalVoiceId": "voice-aliyun-1",
+                                "externalModelId": "cosyvoice-v3.5-plus",
+                            },
+                            "refAudioAsset": {
+                                "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                "bucket_name": "voice-bucket",
+                                "storage_provider": "aliyun_oss",
+                            },
+                        }
+                    },
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.failed)
+        self.assertEqual([], repository.voice_profile_updates)
+        self.assertEqual("aliyun_oss", cos_client.signed_urls[0]["storage_provider"])
+        sent_voiceover = engine_client.last_production_config["voiceover"]
+        self.assertEqual("voice-aliyun-1", sent_voiceover["external_voice_id"])
+        self.assertEqual("https://signed.example/voice-profiles/merchant/profile/ref.wav", sent_voiceover["ref_audio_url"])
+
+    def test_aliyun_voice_profile_creates_external_voice_id_when_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            cos_client = FakeCosClient()
+            engine_client = FakeOpenStorylineClient(
+                voiceover_payload={
+                    "provider": "aliyun_cosyvoice_clone",
+                    "voiceover": [
+                        {
+                            "voiceover_id": "voiceover_0001",
+                            "duration": 1200,
+                            "duration_ms": 1200,
+                            "provider": "aliyun_cosyvoice_clone",
+                            "clone": True,
+                        }
+                    ],
+                }
+            )
+            settings = Settings(Path(tmp))
+            settings.dashscope_api_key = "dashscope-test-key"
+            settings.aliyun_cosyvoice_clone_model = "cosyvoice-v3.5-plus"
+            settings.aliyun_cosyvoice_clone_customization_url = "https://dashscope.example/customization"
+            processor = JobProcessor(
+                settings,
+                repository,
+                cos_client,
+                engine_client,
+            )
+
+            class Response:
+                status_code = 200
+
+                def raise_for_status(self):
+                    return None
+
+                def json(self):
+                    return {"output": {"voice_id": "voice-created"}}
+
+            original_post = httpx.post
+            requests = []
+
+            def fake_post(*args, **kwargs):
+                requests.append({"args": args, "kwargs": kwargs})
+                return Response()
+
+            httpx.post = fake_post
+            try:
+                processor.process(
+                    make_job(
+                        {
+                            "script": {"text": "locked script", "locked": True},
+                            "productionDirective": {"desiredOutputs": ["final_video"]},
+                            "productionConfig": {
+                                "voiceover": {
+                                    "enabled": True,
+                                    "mode": "voice_profile",
+                                    "provider": "aliyun_cosyvoice_clone",
+                                    "voiceProfileId": "profile-1",
+                                    "refAudioAssetId": "asset-1",
+                                    "voiceProfile": {
+                                        "id": "profile-1",
+                                        "provider": "aliyun_cosyvoice_clone",
+                                    },
+                                    "refAudioAsset": {
+                                        "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                        "bucket_name": "voice-bucket",
+                                        "storage_provider": "aliyun_oss",
+                                    },
+                                }
+                            },
+                        }
+                    )
+                )
+            finally:
+                httpx.post = original_post
+
+        self.assertIsNone(repository.failed)
+        self.assertEqual("https://dashscope.example/customization", requests[0]["args"][0])
+        self.assertEqual("voice-enrollment", requests[0]["kwargs"]["json"]["model"])
+        self.assertEqual("cosyvoice-v3.5-plus", requests[0]["kwargs"]["json"]["input"]["target_model"])
+        self.assertEqual("https://signed.example/voice-profiles/merchant/profile/ref.wav", requests[0]["kwargs"]["json"]["input"]["url"])
+        self.assertEqual(
+            [
+                {
+                    "profile_id": "profile-1",
+                    "external_voice_id": "voice-created",
+                    "external_model_id": "cosyvoice-v3.5-plus",
+                }
+            ],
+            repository.voice_profile_updates,
+        )
+        sent_voiceover = engine_client.last_production_config["voiceover"]
+        self.assertEqual("voice-created", sent_voiceover["external_voice_id"])
+        self.assertEqual("voice-created", sent_voiceover["voice_id"])
 
     def test_downloaded_input_assets_preserve_asset_identity_for_engine(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -649,7 +839,7 @@ class ProcessorContractTests(unittest.TestCase):
                             "session_id": "fire-red-session",
                             "production_config_used": {},
                             "selected_bgm": {"name": "light_upbeat_01"},
-                            "voiceover": {"provider": "bytedance_bigtts"},
+                            "voiceover": {"provider": "aliyun_cosyvoice"},
                             "lip_sync": {},
                             "plan_timeline": {
                                 "tracks": {
@@ -685,7 +875,7 @@ class ProcessorContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
             voiceover_payload = {
-                "provider": "bytedance_bigtts",
+                "provider": "aliyun_cosyvoice",
                 "voiceover": [
                     {"group_id": "group_0001", "duration": 3000},
                     {"group_id": "group_0002", "duration": 3000},
@@ -1578,7 +1768,7 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual("fire_red", result_payload["openstoryline"]["engine_adapter"])
         self.assertEqual("fire-red-session", result_payload["openstoryline"]["session_id"])
         self.assertEqual(
-            {"provider": "bytedance_bigtts"},
+            {"provider": "aliyun_cosyvoice"},
             result_payload["openstoryline"]["voiceover"],
         )
         self.assertEqual(

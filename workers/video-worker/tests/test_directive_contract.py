@@ -21,6 +21,30 @@ def make_job(input_payload):
 
 
 class DirectiveContractTests(unittest.TestCase):
+    def test_directive_defaults_system_voiceover_to_aliyun_cosyvoice(self):
+        job = make_job(
+            {
+                "executionMode": "staging_worker",
+                "script": {
+                    "text": "fixed script",
+                    "locked": True,
+                },
+                "productionConfig": {
+                    "voiceover": {
+                        "enabled": True,
+                    },
+                },
+                "productionDirective": {
+                    "targetPlatform": "douyin",
+                    "desiredOutputs": ["final_video"],
+                },
+            }
+        )
+
+        directive = build_production_directive(job)
+
+        self.assertEqual("aliyun_cosyvoice", directive.production_config["voiceover"]["provider"])
+
     def test_directive_requires_locked_script_text(self):
         job = make_job(
             {
@@ -269,6 +293,41 @@ class DirectiveContractTests(unittest.TestCase):
             directive.production_config["lip_sync"]["subtitle_source"],
         )
         self.assertTrue(directive.production_config["lip_sync"]["require_voice_profile"])
+
+    def test_directive_normalizes_aliyun_clone_voice_profile_external_ids(self):
+        job = make_job(
+            {
+                "executionMode": "staging_worker",
+                "script": {
+                    "text": "locked script",
+                    "locked": True,
+                },
+                "productionConfig": {
+                    "voiceover": {
+                        "enabled": True,
+                        "mode": "voice_profile",
+                        "provider": "aliyun_cosyvoice_clone",
+                        "voiceProfileId": "profile-1",
+                        "refAudioAssetId": "asset-1",
+                        "voiceProfile": {
+                            "externalVoiceId": "voice-1",
+                            "externalModelId": "cosyvoice-v3.5-plus",
+                        },
+                    },
+                },
+                "productionDirective": {
+                    "targetPlatform": "douyin",
+                    "desiredOutputs": ["final_video"],
+                },
+            }
+        )
+
+        directive = build_production_directive(job)
+
+        voiceover = directive.production_config["voiceover"]
+        self.assertEqual("aliyun_cosyvoice_clone", voiceover["provider"])
+        self.assertEqual("voice-1", voiceover["external_voice_id"])
+        self.assertEqual("cosyvoice-v3.5-plus", voiceover["external_model_id"])
 
     def test_directive_keeps_asr_original_audio_as_explicit_fallback(self):
         job = make_job(

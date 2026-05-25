@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import mimetypes
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from qcloud_cos import CosConfig, CosS3Client
 
@@ -80,6 +81,34 @@ class ObjectStorageClient:
             etag=etag,
             local_path=local_path,
         )
+
+    def create_signed_read_url(
+        self,
+        *,
+        storage_key: str,
+        bucket_name: str | None = None,
+        storage_provider: str = "tencent_cos",
+        expires_seconds: int = 3600,
+    ) -> str:
+        if storage_provider == "aliyun_oss":
+            bucket = self._get_aliyun_bucket(bucket_name)
+            return str(bucket.sign_url("GET", storage_key, expires_seconds))
+        if storage_provider == "tencent_cos":
+            client = self._get_tencent_client()
+            signed = client.get_presigned_url(
+                Method="GET",
+                Bucket=bucket_name or self._settings.cos_bucket,
+                Key=storage_key,
+                Expired=expires_seconds,
+            )
+            parsed = urlsplit(str(signed))
+            if parsed.scheme and parsed.netloc:
+                return str(signed)
+            signed_path = str(signed)
+            if signed_path.startswith("/"):
+                return f"https://{bucket_name or self._settings.cos_bucket}.cos.{self._settings.cos_region}.myqcloud.com{signed_path}"
+            return f"https://{bucket_name or self._settings.cos_bucket}.cos.{self._settings.cos_region}.myqcloud.com/{signed_path.lstrip('/') or storage_key.lstrip('/')}"
+        raise RuntimeError(f"Unsupported storage provider: {storage_provider}")
 
     def _get_tencent_client(self) -> CosS3Client:
         if not all(

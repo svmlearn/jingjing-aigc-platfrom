@@ -1021,6 +1021,129 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertEqual(str(Path(tmp) / "ref.wav"), tts["pixelle_clone"]["ref_audio"])
             self.assertEqual("pixelle-secret", tts["pixelle_clone"]["api_key"])
 
+    def test_fire_red_aliyun_cosyvoice_system_voiceover_maps_dashscope_config(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=2700,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
+            tts_aliyun_cosyvoice_api_key="dashscope-secret",
+            tts_aliyun_cosyvoice_model="cosyvoice-v3-flash",
+            tts_aliyun_cosyvoice_voice="longanyang",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                    production_config={
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "system",
+                            "provider": "aliyun_cosyvoice",
+                        },
+                    },
+                )
+            )
+
+            tts = post.call_args.kwargs["json"]["service_config"]["tts"]
+            self.assertEqual("aliyun_cosyvoice", tts["provider"])
+            self.assertEqual("dashscope-secret", tts["aliyun_cosyvoice"]["api_key"])
+            self.assertEqual("cosyvoice-v3-flash", tts["aliyun_cosyvoice"]["model"])
+            self.assertEqual("longanyang", tts["aliyun_cosyvoice"]["voice"])
+
+    def test_fire_red_aliyun_cosyvoice_clone_maps_voice_id_and_reference_url(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=2700,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
+            tts_aliyun_cosyvoice_clone_api_key="dashscope-secret",
+            tts_aliyun_cosyvoice_clone_model="cosyvoice-v3.5-plus",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                    production_config={
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "aliyun_cosyvoice_clone",
+                            "clone_enabled": True,
+                            "voice_profile_id": "profile-1",
+                            "ref_audio_asset_id": "asset-1",
+                            "external_voice_id": "voice-aliyun-1",
+                            "external_model_id": "cosyvoice-v3.5-plus",
+                            "ref_audio": str(Path(tmp) / "ref.wav"),
+                            "ref_audio_url": "https://signed.example/ref.wav",
+                        },
+                    },
+                )
+            )
+
+            tts = post.call_args.kwargs["json"]["service_config"]["tts"]
+            self.assertEqual("aliyun_cosyvoice_clone", tts["provider"])
+            self.assertTrue(tts["clone_enabled"])
+            self.assertEqual("voice-aliyun-1", tts["aliyun_cosyvoice_clone"]["voice_id"])
+            self.assertEqual("https://signed.example/ref.wav", tts["aliyun_cosyvoice_clone"]["ref_audio_url"])
+            self.assertEqual("dashscope-secret", tts["aliyun_cosyvoice_clone"]["api_key"])
+
     def test_fire_red_stream_payload_marks_self_hosted_rehearsal_fast_path(self):
         settings = Settings(
             host="127.0.0.1",

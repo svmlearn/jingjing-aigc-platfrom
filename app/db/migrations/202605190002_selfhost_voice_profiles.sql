@@ -4,7 +4,7 @@ create table if not exists public.voice_profiles (
   created_by_user_id uuid not null references public.app_users(id) on delete cascade,
   display_name text not null,
   status text not null default 'ready',
-  provider text not null default 'pixelle_clone',
+  provider text not null default 'aliyun_cosyvoice_clone',
   external_voice_id text,
   external_model_id text,
   ref_audio_asset_id uuid not null,
@@ -13,7 +13,7 @@ create table if not exists public.voice_profiles (
   updated_at timestamptz not null default timezone('utc', now()),
   check (char_length(trim(display_name)) between 1 and 80),
   check (status in ('ready', 'disabled', 'archived')),
-  check (provider in ('pixelle_clone'))
+  check (provider in ('pixelle_clone', 'aliyun_cosyvoice_clone'))
 );
 
 alter table public.asset_objects

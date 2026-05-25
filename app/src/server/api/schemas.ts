@@ -477,7 +477,7 @@ const productionConfigSchema = z
       .object({
         enabled: z.boolean().optional(),
         mode: z.enum(["system", "voice_profile"]).optional(),
-        provider: z.enum(["bytedance_bigtts", "minimax", "302"]).optional(),
+        provider: z.enum(["aliyun_cosyvoice", "bytedance_bigtts", "minimax", "302"]).optional(),
         speaker: z.string().trim().max(120).nullish(),
         voiceStyle: z.string().trim().max(120).nullish(),
         voiceProfileId: z.uuid().optional(),

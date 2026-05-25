@@ -20,7 +20,15 @@ class Settings:
     fire_red_provider_key: str = ""
     private_pexels_base_url: str = ""
     private_pexels_api_key: str = ""
-    tts_provider: str = "bytedance_bigtts"
+    tts_provider: str = "aliyun_cosyvoice"
+    tts_aliyun_cosyvoice_ws_url: str = "wss://dashscope.aliyuncs.com/api-ws/v1/inference"
+    tts_aliyun_cosyvoice_model: str = "cosyvoice-v3-flash"
+    tts_aliyun_cosyvoice_voice: str = "longanyang"
+    tts_aliyun_cosyvoice_api_key: str = ""
+    tts_aliyun_cosyvoice_clone_customization_url: str = "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization"
+    tts_aliyun_cosyvoice_clone_ws_url: str = "wss://dashscope.aliyuncs.com/api-ws/v1/inference"
+    tts_aliyun_cosyvoice_clone_model: str = "cosyvoice-v3.5-plus"
+    tts_aliyun_cosyvoice_clone_api_key: str = ""
     tts_302_base_url: str = "https://api.302.ai"
     tts_302_api_key: str = ""
     tts_minimax_base_url: str = "https://api.minimax.io"
@@ -100,8 +108,48 @@ class Settings:
             ).strip(),
             tts_provider=os.getenv(
                 "OPENSTORYLINE_TTS_PROVIDER",
-                "bytedance_bigtts",
-            ).strip() or "bytedance_bigtts",
+                "aliyun_cosyvoice",
+            ).strip() or "aliyun_cosyvoice",
+            tts_aliyun_cosyvoice_ws_url=os.getenv(
+                "ALIYUN_COSYVOICE_TTS_WS_URL",
+                "wss://dashscope.aliyuncs.com/api-ws/v1/inference",
+            ).strip()
+            or "wss://dashscope.aliyuncs.com/api-ws/v1/inference",
+            tts_aliyun_cosyvoice_model=os.getenv(
+                "ALIYUN_COSYVOICE_TTS_MODEL",
+                "cosyvoice-v3-flash",
+            ).strip()
+            or "cosyvoice-v3-flash",
+            tts_aliyun_cosyvoice_voice=os.getenv(
+                "ALIYUN_COSYVOICE_TTS_VOICE",
+                "longanyang",
+            ).strip()
+            or "longanyang",
+            tts_aliyun_cosyvoice_api_key=(
+                os.getenv("ALIYUN_COSYVOICE_TTS_API_KEY", "")
+                or os.getenv("ALIYUN_COSYVOICE_API_KEY", "")
+                or os.getenv("DASHSCOPE_API_KEY", "")
+            ).strip(),
+            tts_aliyun_cosyvoice_clone_customization_url=os.getenv(
+                "ALIYUN_COSYVOICE_CLONE_CUSTOMIZATION_URL",
+                "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization",
+            ).strip()
+            or "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization",
+            tts_aliyun_cosyvoice_clone_ws_url=os.getenv(
+                "ALIYUN_COSYVOICE_CLONE_TTS_WS_URL",
+                os.getenv("ALIYUN_COSYVOICE_TTS_WS_URL", "wss://dashscope.aliyuncs.com/api-ws/v1/inference"),
+            ).strip()
+            or "wss://dashscope.aliyuncs.com/api-ws/v1/inference",
+            tts_aliyun_cosyvoice_clone_model=os.getenv(
+                "ALIYUN_COSYVOICE_CLONE_MODEL",
+                "cosyvoice-v3.5-plus",
+            ).strip()
+            or "cosyvoice-v3.5-plus",
+            tts_aliyun_cosyvoice_clone_api_key=(
+                os.getenv("ALIYUN_COSYVOICE_CLONE_API_KEY", "")
+                or os.getenv("ALIYUN_COSYVOICE_API_KEY", "")
+                or os.getenv("DASHSCOPE_API_KEY", "")
+            ).strip(),
             tts_302_base_url=os.getenv(
                 "TTS_302_BASE_URL",
                 "https://api.302.ai",

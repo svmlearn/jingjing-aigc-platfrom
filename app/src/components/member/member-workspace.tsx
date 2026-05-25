@@ -1273,7 +1273,8 @@ function buildMemberVideoProductionConfig(input: {
     voiceover: {
       enabled: true,
       mode: "system",
-      provider: "minimax",
+      provider: "aliyun_cosyvoice",
+      speaker: "longanyang",
       includeOriginalAudio: false,
     },
     render: {

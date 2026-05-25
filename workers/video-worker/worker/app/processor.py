@@ -6,6 +6,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 from .config import Settings
 from .cos_client import ObjectStorageClient
 from .db import VideoJobRepository
@@ -46,6 +48,11 @@ class VoiceProfileReferenceError(RuntimeError):
         failure_code: str = "voice_profile_reference_invalid",
     ) -> None:
         self.failure_code = failure_code
+        super().__init__(message)
+
+
+class VoiceProfileCloneError(RuntimeError):
+    def __init__(self, message: str) -> None:
         super().__init__(message)
 
 
@@ -96,6 +103,24 @@ def _nested_dict(source: dict[str, Any], *keys: str) -> dict[str, Any]:
         if isinstance(value, dict):
             return value
     return {}
+
+
+def _extract_first_string(value: Any, keys: tuple[str, ...]) -> str:
+    normalized_keys = {str(key).strip().lower() for key in keys if str(key).strip()}
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if str(key).strip().lower() in normalized_keys and item not in (None, "", [], {}):
+                return str(item).strip()
+        for item in value.values():
+            found = _extract_first_string(item, keys)
+            if found:
+                return found
+    if isinstance(value, list):
+        for item in value:
+            found = _extract_first_string(item, keys)
+            if found:
+                return found
+    return ""
 
 
 BROLL_SUBTITLE_TAIL_ALLOWED_MS = 4_000
@@ -1351,12 +1376,121 @@ class JobProcessor:
         except Exception as exc:
             raise InputDownloadError(storage_key, exc) from exc
 
+        ref_audio_url = ""
+        try:
+            ref_audio_url = self._cos_client.create_signed_read_url(
+                storage_key=storage_key,
+                bucket_name=bucket_name or None,
+                storage_provider=storage_provider,
+                expires_seconds=3600,
+            )
+        except Exception:
+            ref_audio_url = ""
+
+        updated_voiceover = {
+            **voiceover,
+            "ref_audio": str(local_path),
+        }
+        if ref_audio_url:
+            updated_voiceover["ref_audio_url"] = ref_audio_url
+
+        profile_provider = str(voiceover.get("provider") or "").strip()
+        if profile_provider == "aliyun_cosyvoice_clone":
+            updated_voiceover = self._ensure_aliyun_cosyvoice_voice_id(
+                updated_voiceover,
+                ref_audio_url=ref_audio_url,
+            )
+
         return {
             **production_config,
-            "voiceover": {
+            "voiceover": updated_voiceover,
+        }
+
+    def _ensure_aliyun_cosyvoice_voice_id(
+        self,
+        voiceover: dict[str, Any],
+        *,
+        ref_audio_url: str,
+    ) -> dict[str, Any]:
+        external_voice_id = str(
+            voiceover.get("external_voice_id") or voiceover.get("externalVoiceId") or ""
+        ).strip()
+        model = (
+            str(voiceover.get("external_model_id") or voiceover.get("externalModelId") or "").strip()
+            or getattr(self._settings, "aliyun_cosyvoice_clone_model", "cosyvoice-v3.5-plus")
+        )
+        if external_voice_id:
+            return {
                 **voiceover,
-                "ref_audio": str(local_path),
+                "external_voice_id": external_voice_id,
+                "external_model_id": model,
+            }
+
+        if not ref_audio_url:
+            raise VoiceProfileCloneError(
+                "aliyun_cosyvoice_clone requires a signed ref_audio_url when external_voice_id is missing"
+            )
+
+        api_key = str(getattr(self._settings, "dashscope_api_key", "") or "").strip()
+        if not api_key:
+            raise VoiceProfileCloneError(
+                "aliyun_cosyvoice_clone requires DASHSCOPE_API_KEY"
+            )
+
+        customization_url = str(
+            getattr(self._settings, "aliyun_cosyvoice_clone_customization_url", "")
+            or "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization"
+        ).strip()
+        payload = {
+            "model": "voice-enrollment",
+            "input": {
+                "action": "create_voice",
+                "target_model": model,
+                "prefix": "jingjing",
+                "url": ref_audio_url,
             },
+        }
+        response = httpx.post(
+            customization_url,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=120,
+        )
+        try:
+            response.raise_for_status()
+        except Exception as exc:
+            raise VoiceProfileCloneError(
+                f"aliyun_cosyvoice_clone customization failed: http={response.status_code}"
+            ) from exc
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise VoiceProfileCloneError(
+                "aliyun_cosyvoice_clone customization returned invalid JSON"
+            ) from exc
+
+        voice_id = _extract_first_string(data, ("voice_id", "voiceId", "custom_voice_id", "customVoiceId"))
+        if not voice_id:
+            raise VoiceProfileCloneError(
+                "aliyun_cosyvoice_clone customization returned no voice_id"
+            )
+
+        voice_profile_id = str(voiceover.get("voice_profile_id") or "").strip()
+        if voice_profile_id:
+            self._repository.update_voice_profile_external_voice(
+                voice_profile_id,
+                external_voice_id=voice_id,
+                external_model_id=model,
+            )
+
+        return {
+            **voiceover,
+            "external_voice_id": voice_id,
+            "external_model_id": model,
+            "voice_id": voice_id,
         }
 
     def _upload_outputs(
@@ -1932,6 +2066,34 @@ class JobProcessor:
                     ),
                 },
                 status="failed_manual",
+            )
+            return
+        except VoiceProfileCloneError as exc:
+            log_payload["steps"].append(
+                {
+                    "stage": "voice_profile_reference",
+                    "status": "failed",
+                    "failure_code": "voice_profile_clone_failed",
+                    "error": str(exc),
+                }
+            )
+            self._repository.mark_failed(
+                job.id,
+                current_stage="voice_profile_reference_failed",
+                failure_reason=f"voice_profile_clone_failed: {exc}",
+                log_payload={
+                    **_annotate_failure_log(
+                        log_payload,
+                        job=job,
+                        stage="voice_profile_reference",
+                        error=exc,
+                    ),
+                    "progress_modules": _progress_modules(
+                        failed_key="voiceover",
+                        production_config=directive.production_config,
+                    ),
+                },
+                status="failed_retryable",
             )
             return
         except VoiceoverArtifactValidationError as exc:

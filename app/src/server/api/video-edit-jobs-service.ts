@@ -92,7 +92,7 @@ export async function createVideoEditJobForUser(input: {
     provider_settings_source: "env",
     tts_provider:
       inputPayload.productionConfig.voiceover.mode === "voice_profile"
-        ? "pixelle_clone"
+        ? "aliyun_cosyvoice_clone"
         : inputPayload.productionConfig.voiceover.provider,
   };
 

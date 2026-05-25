@@ -168,6 +168,7 @@ export class VideoJobPayloadValidationError extends Error {
 const desiredOutputs = ["final_video", "cover", "subtitles"] as const;
 const lockedFields = ["script", "cta", "target_user", "claims"] as const;
 const allowedVoiceoverProviders = new Set<VoiceoverProvider>([
+  "aliyun_cosyvoice",
   "bytedance_bigtts",
   "minimax",
   "302",
@@ -686,7 +687,7 @@ function normalizeVoiceover(
     return normalized;
   }
 
-  const provider = voiceover.provider ?? "bytedance_bigtts";
+  const provider = voiceover.provider ?? "aliyun_cosyvoice";
   if (!allowedVoiceoverProviders.has(provider)) {
     throwInvalidProductionConfig("Unsupported voiceover provider.");
   }

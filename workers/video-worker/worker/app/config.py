@@ -48,6 +48,9 @@ class Settings:
     worker_temp_root: Path
     worker_models_root: Path
     worker_output_root: Path
+    dashscope_api_key: str
+    aliyun_cosyvoice_clone_model: str
+    aliyun_cosyvoice_clone_customization_url: str
     openstoryline_base_url: str
     openstoryline_timeout_seconds: int
     log_level: str
@@ -144,6 +147,20 @@ class Settings:
             worker_output_root=Path(
                 os.getenv("WORKER_OUTPUT_ROOT", "/srv/jingjing-video-worker/outputs")
             ),
+            dashscope_api_key=(
+                os.getenv("ALIYUN_COSYVOICE_API_KEY", "")
+                or os.getenv("DASHSCOPE_API_KEY", "")
+            ).strip(),
+            aliyun_cosyvoice_clone_model=os.getenv(
+                "ALIYUN_COSYVOICE_CLONE_MODEL",
+                "cosyvoice-v3.5-plus",
+            ).strip()
+            or "cosyvoice-v3.5-plus",
+            aliyun_cosyvoice_clone_customization_url=os.getenv(
+                "ALIYUN_COSYVOICE_CLONE_CUSTOMIZATION_URL",
+                "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization",
+            ).strip()
+            or "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization",
             openstoryline_base_url=os.getenv(
                 "OPENSTORYLINE_BASE_URL", "http://openstoryline-engine:8000"
             ).rstrip("/"),

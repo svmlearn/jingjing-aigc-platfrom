@@ -21,15 +21,15 @@ outputs_dir = "./outputs"
 # ============= 模型配置 for user / Model Config for User =============
 [llm]
 model = "${OPENSTORYLINE_LLM_MODEL:-glm-5.1}"
-base_url = "${OPENSTORYLINE_LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4/}"
+base_url = "${OPENSTORYLINE_LLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}"
 api_key = "${OPENSTORYLINE_LLM_API_KEY:-}"
 temperature = 0.1
 timeout = 420.0
 max_retries = 0
 
 [vlm]
-model = "${OPENSTORYLINE_VLM_MODEL:-glm-5v-turbo}"
-base_url = "${OPENSTORYLINE_VLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4/}"
+model = "${OPENSTORYLINE_VLM_MODEL:-qwen3.6-plus}"
+base_url = "${OPENSTORYLINE_VLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}"
 api_key = "${OPENSTORYLINE_VLM_API_KEY:-}"
 timeout = 60.0
 temperature = 0.1
@@ -144,6 +144,18 @@ workflow_id = "${RUNNINGHUB_TTS_EDGE_WORKFLOW_ID:-1983513964837543938}"
 
 
 # ============= AI 转场生成 / AI transition generation ===================
+[generate_voiceover.providers.aliyun_cosyvoice]
+ws_url = "${ALIYUN_COSYVOICE_TTS_WS_URL:-wss://dashscope.aliyuncs.com/api-ws/v1/inference}"
+api_key = "${ALIYUN_COSYVOICE_TTS_API_KEY:-}"
+model = "${ALIYUN_COSYVOICE_TTS_MODEL:-cosyvoice-v3-flash}"
+voice = "${ALIYUN_COSYVOICE_TTS_VOICE:-longanyang}"
+
+[generate_voiceover.providers.aliyun_cosyvoice_clone]
+customization_url = "${ALIYUN_COSYVOICE_CLONE_CUSTOMIZATION_URL:-https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization}"
+ws_url = "${ALIYUN_COSYVOICE_CLONE_TTS_WS_URL:-wss://dashscope.aliyuncs.com/api-ws/v1/inference}"
+api_key = "${ALIYUN_COSYVOICE_CLONE_API_KEY:-}"
+model = "${ALIYUN_COSYVOICE_CLONE_MODEL:-cosyvoice-v3.5-plus}"
+
 [generate_voiceover.providers.pixelle_clone]
 base_url = "${TTS_PIXELLE_CLONE_BASE_URL:-https://www.runninghub.cn}"
 api_key = "${TTS_PIXELLE_CLONE_API_KEY:-}"

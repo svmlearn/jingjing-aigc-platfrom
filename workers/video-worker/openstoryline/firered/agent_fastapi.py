@@ -121,10 +121,13 @@ MODEL_ENV_KEYS = {
 
 def _read_model_env(kind: str) -> Dict[str, str]:
     keys = MODEL_ENV_KEYS[kind]
+    api_key = os.getenv(keys.get("api_key", "")) or ""
+    if not api_key and kind in {"llm", "vlm"}:
+        api_key = os.getenv("DASHSCOPE_API_KEY", "") or ""
     return {
         "model": os.getenv(keys.get("model", "")) or "",
         "base_url": _norm_url(os.getenv(keys.get("base_url", ""))),
-        "api_key": os.getenv(keys.get("api_key", "")) or "",
+        "api_key": api_key,
     }
 
 def _resolve_builtin_model_override(kind: str, cfg_block: Any) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:

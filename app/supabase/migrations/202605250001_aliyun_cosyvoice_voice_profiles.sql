@@ -1,3 +1,13 @@
+alter table public.voice_profiles
+drop constraint if exists voice_profiles_provider_check;
+
+alter table public.voice_profiles
+add constraint voice_profiles_provider_check
+check (provider in ('pixelle_clone', 'aliyun_cosyvoice_clone'));
+
+alter table public.voice_profiles
+alter column provider set default 'aliyun_cosyvoice_clone';
+
 create or replace function public.replace_current_voice_profile(
   p_profile_id uuid,
   p_merchant_id uuid,
@@ -122,7 +132,3 @@ grant execute on function public.replace_current_voice_profile(
   uuid,
   text
 ) to service_role;
-
-create unique index if not exists idx_voice_profiles_one_ready_per_creator
-on public.voice_profiles (merchant_id, created_by_user_id)
-where status = 'ready';

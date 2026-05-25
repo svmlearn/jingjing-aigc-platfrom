@@ -523,36 +523,75 @@ def _build_fire_red_service_config(
     clone_enabled = _as_bool(
         voiceover.get("clone_enabled")
         or voiceover.get("cloneEnabled")
-        or provider in {"pixelle_clone", "pixelle_runninghub_clone"}
+        or provider in {"aliyun_cosyvoice_clone", "pixelle_clone", "pixelle_runninghub_clone"}
     )
     if clone_enabled:
-        tts_config = {
-            "provider": "pixelle_clone",
-            "pixelle_clone": _compact_dict(
-                {
-                    "base_url": settings.tts_pixelle_clone_base_url,
-                    "api_key": settings.tts_pixelle_clone_api_key,
-                }
-            ),
-            "clone_enabled": True,
-        }
         ref_audio = str(
             voiceover.get("ref_audio") or voiceover.get("refAudio") or ""
         ).strip()
-        if ref_audio:
-            tts_config["ref_audio"] = ref_audio
-            tts_config["pixelle_clone"]["ref_audio"] = ref_audio
+        ref_audio_url = str(
+            voiceover.get("ref_audio_url") or voiceover.get("refAudioUrl") or ""
+        ).strip()
         external_voice_id = str(
             voiceover.get("external_voice_id")
             or voiceover.get("externalVoiceId")
+            or voiceover.get("voice_id")
+            or voiceover.get("voiceId")
             or ""
         ).strip()
-        if external_voice_id:
-            tts_config["pixelle_clone"]["external_voice_id"] = external_voice_id
+        external_model_id = str(
+            voiceover.get("external_model_id")
+            or voiceover.get("externalModelId")
+            or settings.tts_aliyun_cosyvoice_clone_model
+            or ""
+        ).strip()
+        if provider == "aliyun_cosyvoice_clone" or not provider:
+            provider = "aliyun_cosyvoice_clone"
+            provider_config = _compact_dict(
+                {
+                    "api_key": settings.tts_aliyun_cosyvoice_clone_api_key,
+                    "customization_url": settings.tts_aliyun_cosyvoice_clone_customization_url,
+                    "ws_url": settings.tts_aliyun_cosyvoice_clone_ws_url,
+                    "model": external_model_id or settings.tts_aliyun_cosyvoice_clone_model,
+                    "voice_id": external_voice_id,
+                    "ref_audio": ref_audio,
+                    "ref_audio_url": ref_audio_url,
+                }
+            )
+        else:
+            provider = "pixelle_clone"
+            provider_config = _compact_dict(
+                {
+                    "base_url": settings.tts_pixelle_clone_base_url,
+                    "api_key": settings.tts_pixelle_clone_api_key,
+                    "ref_audio": ref_audio,
+                    "external_voice_id": external_voice_id,
+                }
+            )
+        tts_config = {
+            "provider": provider,
+            provider: provider_config,
+            "clone_enabled": True,
+        }
+        if ref_audio:
+            tts_config["ref_audio"] = ref_audio
+        if ref_audio_url:
+            tts_config["ref_audio_url"] = ref_audio_url
         service_config["tts"] = tts_config
         return service_config
 
-    if provider == "minimax":
+    if provider == "aliyun_cosyvoice":
+        provider_config = _compact_dict(
+            {
+                "api_key": settings.tts_aliyun_cosyvoice_api_key,
+                "ws_url": settings.tts_aliyun_cosyvoice_ws_url,
+                "model": settings.tts_aliyun_cosyvoice_model,
+                "voice": str(voiceover.get("speaker") or "").strip()
+                or settings.tts_aliyun_cosyvoice_voice,
+            }
+        )
+        fallback_config = {}
+    elif provider == "minimax":
         provider_config = _compact_dict(
             {
                 "base_url": settings.tts_minimax_base_url,
