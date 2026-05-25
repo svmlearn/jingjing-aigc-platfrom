@@ -249,7 +249,7 @@ test("toPublicVideoEditJob defaults unknown worker result provider to Aliyun OSS
   assert.equal(publicJob.resultAssets[0]?.storageProvider, "aliyun_oss");
 });
 
-test("toPublicVideoEditJob preserves explicit historical Supabase storage payloads", () => {
+test("toPublicVideoEditJob defaults explicit historical Supabase storage payloads to Aliyun OSS", () => {
   const publicJob = toPublicVideoEditJob({
     ...baseJob,
     resultPayload: {
@@ -266,7 +266,7 @@ test("toPublicVideoEditJob preserves explicit historical Supabase storage payloa
   });
 
   assert.equal(publicJob.resultAssets.length, 1);
-  assert.equal(publicJob.resultAssets[0]?.storageProvider, "supabase_storage");
+  assert.equal(publicJob.resultAssets[0]?.storageProvider, "aliyun_oss");
 });
 
 test("toPublicVideoEditJob keeps explicit result assets before payload assets", () => {

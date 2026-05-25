@@ -6,8 +6,8 @@ export type MediaOwnerType =
 
 export type MediaAssetType = "image" | "video" | "cover" | "subtitle" | "audio";
 
-// `tencent_cos` and `supabase_storage` are deprecated compatibility values for historical assets.
-export type MediaStorageProvider = "aliyun_oss" | "tencent_cos" | "supabase_storage";
+// `tencent_cos` remains a deprecated compatibility value for historical assets.
+export type MediaStorageProvider = "aliyun_oss" | "tencent_cos";
 
 export type MediaAssetDto = {
   id: string;
