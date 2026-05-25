@@ -309,6 +309,27 @@ class GenerateVoiceoverContractTests(unittest.TestCase):
         self.assertEqual("cosyvoice-v3-flash", calls[0]["model"])
         self.assertEqual("longanyang", calls[0]["voice"])
 
+    def test_dashscope_sdk_audio_format_maps_string_to_enum(self):
+        node = self._node()
+
+        class FakeAudioFormat:
+            WAV_22050HZ_MONO_16BITS = object()
+            MP3_22050HZ_MONO_128KBPS = object()
+            __members__ = {
+                "WAV_22050HZ_MONO_16BITS": WAV_22050HZ_MONO_16BITS,
+                "MP3_22050HZ_MONO_128KBPS": MP3_22050HZ_MONO_128KBPS,
+            }
+
+        self.assertIs(
+            FakeAudioFormat.WAV_22050HZ_MONO_16BITS,
+            node._dashscope_audio_format("wav", FakeAudioFormat),
+        )
+        self.assertIs(
+            FakeAudioFormat.MP3_22050HZ_MONO_128KBPS,
+            node._dashscope_audio_format("mp3", FakeAudioFormat),
+        )
+        self.assertIsNone(node._dashscope_audio_format("unknown", FakeAudioFormat))
+
     def test_aliyun_cosyvoice_clone_uses_cached_voice_id_without_customization(self):
         node = self._node()
         calls = []

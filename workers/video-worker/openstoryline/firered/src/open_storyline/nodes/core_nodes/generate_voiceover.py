@@ -1374,8 +1374,9 @@ class GenerateVoiceoverNode(BaseNode):
     ) -> None:
         try:
             import dashscope
-            from dashscope.audio.tts_v2 import SpeechSynthesizer
+            from dashscope.audio.tts_v2 import AudioFormat, SpeechSynthesizer
         except Exception:
+            AudioFormat = None
             dashscope = None
             SpeechSynthesizer = None
 
@@ -1385,14 +1386,14 @@ class GenerateVoiceoverNode(BaseNode):
             kwargs = {
                 "model": model,
                 "voice": voice,
-                "format": audio_format,
-                "sample_rate": sample_rate,
             }
+            audio_format_value = self._dashscope_audio_format(audio_format, AudioFormat)
+            if audio_format_value is not None:
+                kwargs["format"] = audio_format_value
             try:
                 synthesizer = SpeechSynthesizer(**kwargs)
             except TypeError:
                 kwargs.pop("format", None)
-                kwargs.pop("sample_rate", None)
                 synthesizer = SpeechSynthesizer(**kwargs)
             audio = synthesizer.call(text)
             if not audio:
@@ -1491,3 +1492,26 @@ class GenerateVoiceoverNode(BaseNode):
         if not audio_chunks:
             raise RuntimeError("aliyun_cosyvoice websocket returned no audio")
         wav_path.write_bytes(b"".join(audio_chunks))
+
+    def _dashscope_audio_format(self, audio_format: str, audio_format_cls: Any) -> Any:
+        if audio_format_cls is None:
+            return None
+        normalized = str(audio_format or "").strip().lower()
+        if not normalized:
+            return None
+        format_members = {
+            name.lower(): value
+            for name, value in getattr(audio_format_cls, "__members__", {}).items()
+        }
+        if normalized in format_members:
+            return format_members[normalized]
+        aliases = {
+            "wav": ("wav_22050hz_mono_16bits", "wav"),
+            "wave": ("wav_22050hz_mono_16bits", "wav"),
+            "mp3": ("mp3_22050hz_mono_128kbps", "mp3"),
+            "pcm": ("pcm_22050hz_mono_16bits", "pcm"),
+        }
+        for member_name in aliases.get(normalized, ()):
+            if member_name in format_members:
+                return format_members[member_name]
+        return None
