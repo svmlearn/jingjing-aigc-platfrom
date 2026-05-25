@@ -401,7 +401,7 @@ export const mediaCompleteSchema = z.object({
   ownerType: mediaOwnerTypeSchema,
   ownerId: z.uuid(),
   assetType: mediaAssetTypeSchema,
-  storageProvider: z.enum(["tencent_cos", "aliyun_oss", "supabase_storage"]),
+  storageProvider: z.enum(["tencent_cos", "aliyun_oss"]),
   bucketName: z.string().trim().max(120).nullish(),
   storageKey: z.string().trim().min(1).max(1000),
   mimeType: z.string().trim().max(200).nullish(),
