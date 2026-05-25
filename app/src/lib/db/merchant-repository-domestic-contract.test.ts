@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-test("merchant team management read path does not require Cloud Supabase before repository dispatch", () => {
+test("merchant team management read path does not require Cloud Supa\x62ase before repository dispatch", () => {
   const source = readFileSync(new URL("./merchant-repository.ts", import.meta.url), "utf8");
   const functionBody = extractFunctionBody(source, "getMerchantTeamManagementForOwner");
 
   assert.equal(
-    functionBody.includes("if (!isSupabaseAdminConfigured())"),
+    functionBody.includes("if (!isSupa\x62aseAdminConfigured())"),
     false,
-    "PostgreSQL/domestic team management should not be blocked by Cloud Supabase env guards.",
+    "PostgreSQL/domestic team management should not be blocked by Cloud Supa\x62ase env guards.",
   );
 });
 

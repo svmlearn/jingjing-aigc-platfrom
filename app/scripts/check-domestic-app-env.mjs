@@ -6,7 +6,6 @@ import { loadEnvFileFromArgs } from "./lib/env-file.mjs";
 
 const { Pool } = pg;
 
-const requiredCosEnv = ["COS_SECRET_ID", "COS_SECRET_KEY", "COS_BUCKET", "COS_REGION"];
 const requiredAliyunOssEnv = [
   "ALIYUN_OSS_ACCESS_KEY_ID",
   "ALIYUN_OSS_ACCESS_KEY_SECRET",
@@ -42,12 +41,11 @@ checks.push({
 const storageProvider = process.env.STORAGE_PROVIDER?.trim() || "aliyun_oss";
 checks.push({
   name: "STORAGE_PROVIDER",
-  status: storageProvider === "tencent_cos" || storageProvider === "aliyun_oss" ? "ok" : "missing",
+  status: storageProvider === "aliyun_oss" ? "ok" : "missing",
   value: storageProvider,
 });
 
-const requiredStorageEnv = storageProvider === "aliyun_oss" ? requiredAliyunOssEnv : requiredCosEnv;
-for (const name of requiredStorageEnv) {
+for (const name of requiredAliyunOssEnv) {
   checks.push({
     name,
     status: process.env[name]?.trim() ? "ok" : "missing",

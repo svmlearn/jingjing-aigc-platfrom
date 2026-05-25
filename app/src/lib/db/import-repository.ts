@@ -3,14 +3,11 @@ import "server-only";
 import type { ImportedCommentDto, SourceItemDto } from "@/contracts/content";
 import type { ImportJobDto, ImportJobStatus, ImportRequest } from "@/contracts/import";
 import {
-  isAppPostgresConfigured,
-  isAppPostgresPreferred,
   mapPostgresError,
   queryAppDb,
   withAppDbTransaction,
   type DatabaseClient,
 } from "@/lib/server-db/postgres";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 import type {
   NormalizedComment,
@@ -98,174 +95,94 @@ export async function createImportJob(input: {
   merchantId: string;
   request: ImportRequest;
 }): Promise<ImportJobDto> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<ImportJobRow>(
-        `
-        insert into public.import_jobs (
-          merchant_id,
-          platform,
-          import_type,
-          input_payload
-        ) values ($1, $2, $3, $4::jsonb)
-        returning ${importJobSelect}
-        `,
-        [
-          input.merchantId,
-          input.request.platform,
-          input.request.importType,
-          JSON.stringify({
-            url: input.request.url,
-            options: input.request.options ?? {},
-          }),
-        ],
-      );
+  try {
+    const result = await queryAppDb<ImportJobRow>(
+      `
+      insert into public.import_jobs (
+        merchant_id,
+        platform,
+        import_type,
+        input_payload
+      ) values ($1, $2, $3, $4::jsonb)
+      returning ${importJobSelect}
+      `,
+      [
+        input.merchantId,
+        input.request.platform,
+        input.request.importType,
+        JSON.stringify({
+          url: input.request.url,
+          options: input.request.options ?? {},
+        }),
+      ],
+    );
 
-      return mapImportJob(result.rows[0]);
-    } catch (error) {
-      throw mapPostgresError(error, "IMPORT_JOB_CREATE_FAILED");
-    }
+    return mapImportJob(result.rows[0]);
+  } catch (error) {
+    throw mapPostgresError(error, "IMPORT_JOB_CREATE_FAILED");
   }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("import_jobs")
-    .insert({
-      merchant_id: input.merchantId,
-      platform: input.request.platform,
-      import_type: input.request.importType,
-      input_payload: {
-        url: input.request.url,
-        options: input.request.options ?? {},
-      },
-    })
-    .select(importJobSelect)
-    .single();
-
-  if (error || !data) {
-    throw new ApiError(500, "IMPORT_JOB_CREATE_FAILED", error?.message ?? "Create failed.");
-  }
-
-  return mapImportJob(data as unknown as ImportJobRow);
 }
 
 export async function getImportJobById(input: {
   merchantId: string;
   jobId: string;
 }): Promise<ImportJobRow> {
-  if (shouldUseAppPostgres()) {
-    try {
-      return await pgGetImportJobById(input);
-    } catch (error) {
-      throw mapPostgresError(error, "IMPORT_JOB_FETCH_FAILED");
-    }
+  try {
+    return await pgGetImportJobById(input);
+  } catch (error) {
+    throw mapPostgresError(error, "IMPORT_JOB_FETCH_FAILED");
   }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("import_jobs")
-    .select(importJobSelect)
-    .eq("id", input.jobId)
-    .eq("merchant_id", input.merchantId)
-    .single();
-
-  if (error || !data) {
-    throw new ApiError(404, "IMPORT_JOB_NOT_FOUND", "Import job not found.");
-  }
-
-  return data as unknown as ImportJobRow;
 }
 
 export async function listImportJobs(merchantId: string): Promise<ImportJobDto[]> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<ImportJobRow>(
-        `
-        select ${importJobSelect}
-        from public.import_jobs
-        where merchant_id = $1
-        order by created_at desc
-        limit 50
-        `,
-        [merchantId],
-      );
+  try {
+    const result = await queryAppDb<ImportJobRow>(
+      `
+      select ${importJobSelect}
+      from public.import_jobs
+      where merchant_id = $1
+      order by created_at desc
+      limit 50
+      `,
+      [merchantId],
+    );
 
-      return result.rows.map(mapImportJob);
-    } catch (error) {
-      throw mapPostgresError(error, "IMPORT_JOB_LIST_FAILED");
-    }
+    return result.rows.map(mapImportJob);
+  } catch (error) {
+    throw mapPostgresError(error, "IMPORT_JOB_LIST_FAILED");
   }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("import_jobs")
-    .select(importJobSelect)
-    .eq("merchant_id", merchantId)
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  if (error) {
-    throw new ApiError(500, "IMPORT_JOB_LIST_FAILED", error.message);
-  }
-
-  return ((data ?? []) as unknown as ImportJobRow[]).map(mapImportJob);
 }
 
 export async function countRunningImportJobs(merchantId: string): Promise<{
   merchantRunning: number;
   globalRunning: number;
 }> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<{
-        merchant_running: string | number;
-        global_running: string | number;
-      }>(
-        `
-        select
-          count(*) filter (
-            where merchant_id = $1 and status = 'running'
-          )::text as merchant_running,
-          count(*) filter (
-            where status = 'running'
-          )::text as global_running
-        from public.import_jobs
-        `,
-        [merchantId],
-      );
-      const row = result.rows[0];
+  try {
+    const result = await queryAppDb<{
+      merchant_running: string | number;
+      global_running: string | number;
+    }>(
+      `
+      select
+        count(*) filter (
+          where merchant_id = $1 and status = 'running'
+        )::text as merchant_running,
+        count(*) filter (
+          where status = 'running'
+        )::text as global_running
+      from public.import_jobs
+      `,
+      [merchantId],
+    );
+    const row = result.rows[0];
 
-      return {
-        merchantRunning: Number(row?.merchant_running ?? 0),
-        globalRunning: Number(row?.global_running ?? 0),
-      };
-    } catch (error) {
-      throw mapPostgresError(error, "IMPORT_JOB_LIMIT_CHECK_FAILED");
-    }
+    return {
+      merchantRunning: Number(row?.merchant_running ?? 0),
+      globalRunning: Number(row?.global_running ?? 0),
+    };
+  } catch (error) {
+    throw mapPostgresError(error, "IMPORT_JOB_LIMIT_CHECK_FAILED");
   }
-
-  const supabase = createSupabaseAdminClient();
-  const [merchantResult, globalResult] = await Promise.all([
-    supabase
-      .from("import_jobs")
-      .select("id", { count: "exact", head: true })
-      .eq("merchant_id", merchantId)
-      .eq("status", "running"),
-    supabase.from("import_jobs").select("id", { count: "exact", head: true }).eq("status", "running"),
-  ]);
-
-  if (merchantResult.error) {
-    throw new ApiError(500, "IMPORT_JOB_LIMIT_CHECK_FAILED", merchantResult.error.message);
-  }
-
-  if (globalResult.error) {
-    throw new ApiError(500, "IMPORT_JOB_LIMIT_CHECK_FAILED", globalResult.error.message);
-  }
-
-  return {
-    merchantRunning: merchantResult.count ?? 0,
-    globalRunning: globalResult.count ?? 0,
-  };
 }
 
 export async function updateImportJob(input: {
@@ -277,81 +194,56 @@ export async function updateImportJob(input: {
   logPayload?: Record<string, unknown>;
   finished?: boolean;
 }): Promise<ImportJobDto> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const hasUpdate =
-        input.status !== undefined ||
-        input.totalItems !== undefined ||
-        input.successItems !== undefined ||
-        input.errorSummary !== undefined ||
-        input.logPayload !== undefined ||
-        input.finished === true;
+  try {
+    const hasUpdate =
+      input.status !== undefined ||
+      input.totalItems !== undefined ||
+      input.successItems !== undefined ||
+      input.errorSummary !== undefined ||
+      input.logPayload !== undefined ||
+      input.finished === true;
 
-      if (!hasUpdate) {
-        return mapImportJob(await pgGetImportJobByIdOnly(input.jobId));
-      }
-
-      const result = await queryAppDb<ImportJobRow>(
-        `
-        update public.import_jobs
-        set status = case when $2::boolean then $3 else status end,
-            total_items = case when $4::boolean then $5 else total_items end,
-            success_items = case when $6::boolean then $7 else success_items end,
-            error_summary = case when $8::boolean then $9 else error_summary end,
-            log_payload = case when $10::boolean then $11::jsonb else log_payload end,
-            finished_at = case when $12::boolean then timezone('utc', now()) else finished_at end
-        where id = $1
-        returning ${importJobSelect}
-        `,
-        [
-          input.jobId,
-          input.status !== undefined,
-          input.status ?? null,
-          input.totalItems !== undefined,
-          input.totalItems ?? null,
-          input.successItems !== undefined,
-          input.successItems ?? null,
-          input.errorSummary !== undefined,
-          input.errorSummary ?? null,
-          input.logPayload !== undefined,
-          JSON.stringify(input.logPayload ?? {}),
-          input.finished === true,
-        ],
-      );
-      const row = result.rows[0];
-
-      if (!row) {
-        throw new ApiError(404, "IMPORT_JOB_NOT_FOUND", "Import job not found.");
-      }
-
-      return mapImportJob(row);
-    } catch (error) {
-      throw mapPostgresError(error, "IMPORT_JOB_UPDATE_FAILED");
+    if (!hasUpdate) {
+      return mapImportJob(await pgGetImportJobByIdOnly(input.jobId));
     }
+
+    const result = await queryAppDb<ImportJobRow>(
+      `
+      update public.import_jobs
+      set status = case when $2::boolean then $3 else status end,
+          total_items = case when $4::boolean then $5 else total_items end,
+          success_items = case when $6::boolean then $7 else success_items end,
+          error_summary = case when $8::boolean then $9 else error_summary end,
+          log_payload = case when $10::boolean then $11::jsonb else log_payload end,
+          finished_at = case when $12::boolean then timezone('utc', now()) else finished_at end
+      where id = $1
+      returning ${importJobSelect}
+      `,
+      [
+        input.jobId,
+        input.status !== undefined,
+        input.status ?? null,
+        input.totalItems !== undefined,
+        input.totalItems ?? null,
+        input.successItems !== undefined,
+        input.successItems ?? null,
+        input.errorSummary !== undefined,
+        input.errorSummary ?? null,
+        input.logPayload !== undefined,
+        JSON.stringify(input.logPayload ?? {}),
+        input.finished === true,
+      ],
+    );
+    const row = result.rows[0];
+
+    if (!row) {
+      throw new ApiError(404, "IMPORT_JOB_NOT_FOUND", "Import job not found.");
+    }
+
+    return mapImportJob(row);
+  } catch (error) {
+    throw mapPostgresError(error, "IMPORT_JOB_UPDATE_FAILED");
   }
-
-  const supabase = createSupabaseAdminClient();
-  const update: Record<string, unknown> = {};
-
-  if (input.status !== undefined) update.status = input.status;
-  if (input.totalItems !== undefined) update.total_items = input.totalItems;
-  if (input.successItems !== undefined) update.success_items = input.successItems;
-  if (input.errorSummary !== undefined) update.error_summary = input.errorSummary;
-  if (input.logPayload !== undefined) update.log_payload = input.logPayload;
-  if (input.finished) update.finished_at = new Date().toISOString();
-
-  const { data, error } = await supabase
-    .from("import_jobs")
-    .update(update)
-    .eq("id", input.jobId)
-    .select(importJobSelect)
-    .single();
-
-  if (error || !data) {
-    throw new ApiError(500, "IMPORT_JOB_UPDATE_FAILED", error?.message ?? "Update failed.");
-  }
-
-  return mapImportJob(data as unknown as ImportJobRow);
 }
 
 export async function upsertSourceItems(input: {
@@ -380,58 +272,23 @@ export async function upsertSourceItems(input: {
     return [];
   }
 
-  if (shouldUseAppPostgres()) {
-    try {
-      return await withAppDbTransaction(async (client) => {
-        const saved: SourceItemDto[] = [];
+  try {
+    return await withAppDbTransaction(async (client) => {
+      const saved: SourceItemDto[] = [];
 
-        for (const row of rows) {
-          const result = row.external_item_id
-            ? await pgUpsertSourceItemWithExternalId(client, row)
-            : await pgUpsertSourceItemWithSourceUrl(client, row);
+      for (const row of rows) {
+        const result = row.external_item_id
+          ? await pgUpsertSourceItemWithExternalId(client, row)
+          : await pgUpsertSourceItemWithSourceUrl(client, row);
 
-          saved.push(mapSourceItem(result));
-        }
+        saved.push(mapSourceItem(result));
+      }
 
-        return saved;
-      });
-    } catch (error) {
-      throw mapPostgresError(error, "SOURCE_ITEM_SAVE_FAILED");
-    }
+      return saved;
+    });
+  } catch (error) {
+    throw mapPostgresError(error, "SOURCE_ITEM_SAVE_FAILED");
   }
-
-  const supabase = createSupabaseAdminClient();
-  const withExternalIds = rows.filter((row) => row.external_item_id);
-  const withoutExternalIds = rows.filter((row) => !row.external_item_id);
-  const saved: SourceItemDto[] = [];
-
-  if (withExternalIds.length > 0) {
-    const { data, error } = await supabase
-      .from("source_items")
-      .upsert(withExternalIds, { onConflict: "merchant_id,platform,external_item_id" })
-      .select(sourceItemSelect);
-
-    if (error) {
-      throw new ApiError(500, "SOURCE_ITEM_SAVE_FAILED", error.message);
-    }
-
-    saved.push(...((data ?? []) as unknown as SourceItemRow[]).map(mapSourceItem));
-  }
-
-  if (withoutExternalIds.length > 0) {
-    const { data, error } = await supabase
-      .from("source_items")
-      .upsert(withoutExternalIds, { onConflict: "merchant_id,source_url" })
-      .select(sourceItemSelect);
-
-    if (error) {
-      throw new ApiError(500, "SOURCE_ITEM_SAVE_FAILED", error.message);
-    }
-
-    saved.push(...((data ?? []) as unknown as SourceItemRow[]).map(mapSourceItem));
-  }
-
-  return saved;
 }
 
 export async function ensureSourceItemForComments(input: {
@@ -483,58 +340,23 @@ export async function upsertImportedComments(input: {
     return [];
   }
 
-  if (shouldUseAppPostgres()) {
-    try {
-      return await withAppDbTransaction(async (client) => {
-        const saved: ImportedCommentDto[] = [];
+  try {
+    return await withAppDbTransaction(async (client) => {
+      const saved: ImportedCommentDto[] = [];
 
-        for (const row of rows) {
-          const result = row.external_comment_id
-            ? await pgUpsertImportedCommentWithExternalId(client, row)
-            : await pgInsertImportedComment(client, row);
+      for (const row of rows) {
+        const result = row.external_comment_id
+          ? await pgUpsertImportedCommentWithExternalId(client, row)
+          : await pgInsertImportedComment(client, row);
 
-          saved.push(mapImportedComment(result));
-        }
+        saved.push(mapImportedComment(result));
+      }
 
-        return saved;
-      });
-    } catch (error) {
-      throw mapPostgresError(error, "IMPORTED_COMMENT_SAVE_FAILED");
-    }
+      return saved;
+    });
+  } catch (error) {
+    throw mapPostgresError(error, "IMPORTED_COMMENT_SAVE_FAILED");
   }
-
-  const supabase = createSupabaseAdminClient();
-  const withExternalIds = rows.filter((row) => row.external_comment_id);
-  const withoutExternalIds = rows.filter((row) => !row.external_comment_id);
-  const saved: ImportedCommentDto[] = [];
-
-  if (withExternalIds.length > 0) {
-    const { data, error } = await supabase
-      .from("imported_comments")
-      .upsert(withExternalIds, { onConflict: "source_item_id,external_comment_id" })
-      .select(commentSelect);
-
-    if (error) {
-      throw new ApiError(500, "IMPORTED_COMMENT_SAVE_FAILED", error.message);
-    }
-
-    saved.push(...((data ?? []) as unknown as ImportedCommentRow[]).map(mapImportedComment));
-  }
-
-  if (withoutExternalIds.length > 0) {
-    const { data, error } = await supabase
-      .from("imported_comments")
-      .insert(withoutExternalIds)
-      .select(commentSelect);
-
-    if (error) {
-      throw new ApiError(500, "IMPORTED_COMMENT_SAVE_FAILED", error.message);
-    }
-
-    saved.push(...((data ?? []) as unknown as ImportedCommentRow[]).map(mapImportedComment));
-  }
-
-  return saved;
 }
 
 export async function listSourceItems(input: {
@@ -542,60 +364,22 @@ export async function listSourceItems(input: {
   platform?: ImportRequest["platform"];
   limit?: number;
 }): Promise<SourceItemDto[]> {
-  if (shouldUseAppPostgres()) {
-    try {
-      return await pgListSourceItems(input);
-    } catch (error) {
-      throw mapPostgresError(error, "SOURCE_ITEM_LIST_FAILED");
-    }
+  try {
+    return await pgListSourceItems(input);
+  } catch (error) {
+    throw mapPostgresError(error, "SOURCE_ITEM_LIST_FAILED");
   }
-
-  const supabase = createSupabaseAdminClient();
-  let query = supabase
-    .from("source_items")
-    .select(sourceItemSelect)
-    .eq("merchant_id", input.merchantId)
-    .order("created_at", { ascending: false })
-    .limit(input.limit ?? 50);
-
-  if (input.platform) {
-    query = query.eq("platform", input.platform);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    throw new ApiError(500, "SOURCE_ITEM_LIST_FAILED", error.message);
-  }
-
-  return ((data ?? []) as unknown as SourceItemRow[]).map(mapSourceItem);
 }
 
 export async function getSourceItemById(input: {
   merchantId: string;
   sourceItemId: string;
 }): Promise<SourceItemDto> {
-  if (shouldUseAppPostgres()) {
-    try {
-      return await pgGetSourceItemById(input);
-    } catch (error) {
-      throw mapPostgresError(error, "SOURCE_ITEM_FETCH_FAILED");
-    }
+  try {
+    return await pgGetSourceItemById(input);
+  } catch (error) {
+    throw mapPostgresError(error, "SOURCE_ITEM_FETCH_FAILED");
   }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("source_items")
-    .select(sourceItemSelect)
-    .eq("id", input.sourceItemId)
-    .eq("merchant_id", input.merchantId)
-    .single();
-
-  if (error || !data) {
-    throw new ApiError(404, "SOURCE_ITEM_NOT_FOUND", "Source item not found.");
-  }
-
-  return mapSourceItem(data as unknown as SourceItemRow);
 }
 
 export async function listImportedComments(input: {
@@ -603,32 +387,11 @@ export async function listImportedComments(input: {
   sourceItemId: string;
   limit?: number;
 }): Promise<ImportedCommentDto[]> {
-  if (shouldUseAppPostgres()) {
-    try {
-      return await pgListImportedComments(input);
-    } catch (error) {
-      throw mapPostgresError(error, "IMPORTED_COMMENT_LIST_FAILED");
-    }
+  try {
+    return await pgListImportedComments(input);
+  } catch (error) {
+    throw mapPostgresError(error, "IMPORTED_COMMENT_LIST_FAILED");
   }
-
-  await getSourceItemById({
-    merchantId: input.merchantId,
-    sourceItemId: input.sourceItemId,
-  });
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("imported_comments")
-    .select(commentSelect)
-    .eq("source_item_id", input.sourceItemId)
-    .order("sort_score", { ascending: false, nullsFirst: false })
-    .limit(input.limit ?? 100);
-
-  if (error) {
-    throw new ApiError(500, "IMPORTED_COMMENT_LIST_FAILED", error.message);
-  }
-
-  return ((data ?? []) as unknown as ImportedCommentRow[]).map(mapImportedComment);
 }
 
 async function pgGetImportJobById(input: {
@@ -981,10 +744,6 @@ function mapImportedComment(row: ImportedCommentRow): ImportedCommentDto {
     publishedAt: row.published_at ? toIsoString(row.published_at) : null,
     createdAt: toIsoString(row.created_at),
   };
-}
-
-function shouldUseAppPostgres() {
-  return isAppPostgresConfigured() && isAppPostgresPreferred();
 }
 
 function toIsoString(value: Timestamp) {

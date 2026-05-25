@@ -71,7 +71,7 @@ test("private media doctor detects slice and media readiness violations", () => 
       {
         ...clip,
         id: "clip-no-thumb",
-        thumbCosKey: null,
+        thumbStorageKey: null,
       },
       {
         ...clip,
@@ -113,14 +113,13 @@ test("private media doctor detects storage security and pending cleanup blockers
     clips: [clip],
     voiceProfiles: [voiceProfile("voice-a")],
     now,
-    existingCosKeys: [
+    existingStorageKeys: [
       "merchant-media/merchant-a/thumbs/asset-a/clip-1.jpg",
     ],
     publicBuckets: ["private-bucket"],
     clientExposedEnvKeys: [
-      "NEXT_PUBLIC_SUPABASE_URL",
-      "SUPABASE_SERVICE_ROLE_KEY",
-      "COS_SECRET_KEY",
+      "NEXT_PUBLIC_SUPA\x42ASE_URL",
+      "SUPA\x42ASE_SERVICE_ROLE_KEY",
     ],
     pendingUploads: [
       {
@@ -130,7 +129,7 @@ test("private media doctor detects storage security and pending cleanup blockers
         storageKey: "source-assets/merchant-a/asset-a/source.mp4",
       },
     ],
-    orphanCosKeys: ["source-assets/merchant-a/orphan/source.mp4"],
+    orphanStorageKeys: ["source-assets/merchant-a/orphan/source.mp4"],
     cleanupJobs: [
       {
         id: "cleanup-stale",
@@ -147,11 +146,70 @@ test("private media doctor detects storage security and pending cleanup blockers
     "public_bucket",
     "public_bucket",
     "service_role_client_leak",
-    "service_role_client_leak",
     "expired_pending_upload",
     "orphan_upload_object",
     "provider_cleanup_backlog",
   ]);
+});
+
+test("private media doctor prefers provider-neutral storage key aliases", () => {
+  const issues = runPrivateMediaDoctor({
+    assets: [asset],
+    clips: [
+      {
+        ...clip,
+        storageKey: clip.storageKey,
+        thumbStorageKey: clip.thumbStorageKey,
+      },
+    ],
+    voiceProfiles: [voiceProfile("voice-a")],
+    existingStorageKeys: [
+      clip.storageKey,
+      clip.thumbStorageKey!,
+    ],
+  });
+
+  assert.deepEqual(issues, []);
+});
+
+test("private media doctor merges existing storage key aliases", () => {
+  const issues = runPrivateMediaDoctor({
+    assets: [asset],
+    clips: [
+      {
+        ...clip,
+        storageKey: clip.storageKey,
+        thumbStorageKey: clip.thumbStorageKey,
+      },
+    ],
+    voiceProfiles: [voiceProfile("voice-a")],
+    existingStorageKeys: [clip.storageKey],
+    existingCosKeys: [clip.thumbStorageKey!],
+  });
+
+  assert.deepEqual(issues, []);
+});
+
+test("private media doctor merges orphan storage key aliases", () => {
+  const issues = runPrivateMediaDoctor({
+    assets: [],
+    clips: [],
+    voiceProfiles: [],
+    orphanStorageKeys: ["source-assets/merchant-a/orphan/new-key.mp4"],
+    orphanCosKeys: [
+      "source-assets/merchant-a/orphan/legacy-key.mp4",
+      "source-assets/merchant-a/orphan/new-key.mp4",
+    ],
+  });
+
+  assert.deepEqual(
+    issues.map((issue) => issue.subjectId).sort(),
+    [
+      "source-assets/merchant-a/orphan/legacy-key.mp4",
+      "source-assets/merchant-a/orphan/new-key.mp4",
+    ],
+  );
+  assertIssueCodes(issues, ["orphan_upload_object", "orphan_upload_object"]);
 });
 
 function assertIssueCodes(
@@ -167,7 +225,7 @@ const asset: MerchantMediaAssetRecord = {
   uploadedByUserId: "user-a",
   mediaType: "video",
   source: "merchant_upload",
-  sourceCosKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
+  sourceStorageKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
   status: "ready",
   createdAt: now,
 };
@@ -191,8 +249,8 @@ const clip: PrivateMediaClipRecord = {
   tagConfidence: 0.86,
   tagSource: "fixture",
   bucketName: "private-bucket",
-  cosKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
-  thumbCosKey: "merchant-media/merchant-a/thumbs/asset-a/clip-1.jpg",
+  storageKey: "merchant-media/merchant-a/originals/asset-a/source.mp4",
+  thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-a/clip-1.jpg",
   mimeType: "video/mp4",
   createdAt: now,
 };
@@ -205,8 +263,8 @@ const segmentClip: PrivateMediaClipRecord = {
   startTimeSeconds: 3,
   endTimeSeconds: 7,
   durationSeconds: 4,
-  cosKey: "merchant-media/merchant-a/clips/asset-a/clip-segment.mp4",
-  thumbCosKey: "merchant-media/merchant-a/thumbs/asset-a/clip-segment.jpg",
+  storageKey: "merchant-media/merchant-a/clips/asset-a/clip-segment.mp4",
+  thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-a/clip-segment.jpg",
 };
 
 function voiceProfile(

@@ -17,7 +17,7 @@ const now = "2026-05-15T00:00:00.000Z";
 const expiresAt = "2026-07-14T00:00:00.000Z";
 const secret = "test-private-media-download-secret";
 
-test("private media download resolves valid token to server-signed read URL without exposing COS key in token route", async () => {
+test("private media download resolves valid token to server-signed read URL without exposing storage key in token route", async () => {
   const result = await resolvePrivateMediaDownload({
     token: tokenFor("ready-video", "video"),
     secret,
@@ -108,6 +108,48 @@ test("private media download signs thumbnail key for thumb requests", async () =
   }
 });
 
+test("private media download prefers provider-neutral storage key aliases", async () => {
+  const result = await resolvePrivateMediaDownload({
+    token: tokenFor("alias-video", "video"),
+    secret,
+    now,
+    repository: new InMemoryPrivateMediaClipRepository([
+      {
+        ...readyVideo,
+        id: "alias-video",
+        storageKey: "merchant-media/merchant-a/originals/asset-1/source-alias.mp4",
+        thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-1/clip-alias.jpg",
+      },
+    ]),
+    signReadUrl,
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.location, "https://cos.example.com/signed?key=merchant-media%2Fmerchant-a%2Foriginals%2Fasset-1%2Fsource-alias.mp4&type=video%2Fmp4");
+  }
+
+  const thumb = await resolvePrivateMediaDownload({
+    token: tokenFor("alias-video", "thumb"),
+    secret,
+    now,
+    repository: new InMemoryPrivateMediaClipRepository([
+      {
+        ...readyVideo,
+        id: "alias-video",
+        storageKey: "merchant-media/merchant-a/originals/asset-1/source-alias.mp4",
+        thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-1/clip-alias.jpg",
+      },
+    ]),
+    signReadUrl,
+  });
+
+  assert.equal(thumb.ok, true);
+  if (thumb.ok) {
+    assert.equal(thumb.location, "https://cos.example.com/signed?key=merchant-media%2Fmerchant-a%2Fthumbs%2Fasset-1%2Fclip-alias.jpg&type=image%2Fjpeg");
+  }
+});
+
 function tokenFor(clipId: string, kind: "video" | "thumb") {
   return createPrivateMediaDownloadToken({
     secret,
@@ -138,8 +180,8 @@ const readyVideo: PrivateMediaClipRecord = {
   description: "Project entrance.",
   tags: ["project", "entrance", "shops"],
   bucketName: "private-bucket",
-  cosKey: "merchant-media/merchant-a/originals/asset-1/source.mp4",
-  thumbCosKey: "merchant-media/merchant-a/thumbs/asset-1/clip-1.jpg",
+  storageKey: "merchant-media/merchant-a/originals/asset-1/source.mp4",
+  thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-1/clip-1.jpg",
   mimeType: "video/mp4",
   createdAt: now,
 };

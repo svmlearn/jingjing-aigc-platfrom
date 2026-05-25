@@ -2,9 +2,9 @@ import "server-only";
 
 import { createHash, pbkdf2Sync, randomBytes, timingSafeEqual } from "node:crypto";
 
-import type { User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
+import type { AuthenticatedUser } from "@/lib/auth/authenticated-user";
 import { isPostgresVideoChainEnabled } from "@/lib/db/postgres-video-chain-repository";
 import { queryAppDb } from "@/lib/server-db/postgres";
 import { ApiError } from "@/server/api/errors";
@@ -27,7 +27,7 @@ export function isDomesticSessionEnabled() {
   return isPostgresVideoChainEnabled();
 }
 
-export async function getDomesticAuthenticatedUser(): Promise<User> {
+export async function getDomesticAuthenticatedUser(): Promise<AuthenticatedUser> {
   const token = await readSessionCookie();
   if (!token) {
     throw new ApiError(401, "UNAUTHENTICATED", "Please sign in first.");
@@ -58,13 +58,13 @@ export async function getDomesticAuthenticatedUser(): Promise<User> {
     throw new ApiError(401, "UNAUTHENTICATED", "Please sign in first.");
   }
 
-  return toSupabaseCompatibleUser(user);
+  return toAuthenticatedUser(user);
 }
 
 export async function signInDomesticUser(input: {
   email: string;
   password: string;
-}): Promise<User> {
+}): Promise<AuthenticatedUser> {
   const email = input.email.trim().toLowerCase();
   const result = await queryAppDb<AppUserSessionRow>(
     `
@@ -104,7 +104,7 @@ export async function signInDomesticUser(input: {
   );
   await writeDomesticSessionCookie(token, ttlSeconds);
 
-  return toSupabaseCompatibleUser(user);
+  return toAuthenticatedUser(user);
 }
 
 export async function signOutDomesticUser() {
@@ -194,35 +194,18 @@ function getSessionTtlSeconds() {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultSessionTtlSeconds;
 }
 
-function toSupabaseCompatibleUser(user: AppUserSessionRow): User {
+function toAuthenticatedUser(user: AppUserSessionRow): AuthenticatedUser {
   return {
     id: user.id,
-    app_metadata: {
+    email: user.email,
+    role: user.role,
+    displayName: user.display_name,
+    appMetadata: {
       provider: "domestic",
       role: user.role,
     },
-    user_metadata: {
-      display_name: user.display_name,
+    userMetadata: {
+      displayName: user.display_name,
     },
-    aud: "authenticated",
-    confirmation_sent_at: undefined,
-    recovery_sent_at: undefined,
-    email_change_sent_at: undefined,
-    new_email: undefined,
-    new_phone: undefined,
-    invited_at: undefined,
-    action_link: undefined,
-    email: user.email,
-    phone: "",
-    created_at: "",
-    confirmed_at: "",
-    email_confirmed_at: "",
-    phone_confirmed_at: "",
-    last_sign_in_at: "",
-    role: "authenticated",
-    updated_at: "",
-    identities: [],
-    factors: undefined,
-    is_anonymous: false,
-  } as unknown as User;
+  };
 }

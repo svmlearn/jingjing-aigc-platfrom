@@ -670,7 +670,7 @@ export function PlatformKnowledgeManager({
                         <span>chunks: {document.chunkCount}</span>
                         <span>source: {document.sourceName ?? "manual"}</span>
                         <span>updated: {formatDateTime(document.updatedAt)}</span>
-                        {document.storageKey ? <span>COS: {document.storageKey}</span> : null}
+                        {document.storageKey ? <span>storage key: {document.storageKey}</span> : null}
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {getKnowledgeSetIdsForDocument(document.id).length > 0 ? (

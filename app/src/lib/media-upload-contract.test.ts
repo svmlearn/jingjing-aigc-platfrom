@@ -15,7 +15,7 @@ test("media upload complete accepts valid merchant video upload", () => {
 
 test("media upload complete rejects wrong bucket, prefix, provider, and cross owner", () => {
   assertFailure({ bucketName: "other-bucket" }, "MEDIA_BUCKET_MISMATCH");
-  assertFailure({ storageProvider: "tencent_cos" }, "MEDIA_STORAGE_PROVIDER_UNSUPPORTED");
+  assertFailure({ storageProvider: "legacy_provider" }, "MEDIA_STORAGE_PROVIDER_UNSUPPORTED");
   assertFailure({ storageProvider: "supabase_storage" }, "MEDIA_STORAGE_PROVIDER_UNSUPPORTED");
   assertFailure(
     { storageKey: "merchant-media/merchant-a/originals/asset-1/source.mp4" },

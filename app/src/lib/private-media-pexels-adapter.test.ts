@@ -41,7 +41,7 @@ test("buildPexelsVideoSearchResponse returns OpenStoryline-compatible video JSON
   assertNoInternalFields(serialized);
 });
 
-test("buildPexelsPhotoSearchResponse returns Pexels-like photo JSON without COS keys or tags", () => {
+test("buildPexelsPhotoSearchResponse returns Pexels-like photo JSON without storage keys or tags", () => {
   const response = buildPexelsPhotoSearchResponse({
     clips,
     merchantId: "merchant-a",
@@ -124,7 +124,7 @@ function assertNoInternalFields(serialized: string) {
   assert.equal(serialized.includes("merchantId"), false);
   assert.equal(serialized.includes("merchant-a"), false);
   assert.equal(serialized.includes("merchant-b"), false);
-  assert.equal(serialized.includes("cosKey"), false);
+  assert.equal(serialized.includes("storageKey"), false);
   assert.equal(serialized.includes("bucketName"), false);
   assert.equal(serialized.includes("merchant-media/"), false);
   assert.equal(serialized.includes("tags"), false);
@@ -146,8 +146,8 @@ const clips: PrivateMediaClipRecord[] = [
     sceneTags: ["exterior"],
     shotTags: ["wide"],
     bucketName: "private-bucket",
-    cosKey: "merchant-media/merchant-a/clips/video-a-1.mp4",
-    thumbCosKey: "merchant-media/merchant-a/thumbs/video-a-1.jpg",
+    storageKey: "merchant-media/merchant-a/clips/video-a-1.mp4",
+    thumbStorageKey: "merchant-media/merchant-a/thumbs/video-a-1.jpg",
     mimeType: "video/mp4",
     createdAt: "2026-05-14T00:00:00.000Z",
   },
@@ -163,8 +163,8 @@ const clips: PrivateMediaClipRecord[] = [
     description: "Recent verified project lobby detail.",
     tags: ["project", "lobby"],
     bucketName: "private-bucket",
-    cosKey: "merchant-media/merchant-a/clips/video-a-2.mp4",
-    thumbCosKey: "merchant-media/merchant-a/thumbs/video-a-2.jpg",
+    storageKey: "merchant-media/merchant-a/clips/video-a-2.mp4",
+    thumbStorageKey: "merchant-media/merchant-a/thumbs/video-a-2.jpg",
     mimeType: "video/mp4",
     createdAt: "2026-05-15T00:00:00.000Z",
   },
@@ -180,8 +180,8 @@ const clips: PrivateMediaClipRecord[] = [
     description: "Project entrance from another merchant.",
     tags: ["project", "entrance"],
     bucketName: "private-bucket",
-    cosKey: "merchant-media/merchant-b/clips/video-b-1.mp4",
-    thumbCosKey: "merchant-media/merchant-b/thumbs/video-b-1.jpg",
+    storageKey: "merchant-media/merchant-b/clips/video-b-1.mp4",
+    thumbStorageKey: "merchant-media/merchant-b/thumbs/video-b-1.jpg",
     mimeType: "video/mp4",
     createdAt: "2026-05-15T00:00:00.000Z",
   },
@@ -197,8 +197,8 @@ const clips: PrivateMediaClipRecord[] = [
     description: "Should not be searchable.",
     tags: ["project", "entrance"],
     bucketName: "private-bucket",
-    cosKey: "merchant-media/merchant-a/clips/video-a-bad.mp4",
-    thumbCosKey: "merchant-media/merchant-a/thumbs/video-a-bad.jpg",
+    storageKey: "merchant-media/merchant-a/clips/video-a-bad.mp4",
+    thumbStorageKey: "merchant-media/merchant-a/thumbs/video-a-bad.jpg",
     mimeType: "video/mp4",
     createdAt: "2026-05-15T00:00:00.000Z",
   },
@@ -213,8 +213,8 @@ const clips: PrivateMediaClipRecord[] = [
     description: "Living room with daylight and clean circulation.",
     tags: ["living", "room", "daylight"],
     bucketName: "private-bucket",
-    cosKey: "merchant-media/merchant-a/clips/photo-a-1.jpg",
-    thumbCosKey: "merchant-media/merchant-a/thumbs/photo-a-1.jpg",
+    storageKey: "merchant-media/merchant-a/clips/photo-a-1.jpg",
+    thumbStorageKey: "merchant-media/merchant-a/thumbs/photo-a-1.jpg",
     mimeType: "image/jpeg",
     createdAt: "2026-05-15T00:00:00.000Z",
   },

@@ -14,7 +14,7 @@ export type MerchantMediaAssetRecord = {
   uploadedByUserId: string;
   mediaType: "image" | "video";
   source: MerchantMediaAssetSource;
-  sourceCosKey: string;
+  sourceStorageKey: string;
   status:
     | "uploaded"
     | "validating"
@@ -50,8 +50,8 @@ export function assertMerchantMediaAssetCanEnterTeamLibrary(asset: MerchantMedia
   if (!allowedTeamLibrarySources.has(asset.source)) {
     throw new MerchantMediaLibraryContractError(`source ${asset.source} cannot enter merchant_media_*.`);
   }
-  if (!asset.sourceCosKey.startsWith(`merchant-media/${asset.merchantId}/originals/${asset.id}/`)) {
-    throw new MerchantMediaLibraryContractError("source_cos_key must stay under merchant-media/{merchant_id}/originals/{asset_id}/.");
+  if (!getMerchantMediaAssetStorageKey(asset).startsWith(`merchant-media/${asset.merchantId}/originals/${asset.id}/`)) {
+    throw new MerchantMediaLibraryContractError("source storage key must stay under merchant-media/{merchant_id}/originals/{asset_id}/.");
   }
 }
 
@@ -106,10 +106,10 @@ function validateReadyClip(input: {
   const clipUsesOriginalObject =
     (input.clip.clipType === "full_video" || input.clip.clipType === "image") &&
     input.clip.clipIndex === 0 &&
-    input.clip.cosKey === input.asset.sourceCosKey;
-  const clipUsesDerivedObject = input.clip.cosKey.startsWith(`merchant-media/${input.asset.merchantId}/clips/${input.asset.id}/`);
+    getPrivateMediaClipStorageKey(input.clip) === getMerchantMediaAssetStorageKey(input.asset);
+  const clipUsesDerivedObject = getPrivateMediaClipStorageKey(input.clip).startsWith(`merchant-media/${input.asset.merchantId}/clips/${input.asset.id}/`);
   if (!clipUsesOriginalObject && !clipUsesDerivedObject) {
-    input.errors.push("ready clip cos_key must reference the original object or stay under merchant-media/{merchant_id}/clips/{asset_id}/.");
+    input.errors.push("ready clip storage key must reference the original object or stay under merchant-media/{merchant_id}/clips/{asset_id}/.");
   }
   if (input.clip.clipIndex != null && (!Number.isInteger(input.clip.clipIndex) || input.clip.clipIndex < 0)) {
     input.errors.push("ready clip_index must be a non-negative integer.");
@@ -153,8 +153,8 @@ function validateReadyClip(input: {
       input.errors.push("image clip must not write video duration_seconds.");
     }
   }
-  if (!input.clip.thumbCosKey?.startsWith(`merchant-media/${input.asset.merchantId}/thumbs/${input.asset.id}/`)) {
-    input.errors.push("ready clip thumb_cos_key is required under merchant-media/{merchant_id}/thumbs/{asset_id}/.");
+  if (!getPrivateMediaClipThumbStorageKey(input.clip)?.startsWith(`merchant-media/${input.asset.merchantId}/thumbs/${input.asset.id}/`)) {
+    input.errors.push("ready clip thumb storage key is required under merchant-media/{merchant_id}/thumbs/{asset_id}/.");
   }
   if (!input.clip.description.trim()) {
     input.errors.push("ready clip description is required.");
@@ -180,3 +180,15 @@ function validateReadyClip(input: {
 }
 
 export class MerchantMediaLibraryContractError extends Error {}
+
+export function getMerchantMediaAssetStorageKey(asset: MerchantMediaAssetRecord) {
+  return asset.sourceStorageKey;
+}
+
+export function getPrivateMediaClipStorageKey(clip: PrivateMediaClipRecord) {
+  return clip.storageKey;
+}
+
+export function getPrivateMediaClipThumbStorageKey(clip: PrivateMediaClipRecord) {
+  return clip.thumbStorageKey ?? null;
+}

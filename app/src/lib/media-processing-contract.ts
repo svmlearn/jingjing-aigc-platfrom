@@ -1,4 +1,5 @@
 import {
+  getMerchantMediaAssetStorageKey,
   validateMerchantMediaReadyAsset,
   type MerchantMediaAssetRecord,
 } from "./merchant-media-library-contract.ts";
@@ -29,7 +30,7 @@ export type ProcessMerchantRawUploadInput = {
   detectedMimeType: string;
   metadata?: ExtractedMediaMetadata | null;
   maxAutoReadyVideoDurationSeconds?: number | null;
-  thumbnailCosKey?: string | null;
+  thumbnailStorageKey?: string | null;
   tags?: ProcessedMediaTags | null;
   now: string;
 };
@@ -109,7 +110,8 @@ export function processMerchantRawUploadFixture(
 
   const metadata = input.metadata;
   const tags = input.tags;
-  if (!metadata || !tags || !input.thumbnailCosKey) {
+  const thumbnailStorageKey = getThumbnailStorageKey(input);
+  if (!metadata || !tags || !thumbnailStorageKey) {
     return {
       ok: false,
       status: "processing_failed",
@@ -145,8 +147,8 @@ export function processMerchantRawUploadFixture(
     tagConfidence: tags.tagConfidence,
     tagSource: tags.tagSource,
     bucketName: "fixture-private-bucket",
-    cosKey: input.asset.sourceCosKey,
-    thumbCosKey: input.thumbnailCosKey,
+    storageKey: getMerchantMediaAssetStorageKey(input.asset),
+    thumbStorageKey: thumbnailStorageKey,
     mimeType: metadata.mimeType,
     createdAt: input.now,
   };
@@ -227,11 +229,16 @@ function validateProcessingEvidence(input: ProcessMerchantRawUploadInput) {
   ) {
     errors.push("metadata duration_seconds is required for video.");
   }
-  if (!input.thumbnailCosKey?.startsWith(`merchant-media/${input.asset.merchantId}/thumbs/${input.asset.id}/`)) {
-    errors.push("thumbnail COS key is required under merchant-media/{merchant_id}/thumbs/{asset_id}/.");
+  const thumbnailStorageKey = getThumbnailStorageKey(input);
+  if (!thumbnailStorageKey?.startsWith(`merchant-media/${input.asset.merchantId}/thumbs/${input.asset.id}/`)) {
+    errors.push("thumbnail storage key is required under merchant-media/{merchant_id}/thumbs/{asset_id}/.");
   }
 
   return errors;
+}
+
+function getThumbnailStorageKey(input: Pick<ProcessMerchantRawUploadInput, "thumbnailStorageKey">) {
+  return input.thumbnailStorageKey?.trim() || null;
 }
 
 function validateReadyTags(tags: ProcessedMediaTags | null | undefined) {

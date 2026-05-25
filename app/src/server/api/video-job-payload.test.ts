@@ -28,7 +28,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
       {
         id: "asset-1",
         assetType: "video",
-        storageProvider: "tencent_cos",
+        storageProvider: "aliyun_oss",
         bucketName: "jj-content-staging-1341668543",
         storageKey: "draft-inputs/merchant-1/draft-1/talking-head.mp4",
         mimeType: "video/mp4",
@@ -110,7 +110,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     {
       asset_id: "asset-1",
       asset_type: "video",
-      storage_provider: "tencent_cos",
+      storage_provider: "aliyun_oss",
       bucket_name: "jj-content-staging-1341668543",
       storage_key: "draft-inputs/merchant-1/draft-1/talking-head.mp4",
       mime_type: "video/mp4",
@@ -227,7 +227,7 @@ test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merch
       {
         id: "user-head-1",
         assetType: "video",
-        storageProvider: "tencent_cos",
+        storageProvider: "aliyun_oss",
         bucketName: "jj-content-staging-1341668543",
         storageKey: "draft-inputs/merchant-1/draft-1/opening-talking-head.mp4",
         mimeType: "video/mp4",
@@ -267,8 +267,8 @@ test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merch
           mediaType: "video",
           clipType: "segment",
           bucketName: "jj-private-bucket",
-          cosKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
-          thumbCosKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
+          storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
+          thumbStorageKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
           mimeType: "video/mp4",
           durationSeconds: 5,
           startTimeSeconds: 0,
@@ -293,6 +293,40 @@ test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merch
   const rawPayload = payload as Record<string, unknown>;
   assert.equal(rawPayload.difyFinalJson, undefined);
   assert.equal(rawPayload.difyRawOutputs, undefined);
+});
+
+test("buildVideoEditJobInputPayload matches merchant media clips by provider-neutral storage key", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      productionScenes: [
+        {
+          sceneNo: 2,
+          timeRange: "00:05-00:12",
+          shotRequirement: "unique-storage-token",
+          visual: "",
+          materials: [],
+          fallbackShot: null,
+        },
+      ],
+    },
+    materialReferences: [],
+    assets: [],
+    merchantMediaClips: [
+      {
+        ...merchantClip,
+        storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/unique-storage-token.mp4",
+        thumbStorageKey: merchantClip.thumbStorageKey,
+      },
+    ],
+  });
+
+  assert.deepEqual(payload.materialContext.merchantMediaMatches[0]?.clipIds, ["merchant-clip-entrance"]);
+  assert.equal(
+    payload.materialContext.merchantMediaMatches[0]?.clips[0]?.storageKey,
+    "merchant-media/merchant-1/clips/merchant-asset-1/unique-storage-token.mp4",
+  );
 });
 
 test("buildVideoEditJobInputPayload marks intro/outro scenes as user talking head", () => {
@@ -326,7 +360,7 @@ test("buildVideoEditJobInputPayload marks intro/outro scenes as user talking hea
       {
         id: "user-head-1",
         assetType: "video",
-        storageProvider: "tencent_cos",
+        storageProvider: "aliyun_oss",
         bucketName: "jj-content-staging-1341668543",
         storageKey: "draft-inputs/merchant-1/draft-1/opening-talking-head.mp4",
         mimeType: "video/mp4",
@@ -683,7 +717,7 @@ test("buildVideoEditJobInputPayload rejects empty script text", () => {
   );
 });
 
-test("buildVideoEditJobInputPayload rejects bad COS input assets", () => {
+test("buildVideoEditJobInputPayload rejects bad object storage input assets", () => {
   assert.throws(
     () =>
       buildVideoEditJobInputPayload({
@@ -694,7 +728,7 @@ test("buildVideoEditJobInputPayload rejects bad COS input assets", () => {
           {
             id: "asset-bad",
             assetType: "video",
-            storageProvider: "tencent_cos",
+            storageProvider: "aliyun_oss",
             bucketName: null,
             storageKey: "draft-inputs/bad.mp4",
             mimeType: "video/mp4",
@@ -719,11 +753,11 @@ test("buildVideoEditJobInputPayload rejects unsupported input asset providers", 
         materialReferences: [],
         assets: [
           {
-            id: "asset-supabase",
+            id: "asset-unsupported",
             assetType: "video",
-            storageProvider: "supabase_storage",
+            storageProvider: "legacy_unknown" as never,
             bucketName: null,
-            storageKey: "draft-inputs/supabase.mp4",
+            storageKey: "draft-inputs/legacy-unknown.mp4",
             mimeType: "video/mp4",
             fileSizeBytes: 1,
             etag: null,
@@ -806,7 +840,7 @@ test("buildVideoEditJobInputPayload only sends video assets to worker and orders
       {
         id: "asset-2",
         assetType: "image",
-        storageProvider: "tencent_cos",
+        storageProvider: "aliyun_oss",
         bucketName: " jj-content-staging-1341668543 ",
         storageKey: " draft-inputs/merchant-1/draft-1/cover.jpg ",
         mimeType: "image/jpeg",
@@ -817,7 +851,7 @@ test("buildVideoEditJobInputPayload only sends video assets to worker and orders
       {
         id: "asset-1",
         assetType: "video",
-        storageProvider: "tencent_cos",
+        storageProvider: "aliyun_oss",
         bucketName: "jj-content-staging-1341668543",
         storageKey: "draft-inputs/merchant-1/draft-1/demo.mp4",
         mimeType: "video/mp4",
@@ -869,7 +903,7 @@ test("buildVideoEditJobInputPayload builds scene asset queries from production s
       {
         id: "asset-living-room",
         assetType: "video",
-        storageProvider: "tencent_cos",
+        storageProvider: "aliyun_oss",
         bucketName: "jj-content-staging-1341668543",
         storageKey: "draft-inputs/merchant-1/draft-1/样板间-客厅.mp4",
         mimeType: "video/mp4",
@@ -920,8 +954,8 @@ const merchantClip: PrivateMediaClipRecord = {
   sceneTags: ["exterior"],
   shotTags: ["wide"],
   bucketName: "jj-private-bucket",
-  cosKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
-  thumbCosKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
+  storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
+  thumbStorageKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
   mimeType: "video/mp4",
   createdAt: "2026-05-15T00:00:00.000Z",
 } as const;

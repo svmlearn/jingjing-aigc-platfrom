@@ -515,7 +515,7 @@ async function createKnowledgeDocument(pool, input) {
       summary_text,
       metadata,
       created_by_user_id
-    ) values ($1, $2, $3, $4, 'supabase_storage', 'text/plain; charset=utf-8', $5, $6, $7::jsonb, $8)
+    ) values ($1, $2, $3, $4, 'inline_seed', 'text/plain; charset=utf-8', $5, $6, $7::jsonb, $8)
     returning id, scope, merchant_id, title, metadata
     `,
     [

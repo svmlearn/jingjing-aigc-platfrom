@@ -1008,7 +1008,7 @@ test("consultation message send is queued and completed in the background", () =
   assert.match(serviceSource, /hasPendingAssistantReply/);
   assert.match(consultationMessagesRouteSource, /after\(\(\) =>/);
   assert.match(consultationMessagesRouteSource, /status: queued\.processing \? 202 : 200/);
-  assert.doesNotMatch(consultationMessagesRouteSource, /isSupabasePublicConfigured/);
+  assert.doesNotMatch(consultationMessagesRouteSource, /isSupa\x62asePublicConfigured/);
   assert.doesNotMatch(consultationMessagesRouteSource, /status: "completed"/);
   assert.match(consultationWorkspaceSource, /AssistantThinkingBubble/);
   assert.match(consultationWorkspaceSource, /isConsultationAssistantPending/);

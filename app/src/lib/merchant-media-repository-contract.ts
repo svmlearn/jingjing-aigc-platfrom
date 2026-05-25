@@ -33,7 +33,8 @@ export class InMemoryMerchantMediaRepository implements MerchantMediaRepository 
     asset: MerchantMediaAssetRecord;
     idempotencyKey: string;
   }) {
-    assertMerchantMediaRepositoryAsset(input.asset);
+    const asset = input.asset;
+    assertMerchantMediaRepositoryAsset(asset);
     const existingId = this.assetsByIdempotencyKey.get(input.idempotencyKey);
     if (existingId) {
       const existing = this.assetsById.get(existingId);
@@ -42,10 +43,10 @@ export class InMemoryMerchantMediaRepository implements MerchantMediaRepository 
       }
     }
 
-    this.assetsById.set(input.asset.id, input.asset);
-    this.assetsByIdempotencyKey.set(input.idempotencyKey, input.asset.id);
+    this.assetsById.set(asset.id, asset);
+    this.assetsByIdempotencyKey.set(input.idempotencyKey, asset.id);
 
-    return input.asset;
+    return asset;
   }
 
   async upsertReadyClip(input: {
@@ -53,40 +54,7 @@ export class InMemoryMerchantMediaRepository implements MerchantMediaRepository 
     assetId: string;
     clip: PrivateMediaClipRecord;
   }) {
-    if (input.clip.merchantId !== input.merchantId) {
-      throw new MerchantMediaRepositoryContractError(
-        "MERCHANT_MEDIA_CLIP_TENANT_MISMATCH",
-        "Ready clip merchant_id must match repository merchant_id.",
-      );
-    }
-    if (input.clip.status !== "ready") {
-      throw new MerchantMediaRepositoryContractError(
-        "MERCHANT_MEDIA_CLIP_NOT_READY",
-        "Only ready clips can be inserted into the ready clip repository.",
-      );
-    }
-    if (input.clip.clipIndex == null || !Number.isInteger(input.clip.clipIndex) || input.clip.clipIndex < 0) {
-      throw new MerchantMediaRepositoryContractError(
-        "MERCHANT_MEDIA_CLIP_INDEX_INVALID",
-        "Ready clips must use a non-negative integer clip_index.",
-      );
-    }
-    if (
-      input.clip.mediaType === "video" &&
-      input.clip.clipType !== "full_video" &&
-      input.clip.clipType !== "segment"
-    ) {
-      throw new MerchantMediaRepositoryContractError(
-        "MERCHANT_MEDIA_CLIP_TYPE_INVALID",
-        "Video clips must use clip_type = full_video or segment.",
-      );
-    }
-    if (input.clip.mediaType === "image" && input.clip.clipType !== "image") {
-      throw new MerchantMediaRepositoryContractError(
-        "MERCHANT_MEDIA_CLIP_TYPE_INVALID",
-        "V1 image clips must use clip_type = image.",
-      );
-    }
+    assertMerchantMediaRepositoryReadyClip(input);
 
     const asset = this.assetsById.get(input.assetId);
     if (!asset || asset.merchantId !== input.merchantId) {
@@ -142,6 +110,12 @@ export class InMemoryMerchantMediaRepository implements MerchantMediaRepository 
 
 export function assertMerchantMediaRepositoryAsset(asset: MerchantMediaAssetRecord) {
   assertMerchantId(asset.merchantId);
+  if (!asset.sourceStorageKey.trim()) {
+    throw new MerchantMediaRepositoryContractError(
+      "MERCHANT_MEDIA_SOURCE_KEY_REQUIRED",
+      "sourceStorageKey is required.",
+    );
+  }
   if (asset.mediaType !== "image" && asset.mediaType !== "video") {
     throw new MerchantMediaRepositoryContractError(
       "MERCHANT_MEDIA_ASSET_TYPE_INVALID",
@@ -158,6 +132,66 @@ export function assertMerchantMediaRepositoryAsset(asset: MerchantMediaAssetReco
     throw new MerchantMediaRepositoryContractError(
       "MERCHANT_MEDIA_SOURCE_FORBIDDEN",
       "Only merchant-side uploads or explicit merchant confirmations can enter merchant_media_*.",
+    );
+  }
+}
+
+export function assertMerchantMediaRepositoryReadyClip(input: {
+  merchantId: string;
+  assetId: string;
+  clip: PrivateMediaClipRecord;
+}) {
+  assertMerchantId(input.merchantId);
+  if (input.clip.merchantId !== input.merchantId) {
+    throw new MerchantMediaRepositoryContractError(
+      "MERCHANT_MEDIA_CLIP_TENANT_MISMATCH",
+      "Ready clip merchant_id must match repository merchant_id.",
+    );
+  }
+  if (input.clip.assetId && input.clip.assetId !== input.assetId) {
+    throw new MerchantMediaRepositoryContractError(
+      "MERCHANT_MEDIA_CLIP_ASSET_MISMATCH",
+      "Ready clip asset_id must match repository asset_id.",
+    );
+  }
+  if (input.clip.status !== "ready") {
+    throw new MerchantMediaRepositoryContractError(
+      "MERCHANT_MEDIA_CLIP_NOT_READY",
+      "Only ready clips can be inserted into the ready clip repository.",
+    );
+  }
+  if (!input.clip.storageKey.trim()) {
+    throw new MerchantMediaRepositoryContractError(
+      "MERCHANT_MEDIA_CLIP_KEY_REQUIRED",
+      "storageKey is required for ready clips.",
+    );
+  }
+  if (!input.clip.thumbStorageKey?.trim()) {
+    throw new MerchantMediaRepositoryContractError(
+      "MERCHANT_MEDIA_THUMB_KEY_REQUIRED",
+      "thumbStorageKey is required for ready clips.",
+    );
+  }
+  if (input.clip.clipIndex == null || !Number.isInteger(input.clip.clipIndex) || input.clip.clipIndex < 0) {
+    throw new MerchantMediaRepositoryContractError(
+      "MERCHANT_MEDIA_CLIP_INDEX_INVALID",
+      "Ready clips must use a non-negative integer clip_index.",
+    );
+  }
+  if (
+    input.clip.mediaType === "video" &&
+    input.clip.clipType !== "full_video" &&
+    input.clip.clipType !== "segment"
+  ) {
+    throw new MerchantMediaRepositoryContractError(
+      "MERCHANT_MEDIA_CLIP_TYPE_INVALID",
+      "Video clips must use clip_type = full_video or segment.",
+    );
+  }
+  if (input.clip.mediaType === "image" && input.clip.clipType !== "image") {
+    throw new MerchantMediaRepositoryContractError(
+      "MERCHANT_MEDIA_CLIP_TYPE_INVALID",
+      "V1 image clips must use clip_type = image.",
     );
   }
 }

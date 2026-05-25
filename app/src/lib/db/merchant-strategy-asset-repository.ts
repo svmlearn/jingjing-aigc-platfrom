@@ -2,14 +2,11 @@ import "server-only";
 
 import type { MerchantStrategyAssetDto, StrategySnapshotDto } from "@/contracts/consultation";
 import {
-  isAppPostgresConfigured,
-  isAppPostgresPreferred,
   mapPostgresError,
   queryAppDb,
 } from "@/lib/server-db/postgres";
+import { isLocalDemoRuntime } from "@/lib/demo/local-demo-runtime";
 import { emptyStrategySnapshot, toStrategySnapshot } from "@/lib/strategy-snapshot";
-import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
-import { ApiError } from "@/server/api/errors";
 
 type MerchantStrategyAssetRow = {
   merchant_id: string;
@@ -34,40 +31,25 @@ export async function getMerchantStrategyAsset(
 export async function getMerchantStrategyAssetDocument(
   merchantId: string,
 ): Promise<MerchantStrategyAssetDto | null> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<MerchantStrategyAssetRow>(
-        `
-        select ${merchantStrategyAssetSelect}
-        from public.merchant_strategy_assets
-        where merchant_id = $1
-        limit 1
-        `,
-        [merchantId],
-      );
-
-      return result.rows[0] ? mapMerchantStrategyAsset(result.rows[0]) : null;
-    } catch (error) {
-      throw mapPostgresError(error, "MERCHANT_STRATEGY_ASSET_FETCH_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     return demoMerchantStrategyAssets.get(merchantId) ?? null;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("merchant_strategy_assets")
-    .select(merchantStrategyAssetSelect)
-    .eq("merchant_id", merchantId)
-    .maybeSingle();
+  try {
+    const result = await queryAppDb<MerchantStrategyAssetRow>(
+      `
+      select ${merchantStrategyAssetSelect}
+      from public.merchant_strategy_assets
+      where merchant_id = $1
+      limit 1
+      `,
+      [merchantId],
+    );
 
-  if (error) {
-    throw new ApiError(500, "MERCHANT_STRATEGY_ASSET_FETCH_FAILED", error.message);
+    return result.rows[0] ? mapMerchantStrategyAsset(result.rows[0]) : null;
+  } catch (error) {
+    throw mapPostgresError(error, "MERCHANT_STRATEGY_ASSET_FETCH_FAILED");
   }
-
-  return data ? mapMerchantStrategyAsset(data as unknown as MerchantStrategyAssetRow) : null;
 }
 
 export async function upsertMerchantStrategyAsset(input: {
@@ -89,47 +71,7 @@ export async function upsertMerchantStrategyAssetDocument(input: {
   canonicalSnapshot?: Record<string, unknown> | null;
   compiledContext?: Record<string, unknown> | null;
 }): Promise<MerchantStrategyAssetDto> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const existing = await getMerchantStrategyAssetDocument(input.merchantId);
-      const strategyMarkdown =
-        normalizeStrategyMarkdown(input.strategyMarkdown) ||
-        existing?.strategyMarkdown ||
-        buildStrategyAssetMarkdown(input.strategySnapshot);
-      const compiledContext = input.compiledContext ?? existing?.compiledContext ?? null;
-      const result = await queryAppDb<MerchantStrategyAssetRow>(
-        `
-        insert into public.merchant_strategy_assets (
-          merchant_id,
-          strategy_snapshot,
-          strategy_markdown,
-          canonical_snapshot,
-          compiled_context
-        ) values ($1, $2::jsonb, $3, $4::jsonb, $5::jsonb)
-        on conflict (merchant_id) do update
-        set strategy_snapshot = excluded.strategy_snapshot,
-            strategy_markdown = excluded.strategy_markdown,
-            canonical_snapshot = excluded.canonical_snapshot,
-            compiled_context = excluded.compiled_context,
-            updated_at = timezone('utc', now())
-        returning ${merchantStrategyAssetSelect}
-        `,
-        [
-          input.merchantId,
-          JSON.stringify(input.strategySnapshot),
-          strategyMarkdown,
-          JSON.stringify(input.canonicalSnapshot ?? input.strategySnapshot),
-          compiledContext === null ? null : JSON.stringify(compiledContext),
-        ],
-      );
-
-      return mapMerchantStrategyAsset(result.rows[0]);
-    } catch (error) {
-      throw mapPostgresError(error, "MERCHANT_STRATEGY_ASSET_UPSERT_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const now = new Date().toISOString();
     const current = demoMerchantStrategyAssets.get(input.merchantId);
     const asset: MerchantStrategyAssetDto = {
@@ -147,36 +89,43 @@ export async function upsertMerchantStrategyAssetDocument(input: {
     return asset;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const existing = await getMerchantStrategyAssetDocument(input.merchantId);
-  const strategyMarkdown =
-    normalizeStrategyMarkdown(input.strategyMarkdown) ||
-    existing?.strategyMarkdown ||
-    buildStrategyAssetMarkdown(input.strategySnapshot);
-  const { data, error } = await supabase
-    .from("merchant_strategy_assets")
-    .upsert(
-      {
-        merchant_id: input.merchantId,
-        strategy_snapshot: input.strategySnapshot,
-        strategy_markdown: strategyMarkdown,
-        canonical_snapshot: input.canonicalSnapshot ?? input.strategySnapshot,
-        compiled_context: input.compiledContext ?? existing?.compiledContext ?? null,
-      },
-      { onConflict: "merchant_id" },
-    )
-    .select(merchantStrategyAssetSelect)
-    .single();
-
-  if (error || !data) {
-    throw new ApiError(
-      500,
-      "MERCHANT_STRATEGY_ASSET_UPSERT_FAILED",
-      error?.message ?? "Upsert failed.",
+  try {
+    const existing = await getMerchantStrategyAssetDocument(input.merchantId);
+    const strategyMarkdown =
+      normalizeStrategyMarkdown(input.strategyMarkdown) ||
+      existing?.strategyMarkdown ||
+      buildStrategyAssetMarkdown(input.strategySnapshot);
+    const compiledContext = input.compiledContext ?? existing?.compiledContext ?? null;
+    const result = await queryAppDb<MerchantStrategyAssetRow>(
+      `
+      insert into public.merchant_strategy_assets (
+        merchant_id,
+        strategy_snapshot,
+        strategy_markdown,
+        canonical_snapshot,
+        compiled_context
+      ) values ($1, $2::jsonb, $3, $4::jsonb, $5::jsonb)
+      on conflict (merchant_id) do update
+      set strategy_snapshot = excluded.strategy_snapshot,
+          strategy_markdown = excluded.strategy_markdown,
+          canonical_snapshot = excluded.canonical_snapshot,
+          compiled_context = excluded.compiled_context,
+          updated_at = timezone('utc', now())
+      returning ${merchantStrategyAssetSelect}
+      `,
+      [
+        input.merchantId,
+        JSON.stringify(input.strategySnapshot),
+        strategyMarkdown,
+        JSON.stringify(input.canonicalSnapshot ?? input.strategySnapshot),
+        compiledContext === null ? null : JSON.stringify(compiledContext),
+      ],
     );
-  }
 
-  return mapMerchantStrategyAsset(data as unknown as MerchantStrategyAssetRow);
+    return mapMerchantStrategyAsset(result.rows[0]);
+  } catch (error) {
+    throw mapPostgresError(error, "MERCHANT_STRATEGY_ASSET_UPSERT_FAILED");
+  }
 }
 
 export async function ensureMerchantStrategyAsset(input: {
@@ -256,14 +205,6 @@ function normalizeStrategyMarkdown(value?: string | null) {
   const normalized = value?.replace(/\r\n/g, "\n").trim();
 
   return normalized ? normalized.slice(0, 24000) : "";
-}
-
-function shouldUseAppPostgres() {
-  return isAppPostgresConfigured() && isAppPostgresPreferred();
-}
-
-function shouldUseDemoFallback() {
-  return !shouldUseAppPostgres() && !isSupabaseAdminConfigured();
 }
 
 function toIsoString(value: string | Date) {

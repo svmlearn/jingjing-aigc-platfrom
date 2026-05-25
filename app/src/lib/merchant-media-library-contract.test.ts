@@ -44,7 +44,7 @@ test("ready merchant media asset rejects missing clips and incomplete ready meta
         ...readyClip,
         description: "",
         tags: ["one"],
-        thumbCosKey: null,
+        thumbStorageKey: null,
         durationSeconds: null,
       },
     ],
@@ -58,7 +58,7 @@ test("ready merchant media asset rejects missing clips and incomplete ready meta
   if (!badClip.ok) {
     assert.ok(badClip.errors.some((error) => error.includes("description")));
     assert.ok(badClip.errors.some((error) => error.includes("three tags")));
-    assert.ok(badClip.errors.some((error) => error.includes("thumb_cos_key")));
+    assert.ok(badClip.errors.some((error) => error.includes("thumb storage key")));
     assert.ok(badClip.errors.some((error) => error.includes("duration_seconds")));
   }
 });
@@ -82,7 +82,7 @@ const asset: MerchantMediaAssetRecord = {
   uploadedByUserId: "user-a",
   mediaType: "video",
   source: "merchant_upload",
-  sourceCosKey: "merchant-media/merchant-a/originals/asset-1/source.mp4",
+  sourceStorageKey: "merchant-media/merchant-a/originals/asset-1/source.mp4",
   status: "ready",
   createdAt: "2026-05-15T00:00:00.000Z",
 };
@@ -104,8 +104,8 @@ const readyClip: PrivateMediaClipRecord = {
   description: "Project entrance with nearby shops and readable signage.",
   tags: ["project", "entrance", "shops"],
   bucketName: "private-bucket",
-  cosKey: "merchant-media/merchant-a/clips/asset-1/clip-1.mp4",
-  thumbCosKey: "merchant-media/merchant-a/thumbs/asset-1/clip-1.jpg",
+  storageKey: "merchant-media/merchant-a/clips/asset-1/clip-1.mp4",
+  thumbStorageKey: "merchant-media/merchant-a/thumbs/asset-1/clip-1.jpg",
   mimeType: "video/mp4",
   createdAt: "2026-05-15T00:00:00.000Z",
 };

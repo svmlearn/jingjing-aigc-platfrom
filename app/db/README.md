@@ -9,7 +9,7 @@ First-phase scope:
 
 - Minimal `app_users` and `user_sessions` for IP-stage login.
 - Merchant, member, draft, variant, media asset, and video job tables.
-- Tencent COS metadata stored as `bucket_name + storage_key`.
+- Aliyun OSS / object storage metadata stored as `bucket_name + storage_key`.
 - Worker reliability columns for claim, heartbeat, timeout, failure reason,
   retry, and manual rerun tracking.
 
@@ -38,10 +38,10 @@ Check app-side domestic environment without printing secrets:
 node app/scripts/check-domestic-app-env.mjs --env-file app/.env.production
 ```
 
-Check real domestic COS put / signed download / delete without printing secrets:
+Check real domestic Aliyun OSS signed PUT / signed download / delete without printing secrets:
 
 ```bash
-node app/scripts/check-domestic-cos-roundtrip.mjs --env-file app/.env.production
+node app/scripts/check-aliyun-oss-signed-put-smoke.mjs --env-file app/.env.production
 ```
 
 Generate a first test password hash before inserting a manual `app_users` row:

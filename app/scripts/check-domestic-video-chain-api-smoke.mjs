@@ -19,7 +19,7 @@ const password = getArgValue("--password") || process.env.DOMESTIC_SMOKE_PASSWOR
 const provider = normalizeStorageProvider(
   getArgValue("--provider") || process.env.STORAGE_PROVIDER?.trim() || "aliyun_oss",
 );
-const bucketName = getArgValue("--bucket") || defaultBucketForProvider(provider);
+const bucketName = getArgValue("--bucket") || defaultBucketForProvider();
 const fileName = getArgValue("--file-name") || "codex-domestic-api-smoke.mp4";
 const withUploadIntent =
   hasFlag("--with-upload-intent") ||
@@ -43,10 +43,7 @@ if (missing.length > 0) {
         baseUrl: ["--base-url", "DOMESTIC_APP_BASE_URL", "APP_BASE_URL"],
         email: ["--email", "DOMESTIC_SMOKE_EMAIL"],
         password: ["--password", "DOMESTIC_SMOKE_PASSWORD"],
-        bucket:
-          provider === "aliyun_oss"
-            ? ["--bucket", "ALIYUN_OSS_BUCKET"]
-            : ["--bucket", "COS_BUCKET"],
+        bucket: ["--bucket", "ALIYUN_OSS_BUCKET"],
         provider: ["--provider", "STORAGE_PROVIDER"],
       },
     },
@@ -94,7 +91,7 @@ try {
       })
     : null;
   const uploadIntentPayload = uploadIntent?.body?.uploadIntent ?? null;
-  const uploadIntentShape = inspectUploadIntentShape(uploadIntentPayload, provider);
+  const uploadIntentShape = inspectUploadIntentShape(uploadIntentPayload);
   const signedPut = await performSignedPutIfAvailable({
     uploadIntent: uploadIntentPayload,
     provider,
@@ -103,7 +100,6 @@ try {
     firstString(
       uploadIntentPayload?.storageKey,
       uploadIntentPayload?.uploadKey,
-      uploadIntentPayload?.cosKey,
     ) ??
     [
       "draft-inputs",
@@ -187,7 +183,7 @@ try {
         jobCreate.body?.error?.code,
       ]),
       note: withUploadIntent
-        ? "API smoke with upload-intent check. Aliyun OSS uses signed PUT; Tencent COS validates STS shape. It does not run worker, verify final.mp4, or replace mobile browser e2e."
+        ? "API smoke with upload-intent check. Aliyun OSS uses signed PUT. It does not run worker, verify final.mp4, or replace mobile browser e2e."
         : "API smoke only. It does not upload bytes, run worker, verify final.mp4, or replace mobile browser e2e.",
     },
     passed ? 0 : 1,
@@ -315,7 +311,7 @@ function extractCookieHeader(response) {
     .join("; ");
 }
 
-function inspectUploadIntentShape(uploadIntent, selectedProvider) {
+function inspectUploadIntentShape(uploadIntent) {
   if (!uploadIntent || typeof uploadIntent !== "object") {
     return {
       complete: false,
@@ -325,30 +321,20 @@ function inspectUploadIntentShape(uploadIntent, selectedProvider) {
   }
 
   const commonFields = ["bucket", "region", "expiredTime"];
-  const providerFields =
-    selectedProvider === "aliyun_oss"
-      ? ["uploadUrl", "uploadMethod"]
-      : ["cosKey", "TmpSecretId", "TmpSecretKey", "Token"];
+  const providerFields = ["uploadUrl", "uploadMethod"];
   const missingFields = [...commonFields, ...providerFields].filter((field) =>
     isMissingUploadIntentField(uploadIntent, field),
   );
-  if (
-    selectedProvider === "aliyun_oss" &&
-    !firstString(uploadIntent.storageKey, uploadIntent.uploadKey, uploadIntent.cosKey)
-  ) {
-    missingFields.push("storageKey|uploadKey|cosKey");
+  if (!firstString(uploadIntent.storageKey, uploadIntent.uploadKey)) {
+    missingFields.push("storageKey|uploadKey");
   }
 
   return {
     complete: missingFields.length === 0,
     credentialsPresent:
-      selectedProvider === "aliyun_oss"
-        ? typeof uploadIntent.uploadUrl === "string" &&
-          uploadIntent.uploadUrl.length > 0 &&
-          uploadIntent.uploadMethod === "PUT"
-        : ["TmpSecretId", "TmpSecretKey", "Token"].every(
-            (field) => typeof uploadIntent[field] === "string" && uploadIntent[field].length > 0,
-          ),
+      typeof uploadIntent.uploadUrl === "string" &&
+      uploadIntent.uploadUrl.length > 0 &&
+      uploadIntent.uploadMethod === "PUT",
     missingFields,
   };
 }
@@ -390,7 +376,7 @@ function isMissingUploadIntentField(uploadIntent, field) {
 function normalizeStorageProvider(value) {
   const normalized = String(value || "").trim().toLowerCase();
 
-  if (normalized === "tencent_cos" || normalized === "aliyun_oss") {
+  if (normalized === "aliyun_oss") {
     return normalized;
   }
 
@@ -398,16 +384,14 @@ function normalizeStorageProvider(value) {
     {
       status: "invalid_provider",
       provider: value,
-      message: "Provider must be tencent_cos or aliyun_oss.",
+      message: "Provider must be aliyun_oss.",
     },
     2,
   );
 }
 
-function defaultBucketForProvider(selectedProvider) {
-  return selectedProvider === "aliyun_oss"
-    ? process.env.ALIYUN_OSS_BUCKET || ""
-    : process.env.COS_BUCKET || "";
+function defaultBucketForProvider() {
+  return process.env.ALIYUN_OSS_BUCKET || "";
 }
 
 function firstString(...values) {

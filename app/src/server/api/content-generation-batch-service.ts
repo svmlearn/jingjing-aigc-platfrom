@@ -936,10 +936,6 @@ function formatVideoScriptText(finalJson: DifyFinalJson) {
 }
 
 function buildStoragePath(asset: MediaAssetDto) {
-  if (asset.storageProvider === "tencent_cos") {
-    return asset.bucketName ? `cos://${asset.bucketName}/${asset.storageKey}` : asset.storageKey;
-  }
-
   if (asset.storageProvider === "aliyun_oss") {
     return asset.bucketName ? `oss://${asset.bucketName}/${asset.storageKey}` : asset.storageKey;
   }
@@ -949,7 +945,7 @@ function buildStoragePath(asset: MediaAssetDto) {
 
 function buildSignedPreviewUrl(asset: MediaAssetDto) {
   try {
-    if (asset.storageProvider === "tencent_cos" || asset.storageProvider === "aliyun_oss") {
+    if (asset.storageProvider === "aliyun_oss") {
       return getObjectStorageProvider(asset.storageProvider).createSignedReadUrl({
         bucketName: asset.bucketName,
         storageKey: asset.storageKey,

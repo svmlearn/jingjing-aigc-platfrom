@@ -126,10 +126,10 @@ function unavailable(
 
 function getStorageKeyForDownloadKind(clip: PrivateMediaClipRecord, kind: PrivateMediaDownloadKind) {
   if (kind === "thumb") {
-    return clip.thumbCosKey ?? null;
+    return clip.thumbStorageKey ?? null;
   }
 
-  return clip.cosKey;
+  return clip.storageKey;
 }
 
 function getContentTypeForDownloadKind(clip: PrivateMediaClipRecord, kind: PrivateMediaDownloadKind) {
