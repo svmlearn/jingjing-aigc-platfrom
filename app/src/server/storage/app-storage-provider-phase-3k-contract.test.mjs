@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 const removedProvider = "ten" + "cent" + "_cos";
 const removedProviderFileName = `${"ten" + "cent"}-${"cos"}-provider.ts`;
@@ -8,8 +9,8 @@ const removedPreviewRouteName = `${"cos"}-preview`;
 const removedServerPackageNames = ["cos" + "-nodejs-sdk-v5", "qcloud-" + "cos-sts"];
 const removedRuntimeEnvPattern = `${"CO" + "S"}_`;
 
-const appRoot = new URL("../../../", import.meta.url);
-const srcRoot = new URL("../../", import.meta.url);
+const appRoot = fileURLToPath(new URL("../../../", import.meta.url));
+const srcRoot = fileURLToPath(new URL("../../", import.meta.url));
 const packageJsonSource = readSource(new URL("../../../package.json", import.meta.url));
 const lockfileSource = readSource(new URL("../../../pnpm-lock.yaml", import.meta.url));
 const envExampleSource = readSource(new URL("../../../.env.example", import.meta.url));
@@ -67,7 +68,7 @@ function readSource(url) {
 }
 
 function collectTextSources(rootUrl) {
-  const rootPath = rootUrl.pathname;
+  const rootPath = rootUrl;
   const sources = [];
   const stack = [rootPath];
 
@@ -85,7 +86,7 @@ function collectTextSources(rootUrl) {
       }
 
       if (/\.(ts|tsx|mjs)$/.test(entryName)) {
-        sources.push([entryPath.slice(appRoot.pathname.length), readFileSync(entryPath, "utf8")]);
+        sources.push([entryPath.slice(appRoot.length), readFileSync(entryPath, "utf8")]);
       }
     }
   }
