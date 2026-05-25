@@ -7,6 +7,11 @@ const repositorySource = readFileSync(
   "utf8",
 );
 
+const repositoryContractSource = readFileSync(
+  new URL("../merchant-media-repository-contract.ts", import.meta.url),
+  "utf8",
+);
+
 const migrationSource = readFileSync(
   new URL("../../../db/migrations/202605250001_merchant_media_tables.sql", import.meta.url),
   "utf8",
@@ -63,6 +68,17 @@ test("asset idempotent upsert uses merchant_id plus idempotency_key", () => {
 });
 
 test("ready clip upsert checks merchant asset and keeps asset/index idempotency", () => {
+  const upsertReadyClipBody = extractFunctionBody("upsertReadyClip");
+  const sharedHelperIndex = upsertReadyClipBody.indexOf("assertMerchantMediaRepositoryReadyClip(input)");
+  const transactionIndex = upsertReadyClipBody.indexOf("withAppDbTransaction(async (client)");
+
+  assert.notEqual(sharedHelperIndex, -1, "PostgreSQL upsertReadyClip should call shared ready clip helper.");
+  assert.notEqual(transactionIndex, -1, "PostgreSQL upsertReadyClip should use a transaction.");
+  assert.ok(
+    sharedHelperIndex < transactionIndex,
+    "PostgreSQL upsertReadyClip should validate ready clip contract before any DB transaction.",
+  );
+
   assertFunctionBody("upsertReadyClip", [
     "withAppDbTransaction(async (client)",
     "assertMerchantMediaAssetExists(client",
@@ -77,6 +93,20 @@ test("ready clip upsert checks merchant asset and keeps asset/index idempotency"
     "and merchant_id = $2",
     "MERCHANT_MEDIA_ASSET_NOT_FOUND",
   ]);
+});
+
+test("ready clip contract is shared by InMemory and PostgreSQL repositories", () => {
+  assert.match(repositoryContractSource, /export function assertMerchantMediaRepositoryReadyClip/);
+  assert.match(repositoryContractSource, /input\.clip\.merchantId !== input\.merchantId/);
+  assert.match(repositoryContractSource, /input\.clip\.assetId && input\.clip\.assetId !== input\.assetId/);
+  assert.match(repositoryContractSource, /input\.clip\.status !== "ready"/);
+  assert.match(repositoryContractSource, /input\.clip\.clipIndex == null/);
+  assert.match(repositoryContractSource, /!Number\.isInteger\(input\.clip\.clipIndex\)/);
+  assert.match(repositoryContractSource, /input\.clip\.clipIndex < 0/);
+  assert.match(repositoryContractSource, /input\.clip\.clipType !== "full_video"/);
+  assert.match(repositoryContractSource, /input\.clip\.clipType !== "segment"/);
+  assert.match(repositoryContractSource, /input\.clip\.clipType !== "image"/);
+  assert.match(repositoryContractSource, /assertMerchantMediaRepositoryReadyClip\(input\);/);
 });
 
 test("merchant-scoped readers only return matching merchant ready clips", () => {

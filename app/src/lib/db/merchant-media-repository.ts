@@ -3,6 +3,7 @@ import "server-only";
 import type { MerchantMediaAssetRecord } from "@/lib/merchant-media-library-contract";
 import {
   assertMerchantMediaRepositoryAsset,
+  assertMerchantMediaRepositoryReadyClip,
   type MerchantMediaRepository,
 } from "@/lib/merchant-media-repository-contract";
 import type { PrivateMediaClipRecord } from "@/lib/private-media-pexels-adapter";
@@ -115,6 +116,8 @@ export class PostgresMerchantMediaRepository implements MerchantMediaRepository 
     assetId: string;
     clip: PrivateMediaClipRecord;
   }) {
+    assertMerchantMediaRepositoryReadyClip(input);
+
     try {
       return await withAppDbTransaction(async (client) => {
         await assertMerchantMediaAssetExists(client, {

@@ -158,3 +158,26 @@ git diff --check
 - 未处理 storage provider、worker、Supabase package/client shims。
 - 未处理 `app/src/lib/supabase/*`。
 - 未 push，未部署，未合并 main。
+
+## Review Follow-up: Ready Clip Contract
+
+Review 发现 PostgreSQL 版 `upsertReadyClip()` 没有保留 InMemory repository 的 ready clip 合同校验，可能接受或改写：
+
+- `clip.merchantId !== merchantId`
+- 非 `ready` clip
+- 缺失、非整数或小于 0 的 `clipIndex`
+- video clipType 非 `full_video` / `segment`
+- image clipType 非 `image`
+- 已带 `clip.assetId` 但与 `assetId` 不一致的 clip
+
+本次 follow-up 修复：
+
+- 在 `app/src/lib/merchant-media-repository-contract.ts` 新增共享 helper：
+  - `assertMerchantMediaRepositoryReadyClip(input)`
+- `InMemoryMerchantMediaRepository.upsertReadyClip()` 改为调用共享 helper。
+- `PostgresMerchantMediaRepository.upsertReadyClip()` 在任何 `withAppDbTransaction()` / DB query 前先调用共享 helper。
+- 新增 `MERCHANT_MEDIA_CLIP_ASSET_MISMATCH`，拒绝 `clip.assetId` 与 repository `assetId` 不一致的输入。
+- 补充 `app/src/lib/merchant-media-repository-contract.test.ts`，覆盖非 ready clip 与 asset mismatch。
+- 更新 `app/src/lib/db/merchant-media-repository-phase-2f-contract.test.mjs`，静态确认 PostgreSQL repository 调用共享 helper，且 helper 调用顺序早于 DB transaction。
+
+本次 follow-up 仍未恢复任何 Supabase fallback，未处理 `video-edit-jobs-service.ts`、storage、worker 或 package。

@@ -153,6 +153,38 @@ test("merchant media repository rejects invalid clip shapes", async () => {
       error instanceof MerchantMediaRepositoryContractError &&
       error.code === "MERCHANT_MEDIA_CLIP_INDEX_INVALID",
   );
+
+  await assert.rejects(
+    () =>
+      repository.upsertReadyClip({
+        merchantId: "merchant-a",
+        assetId: assetA.id,
+        clip: {
+          ...clipA,
+          id: "clip-not-ready",
+          status: "archived",
+        },
+      }),
+    (error) =>
+      error instanceof MerchantMediaRepositoryContractError &&
+      error.code === "MERCHANT_MEDIA_CLIP_NOT_READY",
+  );
+
+  await assert.rejects(
+    () =>
+      repository.upsertReadyClip({
+        merchantId: "merchant-a",
+        assetId: assetA.id,
+        clip: {
+          ...clipA,
+          id: "clip-asset-mismatch",
+          assetId: "other-asset",
+        },
+      }),
+    (error) =>
+      error instanceof MerchantMediaRepositoryContractError &&
+      error.code === "MERCHANT_MEDIA_CLIP_ASSET_MISMATCH",
+  );
 });
 
 const assetA: MerchantMediaAssetRecord = {
