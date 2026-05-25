@@ -44,6 +44,8 @@ test("merchant raw upload fixture models raw_upload to processed_ready", () => {
     assert.equal(result.readyClips[0]?.startTimeSeconds, 0);
     assert.equal(result.readyClips[0]?.endTimeSeconds, 8.4);
     assert.equal(result.readyClips[0]?.cosKey, rawUploadAsset.sourceCosKey);
+    assert.equal(result.readyClips[0]?.storageKey, rawUploadAsset.sourceStorageKey ?? rawUploadAsset.sourceCosKey);
+    assert.equal(result.readyClips[0]?.thumbStorageKey, "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg");
     assert.equal(result.readyClips[0]?.durationSeconds, 8.4);
     assert.equal(result.readyClips[0]?.orientation, "portrait");
   }
@@ -78,6 +80,56 @@ test("image raw upload fixture produces one deterministic image clip without vid
     assert.equal(result.readyClips[0]?.clipIndex, 0);
     assert.equal(result.readyClips[0]?.durationSeconds, null);
     assert.equal(result.readyClips[0]?.cosKey, imageAsset.sourceCosKey);
+    assert.equal(result.readyClips[0]?.storageKey, imageAsset.sourceStorageKey ?? imageAsset.sourceCosKey);
+  }
+});
+
+test("merchant raw upload fixture accepts provider-neutral thumbnail storage key", () => {
+  const result = processMerchantRawUploadFixture({
+    asset: {
+      ...rawUploadAsset,
+      sourceStorageKey: rawUploadAsset.sourceCosKey,
+    },
+    detectedMimeType: "video/mp4",
+    metadata: {
+      mediaType: "video",
+      width: 1080,
+      height: 1920,
+      durationSeconds: 8.4,
+      mimeType: "video/mp4",
+    },
+    thumbnailStorageKey: "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg",
+    tags: readyTags,
+    now,
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.readyClips[0]?.thumbCosKey, "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg");
+    assert.equal(result.readyClips[0]?.thumbStorageKey, result.readyClips[0]?.thumbCosKey);
+  }
+});
+
+test("merchant raw upload fixture rejects conflicting thumbnail key aliases", () => {
+  const result = processMerchantRawUploadFixture({
+    asset: rawUploadAsset,
+    detectedMimeType: "video/mp4",
+    metadata: {
+      mediaType: "video",
+      width: 1080,
+      height: 1920,
+      durationSeconds: 8.4,
+      mimeType: "video/mp4",
+    },
+    thumbnailCosKey: "merchant-media/merchant-a/thumbs/asset-raw-1/clip-1.jpg",
+    thumbnailStorageKey: "merchant-media/merchant-a/thumbs/asset-raw-1/other.jpg",
+    tags: readyTags,
+    now,
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.ok(result.errors.some((error) => error.includes("thumbnailStorageKey must match thumbnailCosKey")));
   }
 });
 

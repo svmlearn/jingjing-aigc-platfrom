@@ -1,5 +1,7 @@
-import type {
-  MerchantMediaAssetRecord,
+import {
+  getPrivateMediaClipStorageKey,
+  getPrivateMediaClipThumbStorageKey,
+  type MerchantMediaAssetRecord,
 } from "./merchant-media-library-contract.ts";
 import type {
   PrivateMediaClipRecord,
@@ -39,6 +41,7 @@ export function runPrivateMediaDoctor(input: {
   minReadyTagConfidence?: number;
   now?: string;
   existingCosKeys?: string[];
+  existingStorageKeys?: string[];
   publicBuckets?: string[];
   clientExposedEnvKeys?: string[];
   pendingUploads?: Array<{
@@ -48,6 +51,7 @@ export function runPrivateMediaDoctor(input: {
     storageKey?: string | null;
   }>;
   orphanCosKeys?: string[];
+  orphanStorageKeys?: string[];
   cleanupJobs?: Array<{
     id: string;
     provider: string;
@@ -93,28 +97,32 @@ function checkMerchantClips(input: {
   maxAutoReadyVideoDurationSeconds?: number | null;
   minReadyTagConfidence?: number;
   existingCosKeys?: string[];
+  existingStorageKeys?: string[];
   publicBuckets?: string[];
 }) {
   const issues: PrivateMediaDoctorIssue[] = [];
   const minConfidence = input.minReadyTagConfidence ?? 0.6;
-  const knownKeys = input.existingCosKeys ? new Set(input.existingCosKeys) : null;
+  const knownKeys = buildStorageKeySet(input.existingStorageKeys, input.existingCosKeys);
   const publicBuckets = new Set(input.publicBuckets ?? []);
 
   for (const clip of input.clips) {
     if (clip.status !== "ready") {
       continue;
     }
-    if (!clip.thumbCosKey) {
-      issues.push(issue("missing_thumbnail", clip.id, "Ready clip is missing thumbnail COS key."));
+    const storageKey = getPrivateMediaClipStorageKey(clip);
+    const thumbStorageKey = getPrivateMediaClipThumbStorageKey(clip);
+
+    if (!thumbStorageKey) {
+      issues.push(issue("missing_thumbnail", clip.id, "Ready clip is missing thumbnail storage key."));
     }
-    if (!clip.cosKey) {
-      issues.push(issue("missing_object", clip.id, "Ready clip is missing COS object key."));
+    if (!storageKey) {
+      issues.push(issue("missing_object", clip.id, "Ready clip is missing object storage key."));
     }
-    if (clip.cosKey && knownKeys && !knownKeys.has(clip.cosKey)) {
-      issues.push(issue("missing_object", clip.id, "Ready clip COS object does not exist."));
+    if (storageKey && knownKeys && !knownKeys.has(storageKey)) {
+      issues.push(issue("missing_object", clip.id, "Ready clip storage object does not exist."));
     }
-    if (clip.thumbCosKey && knownKeys && !knownKeys.has(clip.thumbCosKey)) {
-      issues.push(issue("missing_object", clip.id, "Ready clip thumbnail COS object does not exist."));
+    if (thumbStorageKey && knownKeys && !knownKeys.has(thumbStorageKey)) {
+      issues.push(issue("missing_object", clip.id, "Ready clip thumbnail storage object does not exist."));
     }
     if (clip.bucketName && publicBuckets.has(clip.bucketName)) {
       issues.push(issue("public_bucket", clip.id, "Private media clip points at a public bucket."));
@@ -219,6 +227,7 @@ function checkPendingUploads(input: {
     storageKey?: string | null;
   }>;
   orphanCosKeys?: string[];
+  orphanStorageKeys?: string[];
 }) {
   const issues: PrivateMediaDoctorIssue[] = [];
   const nowMs = Date.parse(input.now ?? new Date().toISOString());
@@ -229,11 +238,17 @@ function checkPendingUploads(input: {
     }
   }
 
-  for (const cosKey of input.orphanCosKeys ?? []) {
-    issues.push(issue("orphan_upload_object", cosKey, "COS object has no accepted owner record and must be cleaned or quarantined."));
+  for (const storageKey of input.orphanStorageKeys ?? input.orphanCosKeys ?? []) {
+    issues.push(issue("orphan_upload_object", storageKey, "Storage object has no accepted owner record and must be cleaned or quarantined."));
   }
 
   return issues;
+}
+
+function buildStorageKeySet(primaryKeys?: string[], legacyKeys?: string[]) {
+  const keys = primaryKeys ?? legacyKeys;
+
+  return keys ? new Set(keys) : null;
 }
 
 function checkProviderCleanup(input: {

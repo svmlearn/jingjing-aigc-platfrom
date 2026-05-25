@@ -113,7 +113,7 @@ test("private media doctor detects storage security and pending cleanup blockers
     clips: [clip],
     voiceProfiles: [voiceProfile("voice-a")],
     now,
-    existingCosKeys: [
+    existingStorageKeys: [
       "merchant-media/merchant-a/thumbs/asset-a/clip-1.jpg",
     ],
     publicBuckets: ["private-bucket"],
@@ -130,7 +130,7 @@ test("private media doctor detects storage security and pending cleanup blockers
         storageKey: "source-assets/merchant-a/asset-a/source.mp4",
       },
     ],
-    orphanCosKeys: ["source-assets/merchant-a/orphan/source.mp4"],
+    orphanStorageKeys: ["source-assets/merchant-a/orphan/source.mp4"],
     cleanupJobs: [
       {
         id: "cleanup-stale",
@@ -152,6 +152,26 @@ test("private media doctor detects storage security and pending cleanup blockers
     "orphan_upload_object",
     "provider_cleanup_backlog",
   ]);
+});
+
+test("private media doctor prefers provider-neutral storage key aliases", () => {
+  const issues = runPrivateMediaDoctor({
+    assets: [asset],
+    clips: [
+      {
+        ...clip,
+        storageKey: clip.cosKey,
+        thumbStorageKey: clip.thumbCosKey,
+      },
+    ],
+    voiceProfiles: [voiceProfile("voice-a")],
+    existingStorageKeys: [
+      clip.cosKey,
+      clip.thumbCosKey!,
+    ],
+  });
+
+  assert.deepEqual(issues, []);
 });
 
 function assertIssueCodes(

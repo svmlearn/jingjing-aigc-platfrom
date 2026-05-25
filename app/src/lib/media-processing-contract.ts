@@ -1,4 +1,5 @@
 import {
+  getMerchantMediaAssetStorageKey,
   validateMerchantMediaReadyAsset,
   type MerchantMediaAssetRecord,
 } from "./merchant-media-library-contract.ts";
@@ -30,6 +31,7 @@ export type ProcessMerchantRawUploadInput = {
   metadata?: ExtractedMediaMetadata | null;
   maxAutoReadyVideoDurationSeconds?: number | null;
   thumbnailCosKey?: string | null;
+  thumbnailStorageKey?: string | null;
   tags?: ProcessedMediaTags | null;
   now: string;
 };
@@ -109,7 +111,8 @@ export function processMerchantRawUploadFixture(
 
   const metadata = input.metadata;
   const tags = input.tags;
-  if (!metadata || !tags || !input.thumbnailCosKey) {
+  const thumbnailStorageKey = getThumbnailStorageKey(input);
+  if (!metadata || !tags || !thumbnailStorageKey) {
     return {
       ok: false,
       status: "processing_failed",
@@ -145,8 +148,10 @@ export function processMerchantRawUploadFixture(
     tagConfidence: tags.tagConfidence,
     tagSource: tags.tagSource,
     bucketName: "fixture-private-bucket",
-    cosKey: input.asset.sourceCosKey,
-    thumbCosKey: input.thumbnailCosKey,
+    cosKey: getMerchantMediaAssetStorageKey(input.asset),
+    storageKey: getMerchantMediaAssetStorageKey(input.asset),
+    thumbCosKey: thumbnailStorageKey,
+    thumbStorageKey: thumbnailStorageKey,
     mimeType: metadata.mimeType,
     createdAt: input.now,
   };
@@ -208,6 +213,9 @@ function validateProcessingEvidence(input: ProcessMerchantRawUploadInput) {
   const errors: string[] = [];
   const metadata = input.metadata;
 
+  if (hasConflictingThumbnailStorageKeys(input)) {
+    errors.push("thumbnailStorageKey must match thumbnailCosKey when both are provided.");
+  }
   if (!metadata) {
     errors.push("media metadata extraction is required before an asset can become ready.");
     return errors;
@@ -227,11 +235,23 @@ function validateProcessingEvidence(input: ProcessMerchantRawUploadInput) {
   ) {
     errors.push("metadata duration_seconds is required for video.");
   }
-  if (!input.thumbnailCosKey?.startsWith(`merchant-media/${input.asset.merchantId}/thumbs/${input.asset.id}/`)) {
-    errors.push("thumbnail COS key is required under merchant-media/{merchant_id}/thumbs/{asset_id}/.");
+  const thumbnailStorageKey = getThumbnailStorageKey(input);
+  if (!thumbnailStorageKey?.startsWith(`merchant-media/${input.asset.merchantId}/thumbs/${input.asset.id}/`)) {
+    errors.push("thumbnail storage key is required under merchant-media/{merchant_id}/thumbs/{asset_id}/.");
   }
 
   return errors;
+}
+
+function getThumbnailStorageKey(input: Pick<ProcessMerchantRawUploadInput, "thumbnailCosKey" | "thumbnailStorageKey">) {
+  return input.thumbnailStorageKey?.trim() || input.thumbnailCosKey?.trim() || null;
+}
+
+function hasConflictingThumbnailStorageKeys(input: Pick<ProcessMerchantRawUploadInput, "thumbnailCosKey" | "thumbnailStorageKey">) {
+  const thumbnailCosKey = input.thumbnailCosKey?.trim() ?? "";
+  const thumbnailStorageKey = input.thumbnailStorageKey?.trim() ?? "";
+
+  return Boolean(thumbnailCosKey && thumbnailStorageKey && thumbnailCosKey !== thumbnailStorageKey);
 }
 
 function validateReadyTags(tags: ProcessedMediaTags | null | undefined) {

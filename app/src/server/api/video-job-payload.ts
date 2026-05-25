@@ -95,7 +95,9 @@ export type VideoEditJobMerchantMediaClip = {
   clipType: string | null;
   bucketName: string;
   cosKey: string;
+  storageKey: string;
   thumbCosKey: string | null;
+  thumbStorageKey: string | null;
   mimeType: string;
   durationSeconds: number | null;
   startTimeSeconds: number | null;
@@ -521,7 +523,7 @@ function matchMerchantMediaClipsByQuery(
 function scoreMerchantMediaClip(clip: PrivateMediaClipRecord, terms: string[]) {
   const haystack = [
     clip.description,
-    clip.cosKey,
+    clip.storageKey ?? clip.cosKey,
     ...clip.tags,
     ...(clip.industryTags ?? []),
     ...(clip.sceneTags ?? []),
@@ -539,14 +541,19 @@ function scoreMerchantMediaClip(clip: PrivateMediaClipRecord, terms: string[]) {
 function mapMerchantMediaClipForPayload(
   clip: PrivateMediaClipRecord,
 ): VideoEditJobMerchantMediaClip {
+  const storageKey = clip.storageKey ?? clip.cosKey;
+  const thumbStorageKey = clip.thumbStorageKey ?? clip.thumbCosKey ?? null;
+
   return {
     clipId: clip.id,
     assetId: clip.assetId ?? null,
     mediaType: clip.mediaType,
     clipType: clip.clipType ?? null,
     bucketName: clip.bucketName,
-    cosKey: clip.cosKey,
-    thumbCosKey: clip.thumbCosKey ?? null,
+    cosKey: storageKey,
+    storageKey,
+    thumbCosKey: thumbStorageKey,
+    thumbStorageKey,
     mimeType: clip.mimeType,
     durationSeconds: clip.durationSeconds ?? null,
     startTimeSeconds: clip.startTimeSeconds ?? null,

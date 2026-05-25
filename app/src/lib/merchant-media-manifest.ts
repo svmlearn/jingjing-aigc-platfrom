@@ -379,7 +379,7 @@ function resolveBucketName(bucketName?: string | null, defaultBucketName?: strin
   throw new MerchantMediaManifestContractError(
     400,
     "MERCHANT_MEDIA_BUCKET_REQUIRED",
-    "Merchant media manifest requires bucketName or server COS bucket config.",
+    "Merchant media manifest requires bucketName or server object storage bucket config.",
   );
 }
 

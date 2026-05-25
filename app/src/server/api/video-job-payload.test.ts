@@ -268,7 +268,9 @@ test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merch
           clipType: "segment",
           bucketName: "jj-private-bucket",
           cosKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
+          storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
           thumbCosKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
+          thumbStorageKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
           mimeType: "video/mp4",
           durationSeconds: 5,
           startTimeSeconds: 0,
@@ -293,6 +295,45 @@ test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merch
   const rawPayload = payload as Record<string, unknown>;
   assert.equal(rawPayload.difyFinalJson, undefined);
   assert.equal(rawPayload.difyRawOutputs, undefined);
+});
+
+test("buildVideoEditJobInputPayload matches merchant media clips by provider-neutral storage key", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      productionScenes: [
+        {
+          sceneNo: 2,
+          timeRange: "00:05-00:12",
+          shotRequirement: "unique-storage-token",
+          visual: "",
+          materials: [],
+          fallbackShot: null,
+        },
+      ],
+    },
+    materialReferences: [],
+    assets: [],
+    merchantMediaClips: [
+      {
+        ...merchantClip,
+        cosKey: "merchant-media/merchant-1/clips/merchant-asset-1/legacy-only-name.mp4",
+        storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/unique-storage-token.mp4",
+        thumbStorageKey: merchantClip.thumbCosKey,
+      },
+    ],
+  });
+
+  assert.deepEqual(payload.materialContext.merchantMediaMatches[0]?.clipIds, ["merchant-clip-entrance"]);
+  assert.equal(
+    payload.materialContext.merchantMediaMatches[0]?.clips[0]?.storageKey,
+    "merchant-media/merchant-1/clips/merchant-asset-1/unique-storage-token.mp4",
+  );
+  assert.equal(
+    payload.materialContext.merchantMediaMatches[0]?.clips[0]?.cosKey,
+    "merchant-media/merchant-1/clips/merchant-asset-1/unique-storage-token.mp4",
+  );
 });
 
 test("buildVideoEditJobInputPayload marks intro/outro scenes as user talking head", () => {
@@ -921,7 +962,9 @@ const merchantClip: PrivateMediaClipRecord = {
   shotTags: ["wide"],
   bucketName: "jj-private-bucket",
   cosKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
+  storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
   thumbCosKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
+  thumbStorageKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
   mimeType: "video/mp4",
   createdAt: "2026-05-15T00:00:00.000Z",
 } as const;
