@@ -10,9 +10,9 @@ import {
   type MerchantMediaManifestResult,
 } from "@/lib/merchant-media-manifest";
 import type { MerchantMediaRepository } from "@/lib/merchant-media-repository-contract";
-import { getCosConfig } from "@/server/api/cos";
 import { ApiError } from "@/server/api/errors";
 import type { merchantMediaManifestSchema } from "@/server/api/schemas";
+import { getConfiguredObjectStorageProvider } from "@/server/storage";
 
 export type MerchantMediaManifestRequest = z.infer<typeof merchantMediaManifestSchema>;
 
@@ -32,7 +32,7 @@ export async function receiveMerchantMediaManifestForUser(input: {
       merchantId: workspace.merchantProfile.id,
       request: input.request,
       repository: input.repository ?? getMerchantMediaRepository(),
-      defaultBucketName: getCosConfig().bucket,
+      defaultBucketName: getConfiguredObjectStorageProvider().getConfig().bucket,
       now: input.now,
     });
   } catch (error) {
