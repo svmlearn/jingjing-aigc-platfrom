@@ -68,6 +68,11 @@ node "$TMP/fix-factory-member-video-tasks.mjs"
   - PowerShell 外层双引号里直接放远端 `grep -E "a|b|c"`、`$(...)`、或复杂 bash 片段。
 - 验证：正确命令在 2026-05-24 zhiluan1 脚本修复中 dry-run 和 apply 均输出 JSON，`mode` 分别为 `dry-run` / `applied`。
 
+#### 2026-05-25 release addendum
+
+- Verified additional fix during `5.23-worker-fix` release: when PowerShell still interferes with remote Bash variables (`$unit`, `$f`, `$k`) or sends CRLF into `ssh host bash -s`, encode the already-normalized LF script as base64 locally and run it remotely as `printf %s "$b64" | base64 -d | bash`.
+- Use this for release/env repair scripts that contain pipes, `awk`, loops, or root-only env reads. It keeps secrets out of the visible command line because the secret is generated/read inside the remote script and never printed.
+
 ### PE-20260524-002 video job succeeded but local_outputs path is missing
 
 - 适用现象：`video_edit_jobs.status=succeeded`、`current_stage=completed`，OSS 上传和 `asset_objects` 都已写回，但按 `result_payload.local_outputs.final_video_path` 去服务器取 `/srv/jingjing-video-worker/outputs/jobs/<job-id>/final.mp4` 报 `No such file or directory`。
