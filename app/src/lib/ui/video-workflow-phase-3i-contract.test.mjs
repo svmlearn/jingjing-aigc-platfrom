@@ -3,54 +3,40 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const source = readFileSync(new URL("./video-workflow.ts", import.meta.url), "utf8");
+const removedLegacyKeyField = "cos" + "Key";
+const removedLegacySnakeField = "cos" + "_key";
 
-test("upload intent resolves object keys from storageKey and uploadKey before legacy cosKey", () => {
+test("upload intent resolves object keys only from storageKey and uploadKey", () => {
   const createUploadIntentBody = extractFunctionBody("createUploadIntent");
   const objectKeyFields = extractReadStringFields(createUploadIntentBody, "objectKey");
 
   assert.deepEqual(
     objectKeyFields,
-    ["storageKey", "storage_key", "uploadKey", "upload_key", "key", "cosKey", "cos_key"],
-    "createUploadIntent should resolve a provider-neutral object key before setting aliases.",
+    ["storageKey", "storage_key", "uploadKey", "upload_key"],
+    "createUploadIntent should resolve a provider-neutral object key from current upload intent fields.",
   );
   assert.match(createUploadIntentBody, /const storageKey = objectKey;/);
   assert.match(createUploadIntentBody, /const uploadKey = objectKey;/);
-  assert.match(createUploadIntentBody, /const cosKey = objectKey;/);
-  assert.doesNotMatch(createUploadIntentBody, /readString\(source,\s*"cosKey"/);
-  assert.match(source, /Legacy alias retained for older callers while the current upload path uses storageKey\/uploadKey/);
+  assert.doesNotMatch(createUploadIntentBody, new RegExp(removedLegacyKeyField));
+  assert.doesNotMatch(createUploadIntentBody, new RegExp(removedLegacySnakeField));
 });
 
-test("conflicting legacy cosKey is normalized to the resolved object key", () => {
+test("removed legacy-only upload intent responses no longer populate key fields", () => {
   const createUploadIntentBody = extractFunctionBody("createUploadIntent");
   const objectKeyFields = extractReadStringFields(createUploadIntentBody, "objectKey");
   const responseFields = {
-    storageKey: "new-object-key",
-    uploadKey: "new-object-key",
-    cosKey: "old-object-key",
+    [removedLegacyKeyField]: "legacy-object-key",
+    [removedLegacySnakeField]: "legacy-object-key",
   };
   const resolvedObjectKey = readStringFromFields(responseFields, objectKeyFields);
 
-  assert.equal(resolvedObjectKey, "new-object-key");
-  assert.match(createUploadIntentBody, /const storageKey = objectKey;/);
-  assert.match(createUploadIntentBody, /const uploadKey = objectKey;/);
-  assert.match(createUploadIntentBody, /const cosKey = objectKey;/);
+  assert.equal(resolvedObjectKey, null);
 });
 
-test("legacy-only upload intent responses still populate every key alias", () => {
-  const createUploadIntentBody = extractFunctionBody("createUploadIntent");
-  const objectKeyFields = extractReadStringFields(createUploadIntentBody, "objectKey");
-  const resolvedObjectKey = readStringFromFields({ cos_key: "legacy-object-key" }, objectKeyFields);
-
-  assert.equal(resolvedObjectKey, "legacy-object-key");
-  assert.match(createUploadIntentBody, /const storageKey = objectKey;/);
-  assert.match(createUploadIntentBody, /const uploadKey = objectKey;/);
-  assert.match(createUploadIntentBody, /const cosKey = objectKey;/);
-});
-
-test("Aliyun OSS upload path does not depend on legacy cosKey", () => {
+test("Aliyun OSS upload path only uses current object key fields", () => {
   const aliyunBody = extractFunctionBody("uploadToAliyunOss");
 
-  assert.doesNotMatch(aliyunBody, /cosKey/);
+  assert.doesNotMatch(aliyunBody, new RegExp(removedLegacyKeyField));
   assert.match(aliyunBody, /params\.intent\.storageKey/);
   assert.match(aliyunBody, /uploadUrl/);
 });

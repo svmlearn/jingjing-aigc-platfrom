@@ -70,8 +70,6 @@ export type UploadIntent = {
   endpoint?: string | null;
   storageKey: string;
   uploadKey: string;
-  // Legacy alias retained for older callers while the current upload path uses storageKey/uploadKey.
-  cosKey: string;
   uploadUrl?: string;
   uploadMethod?: "PUT";
   uploadHeaders?: Record<string, string>;
@@ -499,7 +497,7 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
   const bucket = readString(source, "bucket");
   const region = readString(source, "region");
   const endpoint = readString(source, "endpoint");
-  const objectKey = readString(source, "storageKey", "storage_key", "uploadKey", "upload_key", "key", "cosKey", "cos_key");
+  const objectKey = readString(source, "storageKey", "storage_key", "uploadKey", "upload_key");
   const uploadUrl = readString(source, "uploadUrl", "upload_url");
   const uploadMethod = readString(source, "uploadMethod", "upload_method");
   const uploadHeaders = readStringRecord(readNestedRecord(source, "uploadHeaders", "upload_headers"));
@@ -515,7 +513,6 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
 
   const storageKey = objectKey;
   const uploadKey = objectKey;
-  const cosKey = objectKey;
 
   if (!uploadUrl) {
     throw new Error("上传意图返回不完整，缺少 OSS 上传地址。");
@@ -528,7 +525,6 @@ export async function createUploadIntent(payload: UploadIntentRequest) {
     endpoint,
     storageKey,
     uploadKey,
-    cosKey,
     uploadUrl: uploadUrl ?? undefined,
     uploadMethod: uploadMethod === "PUT" ? "PUT" : undefined,
     uploadHeaders,

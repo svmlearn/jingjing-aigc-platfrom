@@ -81,12 +81,10 @@ export const defaultMediaUploadMaxBytes = 1024 * 1024 * 1024;
 
 export function buildBrowserUploadIntentStorageKeys(
   storageKey: string,
-): Pick<MediaUploadIntentDto, "storageKey" | "uploadKey" | "cosKey"> {
+): Pick<MediaUploadIntentDto, "storageKey" | "uploadKey"> {
   return {
     storageKey,
     uploadKey: storageKey,
-    // Deprecated compatibility alias for older browser upload clients.
-    cosKey: storageKey,
   };
 }
 

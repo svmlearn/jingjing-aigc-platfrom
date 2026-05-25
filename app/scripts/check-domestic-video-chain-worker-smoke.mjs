@@ -106,7 +106,6 @@ try {
   const storageKey = firstString(
     uploadIntentPayload.storageKey,
     uploadIntentPayload.uploadKey,
-    uploadIntentPayload.cosKey,
   );
   const mediaComplete = await postJson({
     baseUrl,
@@ -413,8 +412,8 @@ async function fetchPreview(input) {
 function assertUploadIntent(uploadIntent) {
   const requiredFields = ["bucket", "region", "uploadUrl", "uploadMethod", "expiredTime"];
   const missing = requiredFields.filter((field) => !uploadIntent?.[field]);
-  if (!firstString(uploadIntent?.storageKey, uploadIntent?.uploadKey, uploadIntent?.cosKey)) {
-    missing.push("storageKey|uploadKey|cosKey");
+  if (!firstString(uploadIntent?.storageKey, uploadIntent?.uploadKey)) {
+    missing.push("storageKey|uploadKey");
   }
 
   if (missing.length > 0) {

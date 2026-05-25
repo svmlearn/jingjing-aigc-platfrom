@@ -100,7 +100,6 @@ try {
     firstString(
       uploadIntentPayload?.storageKey,
       uploadIntentPayload?.uploadKey,
-      uploadIntentPayload?.cosKey,
     ) ??
     [
       "draft-inputs",
@@ -326,8 +325,8 @@ function inspectUploadIntentShape(uploadIntent) {
   const missingFields = [...commonFields, ...providerFields].filter((field) =>
     isMissingUploadIntentField(uploadIntent, field),
   );
-  if (!firstString(uploadIntent.storageKey, uploadIntent.uploadKey, uploadIntent.cosKey)) {
-    missingFields.push("storageKey|uploadKey|cosKey");
+  if (!firstString(uploadIntent.storageKey, uploadIntent.uploadKey)) {
+    missingFields.push("storageKey|uploadKey");
   }
 
   return {

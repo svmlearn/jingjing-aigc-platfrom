@@ -5,6 +5,7 @@ import test from "node:test";
 const mediaContractSource = readSource("../../contracts/media.ts");
 const objectStorageSource = readSource("./object-storage.ts");
 const aliyunProviderSource = readSource("./aliyun-oss-provider.ts");
+const removedLegacyKeyField = "cos" + "Key";
 
 test("MediaUploadIntentDto uses storageKey/uploadKey as required current fields", () => {
   const dtoBody = extractTypeBody(mediaContractSource, "MediaUploadIntentDto");
@@ -13,28 +14,27 @@ test("MediaUploadIntentDto uses storageKey/uploadKey as required current fields"
   assert.match(dtoBody, /uploadKey:\s*string;/);
   assert.doesNotMatch(dtoBody, /storageKey\?:/);
   assert.doesNotMatch(dtoBody, /uploadKey\?:/);
-  assert.match(dtoBody, /@deprecated Legacy client alias only\. Use storageKey\/uploadKey/);
-  assert.match(dtoBody, /cosKey\?:\s*string;/);
+  assert.doesNotMatch(dtoBody, new RegExp(removedLegacyKeyField));
 });
 
-test("object-storage facade builds current key fields plus deprecated alias from one storage key", () => {
+test("object-storage facade builds current key fields from one storage key", () => {
   const helperBody = extractFunctionBody(objectStorageSource, "buildBrowserUploadIntentStorageKeys");
 
   assert.match(helperBody, /storageKey,/);
   assert.match(helperBody, /uploadKey:\s*storageKey/);
-  assert.match(helperBody, /cosKey:\s*storageKey/);
+  assert.doesNotMatch(helperBody, new RegExp(removedLegacyKeyField));
 });
 
-test("Aliyun upload intent uses storageKey/uploadKey-first alias helper", () => {
+test("Aliyun upload intent uses storageKey/uploadKey helper", () => {
   const body = extractMethodBody(aliyunProviderSource, "issueBrowserUploadIntent");
 
   assert.match(body, /\.\.\.buildBrowserUploadIntentStorageKeys\(input\.storageKey\)/);
-  assert.doesNotMatch(body, /cosKey:\s*input\.storageKey/);
+  assert.doesNotMatch(body, new RegExp(`${removedLegacyKeyField}:\\s*input\\.storageKey`));
   assert.match(body, /provider:\s*"aliyun_oss"/);
   assert.match(body, /uploadUrl/);
 });
 
-test("Aliyun provider cannot return a current browser upload intent with only legacy cosKey", () => {
+test("Aliyun provider cannot return a browser upload intent with only a removed legacy key alias", () => {
   const body = extractMethodBody(aliyunProviderSource, "issueBrowserUploadIntent");
 
   assert.match(
@@ -44,8 +44,8 @@ test("Aliyun provider cannot return a current browser upload intent with only le
   );
   assert.doesNotMatch(
     body,
-    /return\s*{[\s\S]*cosKey:\s*input\.storageKey[\s\S]*}/,
-    "Aliyun provider should not hand-roll a legacy-only cosKey response.",
+    new RegExp(`return\\s*{[\\s\\S]*${removedLegacyKeyField}[\\s\\S]*}`),
+    "Aliyun provider should not hand-roll old key alias responses.",
   );
 });
 

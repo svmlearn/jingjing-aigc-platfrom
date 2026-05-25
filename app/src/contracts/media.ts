@@ -47,8 +47,6 @@ export type MediaUploadIntentDto = {
   uploadMethod?: "PUT";
   uploadHeaders?: Record<string, string>;
   expiresAt?: string;
-  /** @deprecated Legacy client alias only. Use storageKey/uploadKey for current object storage uploads. */
-  cosKey?: string;
   TmpSecretId?: string;
   TmpSecretKey?: string;
   Token?: string;
