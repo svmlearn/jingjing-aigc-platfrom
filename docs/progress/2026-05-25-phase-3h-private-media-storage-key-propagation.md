@@ -74,3 +74,27 @@ rg -n -S "server COS bucket config|COS object|COS key|cosKey|thumbCosKey|sourceC
 ```
 
 now has no matches for user-visible `server COS bucket config`, `COS object`, or `COS key` wording. Remaining matches are compatibility field names only: `sourceCosKey`, `cosKey`, and `thumbCosKey`.
+
+## Review Follow-Up
+
+Review found that the `private-media-doctor` transition aliases were still using nullish either/or behavior:
+
+- `existingStorageKeys` replaced `existingCosKeys` when both were supplied.
+- `orphanStorageKeys` replaced `orphanCosKeys` when both were supplied.
+
+Fix:
+
+- `buildStorageKeySet(...)` now merges new and legacy key arrays, trims values, de-duplicates them, and returns `null` for an empty merged set.
+- pending/orphan cleanup checks now merge `orphanStorageKeys` and `orphanCosKeys` before emitting issues.
+- `app/src/lib/private-media-doctor.test.ts` now covers:
+  - a clip whose main object is in `existingStorageKeys` and thumbnail object is in `existingCosKeys`;
+  - orphan objects supplied across both new and legacy arrays, with duplicate keys de-duplicated.
+
+Follow-up validation passed:
+
+```bash
+cd app && node --test src/lib/private-media-doctor.test.ts
+cd app && npm run lint -- src/lib/private-media-doctor.ts src/lib/private-media-doctor.test.ts
+cd app && npm run typecheck -- --pretty false
+git diff --check
+```

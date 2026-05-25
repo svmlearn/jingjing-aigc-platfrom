@@ -238,7 +238,7 @@ function checkPendingUploads(input: {
     }
   }
 
-  for (const storageKey of input.orphanStorageKeys ?? input.orphanCosKeys ?? []) {
+  for (const storageKey of mergeStorageKeys(input.orphanStorageKeys, input.orphanCosKeys)) {
     issues.push(issue("orphan_upload_object", storageKey, "Storage object has no accepted owner record and must be cleaned or quarantined."));
   }
 
@@ -246,9 +246,19 @@ function checkPendingUploads(input: {
 }
 
 function buildStorageKeySet(primaryKeys?: string[], legacyKeys?: string[]) {
-  const keys = primaryKeys ?? legacyKeys;
+  const keys = mergeStorageKeys(primaryKeys, legacyKeys);
 
-  return keys ? new Set(keys) : null;
+  return keys.length > 0 ? new Set(keys) : null;
+}
+
+function mergeStorageKeys(primaryKeys?: string[], legacyKeys?: string[]) {
+  return Array.from(
+    new Set(
+      [...(primaryKeys ?? []), ...(legacyKeys ?? [])]
+        .map((key) => key.trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 function checkProviderCleanup(input: {

@@ -174,6 +174,46 @@ test("private media doctor prefers provider-neutral storage key aliases", () => 
   assert.deepEqual(issues, []);
 });
 
+test("private media doctor merges existing storage key aliases", () => {
+  const issues = runPrivateMediaDoctor({
+    assets: [asset],
+    clips: [
+      {
+        ...clip,
+        storageKey: clip.cosKey,
+        thumbStorageKey: clip.thumbCosKey,
+      },
+    ],
+    voiceProfiles: [voiceProfile("voice-a")],
+    existingStorageKeys: [clip.cosKey],
+    existingCosKeys: [clip.thumbCosKey!],
+  });
+
+  assert.deepEqual(issues, []);
+});
+
+test("private media doctor merges orphan storage key aliases", () => {
+  const issues = runPrivateMediaDoctor({
+    assets: [],
+    clips: [],
+    voiceProfiles: [],
+    orphanStorageKeys: ["source-assets/merchant-a/orphan/new-key.mp4"],
+    orphanCosKeys: [
+      "source-assets/merchant-a/orphan/legacy-key.mp4",
+      "source-assets/merchant-a/orphan/new-key.mp4",
+    ],
+  });
+
+  assert.deepEqual(
+    issues.map((issue) => issue.subjectId).sort(),
+    [
+      "source-assets/merchant-a/orphan/legacy-key.mp4",
+      "source-assets/merchant-a/orphan/new-key.mp4",
+    ],
+  );
+  assertIssueCodes(issues, ["orphan_upload_object", "orphan_upload_object"]);
+});
+
 function assertIssueCodes(
   issues: ReturnType<typeof runPrivateMediaDoctor>,
   expected: string[],
