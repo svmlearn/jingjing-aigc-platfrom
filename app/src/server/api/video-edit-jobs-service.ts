@@ -15,7 +15,6 @@ import {
 } from "@/lib/db/local-real-chain-repository";
 import { getPrivateMediaRepository } from "@/lib/db/merchant-media-repository";
 import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
-import { isPostgresVideoChainEnabled } from "@/lib/db/postgres-video-chain-repository";
 import {
   getMaterialLibraryItemById,
   listMaterialWorkbenchReferencesByDraft,
@@ -31,7 +30,6 @@ import {
   listVideoEditJobs,
   retryVideoEditJob,
 } from "@/lib/db/video-edit-job-repository";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import {
   VideoJobPayloadValidationError,
   buildVideoEditJobInputPayload,
@@ -373,16 +371,11 @@ async function buildServerManagedInputPayload(input: {
   inputAssetIds: CreateVideoEditJobRequest["inputAssetIds"];
   productionConfig: CreateVideoEditJobRequest["productionConfig"];
 }) {
-  if (isPostgresVideoChainEnabled() || !isSupabaseAdminConfigured()) {
-    const allAssets = isLocalRealChainEnabled()
-      ? await listLocalRealChainAssetObjectsByOwner({
-          ownerType: "content_draft",
-          ownerId: input.draftId,
-        })
-      : await listAssetObjectsByOwner({
-          ownerType: "content_draft",
-          ownerId: input.draftId,
-        });
+  if (isLocalRealChainEnabled()) {
+    const allAssets = await listLocalRealChainAssetObjectsByOwner({
+      ownerType: "content_draft",
+      ownerId: input.draftId,
+    });
     const assets = filterRequestedInputAssets({
       assets: allAssets,
       inputAssetIds: input.inputAssetIds,
