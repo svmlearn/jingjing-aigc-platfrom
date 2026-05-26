@@ -453,6 +453,7 @@ function DraftVideoPanelsContent({
       const nextJob = await createVideoEditJob({
         draftId,
         contentVariantId: variant.id,
+        dailyTaskId: null,
         instructionText: instructionText.trim() || defaultInstructionText(variant),
       });
       setJobs((current) => upsertJob(current, nextJob));

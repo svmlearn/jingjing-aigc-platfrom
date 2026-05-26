@@ -646,6 +646,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
       const nextJob = await createVideoEditJob({
         draftId: bundle.draft.id,
         contentVariantId: approvedVariant.id,
+        dailyTaskId: currentTask.id,
         instructionText: `成员端 AI 剪辑：${script.title}`,
         inputAssetIds: uploadedInputAssetIds,
         productionConfig: buildMemberVideoProductionConfig({

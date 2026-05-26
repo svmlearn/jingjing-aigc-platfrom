@@ -104,7 +104,14 @@ class SearchMediaNode(BaseNode):
                 orientation=orientation,
             )
             node_state.node_summary.info_for_user(f"search media successfully, found {len(image_preview_urls)} photos", preview_urls=image_preview_urls)
-        return {"search_media": video_saved_paths + image_saved_paths}
+        return {
+            "search_media": video_saved_paths + image_saved_paths,
+            "search_keyword": search_keyword,
+            "scene_search": {
+                "search_keyword": search_keyword,
+                "result_count": len(video_saved_paths) + len(image_saved_paths),
+            },
+        }
 
 
 def download_video(url: str, out_path: Path) -> None:

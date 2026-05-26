@@ -31,3 +31,11 @@ test("video job payload uses structured scene upload signal and includes merchan
     /function variantRequiresUserTalkingHead[\s\S]*?productionScenes[\s\S]*?requiresUserUpload === true/,
   );
 });
+
+test("video job creation resolves dailyTaskId into material context", () => {
+  assert.match(source, /requestDailyTaskId: input\.request\.dailyTaskId \?\? null/);
+  assert.match(source, /payload\.materialContext\.dailyTaskId = input\.dailyTaskId/);
+  assert.match(source, /getDailyContentTaskById\(\{/);
+  assert.match(source, /VIDEO_DAILY_TASK_DRAFT_MISMATCH/);
+  assert.match(source, /VIDEO_DAILY_TASK_VARIANT_MISMATCH/);
+});

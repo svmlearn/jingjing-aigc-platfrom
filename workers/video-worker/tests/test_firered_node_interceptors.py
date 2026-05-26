@@ -247,6 +247,14 @@ class Request:
         return self
 
 
+class ArtifactMeta:
+    def __init__(self, artifact_id, node_id="search_media", session_id="session-1", created_at=0):
+        self.artifact_id = artifact_id
+        self.node_id = node_id
+        self.session_id = session_id
+        self.created_at = created_at
+
+
 class FireRedNodeInterceptorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -752,6 +760,140 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
         )
 
         self.assertEqual(["split_shots", "group_clips", "asr"], require_kind)
+
+    def test_worker_scene_search_requires_each_merchant_broll_query(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": "locked script",
+            "production_directive": {"script_locked": True},
+            "materialContext": {
+                "sceneAssetQueries": [
+                    {"sceneNo": 1, "query": "coffee entrance", "sourceRole": "merchant_broll"},
+                    {"sceneNo": 2, "query": "member talking", "sourceRole": "user_talking_head"},
+                    {"sceneNo": 3, "query": "quiet table", "sourceRole": "merchant_broll"},
+                ]
+            },
+        }
+
+        missing = module._missing_worker_scene_searches(
+            payload,
+            [{"search_keyword": "coffee entrance", "search_media": []}],
+        )
+
+        self.assertEqual(1, len(missing))
+        self.assertEqual(2, missing[0]["index"])
+        self.assertEqual(3, missing[0]["sceneNo"])
+        self.assertEqual("quiet table", missing[0]["query"])
+        self.assertEqual("merchant_broll", missing[0]["sourceRole"])
+
+    def test_worker_scene_search_accepts_zero_result_record(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": "locked script",
+            "production_directive": {
+                "script_locked": True,
+                "material_context": {
+                    "sceneAssetQueries": [
+                        {"sceneNo": 1, "query": "coffee entrance", "sourceRole": "merchant_broll"},
+                    ],
+                },
+            },
+        }
+
+        missing = module._missing_worker_scene_searches(
+            payload,
+            [{"search_keyword": "coffee entrance", "search_media": []}],
+        )
+
+        self.assertEqual([], missing)
+
+    def test_worker_group_count_failure_reports_scene_material_insufficient(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(
+            worker_payload={
+                "script_text": "locked script",
+                "materialContext": {
+                    "sceneAssetQueries": [
+                        {"sceneNo": 1, "query": "entry", "sourceRole": "merchant_broll"},
+                        {"sceneNo": 2, "query": "table", "sourceRole": "merchant_broll"},
+                    ]
+                },
+            }
+        )
+
+        with self.assertRaisesRegex(Exception, "scene_material_insufficient.*sceneNo=2"):
+            module._ensure_worker_required_group_count(
+                {"group_clips": {"groups": [{"group_id": "group_0001"}]}},
+                context,
+            )
+
+    def test_worker_group_count_gate_skips_unlocked_payload(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(
+            worker_payload={
+                "materialContext": {
+                    "sceneAssetQueries": [
+                        {"sceneNo": 1, "query": "entry", "sourceRole": "merchant_broll"},
+                        {"sceneNo": 2, "query": "table", "sourceRole": "merchant_broll"},
+                    ]
+                },
+            }
+        )
+
+        module._ensure_worker_required_group_count(
+            {"group_clips": {"groups": [{"group_id": "group_0001"}]}},
+            context,
+        )
+
+    def test_worker_scene_search_accepts_camel_case_locked_payload(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "scriptText": "locked script",
+            "productionDirective": {
+                "scriptLocked": True,
+                "materialContext": {
+                    "sceneAssetQueries": [
+                        {"sceneNo": 1, "query": "front desk", "sourceRole": "merchant_broll"},
+                    ],
+                },
+            },
+        }
+
+        missing = module._missing_worker_scene_searches(payload, [])
+
+        self.assertEqual(1, len(missing))
+        self.assertEqual(0, missing[0]["index"])
+        self.assertEqual(1, missing[0]["sceneNo"])
+        self.assertEqual("front desk", missing[0]["query"])
+        self.assertEqual("merchant_broll", missing[0]["sourceRole"])
+
+    def test_load_media_merges_all_search_media_payloads(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payloads = {
+            "search_media_1": {"payload": {"search_media": [{"path": "/tmp/a.mp4"}]}},
+            "search_media_2": {"payload": {"search_media": ["/tmp/b.mp4", "/tmp/a.mp4"]}},
+        }
+
+        class Store:
+            def get_metas(self, *, node_id, session_id):
+                self.calls = (node_id, session_id)
+                return [
+                    ArtifactMeta("search_media_1", created_at=1),
+                    ArtifactMeta("search_media_2", created_at=2),
+                ]
+
+            def load_result(self, artifact_id):
+                return ArtifactMeta(artifact_id), payloads[artifact_id]
+
+        search_payloads = module._load_search_media_payloads(Store(), session_id="session-1")
+
+        self.assertEqual(
+            [
+                {"search_media": [{"path": "/tmp/a.mp4"}]},
+                {"search_media": ["/tmp/b.mp4", "/tmp/a.mp4"]},
+            ],
+            search_payloads,
+        )
 
     def test_locked_worker_script_keeps_numbered_scenes_when_group_count_is_larger(self):
         module = sys.modules["firered_node_interceptors_under_test"]

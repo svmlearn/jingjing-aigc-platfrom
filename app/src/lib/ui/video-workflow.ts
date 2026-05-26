@@ -758,6 +758,7 @@ export async function getVideoEditJobDetail(jobId: string) {
 export async function createVideoEditJob(payload: {
   draftId: string;
   contentVariantId: string;
+  dailyTaskId?: string | null;
   instructionText?: string | null;
   inputAssetIds?: string[] | null;
   sourceJobId?: string | null;
@@ -765,6 +766,7 @@ export async function createVideoEditJob(payload: {
 }) {
   const requestPayload = {
     contentVariantId: payload.contentVariantId,
+    dailyTaskId: payload.dailyTaskId ?? null,
     instructionText: payload.instructionText ?? null,
     inputAssetIds: payload.inputAssetIds ?? null,
     sourceJobId: payload.sourceJobId ?? null,
