@@ -51,3 +51,13 @@ test("source item media assets do not flow back into merchant uploaded video cli
     /si\.trace_payload #>> '\{materialAnalysis,assetType\}' = 'video'/,
   );
 });
+
+test("material library list exposes merchant media clips as project media materials", () => {
+  assert.match(serviceSource, /getPrivateMediaRepository\(\)\.listClipsByMerchant/);
+  assert.match(serviceSource, /mapMerchantMediaClipToProjectMaterial/);
+  assert.match(serviceSource, /merchant-media-clip:\$\{clip\.id\}/);
+  assert.match(serviceSource, /usageType = clip\.mediaType === "video" \? "video_asset" : "image_asset"/);
+  assert.match(serviceSource, /retrievalTargets =\s*clip\.mediaType === "video" \? \["video_edit_asset" as const\] : \["article_image_asset" as const\]/);
+  assert.match(serviceSource, /merchantMediaClipId: clip\.id/);
+  assert.match(serviceSource, /materialCategory: "project_media_asset"/);
+});

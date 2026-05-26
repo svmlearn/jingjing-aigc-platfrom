@@ -154,6 +154,7 @@ export async function listMaterialLibraryItems(input: {
       from public.source_items
       where merchant_id = $1
         and trace_payload @> $2::jsonb
+        and coalesce(structure_summary->>'materialStatus', 'ready') not in ('archived', 'failed')
       order by created_at desc
       limit $3
       `,

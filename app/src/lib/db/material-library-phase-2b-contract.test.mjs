@@ -62,6 +62,7 @@ test("PostgreSQL app database path still covers material item list, get, and cre
     "rankMaterialLibraryItemsForRetrieval",
     "from public.source_items",
     "trace_payload @> $2::jsonb",
+    "coalesce(structure_summary->>'materialStatus', 'ready') not in ('archived', 'failed')",
   ]);
   assertFunctionBody("getMaterialLibraryItemById", [
     "pgGetMaterialLibraryItemRow(input)",

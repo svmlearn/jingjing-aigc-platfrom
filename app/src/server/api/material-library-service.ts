@@ -8,7 +8,9 @@ import type {
   MaterialWorkbenchTarget,
 } from "@/contracts/material";
 import type { MediaAssetDto } from "@/contracts/media";
+import type { PrivateMediaClipRecord } from "@/lib/private-media-pexels-adapter";
 import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
+import { getPrivateMediaRepository } from "@/lib/db/merchant-media-repository";
 import {
   createMaterialLibraryItem,
   createMaterialWorkbenchReference,
@@ -17,6 +19,7 @@ import {
   upsertMaterialLibraryItemsFromProvider,
 } from "@/lib/db/material-library-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
+import { rankMaterialLibraryItemsForRetrieval } from "@/lib/material-retrieval";
 import { ApiError } from "@/server/api/errors";
 import { persistMaterialProviderMediaAssets } from "@/server/api/material-provider-media-assets";
 import { isTikHubConfigured } from "@/server/import-providers/tikhub/client";
@@ -35,14 +38,22 @@ export async function listMaterialLibraryForUser(input: {
   query?: string | null;
 }): Promise<MaterialLibraryItemDto[]> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  const materials = await listMaterialLibraryItems({
-    merchantId: merchant.id,
-    limit: input.limit,
-    retrievalTarget: input.retrievalTarget,
-    query: input.query,
-  });
+  const [materials, privateMediaMaterials] = await Promise.all([
+    listMaterialLibraryItems({
+      merchantId: merchant.id,
+      limit: input.limit,
+      retrievalTarget: input.retrievalTarget,
+      query: input.query,
+    }),
+    listMerchantMediaProjectMaterials({
+      merchantId: merchant.id,
+      limit: input.limit,
+      retrievalTarget: input.retrievalTarget,
+      query: input.query,
+    }),
+  ]);
 
-  return attachMaterialMediaAssets(materials);
+  return attachMaterialMediaAssets([...privateMediaMaterials, ...materials]);
 }
 
 export async function createUploadedMaterialForUser(input: {
@@ -350,6 +361,122 @@ async function attachMaterialMediaAssets(
       ? assetsBySourceItemId.get(material.sourceItemId) ?? []
       : [],
   }));
+}
+
+async function listMerchantMediaProjectMaterials(input: {
+  merchantId: string;
+  limit?: number;
+  retrievalTarget?: MaterialRetrievalTarget;
+  query?: string | null;
+}): Promise<MaterialLibraryItemDto[]> {
+  const clips = await getPrivateMediaRepository().listClipsByMerchant({
+    merchantId: input.merchantId,
+  });
+  const materials = clips.map(mapMerchantMediaClipToProjectMaterial);
+
+  if (!input.retrievalTarget && !input.query?.trim()) {
+    return materials;
+  }
+
+  return rankMaterialLibraryItemsForRetrieval({
+    materials,
+    retrievalTarget: input.retrievalTarget,
+    query: input.query,
+    limit: input.limit ?? 50,
+  });
+}
+
+function mapMerchantMediaClipToProjectMaterial(clip: PrivateMediaClipRecord): MaterialLibraryItemDto {
+  const usageType = clip.mediaType === "video" ? "video_asset" : "image_asset";
+  const materialType: MaterialType = clip.mediaType === "video" ? "video" : "article";
+  const retrievalTargets =
+    clip.mediaType === "video" ? ["video_edit_asset" as const] : ["article_image_asset" as const];
+  const title = buildMerchantMediaClipTitle(clip);
+  const fileName = fileNameFromStorageKey(clip.storageKey);
+  const materialAnalysis = {
+    materialCategory: "project_media_asset",
+    materialUsageType: usageType,
+    retrievalTargets,
+    assetType: clip.mediaType,
+    mediaProcessingStatus: "indexed",
+    fileName,
+    mimeType: clip.mimeType,
+    width: clip.width,
+    height: clip.height,
+    durationSeconds: clip.durationSeconds ?? null,
+    orientation: clip.orientation,
+    tags: clip.tags,
+    industryTags: clip.industryTags ?? [],
+    sceneTags: clip.sceneTags ?? [],
+    shotTags: clip.shotTags ?? [],
+    peopleTags: clip.peopleTags ?? [],
+    qualityTags: clip.qualityTags ?? [],
+    tagSource: clip.tagSource,
+    tagConfidence: clip.tagConfidence ?? null,
+    merchantMediaAssetId: clip.assetId ?? null,
+    merchantMediaClipId: clip.id,
+  };
+
+  return {
+    id: `merchant-media-clip:${clip.id}`,
+    merchantId: clip.merchantId,
+    sourceItemId: null,
+    platform: clip.mediaType === "video" ? "douyin" : "xiaohongshu",
+    materialType,
+    sourceKind: "uploaded",
+    usageType,
+    retrievalTargets: [...retrievalTargets],
+    status: "ready",
+    title,
+    description: clip.description,
+    originalUrl: null,
+    creatorName: null,
+    engagementLabel: clip.mediaType === "video" ? "项目视频素材" : "项目图片素材",
+    analysisPayload: {
+      structureSummary: {
+        materialType,
+        materialStatus: "ready",
+        materialSourceKind: "uploaded",
+        materialUsageType: usageType,
+        retrievalTargets,
+        materialCategory: "project_media_asset",
+        assetType: clip.mediaType,
+      },
+      engagementSnapshot: {
+        label: clip.mediaType === "video" ? "项目视频素材" : "项目图片素材",
+      },
+      tracePayload: {
+        materialLibrary: true,
+        materialSourceKind: "uploaded",
+        materialUsageType: usageType,
+        retrievalTargets,
+        materialAnalysis,
+      },
+      materialAnalysis,
+    },
+    createdAt: clip.createdAt,
+    updatedAt: clip.createdAt,
+  };
+}
+
+function buildMerchantMediaClipTitle(clip: PrivateMediaClipRecord) {
+  const firstTag = clip.tags.find((tag) => tag.trim().length > 0);
+  const description = clip.description.trim();
+
+  if (firstTag && description) {
+    return `${firstTag} · ${description.slice(0, 24)}`;
+  }
+
+  if (description) {
+    return description.slice(0, 32);
+  }
+
+  return clip.mediaType === "video" ? "项目视频素材" : "项目图片素材";
+}
+
+function fileNameFromStorageKey(storageKey: string) {
+  const parts = storageKey.split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? storageKey;
 }
 
 function withMaterialMediaPreviewUrls(asset: MediaAssetDto): MediaAssetDto {
