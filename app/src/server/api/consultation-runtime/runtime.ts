@@ -322,13 +322,9 @@ async function runModelJsonToolLoop(input: {
       content: JSON.stringify({
         type: "tool_loop_state",
         runtimeDesign: "model_json_tool_loop_v1",
-        turn,
-        maxTurns: jsonToolLoopMaxTurns,
         availableToolNames: availableTools.map((tool) => tool.function.name),
-        completedToolNames: getCompletedToolNames(input.toolResults),
-        failedToolNames: getFailedToolNames(input.toolResults),
-        skippedToolNames: getSkippedToolNames(input.toolResults),
-        writeToolsAlreadyUsed: getWriteToolsAlreadyUsed(input.toolResults),
+        toolResultPolicy:
+          "Only tool_result.status === completed means the tool succeeded; failed or skipped means no write completed.",
       }),
     };
 
@@ -569,7 +565,7 @@ async function runModelJsonToolLoop(input: {
             content: JSON.stringify({
               type: "final_instruction",
               instruction:
-                "请停止调用工具，基于已经返回的 tool_result 给用户一个中文自然语言回复。输出 JSON：{\"action\":\"final\",\"finalResponse\":\"...\"}。",
+                "请基于已经返回的 tool_result 回复；只有 status=completed 才能说已更新，failed/skipped 必须说明未完成原因。输出 JSON：{\"action\":\"final\",\"finalResponse\":\"...\"}。",
             }),
           },
         ],
@@ -769,7 +765,7 @@ async function runNativeToolCallingLoop(input: {
           {
             role: "user",
             content:
-              "请停止调用工具，基于已经返回的工具结果给用户一个中文自然语言回复。不要声称未完成的工具已经执行，不要输出内部工具名。",
+              "请基于已经返回的工具结果给用户一个中文自然语言回复。只有 status=completed 才能说已更新，failed/skipped 必须说明未完成原因；不要输出内部工具名。",
           },
         ],
       }),
@@ -803,40 +799,6 @@ export function getPlannerCompletedToolNames(
     .filter((result) => result.status !== "failed")
     .filter((result) => result.toolName !== "update_strategy_snapshot" || result.status === "completed")
     .map((result) => result.toolName);
-}
-
-function getCompletedToolNames(toolResults: ConsultationAgentToolResult[]) {
-  return uniqueStrings(
-    toolResults
-      .filter(isKnownConsultationToolResult)
-      .filter((result) => result.status === "completed")
-      .map((result) => result.toolName),
-  );
-}
-
-function getFailedToolNames(toolResults: ConsultationAgentToolResult[]) {
-  return uniqueStrings(
-    toolResults
-      .filter((result) => result.status === "failed")
-      .map((result) => result.rawToolName ?? result.toolName),
-  );
-}
-
-function getSkippedToolNames(toolResults: ConsultationAgentToolResult[]) {
-  return uniqueStrings(
-    toolResults
-      .filter((result) => result.status === "skipped")
-      .map((result) => result.rawToolName ?? result.toolName),
-  );
-}
-
-function getWriteToolsAlreadyUsed(toolResults: ConsultationAgentToolResult[]) {
-  return uniqueStrings(
-    toolResults
-      .filter(isKnownConsultationToolResult)
-      .filter((result) => !isRepeatableConsultationReadTool(result.toolName))
-      .map((result) => result.toolName),
-  );
 }
 
 function getNativeUnavailableToolNames(
@@ -1120,11 +1082,12 @@ function prepareConsultationMessagesForCompletion(input: {
 function buildNativeToolResultContent(result: ConsultationAgentToolResult) {
   return JSON.stringify({
     ok: result.status === "completed",
+    is_error: result.status !== "completed",
     toolName: result.toolName,
     rawToolName: result.rawToolName ?? null,
     status: result.status,
     summary: result.summary,
-    payload: result.payload,
+    payload: buildModelVisibleToolPayload(result),
     knowledgeMatches: (result.knowledgeMatches ?? []).map((match) => ({
       documentId: match.documentId,
       documentTitle: match.documentTitle,
@@ -1144,9 +1107,40 @@ function buildJsonToolResultContent(input: {
   return JSON.stringify({
     type: "tool_result",
     tool_use_id: input.toolUseId,
+    is_error: input.result.status !== "completed",
     toolName: input.toolName,
     result: JSON.parse(buildNativeToolResultContent(input.result)) as unknown,
   });
+}
+
+function buildModelVisibleToolPayload(result: ConsultationAgentToolResult) {
+  const payload = { ...result.payload };
+
+  if ("strategySnapshot" in payload) {
+    payload.strategySnapshot = buildModelVisibleStrategyAsset(payload.strategySnapshot);
+  }
+
+  if ("editorPatch" in payload) {
+    payload.editorPatch = buildModelVisibleStrategyAsset(payload.editorPatch);
+  }
+
+  return payload;
+}
+
+function buildModelVisibleStrategyAsset(value: unknown) {
+  const record = readRecord(value);
+
+  return {
+    positioning: readStringValue(record.positioning),
+    coreSellingPoints: readStringArrayValue(record.coreSellingPoints),
+    targetAudiences: readStringArrayValue(record.targetAudiences),
+    keyScenes: readStringArrayValue(record.keyScenes),
+    strategyTags: readStringArrayValue(record.strategyTags),
+    strategyMarkdown:
+      typeof record.strategyMarkdown === "string"
+        ? clipText(record.strategyMarkdown, 2400)
+        : undefined,
+  };
 }
 
 type JsonToolLoopDecision =
@@ -1302,6 +1296,22 @@ function buildJsonToolInputFromActionRecord(record: Record<string, unknown>) {
 
 function readString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function readStringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function readStringArrayValue(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
 }
 
 function formatAiRuntimeError(error: unknown) {

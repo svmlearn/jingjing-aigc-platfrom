@@ -81,7 +81,7 @@ export type ConsultationSelectedKnowledgeMatch = {
   toolCallId: string | null;
   turn: number | null;
   freshness: "current_turn" | "history" | "unknown";
-  evidenceRole:
+  retrievalRole:
     | "project_fact"
     | "methodology"
     | "sales_talk"
@@ -206,17 +206,26 @@ export function buildConsultationContextInjection(input: {
     sessionContext: {
       merchantId: input.merchant.id,
       merchantName: input.merchant.name,
-      round: input.round,
-      sessionSummary,
       latestUserMessage: input.userContent,
-      strategySnapshot: input.strategySnapshot,
+      strategyAsset: {
+        positioning: input.strategySnapshot.positioning,
+        coreSellingPoints: input.strategySnapshot.coreSellingPoints,
+        targetAudiences: input.strategySnapshot.targetAudiences,
+        keyScenes: input.strategySnapshot.keyScenes,
+        strategyTags: input.strategySnapshot.strategyTags,
+        strategyMarkdown: input.strategyMarkdown ?? "",
+      },
+      contentCalendarContext: {
+        status: getContentCalendarBusinessStatus(input.strategySnapshot),
+        calendarCount: input.strategySnapshot.contentCalendarDraft.length,
+      },
       strategyMarkdown: input.strategyMarkdown ?? "",
       knowledgeMatchCount: input.knowledgeMatches.length,
       toolResults: input.toolResults.map((result) => ({
         label: getConsultationContextToolLabel(result.toolName),
         status: result.status,
         summary: result.summary,
-        })),
+      })),
     },
     expertTraffic: buildExpertTrafficContextBlock({
       sharedConsultationState: input.sharedConsultationState,
@@ -301,10 +310,10 @@ export function buildConsultationSlimContextPack(input: {
   });
   const included = [
     "merchantProfileContext",
-    "conversationContext",
     "expertRoutingContext",
     "strategySnapshotContext",
-    selectedKnowledgeMatches.length > 0 ? "selectedKnowledgeContext" : null,
+    "contentCalendarContext",
+    selectedKnowledgeMatches.length > 0 ? "selectedRetrievalContext" : null,
   ].filter((field): field is string => Boolean(field));
 
   return {
@@ -350,7 +359,6 @@ export function buildContextBoundarySnapshot(input: {
   });
   const budget = slimContextPack.debug.budget;
   const agentContainer = state.consultationAgent.container;
-  const recentConversation = state.conversationMessages.slice(-8);
   const memoryMatches = state.knowledgeMatches.filter(
     (match) => match.metadata.contentKind === "merchant_memory",
   );
@@ -375,16 +383,8 @@ export function buildContextBoundarySnapshot(input: {
     sources: {
       session: {
         sessionId: state.session.id,
-        round: state.nextRound,
-        summaryPresent: Boolean(state.session.summaryText?.trim()),
-        summaryChars: state.session.summaryText?.length ?? 0,
         previousMessageCount: state.session.messages.length,
         conversationMessageCount: state.conversationMessages.length,
-        recentConversation: recentConversation.map((message, index) => ({
-          offsetFromTail: recentConversation.length - index,
-          role: message.role,
-          chars: message.content.length,
-        })),
       },
       currentUserMessage: {
         chars: state.userContent.length,
@@ -397,10 +397,12 @@ export function buildContextBoundarySnapshot(input: {
           coreSellingPoints: state.strategySnapshot.coreSellingPoints.length,
           targetAudiences: state.strategySnapshot.targetAudiences.length,
           keyScenes: state.strategySnapshot.keyScenes.length,
-          contentCalendarDraft: state.strategySnapshot.contentCalendarDraft.length,
+          strategyTags: state.strategySnapshot.strategyTags.length,
         },
-        hasArticleBrief: Boolean(state.strategySnapshot.articleBrief),
-        hasVideoBrief: Boolean(state.strategySnapshot.videoBrief),
+      },
+      contentCalendar: {
+        itemCount: state.strategySnapshot.contentCalendarDraft.length,
+        status: getContentCalendarBusinessStatus(state.strategySnapshot),
       },
       agentAssets: {
         agentId: agentContainer?.agent.id ?? null,
@@ -432,7 +434,7 @@ export function buildContextBoundarySnapshot(input: {
           toolCallId: match.toolCallId,
           turn: match.turn,
           freshness: match.freshness,
-          evidenceRole: match.evidenceRole,
+          retrievalRole: match.retrievalRole,
         })),
         matches: state.knowledgeMatches.map((match) => ({
           chunkId: match.chunkId,
@@ -597,7 +599,7 @@ export function buildSlimContextPackSystemPrompt(
     "【上下文包 slim_v2】",
     `本轮上下文包：${contextPack.selectedContextPack}。`,
     "策略资产权威入口是 runtime context 中的 strategySnapshotContext；不要假设还有另一份隐藏策略资产。",
-    "selectedKnowledgeContext 只代表本轮被选择的 evidence；未出现在其中的历史知识命中，不要当成本轮依据。",
+    "selectedRetrievalContext 只代表本轮进入模型上下文的检索/素材片段；未出现在其中的历史命中，不要当成本轮依据。",
     "工具结果的权威来源只能是 native role=tool 消息或 JSON tool_result；runtime context 里的工具摘要只帮助理解状态。",
     "内部调试字段只用于 runtimeSnapshot，不要向用户暴露。",
     "如果工具结果是 skipped、failed、guardrail rejected 或未完成，最终回复必须承认本轮未写入或未完成，不能声称已经更新。",
@@ -605,7 +607,7 @@ export function buildSlimContextPackSystemPrompt(
 
   if (contextPack.selectedKnowledgeMatches.length > 0) {
     lines.push(
-      `本轮 selected evidence 数量：${contextPack.selectedKnowledgeMatches.length}。由你结合用户问题判断如何引用，不能编造未提供的事实。`,
+      `本轮 selected retrieval 数量：${contextPack.selectedKnowledgeMatches.length}。由你结合用户问题判断如何引用，不能编造未提供的事实。`,
     );
   }
 
@@ -617,8 +619,6 @@ export function buildConsultationRuntimeContextMessage(input: {
   contextPack: ConsultationSlimContextPack;
   toolResults: ConsultationAgentToolResult[];
 }) {
-  const recentHistory = getConversationHistoryBeforeCurrentTurn(input.state).slice(-8);
-
   return [
     "<consultation-runtime-context policy=\"consultation_runtime_context_message_v1\">",
     "# merchantProfileContext",
@@ -632,20 +632,6 @@ export function buildConsultationRuntimeContextMessage(input: {
       toneStyle: input.state.merchant.toneStyle,
       defaultCta: input.state.merchant.defaultCta,
       forbiddenWords: input.state.merchant.forbiddenWords,
-    }),
-    "# conversationContext",
-    JSON.stringify({
-      sessionId: input.state.session.id,
-      round: input.state.nextRound,
-      stage: input.state.nextStage,
-      summaryText: input.state.session.summaryText ?? null,
-      history: {
-        messageCount: input.state.session.messages.length,
-        recentMessages: recentHistory.map((message) => ({
-          role: message.role,
-          content: clipText(message.content, 900),
-        })),
-      },
     }),
     "# expertRoutingContext",
     JSON.stringify({
@@ -663,9 +649,14 @@ export function buildConsultationRuntimeContextMessage(input: {
       coreSellingPoints: input.state.strategySnapshot.coreSellingPoints,
       targetAudiences: input.state.strategySnapshot.targetAudiences,
       keyScenes: input.state.strategySnapshot.keyScenes,
-      currentSuggestion: input.state.strategySnapshot.currentSuggestion,
+      strategyTags: input.state.strategySnapshot.strategyTags,
       strategyMarkdown: clipText(input.state.strategyMarkdown, 2400),
-      contentCalendarDraft: input.state.strategySnapshot.contentCalendarDraft.slice(0, 7).map((item) => ({
+    }),
+    "# contentCalendarContext",
+    JSON.stringify({
+      status: getContentCalendarBusinessStatus(input.state.strategySnapshot),
+      notice: getContentCalendarBusinessNotice(input.state.strategySnapshot),
+      calendar: input.state.strategySnapshot.contentCalendarDraft.slice(0, 7).map((item) => ({
         id: item.id,
         dayLabel: item.dayLabel,
         contentType: item.contentType,
@@ -673,14 +664,12 @@ export function buildConsultationRuntimeContextMessage(input: {
         title: item.title,
         summary: clipText(item.summary, 220),
       })),
-      contentCalendarStatus: getContentCalendarBusinessStatus(input.state.strategySnapshot),
-      contentCalendarNotice: getContentCalendarBusinessNotice(input.state.strategySnapshot),
     }),
-    "# selectedKnowledgeContext",
+    "# selectedRetrievalContext",
     JSON.stringify({
-      policy: "selected_evidence_only",
-      evidenceCount: input.contextPack.selectedKnowledgeMatches.length,
-      evidence: input.contextPack.selectedKnowledgeMatches,
+      policy: "selected_retrieval_context_only",
+      retrievalCount: input.contextPack.selectedKnowledgeMatches.length,
+      matches: input.contextPack.selectedKnowledgeMatches,
     }),
     "# toolResultsContext",
     JSON.stringify({
@@ -710,20 +699,6 @@ function getContentCalendarBusinessNotice(snapshot: StrategySnapshotDto) {
   }
 
   return "当前日历已生成过团队内容，修改前需要提醒用户后续团队内容可能需要重新生成，并确认是否继续。";
-}
-
-function getConversationHistoryBeforeCurrentTurn(state: ConsultationAgentLoopState) {
-  const messages = [...state.conversationMessages];
-  const latest = messages[messages.length - 1];
-
-  if (
-    latest?.role === "user" &&
-    latest.content.trim() === state.userContent.trim()
-  ) {
-    messages.pop();
-  }
-
-  return messages;
 }
 
 export function buildKnowledgeContextBlock(matches: KnowledgeSearchMatchDto[]) {
@@ -853,7 +828,7 @@ function buildSelectedKnowledgeMatches(input: {
     toolCallId: stringMetadata(match, "toolCallId"),
     turn: numberMetadata(match, "turn") ?? input.round,
     freshness: freshnessMetadata(match),
-    evidenceRole: inferEvidenceRole(match),
+    retrievalRole: inferRetrievalRole(match),
   }));
 }
 
@@ -948,9 +923,9 @@ function freshnessMetadata(
   return "unknown";
 }
 
-function inferEvidenceRole(
+function inferRetrievalRole(
   match: KnowledgeSearchMatchDto,
-): ConsultationSelectedKnowledgeMatch["evidenceRole"] {
+): ConsultationSelectedKnowledgeMatch["retrievalRole"] {
   const contentKind = stringMetadata(match, "contentKind") ?? stringMetadata(match, "kind");
   const haystack = `${match.documentTitle} ${match.content}`.toLowerCase();
 
@@ -1017,7 +992,7 @@ export function buildSharedConsultationState(input: {
   ).slice(0, 6);
   const strategySnapshotSummary = [
     input.strategySnapshot.positioning,
-    input.strategySnapshot.currentSuggestion,
+    ...input.strategySnapshot.strategyTags.slice(0, 4),
   ]
     .filter(Boolean)
     .join(" / ");
@@ -1038,7 +1013,7 @@ export function buildSharedConsultationState(input: {
         .join("；"),
       520,
     ),
-    currentGoal: input.strategySnapshot.currentSuggestion || input.sessionSummary || null,
+    currentGoal: input.strategySnapshot.positioning || input.sessionSummary || null,
     knownFacts: merchantFacts,
     openQuestions,
     strategySnapshotSummary: clipText(strategySnapshotSummary || input.strategyMarkdown || "", 700),
@@ -1112,7 +1087,7 @@ export function buildLatestExpertTurnNote(input: {
   const whatIUnderstood = clipText(
     [
       input.userContent,
-      input.strategySnapshot.currentSuggestion,
+      input.strategySnapshot.positioning,
     ]
       .filter(Boolean)
       .join(" / "),
@@ -1132,7 +1107,7 @@ export function buildLatestExpertTurnNote(input: {
         changedSummary,
         openQuestionsForUser.length > 0
           ? `下一位专家优先接这个问题：${openQuestionsForUser[0]}`
-          : `下一位专家可继续围绕当前建议推进：${input.strategySnapshot.currentSuggestion}`,
+          : `下一位专家可继续围绕当前策略资产推进：${input.strategySnapshot.positioning || "尚未明确定位"}`,
       ].join(" "),
       620,
     ),

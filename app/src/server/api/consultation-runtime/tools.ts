@@ -67,6 +67,14 @@ const merchantRoundArgsSchema = z
   })
   .strict();
 
+const emptyToolParameters = {
+  type: "object",
+  additionalProperties: false,
+  properties: {},
+};
+
+const emptyToolArgsSchema = z.object({}).strict();
+
 const contentCalendarItemParameters = {
   type: "object",
   additionalProperties: false,
@@ -104,7 +112,6 @@ const updateContentCalendarParameters = {
   type: "object",
   additionalProperties: false,
   properties: {
-    ...merchantRoundParameters.properties,
     calendar: {
       type: "array",
       minItems: 1,
@@ -113,6 +120,7 @@ const updateContentCalendarParameters = {
       description: "模型判断需要写入营销日历时传入的图文/视频混合任务列表。",
     },
   },
+  required: ["calendar"],
 };
 
 const retrieveKnowledgeArgsSchema = z
@@ -137,10 +145,7 @@ const contentCalendarItemArgsSchema = z
 
 const updateContentCalendarArgsSchema = z
   .object({
-    merchantId: z.string().optional(),
-    round: z.number().optional(),
-    stage: z.string().optional(),
-    calendar: z.array(contentCalendarItemArgsSchema).min(1).max(14).optional(),
+    calendar: z.array(contentCalendarItemArgsSchema).min(1).max(14),
   })
   .strict();
 
@@ -191,7 +196,7 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
         const parsed = retrieveKnowledgeArgsSchema.safeParse(args);
 
         if (!parsed.success) {
-          return { ok: false, error: formatSchemaError(parsed.error) };
+          return { ok: false, error: formatSchemaError("retrieve_knowledge_base", parsed.error) };
         }
 
         const fallback = buildConsultationToolArgs("retrieve_knowledge_base", state);
@@ -271,7 +276,7 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
         const parsed = benchmarkArgsSchema.safeParse(args);
 
         if (!parsed.success) {
-          return { ok: false, error: formatSchemaError(parsed.error) };
+          return { ok: false, error: formatSchemaError("search_benchmark_materials", parsed.error) };
         }
 
         return {
@@ -286,16 +291,16 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
     {
       key: "update_strategy_snapshot",
       label: "编辑策略资产",
-      purpose: "把产品定位、核心卖点、目标客群、关键场景和当前建议作为一个整体资产编辑。",
+      purpose: "把定位、核心卖点、目标客群、关键场景、策略标签和策略正文作为一个整体资产编辑。",
       writes: "右侧策略资产整体文档",
-      parameters: merchantRoundParameters,
-      validate: validateMerchantRoundArgs("update_strategy_snapshot"),
+      parameters: emptyToolParameters,
+      validate: validateEmptyToolArgs("update_strategy_snapshot"),
     },
     {
       key: "update_content_calendar",
       label: "更新内容日历",
       purpose: "在本轮已经取得足够知识库、话术或素材能力依据后，把咨询结论、用户知识库和策略快照转成图文/视频混合营销日历。",
-      writes: "strategySnapshot.contentCalendarDraft",
+      writes: "contentCalendarContext / 右侧内容日历",
       parameters: updateContentCalendarParameters,
       validate: validateUpdateContentCalendarArgs,
     },
@@ -368,7 +373,7 @@ function buildRuntimeToolDescription(
   if (tool.key === "update_strategy_snapshot") {
     return [
       base,
-      "arguments 只包含 merchantId、round、stage；策略资产正文由内部 Editor 根据上下文改写。",
+      "arguments 必须是空对象 {}；当前商家、会话状态、最新策略资产和最近对话由 runtime 注入，策略资产正文由内部 Editor 根据上下文改写。",
     ].join(" ");
   }
 
@@ -381,14 +386,14 @@ function buildRuntimeToolDescription(
   if (!generation) {
     return [
       base,
-      "arguments 只包含 calendar、merchantId、round、stage。",
+      "arguments 只包含必填 calendar 数组。",
       "当前日历尚未生成团队内容；如用户要求生成、补充或修改营销日历，仍由你根据依据和用户意图判断是否调用。",
     ].join(" ");
   }
 
   return [
     base,
-    "arguments 只包含 calendar、merchantId、round、stage。",
+    "arguments 只包含必填 calendar 数组。",
     `当前日历生成状态：${generation.status}`,
     `当前日历版本：${generation.currentRevisionId}`,
     generation.generatedFromRevisionId
@@ -421,7 +426,7 @@ export function parseNativeConsultationToolCall(
       ok: false,
       toolCallId: toolCall.id,
       rawToolName,
-      error: "模型请求了未注册的咨询业务工具。",
+      error: `No such tool available: ${rawToolName}`,
     };
   }
 
@@ -430,7 +435,7 @@ export function parseNativeConsultationToolCall(
       ok: false,
       toolCallId: toolCall.id,
       rawToolName,
-      error: "该工具不对当前 LLM 工具调用路径开放。",
+      error: `Tool ${rawToolName} is hidden from the consultation Agent tool list.`,
     };
   }
 
@@ -439,7 +444,7 @@ export function parseNativeConsultationToolCall(
       ok: false,
       toolCallId: toolCall.id,
       rawToolName,
-      error: "该工具未在当前 Agent tool policy 中启用。",
+      error: `Tool ${rawToolName} is not enabled by the current consultation Agent tool policy.`,
     };
   }
 
@@ -526,6 +531,10 @@ export function buildConsultationToolArgs(
     };
   }
 
+  if (toolName === "update_strategy_snapshot" || toolName === "update_content_calendar") {
+    return {};
+  }
+
   return {
     merchantId: state.merchant.id,
     round: state.nextRound,
@@ -564,7 +573,24 @@ function validateMerchantRoundArgs(toolName: ConsultationAgentToolKey) {
             ...parsed.data,
           },
         }
-      : { ok: false, error: formatSchemaError(parsed.error) };
+      : { ok: false, error: formatSchemaError(toolName, parsed.error) };
+  };
+}
+
+function validateEmptyToolArgs(toolName: ConsultationAgentToolKey) {
+  return (
+    args: unknown,
+  ):
+    | { ok: true; args: Record<string, unknown> }
+    | { ok: false; error: string } => {
+    const parsed = emptyToolArgsSchema.safeParse(args);
+
+    return parsed.success
+      ? {
+          ok: true,
+          args: {},
+        }
+      : { ok: false, error: formatSchemaError(toolName, parsed.error) };
   };
 }
 
@@ -584,7 +610,7 @@ function validateUpdateContentCalendarArgs(
           ...parsed.data,
         },
       }
-    : { ok: false, error: formatSchemaError(parsed.error) };
+    : { ok: false, error: formatSchemaError("update_content_calendar", parsed.error) };
 }
 
 function parseToolArguments(value: string):
@@ -601,10 +627,75 @@ function parseToolArguments(value: string):
   }
 }
 
-function formatSchemaError(error: z.ZodError) {
-  return error.issues
-    .map((issue) => `${issue.path.join(".") || "arguments"}: ${issue.message}`)
-    .join("；");
+function formatSchemaError(toolName: string, error: z.ZodError) {
+  const errorParts: string[] = [];
+
+  for (const issue of error.issues) {
+    if (issue.code === "unrecognized_keys") {
+      const keys = "keys" in issue && Array.isArray(issue.keys) ? issue.keys : [];
+      errorParts.push(
+        ...keys.map((key) => `An unexpected parameter \`${String(key)}\` was provided`),
+      );
+      continue;
+    }
+
+    if (issue.code === "invalid_type") {
+      const path = formatValidationPath(issue.path);
+      const issueRecord = issue as unknown as Record<string, unknown>;
+      const expected =
+        typeof issueRecord.expected === "string" ? issueRecord.expected : "unknown";
+      const received = getReceivedType(issueRecord.input);
+
+      if (received === "undefined") {
+        errorParts.push(`The required parameter \`${path || "arguments"}\` is missing`);
+      } else {
+        errorParts.push(
+          `The parameter \`${path || "arguments"}\` type is expected as \`${expected}\` but provided as \`${received}\``,
+        );
+      }
+      continue;
+    }
+
+    errorParts.push(`${formatValidationPath(issue.path) || "arguments"}: ${issue.message}`);
+  }
+
+  if (errorParts.length === 0) {
+    return `${toolName} failed because arguments do not match the tool schema.`;
+  }
+
+  return `${toolName} failed due to the following ${errorParts.length > 1 ? "issues" : "issue"}:\n${errorParts.join("\n")}`;
+}
+
+function formatValidationPath(path: PropertyKey[]) {
+  if (path.length === 0) {
+    return "";
+  }
+
+  return path.reduce((acc, segment, index) => {
+    const segmentText = String(segment);
+
+    if (typeof segment === "number") {
+      return `${String(acc)}[${segmentText}]`;
+    }
+
+    return index === 0 ? segmentText : `${String(acc)}.${segmentText}`;
+  }, "") as string;
+}
+
+function getReceivedType(value: unknown) {
+  if (value === undefined) {
+    return "undefined";
+  }
+
+  if (value === null) {
+    return "null";
+  }
+
+  if (Array.isArray(value)) {
+    return "array";
+  }
+
+  return typeof value;
 }
 
 function extractBenchmarkUrl(content: string) {

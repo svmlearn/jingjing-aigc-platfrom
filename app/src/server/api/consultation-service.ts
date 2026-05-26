@@ -592,7 +592,10 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
     sessionId: effectiveSession.id,
     currentStage: loopResult.nextStage,
     strategySnapshot: finalizedStrategySnapshot,
-    summaryText: finalizedStrategySnapshot.currentSuggestion,
+    summaryText: buildConsultationSessionSummaryText(
+      finalizedStrategySnapshot,
+      finalizedStrategyMarkdown,
+    ),
   });
   await createConsultationMessage({
     sessionId: effectiveSession.id,
@@ -1156,7 +1159,7 @@ const strategyAssetFieldKeys = [
   "coreSellingPoints",
   "targetAudiences",
   "keyScenes",
-  "currentSuggestion",
+  "strategyTags",
   "strategyMarkdown",
 ] as const satisfies readonly StrategyAssetFieldKey[];
 
@@ -1164,16 +1167,17 @@ const strategyAssetListLimits = {
   coreSellingPoints: 8,
   targetAudiences: 10,
   keyScenes: 8,
+  strategyTags: 12,
 } as const;
 
 const strategyAssetDocumentSchema = z
   .object({
-    positioning: z.string().trim().min(1),
+    positioning: z.string().trim(),
     coreSellingPoints: z.array(z.string().trim().min(1)).max(strategyAssetListLimits.coreSellingPoints),
     targetAudiences: z.array(z.string().trim().min(1)).max(strategyAssetListLimits.targetAudiences),
     keyScenes: z.array(z.string().trim().min(1)).max(strategyAssetListLimits.keyScenes),
-    currentSuggestion: z.string().trim().min(1),
-    strategyMarkdown: z.string().trim().min(1).max(24000),
+    strategyTags: z.array(z.string().trim().min(1)).max(strategyAssetListLimits.strategyTags),
+    strategyMarkdown: z.string().trim().max(24000),
   })
   .strict();
 
@@ -1403,18 +1407,21 @@ async function dispatchConsultationTool(
   if (call.toolName === "update_strategy_snapshot") {
     const assetEdit = await resolveStrategyAssetEditorPatch({
       state,
-      fallback: buildStrategyAssetSnapshotPatch(state.session.strategySnapshot),
+      fallback: buildStrategyAssetSnapshotPatch({
+        ...state.strategySnapshot,
+        strategyMarkdown: state.strategyMarkdown,
+      }),
     });
     const strategyWriteApplied = assetEdit.guard.allowed && assetEdit.patch.changedFields.length > 0;
     const strategySnapshot = strategyWriteApplied
       ? buildStrategySnapshot({
           merchant: state.merchant,
-          previousSnapshot: state.session.strategySnapshot,
+          previousSnapshot: state.strategySnapshot,
           userMessages: state.userMessages,
           knowledgeMatches: state.knowledgeMatches,
           assetEdit: assetEdit.patch,
         })
-      : state.session.strategySnapshot;
+      : state.strategySnapshot;
     const strategyMarkdown = strategyWriteApplied
       ? assetEdit.patch.strategyMarkdown ?? buildStrategyAssetMarkdown(strategySnapshot)
       : state.strategyMarkdown;
@@ -1442,9 +1449,25 @@ async function dispatchConsultationTool(
 
   if (call.toolName === "update_content_calendar") {
     const incomingCalendar = normalizeContentCalendarToolItems(call.args.calendar);
-    const calendar = incomingCalendar.length
-      ? incomingCalendar
-      : state.strategySnapshot.contentCalendarDraft;
+
+    if (incomingCalendar.length === 0) {
+      return {
+        callId: call.id,
+        toolName: call.toolName,
+        status: "failed",
+        summary:
+          "工具调用未通过运行时校验：update_content_calendar failed due to the following issue:\nThe required parameter `calendar` is missing",
+        payload: {
+          errorType: "tool_arguments_validation_failed",
+          error:
+            "update_content_calendar failed due to the following issue:\nThe required parameter `calendar` is missing",
+          retryInstruction:
+            "请重新调用 update_content_calendar，并在 input.calendar 中传入 1 到 14 条包含 dayLabel、contentType、title、summary 的日历条目。",
+        },
+      };
+    }
+
+    const calendar = incomingCalendar;
     const strategySnapshot = incomingCalendar.length
       ? withUpdatedContentCalendarGeneration(state.strategySnapshot, calendar)
       : state.strategySnapshot;
@@ -1455,11 +1478,7 @@ async function dispatchConsultationTool(
       toolName: call.toolName,
       status: calendar.length > 0 ? "completed" : "skipped",
       summary:
-        incomingCalendar.length > 0
-          ? `已写入 ${calendar.length} 条图文/视频混合营销日历。`
-          : calendar.length > 0
-            ? `已同步 ${calendar.length} 条图文/视频混合营销日历。`
-          : "策略快照尚未生成内容日历。",
+        `已写入 ${calendar.length} 条图文/视频混合营销日历。`,
       payload: {
         calendarCount: calendar.length,
         calendar,
@@ -1789,8 +1808,8 @@ function buildConversationHistoryMessages(state: ConsultationAgentLoopState): Ch
 function buildPhaseRuntimeRules(phase: ConsultationModelMessagePhase) {
   const sharedRules = [
     "当前用户消息是消息数组最后一条 role=user；runtime context 只是自动上下文，不是用户原话。",
-    "回答时可以使用 strategySnapshotContext 和 selectedKnowledgeContext 里的受控信息；如果信息不足，可以提出一个最关键的追问。",
-    "当 selectedKnowledgeContext 已包含用户知识库片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
+    "回答时可以使用 strategySnapshotContext、contentCalendarContext 和 selectedRetrievalContext 里的受控信息；如果信息不足，可以提出一个最关键的追问。",
+    "当 selectedRetrievalContext 已包含用户知识库或素材片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
     "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshotContext 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
   ];
 
@@ -1820,7 +1839,7 @@ function buildPhaseRuntimeRules(phase: ConsultationModelMessagePhase) {
     "当你要调用工具时，输出：{\"action\":\"tool_use\",\"tool_use\":{\"name\":\"工具名\",\"input\":{...}},\"reason\":\"一句中文理由\"}。",
     "当你认为已经足够回答用户时，输出：{\"action\":\"final\",\"finalResponse\":\"给用户看的中文自然语言回复\"}。",
     "JSON tool_use 参数最小契约：调用 update_content_calendar 时，input 里必须包含 calendar 数组；每项至少包含 dayLabel、contentType、title、summary。",
-    "JSON 工具循环中，业务结果以前序 tool_result 消息为准。",
+    "JSON 工具循环中，业务结果以前序 tool_result 消息为准；只有 status=completed 才能说已更新。",
     "写入类工具仍要在信息足够后再调用。",
     "不要先写日历再补查依据。在调用 update_content_calendar 前，应先判断当前知识库和素材能力依据是否足够。",
     "当用户要求生成、补充或调整内容日历、营销日历、团队选题、本周图文/视频任务时，优先考虑调用 update_content_calendar，并传入可执行的 calendar 条目。",
@@ -1977,6 +1996,24 @@ function buildToolCards(input: {
     }));
 }
 
+function buildConsultationSessionSummaryText(
+  snapshot: StrategySnapshotDto,
+  strategyMarkdown: string,
+) {
+  return clipText(
+    [
+      snapshot.positioning,
+      snapshot.targetAudiences.length ? `目标客群：${snapshot.targetAudiences.join("、")}` : "",
+      snapshot.coreSellingPoints.length ? `核心卖点：${snapshot.coreSellingPoints.join("、")}` : "",
+      snapshot.keyScenes.length ? `关键场景：${snapshot.keyScenes.join("、")}` : "",
+      snapshot.strategyTags.length ? `策略标签：${snapshot.strategyTags.join("、")}` : "",
+    ]
+      .filter(Boolean)
+      .join("；") || strategyMarkdown,
+    900,
+  );
+}
+
 function isMerchantVisibleToolResult(result: ConsultationAgentToolResult) {
   return result.payload.errorType !== "native_tool_call_rejected";
 }
@@ -2060,16 +2097,15 @@ function buildStrategySnapshot(input: {
     maxItems: strategyAssetListLimits.keyScenes,
   });
   const strategyTags = uniqueStrings([
-    ...(input.previousSnapshot?.strategyTags ?? []),
+    ...(assetEdit?.strategyTags ?? input.previousSnapshot?.strategyTags ?? []),
     knowledgeText ? "知识库命中" : "",
     mergedUserText.includes("视频") ? "视频优先" : "",
-  ]).slice(0, 4);
+  ]).slice(0, strategyAssetListLimits.strategyTags);
   const positioning =
     assetEdit?.positioning ??
     input.previousSnapshot?.positioning ??
     "";
   const currentSuggestion =
-    assetEdit?.currentSuggestion ??
     input.previousSnapshot?.currentSuggestion ??
     "";
 
@@ -2200,10 +2236,10 @@ function hasStrategyAssetEditorFacts(assetEdit?: StrategyAssetEditorPatch) {
   return Boolean(
     firstCleanText([
       assetEdit.positioning,
-      assetEdit.currentSuggestion,
       ...(assetEdit.coreSellingPoints ?? []),
       ...(assetEdit.targetAudiences ?? []),
       ...(assetEdit.keyScenes ?? []),
+      ...(assetEdit.strategyTags ?? []),
     ]),
   );
 }
@@ -2216,10 +2252,10 @@ function hasUsableStrategySnapshot(snapshot: StrategySnapshotDto | null) {
   return Boolean(
     firstCleanText([
       snapshot.positioning,
-      snapshot.currentSuggestion,
       ...(snapshot.coreSellingPoints ?? []),
       ...(snapshot.targetAudiences ?? []),
       ...(snapshot.keyScenes ?? []),
+      ...(snapshot.strategyTags ?? []),
     ]),
   );
 }
@@ -2359,7 +2395,7 @@ function guardResolvedStrategyAssetEdit(input: {
   source: StrategyAssetGuardSource;
 }): StrategyAssetEditorResolution {
   const guard = guardStrategyAssetEditorPatch({
-    previousSnapshot: input.state.session.strategySnapshot,
+    previousSnapshot: input.state.strategySnapshot,
     previousMarkdown: input.state.strategyMarkdown,
     userContent: input.state.userContent,
     patch: input.patch,
@@ -2380,8 +2416,8 @@ function buildStrategyAssetEditorMessages(
     round: state.nextRound,
     userContent: state.userContent,
     sessionSummary: state.session.summaryText,
-    strategySnapshot: state.session.strategySnapshot,
-    strategyMarkdown: state.session.strategyAsset?.strategyMarkdown ?? state.strategyMarkdown,
+    strategySnapshot: state.strategySnapshot,
+    strategyMarkdown: state.strategyMarkdown,
     consultationAgent: state.consultationAgent,
     knowledgeMatches: state.knowledgeMatches,
     toolResults: [],
@@ -2399,14 +2435,14 @@ function buildStrategyAssetEditorMessages(
         buildAgentSoulPrompt(state.consultationAgent),
         buildSlimContextPackSystemPrompt(slimContextPack),
         "你必须调用 update_strategy_asset_editor 工具，并传入完整 strategyAsset 文档，不要只传局部字段。",
-        "strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion、strategyMarkdown 六个字段。",
+        "strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、strategyTags、strategyMarkdown 六个字段。",
         "strategyMarkdown 是右侧策略资产的主文档，允许用 Markdown 章节自由沉淀用户洞察、内容方向、风控边界、待验证想法；不要把它压缩成固定字段。",
         "如果用户要求追加、补充或把刚才提到的内容放进策略资产，你要基于 currentStrategySnapshot 合并，并结合 recentConversation 理解指代。",
         "如果用户说'这5个'、'这些'、'刚才你说的'，由你根据 recentConversation 判断具体条目；runtime 不会替你解析中文指代。",
         "固定字段只写干净业务内容，不要包含聊天口语、编辑动作、Markdown 标记、引号或额外解释；strategyMarkdown 可以包含 Markdown 标题和列表。",
         "不要凭空补默认目标对象、经营场景或与当前用户不匹配的旧模板。",
         "如果用户只是追问、聊天或信息不足，strategyAsset 原样返回 currentStrategySnapshot，changedFields 传空数组。",
-        "字段说明：positioning=我们是谁；targetAudiences=服务谁；keyScenes=核心场景；coreSellingPoints=核心卖点；currentSuggestion=当前建议；strategyMarkdown=完整策略资产文档。",
+        "字段说明：positioning=我们是谁；targetAudiences=服务谁；keyScenes=核心场景；coreSellingPoints=核心卖点；strategyTags=内部可检索策略标签；strategyMarkdown=完整策略资产文档，长期建议写入 strategyMarkdown。",
       ]
         .filter((item): item is string => Boolean(item))
         .join("\n"),
@@ -2420,11 +2456,11 @@ function buildStrategyAssetEditorMessages(
         recentConversation: state.conversationMessages.slice(-8),
         recentUserMessages: state.userMessages.slice(-4),
         currentStrategySnapshot: {
-          positioning: state.session.strategySnapshot.positioning,
-          coreSellingPoints: state.session.strategySnapshot.coreSellingPoints,
-          targetAudiences: state.session.strategySnapshot.targetAudiences,
-          keyScenes: state.session.strategySnapshot.keyScenes,
-          currentSuggestion: state.session.strategySnapshot.currentSuggestion,
+          positioning: state.strategySnapshot.positioning,
+          coreSellingPoints: state.strategySnapshot.coreSellingPoints,
+          targetAudiences: state.strategySnapshot.targetAudiences,
+          keyScenes: state.strategySnapshot.keyScenes,
+          strategyTags: state.strategySnapshot.strategyTags,
           strategyMarkdown: state.strategyMarkdown,
         },
         limits: strategyAssetListLimits,
@@ -2473,7 +2509,7 @@ function buildStrategyAssetEditorValidationToolResult(error: string) {
     errorType: "tool_arguments_validation_failed",
     error,
     retryInstruction:
-      "请重新调用 update_strategy_asset_editor。arguments 必须包含完整 strategyAsset 文档，并符合工具 schema；changedFields 只能标记本轮实际改动字段；固定字段只能写干净业务正文，strategyMarkdown 写完整 Markdown 策略资产文档。",
+      "请重新调用 update_strategy_asset_editor。arguments 必须包含完整 strategyAsset 文档，并符合工具 schema；changedFields 只能标记本轮实际改动字段；结构化字段只能写干净业务正文或标签，长期建议写入 strategyMarkdown。",
   });
 }
 
@@ -2521,9 +2557,11 @@ const strategyAssetEditorTool: AiRuntimeTool = {
               maxItems: strategyAssetListLimits.keyScenes,
               description: "完整核心场景列表。",
             },
-            currentSuggestion: {
-              type: "string",
-              description: "当前建议正文。",
+            strategyTags: {
+              type: "array",
+              items: { type: "string" },
+              maxItems: strategyAssetListLimits.strategyTags,
+              description: "完整策略标签列表；用于内部检索和聚合，不是小红书话题标签。",
             },
             strategyMarkdown: {
               type: "string",
@@ -2536,7 +2574,7 @@ const strategyAssetEditorTool: AiRuntimeTool = {
             "coreSellingPoints",
             "targetAudiences",
             "keyScenes",
-            "currentSuggestion",
+            "strategyTags",
             "strategyMarkdown",
           ],
         },
@@ -2579,22 +2617,6 @@ function normalizeStrategyAssetEditorToolArgs(
 ): StrategyAssetEditorToolParseResult {
   const changedFields = uniqueFieldKeys(args.changedFields);
   const patch = buildStrategyAssetSnapshotPatch(args.strategyAsset, changedFields);
-  const invalidFields: StrategyAssetFieldKey[] = [];
-
-  if (!patch.positioning) {
-    invalidFields.push("positioning");
-  }
-
-  if (!patch.currentSuggestion) {
-    invalidFields.push("currentSuggestion");
-  }
-
-  if (invalidFields.length > 0) {
-    return {
-      ok: false,
-      error: `strategyAsset.${invalidFields.join("、")} 缺少可保存的非空值。`,
-    };
-  }
 
   return {
     ok: true,
@@ -2616,7 +2638,7 @@ function formatStrategyAssetEditorSchemaError(error: z.ZodError) {
 function buildStrategyAssetSnapshotPatch(
   strategyAsset: Pick<
     StrategySnapshotDto,
-    "positioning" | "coreSellingPoints" | "targetAudiences" | "keyScenes" | "currentSuggestion"
+    "positioning" | "coreSellingPoints" | "targetAudiences" | "keyScenes" | "strategyTags"
   > & {
     strategyMarkdown?: string | null;
   },
@@ -2627,7 +2649,7 @@ function buildStrategyAssetSnapshotPatch(
     coreSellingPoints: cleanModelStrategyList(strategyAsset.coreSellingPoints),
     targetAudiences: cleanModelStrategyList(strategyAsset.targetAudiences),
     keyScenes: cleanModelStrategyList(strategyAsset.keyScenes),
-    currentSuggestion: cleanModelStrategyText(strategyAsset.currentSuggestion) ?? undefined,
+    strategyTags: cleanModelStrategyList(strategyAsset.strategyTags),
     strategyMarkdown: cleanModelStrategyMarkdown(strategyAsset.strategyMarkdown) ?? undefined,
     changedFields: uniqueFieldKeys(changedFields),
   };
@@ -2690,8 +2712,8 @@ function summarizeStrategyAssetEdit(edit: StrategyAssetEditorPatch) {
         return `产品定位 -> ${clipText(edit.positioning, 48)}`;
       }
 
-      if (field === "currentSuggestion" && edit.currentSuggestion) {
-        return `当前建议 -> ${clipText(edit.currentSuggestion, 48)}`;
+      if (field === "strategyTags" && edit.strategyTags?.length) {
+        return `策略标签 -> ${edit.strategyTags.join("、")}`;
       }
 
       if (field === "strategyMarkdown" && edit.strategyMarkdown) {
@@ -2713,7 +2735,7 @@ function toStrategyAssetEditorPayload(edit: StrategyAssetEditorPatch) {
     coreSellingPoints: edit.coreSellingPoints ?? null,
     targetAudiences: edit.targetAudiences ?? null,
     keyScenes: edit.keyScenes ?? null,
-    currentSuggestion: edit.currentSuggestion ?? null,
+    strategyTags: edit.strategyTags ?? null,
     strategyMarkdown: edit.strategyMarkdown ?? null,
   };
 }

@@ -167,9 +167,9 @@ export function buildStrategyAssetMarkdown(snapshot: StrategySnapshotDto): strin
     markdownListSection("目标对象洞察", snapshot.targetAudiences, "继续补充目标对象。"),
     markdownListSection("核心卖点", snapshot.coreSellingPoints, "继续补充核心卖点。"),
     markdownListSection("核心场景", snapshot.keyScenes, "继续补充用户决策和使用场景。"),
+    markdownListSection("策略标签", snapshot.strategyTags, "继续补充可检索的策略标签。"),
     markdownSection("小红书表达方向", buildXiaohongshuDirection(snapshot)),
     markdownSection("风控边界", "不编造价格、疗效、收益、资质、真实案例、活动承诺；不使用绝对化或功效承诺表达。"),
-    markdownSection("当前建议", snapshot.currentSuggestion || "继续补充信息后同步咨询建议。"),
     markdownSection("待验证想法", "- 后续咨询中继续补充。"),
   ];
 
@@ -223,8 +223,6 @@ function markdownListSection(title: string, items: string[], emptyText: string) 
 
 function buildXiaohongshuDirection(snapshot: StrategySnapshotDto) {
   const parts = [
-    snapshot.articleBrief?.angle,
-    snapshot.articleBrief?.callToAction ? `CTA：${snapshot.articleBrief.callToAction}` : null,
     snapshot.strategyTags.length ? `内容标签：${snapshot.strategyTags.join("、")}` : null,
   ].filter((item): item is string => Boolean(item));
 

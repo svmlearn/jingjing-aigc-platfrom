@@ -288,8 +288,6 @@ function buildPlannerMessages(input: {
       role: "user" as const,
       content: JSON.stringify({
         userMessage: input.state.userContent,
-        round: input.state.nextRound,
-        stage: input.state.nextStage,
         merchant: {
           name: input.state.merchant.name,
           industry: input.state.merchant.industry,
@@ -300,7 +298,7 @@ function buildPlannerMessages(input: {
           targetAudiences: input.state.strategySnapshot.targetAudiences,
           coreSellingPoints: input.state.strategySnapshot.coreSellingPoints,
           keyScenes: input.state.strategySnapshot.keyScenes,
-          currentSuggestion: input.state.strategySnapshot.currentSuggestion,
+          strategyTags: input.state.strategySnapshot.strategyTags,
         },
         completedTools: input.completedToolNames,
         failedTools: uniqueStrings(

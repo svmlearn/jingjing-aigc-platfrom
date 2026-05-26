@@ -1,7 +1,34 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import * as nodeModule from "node:module";
 import test from "node:test";
 import { __consultationContextPreflightTest } from "./consultation-runtime/context-preflight.ts";
+import type { ConsultationAgentLoopState } from "./consultation-runtime/types.ts";
+
+const appSrcRootUrl = new URL("../../", import.meta.url);
+type ModuleResolveHook = (
+  specifier: string,
+  context: unknown,
+  nextResolve: (specifier: string, context: unknown) => unknown,
+) => unknown;
+const registerModuleHooks = (nodeModule as typeof nodeModule & {
+  registerHooks(input: { resolve: ModuleResolveHook }): void;
+}).registerHooks;
+
+registerModuleHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier.startsWith("@/")) {
+      const aliasedPath = specifier.slice(2);
+      const resolvedPath = /\.[cm]?[tj]sx?$/.test(aliasedPath)
+        ? aliasedPath
+        : `${aliasedPath}.ts`;
+
+      return nextResolve(new URL(resolvedPath, appSrcRootUrl).href, context);
+    }
+
+    return nextResolve(specifier, context);
+  },
+});
 
 const serviceSource = readFileSync(new URL("./consultation-service.ts", import.meta.url), "utf8");
 const aiRuntimeSource = readFileSync(new URL("./ai-runtime.ts", import.meta.url), "utf8");
@@ -28,6 +55,21 @@ const runtimeContextMessageBuilderSource = extractSourceBlock(
   consultationRuntimeSource,
   "export function buildConsultationRuntimeContextMessage",
   "function getContentCalendarBusinessStatus",
+);
+const jsonToolLoopSource = extractSourceBlock(
+  consultationRuntimeSource,
+  "async function runModelJsonToolLoop",
+  "async function runNativeToolCallingLoop",
+);
+const strategyAssetEditorMessagesSource = extractSourceBlock(
+  serviceSource,
+  "function buildStrategyAssetEditorMessages(\n  state",
+  "async function createStrategyAssetEditorCompletion",
+);
+const strategyAssetEditorToolSource = extractSourceBlock(
+  serviceSource,
+  "const strategyAssetEditorTool: AiRuntimeTool",
+  "function parseStrategyAssetEditorToolArgs",
 );
 const roundtableSource = readFileSync(
   new URL("./roundtable-consultation-service.ts", import.meta.url),
@@ -111,6 +153,22 @@ function extractSourceBlock(source: string, start: string, end: string) {
   assert.notEqual(endIndex, -1, `Missing source block end: ${end}`);
 
   return source.slice(startIndex, endIndex);
+}
+
+function buildToolValidationState() {
+  return {
+    consultationAgent: {
+      enabledTools: [
+        "retrieve_knowledge_base",
+        "search_benchmark_materials",
+        "update_strategy_snapshot",
+        "update_content_calendar",
+      ],
+      container: null,
+      retrievalTopK: 5,
+      activeSkills: [],
+    },
+  } as unknown as ConsultationAgentLoopState;
 }
 
 test("consultation runtime resolves online agent prompt and skill bindings", () => {
@@ -519,7 +577,8 @@ test("consultation runtime exposes right panel assets through bounded business t
   assert.match(consultationServiceAndRuntimeSource, /toolChoice/);
   assert.match(consultationServiceAndRuntimeSource, /update_content_calendar/);
   assert.match(consultationServiceAndRuntimeSource, /isLlmVisibleConsultationTool/);
-  assert.match(consultationRuntimeSource, /该工具不对当前 LLM 工具调用路径开放/);
+  assert.match(consultationRuntimeSource, /hidden from the consultation Agent tool list/);
+  assert.match(consultationRuntimeSource, /llmHiddenConsultationToolNames/);
   assert.doesNotMatch(platformAdminRepositorySource, new RegExp("generate_" + "article_brief"));
   assert.doesNotMatch(platformAdminRepositorySource, new RegExp("generate_" + "video_brief"));
   assert.doesNotMatch(platformSettingsEditorSource, new RegExp("generate_" + "article_brief"));
@@ -528,7 +587,7 @@ test("consultation runtime exposes right panel assets through bounded business t
     consultationServiceAndRuntimeSource,
     /右侧策略资产整体文档/,
   );
-  assert.match(consultationServiceAndRuntimeSource, /strategySnapshot\.contentCalendarDraft/);
+  assert.match(consultationServiceAndRuntimeSource, /contentCalendarContext/);
 });
 
 test("consultation visible tools exclude runtime context pseudo read tools", () => {
@@ -573,17 +632,21 @@ test("consultation model messages split runtime context from current user messag
   assert.doesNotMatch(serviceSource, /userMessage: input\.state\.userContent/);
 });
 
-test("consultation runtime context message carries profile history strategy and evidence", () => {
+test("consultation runtime context message carries profile strategy calendar and retrieval context", () => {
   assert.match(consultationRuntimeSource, /buildConsultationRuntimeContextMessage/);
   assert.match(consultationRuntimeSource, /merchantProfileContext/);
-  assert.match(consultationRuntimeSource, /conversationContext/);
-  assert.match(consultationRuntimeSource, /history: \{/);
   assert.match(consultationRuntimeSource, /strategySnapshotContext/);
-  assert.match(consultationRuntimeSource, /selectedKnowledgeContext/);
-  assert.match(consultationRuntimeSource, /evidenceCount/);
-  assert.match(consultationRuntimeSource, /selected_evidence_only/);
+  assert.match(consultationRuntimeSource, /contentCalendarContext/);
+  assert.match(consultationRuntimeSource, /selectedRetrievalContext/);
+  assert.match(consultationRuntimeSource, /retrievalCount/);
+  assert.match(consultationRuntimeSource, /selected_retrieval_context_only/);
   assert.match(consultationRuntimeSource, /toolResultsContext/);
-  assert.match(consultationRuntimeSource, /getConversationHistoryBeforeCurrentTurn/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /conversationContext/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /round: input\.state\.nextRound/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /stage: input\.state\.nextStage/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /summaryText/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /recentMessages/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /currentSuggestion/);
 });
 
 test("consultation runtime context hides internal calendar generation fields", () => {
@@ -591,9 +654,10 @@ test("consultation runtime context hides internal calendar generation fields", (
   assert.doesNotMatch(runtimeContextMessageBuilderSource, /generatedBatchId/);
   assert.doesNotMatch(runtimeContextMessageBuilderSource, /generatedFromRevisionId/);
   assert.doesNotMatch(runtimeContextMessageBuilderSource, /currentRevisionId/);
-  assert.doesNotMatch(runtimeContextMessageBuilderSource, /strategyTags/);
-  assert.match(runtimeContextMessageBuilderSource, /contentCalendarStatus/);
-  assert.match(runtimeContextMessageBuilderSource, /contentCalendarNotice/);
+  assert.match(runtimeContextMessageBuilderSource, /strategyTags/);
+  assert.match(runtimeContextMessageBuilderSource, /# contentCalendarContext/);
+  assert.match(runtimeContextMessageBuilderSource, /status: getContentCalendarBusinessStatus/);
+  assert.match(runtimeContextMessageBuilderSource, /notice: getContentCalendarBusinessNotice/);
   assert.match(consultationRuntimeSource, /generated_team_content_exists/);
   assert.match(consultationRuntimeSource, /not_generated/);
   assert.match(consultationRuntimeSource, /后续团队内容可能需要重新生成/);
@@ -604,14 +668,16 @@ test("consultation planner supports Claude Code style JSON tool loop", () => {
   assert.match(consultationServiceAndRuntimeSource, /model_json_tool_loop_v1/);
   assert.match(consultationServiceAndRuntimeSource, /buildJsonToolLoopMessages/);
   assert.match(consultationServiceAndRuntimeSource, /tool_loop_state/);
-  assert.match(consultationRuntimeSource, /availableToolNames/);
-  assert.match(consultationRuntimeSource, /completedToolNames/);
-  assert.match(consultationRuntimeSource, /failedToolNames/);
-  assert.match(consultationRuntimeSource, /skippedToolNames/);
-  assert.match(consultationRuntimeSource, /writeToolsAlreadyUsed/);
+  assert.match(jsonToolLoopSource, /availableToolNames/);
+  assert.match(jsonToolLoopSource, /toolResultPolicy/);
+  assert.doesNotMatch(jsonToolLoopSource, /completedToolNames/);
+  assert.doesNotMatch(jsonToolLoopSource, /failedToolNames/);
+  assert.doesNotMatch(jsonToolLoopSource, /skippedToolNames/);
+  assert.doesNotMatch(jsonToolLoopSource, /writeToolsAlreadyUsed/);
   assert.match(serviceSource, /JSON tool_use 参数最小契约/);
   assert.match(serviceSource, /dayLabel、contentType、title、summary/);
   assert.match(consultationServiceAndRuntimeSource, /tool_result/);
+  assert.match(consultationRuntimeSource, /is_error: result\.status !== "completed"/);
   assert.match(consultationServiceAndRuntimeSource, /source: "model_json_tool_use"/);
   assert.match(consultationServiceAndRuntimeSource, /native_tool_calling_loop_v1/);
   assert.match(consultationServiceAndRuntimeSource, /buildNativeToolCallingMessages/);
@@ -659,7 +725,7 @@ test("consultation runtime routes explicit knowledge reads through the retrieval
   assert.doesNotMatch(serviceSource, new RegExp("不再通过用户端" + "图文工作台"));
   assert.doesNotMatch(serviceSource, /observations 里尚未有/);
   assert.match(serviceSource, /strategySnapshotContext/);
-  assert.match(consultationRuntimeSource, /selectedKnowledgeContext/);
+  assert.match(consultationRuntimeSource, /selectedRetrievalContext/);
   assert.match(serviceSource, /buildRecoveredToolResultReply/);
   assert.match(serviceSource, /受控工具已经执行完成/);
   assert.match(consultationRuntimeSource, /knowledgeMatches: \(result\.knowledgeMatches \?\? \[\]\)\.map/);
@@ -749,14 +815,83 @@ test("consultation runtime surfaces native tool call rejections as failed tool f
 });
 
 test("consultation native write tools keep strict schemas and positive argument descriptions", () => {
-  assert.match(consultationRuntimeSource, /merchantRoundArgsSchema[\s\S]*?\.strict\(\)/);
+  assert.match(consultationRuntimeSource, /emptyToolArgsSchema[\s\S]*?\.strict\(\)/);
   assert.match(consultationRuntimeSource, /contentCalendarItemArgsSchema[\s\S]*?\.strict\(\)/);
   assert.match(consultationRuntimeSource, /updateContentCalendarArgsSchema[\s\S]*?\.strict\(\)/);
   assert.doesNotMatch(consultationRuntimeSource, /\.strip\(/);
-  assert.match(consultationRuntimeSource, /arguments 只包含 merchantId、round、stage/);
-  assert.match(consultationRuntimeSource, /arguments 只包含 calendar、merchantId、round、stage/);
+  assert.match(consultationRuntimeSource, /arguments 必须是空对象 \{\}/);
+  assert.match(consultationRuntimeSource, /arguments 只包含必填 calendar 数组/);
+  assert.match(consultationRuntimeSource, /calendar: z\.array\(contentCalendarItemArgsSchema\)\.min\(1\)\.max\(14\)/);
   assert.doesNotMatch(consultationRuntimeSource, /不要把 currentSuggestion、strategyTags/);
   assert.doesNotMatch(consultationRuntimeSource, /不要传 strategyTags、contentCalendarGenerationStatus/);
+});
+
+test("consultation tool protocol rejects anti-patterns and returns validation reasons", () => {
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /tools-suggestion/);
+  assert.doesNotMatch(consultationServiceAndRuntimeSource, /guardAssistantWriteClaims/);
+  assert.equal(
+    consultationRuntimeSource.includes("An unexpected parameter \\`${String(key)}\\` was provided"),
+    true,
+  );
+  assert.equal(
+    consultationRuntimeSource.includes("The required parameter \\`${path || \"arguments\"}\\` is missing"),
+    true,
+  );
+  assert.equal(
+    consultationRuntimeSource.includes("The parameter \\`${path || \"arguments\"}\\` type is expected as"),
+    true,
+  );
+  assert.match(serviceSource, /The required parameter `calendar` is missing/);
+  assert.match(serviceSource, /status: "failed"/);
+  assert.doesNotMatch(strategyAssetEditorMessagesSource, /currentSuggestion/);
+  assert.doesNotMatch(strategyAssetEditorToolSource, /currentSuggestion/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /currentSuggestion/);
+  assert.doesNotMatch(jsonToolLoopSource, /turn,\n\s*maxTurns/);
+});
+
+test("consultation write tool argument validation returns concrete failure reasons", async () => {
+  const { parseNativeConsultationToolCall } = await import("./consultation-runtime/tools.ts");
+  const state = buildToolValidationState();
+
+  const strategyResult = parseNativeConsultationToolCall(
+    {
+      id: "tool-strategy-extra-args",
+      type: "function",
+      function: {
+        name: "update_strategy_snapshot",
+        arguments: JSON.stringify({ strategyMarkdown: "模型不应把策略正文塞进工具参数" }),
+      },
+    },
+    state,
+  );
+
+  if (strategyResult.ok) {
+    assert.fail("update_strategy_snapshot should reject unexpected model arguments");
+  }
+
+  assert.equal(strategyResult.rawToolName, "update_strategy_snapshot");
+  assert.match(strategyResult.error, /update_strategy_snapshot failed/);
+  assert.match(strategyResult.error, /An unexpected parameter `strategyMarkdown` was provided/);
+
+  const calendarResult = parseNativeConsultationToolCall(
+    {
+      id: "tool-calendar-missing-calendar",
+      type: "function",
+      function: {
+        name: "update_content_calendar",
+        arguments: JSON.stringify({}),
+      },
+    },
+    state,
+  );
+
+  if (calendarResult.ok) {
+    assert.fail("update_content_calendar should reject missing calendar");
+  }
+
+  assert.equal(calendarResult.rawToolName, "update_content_calendar");
+  assert.match(calendarResult.error, /update_content_calendar failed/);
+  assert.match(calendarResult.error, /The required parameter `calendar` is missing/);
 });
 
 test("consultation runtime wraps tool execution exceptions as failed tool results", () => {
@@ -797,7 +932,7 @@ test("knowledge retrieval can directly surface indexed user documents", () => {
   assert.match(consultationRuntimeSource, /sourceCounts/);
 });
 
-test("knowledge evidence is selected with query, tool call and freshness metadata", () => {
+test("knowledge retrieval context is selected with query, tool call and freshness metadata", () => {
   assert.match(serviceSource, /toolCallId: call\.id/);
   assert.match(serviceSource, /freshness: "current_turn"/);
   assert.match(consultationRuntimeSource, /buildSelectedKnowledgeMatches/);
@@ -806,7 +941,7 @@ test("knowledge evidence is selected with query, tool call and freshness metadat
   assert.match(consultationRuntimeSource, /query: match\.query/);
   assert.match(consultationRuntimeSource, /toolCallId: match\.toolCallId/);
   assert.match(consultationRuntimeSource, /freshness: match\.freshness/);
-  assert.match(consultationRuntimeSource, /evidenceRole: match\.evidenceRole/);
+  assert.match(consultationRuntimeSource, /retrievalRole: match\.retrievalRole/);
 });
 
 test("AI runtime preserves native tool call/result pairs when trimming messages", () => {
@@ -946,9 +1081,9 @@ test("initial consultation agent prompt and soul keep empty profile facts unknow
 test("strategy asset markdown is the extensible primary document", () => {
   assert.match(serviceSource, /strategyMarkdown: state\.strategyMarkdown/);
   assert.match(serviceSource, /strategyMarkdownChars: finalizedStrategyMarkdown\.length/);
-  assert.match(serviceSource, /strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、currentSuggestion、strategyMarkdown 六个字段/);
+  assert.match(serviceSource, /strategyAsset 必须包含 positioning、coreSellingPoints、targetAudiences、keyScenes、strategyTags、strategyMarkdown 六个字段/);
   assert.match(serviceSource, /strategyMarkdown 是右侧策略资产的主文档/);
-  assert.match(serviceSource, /strategyMarkdown 写完整 Markdown 策略资产文档/);
+  assert.match(serviceSource, /长期建议写入 strategyMarkdown/);
 });
 
 test("strategy asset editor validates model tool arguments before applying them", () => {

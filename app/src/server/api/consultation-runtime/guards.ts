@@ -7,7 +7,7 @@ export type StrategyAssetGuardFieldKey =
   | "coreSellingPoints"
   | "targetAudiences"
   | "keyScenes"
-  | "currentSuggestion"
+  | "strategyTags"
   | "strategyMarkdown";
 
 export type StrategyAssetGuardPatch = {
@@ -15,7 +15,7 @@ export type StrategyAssetGuardPatch = {
   coreSellingPoints?: string[];
   targetAudiences?: string[];
   keyScenes?: string[];
-  currentSuggestion?: string;
+  strategyTags?: string[];
   strategyMarkdown?: string;
   changedFields: StrategyAssetGuardFieldKey[];
 };
@@ -46,13 +46,14 @@ export type StrategyAssetGuardDecision = {
 
 type StrategyAssetGuardSnapshot = Pick<
   StrategySnapshotDto,
-  "positioning" | "coreSellingPoints" | "targetAudiences" | "keyScenes" | "currentSuggestion"
+  "positioning" | "coreSellingPoints" | "targetAudiences" | "keyScenes" | "strategyTags"
 >;
 
 const listFieldLimits = {
   coreSellingPoints: 8,
   targetAudiences: 10,
   keyScenes: 8,
+  strategyTags: 12,
 } as const;
 
 export function guardStrategyAssetEditorPatch(input: {
@@ -158,7 +159,7 @@ function normalizeGuardPatch(patch: StrategyAssetGuardPatch): StrategyAssetGuard
     coreSellingPoints: cleanGuardList(patch.coreSellingPoints, listFieldLimits.coreSellingPoints),
     targetAudiences: cleanGuardList(patch.targetAudiences, listFieldLimits.targetAudiences),
     keyScenes: cleanGuardList(patch.keyScenes, listFieldLimits.keyScenes),
-    currentSuggestion: cleanGuardText(patch.currentSuggestion) ?? undefined,
+    strategyTags: cleanGuardList(patch.strategyTags, listFieldLimits.strategyTags),
     strategyMarkdown: cleanGuardMarkdown(patch.strategyMarkdown) ?? undefined,
     changedFields: uniqueFieldKeys(patch.changedFields),
   };
@@ -170,7 +171,7 @@ function buildPatchFromSnapshot(snapshot: StrategyAssetGuardSnapshot): StrategyA
     coreSellingPoints: cleanGuardList(snapshot.coreSellingPoints, listFieldLimits.coreSellingPoints),
     targetAudiences: cleanGuardList(snapshot.targetAudiences, listFieldLimits.targetAudiences),
     keyScenes: cleanGuardList(snapshot.keyScenes, listFieldLimits.keyScenes),
-    currentSuggestion: cleanGuardText(snapshot.currentSuggestion) ?? undefined,
+    strategyTags: cleanGuardList(snapshot.strategyTags, listFieldLimits.strategyTags),
     strategyMarkdown: undefined,
     changedFields: [],
   };
@@ -214,13 +215,6 @@ function hasEffectiveFieldChange(
     return normalizeComparableText(patch.positioning) !== normalizeComparableText(previousSnapshot.positioning);
   }
 
-  if (field === "currentSuggestion") {
-    return (
-      normalizeComparableText(patch.currentSuggestion) !==
-      normalizeComparableText(previousSnapshot.currentSuggestion)
-    );
-  }
-
   if (field === "strategyMarkdown") {
     return normalizeComparableMarkdown(patch.strategyMarkdown) !== normalizeComparableMarkdown(previousMarkdown);
   }
@@ -251,10 +245,10 @@ function findUnsafeEditorContent(patch: StrategyAssetGuardPatch) {
   const warnings: string[] = [];
   const values = [
     patch.positioning ?? "",
-    patch.currentSuggestion ?? "",
     ...(patch.coreSellingPoints ?? []),
     ...(patch.targetAudiences ?? []),
     ...(patch.keyScenes ?? []),
+    ...(patch.strategyTags ?? []),
   ].filter(Boolean);
 
   for (const value of values) {
@@ -283,7 +277,7 @@ function looksLikeMarkdownOrStructuredPayload(value: string) {
 }
 
 function looksLikeEditorInstruction(value: string) {
-  return /(?:changedFields|strategyAsset|currentStrategySnapshot|本轮修改|用户要求|已更新为|我已|以下是|如下|可以改为|改成：|工具调用)/i.test(
+  return /(?:changedFields|strategyAsset|currentStrategySnapshot|本轮修改|用户要求|以下是|如下|可以改为|改成：|工具调用)/i.test(
     value,
   );
 }
