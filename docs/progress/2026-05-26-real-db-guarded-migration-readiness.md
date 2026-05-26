@@ -2,9 +2,8 @@
 
 ## 状态
 
-- 本轮只做真实服务器 / 真实 RDS 只读检查和 migration dry-run。
-- 未修改数据库持久状态。
-- 未执行正式 migration。
+- 本轮先做真实服务器 / 真实 RDS 只读检查和 migration dry-run。
+- 用户确认后，已正式执行真实 DB migration。
 - 未 push。
 - 未部署。
 
@@ -62,9 +61,9 @@ blockers:
 
 结论：真实 DB 中没有会触发这两个 provider guard 的旧数据。
 
-## 当前 provider constraint 状态
+## 正式执行前 provider constraint 状态
 
-真实 DB 当前 constraint 仍是旧宽松状态：
+正式执行前，真实 DB constraint 仍是旧宽松状态：
 
 ```text
 asset_objects_storage_provider_check:
@@ -75,11 +74,11 @@ knowledge_documents_storage_provider_check:
   or storage_provider in ('tencent_cos', 'aliyun_oss', 'supabase_storage', 'inline_seed')
 ```
 
-这表示 provider cleanup migrations 尚未正式应用到真实 DB。因为旧 provider 数据计数为 0，它们可以通过 guard。
+这表示 provider cleanup migrations 在正式执行前尚未应用到真实 DB。因为旧 provider 数据计数为 0，它们可以通过 guard。
 
-## Merchant media schema 状态
+## 正式执行前 merchant media schema 状态
 
-真实 DB 当前不存在：
+正式执行前，真实 DB 不存在：
 
 ```text
 public.merchant_media_assets
@@ -155,7 +154,106 @@ merchant_media_clips: still missing
 provider constraints: still old wide constraints
 ```
 
-结论：这批 migrations 在真实 DB 上可以按顺序通过；本轮没有正式应用。
+结论：这批 migrations 在真实 DB 上可以按顺序通过；dry-run 阶段没有正式应用。用户随后确认正式执行，记录见下文。
+
+## 正式执行记录
+
+用户确认后，已在服务器当前 release 的 app 目录中通过 root-only app env 连接真实 RDS，并在单个事务内正式执行：
+
+```text
+db/migrations/202605220001_content_variant_production_scenes.sql
+db/migrations/202605250001_merchant_media_tables.sql
+db/migrations/202605250001_selfhost_aliyun_cosyvoice_voice_profiles.sql
+db/migrations/202605250002_remove_supabase_storage_provider.sql
+db/migrations/202605250003_remove_tencent_cos_provider.sql
+db/migrations/202605250004_rename_merchant_media_storage_key_columns.sql
+```
+
+结果：
+
+```text
+status: committed
+```
+
+本次是 schema migration 执行，不是应用部署；没有修改服务器代码 release，也没有 push。
+
+## 正式执行后复查
+
+真实 DB 复查结果：
+
+```text
+tables:
+  asset_objects: exists
+  knowledge_documents: exists
+  merchant_media_assets: exists
+  merchant_media_clips: exists
+
+asset_objects:
+  aliyun_oss: 160
+
+knowledge_documents:
+  aliyun_oss: 3
+  inline_seed: 6
+
+blockers:
+  asset_objects.supabase_storage: 0
+  asset_objects.tencent_cos: 0
+  knowledge_documents.supabase_storage: 0
+  knowledge_documents.tencent_cos: 0
+```
+
+Provider constraints 已收紧：
+
+```text
+asset_objects_storage_provider_check:
+  storage_provider = 'aliyun_oss'
+
+knowledge_documents_storage_provider_check:
+  storage_provider is null
+  or storage_provider in ('aliyun_oss', 'inline_seed')
+```
+
+Merchant-media 当前列名：
+
+```text
+merchant_media_assets.source_storage_key
+merchant_media_clips.storage_key
+merchant_media_clips.thumb_storage_key
+```
+
+旧列名未出现在复查结果中：
+
+```text
+source_cos_key
+cos_key
+thumb_cos_key
+```
+
+Merchant-media 表当前为空：
+
+```text
+merchant_media_assets: 0
+merchant_media_clips: 0
+```
+
+其他 schema 状态：
+
+```text
+voice_profiles.provider default: 'aliyun_cosyvoice_clone'::text
+content_variants.production_scenes: jsonb not null default '[]'::jsonb
+```
+
+线上 health check：
+
+```text
+GET http://8.154.28.41/api/health
+
+ok: true
+database.provider: postgres
+storage.provider: aliyun_oss
+storage.bucket: jingjing-domestic-phase1-hz
+storage.region: oss-cn-hangzhou
+```
 
 ## 结论
 
@@ -165,18 +263,11 @@ provider constraints: still old wide constraints
 - 没有 `tencent_cos` 数据 blocker。
 - `202605250002` / `202605250003` 的 guard 不会因为旧 provider 数据失败。
 
-但当前真实 DB 仍需要正式应用后续 schema migrations：
-
-1. `202605250001_merchant_media_tables.sql`
-2. `202605250002_remove_supabase_storage_provider.sql`
-3. `202605250003_remove_tencent_cos_provider.sql`
-4. `202605250004_rename_merchant_media_storage_key_columns.sql`
-
-`202605220001_content_variant_production_scenes.sql` 和 `202605250001_selfhost_aliyun_cosyvoice_voice_profiles.sql` 的关键状态已经存在；重复执行也在 dry-run 中通过。
+正式执行后，当前真实 DB 已完成本轮需要的 schema 收口。`202605220001_content_variant_production_scenes.sql` 和 `202605250001_selfhost_aliyun_cosyvoice_voice_profiles.sql` 的关键状态也已确认存在。
 
 ## 建议
 
-不要绕过 migration guard。下一次正式 DB 变更应在维护窗口或明确发布步骤中执行上述 migration 顺序，并在执行后复查：
+不要绕过 migration guard。后续如再次做真实 DB 变更，应在维护窗口或明确发布步骤中执行，并在执行后复查：
 
 ```sql
 select storage_provider, count(*)
@@ -208,3 +299,5 @@ order by table_name, column_name;
 - `knowledge_documents.storage_provider` 只剩 `aliyun_oss` / `inline_seed` / `null`。
 - merchant-media 表存在。
 - merchant-media 当前列名为 `source_storage_key` / `storage_key` / `thumb_storage_key`。
+
+上述期望状态已在本轮正式执行后达成。
