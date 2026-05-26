@@ -6,7 +6,7 @@ import { loadEnvFileFromArgs } from "./lib/env-file.mjs";
 
 const { Client } = pg;
 
-const target = {
+const defaultTarget = {
   merchantId: "e7c94a17-cf7d-4eb2-8178-13daa780551a",
   memberUserId: "0b3351a6-778b-4e79-b5f1-6aa18fdb0020",
   dailyTaskId: "39946899-d5ec-45a1-9203-18799554da24",
@@ -21,6 +21,7 @@ const target = {
   restoredFromTaskDate: "2026-05-22",
   restoredForTaskDate: "2026-05-23",
 };
+let target = defaultTarget;
 
 const auditVersion = "zhiluan1-restored-video-script-contract-20260523";
 const normalFlowReference =
@@ -136,6 +137,7 @@ const compensatedFields = [
 loadEnvFileFromArgs();
 
 const apply = process.argv.includes("--apply");
+const patchAllMatchingFactoryTasks = process.argv.includes("--all-matching-factory-tasks");
 const databaseUrl = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
 
 if (!databaseUrl) {
@@ -151,64 +153,95 @@ try {
   await db.connect();
   await db.query("begin");
 
-  const context = await loadContext();
-  const productionScenes = buildProductionScenes(context.task.video_task);
-  const audit = buildAudit(context, productionScenes);
-  const snapshot = buildPatchedSnapshot(context, audit);
-  const teamCalendarSource = buildPatchedTeamCalendarSource(context, audit);
-  const videoTask = buildPatchedVideoTask(context.task.video_task);
-  const variantScriptText = buildVariantScriptText(videoTask.generatedVideoScript);
+  const contexts = await loadContexts();
+  const outputs = [];
+  let canonicalScriptText = "";
 
-  await db.query(
-    `
-    update public.content_drafts
-    set input_snapshot = $3::jsonb,
-        updated_at = timezone('utc', now())
-    where id = $1
-      and merchant_id = $2
-    `,
-    [target.draftId, target.merchantId, JSON.stringify(snapshot)],
-  );
+  for (const context of contexts) {
+    target = context.target;
 
-  await db.query(
-    `
-    update public.content_variants
-    set production_scenes = $3::jsonb,
-        script_text = $4,
-        title = $5,
-        cta_text = $6,
-        updated_at = timezone('utc', now())
-    where id = $1
-      and draft_id = $2
-    `,
-    [
-      target.variantId,
-      target.draftId,
-      JSON.stringify(productionScenes),
-      variantScriptText,
-      factoryScriptSpec.title,
-      factoryScriptSpec.cta,
-    ],
-  );
+    const previousScene5 = readScene(context.task.video_task, 5);
+    const productionScenes = buildProductionScenes(context.task.video_task);
+    const audit = buildAudit(context, productionScenes);
+    const snapshot = buildPatchedSnapshot(context, audit);
+    const teamCalendarSource = buildPatchedTeamCalendarSource(context, audit);
+    const videoTask = buildPatchedVideoTask(context.task.video_task);
+    const variantScriptText = buildVariantScriptText(videoTask.generatedVideoScript);
+    canonicalScriptText = canonicalScriptText || variantScriptText;
 
-  await db.query(
-    `
-    update public.daily_content_tasks
-    set team_calendar_source = $4::jsonb,
-        video_task = $5::jsonb,
-        updated_at = timezone('utc', now())
-    where id = $1
-      and merchant_id = $2
-      and user_id = $3
-    `,
-    [
-      target.dailyTaskId,
-      target.merchantId,
-      target.memberUserId,
-      JSON.stringify(teamCalendarSource),
-      JSON.stringify(videoTask),
-    ],
-  );
+    await db.query(
+      `
+      update public.content_drafts
+      set input_snapshot = $3::jsonb,
+          updated_at = timezone('utc', now())
+      where id = $1
+        and merchant_id = $2
+      `,
+      [target.draftId, target.merchantId, JSON.stringify(snapshot)],
+    );
+
+    await db.query(
+      `
+      update public.content_variants
+      set production_scenes = $3::jsonb,
+          script_text = $4,
+          title = $5,
+          cta_text = $6,
+          updated_at = timezone('utc', now())
+      where id = $1
+        and draft_id = $2
+      `,
+      [
+        target.variantId,
+        target.draftId,
+        JSON.stringify(productionScenes),
+        variantScriptText,
+        factoryScriptSpec.title,
+        factoryScriptSpec.cta,
+      ],
+    );
+
+    await db.query(
+      `
+      update public.daily_content_tasks
+      set team_calendar_source = $4::jsonb,
+          video_task = $5::jsonb,
+          updated_at = timezone('utc', now())
+      where id = $1
+        and merchant_id = $2
+        and user_id = $3
+      `,
+      [
+        target.dailyTaskId,
+        target.merchantId,
+        target.memberUserId,
+        JSON.stringify(teamCalendarSource),
+        JSON.stringify(videoTask),
+      ],
+    );
+
+    const patchedScene5 = readScene(videoTask, 5);
+    outputs.push({
+      target,
+      taskDate: readDateString(context.task.task_date, target.restoredForTaskDate),
+      status: context.task.status,
+      previousScene5: {
+        title: readString(previousScene5.title, ""),
+        materials: readStringArray(previousScene5.materials),
+        spokenText: readString(previousScene5.spokenText, readString(previousScene5.subtitle, "")),
+      },
+      patchedScene5: {
+        title: readString(patchedScene5.title, ""),
+        materials: readStringArray(patchedScene5.materials),
+        spokenText: readString(patchedScene5.spokenText, readString(patchedScene5.subtitle, "")),
+      },
+      productionSceneCount: productionScenes.length,
+      talkingHeadSceneNumbers: productionScenes
+        .filter((scene) => scene.requiresUserUpload)
+        .map((scene) => scene.sceneNo),
+      auditStatus: audit.status,
+    });
+  }
 
   if (apply) {
     await db.query("commit");
@@ -220,13 +253,10 @@ try {
     JSON.stringify(
       {
         mode: apply ? "applied" : "dry-run",
-        target,
-        audit,
-        productionSceneCount: productionScenes.length,
-        talkingHeadSceneNumbers: productionScenes
-          .filter((scene) => scene.requiresUserUpload)
-          .map((scene) => scene.sceneNo),
-        scriptText: variantScriptText,
+        patchAllMatchingFactoryTasks,
+        targetCount: outputs.length,
+        outputs,
+        scriptText: canonicalScriptText,
       },
       null,
       2,
@@ -239,7 +269,46 @@ try {
   await db.end();
 }
 
-async function loadContext() {
+async function loadContexts() {
+  if (!patchAllMatchingFactoryTasks) {
+    return [await loadContextForTarget(defaultTarget)];
+  }
+
+  const tasks = await db.query(
+    `
+    select *
+    from public.daily_content_tasks
+    where merchant_id = $1
+      and user_id = $2
+      and status = 'video_script_created'
+      and theme = '一楼厂房主推'
+      and (
+        video_task->>'title' = $3
+        or video_task #>> '{generatedVideoScript,title}' = $3
+      )
+      and (
+        team_calendar_source->>'assignmentMarker' = 'factory_member_video_assignment_20260522'
+        or team_calendar_source->>'source' = 'manual_factory_script'
+      )
+      and video_task->>'contentDraftId' is not null
+      and video_task->>'contentVariantId' is not null
+    order by task_date asc
+    `,
+    [defaultTarget.merchantId, defaultTarget.memberUserId, factoryScriptSpec.title],
+  );
+
+  if (tasks.rows.length === 0) {
+    throw new Error("No matching zhiluan1 factory video_script_created tasks were found.");
+  }
+
+  const contexts = [];
+  for (const task of tasks.rows) {
+    contexts.push(await loadContextForTask(task));
+  }
+  return contexts;
+}
+
+async function loadContextForTarget(contextTarget) {
   const task = await db.query(
     `
     select *
@@ -249,11 +318,17 @@ async function loadContext() {
       and user_id = $3
     limit 1
     `,
-    [target.dailyTaskId, target.merchantId, target.memberUserId],
+    [contextTarget.dailyTaskId, contextTarget.merchantId, contextTarget.memberUserId],
   );
   if (!task.rows[0]) {
     throw new Error("Target daily task was not found.");
   }
+
+  return loadContextForTask(task.rows[0], contextTarget);
+}
+
+async function loadContextForTask(taskRow, explicitTarget = null) {
+  const contextTarget = buildTargetFromTask(taskRow, explicitTarget);
 
   const draft = await db.query(
     `
@@ -263,10 +338,10 @@ async function loadContext() {
       and merchant_id = $2
     limit 1
     `,
-    [target.draftId, target.merchantId],
+    [contextTarget.draftId, contextTarget.merchantId],
   );
   if (!draft.rows[0]) {
-    throw new Error("Target content draft was not found.");
+    throw new Error(`Target content draft was not found: ${contextTarget.draftId}`);
   }
 
   const variant = await db.query(
@@ -278,10 +353,10 @@ async function loadContext() {
       and variant_type = 'video_script'
     limit 1
     `,
-    [target.variantId, target.draftId],
+    [contextTarget.variantId, contextTarget.draftId],
   );
   if (!variant.rows[0]) {
-    throw new Error("Target video script variant was not found.");
+    throw new Error(`Target video script variant was not found: ${contextTarget.variantId}`);
   }
 
   const assets = await db.query(
@@ -294,14 +369,56 @@ async function loadContext() {
       and asset_type = 'video'
     order by created_at asc
     `,
-    [target.draftId],
+    [contextTarget.draftId],
   );
 
   return {
-    task: task.rows[0],
+    target: contextTarget,
+    task: taskRow,
     draft: draft.rows[0],
     variant: variant.rows[0],
     assets: assets.rows,
+  };
+}
+
+function buildTargetFromTask(taskRow, explicitTarget = null) {
+  const videoTask = toRecord(taskRow.video_task);
+  const source = toRecord(taskRow.team_calendar_source);
+  const snapshot = {};
+  const draftId = readString(videoTask.contentDraftId, readString(source.scriptDraftId, ""));
+  const variantId = readString(videoTask.contentVariantId, readString(source.scriptVariantId, ""));
+
+  if (!draftId || !variantId) {
+    throw new Error(`Task ${taskRow.id} is missing contentDraftId or contentVariantId.`);
+  }
+
+  return {
+    ...defaultTarget,
+    ...toRecord(explicitTarget),
+    dailyTaskId: taskRow.id,
+    draftId,
+    variantId,
+    restoredFromDailyTaskId:
+      readString(source.restoredFromDailyTaskId, "") ||
+      readString(source.assignedFromTaskId, "") ||
+      readString(snapshot.restoredFromDailyTaskId, "") ||
+      defaultTarget.restoredFromDailyTaskId,
+    restoredFromDraftId:
+      readString(source.restoredFromDraftId, "") || defaultTarget.restoredFromDraftId,
+    restoredFromVariantId:
+      readString(source.restoredFromVariantId, "") || defaultTarget.restoredFromVariantId,
+    restoredFromTaskDate:
+      readString(source.restoredFromTaskDate, "") || defaultTarget.restoredFromTaskDate,
+    restoredForTaskDate: readDateString(taskRow.task_date, defaultTarget.restoredForTaskDate),
+    originalSourceTaskId:
+      readString(source.factoryMemberAssignment?.sourceTaskId, "") ||
+      defaultTarget.originalSourceTaskId,
+    originalSourceDraftId:
+      readString(source.factoryMemberAssignment?.sourceDraftId, "") ||
+      defaultTarget.originalSourceDraftId,
+    originalSourceVariantId:
+      readString(source.factoryMemberAssignment?.sourceVariantId, "") ||
+      defaultTarget.originalSourceVariantId,
   };
 }
 
@@ -680,6 +797,21 @@ function normalizePositiveNumber(value) {
 
 function readString(value, fallback) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function readStringArray(value) {
+  return Array.isArray(value) ? value.filter(Boolean).map(String) : [];
+}
+
+function readScene(videoTaskValue, sceneNo) {
+  const videoTask = toRecord(videoTaskValue);
+  const scenes = Array.isArray(videoTask.generatedVideoScript?.scenes)
+    ? videoTask.generatedVideoScript.scenes
+    : [];
+  const scene =
+    scenes.find((item) => normalizePositiveInteger(toRecord(item).order) === sceneNo) ??
+    scenes[sceneNo - 1];
+  return toRecord(scene);
 }
 
 function normalizeRecommendedProductionConfig(value) {
