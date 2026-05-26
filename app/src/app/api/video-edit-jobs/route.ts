@@ -20,6 +20,9 @@ export async function GET(request: Request) {
     const jobs = await listVideoEditJobsForUser({
       userId: user.id,
       status: payload.status,
+      state: payload.state,
+      dailyTaskId: payload.dailyTaskId,
+      contentVariantId: payload.contentVariantId,
       limit: payload.limit,
     });
 

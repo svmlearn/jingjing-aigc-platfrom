@@ -552,6 +552,9 @@ export const createVoiceProfileSchema = z.object({
 
 export const listVideoEditJobsQuerySchema = z.object({
   status: videoEditJobStatusSchema.optional(),
+  state: z.enum(["in_flight"]).optional(),
+  dailyTaskId: z.uuid().optional(),
+  contentVariantId: z.uuid().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 

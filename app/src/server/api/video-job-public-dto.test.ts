@@ -67,9 +67,11 @@ test("toPublicVideoEditJob removes internal payload fields", () => {
   const raw = publicJob as Record<string, unknown>;
 
   assert.deepEqual(Object.keys(publicJob).sort(), [
+    "calendarItemId",
     "contentVariantId",
     "createdAt",
     "currentStage",
+    "dailyTaskId",
     "draftId",
     "failureReason",
     "finishedAt",
@@ -90,6 +92,26 @@ test("toPublicVideoEditJob removes internal payload fields", () => {
   assert.equal(raw.logPayload, undefined);
   assert.equal(publicJob.id, "job-1");
   assert.equal(publicJob.progressModules[0]?.key, "voiceover");
+});
+
+test("toPublicVideoEditJob exposes member task linkage without leaking worker payload", () => {
+  const publicJob = toPublicVideoEditJob({
+    ...baseJob,
+    inputPayload: {
+      source: "video_workbench",
+      secretWorkerInput: true,
+      materialContext: {
+        dailyTaskId: "11111111-1111-4111-8111-111111111111",
+        calendarItemId: "calendar-video-1",
+      },
+    },
+  });
+  const raw = publicJob as Record<string, unknown>;
+
+  assert.equal(publicJob.dailyTaskId, "11111111-1111-4111-8111-111111111111");
+  assert.equal(publicJob.calendarItemId, "calendar-video-1");
+  assert.equal(raw.inputPayload, undefined);
+  assert.equal(raw.secretWorkerInput, undefined);
 });
 
 test("toPublicVideoEditJob exposes result assets at the top level", () => {

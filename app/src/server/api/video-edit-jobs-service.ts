@@ -198,6 +198,9 @@ async function ensureVideoScriptApprovedForJob(input: {
 export async function listVideoEditJobsForUser(input: {
   userId: string;
   status?: VideoEditJobStatus;
+  state?: "in_flight";
+  dailyTaskId?: string | null;
+  contentVariantId?: string | null;
   limit?: number;
 }): Promise<PublicVideoEditJobDto[]> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
@@ -205,6 +208,9 @@ export async function listVideoEditJobsForUser(input: {
   const jobs = await listVideoEditJobs(merchant.id, {
     createdByUserId: input.userId,
     status: input.status,
+    state: input.state,
+    dailyTaskId: input.dailyTaskId,
+    contentVariantId: input.contentVariantId,
     limit: input.limit,
   });
 

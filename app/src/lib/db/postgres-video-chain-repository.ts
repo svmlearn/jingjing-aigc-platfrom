@@ -1492,22 +1492,39 @@ export async function pgListVideoEditJobs(
   merchantId: string,
   filters: {
     status?: VideoEditJobStatus;
+    state?: "in_flight";
     createdByUserId?: string | null;
+    dailyTaskId?: string | null;
+    contentVariantId?: string | null;
     limit?: number;
   } = {},
 ): Promise<VideoEditJobDto[]> {
   const params: unknown[] = [merchantId, filters.limit ?? 50];
-  const statusSql = filters.status ? `and status = $${params.length + 1}` : "";
-  if (filters.status) params.push(filters.status);
+  const statusSqlParts: string[] = [];
+  if (filters.status) {
+    params.push(filters.status);
+    statusSqlParts.push(`and status = $${params.length}`);
+  } else if (filters.state === "in_flight") {
+    params.push([...VIDEO_EDIT_JOB_IN_FLIGHT_STATUSES]);
+    statusSqlParts.push(`and status = any($${params.length}::text[])`);
+  }
   const creatorSql = filters.createdByUserId ? `and created_by_user_id = $${params.length + 1}` : "";
   if (filters.createdByUserId) params.push(filters.createdByUserId);
+  const contentVariantSql = filters.contentVariantId ? `and content_variant_id = $${params.length + 1}` : "";
+  if (filters.contentVariantId) params.push(filters.contentVariantId);
+  const dailyTaskSql = filters.dailyTaskId
+    ? `and input_payload #>> '{materialContext,dailyTaskId}' = $${params.length + 1}`
+    : "";
+  if (filters.dailyTaskId) params.push(filters.dailyTaskId);
   const result = await queryAppDb<VideoEditJobRow>(
     `
     select ${videoEditJobSelect}
     from public.video_edit_jobs
     where merchant_id = $1
-    ${statusSql}
+    ${statusSqlParts.join("\n    ")}
     ${creatorSql}
+    ${contentVariantSql}
+    ${dailyTaskSql}
     order by created_at desc
     limit $2
     `,

@@ -22,6 +22,8 @@ export function toPublicVideoEditJob(job: VideoEditJobDto): PublicVideoEditJobDt
     failureReason: job.failureReason,
     progressModules: job.progressModules,
     resultAssets,
+    dailyTaskId: readNestedString(job.inputPayload, ["materialContext", "dailyTaskId"]),
+    calendarItemId: readNestedString(job.inputPayload, ["materialContext", "calendarItemId"]),
     startedAt: job.startedAt,
     finishedAt: job.finishedAt,
     createdAt: job.createdAt,
@@ -128,4 +130,17 @@ function readString(source: Record<string, unknown>, ...keys: string[]) {
   }
 
   return null;
+}
+
+function readNestedString(source: Record<string, unknown>, path: string[]) {
+  let current: unknown = source;
+
+  for (const key of path) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) {
+      return null;
+    }
+    current = (current as Record<string, unknown>)[key];
+  }
+
+  return typeof current === "string" && current.length > 0 ? current : null;
 }

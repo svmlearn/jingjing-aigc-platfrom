@@ -46,6 +46,7 @@ import {
   createVideoEditJob,
   type DraftMediaUploadStage,
   getVideoEditJobDetail,
+  listVideoEditJobsByQuery,
   type VideoEditJob,
   uploadDraftMediaFile,
   uploadVoiceProfileAudioFile,
@@ -470,12 +471,14 @@ export function MemberArticleTaskPage({ taskId }: { taskId: string }) {
   );
 }
 
-export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
+export function MemberVideoTaskPage({ taskId, jobId = null }: { taskId: string; jobId?: string | null }) {
   const { task, loading, error, reload } = useMemberTask(taskId);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [selectedVoiceAudioFile, setSelectedVoiceAudioFile] = useState<File | null>(null);
   const [draftBundle, setDraftBundle] = useState<ContentDraftBundleDto | null>(null);
   const [job, setJob] = useState<VideoEditJob | null>(null);
+  const [restoredJobMode, setRestoredJobMode] = useState<"in_flight" | "history" | null>(null);
+  const [scriptVariant, setScriptVariant] = useState<ContentVariantDto | null>(null);
   const [busyState, setBusyState] = useState<AiEditBusyState | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [voiceProfileCreate, setVoiceProfileCreate] = useState<VoiceProfileCreateState>({
@@ -505,6 +508,71 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
   }, [job]);
 
   useEffect(() => {
+    if (!task) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadRestoredVideoJob() {
+      if (!task) {
+        return;
+      }
+
+      if (jobId) {
+        const loadedJob = await getVideoEditJobDetail(jobId);
+        if (!loadedJob || cancelled) {
+          return;
+        }
+        const bundle = loadedJob.draftId ? await getContentDraftBundle(loadedJob.draftId) : null;
+        if (cancelled) {
+          return;
+        }
+        setJob(loadedJob);
+        setRestoredJobMode("history");
+        setDraftBundle(bundle);
+        setScriptVariant(bundle ? selectVideoVariantForEdit(bundle, loadedJob.contentVariantId) : null);
+        return;
+      }
+
+      const difyDraftReference = getDifyVideoDraftReference(task);
+      if (!difyDraftReference) {
+        return;
+      }
+
+      const jobs = await listVideoEditJobsByQuery({
+        dailyTaskId: task.id,
+        contentVariantId: difyDraftReference.contentVariantId,
+        state: "in_flight",
+        limit: 1,
+      });
+      const restoredJob = jobs[0] ?? null;
+      if (!restoredJob || cancelled) {
+        return;
+      }
+
+      const bundle = await getContentDraftBundle(restoredJob.draftId ?? difyDraftReference.contentDraftId);
+      if (cancelled) {
+        return;
+      }
+      setJob(restoredJob);
+      setRestoredJobMode("in_flight");
+      setDraftBundle(bundle);
+      setScriptVariant(selectVideoVariantForEdit(bundle, restoredJob.contentVariantId ?? difyDraftReference.contentVariantId));
+    }
+
+    void loadRestoredVideoJob().catch((requestError) => {
+      if (!cancelled && jobId) {
+        setActionError(requestError instanceof Error ? requestError.message : "AI 鍓緫浠诲姟璇诲彇澶辫触");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, task]);
+
+  useEffect(() => {
     void requestJson<VoiceProfilesPayload>("/api/voice-profiles")
       .then((data) => {
         const profile = data.voiceProfiles?.find((item) => item.status === "ready") ?? null;
@@ -527,7 +595,9 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
     return <MemberError title="视频任务暂时不可用" message={error} onRetry={reload} />;
   }
 
-  const script = task.videoTask.generatedVideoScript ?? buildVideoScriptFallback(task);
+  const script = scriptVariant
+    ? buildVideoScriptFromVariant(task, scriptVariant)
+    : task.videoTask.generatedVideoScript ?? buildVideoScriptFallback(task);
   const selectedFileCount = Object.values(selectedFiles).filter(Boolean).length;
   const requiredSceneCount = script.scenes.filter((scene) => scene.required).length;
   const editState = summarizeMemberVideoEditState({
@@ -539,9 +609,15 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
   const selectedVoiceProfile = voiceProfileCreate.profile ?? null;
   const voiceProfileBusy =
     voiceProfileCreate.status === "uploading" || voiceProfileCreate.status === "creating";
+  const jobReviewMode = restoredJobMode === "history" && Boolean(job);
 
   async function startAiEdit() {
     const currentTask = task;
+
+    if (jobReviewMode) {
+      setActionError("历史 AI 剪辑任务只能回看当时脚本和成片，不能再次剪辑。");
+      return;
+    }
 
     if (job && isVideoEditJobInFlightStatus(job.status)) {
       setActionError("当前 AI 剪辑正在进行中，请等待成片完成。");
@@ -598,6 +674,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
 
       setBusyState({ stage: "confirming_script" });
       const approvedVariant = await approveVariantIfNeeded(selectedVariant);
+      setScriptVariant(approvedVariant);
 
       const uploadTotal = uploadEntries.length;
       const uploadedInputAssetIds: string[] = [];
@@ -660,6 +737,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
       });
 
       setJob(nextJob);
+      setRestoredJobMode("in_flight");
     } catch (requestError) {
       setActionError(requestError instanceof Error ? requestError.message : "AI 剪辑任务创建失败");
     } finally {
@@ -914,6 +992,7 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
             disabled={
               Boolean(busyState) ||
               voiceProfileBusy ||
+              jobReviewMode ||
               Boolean(job && isVideoEditJobInFlightStatus(job.status))
             }
             className="inline-flex items-center gap-2 rounded-lg bg-[#171717] px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
@@ -923,7 +1002,11 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
             ) : (
               <WandSparkles className="size-4" aria-hidden="true" />
             )}
-            {busyState || (job && isVideoEditJobInFlightStatus(job.status)) ? "剪辑中" : "AI 剪辑"}
+            {jobReviewMode
+              ? "只读回看"
+              : busyState || (job && isVideoEditJobInFlightStatus(job.status))
+                ? "剪辑中"
+                : "AI 剪辑"}
           </button>
         </div>
 
@@ -997,21 +1080,46 @@ export function MemberHistoryPage() {
 
       <HistorySection title="AI 剪辑任务" emptyText="还没有 AI 剪辑任务。">
         {jobs.map((videoJob) => (
-          <div key={videoJob.id} className="rounded-lg border border-black/10 bg-white p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold">视频任务</p>
-              <span className="rounded-lg bg-[#ece8dc] px-2 py-1 text-[11px] text-black/55">
-                {renderJobStatus(videoJob.status)}
-              </span>
-            </div>
-            <p className="mt-2 text-xs text-black/45">{formatDateTime(videoJob.createdAt)}</p>
-            <p className="mt-2 text-xs leading-5 text-black/55">
-              {getVideoJobStageLabel(videoJob.currentStage, videoJob.status)}
-            </p>
-          </div>
+          <HistoryVideoJobCard key={videoJob.id} job={videoJob} />
         ))}
       </HistorySection>
     </div>
+  );
+}
+
+function HistoryVideoJobCard({ job }: { job: PublicVideoEditJobDto }) {
+  const card = (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold">视频任务</p>
+        <span className="rounded-lg bg-[#ece8dc] px-2 py-1 text-[11px] text-black/55">
+          {renderJobStatus(job.status)}
+        </span>
+      </div>
+      <p className="mt-2 text-xs text-black/45">{formatDateTime(job.createdAt)}</p>
+      <p className="mt-2 text-xs leading-5 text-black/55">
+        {getVideoJobStageLabel(job.currentStage, job.status)}
+      </p>
+      {job.dailyTaskId ? (
+        <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#1f6f68]">
+          查看脚本和结果
+          <ChevronRight className="size-3" aria-hidden="true" />
+        </p>
+      ) : null}
+    </>
+  );
+
+  if (!job.dailyTaskId) {
+    return <div className="rounded-lg border border-black/10 bg-white p-4">{card}</div>;
+  }
+
+  return (
+    <Link
+      href={`/member/video/${encodeURIComponent(job.dailyTaskId)}?jobId=${encodeURIComponent(job.id)}`}
+      className="block rounded-lg border border-black/10 bg-white p-4"
+    >
+      {card}
+    </Link>
   );
 }
 
@@ -1395,6 +1503,41 @@ function buildVideoDraftPrompt(script: DailyVideoScriptPackageDto) {
     .join("\n");
 
   return `请按成员端已生成镜头脚本创建可剪辑的视频脚本草稿，不要重新发散选题。\n标题：${script.title}\n大纲：${script.storyOutline}\n镜头：\n${scenes}\nCTA：${script.cta}`;
+}
+
+function buildVideoScriptFromVariant(
+  task: DailyContentTaskDto,
+  variant: ContentVariantDto,
+): DailyVideoScriptPackageDto {
+  const fallback = task.videoTask.generatedVideoScript ?? buildVideoScriptFallback(task);
+  const scenes =
+    variant.productionScenes && variant.productionScenes.length > 0
+      ? variant.productionScenes.map((scene, index) => ({
+          id: `variant-scene-${scene.sceneNo ?? index + 1}`,
+          order: scene.sceneNo ?? index + 1,
+          title: scene.sceneType ?? `镜头 ${scene.sceneNo ?? index + 1}`,
+          durationSeconds: scene.durationSeconds ?? fallback.scenes[index]?.durationSeconds ?? 8,
+          camera: scene.cameraMovement || scene.shotRequirement || fallback.scenes[index]?.camera || "",
+          spokenText: scene.voiceover || scene.visual || fallback.scenes[index]?.spokenText || "",
+          subtitle: scene.subtitle || scene.voiceover || fallback.scenes[index]?.subtitle || "",
+          shootingGuide: scene.shotRequirement || scene.purpose || fallback.scenes[index]?.shootingGuide || "",
+          materialSlot:
+            scene.materials.find((material) => material.trim()) ??
+            fallback.scenes[index]?.materialSlot ??
+            "当时脚本素材",
+          required: scene.requiresUserUpload ?? fallback.scenes[index]?.required ?? true,
+        }))
+      : fallback.scenes;
+
+  return {
+    ...fallback,
+    title: variant.title ?? fallback.title,
+    storyOutline: variant.scriptText ?? fallback.storyOutline,
+    scenes,
+    cta: variant.ctaText ?? fallback.cta,
+    materialChecklist: scenes.map((scene) => scene.materialSlot),
+    generatedAt: variant.updatedAt,
+  };
 }
 
 function DailyTaskLink({

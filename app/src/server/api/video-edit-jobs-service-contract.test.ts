@@ -39,3 +39,12 @@ test("video job creation resolves dailyTaskId into material context", () => {
   assert.match(source, /VIDEO_DAILY_TASK_DRAFT_MISMATCH/);
   assert.match(source, /VIDEO_DAILY_TASK_VARIANT_MISMATCH/);
 });
+
+test("video job list supports member task restore filters", () => {
+  assert.match(source, /state\?: "in_flight"/);
+  assert.match(source, /dailyTaskId\?: string \| null/);
+  assert.match(source, /contentVariantId\?: string \| null/);
+  assert.match(source, /state: input\.state/);
+  assert.match(source, /dailyTaskId: input\.dailyTaskId/);
+  assert.match(source, /contentVariantId: input\.contentVariantId/);
+});

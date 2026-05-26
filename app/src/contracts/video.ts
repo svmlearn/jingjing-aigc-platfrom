@@ -88,6 +88,8 @@ export type PublicVideoEditJobDto = Pick<
   | "updatedAt"
 > & {
   resultAssets: MediaAssetDto[];
+  dailyTaskId?: string | null;
+  calendarItemId?: string | null;
 };
 
 export type VoiceoverProvider = "aliyun_cosyvoice" | "bytedance_bigtts" | "minimax" | "302";
