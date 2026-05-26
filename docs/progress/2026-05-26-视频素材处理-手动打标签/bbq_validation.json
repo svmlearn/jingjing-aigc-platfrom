@@ -1,0 +1,582 @@
+{
+  "ok": true,
+  "readyForDbImport": false,
+  "schemaVersion": "merchant_media_video_tagging.v1",
+  "generatedAt": "2026-05-26T20:31:14+08:00",
+  "packageRoot": "/Users/wy/Downloads/烧烤素材候选_100_20260526/metadata/local_tagging_v2",
+  "sourceRoot": "/Users/wy/Downloads/烧烤素材候选_100_20260526",
+  "merchantAssetCount": 94,
+  "merchantClipCount": 94,
+  "readyFullVideoClipCount": 94,
+  "readySegmentClipCount": 0,
+  "tagReviewCsvRows": 94,
+  "segmentPlanAssetCount": 43,
+  "segmentPlanSegmentCount": 183,
+  "allReadyAssetsHaveReadyClips": true,
+  "allReadyClipsHaveAtLeastThreeTags": true,
+  "allReadyClipsHaveRoleAndLens": true,
+  "allStorageKeysProviderNeutral": true,
+  "noProviderSpecificCosKeys": true,
+  "tagSourceValuesValid": true,
+  "roleValuesValid": true,
+  "lensValuesValid": true,
+  "noReadySegmentClips": true,
+  "allSegmentPlansPendingAndNotPhysical": true,
+  "noForbiddenBusinessClaims": true,
+  "ffprobeAvailable": true,
+  "ffprobeFailures": [],
+  "dimensionRequirement": "min(width,height) >= 640 and max(width,height) <= 2048",
+  "dimensionFailures": [],
+  "compliantLocalFilesExist": true,
+  "allClipObjectsExistLocally": true,
+  "allThumbObjectsExistLocally": false,
+  "objectStorageObjectsVerified": false,
+  "dbImportBlockers": [
+    "bucketName is REPLACE_WITH_BUCKET placeholder",
+    "merchantId/uploadedByUserId are placeholder UUIDs",
+    "object storage upload was intentionally not performed",
+    "thumbStorageKey objects are planned only and not generated",
+    "segmentPlan entries are pending and must not be imported as ready segment clips"
+  ],
+  "statusDistribution": {
+    "assets": {
+      "ready": 94
+    },
+    "clips": {
+      "ready": 94
+    },
+    "segmentPlans": {
+      "pending": 43
+    }
+  },
+  "roleDistribution": {
+    "role:bbq_customer_eating": 5,
+    "role:bbq_dining_table": 4,
+    "role:bbq_food_closeup": 10,
+    "role:bbq_grill_fire": 6,
+    "role:bbq_night_market": 18,
+    "role:bbq_seafood_grill": 7,
+    "role:bbq_skewer_closeup": 24,
+    "role:bbq_staff_preparation": 6,
+    "role:bbq_whole_meat_roast": 14
+  },
+  "lensDistribution": {
+    "lens:atmosphere_context": 17,
+    "lens:detail_proof": 17,
+    "lens:menu_showcase": 37,
+    "lens:opening_context": 2,
+    "lens:process_detail": 11,
+    "lens:social_proof": 5,
+    "lens:transition_detail": 5
+  },
+  "orientationDistribution": {
+    "landscape": 80,
+    "portrait": 14
+  },
+  "qualityTagDistribution": {
+    "codec:h264": 94,
+    "光厂水印": 94,
+    "公开小样": 94,
+    "尺寸合规": 94,
+    "弱相关素材": 11,
+    "待人工最终确认": 94,
+    "本地合规转码": 94,
+    "长视频待切片审核": 43
+  },
+  "weakRelevanceCount": 11,
+  "weakRelevanceAssets": [
+    {
+      "index": 41,
+      "id": "37983346",
+      "title": "四川美食成都特色小吃",
+      "role": "role:bbq_food_closeup",
+      "lens": "lens:menu_showcase",
+      "reason": "来源主题为四川特色小吃，烧烤元素不稳定，只作泛餐饮补镜。"
+    },
+    {
+      "index": 50,
+      "id": "10526561",
+      "title": "鲜活鳗鱼_烤鳗鱼_鳗鱼",
+      "role": "role:bbq_seafood_grill",
+      "lens": "lens:menu_showcase",
+      "reason": "烤鳗鱼可作烤制海鲜补充，但不是典型烧烤店强素材。"
+    },
+    {
+      "index": 53,
+      "id": "5395259",
+      "title": "武汉早餐清晨面窝豆皮热干面牛肉粉宵夜烧烤",
+      "role": "role:bbq_food_closeup",
+      "lens": "lens:menu_showcase",
+      "reason": "早餐/热干面/豆皮等泛餐饮信息强于烧烤信息。"
+    },
+    {
+      "index": 64,
+      "id": "29872404",
+      "title": "大连_海螺",
+      "role": "role:bbq_seafood_grill",
+      "lens": "lens:menu_showcase",
+      "reason": "海螺素材未明确显示烧烤店场景，只作海鲜补充。"
+    },
+    {
+      "index": 65,
+      "id": "8645923",
+      "title": "烤鸡在烤箱里成熟_延时摄影",
+      "role": "role:bbq_whole_meat_roast",
+      "lens": "lens:menu_showcase",
+      "reason": "烤箱烤鸡偏泛餐饮制作，不是烧烤店炭烤主素材。"
+    },
+    {
+      "index": 67,
+      "id": "8317719",
+      "title": "烤鸭制作过程",
+      "role": "role:bbq_whole_meat_roast",
+      "lens": "lens:process_detail",
+      "reason": "烤鸭制作偏鸭货/烤鸭工艺，不是烧烤店主素材。"
+    },
+    {
+      "index": 68,
+      "id": "25120641",
+      "title": "烧腊烤制、成品",
+      "role": "role:bbq_whole_meat_roast",
+      "lens": "lens:menu_showcase",
+      "reason": "烧腊成品偏烧腊品类，不是烧烤店主素材。"
+    },
+    {
+      "index": 70,
+      "id": "8349202",
+      "title": "江南酱鸭制作流程",
+      "role": "role:bbq_whole_meat_roast",
+      "lens": "lens:process_detail",
+      "reason": "酱鸭制作偏鸭货工艺，不是烧烤店主素材。"
+    },
+    {
+      "index": 85,
+      "id": "36084363",
+      "title": "成都玉林路酒吧一条街人文夜市夜宵烟火气",
+      "role": "role:bbq_night_market",
+      "lens": "lens:atmosphere_context",
+      "reason": "酒吧街/人文夜市氛围强于烧烤画面，只可作环境补镜。"
+    },
+    {
+      "index": 94,
+      "id": "36080856",
+      "title": "成都玉林路吃火锅人文夜市夜宵烟火气小吃摊",
+      "role": "role:bbq_customer_eating",
+      "lens": "lens:social_proof",
+      "reason": "火锅消费场景强于烧烤场景，只可作夜宵社交弱相关补镜。"
+    },
+    {
+      "index": 95,
+      "id": "24193686",
+      "title": "美食街小吃街夜市小吃逛街",
+      "role": "role:bbq_night_market",
+      "lens": "lens:atmosphere_context",
+      "reason": "美食街逛街环境未明确烧烤，只作夜市环境弱相关补镜。"
+    }
+  ],
+  "needsReviewCount": 46,
+  "needsReviewAssets": [
+    {
+      "index": 1,
+      "id": "4551358",
+      "title": "120帧升格拍摄烤羊肉串羊排鸽子",
+      "durationSeconds": 76.32,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 3,
+      "id": "42177473",
+      "title": "新疆羊肉串烧烤摊烟火气",
+      "durationSeconds": 101.433333,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 5,
+      "id": "19410502",
+      "title": "烧烤烤串竖版",
+      "durationSeconds": 68.3683,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 6,
+      "id": "5605775",
+      "title": "烧烤烤肉烤串羊肉串烤肉串",
+      "durationSeconds": 46.16,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 9,
+      "id": "7034103",
+      "title": "烤串_自助烤串_烧烤_美食",
+      "durationSeconds": 87.6,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 10,
+      "id": "10296631",
+      "title": "烧烤_烤串_串店2",
+      "durationSeconds": 116.0,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 11,
+      "id": "29846854",
+      "title": "锦州炭火烧烤羊肉串",
+      "durationSeconds": 73.633333,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 16,
+      "id": "5363066",
+      "title": "烤羊肉串、烧烤、烤串、串、美食",
+      "durationSeconds": 125.2,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 21,
+      "id": "29355380",
+      "title": "徐州烧烤_网红烧烤_羊肉串",
+      "durationSeconds": 49.32,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 22,
+      "id": "3893206",
+      "title": "湖南特色美食烤肉烧烤烤串",
+      "durationSeconds": 56.32,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 25,
+      "id": "4002513",
+      "title": "羊肉串制作烧烤",
+      "durationSeconds": 139.4,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 26,
+      "id": "43270880",
+      "title": "夜市烧烤鱿鱼串",
+      "durationSeconds": 52.052,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 27,
+      "id": "31818228",
+      "title": "夜晚热闹的大排档夜市",
+      "durationSeconds": 82.625,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 30,
+      "id": "6398771",
+      "title": "夜市烧烤_锦州烧烤_锦州古塔",
+      "durationSeconds": 188.2,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 35,
+      "id": "43019177",
+      "title": "诱人海鲜烧烤盛宴美味烧烤小吃合集",
+      "durationSeconds": 67.16,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 38,
+      "id": "3303138",
+      "title": "烧烤",
+      "durationSeconds": 54.52,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 41,
+      "id": "37983346",
+      "title": "四川美食成都特色小吃",
+      "durationSeconds": 74.48,
+      "weakRelevance": true,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 50,
+      "id": "10526561",
+      "title": "鲜活鳗鱼_烤鳗鱼_鳗鱼",
+      "durationSeconds": 48.833333,
+      "weakRelevance": true,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 51,
+      "id": "43320882",
+      "title": "炭火烤肉串滋滋冒油",
+      "durationSeconds": 106.0059,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 53,
+      "id": "5395259",
+      "title": "武汉早餐清晨面窝豆皮热干面牛肉粉宵夜烧烤",
+      "durationSeconds": 41.36,
+      "weakRelevance": true,
+      "needsSegmentReview": false
+    },
+    {
+      "index": 54,
+      "id": "9430085",
+      "title": "夜间小吃_烧烤_炸串_烟火气空镜头_美食",
+      "durationSeconds": 130.76,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 57,
+      "id": "10219216",
+      "title": "烧烤大筋皮",
+      "durationSeconds": 874.24,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 60,
+      "id": "29275136",
+      "title": "烤全羊_特色美食",
+      "durationSeconds": 69.76,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 62,
+      "id": "7018692",
+      "title": "烤羊腿_羊排_蒙古烤羊腿",
+      "durationSeconds": 47.708008,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 63,
+      "id": "29274477",
+      "title": "实拍烤全羊_烤羊腿_烤羊烧烤竖屏高清素材",
+      "durationSeconds": 116.74,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 64,
+      "id": "29872404",
+      "title": "大连_海螺",
+      "durationSeconds": 106.14,
+      "weakRelevance": true,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 65,
+      "id": "8645923",
+      "title": "烤鸡在烤箱里成熟_延时摄影",
+      "durationSeconds": 28.6,
+      "weakRelevance": true,
+      "needsSegmentReview": false
+    },
+    {
+      "index": 67,
+      "id": "8317719",
+      "title": "烤鸭制作过程",
+      "durationSeconds": 50.36,
+      "weakRelevance": true,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 68,
+      "id": "25120641",
+      "title": "烧腊烤制、成品",
+      "durationSeconds": 11.125,
+      "weakRelevance": true,
+      "needsSegmentReview": false
+    },
+    {
+      "index": 70,
+      "id": "8349202",
+      "title": "江南酱鸭制作流程",
+      "durationSeconds": 89.089,
+      "weakRelevance": true,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 73,
+      "id": "5605766",
+      "title": "烧烤烤肉烤串羊肉串烤肉串",
+      "durationSeconds": 64.68,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 75,
+      "id": "32491222",
+      "title": "烧烤美食_烤串",
+      "durationSeconds": 177.72,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 77,
+      "id": "35872267",
+      "title": "夜市烧烤烟火气宵夜小吃美食街夜生活小吃",
+      "durationSeconds": 312.766667,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 79,
+      "id": "9801964",
+      "title": "烧烤火焰人间烟火夜宵烤肉羊肉串牛肉串",
+      "durationSeconds": 167.4,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 80,
+      "id": "36713756",
+      "title": "新疆烤肉烧烤羊肉串敦煌夜市",
+      "durationSeconds": 389.76,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 82,
+      "id": "36336209",
+      "title": "小吃美食夜市烧烤",
+      "durationSeconds": 187.64,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 83,
+      "id": "25088215",
+      "title": "城市夜景夜市烧烤小吃美食街夜生活小吃",
+      "durationSeconds": 297.84,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 84,
+      "id": "29335220",
+      "title": "烧烤羊肉串韭菜炭火大排档",
+      "durationSeconds": 319.72,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 85,
+      "id": "36084363",
+      "title": "成都玉林路酒吧一条街人文夜市夜宵烟火气",
+      "durationSeconds": 373.72,
+      "weakRelevance": true,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 86,
+      "id": "36336216",
+      "title": "夜市小吃烧烤美食",
+      "durationSeconds": 192.76,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 88,
+      "id": "32045057",
+      "title": "烧烤夜市烟火气牛肉串羊肉串美食",
+      "durationSeconds": 68.92,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 90,
+      "id": "30740217",
+      "title": "夜市烧烤小吃美食街夜生活小吃",
+      "durationSeconds": 218.251367,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 91,
+      "id": "35400171",
+      "title": "夜市美食_烧烤火焰烹饪_小吃街人间烟火",
+      "durationSeconds": 233.933333,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 93,
+      "id": "8867355",
+      "title": "夜拍档烧烤烟火气烤串淄博烧烤",
+      "durationSeconds": 58.5,
+      "weakRelevance": false,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 94,
+      "id": "36080856",
+      "title": "成都玉林路吃火锅人文夜市夜宵烟火气小吃摊",
+      "durationSeconds": 351.24,
+      "weakRelevance": true,
+      "needsSegmentReview": true
+    },
+    {
+      "index": 95,
+      "id": "24193686",
+      "title": "美食街小吃街夜市小吃逛街",
+      "durationSeconds": 122.04,
+      "weakRelevance": true,
+      "needsSegmentReview": true
+    }
+  ],
+  "visualReview": {
+    "basis": "source title, filename, selected candidate metadata, local contact sheets, and ffprobe facts",
+    "limitations": "no full-video semantic model pass; all clips keep 待人工最终确认"
+  },
+  "warnings": [
+    "43 assets are longer than 45 seconds and have pending segmentPlan entries; no physical segment mp4 files were created.",
+    "11 clips marked 弱相关素材 and require final human review before prioritizing in video-worker retrieval.",
+    "thumbStorageKey values are provider-neutral planned keys only; thumbnail files were not generated in this task.",
+    "Object storage upload and DB import were intentionally not performed; bucketName and merchant/user IDs are placeholders for later import."
+  ],
+  "allRoleTagsSnakeCase": true,
+  "allLensTagsSnakeCase": true,
+  "roleCounts": {
+    "role:bbq_customer_eating": 5,
+    "role:bbq_dining_table": 4,
+    "role:bbq_food_closeup": 10,
+    "role:bbq_grill_fire": 6,
+    "role:bbq_night_market": 18,
+    "role:bbq_seafood_grill": 7,
+    "role:bbq_skewer_closeup": 24,
+    "role:bbq_staff_preparation": 6,
+    "role:bbq_whole_meat_roast": 14
+  },
+  "lensCounts": {
+    "lens:atmosphere_context": 17,
+    "lens:detail_proof": 17,
+    "lens:menu_showcase": 37,
+    "lens:opening_context": 2,
+    "lens:process_detail": 11,
+    "lens:social_proof": 5,
+    "lens:transition_detail": 5
+  },
+  "invalidRoleTags": [],
+  "invalidLensTags": []
+}
