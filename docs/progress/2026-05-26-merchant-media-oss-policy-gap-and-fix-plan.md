@@ -37,6 +37,43 @@
 - 已把新表 mapper 的 `createdAt` 统一转成 ISO string，避免接口返回 `500: t.clip.createdAt.localeCompare is not a function`。
 - 修改文件：`app/src/lib/db/merchant-media-repository.ts`
 
+服务器 release：
+
+- 本地 commit：`f4d5542 fix: stabilize merchant media migration search`
+- 新 release：`/srv/jingjing-domestic/releases/20260526234730-f4d5542`
+- `current`：`/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260526234730-f4d5542`
+- `jingjing-domestic-app.service`：`active`
+- 其他服务状态：`jingjing-content-generation-worker.service`、`jingjing-firered-openstoryline.service`、`jingjing-openstoryline-engine.service`、`jingjing-video-worker.service` 均为 `active`
+
+release 后验证：
+
+```json
+{
+  "health": {
+    "ok": true,
+    "database": "postgres",
+    "storage": "aliyun_oss"
+  },
+  "privateMediaAll": {
+    "total_results": 94,
+    "returned": 5,
+    "first_link_is_private": true
+  },
+  "privateMediaQuery_烤串": {
+    "total_results": 57,
+    "returned": 5,
+    "first_link_is_private": true
+  }
+}
+```
+
+本地验证：
+
+- `node --check app/scripts/migrate-shaokao-bbq-source-assets-to-merchant-media.mjs`：通过
+- `cd app && node --test src/lib/db/merchant-media-repository-phase-2f-contract.test.mjs`：11 项通过
+- `cd app && pnpm typecheck`：通过
+- `cd app && node --test src/lib/private-media-pexels-adapter.test.ts src/lib/private-media-workflow-fixture.test.ts ...`：项目当前未配置直接执行 `.ts` 测试的 loader，失败于 `ERR_UNKNOWN_FILE_EXTENSION`，不是业务断言失败
+
 当前系统存在两套尚未完全收口的媒体路径：
 
 | 路径 | 当前用途 | OSS 前缀 | 当前生产权限 | 状态 |
