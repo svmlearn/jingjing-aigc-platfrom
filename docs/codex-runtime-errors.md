@@ -13,6 +13,7 @@
 | PE-20260524-002 | `video_edit_jobs` 已成功但 `result_payload.local_outputs` 指向不存在的本地目录 | 先验 OSS `result_payload.outputs` / `asset_objects`，本地取件再回退查 FireRed cache 的 `render_video_*/*.mp4` | 部分解决 | [完整复盘](#pe-20260524-002-video-job-succeeded-but-local_outputs-path-is-missing) |
 | PE-20260524-003 | release 目录归属用户和构建用户不一致，`pnpm install` 报 `EACCES ... app/_tmp_*` | 构建前让构建用户拥有新 release，构建后再恢复服务运行用户所有权 | 已解决 | [完整复盘](#pe-20260524-003-release-build-eacces-on-app-_tmp_-files) |
 | PE-20260524-004 | `InvalidFile.FaceNotMatch` / non-talking-head B-roll enters `lip_sync` | Inspect `split_shots`, `group_clips`, and `plan_timeline`; verify lip-sync targets are clip-level `talking_head`, not group-level | Solved locally | [Full postmortem](#pe-20260524-004-videoretalk-receives-non-talking-head-segments-from-mixed-groups) |
+| PE-20260526-001 | merge 后 worker 旧 Top8 素材库预取复活 / 缺 `PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET` 仍能找到素材 | 先静态搜旧路径关键词，再核对 worker 下载阶段是否只下载显式上传素材 | 已解决 | [完整复盘](#pe-20260526-001-worker-top8-material-prefetch-revived-after-merge) |
 
 ## 快速处理卡
 
@@ -105,6 +106,17 @@ sudo chown -R ubuntu:ubuntu "$release"
 ```
 
 - 验证：2026-05-24 release `/srv/jingjing-domestic/releases/20260524190700-802ce22` 用该方式完成 install/build，并成功切换 `current`、重启服务、通过健康检查。
+
+### PE-20260526-001 worker Top8 material prefetch revived after merge
+
+- 适用现象：`log_payload.steps[].material_library_inputs_downloaded > 0`，或缺少 `PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET` 时 worker 仍能找到商家素材。
+- 根因特征：worker 下载阶段存在旧 Top8 素材库预取，直接按 DB 里的 OSS `storage_key` 下载，绕过 `/api/private-media/download/<token>` 和 FireRed 动态 `search_media`。
+- 快速检查：
+  1. 静态搜旧路径关键词。
+  2. 确认下载阶段日志只有 `material_library_prefetch=disabled_openstoryline_search_media`。
+  3. 确认 FireRed 日志有 `search_media.search_keyword` 和 `scene_search.result_count`。
+- 修复口径：旧 Top8 预取路径必须完全删除，不保留 processor helper、repository 方法或测试 fake 方法。
+- 验证方式：worker focused tests、`py_compile`、`git diff --check`、旧路径关键词静态搜索零命中。
 
 ## 完整复盘
 
@@ -502,3 +514,78 @@ Regression coverage was added in `workers/video-worker/tests/test_firered_lip_sy
 #### Prevention
 
 When diagnosing future VideoRetalk face-match failures, inspect the exact lip-sync targets from `plan_timeline`, not just uploaded asset labels. B-roll, road, factory facade, apartment, dormitory, parking, distant-view, and park-environment segments must never enter lip sync because another segment in the same narrative group is `talking_head`.
+
+### PE-20260526-001 worker Top8 material prefetch revived after merge
+
+- 日期：2026-05-26
+- 状态：已解决
+- 记录类型：项目故障复盘 / worker 防复发 runbook
+- 影响范围：`workers/video-worker` 下载阶段、商家私有素材动态检索链路、Gitee 分支 `5.26-worker-fix`
+
+#### 现象
+
+merge 后 `processor.py` 里旧 Top8 素材库预取路径复活：
+
+```text
+_download_material_library_inputs()
+list_video_material_input_assets(..., limit=8)
+material_library_inputs_downloaded
+material_library_asset_ids
+```
+
+这会导致即使缺少 `PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET`，worker 仍可能按 DB 里的 OSS `storage_key` 直接下载素材并继续生成视频。
+
+#### 根因判断
+
+这是 worker 旧预取路径被 merge 带回，不是 OSS 命名问题，也不是 private-media token 过期问题。
+
+正确口径：
+
+- `PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET` 是签 token 的密钥，不是 60 天过期对象。
+- 60 天过期的是每次搜索生成的 `/api/private-media/download/<token>` URL。
+- 旧 Top8 预取直接下载 OSS 对象，绕过动态 token 下载。
+- DashScope/百炼 `429 insufficient_quota` 是模型额度或限流问题，不是 OSS 素材额度。
+
+#### 最终修复
+
+- 删除 `workers/video-worker/worker/app/processor.py` 中旧 helper 和调用：
+  - `_material_library_query`
+  - `_download_material_library_inputs`
+  - 下载阶段 `material_input_assets`
+  - `material_library_inputs_downloaded`
+  - `material_library_asset_ids`
+- 删除 `workers/video-worker/worker/app/db.py` 中旧 repository 方法和配套 helper：
+  - `list_video_material_input_assets`
+  - 旧 query 分词、素材打分、metadata/file name 组装 helper
+- 删除 `workers/video-worker/tests/test_processor_contract.py` 中旧 fake 方法和旧成功预取断言。
+- 保留新口径日志：`material_library_prefetch=disabled_openstoryline_search_media`。
+
+#### 验证
+
+```powershell
+$env:PYTHONPATH='workers/video-worker;workers/video-worker/openstoryline'
+python -m pytest workers/video-worker/tests/test_processor_contract.py workers/video-worker/tests/test_openstoryline_engine_adapters.py workers/video-worker/tests/test_firered_node_interceptors.py workers/video-worker/tests/test_firered_search_media_private_base_url.py workers/video-worker/tests/test_status_contract.py
+```
+
+结果：`121 passed in 2.46s`。
+
+```powershell
+python -m py_compile workers/video-worker/worker/app/processor.py workers/video-worker/worker/app/db.py
+git diff --check -- workers/video-worker/worker/app/processor.py workers/video-worker/worker/app/db.py workers/video-worker/tests/test_processor_contract.py
+```
+
+结果：通过。
+
+```powershell
+rg -n "list_video_material_input_assets|material_input_assets|material_queries|_download_material_library_inputs|_material_library_query|material_library_inputs_downloaded|material_library_asset_ids|limit=8" workers\video-worker\worker workers\video-worker\tests app\src -g "*.py" -g "*.ts" -g "*.mjs"
+```
+
+结果：无命中。
+
+#### 预防
+
+- 合并 worker 分支后，把旧路径关键词静态搜索作为 release 前门禁。
+- 判断素材是否走新动态路径时看 FireRed 日志里的 `search_media.search_keyword` 和 `scene_search.result_count`。
+- 判断 worker 预取是否关闭时看 `material_library_prefetch=disabled_openstoryline_search_media`。
+- 如果报 `PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET is required`，优先查动态 private-media token 配置。
+- 如果报 `429 insufficient_quota`，优先查 DashScope/百炼模型额度、TPS/TPM 或计费状态。
