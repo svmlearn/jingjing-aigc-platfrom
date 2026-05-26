@@ -41,7 +41,6 @@ const forbiddenRepositoryPatterns = [
   "@/lib/supa\u0062ase/admin",
   "supabase",
   "Supa\x62ase",
-  ".from(",
   "cloudSupa\x62aseRequiredError",
   "Supa\x62aseMerchantMediaRepository",
   "Supa\x62aseMerchantMediaPrivateClipRepository",
@@ -51,6 +50,8 @@ test("merchant media repository no longer contains Supa\x62ase runtime fallback"
   for (const pattern of forbiddenRepositoryPatterns) {
     assert.doesNotMatch(repositorySource, pattern, pattern.source);
   }
+  const repositorySourceWithoutArrayFrom = repositorySource.replace(/\bArray\.from\(/g, "Array_from(");
+  assert.doesNotMatch(repositorySourceWithoutArrayFrom, /\.from\(/, "\\.from\\(");
 });
 
 test("repository entrypoints and classes now use PostgreSQL app DB implementations", () => {
@@ -283,8 +284,9 @@ function extractFunctionBody(functionName) {
 
   assert.notEqual(parameterEnd, -1, `${functionName} parameters should be closed.`);
 
-  const bodyStart = repositorySource.indexOf(" {\n", parameterEnd);
-  assert.notEqual(bodyStart, -1, `${functionName} should have a body.`);
+  const bodyStartMatch = / \{\r?\n/.exec(repositorySource.slice(parameterEnd));
+  assert.notEqual(bodyStartMatch, null, `${functionName} should have a body.`);
+  const bodyStart = parameterEnd + bodyStartMatch.index;
 
   let depth = 0;
   for (let index = bodyStart; index < repositorySource.length; index += 1) {
