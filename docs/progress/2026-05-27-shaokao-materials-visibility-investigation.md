@@ -222,3 +222,93 @@ git diff --check
 1. `GET /api/materials?limit=80` 登录 `shaokao@163.com` 后返回的 `viral_reference` 不再是 0，预期为 80。
 2. `GET /api/materials?limit=100` 登录 `shaokao@163.com` 后返回的 `video_asset` 不再是 0，预期为 94。
 3. `merchant_media_clips` 仍为 94 ready；legacy `source_items` 视频仍保持 archived，避免重复候选。
+
+## 2026-05-27 Release 与恢复验证
+
+代码修复 commit：
+
+```text
+f704c97aedbc fix: restore shaokao material visibility
+```
+
+服务器 release：
+
+```text
+/srv/jingjing-domestic/releases/20260527001925-f704c97
+/srv/jingjing-domestic/current -> /srv/jingjing-domestic/releases/20260527001925-f704c97
+```
+
+发布方式：
+
+1. 本地 `git archive` 生成 `/tmp/jingjing-release/jingjing-f704c97.tar`。
+2. 上传到服务器 `/tmp/jingjing-f704c97.tar`。
+3. 解包到独立 release 目录。
+4. 在 release 的 `app/` 内执行：
+   - `corepack pnpm@10.20.0 install --frozen-lockfile`
+   - `corepack pnpm@10.20.0 build`
+5. 构建通过后切换 `/srv/jingjing-domestic/current`。
+6. 重启 `jingjing-domestic-app.service`。
+
+注意：第一次紧接 restart 的 health check 过早打到 3000 端口，出现：
+
+```text
+curl: (7) Failed to connect to 127.0.0.1 port 3000
+```
+
+随后等待服务监听完成后复查：
+
+```text
+jingjing-domestic-app.service = active
+GET http://127.0.0.1:3000/api/health = 200
+database = postgres
+storage = aliyun_oss
+```
+
+真实接口验证：
+
+验证方式：
+
+- 在生产库临时写入 10 分钟有效 `user_sessions`，目标用户为 `shaokao@163.com` 的 `user_id`。
+- 用该 session cookie 请求生产本机 `http://127.0.0.1:3000/api/materials`。
+- 验证完成后删除临时 session。
+- 这一步只写入并清理一条短期登录 session，不修改业务素材数据。
+
+验证结果：
+
+```json
+{
+  "url": "/api/materials?limit=80",
+  "counts": {
+    "total": 174,
+    "nonReady": 0,
+    "video_asset": 94,
+    "viral_reference": 80
+  },
+  "firstVideo": {
+    "idPrefix": "merchant-media-clip:",
+    "retrievalTargets": ["video_edit_asset"]
+  }
+}
+```
+
+```json
+{
+  "url": "/api/materials?limit=100",
+  "counts": {
+    "total": 174,
+    "nonReady": 0,
+    "video_asset": 94,
+    "viral_reference": 80
+  },
+  "firstVideo": {
+    "idPrefix": "merchant-media-clip:",
+    "retrievalTargets": ["video_edit_asset"]
+  }
+}
+```
+
+恢复结论：
+
+- 内容中心不会再因为最新 94 条 archived legacy 视频挡住前 80 条窗口而显示空。
+- 项目媒体素材页可以通过 `/api/materials` 看到 `merchant_media_*` 新 clip 库中的 94 条视频。
+- legacy 视频 `source_items` 不需要改回 ready，避免 private media 检索重复候选。
