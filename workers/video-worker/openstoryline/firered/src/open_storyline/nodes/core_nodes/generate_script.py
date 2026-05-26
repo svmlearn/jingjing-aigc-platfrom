@@ -308,16 +308,22 @@ def _extract_group_text_map(obj: Any, group_ids: list[str]) -> dict[str, str]:
     raise ValueError("Unable to recognize LLM output structure")
 
 
-_LOCKED_SCRIPT_MARKER = "Use the locked script:"
+_LOCKED_SCRIPT_MARKER_RE = re.compile(
+    r"Use the locked script(?:\s+exactly\s+as\s+provided)?\s*:",
+    re.I,
+)
+_LOCKED_SCENE_LINE_RE = re.compile(
+    r"(?ims)^\s*Scene\s+\d{1,2}\s*(?:[（(][^）)\n]+[）)])?\s*[:：]\s*(.*?)(?=^\s*Scene\s+\d{1,2}\s*(?:[（(][^）)\n]+[）)])?\s*[:：]|\Z)"
+)
 
 
 def _extract_locked_script_request(user_request: Any) -> str:
     if not isinstance(user_request, str):
         return ""
-    marker_index = user_request.find(_LOCKED_SCRIPT_MARKER)
-    if marker_index < 0:
+    marker = _LOCKED_SCRIPT_MARKER_RE.search(user_request)
+    if not marker:
         return ""
-    return user_request[marker_index + len(_LOCKED_SCRIPT_MARKER):].strip()
+    return user_request[marker.end():].strip()
 
 
 def _build_locked_script_result(
@@ -332,7 +338,10 @@ def _build_locked_script_result(
     group_scripts: list[dict[str, Any]] = []
     subtitle_index = 1
 
-    for index, group_id in enumerate(group_ids):
+    if not chunks:
+        chunks = [locked_script.strip()]
+
+    for index, group_id in enumerate(group_ids[: len(chunks)]):
         raw_text = chunks[index] if index < len(chunks) else locked_script
         raw_text = raw_text.strip() or locked_script.strip()
         units, subtitle_index = _make_subtitle_units(
@@ -354,8 +363,18 @@ def _build_locked_script_result(
 
 
 def _split_locked_script_for_groups(locked_script: str, group_count: int) -> list[str]:
+    if group_count <= 0:
+        return []
     if group_count <= 1:
         return [locked_script.strip()]
+
+    line_scene_blocks = [
+        _clean_locked_scene_line(block)
+        for block in _LOCKED_SCENE_LINE_RE.findall(locked_script)
+    ]
+    line_scene_blocks = [block for block in line_scene_blocks if block]
+    if line_scene_blocks:
+        return line_scene_blocks
 
     scene_blocks = [
         block.strip()
@@ -368,7 +387,7 @@ def _split_locked_script_for_groups(locked_script: str, group_count: int) -> lis
         if block.strip()
     ]
     if len(blocks) < group_count:
-        return [locked_script.strip() for _ in range(group_count)]
+        return blocks or [locked_script.strip()]
 
     chunks = ["" for _ in range(group_count)]
     for index, block in enumerate(blocks):
@@ -379,7 +398,18 @@ def _split_locked_script_for_groups(locked_script: str, group_count: int) -> lis
     return chunks
 
 
+def _clean_locked_scene_line(block: str) -> str:
+    text = (block or "").strip()
+    if not text:
+        return ""
+    text = re.split(r"\s*\|\s*(?:Subtitle|字幕)\s*[:：]", text, maxsplit=1, flags=re.I)[0]
+    return " ".join(text.split()).strip()
+
+
 def _locked_script_title(locked_script: str) -> str:
+    title_match = re.search(r"(?im)^\s*Title\s*[:：]\s*(.+?)\s*$", locked_script)
+    if title_match:
+        return title_match.group(1).strip()[:80]
     first_line = next(
         (line.strip() for line in locked_script.splitlines() if line.strip()),
         "",

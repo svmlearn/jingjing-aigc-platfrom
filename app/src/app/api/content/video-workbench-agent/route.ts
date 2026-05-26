@@ -4,7 +4,7 @@ import { handleApiError } from "@/server/api/errors";
 import { runVideoWorkbenchAgentSchema } from "@/server/api/schemas";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 600;
 
 export async function POST(request: Request) {
   try {

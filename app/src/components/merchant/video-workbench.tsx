@@ -147,8 +147,8 @@ export function VideoWorkbench({
   const [canvasExpanded, setCanvasExpanded] = useState(false);
   const [segmentUploads, setSegmentUploads] = useState<Record<number, SegmentUploadState>>({});
   const [voiceoverMode, setVoiceoverMode] = useState<VoiceoverMode>("system");
-  const [systemVoiceProvider, setSystemVoiceProvider] = useState("bytedance_bigtts");
-  const [systemVoiceSpeaker, setSystemVoiceSpeaker] = useState("");
+  const [systemVoiceProvider, setSystemVoiceProvider] = useState("aliyun_cosyvoice");
+  const [systemVoiceSpeaker, setSystemVoiceSpeaker] = useState("longanyang");
   const [includeOriginalAudio, setIncludeOriginalAudio] = useState(false);
   const [voiceProfiles, setVoiceProfiles] = useState<VoiceProfileDto[]>([]);
   const [selectedVoiceProfileId, setSelectedVoiceProfileId] = useState("");
@@ -1592,6 +1592,7 @@ function VoiceoverSettingsPanel({
               onChange={(event) => onSystemVoiceProviderChange(event.target.value)}
               className="h-10 rounded-xl border border-white/10 bg-[#050505] px-3 text-sm text-white/75 outline-none focus:border-amber-500/45"
             >
+              <option value="aliyun_cosyvoice">Aliyun CosyVoice</option>
               <option value="bytedance_bigtts">ByteDance BigTTS</option>
               <option value="minimax">Minimax</option>
               <option value="302">302</option>

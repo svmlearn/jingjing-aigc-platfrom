@@ -471,3 +471,22 @@ class VideoJobRepository:
                     }
                 )
         return inserted_assets
+
+    def update_voice_profile_external_voice(
+        self,
+        profile_id: str,
+        *,
+        external_voice_id: str,
+        external_model_id: str | None = None,
+    ) -> None:
+        with self._connect() as connection, connection.cursor() as cursor:
+            cursor.execute(
+                """
+                update public.voice_profiles
+                set external_voice_id = %s,
+                    external_model_id = coalesce(%s, external_model_id),
+                    updated_at = timezone('utc', now())
+                where id = %s
+                """,
+                (external_voice_id, external_model_id, profile_id),
+            )

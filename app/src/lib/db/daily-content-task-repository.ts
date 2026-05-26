@@ -225,6 +225,8 @@ function toTaskItem(value: unknown, fallbackKind: "article" | "video"): DailyCon
     generationJobId: readNullableString(record.generationJobId),
     contentDraftId: readNullableString(record.contentDraftId),
     contentVariantId: readNullableString(record.contentVariantId),
+    recommendedProductionConfig: toNullableRecord(record.recommendedProductionConfig),
+    memberUploadPolicy: readNullableString(record.memberUploadPolicy),
   };
 }
 
@@ -305,6 +307,12 @@ function toRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function toNullableRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 function toRecordArray(value: unknown): Array<Record<string, unknown>> {

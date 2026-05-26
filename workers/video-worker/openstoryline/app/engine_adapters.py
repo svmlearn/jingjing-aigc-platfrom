@@ -7,6 +7,7 @@ import time
 import subprocess
 from pathlib import Path
 from typing import Any, Iterator, Protocol
+from urllib.parse import quote
 
 import httpx
 
@@ -404,7 +405,12 @@ def _build_fire_red_run_payload(
         request,
     )
     _assert_original_audio_asr_ready(settings, production_config)
-    service_config = _build_fire_red_service_config(settings, production_config)
+    service_config = _build_fire_red_service_config(
+        settings,
+        production_config,
+        request,
+        require_private_search=not _is_worker_rehearsal_fast_path(request),
+    )
     if _is_worker_rehearsal_fast_path(request):
         service_config = {
             **service_config,
@@ -429,7 +435,7 @@ def _build_fire_red_run_payload(
         "input_assets": [
             _compact_payload(asset.model_dump()) for asset in request.input_assets
         ],
-        "prompt": _build_fire_red_prompt(request, desired_outputs, production_config),
+        "prompt": _build_fire_red_prompt(request, desired_outputs),
     }
     return payload
 
@@ -443,14 +449,22 @@ def _is_worker_rehearsal_fast_path(request: RunRequest) -> bool:
 def _build_fire_red_service_config(
     settings: Settings,
     production_config: dict[str, object],
+    request: RunRequest,
+    *,
+    require_private_search: bool = True,
 ) -> dict[str, object]:
     service_config: dict[str, object] = {}
-    if settings.private_pexels_base_url:
+    private_pexels_base_url = _private_pexels_base_url_for_request(
+        settings,
+        request,
+        require_private_search=require_private_search,
+    )
+    if private_pexels_base_url:
         service_config["search_media"] = {
             "pexels": _compact_dict(
                 {
                     "mode": "custom",
-                    "base_url": settings.private_pexels_base_url,
+                    "base_url": private_pexels_base_url,
                     "api_key": settings.private_pexels_api_key,
                 }
             )
@@ -509,36 +523,75 @@ def _build_fire_red_service_config(
     clone_enabled = _as_bool(
         voiceover.get("clone_enabled")
         or voiceover.get("cloneEnabled")
-        or provider in {"pixelle_clone", "pixelle_runninghub_clone"}
+        or provider in {"aliyun_cosyvoice_clone", "pixelle_clone", "pixelle_runninghub_clone"}
     )
     if clone_enabled:
-        tts_config = {
-            "provider": "pixelle_clone",
-            "pixelle_clone": _compact_dict(
-                {
-                    "base_url": settings.tts_pixelle_clone_base_url,
-                    "api_key": settings.tts_pixelle_clone_api_key,
-                }
-            ),
-            "clone_enabled": True,
-        }
         ref_audio = str(
             voiceover.get("ref_audio") or voiceover.get("refAudio") or ""
         ).strip()
-        if ref_audio:
-            tts_config["ref_audio"] = ref_audio
-            tts_config["pixelle_clone"]["ref_audio"] = ref_audio
+        ref_audio_url = str(
+            voiceover.get("ref_audio_url") or voiceover.get("refAudioUrl") or ""
+        ).strip()
         external_voice_id = str(
             voiceover.get("external_voice_id")
             or voiceover.get("externalVoiceId")
+            or voiceover.get("voice_id")
+            or voiceover.get("voiceId")
             or ""
         ).strip()
-        if external_voice_id:
-            tts_config["pixelle_clone"]["external_voice_id"] = external_voice_id
+        external_model_id = str(
+            voiceover.get("external_model_id")
+            or voiceover.get("externalModelId")
+            or settings.tts_aliyun_cosyvoice_clone_model
+            or ""
+        ).strip()
+        if provider == "aliyun_cosyvoice_clone" or not provider:
+            provider = "aliyun_cosyvoice_clone"
+            provider_config = _compact_dict(
+                {
+                    "api_key": settings.tts_aliyun_cosyvoice_clone_api_key,
+                    "customization_url": settings.tts_aliyun_cosyvoice_clone_customization_url,
+                    "ws_url": settings.tts_aliyun_cosyvoice_clone_ws_url,
+                    "model": external_model_id or settings.tts_aliyun_cosyvoice_clone_model,
+                    "voice_id": external_voice_id,
+                    "ref_audio": ref_audio,
+                    "ref_audio_url": ref_audio_url,
+                }
+            )
+        else:
+            provider = "pixelle_clone"
+            provider_config = _compact_dict(
+                {
+                    "base_url": settings.tts_pixelle_clone_base_url,
+                    "api_key": settings.tts_pixelle_clone_api_key,
+                    "ref_audio": ref_audio,
+                    "external_voice_id": external_voice_id,
+                }
+            )
+        tts_config = {
+            "provider": provider,
+            provider: provider_config,
+            "clone_enabled": True,
+        }
+        if ref_audio:
+            tts_config["ref_audio"] = ref_audio
+        if ref_audio_url:
+            tts_config["ref_audio_url"] = ref_audio_url
         service_config["tts"] = tts_config
         return service_config
 
-    if provider == "minimax":
+    if provider == "aliyun_cosyvoice":
+        provider_config = _compact_dict(
+            {
+                "api_key": settings.tts_aliyun_cosyvoice_api_key,
+                "ws_url": settings.tts_aliyun_cosyvoice_ws_url,
+                "model": settings.tts_aliyun_cosyvoice_model,
+                "voice": str(voiceover.get("speaker") or "").strip()
+                or settings.tts_aliyun_cosyvoice_voice,
+            }
+        )
+        fallback_config = {}
+    elif provider == "minimax":
         provider_config = _compact_dict(
             {
                 "base_url": settings.tts_minimax_base_url,
@@ -581,6 +634,35 @@ def _build_fire_red_service_config(
         service_config["tts"]["fallback_provider"] = "runninghub"
         service_config["tts"]["runninghub"] = fallback_config
     return service_config
+
+
+def _private_pexels_base_url_for_request(
+    settings: Settings,
+    request: RunRequest,
+    *,
+    require_private_search: bool,
+) -> str:
+    base_url = str(settings.private_pexels_base_url or "").strip().rstrip("/")
+    api_key = str(settings.private_pexels_api_key or "").strip()
+    merchant_id = str(request.merchant_id or "").strip()
+
+    if not require_private_search and not (base_url or api_key):
+        return ""
+
+    missing: list[str] = []
+    if not base_url:
+        missing.append("PRIVATE_PEXELS_BASE_URL")
+    if not api_key:
+        missing.append("PRIVATE_PEXELS_API_KEY")
+    if not merchant_id:
+        missing.append("merchant_id")
+    if missing:
+        raise UnsupportedEngineAdapterError(
+            "FireRed worker jobs require merchant-scoped private media search "
+            f"({', '.join(missing)} missing); official Pexels fallback is disabled."
+        )
+
+    return f"{base_url}/merchants/{quote(merchant_id, safe='')}"
 
 
 def _assert_original_audio_asr_ready(
@@ -741,15 +823,9 @@ def _as_bool(value: object) -> bool:
 def _build_fire_red_prompt(
     request: RunRequest,
     desired_outputs: list[str],
-    production_config: dict[str, object],
 ) -> str:
     directive_json = json.dumps(
         request.production_directive or {},
-        ensure_ascii=False,
-        indent=2,
-    )
-    production_config_json = json.dumps(
-        production_config,
         ensure_ascii=False,
         indent=2,
     )
@@ -766,19 +842,9 @@ def _build_fire_red_prompt(
             "This is an unattended background worker run.",
             "Approval to execute has already been granted by the platform.",
             "Do not ask for confirmation; execute the required production tools directly.",
-            "Use the uploaded media in this session and render a final video.",
+            "Use uploaded media first; when uploaded media does not visually cover the full locked script, call search_media to find additional material.",
             "Do not rewrite the locked script unless ProductionDirective explicitly allows it.",
             "The final step must produce a render_video artifact.",
-            "Required production nodes:",
-            "- Use generate_voiceover when productionConfig.voiceover.enabled is true.",
-            "- Use generate_voiceover when voiceover.enabled is true.",
-            "- Use select_bgm when productionConfig.bgm.enabled is true.",
-            "- Use select_bgm when bgm.enabled is true.",
-            "- When productionConfig.lip_sync.enabled is true, run plan_timeline first, then run lip_sync before render_video.",
-            "- For lip_sync, only replace talking-head segments; keep B-roll and ordinary project media unchanged.",
-            "- Do not call ASR for script_audio_alignment; ASR is only allowed for explicit asr_original_audio rollback mode.",
-            "- render_video must consume the retalked talking-head segments produced by lip_sync.",
-            "- Use render_video as the final node and include BGM/TTS tracks according to productionConfig.",
             f"Desired outputs: {', '.join(desired_outputs)}",
             "",
             "Locked script:",
@@ -792,9 +858,6 @@ def _build_fire_red_prompt(
             "",
             "ProductionDirective:",
             directive_json,
-            "",
-            "ProductionConfig:",
-            production_config_json,
         ]
     )
 

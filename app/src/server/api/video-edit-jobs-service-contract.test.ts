@@ -19,11 +19,15 @@ test("video job creation auto-locks a non-empty script before building payload",
   );
 });
 
-test("video job payload requires user talking-head and includes merchant clips", () => {
+test("video job payload uses structured scene upload signal and includes merchant clips", () => {
   assert.match(
     source,
     /getPrivateMediaRepository\(\)\.listClipsByMerchant\(\{ merchantId: input\.merchantId \}\)/,
   );
   assert.match(source, /merchantMediaClips,/);
-  assert.match(source, /requireUserTalkingHead: true/);
+  assert.match(source, /requireUserTalkingHead: variantRequiresUserTalkingHead\(input\.variant\)/);
+  assert.match(
+    source,
+    /function variantRequiresUserTalkingHead[\s\S]*?productionScenes[\s\S]*?requiresUserUpload === true/,
+  );
 });

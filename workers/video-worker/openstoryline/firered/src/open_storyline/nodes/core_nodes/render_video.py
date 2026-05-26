@@ -979,6 +979,12 @@ class RenderVideoPipeline:
         clip = source.subclipped(src_start, src_end)
 
         playback_rate = float(segment.get("playback_rate", 1.0) or 1.0)
+        if playback_rate < 1.0:
+            raise ValueError(
+                "timeline_video_slowdown_blocked: "
+                f"clip_id={segment.get('clip_id')} group_id={segment.get('group_id')} "
+                f"playback_rate={playback_rate}"
+            )
         if playback_rate != 1.0:
             clip = clip.with_speed_scaled(playback_rate)
 

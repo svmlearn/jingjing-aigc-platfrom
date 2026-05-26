@@ -4,6 +4,7 @@ import sys
 import types
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -132,6 +133,18 @@ class Context:
     pexels_api_key = "pexels-key"
     pexels_base_url = "https://app.example.com/api/private-media/pexels"
     worker_payload = None
+
+
+class WorkerPrivatePexelsContext:
+    pexels_api_key = "private-pexels-token"
+    pexels_base_url = "https://app.example.com/api/private-media/pexels/merchants/merchant-1"
+    worker_payload = {"merchant_id": "merchant-1"}
+
+
+class WorkerMissingPexelsContext:
+    pexels_api_key = ""
+    pexels_base_url = ""
+    worker_payload = {"merchant_id": "merchant-1"}
 
 
 class CloneContext:
@@ -325,6 +338,134 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
             "https://app.example.com/api/private-media/pexels",
             request.args["pexels_base_url"],
         )
+
+    def test_worker_pexels_injection_requires_private_search_config(self):
+        request = Request("search_media", {}, context=WorkerMissingPexelsContext())
+
+        async def handler(_req):
+            raise AssertionError("handler must not run without private search config")
+
+        with self.assertRaisesRegex(Exception, "official Pexels fallback is disabled"):
+            asyncio.run(self.ToolInterceptor.inject_pexels_api_key(request, handler))
+
+    def test_worker_pexels_injection_requires_merchant_scoped_base_url(self):
+        request = Request("search_media", {}, context=WorkerPrivatePexelsContext())
+
+        async def handler(req):
+            return dict(req.args)
+
+        result = asyncio.run(self.ToolInterceptor.inject_pexels_api_key(request, handler))
+
+        self.assertEqual("private-pexels-token", result["pexels_api_key"])
+        self.assertEqual(
+            "https://app.example.com/api/private-media/pexels/merchants/merchant-1",
+            result["pexels_base_url"],
+        )
+
+    def test_load_media_merges_all_search_media_results_for_session(self):
+        request = Request("load_media", {})
+
+        with TemporaryDirectory() as tmp:
+            media_dir = Path(tmp) / "media"
+            media_dir.mkdir()
+            search_a = str(Path(tmp) / "search-a.mp4")
+            search_b = str(Path(tmp) / "search-b.mp4")
+            search_c = str(Path(tmp) / "search-c.mp4")
+
+            class Store:
+                artifacts_dir = Path(tmp) / "artifacts"
+
+                def generate_artifact_id(self, node_id):
+                    return f"{node_id}-artifact"
+
+                def get_metas(self, *, node_id, session_id):
+                    self.node_id = node_id
+                    self.session_id = session_id
+                    return [
+                        types.SimpleNamespace(artifact_id="search-1", created_at=1),
+                        types.SimpleNamespace(artifact_id="search-2", created_at=2),
+                    ]
+
+                def load_result(self, artifact_id):
+                    payloads = {
+                        "search-1": {"payload": {"search_media": [{"path": search_a}, {"path": search_b}]}},
+                        "search-2": {"payload": {"search_media": [{"path": search_b}, {"path": search_c}]}},
+                    }
+                    return None, payloads[artifact_id]
+
+            context = types.SimpleNamespace(
+                session_id="session-1",
+                media_dir=str(media_dir),
+                lang="zh",
+                cfg=types.SimpleNamespace(project=types.SimpleNamespace(media_dir=str(media_dir))),
+                node_manager=types.SimpleNamespace(id_to_tool={}),
+                worker_payload=None,
+            )
+            request.runtime = types.SimpleNamespace(context=context, store=Store())
+
+            async def handler(req):
+                return req.args
+
+            result = asyncio.run(self.ToolInterceptor.inject_media_content_before(request, handler))
+
+        paths = [item["path"] for item in result["inputs"]]
+        self.assertEqual([search_a, search_b, search_c], paths)
+
+    def test_search_media_result_is_annotated_with_scene_query_diagnostic(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        request = Request(
+            "search_media",
+            {"search_keyword": "一楼厂房空间"},
+            context=types.SimpleNamespace(
+                worker_payload={
+                    "materialContext": {
+                        "sceneAssetQueries": [
+                            {"sceneNo": 1, "query": "一楼厂房空间", "sourceRole": "merchant_broll"}
+                        ]
+                    }
+                }
+            ),
+        )
+        tool_result = {
+            "artifact_id": "search-1",
+            "isError": False,
+            "summary": {},
+            "tool_excute_result": {
+                "search_media": [{"path": "/tmp/factory.mp4"}],
+            },
+        }
+
+        module._annotate_worker_scene_search_result(tool_result, request)
+
+        diagnostic = tool_result["tool_excute_result"]["_worker_scene_search"]
+        self.assertEqual(0, diagnostic["scene_index"])
+        self.assertEqual(1, diagnostic["scene_no"])
+        self.assertEqual("一楼厂房空间", diagnostic["query"])
+        self.assertEqual(1, diagnostic["result_count"])
+
+    def test_generate_script_blocks_when_group_count_is_below_required_scene_count(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        context = types.SimpleNamespace(
+            worker_payload={
+                "script_text": (
+                    "1\n00:00-00:05\n台词/字幕：第一段\n"
+                    "2\n00:05-00:10\n台词/字幕：第二段\n"
+                    "3\n00:10-00:15\n台词/字幕：第三段\n"
+                ),
+                "production_directive": {"script_locked": True},
+                "materialContext": {
+                    "sceneAssetQueries": [
+                        {"sceneNo": 1, "query": "一楼厂房空间", "sourceRole": "merchant_broll"},
+                        {"sceneNo": 2, "query": "基础设施", "sourceRole": "merchant_broll"},
+                        {"sceneNo": 3, "query": "园区管理", "sourceRole": "merchant_broll"},
+                    ]
+                },
+            }
+        )
+        args = {"group_clips": {"groups": [{"group_id": "group_0001"}, {"group_id": "group_0002"}]}}
+
+        with self.assertRaisesRegex(Exception, "required_scene_count=3"):
+            module._ensure_worker_required_group_count("generate_script", args, context)
 
     def test_locked_worker_script_builds_custom_script_for_groups(self):
         module = sys.modules["firered_node_interceptors_under_test"]
@@ -524,6 +665,76 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
         self.assertEqual("团队素材仍使用脚本", second["raw_text"])
         self.assertEqual("voiceover", second["audio_source"])
 
+    def test_locked_worker_script_uses_structured_member_upload_signal_without_talking_head_words(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        dialogue_label = "台词/字幕"
+        payload = {
+            "script_text": (
+                f"1\n00:00-00:05\nScene: member assigned upload\n{dialogue_label}: locked text should be replaced by ASR\n"
+                f"2\n00:05-00:10\nScene: project material\n{dialogue_label}: project material keeps locked script\n"
+            ),
+            "production_directive": {"script_locked": True},
+            "production_config": {
+                "subtitles": {"talking_head_source": "asr_original_audio"}
+            },
+            "materialContext": {
+                "userTalkingHeadAssetIds": ["member-upload-1"],
+            },
+            "input_assets": [
+                {
+                    "asset_id": "member-upload-1",
+                    "file_name": "member-upload.mp4",
+                    "storage_key": "draft-inputs/merchant-1/draft-1/member-upload.mp4",
+                },
+            ],
+        }
+        groups = [
+            {"group_id": "group_0001", "clip_ids": ["clip_0001"]},
+            {"group_id": "group_0002", "clip_ids": ["clip_0002"]},
+        ]
+        split_shots = {
+            "clips": [
+                {
+                    "clip_id": "clip_0001",
+                    "source_ref": {
+                        "media_id": "media_0001",
+                        "asset_id": "member-upload-1",
+                        "file_name": "member-upload.mp4",
+                        "duration": 5000,
+                    },
+                },
+                {
+                    "clip_id": "clip_0002",
+                    "source_ref": {
+                        "media_id": "media_0002",
+                        "duration": 5000,
+                        "role": "project_material",
+                        "scene_type": "merchant_material_library",
+                    },
+                },
+            ]
+        }
+        asr = {
+            "asr_infos": [
+                {"clip_id": "clip_0001", "asr_text": "member upload ASR result"},
+                {"clip_id": "clip_0002", "asr_text": "project ambient sound"},
+            ]
+        }
+
+        custom_script = module._build_custom_script_from_worker_payload(
+            payload,
+            groups,
+            asr,
+            split_shots,
+        )
+
+        first, second = custom_script["group_scripts"]
+        self.assertEqual("member upload ASR result", first["raw_text"])
+        self.assertEqual("voiceover", first["audio_source"])
+        self.assertEqual("asr_original_audio", first["subtitle_source"])
+        self.assertEqual("project material keeps locked script", second["raw_text"])
+        self.assertEqual("voiceover", second["audio_source"])
+
     def test_generate_script_requires_asr_when_original_talking_head_subtitles_requested(self):
         module = sys.modules["firered_node_interceptors_under_test"]
         context = types.SimpleNamespace(
@@ -542,7 +753,7 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
 
         self.assertEqual(["split_shots", "group_clips", "asr"], require_kind)
 
-    def test_locked_worker_script_expands_dialogues_to_match_more_groups(self):
+    def test_locked_worker_script_keeps_numbered_scenes_when_group_count_is_larger(self):
         module = sys.modules["firered_node_interceptors_under_test"]
         payload = {
             "script_text": (
@@ -561,9 +772,98 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
 
         custom_script = module._build_custom_script_from_worker_payload(payload, groups)
 
-        self.assertEqual(3, len(custom_script["group_scripts"]))
-        self.assertEqual("group_0003", custom_script["group_scripts"][2]["group_id"])
-        self.assertTrue(custom_script["group_scripts"][2]["raw_text"])
+        self.assertEqual(2, len(custom_script["group_scripts"]))
+        self.assertEqual(
+            [
+                "如果你想找一个不吵、能坐一会儿的咖啡小院，可以看看这家。",
+                "它不是商场里一眼看完的店，更像是走进去以后才发现的安静角落。",
+            ],
+            [item["raw_text"] for item in custom_script["group_scripts"]],
+        )
+
+    def test_locked_worker_script_uses_spoken_text_and_does_not_duplicate_subtitles(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": (
+                "1\n00:00-00:08\n"
+                "场景：真人开头口播\n"
+                "口播：我是智鸾，先带你看这套厂房。\n"
+                "字幕：我是智鸾，先带你看这套厂房。\n"
+                "拍法：正面手持\n"
+                "2\n00:08-00:16\n"
+                "场景：车间动线\n"
+                "口播：这里进出货和生产动线是分开的。\n"
+                "字幕：这里进出货和生产动线是分开的。\n"
+            ),
+            "production_directive": {"script_locked": True},
+        }
+        groups = [
+            {"group_id": "group_0001"},
+            {"group_id": "group_0002"},
+            {"group_id": "group_0003"},
+            {"group_id": "group_0004"},
+        ]
+
+        custom_script = module._build_custom_script_from_worker_payload(payload, groups)
+
+        self.assertEqual(2, len(custom_script["group_scripts"]))
+        self.assertEqual(
+            [
+                "我是智鸾，先带你看这套厂房。",
+                "这里进出货和生产动线是分开的。",
+            ],
+            [item["raw_text"] for item in custom_script["group_scripts"]],
+        )
+
+    def test_locked_worker_script_keeps_scene_heading_sections_from_member_script(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+        payload = {
+            "script_text": (
+                "分镜脚本：\n"
+                "场景1（0-5秒）\n"
+                "画面：成员口播开场，园区入口或门头前半身出镜。\n"
+                "镜头要求：成员口播 园区入口 门头 开场\n"
+                "口播：找厂房别只看价格，先看三个点：空间、配套、位置。\n"
+                "字幕：找厂房，先看空间、配套、位置\n"
+                "素材关键词：园区门口口播、园区入口\n\n"
+                "场景2（5-17秒）\n"
+                "画面：一楼厂房大空间、柱网、绿色地坪、采光窗、消防管线连续扫拍。\n"
+                "口播：这个园区一楼有约 2000 平厂房，层高到楼板 5.56 米，到梁 5 米，做生产、仓储、办公改造都比较好安排。\n"
+                "字幕：一楼约2000平，楼板5.56米，到梁5米\n"
+                "素材关键词：一楼厂房楼梯与夹层入口空间\n\n"
+                "场景3（17-31秒）\n"
+                "画面：停车位、宿舍楼、公寓、食堂、管理处、电梯等配套快速蒙太奇。\n"
+                "口播：园区还有 2 栋宿舍、1 栋公寓，食堂、电梯、管理处、停车位这些基础配套也在。\n"
+                "字幕：宿舍、公寓、食堂、电梯、停车位都有\n"
+                "素材关键词：园区停车通道与厂房外立面\n\n"
+                "场景4（31-44秒）\n"
+                "画面：平峦山远景、园区林荫道路、周边道路与交通环境。\n"
+                "口播：周边靠近平峦山，环境比普通厂房舒服，附近还有地铁和物流园，员工通勤、货物流转都方便。\n"
+                "字幕：靠近平峦山，通勤和货物流转更方便\n"
+                "素材关键词：平峦山远景与园区周边环境\n\n"
+                "场景5（44-52秒）\n"
+                "画面：成员口播收尾，停车位或园区入口背景。\n"
+                "口播：如果你正在找工业园区厂房，这种就值得实地看一眼。\n"
+                "字幕：找厂房，建议实地看一眼\n"
+                "素材关键词：停车位口播、园区门口口播\n"
+            ),
+            "production_directive": {"script_locked": True},
+        }
+        groups = [{"group_id": f"group_{index:04d}"} for index in range(1, 10)]
+
+        custom_script = module._build_custom_script_from_worker_payload(payload, groups)
+
+        self.assertEqual(5, len(custom_script["group_scripts"]))
+        self.assertEqual(
+            [
+                "找厂房别只看价格，先看三个点：空间、配套、位置。",
+                "这个园区一楼有约 2000 平厂房，层高到楼板 5.56 米，到梁 5 米，做生产、仓储、办公改造都比较好安排。",
+                "园区还有 2 栋宿舍、1 栋公寓，食堂、电梯、管理处、停车位这些基础配套也在。",
+                "周边靠近平峦山，环境比普通厂房舒服，附近还有地铁和物流园，员工通勤、货物流转都方便。",
+                "如果你正在找工业园区厂房，这种就值得实地看一眼。",
+            ],
+            [item["raw_text"] for item in custom_script["group_scripts"]],
+        )
 
     def test_locked_worker_script_builds_custom_script_for_groups(self):
         module = sys.modules["firered_node_interceptors_under_test"]
@@ -911,7 +1211,7 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
             worker_context,
         )
 
-    def test_locked_worker_script_expands_dialogues_to_match_more_groups(self):
+    def test_locked_worker_script_keeps_numbered_scenes_when_group_count_is_larger_duplicate(self):
         module = sys.modules["firered_node_interceptors_under_test"]
         payload = {
             "script_text": (
@@ -930,9 +1230,14 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
 
         custom_script = module._build_custom_script_from_worker_payload(payload, groups)
 
-        self.assertEqual(3, len(custom_script["group_scripts"]))
-        self.assertEqual("group_0003", custom_script["group_scripts"][2]["group_id"])
-        self.assertTrue(custom_script["group_scripts"][2]["raw_text"])
+        self.assertEqual(2, len(custom_script["group_scripts"]))
+        self.assertEqual(
+            [
+                "如果你想找一个不吵、能坐一会儿的咖啡小院，可以看看这家。",
+                "它不是商场里一眼看完的店，更像是走进去以后才发现的安静角落。",
+            ],
+            [item["raw_text"] for item in custom_script["group_scripts"]],
+        )
 
 
 if __name__ == "__main__":

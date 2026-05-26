@@ -249,6 +249,161 @@ class LipSyncNodeTests(unittest.TestCase):
         self.assertEqual(str(broll), video_track[1]["source_path"])
         self.assertEqual("task-1", result["segments"][0]["provider_task_id"])
 
+    def test_lip_sync_mixed_group_targets_only_talking_head_clip(self):
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            tmp = Path(raw_tmp)
+            module = _load_module(tmp)
+            project_a = tmp / "apartment.mp4"
+            project_b = tmp / "dorm.mp4"
+            project_c = tmp / "parking.mp4"
+            talking = tmp / "talking.mp4"
+            audio = tmp / "voice.wav"
+            for path, data in (
+                (project_a, b"project-a"),
+                (project_b, b"project-b"),
+                (project_c, b"project-c"),
+                (talking, b"talking"),
+                (audio, b"audio"),
+            ):
+                path.write_bytes(data)
+            retalked = tmp / "retalked.mp4"
+            retalked.write_bytes(b"retalked")
+            calls = []
+
+            class Adapter:
+                def __init__(self, **_kwargs):
+                    pass
+
+                def run(self, **kwargs):
+                    calls.append(kwargs)
+                    return retalked, {"provider_task_id": "task-mixed"}
+
+            node = module.LipSyncNode(types.SimpleNamespace())
+            inputs = {
+                "provider": "aliyun_videoretalk",
+                "api_key": "key",
+                "video_url": "https://example.com/video.mp4",
+                "audio_url": "https://example.com/audio.wav",
+                "tts": {
+                    "voiceover": [
+                        {
+                            "group_id": "group_0006",
+                            "path": str(audio),
+                            "duration_ms": 3000,
+                            "provider": "pixelle_clone",
+                            "clone": True,
+                        }
+                    ]
+                },
+                "split_shots": {
+                    "clips": [
+                        {
+                            "clip_id": "clip_0009",
+                            "media_id": "media_0007",
+                            "role": "project_material",
+                            "scene_type": "merchant_material_library",
+                            "source_ref": {
+                                "role": "project_material",
+                                "scene_type": "merchant_material_library",
+                                "tags": ["park_amenity", "apartment"],
+                            },
+                        },
+                        {
+                            "clip_id": "clip_0011",
+                            "media_id": "media_0009",
+                            "role": "project_material",
+                            "scene_type": "merchant_material_library",
+                            "source_ref": {
+                                "role": "project_material",
+                                "tags": ["park_amenity", "dorm"],
+                            },
+                        },
+                        {
+                            "clip_id": "clip_0002",
+                            "media_id": "media_0002",
+                            "role": "project_material",
+                            "scene_type": "merchant_material_library",
+                            "source_ref": {
+                                "role": "project_material",
+                                "tags": ["parking", "factory_facade"],
+                            },
+                        },
+                        {
+                            "clip_id": "clip_0007",
+                            "media_id": "media_0005",
+                            "role": "talking_head",
+                            "scene_type": "talking_head",
+                            "source_ref": {
+                                "role": "talking_head",
+                                "scene_type": "talking_head",
+                                "tags": ["talking_head"],
+                            },
+                        },
+                    ]
+                },
+                "group_clips": {
+                    "groups": [
+                        {
+                            "group_id": "group_0006",
+                            "clip_ids": ["clip_0009", "clip_0011", "clip_0002", "clip_0007"],
+                        }
+                    ]
+                },
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "group_id": "group_0006",
+                                "clip_id": "clip_0009",
+                                "kind": "video",
+                                "source_path": str(project_a),
+                                "source_window": {"start": 0, "duration": 3000},
+                                "timeline_window": {"start": 0, "end": 3000},
+                            },
+                            {
+                                "group_id": "group_0006",
+                                "clip_id": "clip_0011",
+                                "kind": "video",
+                                "source_path": str(project_b),
+                                "source_window": {"start": 0, "duration": 3000},
+                                "timeline_window": {"start": 3000, "end": 6000},
+                            },
+                            {
+                                "group_id": "group_0006",
+                                "clip_id": "clip_0002",
+                                "kind": "video",
+                                "source_path": str(project_c),
+                                "source_window": {"start": 0, "duration": 3000},
+                                "timeline_window": {"start": 6000, "end": 9000},
+                            },
+                            {
+                                "group_id": "group_0006",
+                                "clip_id": "clip_0007",
+                                "kind": "video",
+                                "source_path": str(talking),
+                                "source_window": {"start": 0, "duration": 3000},
+                                "timeline_window": {"start": 9000, "end": 12000},
+                            },
+                        ],
+                        "voiceover": [],
+                        "subtitles": [],
+                        "bgm": [],
+                    }
+                },
+            }
+
+            with patch.object(module, "AliyunVideoRetalkAdapter", Adapter):
+                result = asyncio.run(node.process(NodeState(), inputs))
+
+        video_track = result["plan_timeline"]["tracks"]["video"]
+        self.assertEqual(1, len(calls))
+        self.assertEqual(1, len(result["segments"]))
+        self.assertEqual("clip_0007", result["segments"][0]["clip_id"])
+        self.assertEqual(str(project_a), video_track[0]["source_path"])
+        self.assertEqual(str(project_b), video_track[1]["source_path"])
+        self.assertEqual(str(project_c), video_track[2]["source_path"])
+        self.assertEqual(str(retalked), video_track[3]["source_path"])
+
     def test_lip_sync_without_provider_url_fails_closed(self):
         with tempfile.TemporaryDirectory() as raw_tmp:
             tmp = Path(raw_tmp)
@@ -259,6 +414,58 @@ class LipSyncNodeTests(unittest.TestCase):
 
             with self.assertRaisesRegex(Exception, "provider-accessible audio_url"):
                 node._provider_url_for_path(local_file, {}, label="audio")
+
+    def test_lip_sync_auto_uploads_local_file_to_oss_signed_url(self):
+        with tempfile.TemporaryDirectory() as raw_tmp:
+            tmp = Path(raw_tmp)
+            module = _load_module(tmp)
+            node = module.LipSyncNode(types.SimpleNamespace())
+            local_file = tmp / "voice.wav"
+            local_file.write_bytes(b"audio")
+            calls = []
+
+            class Auth:
+                def __init__(self, key_id, key_secret):
+                    self.key_id = key_id
+                    self.key_secret = key_secret
+
+            class Bucket:
+                def __init__(self, auth, endpoint, bucket_name):
+                    self.auth = auth
+                    self.endpoint = endpoint
+                    self.bucket_name = bucket_name
+
+                def put_object_from_file(self, object_key, filename, headers=None):
+                    calls.append(("put", object_key, filename, headers, self.bucket_name))
+
+                def sign_url(self, method, object_key, expires):
+                    calls.append(("sign", method, object_key, expires))
+                    return f"https://oss.example/{object_key}?Signature=mock"
+
+            fake_oss2 = types.SimpleNamespace(Auth=Auth, Bucket=Bucket)
+            sys.modules["oss2"] = fake_oss2
+            try:
+                url = node._provider_url_for_path(
+                    local_file,
+                    {
+                        "upload_url_mode": "auto",
+                        "oss_access_key_id": "key-id",
+                        "oss_access_key_secret": "key-secret",
+                        "oss_bucket": "bucket",
+                        "oss_endpoint": "https://oss-cn-hangzhou.aliyuncs.com",
+                        "oss_prefix": "tmp/lip-sync",
+                        "signed_url_expires_seconds": 60,
+                    },
+                    label="audio",
+                )
+            finally:
+                sys.modules.pop("oss2", None)
+
+        self.assertTrue(url.startswith("https://oss.example/tmp/lip-sync/lip-sync-inputs/"))
+        self.assertEqual("put", calls[0][0])
+        self.assertEqual(str(local_file), calls[0][2])
+        self.assertIn(calls[0][3]["Content-Type"], {"audio/wav", "audio/x-wav"})
+        self.assertEqual(("sign", "GET", calls[0][1], 60), calls[1])
 
 
 if __name__ == "__main__":

@@ -100,6 +100,12 @@ class GenerateScriptLockedScriptTests(unittest.TestCase):
             "Scene 1\nhello",
             module._extract_locked_script_request("Use the locked script: Scene 1\nhello"),
         )
+        self.assertEqual(
+            "Title: Demo",
+            module._extract_locked_script_request(
+                "Use the locked script exactly as provided:\nTitle: Demo"
+            ),
+        )
         self.assertEqual("", module._extract_locked_script_request("generate a new script"))
 
     def test_builds_group_scripts_from_locked_script(self):
@@ -119,6 +125,36 @@ class GenerateScriptLockedScriptTests(unittest.TestCase):
         self.assertEqual(
             ["Scene 1 | 00:00-00:03", "hello world"],
             [unit["text"] for unit in result["group_scripts"][0]["subtitle_units"]],
+        )
+
+    def test_locked_script_exactly_prompt_keeps_scene_count(self):
+        module = _load_generate_script_module()
+
+        locked_script = (
+            "Title: 找厂房，先看这三个点\n\n"
+            "Scene 1 (0-5s): 找厂房别只看价格，先看三个点：空间、配套、位置。 | Subtitle: 找厂房，先看空间、配套、位置\n"
+            "Scene 2 (5-17s): 这个园区一楼有约 2000 平厂房，层高到楼板 5.56 米，到梁 5 米。 | Subtitle: 一楼约2000平\n"
+            "Scene 3 (17-31s): 园区还有 2 栋宿舍、1 栋公寓。 | Subtitle: 宿舍、公寓都有\n"
+            "Scene 4 (31-44s): 周边靠近平峦山，附近还有地铁和物流园。 | Subtitle: 通勤和货物流转方便\n"
+            "Scene 5 (44-52s): 如果你正在找工业园区厂房，这种就值得实地看一眼。 | Subtitle: 建议实地看一眼\n"
+        )
+
+        result = module._build_locked_script_result(
+            locked_script,
+            [{"group_id": f"group_{index:04d}"} for index in range(1, 11)],
+        )
+
+        self.assertEqual("找厂房，先看这三个点", result["title"])
+        self.assertEqual(5, len(result["group_scripts"]))
+        self.assertEqual(
+            [
+                "找厂房别只看价格，先看三个点：空间、配套、位置。",
+                "这个园区一楼有约 2000 平厂房，层高到楼板 5.56 米，到梁 5 米。",
+                "园区还有 2 栋宿舍、1 栋公寓。",
+                "周边靠近平峦山，附近还有地铁和物流园。",
+                "如果你正在找工业园区厂房，这种就值得实地看一眼。",
+            ],
+            [item["raw_text"] for item in result["group_scripts"]],
         )
 
     def test_normalizes_custom_subtitle_units_payload(self):

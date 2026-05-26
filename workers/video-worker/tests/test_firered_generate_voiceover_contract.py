@@ -153,6 +153,18 @@ class GenerateVoiceoverContractTests(unittest.TestCase):
             generate_voiceover=types.SimpleNamespace(
                 providers={
                     "bytedance": {"uid": "uid", "appid": "appid", "access_token": "token"},
+                    "aliyun_cosyvoice": {
+                        "api_key": "dashscope-key",
+                        "ws_url": "wss://dashscope.aliyuncs.com/api-ws/v1/inference",
+                        "model": "cosyvoice-v3-flash",
+                        "voice": "longanyang",
+                    },
+                    "aliyun_cosyvoice_clone": {
+                        "api_key": "dashscope-key",
+                        "customization_url": "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization",
+                        "ws_url": "wss://dashscope.aliyuncs.com/api-ws/v1/inference",
+                        "model": "cosyvoice-v3.5-plus",
+                    },
                     "pixelle_clone": {
                         "base_url": "https://www.runninghub.cn",
                         "api_key": "",
@@ -266,10 +278,126 @@ class GenerateVoiceoverContractTests(unittest.TestCase):
             call["clone_cfg"]["runninghub_tts_clone_workflow_id"],
         )
 
+    def test_aliyun_cosyvoice_system_tts_calls_dashscope_helper(self):
+        node = self._node()
+        calls = []
+
+        def fake_dashscope(**kwargs):
+            calls.append(kwargs)
+            kwargs["wav_path"].write_bytes(b"RIFFxxxxWAVE")
+
+        node._dashscope_cosyvoice_tts = fake_dashscope
+        output_path = Path("aliyun-system.wav")
+        try:
+            node._tts_aliyun_cosyvoice_sync(
+                text="ordinary aliyun tts",
+                wav_path=output_path,
+                secrets={
+                    "api_key": "dashscope-key",
+                    "ws_url": "wss://dashscope.aliyuncs.com/api-ws/v1/inference",
+                    "model": "cosyvoice-v3-flash",
+                    "voice": "longanyang",
+                },
+                tts_params={},
+                provider_cfg={},
+            )
+        finally:
+            output_path.unlink(missing_ok=True)
+
+        self.assertEqual(1, len(calls))
+        self.assertEqual("ordinary aliyun tts", calls[0]["text"])
+        self.assertEqual("cosyvoice-v3-flash", calls[0]["model"])
+        self.assertEqual("longanyang", calls[0]["voice"])
+
+    def test_dashscope_sdk_audio_format_maps_string_to_enum(self):
+        node = self._node()
+
+        class FakeAudioFormat:
+            WAV_22050HZ_MONO_16BITS = object()
+            MP3_22050HZ_MONO_128KBPS = object()
+            __members__ = {
+                "WAV_22050HZ_MONO_16BITS": WAV_22050HZ_MONO_16BITS,
+                "MP3_22050HZ_MONO_128KBPS": MP3_22050HZ_MONO_128KBPS,
+            }
+
+        self.assertIs(
+            FakeAudioFormat.WAV_22050HZ_MONO_16BITS,
+            node._dashscope_audio_format("wav", FakeAudioFormat),
+        )
+        self.assertIs(
+            FakeAudioFormat.MP3_22050HZ_MONO_128KBPS,
+            node._dashscope_audio_format("mp3", FakeAudioFormat),
+        )
+        self.assertIsNone(node._dashscope_audio_format("unknown", FakeAudioFormat))
+
+    def test_aliyun_cosyvoice_clone_uses_cached_voice_id_without_customization(self):
+        node = self._node()
+        calls = []
+
+        def fake_dashscope(**kwargs):
+            calls.append(kwargs)
+            kwargs["wav_path"].write_bytes(b"RIFFxxxxWAVE")
+
+        node._dashscope_cosyvoice_tts = fake_dashscope
+        output_path = Path("aliyun-clone.wav")
+        try:
+            node._tts_aliyun_cosyvoice_clone_sync(
+                text="clone aliyun tts",
+                wav_path=output_path,
+                secrets={
+                    "api_key": "dashscope-key",
+                    "model": "cosyvoice-v3.5-plus",
+                    "voice_id": "voice-aliyun-1",
+                },
+                tts_params={},
+                provider_cfg={},
+            )
+        finally:
+            output_path.unlink(missing_ok=True)
+
+        self.assertEqual(1, len(calls))
+        self.assertEqual("cosyvoice-v3.5-plus", calls[0]["model"])
+        self.assertEqual("voice-aliyun-1", calls[0]["voice"])
+
+    def test_aliyun_cosyvoice_clone_creates_voice_id_when_missing(self):
+        node = self._node()
+        calls = []
+
+        def fake_create(**kwargs):
+            calls.append({"create": kwargs})
+            return "voice-created"
+
+        def fake_dashscope(**kwargs):
+            calls.append({"tts": kwargs})
+            kwargs["wav_path"].write_bytes(b"RIFFxxxxWAVE")
+
+        node._create_aliyun_cosyvoice_voice_id = fake_create
+        node._dashscope_cosyvoice_tts = fake_dashscope
+        output_path = Path("aliyun-clone-create.wav")
+        try:
+            node._tts_aliyun_cosyvoice_clone_sync(
+                text="clone aliyun tts",
+                wav_path=output_path,
+                secrets={
+                    "api_key": "dashscope-key",
+                    "model": "cosyvoice-v3.5-plus",
+                    "ref_audio_url": "https://signed.example/ref.wav",
+                    "customization_url": "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization",
+                },
+                tts_params={},
+                provider_cfg={},
+            )
+        finally:
+            output_path.unlink(missing_ok=True)
+
+        self.assertEqual("https://signed.example/ref.wav", calls[0]["create"]["ref_audio_url"])
+        self.assertEqual("voice-created", calls[1]["tts"]["voice"])
+
     def test_process_skips_original_audio_groups_for_voiceover(self):
         node = self._node()
         node._resolve_provider_secrets = lambda *_args, **_kwargs: {"api_key": "clone-key", "base_url": "https://www.runninghub.cn", "ref_audio": "ref.wav"}
         node._load_provider_param_schema = lambda _provider: {}
+        node._get_default_provider_name = lambda: "pixelle_clone"
 
         async def infer_params(**_kwargs):
             return {}

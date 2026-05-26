@@ -11,16 +11,16 @@ outputs_dir = "./outputs"
 
 # ============= 模型配置 for user / Model Config for User =============
 [llm]
-model = "${OPENSTORYLINE_LLM_MODEL:-glm-4.6}"
-base_url = "${OPENSTORYLINE_LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4/}"
+model = "${OPENSTORYLINE_LLM_MODEL:-glm-5.1}"
+base_url = "${OPENSTORYLINE_LLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}"
 api_key = "${OPENSTORYLINE_LLM_API_KEY:-}"
 temperature = 0.1
 timeout = 420.0
 max_retries = 0
 
 [vlm]
-model = "${OPENSTORYLINE_VLM_MODEL:-glm-4.6v}"
-base_url = "${OPENSTORYLINE_VLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4/}"
+model = "${OPENSTORYLINE_VLM_MODEL:-qwen3.6-plus}"
+base_url = "${OPENSTORYLINE_VLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}"
 api_key = "${OPENSTORYLINE_VLM_API_KEY:-}"
 timeout = 60.0
 temperature = 0.1
@@ -121,6 +121,18 @@ base_url = "${TTS_RUNNINGHUB_BASE_URL:-https://www.runninghub.cn}"
 api_key = "${TTS_RUNNINGHUB_API_KEY:-}"
 workflow_id = "${RUNNINGHUB_TTS_EDGE_WORKFLOW_ID:-1983513964837543938}"
 
+[generate_voiceover.providers.aliyun_cosyvoice]
+ws_url = "${ALIYUN_COSYVOICE_TTS_WS_URL:-wss://dashscope.aliyuncs.com/api-ws/v1/inference}"
+api_key = "${ALIYUN_COSYVOICE_TTS_API_KEY:-}"
+model = "${ALIYUN_COSYVOICE_TTS_MODEL:-cosyvoice-v3-flash}"
+voice = "${ALIYUN_COSYVOICE_TTS_VOICE:-longanyang}"
+
+[generate_voiceover.providers.aliyun_cosyvoice_clone]
+customization_url = "${ALIYUN_COSYVOICE_CLONE_CUSTOMIZATION_URL:-https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization}"
+ws_url = "${ALIYUN_COSYVOICE_CLONE_TTS_WS_URL:-wss://dashscope.aliyuncs.com/api-ws/v1/inference}"
+api_key = "${ALIYUN_COSYVOICE_CLONE_API_KEY:-}"
+model = "${ALIYUN_COSYVOICE_CLONE_MODEL:-cosyvoice-v3.5-plus}"
+
 [generate_voiceover.providers.pixelle_clone]
 base_url = "${TTS_PIXELLE_CLONE_BASE_URL:-https://www.runninghub.cn}"
 api_key = "${TTS_PIXELLE_CLONE_API_KEY:-}"
@@ -168,7 +180,7 @@ api_key = "${ALIYUN_VIDEORETALK_API_KEY:-${DASHSCOPE_API_KEY:-}}"
 model = "${ALIYUN_VIDEORETALK_MODEL:-videoretalk}"
 timeout_seconds = 900
 poll_interval_seconds = 15
-upload_url_mode = "external_url"
+upload_url_mode = "auto"
 ref_image_url = "${ALIYUN_VIDEORETALK_REF_IMAGE_URL:-}"
 video_extension = false
 query_face_threshold = 170

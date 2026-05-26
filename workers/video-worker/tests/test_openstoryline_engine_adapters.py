@@ -16,6 +16,9 @@ from openstoryline.app.engine_adapters import (
 from openstoryline.app.main import app
 from openstoryline.app.schemas import RunRequest
 
+PRIVATE_PEXELS_BASE_URL = "https://app.example.com/api/private-media/pexels"
+PRIVATE_PEXELS_API_KEY = "private-pexels-token"
+
 
 @dataclass
 class MockHttpResponse:
@@ -149,6 +152,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         try:
             with patch(
@@ -354,6 +359,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -439,8 +446,21 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertIn("unattended background worker run", payload["prompt"])
             self.assertIn("Approval to execute has already been granted", payload["prompt"])
             self.assertIn("Do not ask for confirmation", payload["prompt"])
-            self.assertIn("Use generate_voiceover when voiceover.enabled is true.", payload["prompt"])
-            self.assertIn("Use select_bgm when bgm.enabled is true.", payload["prompt"])
+            self.assertIn("uploaded media does not visually cover the full locked script", payload["prompt"])
+            self.assertIn("call search_media to find additional material", payload["prompt"])
+            self.assertIn("Do not rewrite the locked script", payload["prompt"])
+            self.assertIn("The final step must produce a render_video artifact.", payload["prompt"])
+            self.assertNotIn("official Pexels", payload["prompt"])
+            self.assertNotIn("scene_material_insufficient", payload["prompt"])
+            self.assertNotIn("search_keyword", payload["prompt"])
+            self.assertNotIn("per_page", payload["prompt"])
+            self.assertNotIn("Required production nodes", payload["prompt"])
+            pexels = payload["service_config"]["search_media"]["pexels"]
+            self.assertEqual(
+                f"{PRIVATE_PEXELS_BASE_URL}/merchants/merchant-1",
+                pexels["base_url"],
+            )
+            self.assertEqual(PRIVATE_PEXELS_API_KEY, pexels["api_key"])
             self.assertEqual(
                 [{"local_path": str(Path(tmp) / "inputs" / "clip.mp4"), "asset_type": "video", "file_name": "clip.mp4"}],
                 payload["input_assets"],
@@ -460,6 +480,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             tts_provider="minimax",
             tts_minimax_base_url="https://api.minimax.io",
             tts_minimax_api_key="minimax-secret",
@@ -507,8 +529,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertEqual("light upbeat", payload["production_config"]["bgm"]["user_request"])
             self.assertEqual("minimax", payload["service_config"]["tts"]["provider"])
             self.assertEqual("minimax-secret", payload["service_config"]["tts"]["minimax"]["api_key"])
-            self.assertIn("generate_voiceover", payload["prompt"])
-            self.assertIn("select_bgm", payload["prompt"])
+            self.assertNotIn("generate_voiceover", payload["prompt"])
+            self.assertNotIn("select_bgm", payload["prompt"])
 
     def test_fire_red_payload_contains_cloud_asr_service_config(self):
         settings = Settings(
@@ -522,6 +544,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=900,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             asr_provider="aliyun_paraformer",
             aliyun_asr_model="paraformer-realtime-v2",
             aliyun_asr_api_key="asr-secret",
@@ -654,6 +678,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=900,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="test-provider-key",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             asr_provider="local_funasr",
             aliyun_asr_api_key="",
         )
@@ -698,8 +724,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
                 "script_audio_alignment",
                 payload["production_config"]["subtitles"]["talking_head_source"],
             )
-            self.assertIn("lip_sync", payload["prompt"])
-            self.assertIn("render_video must consume", payload["prompt"])
+            self.assertNotIn("lip_sync", payload["prompt"])
+            self.assertNotIn("render_video must consume", payload["prompt"])
 
     def test_fire_red_payload_includes_lip_sync_service_config(self):
         settings = Settings(
@@ -713,6 +739,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=900,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="test-provider-key",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             aliyun_videoretalk_api_key="retalk-key",
             aliyun_videoretalk_base_url="https://dashscope.example/api/v1",
             aliyun_videoretalk_model="videoretalk",
@@ -767,6 +795,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             retalk_cfg = payload["service_config"]["lip_sync"]["aliyun_videoretalk"]
             self.assertEqual("retalk-key", retalk_cfg["api_key"])
             self.assertEqual("videoretalk", retalk_cfg["model"])
+            self.assertEqual("auto", retalk_cfg["upload_url_mode"])
             self.assertEqual("https://oss.example/ref.png", retalk_cfg["ref_image_url"])
             self.assertTrue(retalk_cfg["video_extension"])
             self.assertEqual(170, retalk_cfg["query_face_threshold"])
@@ -791,6 +820,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -840,7 +871,7 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertTrue(payload["service_config"]["worker_rehearsal_fast_path"])
             self.assertEqual("self_hosted_rehearsal_fast_path", payload["execution_mode"])
 
-    def test_fire_red_private_pexels_base_url_can_run_without_real_pexels_key(self):
+    def test_fire_red_private_pexels_requires_private_api_key(self):
         settings = Settings(
             host="127.0.0.1",
             port=8000,
@@ -854,6 +885,41 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_provider_key="provider-secret",
             private_pexels_base_url="https://app.example.com/api/private-media/pexels",
             private_pexels_api_key="",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(UnsupportedEngineAdapterError, "PRIVATE_PEXELS_API_KEY"):
+                adapter.run(
+                    RunRequest(
+                        job_id="fire-red-job",
+                        merchant_id="merchant-1",
+                        draft_id="draft-1",
+                        content_variant_id="variant-1",
+                        workspace_dir=str(Path(tmp) / "workspace"),
+                        output_dir=str(Path(tmp) / "outputs"),
+                        script_text="locked script",
+                        production_directive={
+                            "script_locked": True,
+                            "desired_outputs": ["final_video"],
+                        },
+                    )
+                )
+
+    def test_fire_red_private_pexels_base_url_is_scoped_to_merchant(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=2700,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -886,10 +952,10 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             pexels = post.call_args.kwargs["json"]["service_config"]["search_media"]["pexels"]
             self.assertEqual("custom", pexels["mode"])
             self.assertEqual(
-                "https://app.example.com/api/private-media/pexels",
+                f"{PRIVATE_PEXELS_BASE_URL}/merchants/merchant-1",
                 pexels["base_url"],
             )
-            self.assertNotIn("api_key", pexels)
+            self.assertEqual(PRIVATE_PEXELS_API_KEY, pexels["api_key"])
 
     def test_fire_red_clone_voiceover_uses_runninghub_clone_legacy_pixelle_adapter_name(self):
         settings = Settings(
@@ -903,6 +969,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             tts_pixelle_clone_base_url="https://pixelle.example",
             tts_pixelle_clone_api_key="pixelle-secret",
             tts_runninghub_base_url="https://www.runninghub.cn",
@@ -953,6 +1021,129 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertEqual(str(Path(tmp) / "ref.wav"), tts["pixelle_clone"]["ref_audio"])
             self.assertEqual("pixelle-secret", tts["pixelle_clone"]["api_key"])
 
+    def test_fire_red_aliyun_cosyvoice_system_voiceover_maps_dashscope_config(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=2700,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
+            tts_aliyun_cosyvoice_api_key="dashscope-secret",
+            tts_aliyun_cosyvoice_model="cosyvoice-v3-flash",
+            tts_aliyun_cosyvoice_voice="longanyang",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                    production_config={
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "system",
+                            "provider": "aliyun_cosyvoice",
+                        },
+                    },
+                )
+            )
+
+            tts = post.call_args.kwargs["json"]["service_config"]["tts"]
+            self.assertEqual("aliyun_cosyvoice", tts["provider"])
+            self.assertEqual("dashscope-secret", tts["aliyun_cosyvoice"]["api_key"])
+            self.assertEqual("cosyvoice-v3-flash", tts["aliyun_cosyvoice"]["model"])
+            self.assertEqual("longanyang", tts["aliyun_cosyvoice"]["voice"])
+
+    def test_fire_red_aliyun_cosyvoice_clone_maps_voice_id_and_reference_url(self):
+        settings = Settings(
+            host="127.0.0.1",
+            port=8000,
+            mcp_port=8001,
+            outputs_dir=Path("/tmp/outputs"),
+            models_dir=Path("/tmp/models"),
+            engine_adapter="fire_red",
+            fire_red_base_url="http://fire-red:7860",
+            fire_red_run_timeout_seconds=2700,
+            fire_red_provider_key_configured=True,
+            fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
+            tts_aliyun_cosyvoice_clone_api_key="dashscope-secret",
+            tts_aliyun_cosyvoice_clone_model="cosyvoice-v3.5-plus",
+        )
+        adapter = create_engine_adapter(settings)
+
+        with TemporaryDirectory() as tmp, patch(
+            "openstoryline.app.engine_adapters.httpx.post",
+            return_value=MockHttpResponse(
+                {
+                    "session_id": "fire-red-session",
+                    "final_video_path": str(Path(tmp) / "outputs" / "final.mp4"),
+                }
+            ),
+        ) as post:
+            adapter.run(
+                RunRequest(
+                    job_id="fire-red-job",
+                    merchant_id="merchant-1",
+                    draft_id="draft-1",
+                    content_variant_id="variant-1",
+                    workspace_dir=str(Path(tmp) / "workspace"),
+                    output_dir=str(Path(tmp) / "outputs"),
+                    script_text="locked script",
+                    production_directive={
+                        "script_locked": True,
+                        "desired_outputs": ["final_video"],
+                    },
+                    production_config={
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "aliyun_cosyvoice_clone",
+                            "clone_enabled": True,
+                            "voice_profile_id": "profile-1",
+                            "ref_audio_asset_id": "asset-1",
+                            "external_voice_id": "voice-aliyun-1",
+                            "external_model_id": "cosyvoice-v3.5-plus",
+                            "ref_audio": str(Path(tmp) / "ref.wav"),
+                            "ref_audio_url": "https://signed.example/ref.wav",
+                        },
+                    },
+                )
+            )
+
+            tts = post.call_args.kwargs["json"]["service_config"]["tts"]
+            self.assertEqual("aliyun_cosyvoice_clone", tts["provider"])
+            self.assertTrue(tts["clone_enabled"])
+            self.assertEqual("voice-aliyun-1", tts["aliyun_cosyvoice_clone"]["voice_id"])
+            self.assertEqual("https://signed.example/ref.wav", tts["aliyun_cosyvoice_clone"]["ref_audio_url"])
+            self.assertEqual("dashscope-secret", tts["aliyun_cosyvoice_clone"]["api_key"])
+
     def test_fire_red_stream_payload_marks_self_hosted_rehearsal_fast_path(self):
         settings = Settings(
             host="127.0.0.1",
@@ -965,6 +1156,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1035,6 +1228,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
             tts_minimax_base_url="https://api.minimax.io",
             tts_minimax_api_key="minimax-secret",
             tts_runninghub_base_url="https://www.runninghub.cn",
@@ -1083,6 +1278,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1139,6 +1336,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1201,6 +1400,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1274,6 +1475,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_stream_idle_timeout_seconds=7,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1317,6 +1520,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_stream_idle_timeout_seconds=60,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         adapter = create_engine_adapter(settings)
 
@@ -1377,6 +1582,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         try:
             with TemporaryDirectory() as tmp, patch(
@@ -1425,6 +1632,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             fire_red_run_timeout_seconds=2700,
             fire_red_provider_key_configured=True,
             fire_red_provider_key="provider-secret",
+            private_pexels_base_url=PRIVATE_PEXELS_BASE_URL,
+            private_pexels_api_key=PRIVATE_PEXELS_API_KEY,
         )
         try:
             with TemporaryDirectory() as tmp, patch(

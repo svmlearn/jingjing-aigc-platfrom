@@ -2,7 +2,7 @@ import type { MediaAssetDto } from "./media";
 
 export type VoiceProfileStatus = "ready" | "disabled" | "archived";
 
-export type VoiceProfileProvider = "pixelle_clone";
+export type VoiceProfileProvider = "aliyun_cosyvoice_clone" | "pixelle_clone";
 
 export type VoiceProfileDto = {
   id: string;

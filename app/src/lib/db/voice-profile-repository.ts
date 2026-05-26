@@ -138,7 +138,7 @@ export async function createVoiceProfile(input: {
       createdByUserId: input.createdByUserId,
       displayName: input.request.displayName.trim(),
       status: "ready",
-      provider: "pixelle_clone",
+      provider: "aliyun_cosyvoice_clone",
       externalVoiceId: null,
       externalModelId: null,
       refAudioAssetId: input.request.refAudioAssetId,
@@ -206,7 +206,7 @@ export async function createVoiceProfile(input: {
         provider,
         ref_audio_asset_id,
         authorization_accepted_at
-      ) values ($1, $2, $3, $4, 'ready', 'pixelle_clone', $5, timezone('utc', now()))
+      ) values ($1, $2, $3, $4, 'ready', 'aliyun_cosyvoice_clone', $5, timezone('utc', now()))
       returning ${voiceProfileSelect}
       `,
       [

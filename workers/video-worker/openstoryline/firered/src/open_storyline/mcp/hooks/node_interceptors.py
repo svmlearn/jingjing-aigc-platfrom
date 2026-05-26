@@ -24,10 +24,41 @@ logger = get_logger(__name__)
 # Hosts that indicate Agent and MCP server are on the same machine (path-only, no base64). 0.0.0.0 for Docker.
 _LOCAL_CONNECT_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "0.0.0.0"})
 _PREVIEW_MEDIA_SUFFIXES = {".mp4", ".mov", ".webm", ".mkv", ".mp3", ".wav", ".m4a", ".aac", ".png", ".jpg", ".jpeg", ".gif", ".webp"}
-_SCRIPT_SECTION_RE = re.compile(
+_SCRIPT_NUMBERED_SECTION_RE = re.compile(
     r"(?ms)^\s*(\d{1,2})\s*\n\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\s*\n(.*?)(?=^\s*\d{1,2}\s*\n\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\s*\n|\Z)"
 )
-_DIALOGUE_RE = re.compile(r"(?:台词/字幕|口播|字幕)\s*[：:]\s*(.+?)(?=\n(?:画面花字|素材|场景|画面)\s*[：:]|\Z)", re.S)
+_SCRIPT_SCENE_HEADING_RE = re.compile(
+    r"(?ms)^\s*场景\s*\d{1,2}\s*[（(][^）)\n]+[）)]\s*\n(.*?)(?=^\s*场景\s*\d{1,2}\s*[（(][^）)\n]+[）)]\s*\n|\Z)"
+)
+_SCRIPT_LABEL_STOP = (
+    "台词/字幕",
+    "台词",
+    "旁白",
+    "口播",
+    "字幕",
+    "画面花字",
+    "素材关键词",
+    "素材",
+    "场景",
+    "画面",
+    "镜头要求",
+    "镜头",
+    "拍法",
+    "提示",
+    "时长",
+    "标题",
+    "CTA",
+    "卖点",
+)
+_SCRIPT_LABEL_STOP_RE = "|".join(re.escape(label) for label in _SCRIPT_LABEL_STOP)
+_DIALOGUE_RE = re.compile(
+    rf"(?:台词/字幕|台词|旁白|口播)\s*[：:]\s*(.+?)(?=\n\s*(?:{_SCRIPT_LABEL_STOP_RE})\s*[：:]|\Z)",
+    re.S,
+)
+_SUBTITLE_RE = re.compile(
+    rf"(?:字幕)\s*[：:]\s*(.+?)(?=\n\s*(?:{_SCRIPT_LABEL_STOP_RE})\s*[：:]|\Z)",
+    re.S,
+)
 _TALKING_HEAD_LABELS = {
     "talking-head",
     "talkinghead",
@@ -64,7 +95,6 @@ _ASSET_METADATA_KEYS = (
     "labels",
     "metadata",
 )
-
 
 def _extract_tool_result_text(result: dict[str, Any]) -> str:
     content = result.get("content", [])
@@ -187,6 +217,58 @@ def _normalize_token(value: Any) -> str:
     return str(value or "").strip().lower().replace("_", "-")
 
 
+def _normalize_scene_query(value: Any) -> str:
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def _worker_material_context(worker_payload: Any) -> dict[str, Any]:
+    return (
+        _get_nested_dict(worker_payload, "material_context")
+        or _get_nested_dict(worker_payload, "materialContext")
+    )
+
+
+def _worker_scene_asset_queries(worker_payload: Any) -> list[dict[str, Any]]:
+    material_context = _worker_material_context(worker_payload)
+    scene_queries = material_context.get("sceneAssetQueries") or material_context.get("scene_asset_queries")
+    if not isinstance(scene_queries, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for index, item in enumerate(scene_queries):
+        if not isinstance(item, dict):
+            continue
+        query = str(item.get("query") or "").strip()
+        if not query:
+            continue
+        out.append(
+            {
+                "index": index,
+                "scene_no": item.get("sceneNo") or item.get("scene_no") or index + 1,
+                "query": query,
+                "source_role": str(item.get("sourceRole") or item.get("source_role") or "").strip(),
+            }
+        )
+    return out
+
+
+def _worker_locked_script_scene_count(worker_payload: Any) -> int:
+    if not isinstance(worker_payload, dict):
+        return 0
+    production_directive = _get_nested_dict(worker_payload, "production_directive")
+    script_text = worker_payload.get("script_text")
+    if not isinstance(script_text, str) or not script_text.strip():
+        script_text = production_directive.get("script_text")
+    if not isinstance(script_text, str) or not script_text.strip():
+        return 0
+    return len(_extract_locked_script_sections(script_text))
+
+
+def _worker_required_scene_count(worker_payload: Any) -> int:
+    scene_count = len(_worker_scene_asset_queries(worker_payload))
+    locked_script_count = _worker_locked_script_scene_count(worker_payload)
+    return max(scene_count, locked_script_count)
+
+
 def _input_asset_metadata_by_basename(worker_payload: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(worker_payload, dict):
         return {}
@@ -225,10 +307,22 @@ def _clean_locked_script_text(value: Any) -> str:
 
 
 def _extract_dialogue_from_section(section: str) -> str:
-    match = _DIALOGUE_RE.search(section or "")
-    if not match:
-        return ""
-    return _clean_locked_script_text(match.group(1))
+    value = section or ""
+    for pattern in (_DIALOGUE_RE, _SUBTITLE_RE):
+        match = pattern.search(value)
+        if match:
+            dialogue = _clean_locked_script_text(match.group(1))
+            if dialogue:
+                return dialogue
+    return ""
+
+
+def _extract_locked_script_sections(script_text: str) -> list[str]:
+    sections = [section for _scene_no, section in _SCRIPT_NUMBERED_SECTION_RE.findall(script_text)]
+    scene_heading_sections = _SCRIPT_SCENE_HEADING_RE.findall(script_text)
+    if scene_heading_sections:
+        sections.extend(scene_heading_sections)
+    return sections
 
 
 def _split_locked_dialogue_text(text: str, max_parts: int) -> list[str]:
@@ -419,9 +513,28 @@ def _payload_asset_by_media_id(worker_payload: Any) -> dict[str, dict[str, Any]]
     for asset in assets:
         if not isinstance(asset, dict):
             continue
-        media_id = asset.get("media_id")
-        if isinstance(media_id, str) and media_id.strip():
-            out[media_id.strip()] = asset
+        for key in (
+            "media_id",
+            "asset_id",
+            "id",
+            "file_name",
+            "store_file_name",
+            "storage_key",
+            "local_path",
+        ):
+            value = asset.get(key)
+            if isinstance(value, str) and value.strip():
+                out[value.strip()] = asset
+                if key == "storage_key":
+                    out[Path(value).name] = asset
+        metadata = asset.get("metadata")
+        if isinstance(metadata, dict):
+            for key in ("media_id", "asset_id", "id", "file_name", "store_file_name", "storage_key"):
+                value = metadata.get(key)
+                if isinstance(value, str) and value.strip():
+                    out[value.strip()] = asset
+                    if key == "storage_key":
+                        out[Path(value).name] = asset
     return out
 
 
@@ -448,9 +561,8 @@ def _clip_has_talking_head_label(clip: Any, payload_assets_by_media_id: dict[str
         return False
     source_ref = clip.get("source_ref")
     values = _asset_values_for_talking_head(source_ref)
-    media_id = source_ref.get("media_id") if isinstance(source_ref, dict) else None
-    if isinstance(media_id, str) and media_id in payload_assets_by_media_id:
-        values.extend(_asset_values_for_talking_head(payload_assets_by_media_id[media_id]))
+    for asset in _payload_assets_for_clip(clip, payload_assets_by_media_id):
+        values.extend(_asset_values_for_talking_head(asset))
     normalized = {_normalize_token(value) for value in values if str(value).strip()}
     return any(_normalize_token(label) in normalized for label in _TALKING_HEAD_LABELS)
 
@@ -460,11 +572,74 @@ def _clip_is_project_material(clip: Any, payload_assets_by_media_id: dict[str, d
         return False
     source_ref = clip.get("source_ref")
     values = _asset_values_for_talking_head(source_ref)
-    media_id = source_ref.get("media_id") if isinstance(source_ref, dict) else None
-    if isinstance(media_id, str) and media_id in payload_assets_by_media_id:
-        values.extend(_asset_values_for_talking_head(payload_assets_by_media_id[media_id]))
+    for asset in _payload_assets_for_clip(clip, payload_assets_by_media_id):
+        values.extend(_asset_values_for_talking_head(asset))
     normalized = {_normalize_token(value) for value in values if str(value).strip()}
     return bool({"project-material", "merchant-material-library"} & normalized)
+
+
+def _payload_assets_for_clip(
+    clip: Any,
+    payload_assets_by_media_id: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not isinstance(clip, dict):
+        return []
+    source_ref = clip.get("source_ref")
+    if not isinstance(source_ref, dict):
+        return []
+    out: list[dict[str, Any]] = []
+    for key in (
+        "media_id",
+        "asset_id",
+        "id",
+        "file_name",
+        "store_file_name",
+        "storage_key",
+        "orig_path",
+        "path",
+    ):
+        value = source_ref.get(key)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        for candidate in (value.strip(), Path(value).name):
+            asset = payload_assets_by_media_id.get(candidate)
+            if isinstance(asset, dict) and asset not in out:
+                out.append(asset)
+    return out
+
+
+def _worker_payload_user_talking_head_asset_ids(worker_payload: Any) -> set[str]:
+    material_context = _worker_material_context(worker_payload)
+    value = material_context.get("userTalkingHeadAssetIds") or material_context.get("user_talking_head_asset_ids")
+    if not isinstance(value, list | tuple | set):
+        return set()
+    return {str(item).strip() for item in value if str(item).strip()}
+
+
+def _clip_is_member_upload_candidate(
+    clip: Any,
+    payload_assets_by_media_id: dict[str, dict[str, Any]],
+    user_talking_head_asset_ids: set[str],
+) -> bool:
+    if not isinstance(clip, dict):
+        return False
+    source_ref = clip.get("source_ref")
+    if not isinstance(source_ref, dict):
+        return False
+    for key in ("asset_id", "id", "media_id", "file_name", "store_file_name", "storage_key"):
+        value = source_ref.get(key)
+        if isinstance(value, str) and value.strip():
+            candidates = {value.strip(), Path(value).name}
+            if candidates & user_talking_head_asset_ids:
+                return True
+    for asset in _payload_assets_for_clip(clip, payload_assets_by_media_id):
+        for key in ("asset_id", "id", "media_id", "file_name", "store_file_name", "storage_key"):
+            value = asset.get(key)
+            if isinstance(value, str) and value.strip():
+                candidates = {value.strip(), Path(value).name}
+                if candidates & user_talking_head_asset_ids:
+                    return True
+    return False
 
 
 def _group_source_duration_ms(group: dict[str, Any], clip_lookup: dict[str, dict[str, Any]]) -> int:
@@ -524,12 +699,13 @@ def _build_custom_script_from_worker_payload(
 
     numbered_dialogues: list[str] = []
     numbered_sections: list[str] = []
-    for _scene_no, section in _SCRIPT_SECTION_RE.findall(script_text):
+    for section in _extract_locked_script_sections(script_text):
         dialogue = _extract_dialogue_from_section(section)
         if dialogue:
             numbered_dialogues.append(dialogue)
             numbered_sections.append(section)
 
+    extracted_from_numbered_sections = bool(numbered_dialogues)
     if not numbered_dialogues:
         for line in script_text.splitlines():
             dialogue = _extract_dialogue_from_section(line)
@@ -540,13 +716,15 @@ def _build_custom_script_from_worker_payload(
     if not numbered_dialogues:
         return {}
 
-    numbered_dialogues = _expand_dialogues_to_group_count(numbered_dialogues, len(group_ids))
+    if not extracted_from_numbered_sections:
+        numbered_dialogues = _expand_dialogues_to_group_count(numbered_dialogues, len(group_ids))
 
     use_asr_for_talking_head = _worker_payload_talking_head_subtitles_from_asr(payload)
     payload_is_talking_head = _worker_payload_is_talking_head(payload)
     asr_infos = _get_nested_value(asr, "asr_infos")
     clip_lookup = _clip_lookup_from_split_shots(split_shots)
     payload_assets_by_media_id = _payload_asset_by_media_id(payload)
+    user_talking_head_asset_ids = _worker_payload_user_talking_head_asset_ids(payload)
     voiceover_enabled = _worker_payload_voiceover_enabled(payload)
 
     group_scripts = []
@@ -565,10 +743,17 @@ def _build_custom_script_from_worker_payload(
         )
         has_member_upload_candidate = (
             payload_is_talking_head
-            and section_requests_talking_head
             and group_clip_ids
             and any(
-                not _clip_is_project_material(clip_lookup.get(clip_id), payload_assets_by_media_id)
+                _clip_is_member_upload_candidate(
+                    clip_lookup.get(clip_id),
+                    payload_assets_by_media_id,
+                    user_talking_head_asset_ids,
+                )
+                or (
+                    section_requests_talking_head
+                    and not _clip_is_project_material(clip_lookup.get(clip_id), payload_assets_by_media_id)
+                )
                 for clip_id in group_clip_ids
             )
         )
@@ -690,6 +875,18 @@ def _worker_payload_is_talking_head(worker_payload: Any) -> bool:
     if not isinstance(worker_payload, dict):
         return False
 
+    if _worker_payload_user_talking_head_asset_ids(worker_payload):
+        return True
+
+    material_context = _worker_material_context(worker_payload)
+    scene_queries = material_context.get("sceneAssetQueries") or material_context.get("scene_asset_queries")
+    if isinstance(scene_queries, list) and any(
+        isinstance(item, dict)
+        and str(item.get("sourceRole") or item.get("source_role") or "").strip() == "user_talking_head"
+        for item in scene_queries
+    ):
+        return True
+
     input_assets = worker_payload.get("input_assets")
     if isinstance(input_assets, list) and any(
         _asset_has_talking_head_label(asset) for asset in input_assets
@@ -726,6 +923,75 @@ def _worker_payload_lip_sync_enabled(worker_payload: Any) -> bool:
         return False
     lip_sync = production_config.get("lip_sync") or production_config.get("lipSync")
     return isinstance(lip_sync, dict) and lip_sync.get("enabled") is True
+
+
+def _search_media_paths_from_payload(payload: Any) -> list[str]:
+    if not isinstance(payload, dict):
+        return []
+    paths = payload.get("search_media")
+    if not isinstance(paths, list):
+        return []
+    out: list[str] = []
+    for item in paths:
+        value: Any = item
+        if isinstance(item, dict):
+            value = item.get("path")
+        if isinstance(value, str) and value.strip():
+            out.append(value.strip())
+    return out
+
+
+def _ensure_worker_required_group_count(node_id: str, args: Any, context: Any) -> None:
+    if node_id != "generate_script" or not isinstance(args, dict):
+        return
+    worker_payload = getattr(context, "worker_payload", None)
+    required_scene_count = _worker_required_scene_count(worker_payload)
+    if required_scene_count <= 0:
+        return
+    groups = _get_nested_dict(args, "group_clips").get("groups")
+    group_count = len(groups) if isinstance(groups, list) else 0
+    if group_count >= required_scene_count:
+        return
+    raise ToolException(
+        "scene_material_insufficient: group_clips produced fewer groups than required scenes; "
+        f"required_scene_count={required_scene_count}, group_count={group_count}"
+    )
+
+
+def _annotate_worker_scene_search_result(
+    tool_result: dict[str, Any],
+    request: MCPToolCallRequest,
+) -> None:
+    if request.name != "search_media":
+        return
+    client_ctx = request.runtime.context
+    worker_payload = getattr(client_ctx, "worker_payload", None)
+    if not isinstance(worker_payload, dict):
+        return
+    args = getattr(request, "args", {}) or {}
+    query = ""
+    if isinstance(args, dict):
+        query = str(args.get("search_keyword") or args.get("query") or "").strip()
+    payload = tool_result.get("tool_excute_result")
+    if not isinstance(payload, dict):
+        return
+    paths = _search_media_paths_from_payload(payload)
+    scene_index = None
+    scene_no = None
+    normalized_query = _normalize_scene_query(query)
+    for scene_query in _worker_scene_asset_queries(worker_payload):
+        if _normalize_scene_query(scene_query["query"]) == normalized_query:
+            scene_index = scene_query["index"]
+            scene_no = scene_query["scene_no"]
+            break
+    payload["_worker_scene_search"] = {
+        "scene_index": scene_index,
+        "scene_no": scene_no,
+        "query": query,
+        "normalized_query": normalized_query,
+        "result_count": len(paths),
+        "media_paths": paths,
+    }
 
 
 def _worker_payload_preserves_talking_head_original_audio(worker_payload: Any) -> bool:
@@ -914,11 +1180,19 @@ class ToolInterceptor:
                                 "orig_md5": None,
                                 **asset_metadata,
                             })
-                # Path-only mode: include auto-searched media from .storyline/.server_cache so they are readable
+                # Path-only mode: include all auto-searched media from .storyline/.server_cache so they are readable
                 if not inline_base64:
-                    latest_search = store.get_latest_meta(node_id='search_media', session_id=session_id)
-                    if latest_search:
-                        _, data = store.load_result(latest_search.artifact_id)
+                    if hasattr(store, "get_metas"):
+                        search_metas = store.get_metas(node_id='search_media', session_id=session_id)
+                    else:
+                        latest_search = store.get_latest_meta(node_id='search_media', session_id=session_id)
+                        search_metas = [latest_search] if latest_search else []
+                    search_metas = sorted(
+                        [meta for meta in search_metas if meta],
+                        key=lambda meta: getattr(meta, "created_at", 0),
+                    )
+                    for search_meta in search_metas:
+                        _, data = store.load_result(search_meta.artifact_id)
                         if isinstance(data, dict):
                             paths = data.get('payload', {}).get('search_media') or []
                             for p in paths:
@@ -1066,6 +1340,11 @@ class ToolInterceptor:
                             )
                             if miss_id == "generate_script":
                                 _inject_locked_custom_script(tool_call_input, context)
+                            _ensure_worker_required_group_count(
+                                miss_id,
+                                tool_call_input,
+                                context,
+                            )
                             logger.debug(f"{indent}│  Dependencies satisfied for `{miss_id}`")
                         else:
                             logger.info(
@@ -1115,6 +1394,7 @@ class ToolInterceptor:
             }
             new_req_args.update(request.args)
             new_req_args.update(input_data)
+            _ensure_worker_required_group_count(node_id, new_req_args, context)
             if node_id == "render_video":
                 _ensure_lip_sync_render_input(new_req_args, context)
                 _force_mute_source_audio_for_talking_head(new_req_args, context)
@@ -1153,6 +1433,8 @@ class ToolInterceptor:
                 if _is_storyline_node_request(request):
                     raise ValueError("Unexpected storyline tool result shape")
                 return _generic_tool_command(tool_result, tool_call_id)
+
+            _annotate_worker_scene_search_result(tool_result, request)
 
             artifact_id = tool_result['artifact_id']
             session_id = client_ctx.session_id
@@ -1311,8 +1593,8 @@ class ToolInterceptor:
     async def inject_pexels_api_key(request: MCPToolCallRequest, handler):
         """
         Interceptor: Injects runtime.context Pexels config into request.args before invoking media search tools.
-        - If pexels_api_key is empty/None: do nothing (tool will fall back to config/env internally).
-        - If pexels_base_url is set, search_media can use a private Pexels-compatible endpoint.
+        - Worker jobs must provide both a merchant-scoped private base URL and API key.
+        - Non-worker interactive runs keep the original config/env fallback behavior.
         """
         try:
             tool_name = str(getattr(request, "name", "") or "")
@@ -1323,14 +1605,30 @@ class ToolInterceptor:
                 ctx = getattr(runtime, "context", None) if runtime else None
                 key = getattr(ctx, "pexels_api_key", None) if ctx else None
                 key = str(key or "").strip()
+                base_url = getattr(ctx, "pexels_base_url", None) if ctx else None
+                base_url = str(base_url or "").strip()
+                worker_payload = getattr(ctx, "worker_payload", None) if ctx else None
+                if isinstance(worker_payload, dict):
+                    merchant_id = str(worker_payload.get("merchant_id") or "").strip()
+                    expected_suffix = f"/merchants/{merchant_id}" if merchant_id else ""
+                    if not key or not base_url:
+                        raise ToolException(
+                            "worker search_media requires PRIVATE_PEXELS_BASE_URL and PRIVATE_PEXELS_API_KEY; "
+                            "official Pexels fallback is disabled"
+                        )
+                    if not merchant_id or not base_url.rstrip("/").endswith(expected_suffix):
+                        raise ToolException(
+                            "worker search_media requires a merchant-scoped private Pexels base URL; "
+                            "cross-merchant or official Pexels search is disabled"
+                        )
 
                 if key:
                     args["pexels_api_key"] = key
-                base_url = getattr(ctx, "pexels_base_url", None) if ctx else None
-                base_url = str(base_url or "").strip()
                 if base_url:
                     args["pexels_base_url"] = base_url
 
+        except ToolException:
+            raise
         except Exception as e:
             logger.warning(f"Failed to inject pexels API key: {e}")
         return await handler(request)

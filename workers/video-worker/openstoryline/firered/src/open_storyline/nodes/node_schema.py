@@ -299,8 +299,11 @@ class GenerateVoiceoverInput(BaseInput):
     base_url: Annotated[str | None, Field(default=None, description="Runtime provider base URL.")]
     api_key: Annotated[str | None, Field(default=None, description="Runtime provider API key.")]
     ref_audio: Annotated[str | None, Field(default=None, description="Reference audio path for clone voiceover.")]
+    ref_audio_url: Annotated[str | None, Field(default=None, description="Signed reference audio URL for clone voiceover.")]
     runninghub: Annotated[Dict[str, Any] | None, Field(default=None, description="RunningHub ordinary TTS runtime config.")]
     pixelle_clone: Annotated[Dict[str, Any] | None, Field(default=None, description="RunningHub clone runtime config.")]
+    aliyun_cosyvoice: Annotated[Dict[str, Any] | None, Field(default=None, description="Aliyun DashScope CosyVoice runtime config.")]
+    aliyun_cosyvoice_clone: Annotated[Dict[str, Any] | None, Field(default=None, description="Aliyun DashScope CosyVoice clone runtime config.")]
 
 class RecommendScriptTemplateInput(BaseInput):
     mode: Literal["auto", "skip", "default"] = Field(

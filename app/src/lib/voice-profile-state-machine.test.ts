@@ -14,13 +14,13 @@ const userA = "user-a";
 const userB = "user-b";
 const now = "2026-05-15T00:00:00.000Z";
 
-test("replaceCurrentVoiceProfile keeps only one ready profile for a merchant user after mock RunningHub success", () => {
+test("replaceCurrentVoiceProfile keeps only one ready profile for a merchant user after Aliyun clone success", () => {
   const oldProfile = profile({
     id: "voice-old",
     merchantId: merchantA,
     createdByUserId: userA,
     refAudioAssetId: "audio-old",
-    externalVoiceId: "runninghub-old",
+    externalVoiceId: "aliyun-old",
   });
   const otherUserProfile = profile({
     id: "voice-other-user",
@@ -46,15 +46,15 @@ test("replaceCurrentVoiceProfile keeps only one ready profile for a merchant use
     },
     providerResult: {
       ok: true,
-      externalVoiceId: "runninghub-new",
+      externalVoiceId: "aliyun-new",
       externalModelId: "model-new",
     },
     now,
   });
 
   assert.equal(result.currentProfile?.id, "voice-new");
-  assert.equal(result.currentProfile?.provider, "pixelle_clone");
-  assert.equal(result.currentProfile?.externalVoiceId, "runninghub-new");
+  assert.equal(result.currentProfile?.provider, "aliyun_cosyvoice_clone");
+  assert.equal(result.currentProfile?.externalVoiceId, "aliyun-new");
   assert.equal(
     result.profiles.filter(
       (candidate) =>
@@ -70,7 +70,7 @@ test("replaceCurrentVoiceProfile keeps only one ready profile for a merchant use
   assert.deepEqual(result.cleanupJobs.map((job) => job.profileId), ["voice-old"]);
 });
 
-test("replaceCurrentVoiceProfile keeps the old voice when mock RunningHub clone fails", () => {
+test("replaceCurrentVoiceProfile keeps the old voice when Aliyun clone fails", () => {
   const oldProfile = profile({
     id: "voice-old",
     merchantId: merchantA,
@@ -89,14 +89,14 @@ test("replaceCurrentVoiceProfile keeps the old voice when mock RunningHub clone 
     },
     providerResult: {
       ok: false,
-      code: "RUNNINGHUB_CLONE_FAILED",
+      code: "ALIYUN_COSYVOICE_CLONE_FAILED",
       message: "mock provider failure",
     },
     now,
   });
 
   assert.equal(result.currentProfile?.id, oldProfile.id);
-  assert.equal(result.providerFailure?.code, "RUNNINGHUB_CLONE_FAILED");
+  assert.equal(result.providerFailure?.code, "ALIYUN_COSYVOICE_CLONE_FAILED");
   assert.deepEqual(result.cleanupJobs, []);
   assert.deepEqual(result.profiles, [oldProfile]);
   assert.equal(
@@ -198,7 +198,7 @@ function profile(overrides: Partial<VoiceProfileStateRecord> & Pick<VoiceProfile
     createdByUserId: userA,
     displayName: "voice",
     status: "ready",
-    provider: "pixelle_clone",
+    provider: "aliyun_cosyvoice_clone",
     externalVoiceId: null,
     externalModelId: null,
     refAudioAssetId: "audio",

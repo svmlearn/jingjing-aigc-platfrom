@@ -86,7 +86,7 @@ const setVideoScriptInputSchema = z.object({
   title: z.string().trim().min(1),
   hook: z.string().trim().min(1),
   ctaText: z.string().trim().min(1),
-  targetDurationSeconds: z.number().int().min(5).max(180).optional().default(60),
+  targetDurationSeconds: z.number().int().min(5).max(600).optional().default(60),
   scenes: z.array(
     z.object({
       timeRange: z.string().trim().min(1),
@@ -130,7 +130,7 @@ const setVideoScriptTool: AiRuntimeTool = {
         targetDurationSeconds: {
           type: "integer",
           minimum: 5,
-          maximum: 180,
+          maximum: 600,
           description: "目标视频时长，默认 60；普通种草/转化脚本建议 45 到 60 秒。",
         },
         scenes: {

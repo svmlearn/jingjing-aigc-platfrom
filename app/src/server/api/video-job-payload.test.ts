@@ -54,7 +54,7 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     lockedFields: ["script", "cta", "target_user", "claims"],
   });
   assert.deepEqual(payload.productionConfig, {
-    voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
+    voiceover: { enabled: true, mode: "system", provider: "aliyun_cosyvoice", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
     subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     lipSync: {
@@ -121,6 +121,58 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
   ]);
 });
 
+test("buildVideoEditJobInputPayload deduplicates repeated uploaded videos by content etag", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [
+      {
+        id: "asset-old",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/merchant-1/draft-1/old-copy.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 670717,
+        etag: "\"SAME-CONTENT\"",
+        sortOrder: 0,
+        createdAt: "2026-05-22T23:32:19.000Z",
+      },
+      {
+        id: "asset-new",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/merchant-1/draft-1/new-copy.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 670717,
+        etag: "same-content",
+        sortOrder: 1,
+        createdAt: "2026-05-23T02:12:45.000Z",
+      },
+      {
+        id: "asset-other",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/merchant-1/draft-1/other.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 1055943,
+        etag: "other-content",
+        sortOrder: 2,
+        createdAt: "2026-05-23T02:12:46.000Z",
+      },
+    ],
+    now: "2026-05-23T00:00:00.000Z",
+  });
+
+  assert.deepEqual(
+    payload.input_assets.map((asset) => asset.asset_id),
+    ["asset-new", "asset-other"],
+  );
+});
+
 test("buildVideoEditJobInputPayload adds default production config", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",
@@ -131,7 +183,7 @@ test("buildVideoEditJobInputPayload adds default production config", () => {
   });
 
   assert.deepEqual(payload.productionConfig, {
-    voiceover: { enabled: true, mode: "system", provider: "bytedance_bigtts", volume: 2 },
+    voiceover: { enabled: true, mode: "system", provider: "aliyun_cosyvoice", volume: 2 },
     bgm: { enabled: true, userRequest: "", include: {}, exclude: {}, volume: 0.25 },
     subtitles: { enabled: true, style: "platform_default", talkingHeadSource: "script" },
     lipSync: {
@@ -395,6 +447,56 @@ test("buildVideoEditJobInputPayload marks intro/outro scenes as user talking hea
   );
 });
 
+test("buildVideoEditJobInputPayload treats requiresUserUpload as member talking-head even without talking-head words", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      productionScenes: [
+        {
+          sceneNo: 1,
+          timeRange: "00:00-00:05",
+          requiresUserUpload: true,
+          shotRequirement: "Please record this assigned scene",
+          visual: "Member records a clear vertical clip",
+          materials: ["member_upload"],
+          fallbackShot: "Use uploaded member clip",
+        },
+        {
+          sceneNo: 2,
+          timeRange: "00:05-00:12",
+          shotRequirement: "Project entrance with nearby shops",
+          visual: "Show entrance and shops",
+          materials: ["entrance", "shops"],
+          fallbackShot: "Use lobby if entrance unavailable",
+        },
+      ],
+    },
+    materialReferences: [],
+    assets: [
+      {
+        id: "member-upload-1",
+        assetType: "video",
+        storageProvider: "aliyun_oss",
+        bucketName: "jingjing-domestic-phase1-hz",
+        storageKey: "draft-inputs/merchant-1/draft-1/member-upload.mp4",
+        mimeType: "video/mp4",
+        fileSizeBytes: 123456,
+        etag: "etag",
+        sortOrder: 0,
+      },
+    ],
+    merchantMediaClips: [merchantClip],
+  });
+
+  assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["member-upload-1"]);
+  assert.equal(payload.input_assets[0]?.role, "talking_head");
+  assert.equal(payload.materialContext.sceneAssetQueries[0]?.sourceRole, "user_talking_head");
+  assert.equal(payload.materialContext.sceneAssetQueries[1]?.sourceRole, "merchant_broll");
+  assert.equal(payload.productionConfig.subtitles.talkingHeadSource, "script_audio_alignment");
+  assert.equal(payload.productionConfig.lipSync.enabled, true);
+});
+
 test("buildVideoEditJobInputPayload accepts Aliyun OSS input assets", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",
@@ -596,6 +698,45 @@ test("buildVideoEditJobInputPayload normalizes production config overrides", () 
       includeOriginalAudio: true,
     },
   });
+  assert.equal(payload.productionConfig.render.maxDurationSeconds, 45);
+});
+
+test("buildVideoEditJobInputPayload passes render max duration to worker contract", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [],
+    assets: [],
+    productionConfig: {
+      render: {
+        maxDurationSeconds: 45,
+      },
+    },
+  });
+
+  assert.deepEqual(payload.productionConfig.render, {
+    aspectRatio: "9:16",
+    maxDurationSeconds: 45,
+    includeOriginalAudio: false,
+  });
+});
+
+test("buildVideoEditJobInputPayload strips display-only duration lines from backend script text", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      scriptText:
+        "标题：找厂房，先看这三个点\n预计时长：52秒\n完整口播：\n找厂房别只看价格。\n目标时长：52秒\n画面：厂房空间。",
+    },
+    materialReferences: [],
+    assets: [],
+  });
+
+  assert.equal(payload.script.text.includes("预计时长"), false);
+  assert.equal(payload.script.text.includes("目标时长"), false);
+  assert.equal(payload.script.text.includes("找厂房别只看价格。"), true);
+  assert.equal(payload.script.text.includes("画面：厂房空间。"), true);
 });
 
 test("buildVideoEditJobInputPayload accepts voice profile production config", () => {
@@ -824,6 +965,52 @@ test("buildVideoEditJobInputPayload exposes missing video hints from scene asset
     },
   ]);
   assert.deepEqual(payload.materialContext.missingVideoAssetHints, ["项目外立面远景"]);
+});
+
+test("buildVideoEditJobInputPayload sends structured visual descriptions to backend scene queries", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: {
+      ...approvedVariant,
+      scriptText:
+        "1\n00:00-00:05\n场景：厂房空间介绍\n画面：呈现厂房主体空间和层高感。\n台词/字幕：这个园区一楼有约 2000 平厂房。",
+      productionScenes: [
+        {
+          sceneNo: 1,
+          timeRange: "00:00-00:05",
+          shotRequirement: "",
+          visual: "呈现厂房主体空间和层高感。",
+          materials: [],
+          fallbackShot: "",
+        },
+      ],
+    },
+    materialReferences: [],
+    assets: [],
+  });
+
+  assert.deepEqual(payload.materialContext.sceneAssetQueries, [
+    {
+      sceneNo: 1,
+      timeRange: "00:00-00:05",
+      query: "呈现厂房主体空间和层高感。",
+      visualRequirement: "呈现厂房主体空间和层高感。",
+      fallbackShot: null,
+      sourceRole: "merchant_broll",
+    },
+  ]);
+  assert.deepEqual(payload.materialContext.assetMatchPlan, [
+    {
+      sceneNo: 1,
+      query: "呈现厂房主体空间和层高感。",
+      matchedAssetIds: [],
+      missing: true,
+      reason: "no_video_asset",
+    },
+  ]);
+  assert.deepEqual(payload.materialContext.missingVideoAssetHints, [
+    "呈现厂房主体空间和层高感。",
+  ]);
 });
 
 test("buildVideoEditJobInputPayload only sends video assets to worker and orders input assets", () => {

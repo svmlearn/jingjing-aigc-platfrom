@@ -1,6 +1,6 @@
 export type VoiceProfileStateStatus = "ready" | "disabled" | "archived";
 
-export type VoiceProfileStateProvider = "pixelle_clone";
+export type VoiceProfileStateProvider = "aliyun_cosyvoice_clone" | "pixelle_clone";
 
 export type VoiceProfileStateRecord = {
   id: string;
@@ -117,7 +117,7 @@ export function replaceCurrentVoiceProfile(input: {
     createdByUserId: input.candidate.createdByUserId,
     displayName: input.candidate.displayName.trim(),
     status: "ready",
-    provider: "pixelle_clone",
+    provider: "aliyun_cosyvoice_clone",
     externalVoiceId: input.providerResult.externalVoiceId ?? null,
     externalModelId: input.providerResult.externalModelId ?? null,
     refAudioAssetId: input.candidate.refAudioAssetId,

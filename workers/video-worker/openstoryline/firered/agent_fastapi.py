@@ -121,10 +121,13 @@ MODEL_ENV_KEYS = {
 
 def _read_model_env(kind: str) -> Dict[str, str]:
     keys = MODEL_ENV_KEYS[kind]
+    api_key = os.getenv(keys.get("api_key", "")) or ""
+    if not api_key and kind in {"llm", "vlm"}:
+        api_key = os.getenv("DASHSCOPE_API_KEY", "") or ""
     return {
         "model": os.getenv(keys.get("model", "")) or "",
         "base_url": _norm_url(os.getenv(keys.get("base_url", ""))),
-        "api_key": os.getenv(keys.get("api_key", "")) or "",
+        "api_key": api_key,
     }
 
 def _resolve_builtin_model_override(kind: str, cfg_block: Any) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
@@ -2876,6 +2879,18 @@ def _merge_worker_lc_messages(messages: List[BaseMessage]) -> List[BaseMessage]:
     return [SystemMessage(content="\n\n".join(system_parts))] + non_system
 
 
+def _is_render_video_completion_event(event: Any) -> bool:
+    if not isinstance(event, dict):
+        return False
+    if event.get("is_error"):
+        return False
+    event_type = _s(event.get("type")).lower()
+    if event_type not in {"tool_end", "tool_result", "tool_complete", "tool_completed"}:
+        return False
+    name = _s(event.get("name")).lower()
+    return "render_video" in name
+
+
 async def _run_worker_session_prompt(
     store: SessionStore,
     sess: ChatSession,
@@ -2927,8 +2942,16 @@ async def _run_worker_session_prompt(
         merged_messages = _merge_worker_lc_messages(sess.lc_messages)
         new_messages: List[BaseMessage] = []
         text_parts: List[str] = []
+        render_video_completed = False
 
-        async with mcp_sink_context(event_sink or (lambda _event: None)):
+        def worker_event_sink(event: Any) -> None:
+            nonlocal render_video_completed
+            if _is_render_video_completion_event(event):
+                render_video_completed = True
+            if event_sink is not None:
+                event_sink(event)
+
+        async with mcp_sink_context(worker_event_sink):
             stream = sess.agent.astream(
                 {"messages": merged_messages},
                 context=sess.client_context,
@@ -2945,6 +2968,8 @@ async def _run_worker_session_prompt(
                     for _step, data in chunk.items():
                         msgs = (data or {}).get("messages") or []
                         new_messages.extend(msgs)
+                if render_video_completed:
+                    break
 
         final_text = "".join(text_parts).strip()
         if new_messages:
@@ -3111,7 +3136,9 @@ def _fallback_worker_prompt(payload: Dict[str, Any]) -> str:
     instruction_text = _s(payload.get("instruction_text"))
     return "\n".join(
         [
-            "Use the uploaded media to render a final video.",
+            "Prioritize explicitly uploaded media already present in this session.",
+            "When a script scene needs more visuals or the uploaded media is insufficient, call search_media to search the current merchant private media library.",
+            "Never use official Pexels or any material outside this merchant's private media library.",
             "The final step must call render_video.",
             "",
             "Locked script:",

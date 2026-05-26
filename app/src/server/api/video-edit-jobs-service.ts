@@ -90,7 +90,7 @@ export async function createVideoEditJobForUser(input: {
     provider_settings_source: "env",
     tts_provider:
       inputPayload.productionConfig.voiceover.mode === "voice_profile"
-        ? "pixelle_clone"
+        ? "aliyun_cosyvoice_clone"
         : inputPayload.productionConfig.voiceover.provider,
   };
 
@@ -386,6 +386,7 @@ async function buildServerManagedInputPayload(input: {
       variant: input.variant,
       materialReferences: [],
       assets,
+      requireUserTalkingHead: variantRequiresUserTalkingHead(input.variant),
       productionConfig: input.productionConfig,
     });
     payload.materialContext.dailyTaskId = firstString(input.variant.metadata?.dailyTaskId) ?? null;
@@ -428,7 +429,7 @@ async function buildServerManagedInputPayload(input: {
     })),
     assets,
     merchantMediaClips,
-    requireUserTalkingHead: true,
+    requireUserTalkingHead: variantRequiresUserTalkingHead(input.variant),
     productionConfig: input.productionConfig,
   });
   payload.materialContext.dailyTaskId = firstString(input.variant.metadata?.dailyTaskId) ?? null;
@@ -438,6 +439,10 @@ async function buildServerManagedInputPayload(input: {
     merchantId: input.merchantId,
     payload,
   });
+}
+
+function variantRequiresUserTalkingHead(variant: VideoJobPayloadVariant) {
+  return (variant.productionScenes ?? []).some((scene) => scene.requiresUserUpload === true);
 }
 
 function filterRequestedInputAssets(input: {

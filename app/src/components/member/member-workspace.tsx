@@ -82,6 +82,8 @@ type AiEditBusyState = {
   uploadStage?: DraftMediaUploadStage;
 };
 
+const memberVideoRenderMaxDurationSeconds = 600;
+
 type VoiceProfileCreateState = {
   displayName: string;
   authorizationAccepted: boolean;
@@ -649,6 +651,10 @@ export function MemberVideoTaskPage({ taskId }: { taskId: string }) {
         productionConfig: buildMemberVideoProductionConfig({
           script,
           voiceProfile: voiceProfileForJob,
+          recommendedProductionConfig:
+            currentTask.videoTask.memberUploadPolicy === "talking_head_required_only"
+              ? currentTask.videoTask.recommendedProductionConfig
+              : null,
         }),
       });
 
@@ -1229,7 +1235,10 @@ async function createVideoDraftFromTask(
 function buildMemberVideoProductionConfig(input: {
   script: DailyVideoScriptPackageDto;
   voiceProfile: VoiceProfileDto | null;
+  recommendedProductionConfig?: Record<string, unknown> | null;
 }) {
+  const bgm = readRecommendedBgmConfig(input.recommendedProductionConfig);
+
   if (input.voiceProfile) {
     return {
       voiceover: {
@@ -1241,7 +1250,7 @@ function buildMemberVideoProductionConfig(input: {
       },
       render: {
         aspectRatio: "9:16",
-        maxDurationSeconds: input.script.targetDurationSeconds,
+        maxDurationSeconds: memberVideoRenderMaxDurationSeconds,
         includeOriginalAudio: false,
       },
       subtitles: {
@@ -1256,10 +1265,7 @@ function buildMemberVideoProductionConfig(input: {
         subtitleSource: "script_audio_alignment",
         requireVoiceProfile: true,
       },
-      bgm: {
-        enabled: true,
-        userRequest: "",
-      },
+      bgm,
     };
   }
 
@@ -1267,12 +1273,13 @@ function buildMemberVideoProductionConfig(input: {
     voiceover: {
       enabled: true,
       mode: "system",
-      provider: "minimax",
+      provider: "aliyun_cosyvoice",
+      speaker: "longanyang",
       includeOriginalAudio: false,
     },
     render: {
       aspectRatio: "9:16",
-      maxDurationSeconds: input.script.targetDurationSeconds,
+      maxDurationSeconds: memberVideoRenderMaxDurationSeconds,
       includeOriginalAudio: false,
     },
     subtitles: {
@@ -1287,11 +1294,25 @@ function buildMemberVideoProductionConfig(input: {
       subtitleSource: "script",
       requireVoiceProfile: true,
     },
-    bgm: {
-      enabled: true,
-      userRequest: "",
-    },
+    bgm,
   };
+}
+
+function readRecommendedBgmConfig(config?: Record<string, unknown> | null) {
+  const bgm = isPlainRecord(config?.bgm) ? config.bgm : {};
+  const enabled = typeof bgm.enabled === "boolean" ? bgm.enabled : true;
+  const userRequest = typeof bgm.userRequest === "string" ? bgm.userRequest : "";
+  const volume = typeof bgm.volume === "number" && Number.isFinite(bgm.volume) ? bgm.volume : undefined;
+
+  return {
+    enabled,
+    userRequest,
+    ...(volume === undefined ? {} : { volume }),
+  };
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function getDifyVideoDraftReference(task: DailyContentTaskDto) {
@@ -1368,7 +1389,7 @@ function buildVideoDraftPrompt(script: DailyVideoScriptPackageDto) {
   const scenes = script.scenes
     .map(
       (scene) =>
-        `${scene.order}. ${scene.title}：${scene.spokenText}；画面：${scene.camera}；素材：${scene.materialSlot}`,
+        `${scene.order}. ${scene.title}：${scene.spokenText}；画面：${scene.camera}`,
     )
     .join("\n");
 

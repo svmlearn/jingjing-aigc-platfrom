@@ -32,7 +32,7 @@ except ModuleNotFoundError:
     sys.modules.setdefault("psycopg.types.json", psycopg_json)
 
 from worker.app.models import EngineRunResult, UploadedAsset, VideoJob
-from worker.app.processor import JobProcessor
+from worker.app.processor import JobProcessor, _validate_timeline_quality_for_directive
 
 
 class Settings:
@@ -112,6 +112,7 @@ class FakeRepository:
         self.inserted_assets = []
         self.material_input_assets = []
         self.material_queries = []
+        self.voice_profile_updates = []
         self.fail_insert_output_assets = fail_insert_output_assets
 
     def update_stage(self, job_id, **kwargs):
@@ -146,11 +147,21 @@ class FakeRepository:
         self.material_queries.append({"merchant_id": merchant_id, "query": query, "limit": limit})
         return self.material_input_assets[:limit]
 
+    def update_voice_profile_external_voice(self, profile_id, *, external_voice_id, external_model_id=None):
+        self.voice_profile_updates.append(
+            {
+                "profile_id": profile_id,
+                "external_voice_id": external_voice_id,
+                "external_model_id": external_model_id,
+            }
+        )
+
 
 class FakeObjectStorageClient:
     def __init__(self, fail_download=False, fail_upload_asset_type=None) -> None:
         self.downloads = []
         self.uploads = []
+        self.signed_urls = []
         self.fail_download = fail_download
         self.fail_upload_asset_type = fail_upload_asset_type
 
@@ -168,6 +179,24 @@ class FakeObjectStorageClient:
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(b"input")
         return destination
+
+    def create_signed_read_url(
+        self,
+        *,
+        storage_key,
+        bucket_name=None,
+        storage_provider="aliyun_oss",
+        expires_seconds=3600,
+    ):
+        self.signed_urls.append(
+            {
+                "storage_key": storage_key,
+                "bucket_name": bucket_name,
+                "storage_provider": storage_provider,
+                "expires_seconds": expires_seconds,
+            }
+        )
+        return f"https://signed.example/{storage_key}"
 
     def upload_file(
         self,
@@ -209,6 +238,7 @@ class FakeOpenStorylineClient:
         failure_message="engine unavailable",
         voiceover_payload=None,
         lip_sync_payload=None,
+        raw_response_overrides=None,
     ) -> None:
         self.missing_outputs = set(missing_outputs or [])
         self.fail_run = fail_run
@@ -217,10 +247,13 @@ class FakeOpenStorylineClient:
         self.progress_callback_seen = False
         self.voiceover_payload = voiceover_payload
         self.lip_sync_payload = lip_sync_payload
+        self.raw_response_overrides = raw_response_overrides or {}
         self.last_input_assets = None
+        self.last_production_config = None
 
     def run_job(self, job, directive, input_assets, workspace_dir, output_dir, progress_callback=None):
         self.last_input_assets = input_assets
+        self.last_production_config = directive.production_config
         if progress_callback is not None:
             self.progress_callback_seen = True
             for event in self.progress_events:
@@ -250,36 +283,39 @@ class FakeOpenStorylineClient:
 
         voiceover_payload = self.voiceover_payload
         if voiceover_payload is None:
-            voiceover_payload = {"provider": "bytedance_bigtts"}
+            voiceover_payload = {"provider": "aliyun_cosyvoice"}
         else:
             for segment in voiceover_payload.get("voiceover", []):
                 if isinstance(segment, dict) and "path" not in segment:
                     segment["path"] = str(voiceover_audio_path)
         lip_sync_payload = self.lip_sync_payload
 
+        raw_response = {
+            "engine": "fire_red-openstoryline",
+            "engine_adapter": "fire_red",
+            "fire_red": {"session_id": "fire-red-session"},
+            "openstoryline": {
+                "session_id": "fire-red-session",
+                "production_config_used": {
+                    "voiceover": {"provider": "aliyun_cosyvoice"},
+                },
+                "selected_bgm": {"name": "light_upbeat_01"},
+                "voiceover": voiceover_payload,
+                "lip_sync": lip_sync_payload or {},
+            },
+            "fire_red_raw_response": {
+                "generate_voiceover": voiceover_payload,
+                "lip_sync": lip_sync_payload or {},
+            },
+        }
+        raw_response.update(self.raw_response_overrides)
+
         return EngineRunResult(
             final_video_path=final_video_path,
             cover_image_path=cover_image_path,
             subtitle_path=subtitle_path,
             metadata_path=metadata_path,
-            raw_response={
-                "engine": "fire_red-openstoryline",
-                "engine_adapter": "fire_red",
-                "fire_red": {"session_id": "fire-red-session"},
-                "openstoryline": {
-                    "session_id": "fire-red-session",
-                    "production_config_used": {
-                        "voiceover": {"provider": "bytedance_bigtts"},
-                    },
-                    "selected_bgm": {"name": "light_upbeat_01"},
-                    "voiceover": voiceover_payload,
-                    "lip_sync": lip_sync_payload or {},
-                },
-                "fire_red_raw_response": {
-                    "generate_voiceover": voiceover_payload,
-                    "lip_sync": lip_sync_payload or {},
-                },
-            },
+            raw_response=raw_response,
         )
 
 
@@ -380,6 +416,10 @@ class ProcessorContractTests(unittest.TestCase):
         )
         self.assertEqual("voice-bucket", storage_client.downloads[0]["bucket_name"])
         self.assertEqual(
+            "voice-profiles/merchant/profile/ref.wav",
+            storage_client.signed_urls[0]["storage_key"],
+        )
+        self.assertEqual(
             "voice_profile",
             repository.succeeded["result_payload"]["voiceover_artifacts"]["mode"],
         )
@@ -391,6 +431,505 @@ class ProcessorContractTests(unittest.TestCase):
             1,
             repository.succeeded["result_payload"]["voiceover_artifacts"]["segment_count"],
         )
+
+    def test_aliyun_voice_profile_uses_cached_external_voice_id_and_signed_url(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            storage_client = FakeObjectStorageClient()
+            engine_client = FakeOpenStorylineClient(
+                voiceover_payload={
+                    "provider": "aliyun_cosyvoice_clone",
+                    "voiceover": [
+                        {
+                            "voiceover_id": "voiceover_0001",
+                            "duration": 1200,
+                            "duration_ms": 1200,
+                            "provider": "aliyun_cosyvoice_clone",
+                            "clone": True,
+                        }
+                    ],
+                }
+            )
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                storage_client,
+                engine_client,
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "productionConfig": {
+                        "voiceover": {
+                            "enabled": True,
+                            "mode": "voice_profile",
+                            "provider": "aliyun_cosyvoice_clone",
+                            "voiceProfileId": "profile-1",
+                            "refAudioAssetId": "asset-1",
+                            "voiceProfile": {
+                                "id": "profile-1",
+                                "provider": "aliyun_cosyvoice_clone",
+                                "externalVoiceId": "voice-aliyun-1",
+                                "externalModelId": "cosyvoice-v3.5-plus",
+                            },
+                            "refAudioAsset": {
+                                "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                "bucket_name": "voice-bucket",
+                                "storage_provider": "aliyun_oss",
+                            },
+                        }
+                    },
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.failed)
+        self.assertEqual([], repository.voice_profile_updates)
+        self.assertEqual("aliyun_oss", storage_client.signed_urls[0]["storage_provider"])
+        sent_voiceover = engine_client.last_production_config["voiceover"]
+        self.assertEqual("voice-aliyun-1", sent_voiceover["external_voice_id"])
+        self.assertEqual("https://signed.example/voice-profiles/merchant/profile/ref.wav", sent_voiceover["ref_audio_url"])
+
+    def test_aliyun_voice_profile_creates_external_voice_id_when_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            storage_client = FakeObjectStorageClient()
+            engine_client = FakeOpenStorylineClient(
+                voiceover_payload={
+                    "provider": "aliyun_cosyvoice_clone",
+                    "voiceover": [
+                        {
+                            "voiceover_id": "voiceover_0001",
+                            "duration": 1200,
+                            "duration_ms": 1200,
+                            "provider": "aliyun_cosyvoice_clone",
+                            "clone": True,
+                        }
+                    ],
+                }
+            )
+            settings = Settings(Path(tmp))
+            settings.dashscope_api_key = "dashscope-test-key"
+            settings.aliyun_cosyvoice_clone_model = "cosyvoice-v3.5-plus"
+            settings.aliyun_cosyvoice_clone_customization_url = "https://dashscope.example/customization"
+            processor = JobProcessor(
+                settings,
+                repository,
+                storage_client,
+                engine_client,
+            )
+
+            class Response:
+                status_code = 200
+
+                def raise_for_status(self):
+                    return None
+
+                def json(self):
+                    return {"output": {"voice_id": "voice-created"}}
+
+            original_post = httpx.post
+            requests = []
+
+            def fake_post(*args, **kwargs):
+                requests.append({"args": args, "kwargs": kwargs})
+                return Response()
+
+            httpx.post = fake_post
+            try:
+                processor.process(
+                    make_job(
+                        {
+                            "script": {"text": "locked script", "locked": True},
+                            "productionDirective": {"desiredOutputs": ["final_video"]},
+                            "productionConfig": {
+                                "voiceover": {
+                                    "enabled": True,
+                                    "mode": "voice_profile",
+                                    "provider": "aliyun_cosyvoice_clone",
+                                    "voiceProfileId": "profile-1",
+                                    "refAudioAssetId": "asset-1",
+                                    "voiceProfile": {
+                                        "id": "profile-1",
+                                        "provider": "aliyun_cosyvoice_clone",
+                                    },
+                                    "refAudioAsset": {
+                                        "storage_key": "voice-profiles/merchant/profile/ref.wav",
+                                        "bucket_name": "voice-bucket",
+                                        "storage_provider": "aliyun_oss",
+                                    },
+                                }
+                            },
+                        }
+                    )
+                )
+            finally:
+                httpx.post = original_post
+
+        self.assertIsNone(repository.failed)
+        self.assertEqual("https://dashscope.example/customization", requests[0]["args"][0])
+        self.assertEqual("voice-enrollment", requests[0]["kwargs"]["json"]["model"])
+        self.assertEqual("cosyvoice-v3.5-plus", requests[0]["kwargs"]["json"]["input"]["target_model"])
+        self.assertEqual("https://signed.example/voice-profiles/merchant/profile/ref.wav", requests[0]["kwargs"]["json"]["input"]["url"])
+        self.assertEqual(
+            [
+                {
+                    "profile_id": "profile-1",
+                    "external_voice_id": "voice-created",
+                    "external_model_id": "cosyvoice-v3.5-plus",
+                }
+            ],
+            repository.voice_profile_updates,
+        )
+        sent_voiceover = engine_client.last_production_config["voiceover"]
+        self.assertEqual("voice-created", sent_voiceover["external_voice_id"])
+        self.assertEqual("voice-created", sent_voiceover["voice_id"])
+
+    def test_downloaded_input_assets_preserve_asset_identity_for_engine(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            engine_client = FakeOpenStorylineClient()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeObjectStorageClient(),
+                engine_client,
+            )
+            job = make_job(
+                {
+                    "script": {"text": "locked script", "locked": True},
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "input_assets": [
+                        {
+                            "asset_id": "member-upload-1",
+                            "asset_type": "video",
+                            "storage_provider": "aliyun_oss",
+                            "bucket_name": "input-bucket",
+                            "storage_key": "draft-inputs/merchant-1/draft-1/member-upload.mp4",
+                            "file_name": "member-upload.mp4",
+                        },
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNotNone(engine_client.last_input_assets)
+        self.assertEqual("member-upload-1", engine_client.last_input_assets[0]["asset_id"])
+        self.assertEqual(
+            "draft-inputs/merchant-1/draft-1/member-upload.mp4",
+            engine_client.last_input_assets[0]["storage_key"],
+        )
+
+    def test_timeline_quality_rejects_large_subtitle_tail_gap(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_1",
+                                "kind": "video",
+                                "timeline_window": {"start": 0, "end": 73800},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 52000}},
+                        ],
+                        "voiceover": [],
+                    }
+                }
+            }
+        }
+
+        with self.assertRaisesRegex(Exception, "subtitle timeline ends too early"):
+            _validate_timeline_quality_for_directive(raw_response, {})
+
+    def test_timeline_quality_allows_small_broll_subtitle_tail_gap(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_broll",
+                                "kind": "video",
+                                "timeline_window": {"start": 0, "end": 56000},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 53000}},
+                        ],
+                        "voiceover": [],
+                    }
+                }
+            }
+        }
+
+        _validate_timeline_quality_for_directive(raw_response, {})
+
+    def test_timeline_quality_rejects_unretalked_talking_head_segment(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_talking",
+                                "group_id": "group_1",
+                                "kind": "video",
+                                "role": "talking_head",
+                                "timeline_window": {"start": 0, "end": 3000},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 3000}},
+                        ],
+                        "voiceover": [
+                            {"group_id": "group_1", "timeline_window": {"start": 0, "end": 3000}},
+                        ],
+                    }
+                },
+                "lip_sync": {"segments": []},
+            }
+        }
+
+        with self.assertRaisesRegex(Exception, "talking-head timeline segment was not retalked"):
+            _validate_timeline_quality_for_directive(raw_response, {"lip_sync": {"enabled": True}})
+
+    def test_timeline_quality_uses_split_shots_for_talking_head_classification(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_talking",
+                                "group_id": "group_1",
+                                "kind": "video",
+                                "timeline_window": {"start": 0, "end": 3000},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 3000}},
+                        ],
+                        "voiceover": [
+                            {"group_id": "group_1", "timeline_window": {"start": 0, "end": 3000}},
+                        ],
+                    }
+                },
+                "split_shots": {
+                    "clips": [
+                        {
+                            "clip_id": "clip_talking",
+                            "source_ref": {"role": "talking_head"},
+                        }
+                    ]
+                },
+                "lip_sync": {"segments": []},
+            }
+        }
+
+        with self.assertRaisesRegex(Exception, "talking-head timeline segment was not retalked"):
+            _validate_timeline_quality_for_directive(raw_response, {"lip_sync": {"enabled": True}})
+
+    def test_timeline_quality_rejects_talking_head_voiceover_window_gap(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_talking",
+                                "group_id": "group_1",
+                                "kind": "video",
+                                "role": "talking_head",
+                                "timeline_window": {"start": 0, "end": 5000},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 5000}},
+                        ],
+                        "voiceover": [
+                            {"group_id": "group_1", "timeline_window": {"start": 0, "end": 3000}},
+                        ],
+                    }
+                },
+                "lip_sync": {
+                    "segments": [
+                        {
+                            "group_id": "group_1",
+                            "clip_id": "clip_talking",
+                            "timeline_window": {"start": 0, "end": 5000},
+                        }
+                    ]
+                },
+            }
+        }
+
+        with self.assertRaisesRegex(Exception, "talking-head.*voiceover window"):
+            _validate_timeline_quality_for_directive(raw_response, {"lip_sync": {"enabled": True}})
+
+    def test_timeline_quality_rejects_talking_head_lip_window_gap(self):
+        raw_response = {
+            "openstoryline": {
+                "plan_timeline": {
+                    "tracks": {
+                        "video": [
+                            {
+                                "clip_id": "clip_talking",
+                                "group_id": "group_1",
+                                "kind": "video",
+                                "role": "talking_head",
+                                "timeline_window": {"start": 0, "end": 5000},
+                                "playback_rate": 1.0,
+                            }
+                        ],
+                        "subtitles": [
+                            {"timeline_window": {"start": 0, "end": 5000}},
+                        ],
+                        "voiceover": [
+                            {"group_id": "group_1", "timeline_window": {"start": 0, "end": 5000}},
+                        ],
+                    }
+                },
+                "lip_sync": {
+                    "segments": [
+                        {
+                            "group_id": "group_1",
+                            "clip_id": "clip_talking",
+                            "timeline_window": {"start": 0, "end": 3000},
+                        }
+                    ]
+                },
+            }
+        }
+
+        with self.assertRaisesRegex(Exception, "not fully covered by lip_sync"):
+            _validate_timeline_quality_for_directive(raw_response, {"lip_sync": {"enabled": True}})
+
+    def test_processor_fails_before_success_on_timeline_quality_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeObjectStorageClient(),
+                FakeOpenStorylineClient(
+                    raw_response_overrides={
+                        "openstoryline": {
+                            "session_id": "fire-red-session",
+                            "production_config_used": {},
+                            "selected_bgm": {"name": "light_upbeat_01"},
+                            "voiceover": {"provider": "aliyun_cosyvoice"},
+                            "lip_sync": {},
+                            "plan_timeline": {
+                                "tracks": {
+                                    "video": [
+                                        {
+                                            "clip_id": "clip_1",
+                                            "kind": "video",
+                                            "timeline_window": {"start": 0, "end": 73800},
+                                            "playback_rate": 1.0,
+                                        }
+                                    ],
+                                    "subtitles": [
+                                        {"timeline_window": {"start": 0, "end": 52000}},
+                                    ],
+                                    "voiceover": [],
+                                }
+                            },
+                        }
+                    }
+                ),
+            )
+
+            processor.process(make_job())
+
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual("timeline_quality_validation_failed", repository.failed["current_stage"])
+        self.assertIn("timeline_subtitle_tail_gap_too_long", repository.failed["failure_reason"])
+        modules = repository.failed["log_payload"]["progress_modules"]
+        render_module = next(item for item in modules if item["key"] == "render")
+        self.assertEqual("failed", render_module["status"])
+
+    def test_processor_fails_when_scene_asset_queries_are_compressed_to_fewer_scripts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = FakeRepository()
+            voiceover_payload = {
+                "provider": "aliyun_cosyvoice",
+                "voiceover": [
+                    {"group_id": "group_0001", "duration": 3000},
+                    {"group_id": "group_0002", "duration": 3000},
+                ],
+            }
+            processor = JobProcessor(
+                Settings(Path(tmp)),
+                repository,
+                FakeObjectStorageClient(),
+                FakeOpenStorylineClient(
+                    voiceover_payload=voiceover_payload,
+                    raw_response_overrides={
+                        "fire_red_raw_response": {
+                            "generate_script": {
+                                "group_scripts": [
+                                    {"group_id": "group_0001", "raw_text": "第一段"},
+                                    {"group_id": "group_0002", "raw_text": "第二段"},
+                                ]
+                            }
+                        }
+                    },
+                ),
+            )
+            job = make_job(
+                {
+                    "script": {
+                        "text": (
+                            "1\n00:00-00:05\n台词/字幕：第一段\n"
+                            "2\n00:05-00:10\n台词/字幕：第二段\n"
+                            "3\n00:10-00:15\n台词/字幕：第三段\n"
+                            "4\n00:15-00:20\n台词/字幕：第四段\n"
+                            "5\n00:20-00:25\n台词/字幕：第五段\n"
+                            "6\n00:25-00:30\n台词/字幕：第六段\n"
+                        ),
+                        "locked": True,
+                    },
+                    "productionDirective": {"desiredOutputs": ["final_video"]},
+                    "materialContext": {
+                        "sceneAssetQueries": [
+                            {"sceneNo": index, "query": f"分镜{index}素材", "sourceRole": "merchant_broll"}
+                            for index in range(1, 7)
+                        ]
+                    },
+                    "productionConfig": {"voiceover": {"enabled": True}},
+                    "input_assets": [
+                        {
+                            "asset_type": "video",
+                            "bucket_name": "input-bucket",
+                            "storage_key": "draft-inputs/demo.mp4",
+                            "file_name": "demo.mp4",
+                        }
+                    ],
+                }
+            )
+
+            processor.process(job)
+
+        self.assertIsNone(repository.succeeded)
+        self.assertEqual("failed_manual", repository.failed["status"])
+        self.assertEqual("scene_material_validation_failed", repository.failed["current_stage"])
+        self.assertIn("scene_material_insufficient", repository.failed["failure_reason"])
+        self.assertIn("required_scene_count=6", repository.failed["failure_reason"])
+        modules = repository.failed["log_payload"]["progress_modules"]
+        material_module = next(item for item in modules if item["key"] == "material_match")
+        self.assertEqual("failed", material_module["status"])
 
     def test_voice_profile_job_fails_when_clone_voiceover_artifacts_are_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -907,7 +1446,7 @@ class ProcessorContractTests(unittest.TestCase):
             engine_client.last_input_assets[0]["metadata"],
         )
 
-    def test_material_library_assets_are_retrieved_inside_worker(self):
+    def test_material_library_prefetch_downloads_private_materials_for_worker(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
             repository.material_input_assets = [
@@ -1222,7 +1761,7 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual("fire_red", result_payload["openstoryline"]["engine_adapter"])
         self.assertEqual("fire-red-session", result_payload["openstoryline"]["session_id"])
         self.assertEqual(
-            {"provider": "bytedance_bigtts"},
+            {"provider": "aliyun_cosyvoice"},
             result_payload["openstoryline"]["voiceover"],
         )
         self.assertEqual(

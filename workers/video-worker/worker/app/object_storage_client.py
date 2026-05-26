@@ -57,6 +57,19 @@ class ObjectStorageClient:
             local_path=local_path,
         )
 
+    def create_signed_read_url(
+        self,
+        *,
+        storage_key: str,
+        bucket_name: str | None = None,
+        storage_provider: str = "aliyun_oss",
+        expires_seconds: int = 3600,
+    ) -> str:
+        if storage_provider != "aliyun_oss":
+            raise RuntimeError(f"Unsupported storage provider: {storage_provider}")
+        bucket = self._get_aliyun_bucket(bucket_name)
+        return str(bucket.sign_url("GET", storage_key, expires_seconds))
+
     def _get_aliyun_bucket(self, bucket_name: str | None = None):
         if not all(
             [

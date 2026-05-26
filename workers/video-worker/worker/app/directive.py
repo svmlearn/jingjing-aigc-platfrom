@@ -7,7 +7,17 @@ from .models import VideoJob
 
 
 ALLOWED_DESIRED_OUTPUTS = frozenset({"final_video", "cover", "subtitles"})
-ALLOWED_VOICEOVER_PROVIDERS = frozenset({"bytedance_bigtts", "minimax", "302", "pixelle_clone"})
+ALLOWED_VOICEOVER_PROVIDERS = frozenset(
+    {
+        "aliyun_cosyvoice",
+        "aliyun_cosyvoice_clone",
+        "bytedance_bigtts",
+        "minimax",
+        "302",
+        "pixelle_clone",
+    }
+)
+ALLOWED_VOICE_PROFILE_PROVIDERS = frozenset({"aliyun_cosyvoice_clone", "pixelle_clone"})
 ALLOWED_VOICEOVER_MODES = frozenset({"system", "voice_profile"})
 ALLOWED_SUBTITLE_STYLES = frozenset({"platform_default", "bold_caption"})
 ALLOWED_TALKING_HEAD_SUBTITLE_SOURCES = frozenset(
@@ -142,12 +152,14 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
     if mode not in ALLOWED_VOICEOVER_MODES:
         _raise_invalid_production_config("unsupported voiceover mode")
     provider = _string_value(voiceover, "provider") or (
-        "pixelle_clone" if mode == "voice_profile" else "bytedance_bigtts"
+        "aliyun_cosyvoice_clone" if mode == "voice_profile" else "aliyun_cosyvoice"
     )
     if provider not in ALLOWED_VOICEOVER_PROVIDERS:
         _raise_invalid_production_config("unsupported voiceover provider")
-    if mode == "voice_profile" and provider != "pixelle_clone":
-        _raise_invalid_production_config("voice_profile voiceover must use pixelle_clone provider")
+    if mode == "voice_profile" and provider not in ALLOWED_VOICE_PROFILE_PROVIDERS:
+        _raise_invalid_production_config(
+            "voice_profile voiceover must use a clone provider"
+        )
 
     subtitle_style = _string_value(subtitles, "style") or "platform_default"
     if subtitle_style not in ALLOWED_SUBTITLE_STYLES:
@@ -207,6 +219,20 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
         voice_profile = _dict_value(voiceover, "voiceProfile", "voice_profile")
         if voice_profile:
             normalized_voiceover["voice_profile"] = voice_profile
+            external_voice_id = _string_value(
+                voice_profile,
+                "externalVoiceId",
+                "external_voice_id",
+            )
+            if external_voice_id:
+                normalized_voiceover["external_voice_id"] = external_voice_id
+            external_model_id = _string_value(
+                voice_profile,
+                "externalModelId",
+                "external_model_id",
+            )
+            if external_model_id:
+                normalized_voiceover["external_model_id"] = external_model_id
     speed = _optional_number_value(
         voiceover,
         "speed",
@@ -253,7 +279,7 @@ def _normalize_production_config(payload: dict[str, Any]) -> dict[str, Any]:
         "max_duration_seconds",
         default=None,
         min_value=15,
-        max_value=180,
+        max_value=600,
         integer=True,
     )
     if max_duration_seconds is not None:

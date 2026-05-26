@@ -150,3 +150,15 @@ class ArtifactStore:
         if not candidates:
             return None
         return max(candidates, key=lambda m: m.created_at)
+
+    def get_metas(
+        self,
+        *,
+        node_id: str,
+        session_id: str,
+    ) -> List[ArtifactMeta]:
+        return [
+            m for m in self._load_meta_list()
+            if m.node_id == node_id
+            and m.session_id == session_id
+        ]

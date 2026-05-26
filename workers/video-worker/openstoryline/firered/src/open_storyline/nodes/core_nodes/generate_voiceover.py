@@ -55,10 +55,12 @@ class GenerateVoiceoverNode(BaseNode):
         "pixelle_runninghub": "_tts_runninghub_sync",
         "302": "_tts_302_sync",
         "pixelle_clone": "_tts_pixelle_clone_sync",
+        "aliyun_cosyvoice": "_tts_aliyun_cosyvoice_sync",
+        "aliyun_cosyvoice_clone": "_tts_aliyun_cosyvoice_clone_sync",
     }
 
     _DEFAULT_PROVIDER = "bytedance"
-    _PREFERRED_PROVIDER = "bytedance_bigtts"
+    _PREFERRED_PROVIDER = "aliyun_cosyvoice"
     _PROVIDER_REQUIRED_KEYS: Dict[str, tuple[str, ...]] = {
         "302": ("api_key",),
         "bytedance": ("uid", "appid", "access_token"),
@@ -67,6 +69,8 @@ class GenerateVoiceoverNode(BaseNode):
         "runninghub": ("api_key",),
         "pixelle_runninghub": ("api_key",),
         "pixelle_clone": ("base_url", "api_key", "ref_audio"),
+        "aliyun_cosyvoice": ("api_key",),
+        "aliyun_cosyvoice_clone": ("api_key",),
     }
     _PROVIDER_OPTIONAL_KEYS: Dict[str, tuple[str, ...]] = {
         "302": ("base_url",),
@@ -76,6 +80,8 @@ class GenerateVoiceoverNode(BaseNode):
         "runninghub": ("base_url", "voice", "workflow_id", "runninghub_tts_edge_workflow_id", "timeout_seconds", "speed"),
         "pixelle_runninghub": ("base_url", "voice", "workflow_id", "runninghub_tts_edge_workflow_id", "timeout_seconds", "speed"),
         "pixelle_clone": ("external_voice_id", "workflow_id", "runninghub_tts_clone_workflow_id", "timeout_seconds"),
+        "aliyun_cosyvoice": ("ws_url", "model", "voice", "format", "sample_rate", "timeout_seconds", "speed"),
+        "aliyun_cosyvoice_clone": ("customization_url", "ws_url", "model", "voice_id", "ref_audio_url", "ref_audio", "format", "sample_rate", "timeout_seconds", "speed"),
     }
     _PROVIDER_SUCCESS_CODES = {None, 0, 200, 3000, 20000000}
 
@@ -402,6 +408,8 @@ class GenerateVoiceoverNode(BaseNode):
             return "https://www.runninghub.cn"
         if provider_name == "302":
             return "https://api.302.ai"
+        if provider_name in {"aliyun_cosyvoice", "aliyun_cosyvoice_clone"}:
+            return "wss://dashscope.aliyuncs.com/api-ws/v1/inference"
         return ""
 
     # ---------------------------------------------------------------------
@@ -530,6 +538,18 @@ class GenerateVoiceoverNode(BaseNode):
                     if str(key).strip().lower() in {"base_url", "api_key"}
                     else None
                 )
+            )
+        if provider_name in {"aliyun_cosyvoice", "aliyun_cosyvoice_clone"}:
+            key_upper = str(key).strip().upper()
+            prefix = (
+                "ALIYUN_COSYVOICE_CLONE_"
+                if provider_name == "aliyun_cosyvoice_clone"
+                else "ALIYUN_COSYVOICE_TTS_"
+            )
+            return (
+                os.getenv(f"{prefix}{key_upper}")
+                or os.getenv(f"ALIYUN_COSYVOICE_{key_upper}")
+                or (os.getenv("DASHSCOPE_API_KEY") if key_upper == "API_KEY" else None)
             )
         return None
 
@@ -1176,3 +1196,322 @@ class GenerateVoiceoverNode(BaseNode):
                 output_path=wav_path,
             )
         )
+
+    def _tts_aliyun_cosyvoice_sync(
+        self,
+        *,
+        text: str,
+        wav_path: Path,
+        secrets: Dict[str, Any],
+        tts_params: Dict[str, Any],
+        provider_cfg: Dict[str, Any],
+    ) -> None:
+        api_key = str(secrets.get("api_key") or "").strip()
+        if not api_key:
+            raise ValueError("aliyun_cosyvoice missing api_key")
+        self._dashscope_cosyvoice_tts(
+            text=text,
+            wav_path=wav_path,
+            api_key=api_key,
+            ws_url=str(
+                secrets.get("ws_url")
+                or provider_cfg.get("ws_url")
+                or "wss://dashscope.aliyuncs.com/api-ws/v1/inference"
+            ),
+            model=str(
+                tts_params.get("model")
+                or secrets.get("model")
+                or provider_cfg.get("model")
+                or "cosyvoice-v3-flash"
+            ),
+            voice=str(
+                tts_params.get("voice")
+                or secrets.get("voice")
+                or provider_cfg.get("voice")
+                or "longanyang"
+            ),
+            sample_rate=int(
+                tts_params.get("sample_rate")
+                or secrets.get("sample_rate")
+                or provider_cfg.get("sample_rate")
+                or 24000
+            ),
+            audio_format=str(
+                tts_params.get("format")
+                or secrets.get("format")
+                or provider_cfg.get("format")
+                or "wav"
+            ),
+            timeout_seconds=float(
+                tts_params.get("timeout_seconds")
+                or secrets.get("timeout_seconds")
+                or provider_cfg.get("timeout_seconds")
+                or 120
+            ),
+        )
+
+    def _tts_aliyun_cosyvoice_clone_sync(
+        self,
+        *,
+        text: str,
+        wav_path: Path,
+        secrets: Dict[str, Any],
+        tts_params: Dict[str, Any],
+        provider_cfg: Dict[str, Any],
+    ) -> None:
+        api_key = str(secrets.get("api_key") or "").strip()
+        if not api_key:
+            raise ValueError("aliyun_cosyvoice_clone missing api_key")
+        model = str(
+            tts_params.get("model")
+            or secrets.get("model")
+            or provider_cfg.get("model")
+            or "cosyvoice-v3.5-plus"
+        )
+        voice_id = str(
+            tts_params.get("voice_id")
+            or secrets.get("voice_id")
+            or provider_cfg.get("voice_id")
+            or secrets.get("external_voice_id")
+            or provider_cfg.get("external_voice_id")
+            or ""
+        ).strip()
+        if not voice_id:
+            ref_audio_url = str(
+                secrets.get("ref_audio_url") or provider_cfg.get("ref_audio_url") or ""
+            ).strip()
+            if not ref_audio_url:
+                raise ValueError("aliyun_cosyvoice_clone requires voice_id or ref_audio_url")
+            voice_id = self._create_aliyun_cosyvoice_voice_id(
+                api_key=api_key,
+                customization_url=str(
+                    secrets.get("customization_url")
+                    or provider_cfg.get("customization_url")
+                    or "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization"
+                ),
+                model=model,
+                ref_audio_url=ref_audio_url,
+            )
+        self._dashscope_cosyvoice_tts(
+            text=text,
+            wav_path=wav_path,
+            api_key=api_key,
+            ws_url=str(
+                secrets.get("ws_url")
+                or provider_cfg.get("ws_url")
+                or "wss://dashscope.aliyuncs.com/api-ws/v1/inference"
+            ),
+            model=model,
+            voice=voice_id,
+            sample_rate=int(
+                tts_params.get("sample_rate")
+                or secrets.get("sample_rate")
+                or provider_cfg.get("sample_rate")
+                or 24000
+            ),
+            audio_format=str(
+                tts_params.get("format")
+                or secrets.get("format")
+                or provider_cfg.get("format")
+                or "wav"
+            ),
+            timeout_seconds=float(
+                tts_params.get("timeout_seconds")
+                or secrets.get("timeout_seconds")
+                or provider_cfg.get("timeout_seconds")
+                or 120
+            ),
+        )
+
+    def _create_aliyun_cosyvoice_voice_id(
+        self,
+        *,
+        api_key: str,
+        customization_url: str,
+        model: str,
+        ref_audio_url: str,
+    ) -> str:
+        resp = requests.post(
+            customization_url,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "voice-enrollment",
+                "input": {
+                    "action": "create_voice",
+                    "target_model": model,
+                    "prefix": "jingjing",
+                    "url": ref_audio_url,
+                },
+            },
+            timeout=120,
+        )
+        if not resp.ok:
+            raise RuntimeError(f"aliyun_cosyvoice_clone customization http {resp.status_code}: {resp.text}")
+        resp_json = self._safe_json(resp)
+        voice_id = self._extract_first_value(
+            resp_json,
+            ("voice_id", "voiceId", "custom_voice_id", "customVoiceId"),
+        )
+        if not voice_id:
+            raise RuntimeError(f"aliyun_cosyvoice_clone customization returned no voice_id: {resp_json}")
+        return str(voice_id).strip()
+
+    def _dashscope_cosyvoice_tts(
+        self,
+        *,
+        text: str,
+        wav_path: Path,
+        api_key: str,
+        ws_url: str,
+        model: str,
+        voice: str,
+        sample_rate: int,
+        audio_format: str,
+        timeout_seconds: float,
+    ) -> None:
+        try:
+            import dashscope
+            from dashscope.audio.tts_v2 import AudioFormat, SpeechSynthesizer
+        except Exception:
+            AudioFormat = None
+            dashscope = None
+            SpeechSynthesizer = None
+
+        if SpeechSynthesizer is not None:
+            dashscope.api_key = api_key
+            dashscope.base_websocket_api_url = ws_url
+            kwargs = {
+                "model": model,
+                "voice": voice,
+            }
+            audio_format_value = self._dashscope_audio_format(audio_format, AudioFormat)
+            if audio_format_value is not None:
+                kwargs["format"] = audio_format_value
+            try:
+                synthesizer = SpeechSynthesizer(**kwargs)
+            except TypeError:
+                kwargs.pop("format", None)
+                synthesizer = SpeechSynthesizer(**kwargs)
+            audio = synthesizer.call(text)
+            if not audio:
+                raise RuntimeError("aliyun_cosyvoice tts returned no audio bytes")
+            wav_path.write_bytes(audio)
+            return
+
+        try:
+            import websocket
+        except Exception as exc:
+            raise RuntimeError("dashscope or websocket-client is required for aliyun_cosyvoice") from exc
+
+        task_id = str(uuid.uuid4())
+        audio_chunks: list[bytes] = []
+        ws = websocket.create_connection(
+            ws_url,
+            timeout=timeout_seconds,
+            header=[
+                f"Authorization: Bearer {api_key}",
+                "X-DashScope-DataInspection: enable",
+            ],
+        )
+        try:
+            for payload in (
+                {
+                    "header": {
+                        "action": "run-task",
+                        "task_id": task_id,
+                        "streaming": "duplex",
+                    },
+                    "payload": {
+                        "task_group": "audio",
+                        "task": "tts",
+                        "function": "SpeechSynthesizer",
+                        "model": model,
+                        "parameters": {
+                            "text_type": "PlainText",
+                            "voice": voice,
+                            "format": audio_format,
+                            "sample_rate": sample_rate,
+                        },
+                        "input": {},
+                    },
+                },
+                {
+                    "header": {
+                        "action": "continue-task",
+                        "task_id": task_id,
+                        "streaming": "duplex",
+                    },
+                    "payload": {"input": {"text": text}},
+                },
+                {
+                    "header": {
+                        "action": "finish-task",
+                        "task_id": task_id,
+                        "streaming": "duplex",
+                    },
+                    "payload": {"input": {}},
+                },
+            ):
+                ws.send(json.dumps(payload, ensure_ascii=False))
+                deadline = time.monotonic() + timeout_seconds
+                while time.monotonic() < deadline:
+                    message = ws.recv()
+                    if isinstance(message, bytes):
+                        audio_chunks.append(message)
+                        continue
+                    if not message:
+                        continue
+                    event = json.loads(message)
+                    event_name = str((event.get("header") or {}).get("event") or "").lower()
+                    if event_name in {"task-started", "result-generated", "task-finished"}:
+                        audio = self._extract_first_value(
+                            event,
+                            ("audio", "data", "audio_data", "audioData"),
+                        )
+                        if isinstance(audio, str) and audio:
+                            try:
+                                audio_chunks.append(base64.b64decode(audio))
+                            except Exception:
+                                pass
+                    if event_name == "task-started" and payload["header"]["action"] == "run-task":
+                        break
+                    if event_name == "result-generated" and payload["header"]["action"] == "continue-task":
+                        break
+                    if event_name == "task-finished" and payload["header"]["action"] == "finish-task":
+                        break
+                    if event_name == "task-failed":
+                        raise RuntimeError(f"aliyun_cosyvoice tts failed: {event}")
+                else:
+                    raise RuntimeError("aliyun_cosyvoice websocket timed out")
+        finally:
+            ws.close()
+
+        if not audio_chunks:
+            raise RuntimeError("aliyun_cosyvoice websocket returned no audio")
+        wav_path.write_bytes(b"".join(audio_chunks))
+
+    def _dashscope_audio_format(self, audio_format: str, audio_format_cls: Any) -> Any:
+        if audio_format_cls is None:
+            return None
+        normalized = str(audio_format or "").strip().lower()
+        if not normalized:
+            return None
+        format_members = {
+            name.lower(): value
+            for name, value in getattr(audio_format_cls, "__members__", {}).items()
+        }
+        if normalized in format_members:
+            return format_members[normalized]
+        aliases = {
+            "wav": ("wav_22050hz_mono_16bits", "wav"),
+            "wave": ("wav_22050hz_mono_16bits", "wav"),
+            "mp3": ("mp3_22050hz_mono_128kbps", "mp3"),
+            "pcm": ("pcm_22050hz_mono_16bits", "pcm"),
+        }
+        for member_name in aliases.get(normalized, ()):
+            if member_name in format_members:
+                return format_members[member_name]
+        return None
