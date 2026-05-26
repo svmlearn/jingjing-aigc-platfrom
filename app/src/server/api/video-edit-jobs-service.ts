@@ -13,14 +13,8 @@ import {
   isLocalRealChainEnabled,
   listLocalRealChainAssetObjectsByOwner,
 } from "@/lib/db/local-real-chain-repository";
-import { getPrivateMediaRepository } from "@/lib/db/merchant-media-repository";
 import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
-import {
-  getMaterialLibraryItemById,
-  listMaterialWorkbenchReferencesByDraft,
-} from "@/lib/db/material-library-repository";
 import { getDailyContentTaskById } from "@/lib/db/daily-content-task-repository";
-import { materialMatchesRetrievalTarget } from "@/lib/material-routing";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import {
   assertVideoScriptVariantAccess,
@@ -400,7 +394,6 @@ async function buildServerManagedInputPayload(input: {
     const payload = buildVideoEditJobPayloadOrThrow({
       draftId: input.draftId,
       variant: input.variant,
-      materialReferences: [],
       assets,
       requireUserTalkingHead: variantRequiresUserTalkingHead(input.variant),
       productionConfig: input.productionConfig,
@@ -414,37 +407,19 @@ async function buildServerManagedInputPayload(input: {
     });
   }
 
-  const [allAssets, materialReferences, merchantMediaClips] = await Promise.all([
-    listAssetObjectsByOwner({
-      ownerType: "content_draft",
-      ownerId: input.draftId,
-    }),
-    listMaterialWorkbenchReferencesByDraft({
-      merchantId: input.merchantId,
-      draftId: input.draftId,
-      targetWorkbench: "video",
-    }),
-    getPrivateMediaRepository().listClipsByMerchant({ merchantId: input.merchantId }),
-  ]);
+  const allAssets = await listAssetObjectsByOwner({
+    ownerType: "content_draft",
+    ownerId: input.draftId,
+  });
   const assets = filterRequestedInputAssets({
     assets: allAssets,
     inputAssetIds: input.inputAssetIds,
   });
 
-  const videoEditMaterialReferences = await filterVideoEditMaterialReferences({
-    merchantId: input.merchantId,
-    references: materialReferences,
-  });
-
   const payload = buildVideoEditJobPayloadOrThrow({
     draftId: input.draftId,
     variant: input.variant,
-    materialReferences: videoEditMaterialReferences.map((reference) => ({
-      id: reference.id,
-      materialItemId: reference.materialItemId,
-    })),
     assets,
-    merchantMediaClips,
     requireUserTalkingHead: variantRequiresUserTalkingHead(input.variant),
     productionConfig: input.productionConfig,
   });
@@ -587,33 +562,6 @@ async function attachVoiceProfileReference(input: {
       },
     },
   };
-}
-
-async function filterVideoEditMaterialReferences(input: {
-  merchantId: string;
-  references: Array<{
-    id: string;
-    materialItemId: string;
-  }>;
-}) {
-  const pairs = await Promise.all(
-    input.references.map(async (reference) => {
-      try {
-        const material = await getMaterialLibraryItemById({
-          merchantId: input.merchantId,
-          materialItemId: reference.materialItemId,
-        });
-
-        return materialMatchesRetrievalTarget(material, "video_edit_asset")
-          ? reference
-          : null;
-      } catch {
-        return null;
-      }
-    }),
-  );
-
-  return pairs.filter((reference): reference is NonNullable<typeof reference> => Boolean(reference));
 }
 
 function buildVideoEditJobPayloadOrThrow(input: Parameters<typeof buildVideoEditJobInputPayload>[0]) {

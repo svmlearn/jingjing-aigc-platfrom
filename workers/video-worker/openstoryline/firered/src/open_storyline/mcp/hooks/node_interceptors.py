@@ -1126,15 +1126,86 @@ def _worker_scene_for_search_query(worker_payload: Any, query: Any) -> dict[str,
     return None
 
 
-def _sanitize_worker_private_search_media_args(args: dict[str, Any]) -> None:
+def _has_cjk_text(value: Any) -> bool:
+    return bool(re.search(r"[\u3400-\u9fff]", str(value or "")))
+
+
+def _canonical_worker_scene_search_query(
+    context: Any,
+    store: Any,
+    *,
+    session_id: str,
+    requested_query: Any,
+) -> str:
+    requested = str(requested_query or "").strip()
+    worker_payload = getattr(context, "worker_payload", None)
+    if not isinstance(worker_payload, dict):
+        return requested
+    scene_queries = _worker_scene_asset_queries(worker_payload)
+    if not scene_queries:
+        return requested
+
+    for scene in scene_queries:
+        query = str(scene.get("query") or "").strip()
+        if query and _scene_queries_match(query, requested):
+            return query
+
+    search_payloads: list[dict[str, Any]] = []
+    if store is not None and session_id:
+        search_payloads = _load_search_media_payloads(store, session_id=session_id)
+    missing = _missing_worker_scene_searches(worker_payload, search_payloads)
+    fallback_scene = (missing or scene_queries)[0]
+    fallback_query = str(fallback_scene.get("query") or "").strip()
+
+    if fallback_query:
+        return fallback_query
+    if _has_cjk_text(requested):
+        return requested
+    return requested
+
+
+def _sanitize_worker_private_search_media_args(
+    args: dict[str, Any],
+    context: Any = None,
+    store: Any = None,
+    *,
+    session_id: str = "",
+) -> None:
     for key in (
         "orientation",
         "min_video_duration",
         "max_video_duration",
         "minVideoDuration",
         "maxVideoDuration",
+        "tag",
+        "tags",
+        "label",
+        "labels",
+        "category",
+        "categories",
+        "filter",
+        "filters",
+        "filter_include",
+        "filterInclude",
+        "filter_exclude",
+        "filterExclude",
+        "include",
+        "exclude",
+        "query_tags",
+        "queryTags",
     ):
         args.pop(key, None)
+    requested_query = args.get("search_keyword") or args.get("searchKeyword") or args.get("query")
+    canonical_query = _canonical_worker_scene_search_query(
+        context,
+        store,
+        session_id=session_id,
+        requested_query=requested_query,
+    )
+    args.pop("searchKeyword", None)
+    args.pop("query", None)
+    if canonical_query:
+        args["search_keyword"] = canonical_query
     args["video_number"] = 10
     args["photo_number"] = 0
 
@@ -1891,11 +1962,16 @@ class ToolInterceptor:
                             "worker search_media requires a merchant-scoped private Pexels base URL; "
                             "cross-merchant or official Pexels search is disabled"
                         )
-                    _sanitize_worker_private_search_media_args(args)
                     store = getattr(runtime, "store", None) if runtime else None
                     session_id = getattr(ctx, "session_id", "") if ctx else ""
+                    _sanitize_worker_private_search_media_args(
+                        args,
+                        ctx,
+                        store,
+                        session_id=session_id,
+                    )
                     if store is not None and session_id:
-                        query = args.get("search_keyword") or args.get("query")
+                        query = args.get("search_keyword")
                         _enforce_worker_scene_search_attempt_limit(
                             ctx,
                             store,

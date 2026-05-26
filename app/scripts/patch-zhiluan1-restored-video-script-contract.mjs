@@ -29,76 +29,76 @@ const normalFlowReference =
 const factoryScriptSpec = {
   title: "找厂房，别只看租金",
   cta: "你要找工业园区厂房，建议实地来看一圈。",
-  targetDurationSeconds: 60,
+  targetDurationSeconds: 48,
   scenes: [
     {
       order: 1,
-      timeRange: "00:00-00:07",
-      durationSeconds: 7,
+      timeRange: "00:00-00:05",
+      durationSeconds: 5,
       title: "成员口播开场",
       visual: "成员在园区现场出镜，穿插园区大门、入口道路、厂房外立面。",
       searchKeywords: ["园区入口", "园区大门", "厂房外立面", "停车通道"],
-      spokenText: "找厂房别只盯低租金。空间能不能用、动线顺不顺、配套和管理跟不跟得上，都要现场看。",
+      spokenText: "找厂房别只看租金。先看空间、动线和配套，现场最直观。",
       uploadLabel: "成员开场口播",
       required: true,
     },
     {
       order: 2,
-      timeRange: "00:07-00:20",
-      durationSeconds: 13,
+      timeRange: "00:05-00:15",
+      durationSeconds: 10,
       title: "一楼主力厂房空间",
       visual: "一楼大开间、连续柱网、绿色地坪、消防管线、空间纵深。",
       searchKeywords: ["一楼厂房大开间", "厂房柱网", "绿色地坪", "消防管线", "空间纵深"],
       spokenText:
-        "这边主力是一楼厂房，约2000平。大开间、柱网、绿色地坪和消防管线都能看到，生产、仓储、轻加工都比较好规划。",
+        "这边主力是一楼约2000平，大开间、柱网、地坪和消防管线都能看到，生产仓储更好规划。",
       uploadLabel: "",
       required: false,
     },
     {
       order: 3,
-      timeRange: "00:20-00:29",
-      durationSeconds: 9,
+      timeRange: "00:15-00:23",
+      durationSeconds: 8,
       title: "厂房基础设施",
       visual: "采光窗、消防栓、配电箱、安全警示牌、消防疏散图和平面标识。",
       searchKeywords: ["厂房采光窗", "消防栓", "配电箱", "安全警示", "消防疏散图", "平面标识"],
       spokenText:
-        "基础设施也要看细节。采光窗、消防栓、配电箱、安全警示和疏散图都有实拍，后期布置设备更有底。",
+        "采光窗、消防栓、配电箱和疏散图都有实拍，后期进场心里更有底。",
       uploadLabel: "",
       required: false,
     },
     {
       order: 4,
-      timeRange: "00:29-00:38",
-      durationSeconds: 9,
+      timeRange: "00:23-00:31",
+      durationSeconds: 8,
       title: "六楼补充空间",
       visual: "六楼空置空间、绿色地坪、吊顶柱网、电梯厅、玻璃门和公共走廊。",
       searchKeywords: ["六楼空置空间", "六楼绿色地坪", "电梯厅", "玻璃门", "公共走廊"],
       spokenText:
-        "楼上还有六楼补充空间，电梯厅、玻璃门、走廊和空置空间都清楚，适合把办公或仓储功能分开安排。",
+        "楼上还有六楼空间，电梯厅、玻璃门和走廊清楚，办公仓储可以分区安排。",
       uploadLabel: "",
       required: false,
     },
     {
       order: 5,
-      timeRange: "00:38-00:47",
-      durationSeconds: 9,
+      timeRange: "00:31-00:38",
+      durationSeconds: 7,
       title: "园区公共配套",
       visual: "消防疏散图、楼层索引、货梯入口、电梯轿厢、管理服务站门头快切。",
       searchKeywords: ["消防疏散图", "楼层索引", "货梯入口", "电梯轿厢", "管理服务站", "管理处"],
       spokenText:
-        "公共配套也有实拍：疏散图、楼层索引、货梯入口和管理服务站都能看到，现场判断更踏实。",
+        "公共配套看疏散图、楼层索引、货梯入口和管理服务站，现场判断更踏实。",
       uploadLabel: "",
       required: false,
     },
     {
       order: 6,
-      timeRange: "00:47-01:00",
-      durationSeconds: 13,
+      timeRange: "00:38-00:48",
+      durationSeconds: 10,
       title: "住宿生活配套与成员收尾",
       visual: "公寓楼、宿舍楼、电动车停放区、停车通道，最后回到成员出镜收尾。",
       searchKeywords: ["公寓楼", "宿舍楼", "电动车停放", "停车通道", "厂房外立面"],
       spokenText:
-        "员工这边有公寓、宿舍、电动车停放和停车通道。找厂房别只看面积和价格，空间、设施、配套、管理一起看，建议现场走一圈。",
+        "员工住宿、停车和电动车停放也有配套。找厂房建议空间、设施、管理一起看，最好来现场走一圈。",
       uploadLabel: "成员收尾口播",
       required: true,
     },
@@ -138,6 +138,7 @@ loadEnvFileFromArgs();
 
 const apply = process.argv.includes("--apply");
 const patchAllMatchingFactoryTasks = process.argv.includes("--all-matching-factory-tasks");
+const taskDateFilter = readCliOption("--task-date");
 const databaseUrl = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
 
 if (!databaseUrl) {
@@ -254,6 +255,7 @@ try {
       {
         mode: apply ? "applied" : "dry-run",
         patchAllMatchingFactoryTasks,
+        taskDateFilter: taskDateFilter || null,
         targetCount: outputs.length,
         outputs,
         scriptText: canonicalScriptText,
@@ -270,6 +272,10 @@ try {
 }
 
 async function loadContexts() {
+  if (taskDateFilter) {
+    return loadContextsForTaskDate(taskDateFilter);
+  }
+
   if (!patchAllMatchingFactoryTasks) {
     return [await loadContextForTarget(defaultTarget)];
   }
@@ -299,6 +305,42 @@ async function loadContexts() {
 
   if (tasks.rows.length === 0) {
     throw new Error("No matching zhiluan1 factory video_script_created tasks were found.");
+  }
+
+  const contexts = [];
+  for (const task of tasks.rows) {
+    contexts.push(await loadContextForTask(task));
+  }
+  return contexts;
+}
+
+async function loadContextsForTaskDate(taskDate) {
+  const tasks = await db.query(
+    `
+    select *
+    from public.daily_content_tasks
+    where merchant_id = $1
+      and user_id = $2
+      and status = 'video_script_created'
+      and task_date::date = $3::date
+      and theme = '一楼厂房主推'
+      and (
+        video_task->>'title' = $4
+        or video_task #>> '{generatedVideoScript,title}' = $4
+      )
+      and (
+        team_calendar_source->>'assignmentMarker' = 'factory_member_video_assignment_20260522'
+        or team_calendar_source->>'source' = 'manual_factory_script'
+      )
+      and video_task->>'contentDraftId' is not null
+      and video_task->>'contentVariantId' is not null
+    order by task_date asc
+    `,
+    [defaultTarget.merchantId, defaultTarget.memberUserId, taskDate, factoryScriptSpec.title],
+  );
+
+  if (tasks.rows.length === 0) {
+    throw new Error(`No matching zhiluan1 factory video_script_created task was found for task date ${taskDate}.`);
   }
 
   const contexts = [];
@@ -850,6 +892,22 @@ function readDateString(value, fallback) {
     return value.toISOString().slice(0, 10);
   }
   return fallback;
+}
+
+function readCliOption(name) {
+  const prefix = `${name}=`;
+  const inline = process.argv.find((arg) => arg.startsWith(prefix));
+  if (inline) {
+    return inline.slice(prefix.length).trim();
+  }
+  const index = process.argv.indexOf(name);
+  if (index >= 0) {
+    const value = process.argv[index + 1];
+    if (value && !value.startsWith("--")) {
+      return value.trim();
+    }
+  }
+  return "";
 }
 
 function toRecord(value) {

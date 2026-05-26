@@ -42,13 +42,12 @@ test("private media Dify-to-OpenStoryline workflow has a fixture-level smoke sub
         sortOrder: 0,
       },
     ],
-    merchantMediaClips: [v1WorkflowClip],
     requireUserTalkingHead: true,
     now,
   });
   assert.equal(payload.materialContext.sceneAssetQueries[0]?.query.includes("project entrance shops"), true);
   assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["fixture-user-talking-head"]);
-  assert.equal(payload.materialContext.merchantMediaMatches[0]?.clipIds.includes("fixture-video-a-entrance"), true);
+  assert.equal(Object.hasOwn(payload.materialContext, "merchantMediaMatches"), false);
   assert.equal(payload.input_assets[0]?.asset_id, "fixture-user-talking-head");
   const rawPayload = payload as Record<string, unknown>;
   assert.equal(rawPayload.workflowVersion, undefined);

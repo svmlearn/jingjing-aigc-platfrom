@@ -1,6 +1,4 @@
 import type { BgmFilter, ProductionConfig, VoiceoverProvider } from "@/contracts/video";
-import { tokenizeMaterialRetrievalQuery } from "../../lib/material-retrieval.ts";
-import type { PrivateMediaClipRecord } from "../../lib/private-media-pexels-adapter.ts";
 
 export type VideoJobPayloadAsset = {
   id: string;
@@ -72,42 +70,6 @@ export type VideoEditJobSceneAssetQuery = {
   sourceRole: "user_talking_head" | "merchant_broll";
 };
 
-export type VideoEditJobAssetMatchPlanItem = {
-  sceneNo: number;
-  query: string;
-  matchedAssetIds: string[];
-  missing: boolean;
-  reason:
-    | "filename_keyword_match"
-    | "draft_video_assets_available_no_scene_index"
-    | "no_video_asset";
-};
-
-export type VideoEditJobMerchantMediaMatch = {
-  sceneNo: number;
-  query: string;
-  clipIds: string[];
-  clips: VideoEditJobMerchantMediaClip[];
-};
-
-export type VideoEditJobMerchantMediaClip = {
-  clipId: string;
-  assetId: string | null;
-  mediaType: "image" | "video";
-  clipType: string | null;
-  bucketName: string;
-  storageKey: string;
-  thumbStorageKey: string | null;
-  mimeType: string;
-  durationSeconds: number | null;
-  startTimeSeconds: number | null;
-  endTimeSeconds: number | null;
-  tags: string[];
-  sceneTags: string[];
-  shotTags: string[];
-  description: string;
-};
-
 export type VideoEditJobInputPayload = {
   source: "video_workbench";
   executionMode: "staging_worker";
@@ -130,17 +92,10 @@ export type VideoEditJobInputPayload = {
     assetPlanId: string | null;
     assetMatchReportId: string | null;
     scriptBindingId: string;
-    materialIds: string[];
-    materialReferenceIds: string[];
-    selectionMode: "user_confirmed" | "none";
-    fallbackMode: string | null;
     excludedAssetIds: string[];
     userTalkingHeadAssetIds: string[];
-    merchantMediaCandidateCount: number;
-    merchantMediaMatches: VideoEditJobMerchantMediaMatch[];
     missingVideoAssetHints: string[];
     sceneAssetQueries: VideoEditJobSceneAssetQuery[];
-    assetMatchPlan: VideoEditJobAssetMatchPlanItem[];
   };
   input_assets: VideoEditJobInputAsset[];
   assembled_from_owner_type: "content_draft";
@@ -257,9 +212,9 @@ type NormalizedProductionConfig = {
 export function buildVideoEditJobInputPayload(input: {
   draftId: string;
   variant: VideoJobPayloadVariant;
-  materialReferences: VideoJobPayloadMaterialReference[];
+  materialReferences?: VideoJobPayloadMaterialReference[];
   assets: VideoJobPayloadAsset[];
-  merchantMediaClips?: PrivateMediaClipRecord[];
+  merchantMediaClips?: unknown[];
   requireUserTalkingHead?: boolean;
   productionConfig?: ProductionConfig | null;
   now?: string;
@@ -276,8 +231,6 @@ export function buildVideoEditJobInputPayload(input: {
         left.sort_order - right.sort_order ||
         left.asset_id.localeCompare(right.asset_id),
     );
-  const materialReferenceIds = uniqueStrings(input.materialReferences.map((item) => item.id));
-  const materialIds = uniqueStrings(input.materialReferences.map((item) => item.materialItemId));
   const sceneAssetQueries = buildSceneAssetQueries(input.variant);
   const shouldUseTalkingHeadDefaults =
     input.requireUserTalkingHead === true ||
@@ -297,22 +250,6 @@ export function buildVideoEditJobInputPayload(input: {
       ? markTalkingHeadInputAsset(asset)
       : asset,
   );
-  const assetMatchPlan = buildAssetMatchPlan({
-    sceneAssetQueries,
-    inputAssets,
-  });
-  const merchantMediaMatches = buildMerchantMediaMatches({
-    sceneAssetQueries,
-    merchantMediaClips: input.merchantMediaClips ?? [],
-  });
-
-  if (materialReferenceIds.length > 0 && inputAssets.length === 0) {
-    throw new VideoJobPayloadValidationError(
-      409,
-      "VIDEO_CONFIRMED_MATERIAL_ASSET_REQUIRED",
-      "Confirmed video materials do not have downloadable input assets.",
-    );
-  }
   if (input.requireUserTalkingHead && userTalkingHeadAssetIds.length === 0) {
     throw new VideoJobPayloadValidationError(
       409,
@@ -346,24 +283,10 @@ export function buildVideoEditJobInputPayload(input: {
       assetPlanId: null,
       assetMatchReportId: null,
       scriptBindingId: input.variant.contentVariantId,
-      materialIds,
-      materialReferenceIds,
-      selectionMode: materialReferenceIds.length > 0 ? "user_confirmed" : "none",
-      fallbackMode: materialReferenceIds.length > 0 ? null : "no_material_reference",
       excludedAssetIds: excludedAssets.map((asset) => asset.id),
       userTalkingHeadAssetIds,
-      merchantMediaCandidateCount: (input.merchantMediaClips ?? []).filter(
-        (clip) => clip.status === "ready" && clip.mediaType === "video",
-      ).length,
-      merchantMediaMatches,
-      missingVideoAssetHints:
-        inputAssets.length > 0 || merchantMediaMatches.some((match) => match.clipIds.length > 0)
-          ? []
-          : buildMissingVideoAssetHints({
-              sceneAssetQueries,
-            }),
+      missingVideoAssetHints: [],
       sceneAssetQueries,
-      assetMatchPlan,
     },
     input_assets: inputAssets,
     assembled_from_owner_type: "content_draft",
@@ -391,11 +314,7 @@ function buildSceneAssetQueries(
       return {
         sceneNo: normalizePositiveInteger(scene.sceneNo) ?? index + 1,
         timeRange: normalizeOptionalString(scene.timeRange) ?? null,
-        query: uniqueStrings([
-          visualRequirement,
-          scene.visual ?? "",
-          ...(scene.materials ?? []),
-        ]).join(" "),
+        query: buildSceneSearchQuery(scene, visualRequirement),
         visualRequirement,
         fallbackShot: normalizeOptionalString(scene.fallbackShot) ?? null,
         sourceRole: inferSceneSourceRole(scene),
@@ -414,156 +333,20 @@ function buildSceneAssetQueries(
   return extractSceneAssetQueriesFromScript(variant.scriptText).slice(0, 12);
 }
 
-function buildAssetMatchPlan(input: {
-  sceneAssetQueries: VideoEditJobSceneAssetQuery[];
-  inputAssets: VideoEditJobInputAsset[];
-}): VideoEditJobAssetMatchPlanItem[] {
-  if (input.sceneAssetQueries.length === 0) {
-    return [];
-  }
-
-  return input.sceneAssetQueries.map((sceneQuery) => {
-    if (sceneQuery.sourceRole === "merchant_broll") {
-      return {
-        sceneNo: sceneQuery.sceneNo,
-        query: sceneQuery.query,
-        matchedAssetIds: [],
-        missing: true,
-        reason: "no_video_asset" as const,
-      };
-    }
-
-    if (input.inputAssets.length === 0) {
-      return {
-        sceneNo: sceneQuery.sceneNo,
-        query: sceneQuery.query,
-        matchedAssetIds: [],
-        missing: true,
-        reason: "no_video_asset" as const,
-      };
-    }
-
-    const matchedAssets = matchInputAssetsByQuery(sceneQuery.query, input.inputAssets);
-    const candidateAssets = matchedAssets.length > 0 ? matchedAssets : input.inputAssets;
-
-    return {
-      sceneNo: sceneQuery.sceneNo,
-      query: sceneQuery.query,
-      matchedAssetIds: candidateAssets.map((asset) => asset.asset_id),
-      missing: false,
-      reason:
-        matchedAssets.length > 0
-          ? ("filename_keyword_match" as const)
-          : ("draft_video_assets_available_no_scene_index" as const),
-    };
-  });
-}
-
-function buildMerchantMediaMatches(input: {
-  sceneAssetQueries: VideoEditJobSceneAssetQuery[];
-  merchantMediaClips: PrivateMediaClipRecord[];
-}): VideoEditJobMerchantMediaMatch[] {
-  if (input.sceneAssetQueries.length === 0) {
-    return [];
-  }
-
-  const readyVideoClips = input.merchantMediaClips.filter(
-    (clip) => clip.status === "ready" && clip.mediaType === "video",
-  );
-
-  return input.sceneAssetQueries.map((query) => {
-    if (query.sourceRole === "user_talking_head") {
-      return {
-        sceneNo: query.sceneNo,
-        query: query.query,
-        clipIds: [],
-        clips: [],
-      };
-    }
-
-    const matchedClips = matchMerchantMediaClipsByQuery(query.query, readyVideoClips).slice(0, 6);
-
-    return {
-      sceneNo: query.sceneNo,
-      query: query.query,
-      clipIds: matchedClips.map((clip) => clip.id),
-      clips: matchedClips.map(mapMerchantMediaClipForPayload),
-    };
-  });
-}
-
-function matchMerchantMediaClipsByQuery(
-  query: string,
-  clips: PrivateMediaClipRecord[],
+function buildSceneSearchQuery(
+  scene: VideoJobPayloadSceneInput,
+  visualRequirement: string,
 ) {
-  const terms = tokenizeMaterialRetrievalQuery(query);
+  const materialTerms = uniqueStrings([
+    ...(scene.materials ?? []),
+    scene.fallbackShot ?? "",
+  ]);
 
-  if (terms.length === 0) {
-    return clips.slice(0, 6);
+  if (materialTerms.length > 0) {
+    return materialTerms.join(" ");
   }
 
-  return clips
-    .map((clip) => ({
-      clip,
-      score: scoreMerchantMediaClip(clip, terms),
-    }))
-    .filter((item) => item.score > 0)
-    .sort((left, right) => {
-      const scoreDelta = right.score - left.score;
-
-      if (scoreDelta !== 0) {
-        return scoreDelta;
-      }
-
-      const createdDelta = right.clip.createdAt.localeCompare(left.clip.createdAt);
-
-      if (createdDelta !== 0) {
-        return createdDelta;
-      }
-
-      return left.clip.id.localeCompare(right.clip.id);
-    })
-    .map((item) => item.clip);
-}
-
-function scoreMerchantMediaClip(clip: PrivateMediaClipRecord, terms: string[]) {
-  const haystack = [
-    clip.description,
-    clip.storageKey,
-    ...clip.tags,
-    ...(clip.industryTags ?? []),
-    ...(clip.sceneTags ?? []),
-    ...(clip.shotTags ?? []),
-    ...(clip.peopleTags ?? []),
-    ...(clip.qualityTags ?? []),
-  ]
-    .join(" ")
-    .normalize("NFKC")
-    .toLowerCase();
-
-  return terms.filter((term) => haystack.includes(term)).length;
-}
-
-function mapMerchantMediaClipForPayload(
-  clip: PrivateMediaClipRecord,
-): VideoEditJobMerchantMediaClip {
-  return {
-    clipId: clip.id,
-    assetId: clip.assetId ?? null,
-    mediaType: clip.mediaType,
-    clipType: clip.clipType ?? null,
-    bucketName: clip.bucketName,
-    storageKey: clip.storageKey,
-    thumbStorageKey: clip.thumbStorageKey ?? null,
-    mimeType: clip.mimeType,
-    durationSeconds: clip.durationSeconds ?? null,
-    startTimeSeconds: clip.startTimeSeconds ?? null,
-    endTimeSeconds: clip.endTimeSeconds ?? null,
-    tags: clip.tags,
-    sceneTags: clip.sceneTags ?? [],
-    shotTags: clip.shotTags ?? [],
-    description: clip.description,
-  };
+  return visualRequirement;
 }
 
 function normalizeProductionConfig(
@@ -975,31 +758,6 @@ function inferSceneSourceRole(scene: VideoJobPayloadSceneInput): VideoEditJobSce
   }
 
   return "merchant_broll";
-}
-
-function matchInputAssetsByQuery(
-  query: string,
-  inputAssets: VideoEditJobInputAsset[],
-) {
-  const terms = tokenizeMaterialRetrievalQuery(query);
-
-  if (terms.length === 0) {
-    return [];
-  }
-
-  return inputAssets.filter((asset) => {
-    const assetText = [
-      asset.asset_id,
-      asset.storage_key,
-      asset.mime_type ?? "",
-      asset.etag ?? "",
-    ]
-      .join(" ")
-      .normalize("NFKC")
-      .toLowerCase();
-
-    return terms.some((term) => assetText.includes(term));
-  });
 }
 
 function isUserTalkingHeadAsset(

@@ -188,7 +188,7 @@ class SearchMediaInput(BaseInput):
     )
     photo_number: Annotated[int, Field(default=0, description="The number of images the user wants to obtain")]
     video_number: Annotated[int, Field(default=5, description="The number of videos the user wants to obtain")]
-    search_keyword: Annotated[str, Field(default="scenery", description="Keyword of the media the user wants to obtain. Only one keyword is allowed; multiple keywords are not permitted.")]
+    search_keyword: Annotated[str, Field(default="scenery", description="Use the exact Chinese scene query supplied by the worker. Do not translate it to English or replace it with tags/categories/filters.")]
     orientation: Literal["landscape", "portrait"] = Field(
         default="landscape",
         description="landscape: The screen is wider horizontally and narrower vertically, making it suitable for computer screens, landscape images, etc;portrait: The screen is higher vertically and narrower horizontally, making it suitable for mobile browsing and close-up shots of people."
