@@ -58,4 +58,3 @@ npm run typecheck
 - 仅完成本地分支实现、测试、commit 和 Gitee 分支 push；未 SSH 到服务器，未热更新，未做 release。
 - app 测试前需要安装依赖；本次使用 `npm install` 安装本地 `node_modules`，生成的临时 `app/package-lock.json` 未提交。
 - 私有素材 route 测试需要本地测试密钥 `PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET`，只用于测试命令，不写入仓库。
-
