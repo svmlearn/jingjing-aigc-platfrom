@@ -4,6 +4,39 @@
 
 结论：`merchant-media/` 前缀写入失败不是因为本次手动导入“没走正常上传流程”才产生的单点问题，而是生产 OSS/RAM policy 没有覆盖新视频素材 clip 库前缀。
 
+## 2026-05-26 执行结果
+
+已完成：
+
+- 确认生产 `ALIYUN_OSS_ACCESS_KEY_ID` 对应 RAM 用户为 `jingjing-domestic-oss-phase1`。
+- 在既有自定义策略 `jingjing-domestic-phase1-oss-prefix-policy` 上新增默认版本 `v3`。
+- `v3` 在原有 `app-storage-provider-smoke/*`、`source-assets/*`、`draft-inputs/*`、`knowledge/*`、`video-results/*` 基础上追加：
+  - `acs:oss:*:*:jingjing-domestic-phase1-hz/merchant-media/*`
+- 服务器 smoke test 通过：
+  - `merchant-media/<merchantId>/_policy_smoke/...txt`
+  - `put/head/delete = ok`
+- `shaokao@163.com` 当前 94 条烧烤视频素材已迁入新 clip 库：
+  - `merchant_media_assets = 94`
+  - `merchant_media_ready_video_clips = 94`
+  - `ready_source_asset_items = 0`
+  - `archived_source_asset_items = 94`
+- OSS 抽样校验通过：
+  - 抽查 3 个 clip，对应 3 个视频对象 + 3 个缩略图对象，`head = ok`
+
+本次实际没有新建独立 RAM policy，而是更新现有前缀策略。原因是生产 RAM 用户原本就只挂了一个 OSS 前缀策略，把 `merchant-media/*` 合入同一策略比再散一个策略更容易审计。
+
+迁移备份与脚本位置：
+
+- 服务器备份：`/srv/jingjing-domestic/backups/shaokao-bbq-merchant-media-migration-20260526T2345`
+- 服务器一次性脚本：`/srv/jingjing-domestic/imports/bbq-media-20260526/migrate-shaokao-bbq-source-assets-to-merchant-media.mjs`
+- 仓库脚本：`app/scripts/migrate-shaokao-bbq-source-assets-to-merchant-media.mjs`
+
+迁移中额外暴露并修复的代码问题：
+
+- `merchant_media_clips.created_at` 从 PostgreSQL 读出时可能是 `Date`，但 private media 搜索排序调用了 `createdAt.localeCompare`。
+- 已把新表 mapper 的 `createdAt` 统一转成 ISO string，避免接口返回 `500: t.clip.createdAt.localeCompare is not a function`。
+- 修改文件：`app/src/lib/db/merchant-media-repository.ts`
+
 当前系统存在两套尚未完全收口的媒体路径：
 
 | 路径 | 当前用途 | OSS 前缀 | 当前生产权限 | 状态 |

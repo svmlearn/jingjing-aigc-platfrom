@@ -24,7 +24,7 @@ type MerchantMediaAssetRow = {
   source: "merchant_upload" | "merchant_confirmed";
   source_storage_key: string;
   status: MerchantMediaAssetRecord["status"];
-  created_at: string;
+  created_at: string | Date;
 };
 
 type MerchantMediaClipRow = {
@@ -54,7 +54,7 @@ type MerchantMediaClipRow = {
   storage_key: string;
   thumb_storage_key: string | null;
   mime_type: string;
-  created_at: string;
+  created_at: string | Date;
 };
 
 type LegacyMaterialClipRow = {
@@ -387,7 +387,7 @@ function mapMerchantMediaAsset(row: MerchantMediaAssetRow): MerchantMediaAssetRe
     source: row.source,
     sourceStorageKey: row.source_storage_key,
     status: row.status,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
 }
 
@@ -419,7 +419,7 @@ function mapMerchantMediaClip(row: MerchantMediaClipRow): PrivateMediaClipRecord
     storageKey: row.storage_key,
     thumbStorageKey: row.thumb_storage_key,
     mimeType: row.mime_type,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
 }
 
