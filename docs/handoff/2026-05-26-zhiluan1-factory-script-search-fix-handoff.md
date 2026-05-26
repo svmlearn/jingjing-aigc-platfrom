@@ -9,7 +9,7 @@ Finish the `厂房宣传` / `zhiluan1` factory video script correction and worke
 - Branch: `codex/zhiluan1-factory-script-search-fix`
 - Base: local `main`
 - Remote target after merge: `origin/5.26-worker-fix`
-- Server release: pending
+- Server release: completed with clean release `/srv/jingjing-domestic/releases/20260526194805-aff43a4`
 
 ## What Changed
 
@@ -55,6 +55,20 @@ Completed:
 - `git diff --check`: passed, with Windows line-ending warnings only
 
 Worker checks were re-run after adding FireRed private duration-bound tests.
+
+## Release Result
+
+- Local `main` fast-forwarded to `aff43a444571`.
+- Pushed local `main` to Gitee `origin/5.26-worker-fix`; `origin/main` was not pushed.
+- Built and released from local archive `D:\codexplan\jingjing-release\jingjing-aff43a444571.tar`.
+- New server release: `/srv/jingjing-domestic/releases/20260526194805-aff43a4`.
+- `/srv/jingjing-domestic/current` points to the new release.
+- App, content worker, FireRed, OpenStoryline engine, video worker, and nginx were active after restart.
+- Health checks passed for local app, OpenStoryline `/ready`, FireRed `/api/ready`, and public `/api/health`.
+- The zhiluan1 patch was applied from the released code path after release activation.
+- DB readback confirmed 60 seconds, 6 generated scenes, 6 production scenes, and scene 5 materials `消防疏散图 楼层索引 货梯入口 电梯轿厢 管理服务站 管理处`.
+
+See `docs/progress/2026-05-26-zhiluan1-factory-script-search-fix-release.md` for the release log.
 
 ## Release Procedure
 
