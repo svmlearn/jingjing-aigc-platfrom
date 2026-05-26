@@ -1827,7 +1827,7 @@ function buildConversationHistoryMessages(state: ConsultationAgentLoopState): Ch
 function buildPhaseRuntimeRules(phase: ConsultationModelMessagePhase) {
   const sharedRules = [
     "当前用户消息是消息数组最后一条 role=user；runtime context 只是自动上下文，不是用户原话。",
-    "回答时可以使用 strategySnapshotContext、contentCalendarContext 和 selectedRetrievalContext 里的受控信息；如果信息不足，可以提出一个最关键的追问。",
+    "回答时可以使用 merchantIdentityContext、merchantBusinessFactsContext、outputStyleConstraints、safetyLanguageConstraints、strategySnapshotContext、contentCalendarContext 和 selectedRetrievalContext 里的受控信息；如果信息不足，可以提出一个最关键的追问。",
     "当 selectedRetrievalContext 已包含用户知识库或素材片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
     "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshotContext 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
   ];

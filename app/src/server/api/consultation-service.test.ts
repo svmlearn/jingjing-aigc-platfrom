@@ -632,9 +632,12 @@ test("consultation model messages split runtime context from current user messag
   assert.doesNotMatch(serviceSource, /userMessage: input\.state\.userContent/);
 });
 
-test("consultation runtime context message carries profile strategy calendar and retrieval context", () => {
+test("consultation runtime context message carries split merchant profile strategy calendar and retrieval context", () => {
   assert.match(consultationRuntimeSource, /buildConsultationRuntimeContextMessage/);
-  assert.match(consultationRuntimeSource, /merchantProfileContext/);
+  assert.match(consultationRuntimeSource, /merchantIdentityContext/);
+  assert.match(consultationRuntimeSource, /merchantBusinessFactsContext/);
+  assert.match(consultationRuntimeSource, /outputStyleConstraints/);
+  assert.match(consultationRuntimeSource, /safetyLanguageConstraints/);
   assert.match(consultationRuntimeSource, /strategySnapshotContext/);
   assert.match(consultationRuntimeSource, /contentCalendarContext/);
   assert.match(consultationRuntimeSource, /selectedRetrievalContext/);
@@ -647,6 +650,24 @@ test("consultation runtime context message carries profile strategy calendar and
   assert.doesNotMatch(runtimeContextMessageBuilderSource, /summaryText/);
   assert.doesNotMatch(runtimeContextMessageBuilderSource, /recentMessages/);
   assert.doesNotMatch(runtimeContextMessageBuilderSource, /currentSuggestion/);
+});
+
+test("merchant profile context is slimmed into facts style and safety sections", () => {
+  assert.match(consultationRuntimeSource, /function buildMerchantIdentityContext/);
+  assert.match(consultationRuntimeSource, /function buildMerchantBusinessFactsContext/);
+  assert.match(consultationRuntimeSource, /function buildOutputStyleConstraints/);
+  assert.match(consultationRuntimeSource, /function buildSafetyLanguageConstraints/);
+  assert.match(runtimeContextMessageBuilderSource, /# merchantIdentityContext/);
+  assert.match(runtimeContextMessageBuilderSource, /# merchantBusinessFactsContext/);
+  assert.match(runtimeContextMessageBuilderSource, /# outputStyleConstraints/);
+  assert.match(runtimeContextMessageBuilderSource, /# safetyLanguageConstraints/);
+  assert.match(consultationRuntimeSource, /buildBudgetBucket\("merchantIdentityContext"/);
+  assert.match(consultationRuntimeSource, /buildBudgetBucket\("merchantBusinessFactsContext"/);
+  assert.match(consultationRuntimeSource, /buildBudgetBucket\("outputStyleConstraints"/);
+  assert.match(consultationRuntimeSource, /buildBudgetBucket\("safetyLanguageConstraints"/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /# merchantProfileContext/);
+  assert.doesNotMatch(runtimeContextMessageBuilderSource, /merchantId: input\.state\.merchant\.id/);
+  assert.doesNotMatch(consultationRuntimeSource, /buildBudgetBucket\("merchant", input\.merchant/);
 });
 
 test("consultation runtime context hides internal calendar generation fields", () => {

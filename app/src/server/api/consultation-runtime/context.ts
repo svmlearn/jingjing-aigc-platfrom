@@ -177,6 +177,10 @@ export function buildConsultationContextInjection(input: {
     input.strategyMarkdown ?? "",
   );
   const contentCalendarContext = buildContentCalendarContext(input.strategySnapshot);
+  const merchantIdentityContext = buildMerchantIdentityContext(input.merchant);
+  const merchantBusinessFactsContext = buildMerchantBusinessFactsContext(input.merchant);
+  const outputStyleConstraints = buildOutputStyleConstraints(input.merchant);
+  const safetyLanguageConstraints = buildSafetyLanguageConstraints(input.merchant);
   const budget = buildContextBudgetReport({
     merchant: input.merchant,
     strategySnapshot: input.strategySnapshot,
@@ -216,8 +220,10 @@ export function buildConsultationContextInjection(input: {
         }
       : null,
     sessionContext: {
-      merchantId: input.merchant.id,
-      merchantName: input.merchant.name,
+      merchantIdentityContext,
+      merchantBusinessFactsContext,
+      outputStyleConstraints,
+      safetyLanguageConstraints,
       latestUserMessage: input.userContent,
       strategyAsset,
       contentCalendarContext: {
@@ -252,13 +258,20 @@ export function buildContextBudgetReport(input: {
   sharedConsultationState?: SharedConsultationState | null;
   expertTurnNotes?: ExpertTurnNote[];
 }): ContextBudgetReport {
+  const merchantIdentityContext = buildMerchantIdentityContext(input.merchant);
+  const merchantBusinessFactsContext = buildMerchantBusinessFactsContext(input.merchant);
+  const outputStyleConstraints = buildOutputStyleConstraints(input.merchant);
+  const safetyLanguageConstraints = buildSafetyLanguageConstraints(input.merchant);
   const strategyAsset = buildStrategyAssetSnapshot(
     input.strategySnapshot,
     input.strategyMarkdown ?? "",
   );
   const contentCalendarContext = buildContentCalendarContext(input.strategySnapshot);
   const buckets = [
-    buildBudgetBucket("merchant", input.merchant, 1600),
+    buildBudgetBucket("merchantIdentityContext", merchantIdentityContext, 400),
+    buildBudgetBucket("merchantBusinessFactsContext", merchantBusinessFactsContext, 1400),
+    buildBudgetBucket("outputStyleConstraints", outputStyleConstraints, 700),
+    buildBudgetBucket("safetyLanguageConstraints", safetyLanguageConstraints, 700),
     buildBudgetBucket("strategyAsset", strategyAsset, 3200),
     buildBudgetBucket("contentCalendarContext", contentCalendarContext, 2600),
     buildBudgetBucket("currentUserMessage", input.userContent, 1000),
@@ -320,7 +333,10 @@ export function buildConsultationSlimContextPack(input: {
     allKnowledgeMatchCount: input.knowledgeMatches.length,
   });
   const included = [
-    "merchantProfileContext",
+    "merchantIdentityContext",
+    "merchantBusinessFactsContext",
+    "outputStyleConstraints",
+    "safetyLanguageConstraints",
     "expertRoutingContext",
     "strategySnapshotContext",
     "contentCalendarContext",
@@ -631,6 +647,10 @@ export function buildConsultationRuntimeContextMessage(input: {
   contextPack: ConsultationSlimContextPack;
   toolResults: ConsultationAgentToolResult[];
 }) {
+  const merchantIdentityContext = buildMerchantIdentityContext(input.state.merchant);
+  const merchantBusinessFactsContext = buildMerchantBusinessFactsContext(input.state.merchant);
+  const outputStyleConstraints = buildOutputStyleConstraints(input.state.merchant);
+  const safetyLanguageConstraints = buildSafetyLanguageConstraints(input.state.merchant);
   const strategyAsset = buildStrategyAssetSnapshot(
     input.state.strategySnapshot,
     input.state.strategyMarkdown,
@@ -641,18 +661,14 @@ export function buildConsultationRuntimeContextMessage(input: {
 
   return [
     "<consultation-runtime-context policy=\"consultation_runtime_context_message_v1\">",
-    "# merchantProfileContext",
-    JSON.stringify({
-      merchantId: input.state.merchant.id,
-      name: input.state.merchant.name,
-      industry: input.state.merchant.industry,
-      serviceItems: input.state.merchant.serviceItems,
-      brandSummary: input.state.merchant.brandSummary,
-      regionSummary: input.state.merchant.regionSummary,
-      toneStyle: input.state.merchant.toneStyle,
-      defaultCta: input.state.merchant.defaultCta,
-      forbiddenWords: input.state.merchant.forbiddenWords,
-    }),
+    "# merchantIdentityContext",
+    JSON.stringify(merchantIdentityContext),
+    "# merchantBusinessFactsContext",
+    JSON.stringify(merchantBusinessFactsContext),
+    "# outputStyleConstraints",
+    JSON.stringify(outputStyleConstraints),
+    "# safetyLanguageConstraints",
+    JSON.stringify(safetyLanguageConstraints),
     "# expertRoutingContext",
     JSON.stringify({
       mentionRouting: {
@@ -1026,9 +1042,6 @@ export function buildSharedConsultationState(input: {
         input.merchant.serviceItems.length > 0
           ? `服务项目：${input.merchant.serviceItems.join("、")}`
           : "",
-        input.merchant.defaultCta.length > 0
-          ? `默认 CTA：${input.merchant.defaultCta.join("、")}`
-          : "",
       ]
         .filter(Boolean)
         .join("；"),
@@ -1049,6 +1062,34 @@ export function buildSharedConsultationState(input: {
         .join(" "),
       700,
     ),
+  };
+}
+
+function buildMerchantIdentityContext(merchant: MerchantProfileDto) {
+  return {
+    name: merchant.name,
+  };
+}
+
+function buildMerchantBusinessFactsContext(merchant: MerchantProfileDto) {
+  return {
+    industry: merchant.industry ?? null,
+    serviceItems: merchant.serviceItems.slice(0, 12),
+    brandSummary: merchant.brandSummary ? clipText(merchant.brandSummary, 700) : null,
+    regionSummary: merchant.regionSummary ? clipText(merchant.regionSummary, 500) : null,
+  };
+}
+
+function buildOutputStyleConstraints(merchant: MerchantProfileDto) {
+  return {
+    toneStyle: merchant.toneStyle ? clipText(merchant.toneStyle, 360) : null,
+    defaultCta: merchant.defaultCta.slice(0, 6).map((item) => clipText(item, 120)),
+  };
+}
+
+function buildSafetyLanguageConstraints(merchant: MerchantProfileDto) {
+  return {
+    forbiddenWords: merchant.forbiddenWords.slice(0, 40).map((item) => clipText(item, 80)),
   };
 }
 
