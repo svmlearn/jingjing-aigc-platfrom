@@ -24,6 +24,10 @@ ALLOWED_VIDEO_JOB_STATUSES = frozenset(
     }
 )
 FAILURE_VIDEO_JOB_STATUSES = frozenset({"failed_retryable", "failed_manual"})
+TERMINAL_VIDEO_JOB_STATUSES = frozenset(
+    {"cancelled", "succeeded", "failed_retryable", "failed_manual"}
+)
+PROGRESS_VIDEO_JOB_STATUSES = frozenset({"queued", "preparing", "running"})
 
 
 def validate_video_job_status(
@@ -331,9 +335,25 @@ class VideoJobRepository:
         log_payload: dict[str, Any] | None = None,
     ) -> None:
         validate_video_job_status(status)
+        terminal_guard = (
+            "and status <> all(%s)"
+            if status in PROGRESS_VIDEO_JOB_STATUSES
+            else ""
+        )
+        params: list[Any] = [
+            status,
+            current_stage,
+            progress_pct,
+            Jsonb(runtime_payload) if runtime_payload is not None else None,
+            Jsonb(log_payload) if log_payload is not None else None,
+            self._worker_id,
+            job_id,
+        ]
+        if terminal_guard:
+            params.append(list(TERMINAL_VIDEO_JOB_STATUSES))
         with self._connect() as connection, connection.cursor() as cursor:
             cursor.execute(
-                """
+                f"""
                 update video_edit_jobs
                 set status = %s,
                     current_stage = %s,
@@ -344,16 +364,9 @@ class VideoJobRepository:
                     worker_id = coalesce(worker_id, %s),
                     updated_at = timezone('utc', now())
                 where id = %s
+                  {terminal_guard}
                 """,
-                (
-                    status,
-                    current_stage,
-                    progress_pct,
-                    Jsonb(runtime_payload) if runtime_payload is not None else None,
-                    Jsonb(log_payload) if log_payload is not None else None,
-                    self._worker_id,
-                    job_id,
-                ),
+                params,
             )
 
     def mark_succeeded(

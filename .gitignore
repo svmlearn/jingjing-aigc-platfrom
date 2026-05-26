@@ -44,6 +44,7 @@ temp/
 .tmp/
 .cache/
 .worktrees/
+/jingjing-*.tar
 
 # Local reference copies of third-party projects.
 # Do not vendor local reference projects or indexes to GitHub.

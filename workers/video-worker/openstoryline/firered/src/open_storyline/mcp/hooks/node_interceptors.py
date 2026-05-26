@@ -222,9 +222,15 @@ def _normalize_scene_query(value: Any) -> str:
 
 
 def _worker_material_context(worker_payload: Any) -> dict[str, Any]:
+    if not isinstance(worker_payload, dict):
+        return {}
     return (
         _get_nested_dict(worker_payload, "material_context")
         or _get_nested_dict(worker_payload, "materialContext")
+        or _get_nested_dict(worker_payload, "production_directive", "material_context")
+        or _get_nested_dict(worker_payload, "production_directive", "materialContext")
+        or _get_nested_dict(worker_payload, "productionDirective", "material_context")
+        or _get_nested_dict(worker_payload, "productionDirective", "materialContext")
     )
 
 
@@ -237,27 +243,70 @@ def _worker_scene_asset_queries(worker_payload: Any) -> list[dict[str, Any]]:
     for index, item in enumerate(scene_queries):
         if not isinstance(item, dict):
             continue
-        query = str(item.get("query") or "").strip()
+        query = str(
+            item.get("query")
+            or item.get("search_keyword")
+            or item.get("searchKeyword")
+            or item.get("visualRequirement")
+            or item.get("visual_requirement")
+            or item.get("fallbackShot")
+            or item.get("fallback_shot")
+            or ""
+        ).strip()
         if not query:
             continue
+        source_role = str(item.get("sourceRole") or item.get("source_role") or "").strip()
+        if source_role == "user_talking_head":
+            continue
+        scene_no = item.get("sceneNo") or item.get("scene_no") or index + 1
+        try:
+            scene_no = int(scene_no)
+        except Exception:
+            scene_no = index + 1
         out.append(
             {
                 "index": index,
-                "scene_no": item.get("sceneNo") or item.get("scene_no") or index + 1,
+                "scene_no": scene_no,
+                "sceneNo": scene_no,
                 "query": query,
-                "source_role": str(item.get("sourceRole") or item.get("source_role") or "").strip(),
+                "source_role": source_role,
+                "sourceRole": source_role or "merchant_broll",
             }
         )
     return out
 
 
+def _worker_payload_has_locked_script(worker_payload: Any) -> bool:
+    if not isinstance(worker_payload, dict):
+        return False
+    production_directive = (
+        _get_nested_dict(worker_payload, "production_directive")
+        or _get_nested_dict(worker_payload, "productionDirective")
+    )
+    if production_directive and (
+        production_directive.get("script_locked") is True
+        or production_directive.get("scriptLocked") is True
+    ):
+        return True
+    script_text = (
+        worker_payload.get("script_text")
+        or worker_payload.get("scriptText")
+        or production_directive.get("script_text")
+        or production_directive.get("scriptText")
+    )
+    return isinstance(script_text, str) and bool(script_text.strip())
+
+
 def _worker_locked_script_scene_count(worker_payload: Any) -> int:
     if not isinstance(worker_payload, dict):
         return 0
-    production_directive = _get_nested_dict(worker_payload, "production_directive")
-    script_text = worker_payload.get("script_text")
+    production_directive = (
+        _get_nested_dict(worker_payload, "production_directive")
+        or _get_nested_dict(worker_payload, "productionDirective")
+    )
+    script_text = worker_payload.get("script_text") or worker_payload.get("scriptText")
     if not isinstance(script_text, str) or not script_text.strip():
-        script_text = production_directive.get("script_text")
+        script_text = production_directive.get("script_text") or production_directive.get("scriptText")
     if not isinstance(script_text, str) or not script_text.strip():
         return 0
     return len(_extract_locked_script_sections(script_text))
@@ -265,7 +314,11 @@ def _worker_locked_script_scene_count(worker_payload: Any) -> int:
 
 def _worker_required_scene_count(worker_payload: Any) -> int:
     scene_count = len(_worker_scene_asset_queries(worker_payload))
-    locked_script_count = _worker_locked_script_scene_count(worker_payload)
+    locked_script_count = (
+        _worker_locked_script_scene_count(worker_payload)
+        if scene_count == 0
+        else 0
+    )
     return max(scene_count, locked_script_count)
 
 
@@ -941,10 +994,111 @@ def _search_media_paths_from_payload(payload: Any) -> list[str]:
     return out
 
 
-def _ensure_worker_required_group_count(node_id: str, args: Any, context: Any) -> None:
+def _search_media_payload_keyword(payload: Any) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    for key in ("search_keyword", "searchKeyword"):
+        query = _normalize_scene_query(payload.get(key))
+        if query:
+            return query
+    scene_search = payload.get("scene_search") or payload.get("sceneSearch")
+    if isinstance(scene_search, dict):
+        for key in ("search_keyword", "searchKeyword", "query"):
+            query = _normalize_scene_query(scene_search.get(key))
+            if query:
+                return query
+    worker_scene_search = payload.get("_worker_scene_search")
+    if isinstance(worker_scene_search, dict):
+        for key in ("normalized_query", "query"):
+            query = _normalize_scene_query(worker_scene_search.get(key))
+            if query:
+                return query
+    return ""
+
+
+def _iter_search_media_metas(store: Any, *, session_id: str) -> list[Any]:
+    get_metas = getattr(store, "get_metas", None)
+    if callable(get_metas):
+        metas = get_metas(node_id="search_media", session_id=session_id)
+        if isinstance(metas, list):
+            return sorted(
+                [meta for meta in metas if meta],
+                key=lambda meta: getattr(meta, "created_at", 0),
+            )
+    latest = store.get_latest_meta(node_id="search_media", session_id=session_id)
+    return [latest] if latest else []
+
+
+def _load_search_media_payloads(store: Any, *, session_id: str) -> list[dict[str, Any]]:
+    payloads: list[dict[str, Any]] = []
+    for meta in _iter_search_media_metas(store, session_id=session_id):
+        try:
+            _, data = store.load_result(meta.artifact_id)
+        except Exception:
+            continue
+        if isinstance(data, dict) and isinstance(data.get("payload"), dict):
+            payloads.append(data["payload"])
+    return payloads
+
+
+def _missing_worker_scene_searches(
+    worker_payload: Any,
+    search_payloads: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not _worker_payload_has_locked_script(worker_payload):
+        return []
+    scene_queries = _worker_scene_asset_queries(worker_payload)
+    if not scene_queries:
+        return []
+    searched_queries = {
+        query for payload in search_payloads
+        if (query := _search_media_payload_keyword(payload))
+    }
+    return [
+        scene for scene in scene_queries
+        if _normalize_scene_query(scene.get("query")) not in searched_queries
+    ]
+
+
+def _ensure_worker_scene_search_coverage(
+    context: Any,
+    store: Any,
+    *,
+    session_id: str,
+) -> None:
+    worker_payload = getattr(context, "worker_payload", None)
+    missing = _missing_worker_scene_searches(
+        worker_payload,
+        _load_search_media_payloads(store, session_id=session_id),
+    )
+    if not missing:
+        return
+    first = missing[0]
+    details = ", ".join(
+        f"sceneNo={item.get('sceneNo')} query={item.get('query')}"
+        for item in missing
+    )
+    raise ToolException(
+        "scene_search_required: call tool search_media with args "
+        f'{{"search_keyword": "{first.get("query")}"}} before continuing; '
+        f"missing={details}"
+    )
+
+
+def _ensure_worker_required_group_count(*params: Any) -> None:
+    if len(params) == 2:
+        node_id = "generate_script"
+        args, context = params
+    elif len(params) == 3:
+        node_id, args, context = params
+    else:
+        return
     if node_id != "generate_script" or not isinstance(args, dict):
         return
     worker_payload = getattr(context, "worker_payload", None)
+    if not _worker_payload_has_locked_script(worker_payload):
+        return
+    scene_queries = _worker_scene_asset_queries(worker_payload)
     required_scene_count = _worker_required_scene_count(worker_payload)
     if required_scene_count <= 0:
         return
@@ -952,9 +1106,15 @@ def _ensure_worker_required_group_count(node_id: str, args: Any, context: Any) -
     group_count = len(groups) if isinstance(groups, list) else 0
     if group_count >= required_scene_count:
         return
+    missing = scene_queries[group_count:] if scene_queries else []
+    details = ", ".join(
+        f"sceneNo={item.get('sceneNo')} query={item.get('query')}"
+        for item in missing
+    )
+    details_suffix = f"; missing={details}" if details else ""
     raise ToolException(
         "scene_material_insufficient: group_clips produced fewer groups than required scenes; "
-        f"required_scene_count={required_scene_count}, group_count={group_count}"
+        f"required_scene_count={required_scene_count}, group_count={group_count}{details_suffix}"
     )
 
 
@@ -1138,6 +1298,11 @@ class ToolInterceptor:
                     input_data[collect_kind] = prior_node_output['payload']
 
             if node_id == 'load_media':
+                _ensure_worker_scene_search_coverage(
+                    context,
+                    store,
+                    session_id=session_id,
+                )
                 input_data['inputs'] = []
                 seen_paths: set = set()
                 media_dir = Path(context.media_dir)
@@ -1182,36 +1347,34 @@ class ToolInterceptor:
                             })
                 # Path-only mode: include all auto-searched media from .storyline/.server_cache so they are readable
                 if not inline_base64:
-                    if hasattr(store, "get_metas"):
-                        search_metas = store.get_metas(node_id='search_media', session_id=session_id)
-                    else:
-                        latest_search = store.get_latest_meta(node_id='search_media', session_id=session_id)
-                        search_metas = [latest_search] if latest_search else []
-                    search_metas = sorted(
-                        [meta for meta in search_metas if meta],
-                        key=lambda meta: getattr(meta, "created_at", 0),
-                    )
-                    for search_meta in search_metas:
-                        _, data = store.load_result(search_meta.artifact_id)
-                        if isinstance(data, dict):
-                            paths = data.get('payload', {}).get('search_media') or []
-                            for p in paths:
-                                # search_media returns a list of {"path": "..."} dicts (and may
-                                # also return list[str] in older versions); support both.
-                                if isinstance(p, dict):
-                                    p = p.get("path")
-                                if not p or not isinstance(p, str):
-                                    continue
-                                norm = str(Path(p).resolve()) if not os.path.isabs(p) else p
-                                if norm in seen_paths:
-                                    continue
-                                seen_paths.add(norm)
-                                input_data['inputs'].append({
-                                    "path": p,
-                                    "orig_path": p,
-                                    "orig_md5": None,
-                                })
+                    for search_payload in _load_search_media_payloads(
+                        store,
+                        session_id=session_id,
+                    ):
+                        paths = search_payload.get('search_media') or []
+                        for p in paths:
+                            # search_media returns a list of {"path": "..."} dicts (and may
+                            # also return list[str] in older versions); support both.
+                            if isinstance(p, dict):
+                                p = p.get("path")
+                            if not p or not isinstance(p, str):
+                                continue
+                            norm = str(Path(p).resolve()) if not os.path.isabs(p) else p
+                            if norm in seen_paths:
+                                continue
+                            seen_paths.add(norm)
+                            input_data['inputs'].append({
+                                "path": p,
+                                "orig_path": p,
+                                "orig_md5": None,
+                            })
             elif node_id in list(meta_collector.id_to_tool.keys()):
+                if node_id != "search_media":
+                    _ensure_worker_scene_search_coverage(
+                        context,
+                        store,
+                        session_id=session_id,
+                    )
                 # 1. Determine execution mode and dependency requirements
                 _reject_worker_filter_clips_fallback(node_id, request.args, context)
                 is_skip_mode = request.args.get('mode', 'auto') != 'auto'

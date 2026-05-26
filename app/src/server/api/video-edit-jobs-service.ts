@@ -20,6 +20,7 @@ import {
   getMaterialLibraryItemById,
   listMaterialWorkbenchReferencesByDraft,
 } from "@/lib/db/material-library-repository";
+import { getDailyContentTaskById } from "@/lib/db/daily-content-task-repository";
 import { materialMatchesRetrievalTarget } from "@/lib/material-routing";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import {
@@ -79,6 +80,13 @@ export async function createVideoEditJobForUser(input: {
     merchantId: variant.merchantId,
     variant,
   });
+  const dailyTaskId = await resolveAndValidateDailyTaskId({
+    userId: input.userId,
+    merchantId: executableVariant.merchantId,
+    draftId: executableVariant.draftId,
+    variant: executableVariant,
+    requestDailyTaskId: input.request.dailyTaskId ?? null,
+  });
   const inputPayload = await buildServerManagedInputPayload({
     userId: input.userId,
     merchantId: executableVariant.merchantId,
@@ -86,6 +94,7 @@ export async function createVideoEditJobForUser(input: {
     variant: executableVariant,
     inputAssetIds: input.request.inputAssetIds ?? null,
     productionConfig: input.request.productionConfig ?? null,
+    dailyTaskId,
   });
   const runtimePayload = {
     engine_adapter: "fire_red",
@@ -372,6 +381,7 @@ async function buildServerManagedInputPayload(input: {
   variant: VideoJobPayloadVariant;
   inputAssetIds: CreateVideoEditJobRequest["inputAssetIds"];
   productionConfig: CreateVideoEditJobRequest["productionConfig"];
+  dailyTaskId: string | null;
 }) {
   if (isPostgresVideoChainEnabled() || !isSupabaseAdminConfigured()) {
     const allAssets = isLocalRealChainEnabled()
@@ -396,7 +406,7 @@ async function buildServerManagedInputPayload(input: {
       requireUserTalkingHead: variantRequiresUserTalkingHead(input.variant),
       productionConfig: input.productionConfig,
     });
-    payload.materialContext.dailyTaskId = firstString(input.variant.metadata?.dailyTaskId) ?? null;
+    payload.materialContext.dailyTaskId = input.dailyTaskId;
     payload.materialContext.memberUserId = input.userId;
     return attachVoiceProfileReference({
       userId: input.userId,
@@ -439,13 +449,64 @@ async function buildServerManagedInputPayload(input: {
     requireUserTalkingHead: variantRequiresUserTalkingHead(input.variant),
     productionConfig: input.productionConfig,
   });
-  payload.materialContext.dailyTaskId = firstString(input.variant.metadata?.dailyTaskId) ?? null;
+  payload.materialContext.dailyTaskId = input.dailyTaskId;
   payload.materialContext.memberUserId = input.userId;
   return attachVoiceProfileReference({
     userId: input.userId,
     merchantId: input.merchantId,
     payload,
   });
+}
+
+async function resolveAndValidateDailyTaskId(input: {
+  userId: string;
+  merchantId: string;
+  draftId: string;
+  variant: VideoJobPayloadVariant & {
+    inputSnapshot?: Record<string, unknown> | null;
+  };
+  requestDailyTaskId?: string | null;
+}) {
+  const resolvedDailyTaskId =
+    firstString(
+      input.requestDailyTaskId,
+      input.variant.metadata?.dailyTaskId,
+      input.variant.inputSnapshot?.dailyTaskId,
+      input.variant.inputSnapshot?.scriptCopyProvenance &&
+        typeof input.variant.inputSnapshot.scriptCopyProvenance === "object"
+        ? (input.variant.inputSnapshot.scriptCopyProvenance as Record<string, unknown>).targetDailyTaskId
+        : null,
+    ) ?? null;
+
+  if (!resolvedDailyTaskId) {
+    return null;
+  }
+
+  const dailyTask = await getDailyContentTaskById({
+    merchantId: input.merchantId,
+    userId: input.userId,
+    taskId: resolvedDailyTaskId,
+  });
+  const videoTask = dailyTask.videoTask;
+  if (videoTask.contentDraftId && videoTask.contentDraftId !== input.draftId) {
+    throw new ApiError(
+      409,
+      "VIDEO_DAILY_TASK_DRAFT_MISMATCH",
+      "Daily task does not match the current video draft.",
+    );
+  }
+  if (
+    videoTask.contentVariantId &&
+    videoTask.contentVariantId !== input.variant.contentVariantId
+  ) {
+    throw new ApiError(
+      409,
+      "VIDEO_DAILY_TASK_VARIANT_MISMATCH",
+      "Daily task does not match the current video script.",
+    );
+  }
+
+  return dailyTask.id;
 }
 
 function variantRequiresUserTalkingHead(variant: VideoJobPayloadVariant) {

@@ -535,6 +535,7 @@ const productionConfigSchema = z
 
 export const createVideoEditJobSchema = z.object({
   contentVariantId: z.uuid(),
+  dailyTaskId: z.uuid().nullish(),
   instructionText: z.string().trim().max(4000).nullish(),
   inputAssetIds: z.array(z.uuid()).max(100).nullish(),
   inputPayload: z.never().optional(),

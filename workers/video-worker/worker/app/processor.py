@@ -388,6 +388,18 @@ def _openstoryline_failure_module_key(exc: EngineRunError) -> str:
     return "material_match"
 
 
+def _openstoryline_failure_code(exc: EngineRunError) -> str:
+    if "scene_material_insufficient" in str(exc):
+        return "scene_material_insufficient"
+    return "engine_run_failed"
+
+
+def _openstoryline_failure_status(exc: EngineRunError) -> str:
+    if _openstoryline_failure_code(exc) == "scene_material_insufficient":
+        return "failed_manual"
+    return "failed_retryable"
+
+
 def _openstoryline_result_payload(
     raw_response: dict[str, Any],
     production_config: dict[str, Any],
@@ -2136,11 +2148,12 @@ class JobProcessor:
             return
         except EngineRunError as exc:
             failed_module_key = _openstoryline_failure_module_key(exc)
+            failure_code = _openstoryline_failure_code(exc)
             log_payload["steps"].append(
                 {
                     "stage": "openstoryline_rendering",
                     "status": "failed",
-                    "failure_code": "engine_run_failed",
+                    "failure_code": failure_code,
                     "error": str(exc),
                     "active_module": failed_module_key,
                     "openstoryline_progress": exc.progress_event,
@@ -2149,7 +2162,7 @@ class JobProcessor:
             self._repository.mark_failed(
                 job.id,
                 current_stage="openstoryline_rendering_failed",
-                failure_reason=f"engine_run_failed: {exc}",
+                failure_reason=f"{failure_code}: {exc}",
                 log_payload={
                     **_annotate_failure_log(
                         log_payload,
@@ -2164,7 +2177,7 @@ class JobProcessor:
                         production_config=directive.production_config,
                     ),
                 },
-                status="failed_retryable",
+                status=_openstoryline_failure_status(exc),
             )
             raise
         except OutputUploadError as exc:

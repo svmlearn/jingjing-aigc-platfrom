@@ -443,16 +443,14 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertEqual("minimax", payload["production_config"]["voiceover"]["provider"])
             self.assertEqual("light upbeat", payload["production_config"]["bgm"]["user_request"])
             self.assertEqual("minimax", payload["service_config"]["tts"]["provider"])
-            self.assertIn("unattended background worker run", payload["prompt"])
-            self.assertIn("Approval to execute has already been granted", payload["prompt"])
-            self.assertIn("Do not ask for confirmation", payload["prompt"])
-            self.assertIn("uploaded media does not visually cover the full locked script", payload["prompt"])
-            self.assertIn("call search_media to find additional material", payload["prompt"])
-            self.assertIn("Do not rewrite the locked script", payload["prompt"])
-            self.assertIn("The final step must produce a render_video artifact.", payload["prompt"])
+            self.assertIn("视频剪辑任务调度 Agent", payload["prompt"])
+            self.assertIn("search_media", payload["prompt"])
+            self.assertIn("search_media.search_keyword", payload["prompt"])
+            self.assertIn("load_media", payload["prompt"])
+            self.assertIn("generate_voiceover", payload["prompt"])
+            self.assertIn("select_bgm", payload["prompt"])
+            self.assertIn("render_video artifact", payload["prompt"])
             self.assertNotIn("official Pexels", payload["prompt"])
-            self.assertNotIn("scene_material_insufficient", payload["prompt"])
-            self.assertNotIn("search_keyword", payload["prompt"])
             self.assertNotIn("per_page", payload["prompt"])
             self.assertNotIn("Required production nodes", payload["prompt"])
             pexels = payload["service_config"]["search_media"]["pexels"]
@@ -529,8 +527,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertEqual("light upbeat", payload["production_config"]["bgm"]["user_request"])
             self.assertEqual("minimax", payload["service_config"]["tts"]["provider"])
             self.assertEqual("minimax-secret", payload["service_config"]["tts"]["minimax"]["api_key"])
-            self.assertNotIn("generate_voiceover", payload["prompt"])
-            self.assertNotIn("select_bgm", payload["prompt"])
+            self.assertIn("generate_voiceover", payload["prompt"])
+            self.assertIn("select_bgm", payload["prompt"])
 
     def test_fire_red_payload_contains_cloud_asr_service_config(self):
         settings = Settings(
@@ -724,7 +722,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
                 "script_audio_alignment",
                 payload["production_config"]["subtitles"]["talking_head_source"],
             )
-            self.assertNotIn("lip_sync", payload["prompt"])
+            self.assertIn("lip_sync", payload["prompt"])
+            self.assertIn("render_video artifact", payload["prompt"])
             self.assertNotIn("render_video must consume", payload["prompt"])
 
     def test_fire_red_payload_includes_lip_sync_service_config(self):
