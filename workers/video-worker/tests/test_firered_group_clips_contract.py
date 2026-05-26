@@ -153,6 +153,28 @@ class GroupClipsContractTests(unittest.TestCase):
         self.assertEqual(5, len(result))
         self.assertEqual(["clip_0002", "clip_0003"], result[1]["clip_ids"])
 
+    def test_normalize_groups_drops_duplicate_clip_ids_across_groups(self):
+        module = _load_group_clips_module()
+
+        result = module._normalize_groups_from_llm(
+            groups_raw=[
+                {
+                    "group_id": "group_a",
+                    "summary": "Scene 1",
+                    "clip_ids": ["clip_0001", "clip_0002"],
+                },
+                {
+                    "group_id": "group_b",
+                    "summary": "Scene 2",
+                    "clip_ids": ["clip_0002", "clip_0003"],
+                },
+            ],
+            selected_ids_set={"clip_0001", "clip_0002", "clip_0003"},
+        )
+
+        self.assertEqual(["clip_0001", "clip_0002"], result[0]["clip_ids"])
+        self.assertEqual(["clip_0003"], result[1]["clip_ids"])
+
 
 if __name__ == "__main__":
     unittest.main()

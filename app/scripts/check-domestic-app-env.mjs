@@ -13,6 +13,9 @@ const requiredAliyunOssEnv = [
   "ALIYUN_OSS_REGION",
   "ALIYUN_OSS_ENDPOINT",
 ];
+const requiredPrivateMediaEnv = [
+  "PRIVATE_MEDIA_DOWNLOAD_TOKEN_SECRET",
+];
 const requiredTables = [
   "app_users",
   "user_sessions",
@@ -46,6 +49,13 @@ checks.push({
 });
 
 for (const name of requiredAliyunOssEnv) {
+  checks.push({
+    name,
+    status: process.env[name]?.trim() ? "ok" : "missing",
+  });
+}
+
+for (const name of requiredPrivateMediaEnv) {
   checks.push({
     name,
     status: process.env[name]?.trim() ? "ok" : "missing",

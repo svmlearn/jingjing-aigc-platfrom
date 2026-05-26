@@ -19,7 +19,10 @@ import {
 
 export type VideoEditJobListFilters = {
   status?: VideoEditJobStatus;
+  state?: "in_flight";
   createdByUserId?: string | null;
+  dailyTaskId?: string | null;
+  contentVariantId?: string | null;
   limit?: number;
 };
 

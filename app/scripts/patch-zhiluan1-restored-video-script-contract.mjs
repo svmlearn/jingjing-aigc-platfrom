@@ -6,7 +6,7 @@ import { loadEnvFileFromArgs } from "./lib/env-file.mjs";
 
 const { Client } = pg;
 
-const target = {
+const defaultTarget = {
   merchantId: "e7c94a17-cf7d-4eb2-8178-13daa780551a",
   memberUserId: "0b3351a6-778b-4e79-b5f1-6aa18fdb0020",
   dailyTaskId: "39946899-d5ec-45a1-9203-18799554da24",
@@ -21,6 +21,7 @@ const target = {
   restoredFromTaskDate: "2026-05-22",
   restoredForTaskDate: "2026-05-23",
 };
+let target = defaultTarget;
 
 const auditVersion = "zhiluan1-restored-video-script-contract-20260523";
 const normalFlowReference =
@@ -28,70 +29,76 @@ const normalFlowReference =
 const factoryScriptSpec = {
   title: "找厂房，别只看租金",
   cta: "你要找工业园区厂房，建议实地来看一圈。",
-  targetDurationSeconds: 64,
+  targetDurationSeconds: 60,
   scenes: [
     {
       order: 1,
-      timeRange: "00:00-00:08",
-      durationSeconds: 8,
+      timeRange: "00:00-00:07",
+      durationSeconds: 7,
       title: "成员口播开场",
-      visual: "成员在园区现场面对镜头开场，带出看厂房不能只看租金，要先判断空间、配套和管理。",
-      spokenText: "找厂房别只看租金，先看空间能不能用、配套能不能跟上、管理是不是省心。",
+      visual: "成员在园区现场出镜，穿插园区大门、入口道路、厂房外立面。",
+      searchKeywords: ["园区入口", "园区大门", "厂房外立面", "停车通道"],
+      spokenText: "找厂房别只盯低租金。空间能不能用、动线顺不顺、配套和管理跟不跟得上，都要现场看。",
       uploadLabel: "成员开场口播",
       required: true,
     },
     {
       order: 2,
-      timeRange: "00:08-00:20",
-      durationSeconds: 12,
-      title: "厂房空间和层高",
-      visual: "呈现空置厂房空间、柱网、绿色地坪和整体层高感，让观众看到一楼主力厂房的开阔度和可用性。",
+      timeRange: "00:07-00:20",
+      durationSeconds: 13,
+      title: "一楼主力厂房空间",
+      visual: "一楼大开间、连续柱网、绿色地坪、消防管线、空间纵深。",
+      searchKeywords: ["一楼厂房大开间", "厂房柱网", "绿色地坪", "消防管线", "空间纵深"],
       spokenText:
-        "这边主力是一楼约 2000 平厂房，层高到楼板 5.56 米、到梁 5 米，空区开阔，柱网清楚，生产、仓储、轻加工都好安排。",
+        "这边主力是一楼厂房，约2000平。大开间、柱网、绿色地坪和消防管线都能看到，生产、仓储、轻加工都比较好规划。",
       uploadLabel: "",
       required: false,
     },
     {
       order: 3,
-      timeRange: "00:20-00:30",
-      durationSeconds: 10,
+      timeRange: "00:20-00:29",
+      durationSeconds: 9,
       title: "厂房基础设施",
-      visual: "呈现采光窗、消防栓、配电箱、地面标识和安全警示等基础设施，表达后期布置和改造有基础。",
+      visual: "采光窗、消防栓、配电箱、安全警示牌、消防疏散图和平面标识。",
+      searchKeywords: ["厂房采光窗", "消防栓", "配电箱", "安全警示", "消防疏散图", "平面标识"],
       spokenText:
-        "现场能看到采光窗、绿色地坪、消防栓、配电箱和安全警示，后期做办公隔断、设备布置，也有基础。",
+        "基础设施也要看细节。采光窗、消防栓、配电箱、安全警示和疏散图都有实拍，后期布置设备更有底。",
       uploadLabel: "",
       required: false,
     },
     {
       order: 4,
-      timeRange: "00:30-00:41",
-      durationSeconds: 11,
-      title: "楼上补充空间与楼层动线",
-      visual: "呈现楼上可租空间、电梯厅、玻璃门入口、走廊入口和通道，表达空间可以分区使用。",
+      timeRange: "00:29-00:38",
+      durationSeconds: 9,
+      title: "六楼补充空间",
+      visual: "六楼空置空间、绿色地坪、吊顶柱网、电梯厅、玻璃门和公共走廊。",
+      searchKeywords: ["六楼空置空间", "六楼绿色地坪", "电梯厅", "玻璃门", "公共走廊"],
       spokenText:
-        "除了主力空间，楼上还有可租补充空间，电梯厅、玻璃门入口和通道都比较清楚，适合把仓储、办公室或者配套功能分开布置。",
+        "楼上还有六楼补充空间，电梯厅、玻璃门、走廊和空置空间都清楚，适合把办公或仓储功能分开安排。",
       uploadLabel: "",
       required: false,
     },
     {
       order: 5,
-      timeRange: "00:41-00:50",
+      timeRange: "00:38-00:47",
       durationSeconds: 9,
-      title: "园区管理和公共配套",
-      visual: "呈现管理服务站、消防疏散图、厂区平面图、电梯轿厢和管理信息，表达园区管理与基础配套比较完整。",
+      title: "园区公共配套",
+      visual: "消防疏散图、楼层索引、货梯入口、电梯轿厢、管理服务站门头快切。",
+      searchKeywords: ["消防疏散图", "楼层索引", "货梯入口", "电梯轿厢", "管理服务站", "管理处"],
       spokenText:
-        "园区里面有管理服务站，消防疏散图、厂区平面图、电梯和管理信息都能看到，日常使用不用只靠口头承诺。",
+        "公共配套也有实拍：疏散图、楼层索引、货梯入口和管理服务站都能看到，现场判断更踏实。",
       uploadLabel: "",
       required: false,
     },
     {
       order: 6,
-      timeRange: "00:50-01:04",
-      durationSeconds: 14,
+      timeRange: "00:47-01:00",
+      durationSeconds: 13,
       title: "住宿生活配套与成员收尾",
-      visual: "呈现宿舍楼、公寓楼、生活区通道、电动车停放和成员面对镜头收尾，引导实地看厂。",
+      visual: "公寓楼、宿舍楼、电动车停放区、停车通道，最后回到成员出镜收尾。",
+      searchKeywords: ["公寓楼", "宿舍楼", "电动车停放", "停车通道", "厂房外立面"],
       spokenText:
-        "员工这块也有宿舍和公寓，楼下有生活区通道和电动车停放，停车、住宿、通勤会更好安排。找厂房不只是看面积和价格，更要看空间、设施、住宿和管理是不是一起到位，建议实地来看一圈。",
+        "员工这边有公寓、宿舍、电动车停放和停车通道。找厂房别只看面积和价格，空间、设施、配套、管理一起看，建议现场走一圈。",
       uploadLabel: "成员收尾口播",
       required: true,
     },
@@ -130,6 +137,7 @@ const compensatedFields = [
 loadEnvFileFromArgs();
 
 const apply = process.argv.includes("--apply");
+const patchAllMatchingFactoryTasks = process.argv.includes("--all-matching-factory-tasks");
 const databaseUrl = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
 
 if (!databaseUrl) {
@@ -145,64 +153,95 @@ try {
   await db.connect();
   await db.query("begin");
 
-  const context = await loadContext();
-  const productionScenes = buildProductionScenes(context.task.video_task);
-  const audit = buildAudit(context, productionScenes);
-  const snapshot = buildPatchedSnapshot(context, audit);
-  const teamCalendarSource = buildPatchedTeamCalendarSource(context, audit);
-  const videoTask = buildPatchedVideoTask(context.task.video_task);
-  const variantScriptText = buildVariantScriptText(videoTask.generatedVideoScript);
+  const contexts = await loadContexts();
+  const outputs = [];
+  let canonicalScriptText = "";
 
-  await db.query(
-    `
-    update public.content_drafts
-    set input_snapshot = $3::jsonb,
-        updated_at = timezone('utc', now())
-    where id = $1
-      and merchant_id = $2
-    `,
-    [target.draftId, target.merchantId, JSON.stringify(snapshot)],
-  );
+  for (const context of contexts) {
+    target = context.target;
 
-  await db.query(
-    `
-    update public.content_variants
-    set production_scenes = $3::jsonb,
-        script_text = $4,
-        title = $5,
-        cta_text = $6,
-        updated_at = timezone('utc', now())
-    where id = $1
-      and draft_id = $2
-    `,
-    [
-      target.variantId,
-      target.draftId,
-      JSON.stringify(productionScenes),
-      variantScriptText,
-      factoryScriptSpec.title,
-      factoryScriptSpec.cta,
-    ],
-  );
+    const previousScene5 = readScene(context.task.video_task, 5);
+    const productionScenes = buildProductionScenes(context.task.video_task);
+    const audit = buildAudit(context, productionScenes);
+    const snapshot = buildPatchedSnapshot(context, audit);
+    const teamCalendarSource = buildPatchedTeamCalendarSource(context, audit);
+    const videoTask = buildPatchedVideoTask(context.task.video_task);
+    const variantScriptText = buildVariantScriptText(videoTask.generatedVideoScript);
+    canonicalScriptText = canonicalScriptText || variantScriptText;
 
-  await db.query(
-    `
-    update public.daily_content_tasks
-    set team_calendar_source = $4::jsonb,
-        video_task = $5::jsonb,
-        updated_at = timezone('utc', now())
-    where id = $1
-      and merchant_id = $2
-      and user_id = $3
-    `,
-    [
-      target.dailyTaskId,
-      target.merchantId,
-      target.memberUserId,
-      JSON.stringify(teamCalendarSource),
-      JSON.stringify(videoTask),
-    ],
-  );
+    await db.query(
+      `
+      update public.content_drafts
+      set input_snapshot = $3::jsonb,
+          updated_at = timezone('utc', now())
+      where id = $1
+        and merchant_id = $2
+      `,
+      [target.draftId, target.merchantId, JSON.stringify(snapshot)],
+    );
+
+    await db.query(
+      `
+      update public.content_variants
+      set production_scenes = $3::jsonb,
+          script_text = $4,
+          title = $5,
+          cta_text = $6,
+          updated_at = timezone('utc', now())
+      where id = $1
+        and draft_id = $2
+      `,
+      [
+        target.variantId,
+        target.draftId,
+        JSON.stringify(productionScenes),
+        variantScriptText,
+        factoryScriptSpec.title,
+        factoryScriptSpec.cta,
+      ],
+    );
+
+    await db.query(
+      `
+      update public.daily_content_tasks
+      set team_calendar_source = $4::jsonb,
+          video_task = $5::jsonb,
+          updated_at = timezone('utc', now())
+      where id = $1
+        and merchant_id = $2
+        and user_id = $3
+      `,
+      [
+        target.dailyTaskId,
+        target.merchantId,
+        target.memberUserId,
+        JSON.stringify(teamCalendarSource),
+        JSON.stringify(videoTask),
+      ],
+    );
+
+    const patchedScene5 = readScene(videoTask, 5);
+    outputs.push({
+      target,
+      taskDate: readDateString(context.task.task_date, target.restoredForTaskDate),
+      status: context.task.status,
+      previousScene5: {
+        title: readString(previousScene5.title, ""),
+        materials: readStringArray(previousScene5.materials),
+        spokenText: readString(previousScene5.spokenText, readString(previousScene5.subtitle, "")),
+      },
+      patchedScene5: {
+        title: readString(patchedScene5.title, ""),
+        materials: readStringArray(patchedScene5.materials),
+        spokenText: readString(patchedScene5.spokenText, readString(patchedScene5.subtitle, "")),
+      },
+      productionSceneCount: productionScenes.length,
+      talkingHeadSceneNumbers: productionScenes
+        .filter((scene) => scene.requiresUserUpload)
+        .map((scene) => scene.sceneNo),
+      auditStatus: audit.status,
+    });
+  }
 
   if (apply) {
     await db.query("commit");
@@ -214,13 +253,10 @@ try {
     JSON.stringify(
       {
         mode: apply ? "applied" : "dry-run",
-        target,
-        audit,
-        productionSceneCount: productionScenes.length,
-        talkingHeadSceneNumbers: productionScenes
-          .filter((scene) => scene.requiresUserUpload)
-          .map((scene) => scene.sceneNo),
-        scriptText: variantScriptText,
+        patchAllMatchingFactoryTasks,
+        targetCount: outputs.length,
+        outputs,
+        scriptText: canonicalScriptText,
       },
       null,
       2,
@@ -233,7 +269,46 @@ try {
   await db.end();
 }
 
-async function loadContext() {
+async function loadContexts() {
+  if (!patchAllMatchingFactoryTasks) {
+    return [await loadContextForTarget(defaultTarget)];
+  }
+
+  const tasks = await db.query(
+    `
+    select *
+    from public.daily_content_tasks
+    where merchant_id = $1
+      and user_id = $2
+      and status = 'video_script_created'
+      and theme = '一楼厂房主推'
+      and (
+        video_task->>'title' = $3
+        or video_task #>> '{generatedVideoScript,title}' = $3
+      )
+      and (
+        team_calendar_source->>'assignmentMarker' = 'factory_member_video_assignment_20260522'
+        or team_calendar_source->>'source' = 'manual_factory_script'
+      )
+      and video_task->>'contentDraftId' is not null
+      and video_task->>'contentVariantId' is not null
+    order by task_date asc
+    `,
+    [defaultTarget.merchantId, defaultTarget.memberUserId, factoryScriptSpec.title],
+  );
+
+  if (tasks.rows.length === 0) {
+    throw new Error("No matching zhiluan1 factory video_script_created tasks were found.");
+  }
+
+  const contexts = [];
+  for (const task of tasks.rows) {
+    contexts.push(await loadContextForTask(task));
+  }
+  return contexts;
+}
+
+async function loadContextForTarget(contextTarget) {
   const task = await db.query(
     `
     select *
@@ -243,11 +318,17 @@ async function loadContext() {
       and user_id = $3
     limit 1
     `,
-    [target.dailyTaskId, target.merchantId, target.memberUserId],
+    [contextTarget.dailyTaskId, contextTarget.merchantId, contextTarget.memberUserId],
   );
   if (!task.rows[0]) {
     throw new Error("Target daily task was not found.");
   }
+
+  return loadContextForTask(task.rows[0], contextTarget);
+}
+
+async function loadContextForTask(taskRow, explicitTarget = null) {
+  const contextTarget = buildTargetFromTask(taskRow, explicitTarget);
 
   const draft = await db.query(
     `
@@ -257,10 +338,10 @@ async function loadContext() {
       and merchant_id = $2
     limit 1
     `,
-    [target.draftId, target.merchantId],
+    [contextTarget.draftId, contextTarget.merchantId],
   );
   if (!draft.rows[0]) {
-    throw new Error("Target content draft was not found.");
+    throw new Error(`Target content draft was not found: ${contextTarget.draftId}`);
   }
 
   const variant = await db.query(
@@ -272,10 +353,10 @@ async function loadContext() {
       and variant_type = 'video_script'
     limit 1
     `,
-    [target.variantId, target.draftId],
+    [contextTarget.variantId, contextTarget.draftId],
   );
   if (!variant.rows[0]) {
-    throw new Error("Target video script variant was not found.");
+    throw new Error(`Target video script variant was not found: ${contextTarget.variantId}`);
   }
 
   const assets = await db.query(
@@ -288,14 +369,56 @@ async function loadContext() {
       and asset_type = 'video'
     order by created_at asc
     `,
-    [target.draftId],
+    [contextTarget.draftId],
   );
 
   return {
-    task: task.rows[0],
+    target: contextTarget,
+    task: taskRow,
     draft: draft.rows[0],
     variant: variant.rows[0],
     assets: assets.rows,
+  };
+}
+
+function buildTargetFromTask(taskRow, explicitTarget = null) {
+  const videoTask = toRecord(taskRow.video_task);
+  const source = toRecord(taskRow.team_calendar_source);
+  const snapshot = {};
+  const draftId = readString(videoTask.contentDraftId, readString(source.scriptDraftId, ""));
+  const variantId = readString(videoTask.contentVariantId, readString(source.scriptVariantId, ""));
+
+  if (!draftId || !variantId) {
+    throw new Error(`Task ${taskRow.id} is missing contentDraftId or contentVariantId.`);
+  }
+
+  return {
+    ...defaultTarget,
+    ...toRecord(explicitTarget),
+    dailyTaskId: taskRow.id,
+    draftId,
+    variantId,
+    restoredFromDailyTaskId:
+      readString(source.restoredFromDailyTaskId, "") ||
+      readString(source.assignedFromTaskId, "") ||
+      readString(snapshot.restoredFromDailyTaskId, "") ||
+      defaultTarget.restoredFromDailyTaskId,
+    restoredFromDraftId:
+      readString(source.restoredFromDraftId, "") || defaultTarget.restoredFromDraftId,
+    restoredFromVariantId:
+      readString(source.restoredFromVariantId, "") || defaultTarget.restoredFromVariantId,
+    restoredFromTaskDate:
+      readString(source.restoredFromTaskDate, "") || defaultTarget.restoredFromTaskDate,
+    restoredForTaskDate: readDateString(taskRow.task_date, defaultTarget.restoredForTaskDate),
+    originalSourceTaskId:
+      readString(source.factoryMemberAssignment?.sourceTaskId, "") ||
+      defaultTarget.originalSourceTaskId,
+    originalSourceDraftId:
+      readString(source.factoryMemberAssignment?.sourceDraftId, "") ||
+      defaultTarget.originalSourceDraftId,
+    originalSourceVariantId:
+      readString(source.factoryMemberAssignment?.sourceVariantId, "") ||
+      defaultTarget.originalSourceVariantId,
   };
 }
 
@@ -399,10 +522,10 @@ function buildProductionScenes(videoTaskValue) {
       visual: sceneDescription.visual,
       voiceover: readString(scene.spokenText, ""),
       subtitle: readString(scene.spokenText, scene.subtitle),
-      materials: [],
+      materials: sceneDescription.searchKeywords,
       cameraMovement: sceneDescription.visual,
       purpose: readString(scene.title, ""),
-      fallbackShot: "",
+      fallbackShot: sceneDescription.searchKeywordText,
     };
   });
 }
@@ -422,6 +545,7 @@ function normalizeFactoryScene(sceneValue) {
     title: sceneDescription.title,
     camera: sceneDescription.visual,
     subtitle: spokenText,
+    materials: sceneDescription.searchKeywords,
     spokenText,
     materialSlot: required ? sceneDescription.uploadLabel : "",
     shootingGuide: required
@@ -458,6 +582,7 @@ function buildVariantScriptText(scriptValue) {
         timeRanges[index] ?? "",
         `场景：${sceneDescription.title}`,
         `画面：${sceneDescription.visual}`,
+        `素材检索关键词：${sceneDescription.searchKeywordText}`,
         `台词/字幕：${spokenText}`,
         "",
       ];
@@ -478,11 +603,15 @@ function getFactorySceneDescription(sceneValue, fallbackIndex = 0) {
         title: specScene.title,
         visual: specScene.visual,
         uploadLabel: specScene.uploadLabel,
+        searchKeywords: specScene.searchKeywords,
+        searchKeywordText: specScene.searchKeywords.join(" "),
       }
     : {
     title: readString(scene.title, `场景 ${sceneNo}`),
     visual: readString(scene.camera, "按本段台词呈现对应画面内容。"),
     uploadLabel: "",
+    searchKeywords: Array.isArray(scene.materials) ? scene.materials.filter(Boolean).map(String) : [],
+    searchKeywordText: Array.isArray(scene.materials) ? scene.materials.filter(Boolean).map(String).join(" ") : "",
   };
 }
 
@@ -500,6 +629,7 @@ function buildFactoryScriptScenes(sourceScenesValue) {
       ...specScene,
       camera: specScene.visual,
       subtitle: specScene.spokenText,
+      materials: specScene.searchKeywords,
       materialSlot: specScene.required ? specScene.uploadLabel : "",
       shootingGuide: specScene.required
         ? "真人面对镜头按台词口播，声音保持清晰，背景保持自然现场环境。"
@@ -667,6 +797,21 @@ function normalizePositiveNumber(value) {
 
 function readString(value, fallback) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function readStringArray(value) {
+  return Array.isArray(value) ? value.filter(Boolean).map(String) : [];
+}
+
+function readScene(videoTaskValue, sceneNo) {
+  const videoTask = toRecord(videoTaskValue);
+  const scenes = Array.isArray(videoTask.generatedVideoScript?.scenes)
+    ? videoTask.generatedVideoScript.scenes
+    : [];
+  const scene =
+    scenes.find((item) => normalizePositiveInteger(toRecord(item).order) === sceneNo) ??
+    scenes[sceneNo - 1];
+  return toRecord(scene);
 }
 
 function normalizeRecommendedProductionConfig(value) {

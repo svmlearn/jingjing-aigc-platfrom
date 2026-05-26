@@ -221,6 +221,27 @@ def _normalize_scene_query(value: Any) -> str:
     return " ".join(str(value or "").strip().lower().split())
 
 
+def _scene_query_tokens(value: Any) -> set[str]:
+    normalized = _normalize_scene_query(value)
+    if not normalized:
+        return set()
+    return {token for token in re.split(r"[\s,，、/|;；:：]+", normalized) if token}
+
+
+def _scene_queries_match(expected: Any, actual: Any) -> bool:
+    expected_norm = _normalize_scene_query(expected)
+    actual_norm = _normalize_scene_query(actual)
+    if not expected_norm or not actual_norm:
+        return False
+    if expected_norm == actual_norm:
+        return True
+    if expected_norm in actual_norm or actual_norm in expected_norm:
+        return True
+    expected_tokens = _scene_query_tokens(expected_norm)
+    actual_tokens = _scene_query_tokens(actual_norm)
+    return bool(expected_tokens and actual_tokens and expected_tokens & actual_tokens)
+
+
 def _worker_material_context(worker_payload: Any) -> dict[str, Any]:
     if not isinstance(worker_payload, dict):
         return {}
@@ -1056,8 +1077,94 @@ def _missing_worker_scene_searches(
     }
     return [
         scene for scene in scene_queries
-        if _normalize_scene_query(scene.get("query")) not in searched_queries
+        if not any(
+            _scene_queries_match(scene.get("query"), searched_query)
+            for searched_query in searched_queries
+        )
     ]
+
+
+def _worker_scene_search_attempts(
+    worker_payload: Any,
+    search_payloads: list[dict[str, Any]],
+) -> dict[int, int]:
+    attempts: dict[int, int] = {}
+    if not _worker_payload_has_locked_script(worker_payload):
+        return attempts
+    scene_queries = _worker_scene_asset_queries(worker_payload)
+    if not scene_queries:
+        return attempts
+    for payload in search_payloads:
+        searched_query = _search_media_payload_keyword(payload)
+        if not searched_query:
+            continue
+        for scene in scene_queries:
+            if _scene_queries_match(scene.get("query"), searched_query):
+                scene_no = int(scene.get("scene_no") or scene.get("sceneNo") or scene.get("index") or 0)
+                if scene_no > 0:
+                    attempts[scene_no] = attempts.get(scene_no, 0) + 1
+                break
+    return attempts
+
+
+def _worker_scene_search_candidate_count(
+    scene: dict[str, Any],
+    search_payloads: list[dict[str, Any]],
+) -> int:
+    total = 0
+    for payload in search_payloads:
+        searched_query = _search_media_payload_keyword(payload)
+        if searched_query and _scene_queries_match(scene.get("query"), searched_query):
+            total += len(_search_media_paths_from_payload(payload))
+    return total
+
+
+def _worker_scene_for_search_query(worker_payload: Any, query: Any) -> dict[str, Any] | None:
+    for scene in _worker_scene_asset_queries(worker_payload):
+        if _scene_queries_match(scene.get("query"), query):
+            return scene
+    return None
+
+
+def _sanitize_worker_private_search_media_args(args: dict[str, Any]) -> None:
+    for key in (
+        "orientation",
+        "min_video_duration",
+        "max_video_duration",
+        "minVideoDuration",
+        "maxVideoDuration",
+    ):
+        args.pop(key, None)
+    args["video_number"] = 10
+    args["photo_number"] = 0
+
+
+def _enforce_worker_scene_search_attempt_limit(
+    context: Any,
+    store: Any,
+    *,
+    session_id: str,
+    query: Any,
+    max_attempts: int = 2,
+) -> None:
+    worker_payload = getattr(context, "worker_payload", None)
+    if not isinstance(worker_payload, dict):
+        return
+    scene = _worker_scene_for_search_query(worker_payload, query)
+    if not scene:
+        return
+    search_payloads = _load_search_media_payloads(store, session_id=session_id)
+    attempts = _worker_scene_search_attempts(worker_payload, search_payloads)
+    scene_no = int(scene.get("scene_no") or scene.get("sceneNo") or 0)
+    current_attempts = attempts.get(scene_no, 0)
+    if current_attempts >= max_attempts:
+        candidate_count = _worker_scene_search_candidate_count(scene, search_payloads)
+        raise ToolException(
+            "scene_material_insufficient: scene search exceeded retry limit; "
+            f"sceneNo={scene_no}, query={scene.get('query')}, "
+            f"candidate_count={candidate_count}, "
+            f"search_attempts={current_attempts}, max_attempts={max_attempts}"
+        )
 
 
 def _ensure_worker_scene_search_coverage(
@@ -1783,6 +1890,17 @@ class ToolInterceptor:
                         raise ToolException(
                             "worker search_media requires a merchant-scoped private Pexels base URL; "
                             "cross-merchant or official Pexels search is disabled"
+                        )
+                    _sanitize_worker_private_search_media_args(args)
+                    store = getattr(runtime, "store", None) if runtime else None
+                    session_id = getattr(ctx, "session_id", "") if ctx else ""
+                    if store is not None and session_id:
+                        query = args.get("search_keyword") or args.get("query")
+                        _enforce_worker_scene_search_attempt_limit(
+                            ctx,
+                            store,
+                            session_id=session_id,
+                            query=query,
                         )
 
                 if key:

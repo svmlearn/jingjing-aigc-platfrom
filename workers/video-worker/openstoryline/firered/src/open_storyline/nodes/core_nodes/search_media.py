@@ -78,8 +78,10 @@ class SearchMediaNode(BaseNode):
         photo_number = min(inputs.get("photo_number", MAX_PHOTO_NUMBER), MAX_PHOTO_NUMBER)
         video_number = min(inputs.get("video_number", MAX_VIDEO_NUMBER), MAX_VIDEO_NUMBER)
         orientation = inputs.get("orientation", "")
-        min_video_duration = min(max(inputs.get("min_video_duration", MIN_VIDEO_DURATION), MIN_VIDEO_DURATION), MAX_VIDEO_DURATION)
-        max_video_duration = max(min(inputs.get("max_video_duration", MAX_VIDEO_DURATION), MAX_VIDEO_DURATION), MIN_VIDEO_DURATION)
+        min_video_duration, max_video_duration = _resolve_video_duration_bounds(
+            inputs,
+            private_search=bool(_normalize_base_url(pexels_base_url)),
+        )
 
         if video_number > 0:
             video_preview_urls, video_saved_paths = get_video_media_from_pexels(
@@ -168,8 +170,8 @@ def filter_videos(
         raw_videos: dict[str, Any],
         video_number: int,
         orientation: str,
-        min_video_duration: int,
-        max_video_duration: int,
+        min_video_duration: Optional[int],
+        max_video_duration: Optional[int],
     ) -> list[str]:
 
     if video_number <= 0:
@@ -184,7 +186,9 @@ def filter_videos(
     for v in videos:
         duration = int(v.get("duration", 0))
 
-        if duration < int(min_video_duration) or duration > int(max_video_duration):
+        if min_video_duration is not None and duration < int(min_video_duration):
+            continue
+        if max_video_duration is not None and duration > int(max_video_duration):
             continue
 
         w = v.get("width")
@@ -224,8 +228,8 @@ def get_video_media_from_pexels(
         media_dir: Path,
         video_number: int,
         orientation: str,
-        min_video_duration: int,
-        max_video_duration: int,
+        min_video_duration: Optional[int],
+        max_video_duration: Optional[int],
     ) -> Tuple[list[str], List[Dict[str, Any]]]:
 
     if video_number <= 0:
@@ -275,6 +279,17 @@ def get_video_media_from_pexels(
 def _normalize_orientation(orientation: str) -> Optional[str]:
     normalize_orientation = (orientation or "").strip().lower()
     return normalize_orientation if normalize_orientation in VALID_ORIENTATIONS else None
+
+def _resolve_video_duration_bounds(
+        inputs: dict[str, Any],
+        *,
+        private_search: bool,
+    ) -> tuple[Optional[int], Optional[int]]:
+    if private_search and "min_video_duration" not in inputs and "max_video_duration" not in inputs:
+        return None, None
+    min_video_duration = min(max(inputs.get("min_video_duration", MIN_VIDEO_DURATION), MIN_VIDEO_DURATION), MAX_VIDEO_DURATION)
+    max_video_duration = max(min(inputs.get("max_video_duration", MAX_VIDEO_DURATION), MAX_VIDEO_DURATION), MIN_VIDEO_DURATION)
+    return min_video_duration, max_video_duration
 
 def _infer_orientation(width: int, height: int) -> str:
     return "landscape" if width > height else "portrait"

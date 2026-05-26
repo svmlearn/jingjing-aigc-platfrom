@@ -41,6 +41,8 @@ export type VideoEditJob = {
   id: string;
   draftId?: string | null;
   contentVariantId?: string | null;
+  dailyTaskId?: string | null;
+  calendarItemId?: string | null;
   status: VideoEditJobStatus;
   currentStage?: string | null;
   progressPct?: number | null;
@@ -348,6 +350,8 @@ function normalizeVideoEditJob(input: unknown): VideoEditJob | null {
     id,
     draftId: readString(input, "draftId", "draft_id"),
     contentVariantId: readString(input, "contentVariantId", "content_variant_id"),
+    dailyTaskId: readString(input, "dailyTaskId", "daily_task_id"),
+    calendarItemId: readString(input, "calendarItemId", "calendar_item_id"),
     status: status as VideoEditJobStatus,
     currentStage,
     progressPct,
@@ -737,6 +741,35 @@ export function persistDraftMediaAssetsFallback(draftId: string, assets: DraftMe
 
 export async function listVideoEditJobs() {
   const response = await requestJson<JsonRecord>("/api/video-edit-jobs", {
+    method: "GET",
+  });
+
+  return normalizeVideoEditJobs(response.videoEditJobs ?? response.jobs ?? response.items ?? []);
+}
+
+export async function listVideoEditJobsByQuery(query: {
+  dailyTaskId?: string | null;
+  contentVariantId?: string | null;
+  state?: "in_flight";
+  limit?: number;
+}) {
+  const params = new URLSearchParams();
+  if (query.dailyTaskId) {
+    params.set("dailyTaskId", query.dailyTaskId);
+  }
+  if (query.contentVariantId) {
+    params.set("contentVariantId", query.contentVariantId);
+  }
+  if (query.state) {
+    params.set("state", query.state);
+  }
+  if (query.limit) {
+    params.set("limit", String(query.limit));
+  }
+
+  const queryString = params.toString();
+  const endpoint = `/api/video-edit-jobs${queryString ? `?${queryString}` : ""}`;
+  const response = await requestJson<JsonRecord>(endpoint, {
     method: "GET",
   });
 

@@ -161,6 +161,47 @@ class FireRedSearchMediaPrivateBaseUrlTests(unittest.TestCase):
         self.assertEqual("https://api.pexels.com/videos/search", get.call_args.args[0])
         self.assertEqual({"Authorization": "pexels-key"}, get.call_args.kwargs["headers"])
 
+    def test_private_video_filter_has_no_default_duration_bounds(self):
+        raw = {
+            "videos": [
+                {
+                    "duration": 0,
+                    "width": 540,
+                    "height": 960,
+                    "video_files": [{"file_type": "video/mp4", "link": "https://example.com/short.mp4"}],
+                },
+                {
+                    "duration": 45,
+                    "width": 540,
+                    "height": 960,
+                    "video_files": [{"file_type": "video/mp4", "link": "https://example.com/long.mp4"}],
+                },
+            ]
+        }
+
+        results = self.search_media.filter_videos(
+            raw_videos=raw,
+            video_number=10,
+            orientation="",
+            min_video_duration=None,
+            max_video_duration=None,
+        )
+
+        self.assertEqual(
+            ["https://example.com/short.mp4", "https://example.com/long.mp4"],
+            results,
+        )
+
+    def test_official_video_filter_keeps_default_duration_bounds(self):
+        self.assertEqual(
+            (None, None),
+            self.search_media._resolve_video_duration_bounds({}, private_search=True),
+        )
+        self.assertEqual(
+            (1, 30),
+            self.search_media._resolve_video_duration_bounds({}, private_search=False),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
