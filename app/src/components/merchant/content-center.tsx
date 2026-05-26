@@ -1,12 +1,16 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
   FileText,
   Filter,
+  ImageIcon,
   Library,
   Link2,
+  Play,
   Plus,
   Search,
   User,
@@ -83,6 +87,7 @@ export function MerchantContentCenter() {
   const selectedComments = selectedItem ? getMaterialComments(selectedItem).slice(0, 8) : [];
   const selectedTags = selectedItem ? getMaterialTags(selectedItem).slice(0, 12) : [];
   const selectedProviderSummary = selectedItem ? getProviderSummary(selectedItem) : [];
+  const selectedMediaAssets = selectedItem ? getPreviewableMediaAssets(selectedItem) : [];
 
   async function loadMaterials() {
     setLoading(true);
@@ -316,47 +321,39 @@ export function MerchantContentCenter() {
             </div>
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
-              {filteredMaterials.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setSelectedId(item.id)}
-                  className={cn(
-                    "flex w-full gap-4 overflow-hidden rounded-2xl border p-4 text-left transition-all",
-                    selectedItem?.id === item.id
-                      ? "border-amber-500/40 bg-amber-500/10 shadow-[0_18px_70px_rgba(180,83,9,0.16)]"
-                      : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]",
-                  )}
-                >
-                  <div
+              {filteredMaterials.map((item) => {
+                const isSelected = selectedItem?.id === item.id;
+                const primaryAsset = getPrimaryPreviewAsset(item);
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedId(item.id)}
                     className={cn(
-                      "flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border",
-                      selectedItem?.id === item.id
-                        ? "border-amber-500/20 bg-amber-500/15 text-amber-500"
-                        : "border-white/10 bg-white/5 text-white/35",
+                      "flex w-full gap-4 overflow-hidden rounded-2xl border p-4 text-left transition-all",
+                      isSelected
+                        ? "border-amber-500/40 bg-amber-500/10 shadow-[0_18px_70px_rgba(180,83,9,0.16)]"
+                        : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]",
                     )}
                   >
-                    {item.materialType === "article" ? (
-                      <FileText className="h-6 w-6" />
-                    ) : (
-                      <Video className="h-6 w-6" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="line-clamp-2 text-sm leading-snug text-[#e0e0e0] [font-family:var(--font-cormorant)]">
-                      {item.title}
-                    </h3>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em]">
-                      <span className="rounded border border-white/10 bg-white/5 px-2 py-1 text-white/55">
-                        {platformLabels[item.platform]}
-                      </span>
-                      <span className="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-amber-500">
-                        {item.engagementLabel ?? "待分析"}
-                      </span>
+                    <MaterialThumbnail item={item} asset={primaryAsset} selected={isSelected} size="list" />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="line-clamp-2 text-sm leading-snug text-[#e0e0e0] [font-family:var(--font-cormorant)]">
+                        {item.title}
+                      </h3>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em]">
+                        <span className="rounded border border-white/10 bg-white/5 px-2 py-1 text-white/55">
+                          {platformLabels[item.platform]}
+                        </span>
+                        <span className="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-amber-500">
+                          {item.engagementLabel ?? "待分析"}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
               {filteredMaterials.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-white/40">
                   没找到匹配素材，可以换个关键词。
@@ -370,13 +367,12 @@ export function MerchantContentCenter() {
               <div className="mx-auto flex min-h-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0d0d0d] shadow-[0_24px_100px_rgba(0,0,0,0.35)]">
                 <section className="flex items-start justify-between gap-6 border-b border-white/10 bg-[#050505] p-8">
                   <div className="flex gap-5">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-amber-500">
-                      {selectedItem.materialType === "article" ? (
-                        <FileText className="h-6 w-6" />
-                      ) : (
-                        <Video className="h-6 w-6" />
-                      )}
-                    </div>
+                    <MaterialThumbnail
+                      item={selectedItem}
+                      asset={getPrimaryPreviewAsset(selectedItem)}
+                      selected
+                      size="detail"
+                    />
                     <div>
                       <h2 className="text-2xl leading-snug text-[#e0e0e0] [font-family:var(--font-cormorant)]">
                         {selectedItem.title}
@@ -407,6 +403,19 @@ export function MerchantContentCenter() {
                 </section>
 
                 <section className="min-h-[260px] flex-1 space-y-8 p-8 text-sm leading-8 text-[#e0e0e0] [font-family:var(--font-cormorant)]">
+                  {selectedMediaAssets.length > 0 ? (
+                    <div>
+                      <h3 className="mb-3 text-[10px] uppercase tracking-[0.22em] text-white/35">
+                        媒体预览
+                      </h3>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {selectedMediaAssets.map((asset) => (
+                          <MaterialMediaPreview key={asset.id} asset={asset} />
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div>
                     <h3 className="mb-3 text-[10px] uppercase tracking-[0.22em] text-white/35">
                       正文 / 文案
@@ -690,6 +699,174 @@ export function MerchantContentCenter() {
       ) : null}
     </div>
   );
+}
+
+type MaterialMediaAsset = NonNullable<MaterialLibraryItemDto["mediaAssets"]>[number];
+
+function MaterialThumbnail({
+  item,
+  asset,
+  selected,
+  size,
+}: {
+  item: MaterialLibraryItemDto;
+  asset?: MaterialMediaAsset | null;
+  selected?: boolean;
+  size: "list" | "detail";
+}) {
+  const previewUrl = asset ? getAssetPreviewUrl(asset) : null;
+  const Icon = item.materialType === "article" ? FileText : Video;
+  const className = cn(
+    "relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl border",
+    size === "list" ? "h-16 w-16" : "h-14 w-14",
+    selected
+      ? "border-amber-500/20 bg-amber-500/15 text-amber-500"
+      : "border-white/10 bg-white/5 text-white/35",
+  );
+
+  if (previewUrl && asset && isImagePreviewAsset(asset)) {
+    return (
+      <div className={className}>
+        <img
+          src={previewUrl}
+          alt=""
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+        {asset.assetType === "cover" ? (
+          <div className="absolute bottom-1 right-1 rounded bg-black/65 p-1 text-amber-400">
+            <Video className="h-3 w-3" />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (previewUrl && asset && isVideoPreviewAsset(asset)) {
+    return (
+      <div className={className}>
+        <video
+          src={previewUrl}
+          className="h-full w-full bg-black object-cover"
+          muted
+          playsInline
+          preload="metadata"
+        />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 text-amber-400">
+          <Play className="h-4 w-4 fill-current" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={className}>
+      <Icon className="h-6 w-6" />
+    </div>
+  );
+}
+
+function MaterialMediaPreview({ asset }: { asset: MaterialMediaAsset }) {
+  const previewUrl = getAssetPreviewUrl(asset);
+
+  if (!previewUrl) {
+    return null;
+  }
+
+  const isVideo = isVideoPreviewAsset(asset);
+  const isImage = isImagePreviewAsset(asset);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+      <div className={cn("relative w-full bg-[#050505]", isVideo ? "aspect-video" : "aspect-square")}>
+        {isVideo ? (
+          <video
+            src={previewUrl}
+            className="h-full w-full object-contain"
+            controls
+            playsInline
+            preload="metadata"
+          />
+        ) : isImage ? (
+          <a href={previewUrl} target="_blank" rel="noreferrer" className="block h-full w-full">
+            <img
+              src={previewUrl}
+              alt=""
+              className="h-full w-full object-contain"
+              loading="lazy"
+            />
+          </a>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-white/35">
+            <FileText className="h-6 w-6" />
+          </div>
+        )}
+      </div>
+      <div className="flex min-h-10 items-center justify-between gap-3 border-t border-white/10 px-3 py-2">
+        <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-white/45">
+          {isVideo ? <Video className="h-3.5 w-3.5" /> : <ImageIcon className="h-3.5 w-3.5" />}
+          {formatAssetTypeLabel(asset)}
+        </span>
+        <a
+          href={previewUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/45 transition-colors hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-400"
+          aria-label="打开媒体预览"
+        >
+          <ArrowUpRight className="h-3.5 w-3.5" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function getPrimaryPreviewAsset(item: MaterialLibraryItemDto): MaterialMediaAsset | null {
+  const assets = getPreviewableMediaAssets(item);
+
+  return (
+    assets.find((asset) => asset.assetType === "cover") ??
+    assets.find(isImagePreviewAsset) ??
+    assets.find(isVideoPreviewAsset) ??
+    null
+  );
+}
+
+function getPreviewableMediaAssets(item: MaterialLibraryItemDto): MaterialMediaAsset[] {
+  return [...(item.mediaAssets ?? [])]
+    .filter((asset) => Boolean(getAssetPreviewUrl(asset)))
+    .filter((asset) => isImagePreviewAsset(asset) || isVideoPreviewAsset(asset))
+    .sort((left, right) => getAssetDisplayPriority(left) - getAssetDisplayPriority(right));
+}
+
+function getAssetDisplayPriority(asset: MaterialMediaAsset) {
+  if (isVideoPreviewAsset(asset)) return 0;
+  if (asset.assetType === "cover") return 1;
+  if (isImagePreviewAsset(asset)) return 2;
+  return 3;
+}
+
+function getAssetPreviewUrl(asset: MaterialMediaAsset) {
+  return asset.signedPreviewUrl ?? asset.originUrl ?? null;
+}
+
+function isImagePreviewAsset(asset: MaterialMediaAsset) {
+  return (
+    asset.assetType === "image" ||
+    asset.assetType === "cover" ||
+    asset.mimeType?.toLowerCase().startsWith("image/") === true
+  );
+}
+
+function isVideoPreviewAsset(asset: MaterialMediaAsset) {
+  return asset.assetType === "video" || asset.mimeType?.toLowerCase().startsWith("video/") === true;
+}
+
+function formatAssetTypeLabel(asset: MaterialMediaAsset) {
+  if (asset.assetType === "cover") return "封面";
+  if (isVideoPreviewAsset(asset)) return "视频";
+  if (isImagePreviewAsset(asset)) return "图片";
+  return "媒体";
 }
 
 type DisplayComment = {

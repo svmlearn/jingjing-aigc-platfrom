@@ -144,6 +144,43 @@ test("normalizes Xiaohongshu App V2 profile note list payloads", () => {
   assert.deepEqual(item.structureSummary.videoUrls, ["https://example.com/profile-video.mp4"]);
 });
 
+test("normalizes Douyin video media urls for later source item OSS persistence", () => {
+  const [item] = normalizeTikHubMaterialItems({
+    platform: "douyin",
+    findMethod: "detail",
+    target: "https://www.douyin.com/video/123456",
+    cacheKey: "test-cache-key",
+    limit: 1,
+    payload: {
+      data: {
+        aweme_detail: {
+          aweme_id: "123456",
+          desc: "烧烤店高赞口播",
+          author: { nickname: "餐饮老板" },
+          statistics: {
+            digg_count: 1200,
+            comment_count: 34,
+            collect_count: 56,
+            share_count: 7,
+          },
+          video: {
+            duration: 15000,
+            cover: { url_list: ["https://example.com/cover.jpeg"] },
+            play_addr: { url_list: ["https://example.com/video.mp4"] },
+          },
+        },
+      },
+    },
+  });
+
+  assert.ok(item);
+  assert.equal(item.materialType, "video");
+  assert.equal(item.externalItemId, "123456");
+  assert.equal(item.structureSummary.coverUrl, "https://example.com/cover.jpeg");
+  assert.deepEqual(item.structureSummary.imageUrls, ["https://example.com/cover.jpeg"]);
+  assert.deepEqual(item.structureSummary.videoUrls, ["https://example.com/video.mp4"]);
+});
+
 test("normalizes TikHub comment payloads for storage", () => {
   const comments = normalizeTikHubComments({
     platform: "douyin",

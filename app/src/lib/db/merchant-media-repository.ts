@@ -468,6 +468,8 @@ async function listLegacyMaterialClipsByMerchantFromPostgres(input: {
      and ao.asset_type = 'video'
     where si.merchant_id = $1
       and si.trace_payload @> '{"materialLibrary": true}'::jsonb
+      and si.trace_payload #>> '{materialAnalysis,materialCategory}' = 'project_media_asset'
+      and si.trace_payload #>> '{materialAnalysis,assetType}' = 'video'
       and coalesce(si.structure_summary->>'materialStatus', 'ready') = 'ready'
       and ao.storage_provider = 'aliyun_oss'
       and ao.bucket_name is not null
@@ -514,6 +516,8 @@ async function listLegacyMaterialClipsByAssetObjectIdFromPostgres(input: {
     where ao.id = $1
       and ao.asset_type = 'video'
       and si.trace_payload @> '{"materialLibrary": true}'::jsonb
+      and si.trace_payload #>> '{materialAnalysis,materialCategory}' = 'project_media_asset'
+      and si.trace_payload #>> '{materialAnalysis,assetType}' = 'video'
       and coalesce(si.structure_summary->>'materialStatus', 'ready') = 'ready'
       and ao.storage_provider = 'aliyun_oss'
       and ao.bucket_name is not null

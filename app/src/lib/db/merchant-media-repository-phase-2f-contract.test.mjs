@@ -171,6 +171,12 @@ test("merchant-scoped readers only return matching merchant ready clips", () => 
     "and status = 'ready'",
     "order by created_at desc",
   ]);
+  assertFunctionBody("listLegacyMaterialClipsByMerchantFromPostgres", [
+    "ao.owner_type = 'source_item'",
+    "si.trace_payload @> '{\"materialLibrary\": true}'::jsonb",
+    "si.trace_payload #>> '{materialAnalysis,materialCategory}' = 'project_media_asset'",
+    "si.trace_payload #>> '{materialAnalysis,assetType}' = 'video'",
+  ]);
   assertFunctionBody("getReadyClipByMerchant", [
     "from public.merchant_media_clips",
     "where id = $1",

@@ -1,3 +1,5 @@
+import type { MediaAssetDto } from "@/contracts/media";
+
 export type MaterialPlatform = "xiaohongshu" | "douyin";
 
 export type MaterialType = "article" | "video";
@@ -36,6 +38,7 @@ export type MaterialLibraryItemDto = {
   creatorName?: string | null;
   engagementLabel?: string | null;
   analysisPayload: Record<string, unknown>;
+  mediaAssets?: MediaAssetDto[];
   createdAt: string;
   updatedAt: string;
 };

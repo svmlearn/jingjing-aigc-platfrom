@@ -7,6 +7,8 @@ import type {
   MaterialType,
   MaterialWorkbenchTarget,
 } from "@/contracts/material";
+import type { MediaAssetDto } from "@/contracts/media";
+import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
 import {
   createMaterialLibraryItem,
   createMaterialWorkbenchReference,
@@ -16,6 +18,7 @@ import {
 } from "@/lib/db/material-library-repository";
 import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import { ApiError } from "@/server/api/errors";
+import { persistMaterialProviderMediaAssets } from "@/server/api/material-provider-media-assets";
 import { isTikHubConfigured } from "@/server/import-providers/tikhub/client";
 import { fetchTikHubBenchmarkMaterials } from "@/server/import-providers/tikhub/materials";
 import { buildTikHubBenchmarkCacheKey } from "@/server/import-providers/tikhub/normalizers";
@@ -32,12 +35,14 @@ export async function listMaterialLibraryForUser(input: {
   query?: string | null;
 }): Promise<MaterialLibraryItemDto[]> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
-  return listMaterialLibraryItems({
+  const materials = await listMaterialLibraryItems({
     merchantId: merchant.id,
     limit: input.limit,
     retrievalTarget: input.retrievalTarget,
     query: input.query,
   });
+
+  return attachMaterialMediaAssets(materials);
 }
 
 export async function createUploadedMaterialForUser(input: {
@@ -182,11 +187,20 @@ export async function createBenchmarkMaterialsForMerchant(input: {
   });
 
   if (cachedItems.length >= count) {
-    return upsertMaterialLibraryItemsFromProvider({
+    const providerItems = cachedItems.slice(0, count);
+    const materials = await upsertMaterialLibraryItemsFromProvider({
       merchantId: input.merchantId,
       createdByUserId: input.createdByUserId,
-      items: cachedItems.slice(0, count),
+      items: providerItems,
     });
+
+    await persistMaterialProviderMediaAssets({
+      merchantId: input.merchantId,
+      materials,
+      providerItems,
+    });
+
+    return attachMaterialMediaAssets(materials);
   }
 
   if (isTikHubConfigured()) {
@@ -206,22 +220,31 @@ export async function createBenchmarkMaterialsForMerchant(input: {
       );
     }
 
-    return upsertMaterialLibraryItemsFromProvider({
+    const providerItems = result.items.map((item) => ({
+      ...item,
+      tracePayload: {
+        ...item.tracePayload,
+        tikhubProviderResponses: result.providerResponses.map((response) => ({
+          endpoint: response.endpoint,
+          method: response.method,
+          requestPayload: response.requestPayload,
+          responsePayload: response.responsePayload,
+        })),
+      },
+    }));
+    const materials = await upsertMaterialLibraryItemsFromProvider({
       merchantId: input.merchantId,
       createdByUserId: input.createdByUserId,
-      items: result.items.map((item) => ({
-        ...item,
-        tracePayload: {
-          ...item.tracePayload,
-          tikhubProviderResponses: result.providerResponses.map((response) => ({
-            endpoint: response.endpoint,
-            method: response.method,
-            requestPayload: response.requestPayload,
-            responsePayload: response.responsePayload,
-          })),
-        },
-      })),
+      items: providerItems,
     });
+
+    await persistMaterialProviderMediaAssets({
+      merchantId: input.merchantId,
+      materials,
+      providerItems,
+    });
+
+    return attachMaterialMediaAssets(materials);
   }
 
   const createdItems: MaterialLibraryItemDto[] = [];
@@ -275,7 +298,7 @@ export async function createBenchmarkMaterialsForMerchant(input: {
     );
   }
 
-  return createdItems;
+  return attachMaterialMediaAssets(createdItems);
 }
 
 export async function sendMaterialToWorkbenchForUser(input: {
@@ -290,6 +313,91 @@ export async function sendMaterialToWorkbenchForUser(input: {
     targetWorkbench: input.targetWorkbench,
     createdByUserId: input.userId,
   });
+}
+
+async function attachMaterialMediaAssets(
+  materials: MaterialLibraryItemDto[],
+): Promise<MaterialLibraryItemDto[]> {
+  const sourceItemIds = Array.from(
+    new Set(materials.map((material) => material.sourceItemId).filter(isNonEmptyString)),
+  );
+
+  if (sourceItemIds.length === 0) {
+    return materials;
+  }
+
+  const assetEntries = await mapWithConcurrency(sourceItemIds, 8, async (sourceItemId) => {
+    try {
+      const assets = await listAssetObjectsByOwner({
+        ownerType: "source_item",
+        ownerId: sourceItemId,
+      });
+
+      return [sourceItemId, assets.map(withMaterialMediaPreviewUrls)] as const;
+    } catch (error) {
+      console.warn("Material media assets attach failed", {
+        sourceItemId,
+        error: error instanceof Error ? error.message : error,
+      });
+      return [sourceItemId, [] as MediaAssetDto[]] as const;
+    }
+  });
+  const assetsBySourceItemId = new Map(assetEntries);
+
+  return materials.map((material) => ({
+    ...material,
+    mediaAssets: material.sourceItemId
+      ? assetsBySourceItemId.get(material.sourceItemId) ?? []
+      : [],
+  }));
+}
+
+function withMaterialMediaPreviewUrls(asset: MediaAssetDto): MediaAssetDto {
+  const previewUrl = buildMaterialAssetPreviewUrl(asset);
+
+  return {
+    ...asset,
+    signedPreviewUrl: previewUrl,
+    signedDownloadUrl: previewUrl,
+  };
+}
+
+function buildMaterialAssetPreviewUrl(asset: MediaAssetDto) {
+  if (asset.storageProvider === "aliyun_oss" && asset.storageKey) {
+    const storagePath = asset.bucketName
+      ? `oss://${asset.bucketName}/${asset.storageKey}`
+      : asset.storageKey;
+
+    return `/api/media/object-preview?path=${encodeURIComponent(storagePath)}`;
+  }
+
+  return asset.signedPreviewUrl ?? asset.originUrl ?? null;
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(concurrency, 1), items.length);
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < items.length) {
+        const currentIndex = nextIndex;
+        nextIndex += 1;
+        results[currentIndex] = await mapper(items[currentIndex]!);
+      }
+    }),
+  );
+
+  return results;
+}
+
+function isNonEmptyString(value: string | null | undefined): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function compactStrings(values: Array<string | null | undefined>) {
