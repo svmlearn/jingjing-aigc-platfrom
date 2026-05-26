@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   BookOpen,
   CalendarDays,
@@ -73,12 +73,16 @@ export function ConsultationWorkspace() {
   );
   const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionsRefreshing, setSessionsRefreshing] = useState(false);
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toolCardsCollapsed, setToolCardsCollapsed] = useState(true);
+  const [skipAutoCreateAfterHistoryDelete, setSkipAutoCreateAfterHistoryDelete] = useState(false);
+  const sessionRequestSequence = useRef(0);
   const assistantPending = isConsultationAssistantPending(session);
 
   function redirectToLogin() {
@@ -112,9 +116,15 @@ export function ConsultationWorkspace() {
     }
   }
 
-  async function loadSessions(preferredId?: string) {
-    setLoading(true);
-    setSessionsLoaded(false);
+  async function loadSessions(preferredId?: string, options: { background?: boolean } = {}) {
+    const background = options.background === true && sessionsLoaded;
+
+    if (background) {
+      setSessionsRefreshing(true);
+    } else {
+      setSessionsLoading(true);
+      setSessionsLoaded(false);
+    }
     setError(null);
 
     try {
@@ -129,8 +139,11 @@ export function ConsultationWorkspace() {
       const nextSessions = data.sessions ?? [];
       setSessions(nextSessions);
       setSessionsLoaded(true);
+      if (nextSessions.length > 0) {
+        setSkipAutoCreateAfterHistoryDelete(false);
+      }
       setSessionId((currentSessionId) => {
-        if (preferredId) {
+        if (preferredId && nextSessions.some((item) => item.id === preferredId)) {
           return preferredId;
         }
 
@@ -141,10 +154,16 @@ export function ConsultationWorkspace() {
         return nextSessions[0]?.id ?? null;
       });
     } catch (requestError) {
-      setSessionsLoaded(false);
+      if (!background) {
+        setSessionsLoaded(false);
+      }
       setError(requestError instanceof Error ? requestError.message : "咨询会话加载失败");
     } finally {
-      setLoading(false);
+      if (background) {
+        setSessionsRefreshing(false);
+      } else {
+        setSessionsLoading(false);
+      }
     }
   }
 
@@ -161,23 +180,46 @@ export function ConsultationWorkspace() {
   }
 
   async function loadSession(nextSessionId: string) {
+    const requestSequence = sessionRequestSequence.current + 1;
+    sessionRequestSequence.current = requestSequence;
+    setSessionLoading(true);
+    setError(null);
+
     try {
-      setSession(await fetchSessionDetail(nextSessionId));
+      const nextSession = await fetchSessionDetail(nextSessionId);
+
+      if (requestSequence === sessionRequestSequence.current) {
+        setSession(nextSession);
+      }
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "咨询详情加载失败");
+      if (requestSequence === sessionRequestSequence.current) {
+        setError(requestError instanceof Error ? requestError.message : "咨询详情加载失败");
+      }
+    } finally {
+      if (requestSequence === sessionRequestSequence.current) {
+        setSessionLoading(false);
+      }
     }
   }
 
   async function refreshPendingSession(nextSessionId: string) {
+    const requestSequence = sessionRequestSequence.current;
+
     try {
       const nextSession = await fetchSessionDetail(nextSessionId);
+      if (requestSequence !== sessionRequestSequence.current) {
+        return;
+      }
+
       setSession(nextSession);
 
       if (nextSession && !isConsultationAssistantPending(nextSession)) {
-        await loadSessions(nextSession.id);
+        await loadSessions(nextSession.id, { background: true });
       }
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "咨询详情加载失败");
+      if (requestSequence === sessionRequestSequence.current) {
+        setError(requestError instanceof Error ? requestError.message : "咨询详情加载失败");
+      }
     }
   }
 
@@ -199,6 +241,7 @@ export function ConsultationWorkspace() {
 
   async function createSession() {
     setCreating(true);
+    setSkipAutoCreateAfterHistoryDelete(false);
     setError(null);
 
     try {
@@ -220,7 +263,7 @@ export function ConsultationWorkspace() {
 
       setSession(data.session);
       setSessionId(data.session.id);
-      await loadSessions(data.session.id);
+      await loadSessions(data.session.id, { background: sessionsLoaded });
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "新建咨询失败");
     } finally {
@@ -282,7 +325,13 @@ export function ConsultationWorkspace() {
   }, []);
 
   useEffect(() => {
-    if (sessionsLoaded && !loading && sessions.length === 0 && !creating) {
+    if (
+      sessionsLoaded &&
+      !sessionsLoading &&
+      sessions.length === 0 &&
+      !creating &&
+      !skipAutoCreateAfterHistoryDelete
+    ) {
       const timeoutId = window.setTimeout(() => {
         void createSessionFromEffect();
       }, 0);
@@ -291,7 +340,13 @@ export function ConsultationWorkspace() {
         window.clearTimeout(timeoutId);
       };
     }
-  }, [creating, loading, sessions.length, sessionsLoaded]);
+  }, [
+    creating,
+    sessions.length,
+    sessionsLoaded,
+    sessionsLoading,
+    skipAutoCreateAfterHistoryDelete,
+  ]);
 
   useEffect(() => {
     if (!sessionId) {
@@ -366,7 +421,7 @@ export function ConsultationWorkspace() {
     setHistoryOpen(nextHistoryOpen);
 
     if (nextHistoryOpen) {
-      void loadSessions(sessionId ?? undefined);
+      void loadSessions(sessionId ?? undefined, { background: sessionsLoaded });
     }
   }
 
@@ -438,15 +493,24 @@ export function ConsultationWorkspace() {
 
       assertApiResponseOk(response, "聊天记录删除失败，请稍后重试。");
 
+      const remainingSessions = sessions.filter((item) => item.id !== nextSessionId);
+      const nextActiveSessionId =
+        nextSessionId === sessionId ? remainingSessions[0]?.id ?? null : sessionId;
+
       setPendingDeleteSessionId(null);
+      setSessions(remainingSessions);
+      setSessionsLoaded(true);
+      setSkipAutoCreateAfterHistoryDelete(remainingSessions.length === 0 && !nextActiveSessionId);
 
       if (nextSessionId === sessionId) {
+        sessionRequestSequence.current += 1;
         setSession(null);
-        setSessionId(null);
+        setSessionId(nextActiveSessionId);
       }
 
-      await loadSessions();
+      void loadSessions(nextActiveSessionId ?? undefined, { background: true });
     } catch (requestError) {
+      setPendingDeleteSessionId(null);
       setError(requestError instanceof Error ? requestError.message : "聊天记录删除失败，请稍后重试。");
     } finally {
       setDeletingSessionId(null);
@@ -487,7 +551,7 @@ export function ConsultationWorkspace() {
 
       setSession(data.session);
       setInput("");
-      await loadSessions(data.session.id);
+      await loadSessions(data.session.id, { background: true });
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "发送消息失败");
     } finally {
@@ -550,18 +614,26 @@ export function ConsultationWorkspace() {
                 </p>
                 <h2 className="mt-1 text-sm font-medium text-white">咨询聊天记录</h2>
               </div>
-              <button
-                type="button"
-                onClick={() => setHistoryOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
-                aria-label="关闭咨询历史记录"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                {sessionsRefreshing ? (
+                  <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-white/35">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    同步中
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setHistoryOpen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                  aria-label="关闭咨询历史记录"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              {loading ? (
+              {sessionsLoading && !sessionsLoaded ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-white/55">
                   正在读取咨询聊天记录...
                 </div>
@@ -820,7 +892,7 @@ export function ConsultationWorkspace() {
             ) : null}
 
             <div className="px-6 py-6">
-              {loading && !session ? (
+              {((sessionsLoading && !sessionsLoaded) || sessionLoading) && !session ? (
                 <div className="flex min-h-[12rem] items-center justify-center text-sm text-white/40">
                   正在读取咨询会话...
                 </div>
