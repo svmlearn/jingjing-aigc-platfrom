@@ -1,4 +1,7 @@
-import type { StrategySnapshotDto } from "@/contracts/consultation";
+import type {
+  ContentCalendarContextDto,
+  StrategySnapshotDto,
+} from "@/contracts/consultation";
 import type { MerchantProfileDto } from "@/contracts/merchant";
 import type { KnowledgeSearchMatchDto } from "@/contracts/knowledge";
 import type { ChatMessage } from "@/server/api/ai-runtime";
@@ -12,6 +15,10 @@ import type {
 } from "@/server/api/consultation-runtime/types";
 import { getConsultationBusinessToolCatalog } from "@/server/api/consultation-runtime/tools";
 import { clipText, uniqueStrings } from "@/server/api/consultation-runtime/utils";
+import {
+  buildContentCalendarContext,
+  buildStrategyAssetSnapshot,
+} from "@/lib/strategy-snapshot";
 import type {
   ConsultationContextPreflightAction,
   ConsultationContextPreflightReport,
@@ -165,6 +172,11 @@ export function buildConsultationContextInjection(input: {
   expertTurnNotes: ExpertTurnNote[];
 }) {
   const sessionSummary = input.sessionSummary ?? null;
+  const strategyAsset = buildStrategyAssetSnapshot(
+    input.strategySnapshot,
+    input.strategyMarkdown ?? "",
+  );
+  const contentCalendarContext = buildContentCalendarContext(input.strategySnapshot);
   const budget = buildContextBudgetReport({
     merchant: input.merchant,
     strategySnapshot: input.strategySnapshot,
@@ -207,17 +219,11 @@ export function buildConsultationContextInjection(input: {
       merchantId: input.merchant.id,
       merchantName: input.merchant.name,
       latestUserMessage: input.userContent,
-      strategyAsset: {
-        positioning: input.strategySnapshot.positioning,
-        coreSellingPoints: input.strategySnapshot.coreSellingPoints,
-        targetAudiences: input.strategySnapshot.targetAudiences,
-        keyScenes: input.strategySnapshot.keyScenes,
-        strategyTags: input.strategySnapshot.strategyTags,
-        strategyMarkdown: input.strategyMarkdown ?? "",
-      },
+      strategyAsset,
       contentCalendarContext: {
-        status: getContentCalendarBusinessStatus(input.strategySnapshot),
-        calendarCount: input.strategySnapshot.contentCalendarDraft.length,
+        status: getContentCalendarBusinessStatus(contentCalendarContext),
+        calendarCount: contentCalendarContext.calendar.length,
+        generationStatus: contentCalendarContext.generation?.status ?? null,
       },
       strategyMarkdown: input.strategyMarkdown ?? "",
       knowledgeMatchCount: input.knowledgeMatches.length,
@@ -246,10 +252,15 @@ export function buildContextBudgetReport(input: {
   sharedConsultationState?: SharedConsultationState | null;
   expertTurnNotes?: ExpertTurnNote[];
 }): ContextBudgetReport {
+  const strategyAsset = buildStrategyAssetSnapshot(
+    input.strategySnapshot,
+    input.strategyMarkdown ?? "",
+  );
+  const contentCalendarContext = buildContentCalendarContext(input.strategySnapshot);
   const buckets = [
     buildBudgetBucket("merchant", input.merchant, 1600),
-    buildBudgetBucket("strategySnapshot", input.strategySnapshot, 2600),
-    buildBudgetBucket("strategyMarkdown", input.strategyMarkdown ?? "", 8000),
+    buildBudgetBucket("strategyAsset", strategyAsset, 3200),
+    buildBudgetBucket("contentCalendarContext", contentCalendarContext, 2600),
     buildBudgetBucket("currentUserMessage", input.userContent, 1000),
     buildBudgetBucket("sessionSummary", input.sessionSummary ?? "", 1200),
     buildBudgetBucket("soul.md", input.consultationAgent.soulPrompt ?? "", 1600),
@@ -343,6 +354,7 @@ export function buildContextBoundarySnapshot(input: {
   toolResults: ConsultationAgentToolResult[];
 }): ConsultationContextBoundarySnapshot {
   const { state } = input;
+  const contentCalendarContext = buildContentCalendarContext(state.strategySnapshot);
   const slimContextPack = buildConsultationSlimContextPack({
     merchant: state.merchant,
     round: state.nextRound,
@@ -401,8 +413,8 @@ export function buildContextBoundarySnapshot(input: {
         },
       },
       contentCalendar: {
-        itemCount: state.strategySnapshot.contentCalendarDraft.length,
-        status: getContentCalendarBusinessStatus(state.strategySnapshot),
+        itemCount: contentCalendarContext.calendar.length,
+        status: getContentCalendarBusinessStatus(contentCalendarContext),
       },
       agentAssets: {
         agentId: agentContainer?.agent.id ?? null,
@@ -619,6 +631,14 @@ export function buildConsultationRuntimeContextMessage(input: {
   contextPack: ConsultationSlimContextPack;
   toolResults: ConsultationAgentToolResult[];
 }) {
+  const strategyAsset = buildStrategyAssetSnapshot(
+    input.state.strategySnapshot,
+    input.state.strategyMarkdown,
+  );
+  const contentCalendarContext =
+    input.state.session.contentCalendarContext ??
+    buildContentCalendarContext(input.state.strategySnapshot);
+
   return [
     "<consultation-runtime-context policy=\"consultation_runtime_context_message_v1\">",
     "# merchantProfileContext",
@@ -645,18 +665,19 @@ export function buildConsultationRuntimeContextMessage(input: {
     }),
     "# strategySnapshotContext",
     JSON.stringify({
-      positioning: input.state.strategySnapshot.positioning,
-      coreSellingPoints: input.state.strategySnapshot.coreSellingPoints,
-      targetAudiences: input.state.strategySnapshot.targetAudiences,
-      keyScenes: input.state.strategySnapshot.keyScenes,
-      strategyTags: input.state.strategySnapshot.strategyTags,
-      strategyMarkdown: clipText(input.state.strategyMarkdown, 2400),
+      positioning: strategyAsset.positioning,
+      coreSellingPoints: strategyAsset.coreSellingPoints,
+      targetAudiences: strategyAsset.targetAudiences,
+      keyScenes: strategyAsset.keyScenes,
+      strategyTags: strategyAsset.strategyTags,
+      strategyMarkdown: clipText(strategyAsset.strategyMarkdown, 2400),
     }),
     "# contentCalendarContext",
     JSON.stringify({
-      status: getContentCalendarBusinessStatus(input.state.strategySnapshot),
-      notice: getContentCalendarBusinessNotice(input.state.strategySnapshot),
-      calendar: input.state.strategySnapshot.contentCalendarDraft.slice(0, 7).map((item) => ({
+      status: getContentCalendarBusinessStatus(contentCalendarContext),
+      notice: getContentCalendarBusinessNotice(contentCalendarContext),
+      generationStatus: contentCalendarContext.generation?.status ?? null,
+      calendar: contentCalendarContext.calendar.slice(0, 7).map((item) => ({
         id: item.id,
         dayLabel: item.dayLabel,
         contentType: item.contentType,
@@ -686,15 +707,15 @@ export function buildConsultationRuntimeContextMessage(input: {
 }
 
 function getContentCalendarBusinessStatus(
-  snapshot: StrategySnapshotDto,
+  contentCalendarContext: ContentCalendarContextDto,
 ): "not_generated" | "generated_team_content_exists" {
-  return snapshot.contentCalendarGeneration
+  return contentCalendarContext.generation
     ? "generated_team_content_exists"
     : "not_generated";
 }
 
-function getContentCalendarBusinessNotice(snapshot: StrategySnapshotDto) {
-  if (!snapshot.contentCalendarGeneration) {
+function getContentCalendarBusinessNotice(contentCalendarContext: ContentCalendarContextDto) {
+  if (!contentCalendarContext.generation) {
     return null;
   }
 

@@ -21,6 +21,7 @@ import type {
   ContentCalendarItemDto,
   ConsultationSessionDetailDto,
   ConsultationSessionSummaryDto,
+  StrategyAssetSnapshotDto,
 } from "@/contracts/consultation";
 import type {
   ContentGenerationBatchDto,
@@ -345,6 +346,13 @@ export function ConsultationWorkspace() {
   const toolCards = latestAssistantMessage?.toolCards ?? [];
   const failedToolCardCount = toolCards.filter((tool) => tool.status === "failed").length;
   const strategySnapshot = session?.strategySnapshot ?? null;
+  const strategyAssetSnapshot =
+    session?.strategyAssetSnapshot ?? buildStrategyAssetSnapshotFallback(
+      strategySnapshot,
+      session?.strategyAsset?.strategyMarkdown ?? "",
+    );
+  const contentCalendar =
+    session?.contentCalendarContext?.calendar ?? strategySnapshot?.contentCalendarDraft ?? [];
   const isLegacyRoundtable = Boolean(session?.roundtable);
   const composerDisabled = sending || assistantPending || isLegacyRoundtable;
 
@@ -657,7 +665,7 @@ export function ConsultationWorkspace() {
                     void startTeamWeekGeneration();
                   }}
                   disabled={
-                    teamGenerationBusy || !session?.strategySnapshot.contentCalendarDraft.length
+                    teamGenerationBusy || contentCalendar.length === 0
                   }
                   className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -684,9 +692,9 @@ export function ConsultationWorkspace() {
                 status={teamGenerationStatus}
                 error={teamGenerationError}
               />
-              {session?.strategySnapshot.contentCalendarDraft.length ? (
+              {contentCalendar.length ? (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {session.strategySnapshot.contentCalendarDraft.map((item) => (
+                  {contentCalendar.map((item) => (
                     <article
                       key={item.id}
                       className="flex min-h-44 flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-4"
@@ -931,8 +939,8 @@ export function ConsultationWorkspace() {
             <Card title="策略资产文档">
               <StrategyAssetDocument
                 markdown={
-                  session?.strategyAsset?.strategyMarkdown ??
-                  buildFallbackStrategyMarkdown(strategySnapshot)
+                  strategyAssetSnapshot?.strategyMarkdown ||
+                  buildFallbackStrategyMarkdown(strategyAssetSnapshot)
                 }
               />
             </Card>
@@ -957,7 +965,7 @@ export function ConsultationWorkspace() {
               onClick={() => {
                 void startTeamWeekGeneration();
               }}
-              disabled={teamGenerationBusy || !session?.strategySnapshot.contentCalendarDraft.length}
+              disabled={teamGenerationBusy || contentCalendar.length === 0}
               className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[10px] uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {teamGenerationBusy ? (
@@ -973,7 +981,7 @@ export function ConsultationWorkspace() {
               compact
             />
             <div className="mt-4 space-y-3">
-              {session?.strategySnapshot.contentCalendarDraft.map((item) => (
+              {contentCalendar.map((item) => (
                 <article
                   key={item.id}
                   className="rounded-2xl border border-white/10 bg-white/5 p-4"
@@ -1315,9 +1323,25 @@ function normalizeMarkdownSection(section: { title: string; lines: string[] }) {
   };
 }
 
-function buildFallbackStrategyMarkdown(
+function buildStrategyAssetSnapshotFallback(
   snapshot: ConsultationSessionDetailDto["strategySnapshot"] | null,
-) {
+  strategyMarkdown: string,
+): StrategyAssetSnapshotDto | null {
+  if (!snapshot) {
+    return null;
+  }
+
+  return {
+    positioning: snapshot.positioning,
+    coreSellingPoints: snapshot.coreSellingPoints,
+    targetAudiences: snapshot.targetAudiences,
+    keyScenes: snapshot.keyScenes,
+    strategyTags: snapshot.strategyTags,
+    strategyMarkdown,
+  };
+}
+
+function buildFallbackStrategyMarkdown(snapshot: StrategyAssetSnapshotDto | null) {
   if (!snapshot) {
     return "# 策略资产\n\n## 当前定位\n等待咨询中...";
   }
@@ -1328,7 +1352,7 @@ function buildFallbackStrategyMarkdown(
     `## 目标对象洞察\n${formatMarkdownList(snapshot.targetAudiences, "继续补充目标对象。")}`,
     `## 核心卖点\n${formatMarkdownList(snapshot.coreSellingPoints, "继续补充卖点。")}`,
     `## 核心场景\n${formatMarkdownList(snapshot.keyScenes, "继续补充场景。")}`,
-    `## 当前建议\n${snapshot.currentSuggestion || "继续补充信息后同步咨询建议。"}`,
+    `## 策略标签\n${formatMarkdownList(snapshot.strategyTags, "继续补充策略标签。")}`,
   ].join("\n\n");
 }
 

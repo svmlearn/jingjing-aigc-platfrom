@@ -784,12 +784,32 @@ test("content calendar update remains available after prior calendar writes", ()
   assert.match(consultationRuntimeSource, /result\.toolName !== "update_content_calendar"/);
   assert.match(
     consultationServiceAndRuntimeSource,
-    /strategySnapshot\.contentCalendarGeneration/,
+    /contentCalendarContext\?\.generation/,
   );
   assert.match(consultationServiceAndRuntimeSource, /后续团队内容可能需要重新生成/);
   assert.match(consultationServiceAndRuntimeSource, /buildRuntimeToolDescription/);
   assert.match(consultationServiceAndRuntimeSource, /当前日历生成状态/);
   assert.match(consultationContractSource, /contentCalendarGeneration/);
+});
+
+test("consultation API exposes split strategy asset calendar and brief contexts", () => {
+  assert.match(consultationContractSource, /type StrategyAssetSnapshotDto/);
+  assert.match(consultationContractSource, /type ContentCalendarContextDto/);
+  assert.match(consultationContractSource, /strategyAssetSnapshot\?: StrategyAssetSnapshotDto/);
+  assert.match(consultationContractSource, /contentCalendarContext\?: ContentCalendarContextDto/);
+  assert.match(strategySnapshotSource, /function splitStrategySnapshot/);
+  assert.match(strategySnapshotSource, /buildStrategyAssetSnapshot/);
+  assert.match(strategySnapshotSource, /buildContentCalendarContext/);
+  assert.match(serviceSource, /attachStrategyAssetToSession/);
+  assert.match(serviceSource, /\.\.\.splitStrategySnapshot\(strategySnapshot, strategyMarkdown\)/);
+  assert.match(serviceSource, /strategyAssetSnapshot: splitStrategyState\.strategyAssetSnapshot/);
+  assert.match(serviceSource, /contentCalendarContext/);
+  assert.match(consultationRuntimeSource, /buildStrategyAssetSnapshot/);
+  assert.match(consultationRuntimeSource, /buildContentCalendarContext/);
+  assert.match(consultationWorkspaceSource, /strategyAssetSnapshot/);
+  assert.match(consultationWorkspaceSource, /contentCalendarContext\?\.calendar/);
+  assert.doesNotMatch(consultationWorkspaceSource, /session\?\.strategySnapshot\.contentCalendarDraft/);
+  assert.doesNotMatch(consultationWorkspaceSource, /currentSuggestion/);
 });
 
 test("calendar UI follows the direct team generation path", () => {
@@ -1041,8 +1061,8 @@ test("strategy assets are merchant-level and stable across consultation sessions
   assert.match(serviceSource, /getMerchantStrategyAssetDocument/);
   assert.match(serviceSource, /ensureMerchantStrategyAssetDocument/);
   assert.match(serviceSource, /upsertMerchantStrategyAssetDocument/);
-  assert.match(serviceSource, /existingMerchantStrategyAsset\?\.strategySnapshot \?\? session\.strategySnapshot/);
-  assert.match(serviceSource, /strategyAsset: merchantStrategyAsset/);
+  assert.match(serviceSource, /attachStrategyAssetToSession\(session, existingMerchantStrategyAsset\)/);
+  assert.match(serviceSource, /strategyAsset,/);
   assert.match(serviceSource, /strategySnapshot: finalizedStrategySnapshot/);
   assert.match(serviceSource, /strategyMarkdown: finalizedStrategyMarkdown/);
   assert.doesNotMatch(serviceSource, /previousSnapshot: null,\n\s*userMessages: \[\],\n\s*\}\);\n\s*const session = await createConsultationSession/);

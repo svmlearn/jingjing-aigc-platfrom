@@ -16,7 +16,11 @@ import {
   queryAppDb,
   withAppDbTransaction,
 } from "@/lib/server-db/postgres";
-import { emptyStrategySnapshot, toStrategySnapshot } from "@/lib/strategy-snapshot";
+import {
+  emptyStrategySnapshot,
+  splitStrategySnapshot,
+  toStrategySnapshot,
+} from "@/lib/strategy-snapshot";
 import { ApiError } from "@/server/api/errors";
 
 type ConsultationSessionRow = {
@@ -535,13 +539,16 @@ async function listLatestMessagePreviewBySessionIds(sessionIds: string[]) {
 function mapConsultationSessionSummary(
   row: ConsultationSessionRow,
 ): ConsultationSessionSummaryDto {
+  const strategySnapshot = toStrategySnapshot(row.strategy_snapshot);
+
   return {
     id: row.id,
     merchantId: row.merchant_id,
     title: row.title,
     status: row.status,
     currentStage: row.current_stage,
-    strategySnapshot: toStrategySnapshot(row.strategy_snapshot),
+    strategySnapshot,
+    ...splitStrategySnapshot(strategySnapshot),
     summaryText: row.summary_text,
     latestMessagePreview: null,
     lastMessageAt: toIsoString(row.last_message_at),

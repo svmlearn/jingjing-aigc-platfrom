@@ -9,6 +9,7 @@ import type {
   ConsultationAgentToolCall,
   ConsultationAgentToolKey,
 } from "@/server/api/consultation-runtime/types";
+import { buildContentCalendarContext } from "@/lib/strategy-snapshot";
 import { buildSkillReferenceQueryText } from "@/server/api/consultation-runtime/skills";
 import {
   uniqueStrings,
@@ -308,7 +309,7 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
       key: "generate_article_brief",
       label: "生成图文任务草案",
       purpose: "仅在用户明确要求图文工作台 brief 时，把咨询结论转成图文工作台可使用的 brief；团队内容日历直接生成链路不要用它作为前置。",
-      writes: "strategySnapshot.articleBrief",
+      writes: "articleBrief / 图文工作台草案",
       parameters: merchantRoundParameters,
       validate: validateMerchantRoundArgs("generate_article_brief"),
     },
@@ -316,7 +317,7 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
       key: "generate_video_brief",
       label: "生成视频任务草案",
       purpose: "仅在用户明确要求视频工作台 brief 时，把咨询结论转成视频工作台可使用的 brief；团队内容日历直接生成链路不要用它作为前置。",
-      writes: "strategySnapshot.videoBrief",
+      writes: "videoBrief / 视频工作台草案",
       parameters: merchantRoundParameters,
       validate: validateMerchantRoundArgs("generate_video_brief"),
     },
@@ -381,7 +382,9 @@ function buildRuntimeToolDescription(
     return base;
   }
 
-  const generation = state.strategySnapshot.contentCalendarGeneration;
+  const generation =
+    state.session.contentCalendarContext?.generation ??
+    buildContentCalendarContext(state.strategySnapshot).generation;
 
   if (!generation) {
     return [

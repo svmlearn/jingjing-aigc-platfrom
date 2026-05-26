@@ -6,7 +6,11 @@ import {
   queryAppDb,
 } from "@/lib/server-db/postgres";
 import { isLocalDemoRuntime } from "@/lib/demo/local-demo-runtime";
-import { emptyStrategySnapshot, toStrategySnapshot } from "@/lib/strategy-snapshot";
+import {
+  buildStrategyAssetSnapshot,
+  emptyStrategySnapshot,
+  toStrategySnapshot,
+} from "@/lib/strategy-snapshot";
 
 type MerchantStrategyAssetRow = {
   merchant_id: string;
@@ -74,13 +78,18 @@ export async function upsertMerchantStrategyAssetDocument(input: {
   if (isLocalDemoRuntime()) {
     const now = new Date().toISOString();
     const current = demoMerchantStrategyAssets.get(input.merchantId);
+    const strategyMarkdown =
+      normalizeStrategyMarkdown(input.strategyMarkdown) ||
+      current?.strategyMarkdown ||
+      buildStrategyAssetMarkdown(input.strategySnapshot);
     const asset: MerchantStrategyAssetDto = {
       merchantId: input.merchantId,
       strategySnapshot: input.strategySnapshot,
-      strategyMarkdown:
-        normalizeStrategyMarkdown(input.strategyMarkdown) ||
-        current?.strategyMarkdown ||
-        buildStrategyAssetMarkdown(input.strategySnapshot),
+      strategyMarkdown,
+      strategyAssetSnapshot: buildStrategyAssetSnapshot(
+        input.strategySnapshot,
+        strategyMarkdown,
+      ),
       canonicalSnapshot: input.canonicalSnapshot ?? input.strategySnapshot,
       compiledContext: input.compiledContext ?? current?.compiledContext ?? null,
       updatedAt: now,
@@ -184,6 +193,7 @@ function mapMerchantStrategyAsset(row: MerchantStrategyAssetRow): MerchantStrate
   return {
     merchantId: row.merchant_id,
     strategySnapshot,
+    strategyAssetSnapshot: buildStrategyAssetSnapshot(strategySnapshot, strategyMarkdown),
     strategyMarkdown,
     canonicalSnapshot: row.canonical_snapshot ?? strategySnapshot,
     compiledContext: row.compiled_context ?? null,

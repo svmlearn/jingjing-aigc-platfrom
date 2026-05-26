@@ -1,4 +1,9 @@
-import type { ContentCalendarItemDto, StrategySnapshotDto } from "@/contracts/consultation";
+import type {
+  ContentCalendarContextDto,
+  ContentCalendarItemDto,
+  StrategyAssetSnapshotDto,
+  StrategySnapshotDto,
+} from "@/contracts/consultation";
 import { normalizeContentCalendarGuidance } from "@/lib/content-calendar-guidance";
 import { normalizeContentCalendarGenerationStatus } from "@/lib/content-calendar-revision";
 
@@ -13,6 +18,20 @@ export const emptyStrategySnapshot: StrategySnapshotDto = {
   contentCalendarGeneration: null,
   articleBrief: null,
   videoBrief: null,
+};
+
+export const emptyStrategyAssetSnapshot: StrategyAssetSnapshotDto = {
+  positioning: "",
+  coreSellingPoints: [],
+  targetAudiences: [],
+  keyScenes: [],
+  strategyTags: [],
+  strategyMarkdown: "",
+};
+
+export const emptyContentCalendarContext: ContentCalendarContextDto = {
+  calendar: [],
+  generation: null,
 };
 
 export function toStrategySnapshot(value: unknown): StrategySnapshotDto {
@@ -47,6 +66,41 @@ export function toStrategySnapshot(value: unknown): StrategySnapshotDto {
           outcome: getString(videoBrief.outcome),
         }
       : null,
+  };
+}
+
+export function buildStrategyAssetSnapshot(
+  snapshot: StrategySnapshotDto,
+  strategyMarkdown = "",
+): StrategyAssetSnapshotDto {
+  return {
+    positioning: snapshot.positioning,
+    coreSellingPoints: snapshot.coreSellingPoints,
+    targetAudiences: snapshot.targetAudiences,
+    keyScenes: snapshot.keyScenes,
+    strategyTags: snapshot.strategyTags,
+    strategyMarkdown,
+  };
+}
+
+export function buildContentCalendarContext(
+  snapshot: StrategySnapshotDto,
+): ContentCalendarContextDto {
+  return {
+    calendar: snapshot.contentCalendarDraft,
+    generation: snapshot.contentCalendarGeneration ?? null,
+  };
+}
+
+export function splitStrategySnapshot(
+  snapshot: StrategySnapshotDto,
+  strategyMarkdown = "",
+) {
+  return {
+    strategyAssetSnapshot: buildStrategyAssetSnapshot(snapshot, strategyMarkdown),
+    contentCalendarContext: buildContentCalendarContext(snapshot),
+    articleBrief: snapshot.articleBrief ?? null,
+    videoBrief: snapshot.videoBrief ?? null,
   };
 }
 

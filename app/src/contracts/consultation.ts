@@ -68,6 +68,32 @@ export type ContentCalendarGenerationStatusDto = {
   generatedJobCount?: number | null;
 };
 
+export type ArticleBriefDto = {
+  workingTitle: string;
+  angle: string;
+  callToAction: string;
+};
+
+export type VideoBriefDto = {
+  workingTitle: string;
+  hook: string;
+  outcome: string;
+};
+
+export type StrategyAssetSnapshotDto = {
+  positioning: string;
+  coreSellingPoints: string[];
+  targetAudiences: string[];
+  keyScenes: string[];
+  strategyTags: string[];
+  strategyMarkdown: string;
+};
+
+export type ContentCalendarContextDto = {
+  calendar: ContentCalendarItemDto[];
+  generation?: ContentCalendarGenerationStatusDto | null;
+};
+
 export type StrategySnapshotDto = {
   positioning: string;
   coreSellingPoints: string[];
@@ -77,21 +103,14 @@ export type StrategySnapshotDto = {
   strategyTags: string[];
   contentCalendarDraft: ContentCalendarItemDto[];
   contentCalendarGeneration?: ContentCalendarGenerationStatusDto | null;
-  articleBrief?: {
-    workingTitle: string;
-    angle: string;
-    callToAction: string;
-  } | null;
-  videoBrief?: {
-    workingTitle: string;
-    hook: string;
-    outcome: string;
-  } | null;
+  articleBrief?: ArticleBriefDto | null;
+  videoBrief?: VideoBriefDto | null;
 };
 
 export type MerchantStrategyAssetDto = {
   merchantId: string;
   strategySnapshot: StrategySnapshotDto;
+  strategyAssetSnapshot?: StrategyAssetSnapshotDto;
   strategyMarkdown: string;
   canonicalSnapshot?: Record<string, unknown> | null;
   compiledContext?: Record<string, unknown> | null;
@@ -186,6 +205,10 @@ export type ConsultationSessionSummaryDto = {
   status: ConsultationSessionStatus;
   currentStage?: string | null;
   strategySnapshot: StrategySnapshotDto;
+  strategyAssetSnapshot?: StrategyAssetSnapshotDto;
+  contentCalendarContext?: ContentCalendarContextDto;
+  articleBrief?: ArticleBriefDto | null;
+  videoBrief?: VideoBriefDto | null;
   strategyAsset?: MerchantStrategyAssetDto | null;
   summaryText?: string | null;
   latestMessagePreview?: string | null;

@@ -8,6 +8,7 @@ import type {
   ContentCalendarItemDto,
   ConsultationExpertRosterItemDto,
   ConsultationSessionDetailDto,
+  ConsultationSessionSummaryDto,
   ConsultationToolCardDto,
   MerchantStrategyAssetDto,
   StrategySnapshotDto,
@@ -107,7 +108,10 @@ import {
   toStringArrayValue,
   uniqueStrings,
 } from "@/server/api/consultation-runtime/utils";
-import { emptyStrategySnapshot } from "@/lib/strategy-snapshot";
+import {
+  emptyStrategySnapshot,
+  splitStrategySnapshot,
+} from "@/lib/strategy-snapshot";
 import {
   attachGuidanceToContentCalendar,
   buildMerchantKnowledgeCalendarGuidance,
@@ -134,11 +138,7 @@ export async function listConsultationSessionsForUser(userId: string) {
     return sessions;
   }
 
-  return sessions.map((session) => ({
-    ...session,
-    strategySnapshot: merchantStrategyAsset.strategySnapshot,
-    strategyAsset: merchantStrategyAsset,
-  }));
+  return sessions.map((session) => attachStrategyAssetToSession(session, merchantStrategyAsset));
 }
 
 export async function listConsultationExpertsForUser(
@@ -253,13 +253,7 @@ export async function getConsultationSessionForUser(input: {
   });
   const merchantStrategyAssetDocument = await getMerchantStrategyAssetDocument(merchant.id);
 
-  return merchantStrategyAssetDocument
-    ? attachRoundtableState({
-        ...session,
-        strategySnapshot: merchantStrategyAssetDocument.strategySnapshot,
-        strategyAsset: merchantStrategyAssetDocument,
-      })
-    : attachRoundtableState(session);
+  return attachRoundtableState(attachStrategyAssetToSession(session, merchantStrategyAssetDocument));
 }
 
 export async function deleteConsultationSessionForUser(input: {
@@ -273,17 +267,18 @@ export async function deleteConsultationSessionForUser(input: {
   });
 }
 
-function attachStrategyAssetToSession<T extends ConsultationSessionDetailDto>(
+function attachStrategyAssetToSession<T extends ConsultationSessionDetailDto | ConsultationSessionSummaryDto>(
   session: T,
   strategyAsset: MerchantStrategyAssetDto | null,
 ): T {
-  if (!strategyAsset) {
-    return session;
-  }
+  const strategySnapshot = strategyAsset?.strategySnapshot ?? session.strategySnapshot;
+  const strategyMarkdown =
+    strategyAsset?.strategyMarkdown ?? buildStrategyAssetMarkdown(strategySnapshot);
 
   return {
     ...session,
-    strategySnapshot: strategyAsset.strategySnapshot,
+    strategySnapshot,
+    ...splitStrategySnapshot(strategySnapshot, strategyMarkdown),
     strategyAsset,
   };
 }
@@ -333,11 +328,7 @@ export async function enqueueConsultationMessageForUser(input: {
   const runtime = await resolveConsultationAgentRuntime({
     fallback: consultationAgent,
   });
-  const effectiveSession: ConsultationSessionDetailDto = {
-    ...session,
-    strategySnapshot: existingMerchantStrategyAsset?.strategySnapshot ?? session.strategySnapshot,
-    strategyAsset: existingMerchantStrategyAsset ?? null,
-  };
+  const effectiveSession = attachStrategyAssetToSession(session, existingMerchantStrategyAsset);
 
   if (resolveRoundtableState(effectiveSession)) {
     return {
@@ -445,11 +436,7 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
     }),
     getMerchantStrategyAssetDocument(merchant.id),
   ]);
-  const effectiveSession: ConsultationSessionDetailDto = {
-    ...session,
-    strategySnapshot: existingMerchantStrategyAsset?.strategySnapshot ?? session.strategySnapshot,
-    strategyAsset: existingMerchantStrategyAsset ?? null,
-  };
+  const effectiveSession = attachStrategyAssetToSession(session, existingMerchantStrategyAsset);
   const sourceMessageIndex = effectiveSession.messages.findIndex(
     (message) => message.id === input.userMessageId && message.role === "user",
   );
@@ -658,11 +645,7 @@ async function processQueuedConsultationMessageForUserUnsafe(input: {
     merchantId: merchant.id,
     sessionId: effectiveSession.id,
   }).then((updatedSession) =>
-    attachRoundtableState({
-      ...updatedSession,
-      strategySnapshot: finalizedStrategySnapshot,
-      strategyAsset: persistedStrategyAsset,
-    }),
+    attachRoundtableState(attachStrategyAssetToSession(updatedSession, persistedStrategyAsset)),
   );
 }
 
@@ -774,6 +757,9 @@ export async function runAgentDebugTest(input: {
       previousSnapshot: null,
       userMessages: [],
     });
+  const strategyMarkdown =
+    existingMerchantStrategyAsset?.strategyMarkdown ??
+    buildStrategyAssetMarkdown(strategySnapshot);
   const session: ConsultationSessionDetailDto = {
     id: `agent_debug_${randomUUID()}`,
     merchantId: merchant.id,
@@ -781,10 +767,12 @@ export async function runAgentDebugTest(input: {
     status: "active",
     currentStage: "Agent 调试",
     strategySnapshot,
+    ...splitStrategySnapshot(strategySnapshot, strategyMarkdown),
     strategyAsset: existingMerchantStrategyAsset ?? {
       merchantId: merchant.id,
       strategySnapshot,
-      strategyMarkdown: buildStrategyAssetMarkdown(strategySnapshot),
+      strategyAssetSnapshot: splitStrategySnapshot(strategySnapshot, strategyMarkdown).strategyAssetSnapshot,
+      strategyMarkdown,
       canonicalSnapshot: strategySnapshot,
       compiledContext: null,
       updatedAt: now,
@@ -1234,9 +1222,15 @@ async function runConsultationAgentLoop(input: {
     mentionRouting: input.mentionRouting,
     expertTurnNotes,
   });
+  const initialStrategyMarkdown =
+    input.session.strategyAsset?.strategyMarkdown ??
+    buildStrategyAssetMarkdown(input.session.strategySnapshot);
   const state: ConsultationAgentLoopState = {
     merchant: input.merchant,
-    session: input.session,
+    session: {
+      ...input.session,
+      ...splitStrategySnapshot(input.session.strategySnapshot, initialStrategyMarkdown),
+    },
     userContent: input.userContent,
     userMessages: input.userMessages,
     conversationMessages: input.conversationMessages,
@@ -1251,9 +1245,7 @@ async function runConsultationAgentLoop(input: {
     llmRuntime: input.llmRuntime,
     knowledgeMatches: [],
     strategySnapshot: input.session.strategySnapshot,
-    strategyMarkdown:
-      input.session.strategyAsset?.strategyMarkdown ??
-      buildStrategyAssetMarkdown(input.session.strategySnapshot),
+    strategyMarkdown: initialStrategyMarkdown,
     plannerTrace: [],
     sharedConsultationState,
     expertTurnNotes,
@@ -1425,6 +1417,7 @@ async function dispatchConsultationTool(
     const strategyMarkdown = strategyWriteApplied
       ? assetEdit.patch.strategyMarkdown ?? buildStrategyAssetMarkdown(strategySnapshot)
       : state.strategyMarkdown;
+    const splitStrategyState = splitStrategySnapshot(strategySnapshot, strategyMarkdown);
 
     return {
       callId: call.id,
@@ -1434,6 +1427,7 @@ async function dispatchConsultationTool(
         ? `策略资产 Editor 已更新：${summarizeStrategyAssetEdit(assetEdit.patch)}。`
         : assetEdit.guard.summary,
       payload: {
+        strategyAssetSnapshot: splitStrategyState.strategyAssetSnapshot,
         strategySnapshot,
         strategyMarkdown,
         editorPatch: toStrategyAssetEditorPayload(assetEdit.patch),
@@ -1472,6 +1466,10 @@ async function dispatchConsultationTool(
       ? withUpdatedContentCalendarGeneration(state.strategySnapshot, calendar)
       : state.strategySnapshot;
     const strategyMarkdown = buildStrategyAssetMarkdown(strategySnapshot);
+    const contentCalendarContext = splitStrategySnapshot(
+      strategySnapshot,
+      strategyMarkdown,
+    ).contentCalendarContext;
 
     return {
       callId: call.id,
@@ -1482,6 +1480,7 @@ async function dispatchConsultationTool(
       payload: {
         calendarCount: calendar.length,
         calendar,
+        contentCalendarContext,
         strategySnapshot,
         strategyMarkdown,
       },
@@ -1537,6 +1536,7 @@ function applyToolResultToState(
     if (typeof strategyMarkdown === "string" && strategyMarkdown.trim()) {
       state.strategyMarkdown = strategyMarkdown;
     }
+    syncSplitStrategyState(state);
 
     state.sharedConsultationState = buildSharedConsultationState({
       merchant: state.merchant,
@@ -1560,6 +1560,7 @@ function applyToolResultToState(
     if (typeof strategyMarkdown === "string" && strategyMarkdown.trim()) {
       state.strategyMarkdown = strategyMarkdown;
     }
+    syncSplitStrategyState(state);
 
     state.sharedConsultationState = buildSharedConsultationState({
       merchant: state.merchant,
@@ -1571,6 +1572,24 @@ function applyToolResultToState(
       expertTurnNotes: state.expertTurnNotes,
     });
   }
+}
+
+function syncSplitStrategyState(state: ConsultationAgentLoopState) {
+  const split = splitStrategySnapshot(state.strategySnapshot, state.strategyMarkdown);
+
+  state.session = {
+    ...state.session,
+    strategySnapshot: state.strategySnapshot,
+    ...split,
+    strategyAsset: state.session.strategyAsset
+      ? {
+          ...state.session.strategyAsset,
+          strategySnapshot: state.strategySnapshot,
+          strategyMarkdown: state.strategyMarkdown,
+          strategyAssetSnapshot: split.strategyAssetSnapshot,
+        }
+      : state.session.strategyAsset,
+  };
 }
 
 function mergeLoopKnowledgeMatches(matches: KnowledgeSearchMatchDto[]) {
