@@ -9,14 +9,11 @@ import type {
   VoiceProfileProvider,
   VoiceProfileStatus,
 } from "@/contracts/voice";
-import { isPostgresVideoChainEnabled } from "@/lib/db/postgres-video-chain-repository";
-import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
+import { isLocalDemoRuntime } from "@/lib/demo/local-demo-runtime";
 import {
-  isAppPostgresConfigured,
   queryAppDb,
   withAppDbTransaction,
 } from "@/lib/server-db/postgres";
-import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
 type Timestamp = string | Date;
@@ -71,24 +68,8 @@ export async function listVoiceProfiles(input: {
   merchantId: string;
   createdByUserId: string;
 }): Promise<VoiceProfileDto[]> {
-  if (isPostgresVideoChainEnabled()) {
-    const result = await queryAppDb<VoiceProfileRow>(
-      `
-      select ${voiceProfileSelect}
-      from public.voice_profiles
-      where merchant_id = $1
-        and created_by_user_id = $2
-        and status <> 'archived'
-      order by created_at desc
-      `,
-      [input.merchantId, input.createdByUserId],
-    );
-
-    return attachVoiceProfileAssets(result.rows.map(mapVoiceProfile));
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    return Array.from(localVoiceProfileStore.voiceProfiles.values())
+  if (isLocalDemoRuntime()) {
+    return [...localVoiceProfileStore.voiceProfiles.values()]
       .filter(
         (profile) =>
           profile.merchantId === input.merchantId &&
@@ -98,20 +79,19 @@ export async function listVoiceProfiles(input: {
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("voice_profiles")
-    .select(voiceProfileSelect)
-    .eq("merchant_id", input.merchantId)
-    .eq("created_by_user_id", input.createdByUserId)
-    .neq("status", "archived")
-    .order("created_at", { ascending: false });
+  const result = await queryAppDb<VoiceProfileRow>(
+    `
+    select ${voiceProfileSelect}
+    from public.voice_profiles
+    where merchant_id = $1
+      and created_by_user_id = $2
+      and status <> 'archived'
+    order by created_at desc
+    `,
+    [input.merchantId, input.createdByUserId],
+  );
 
-  if (error) {
-    throw new ApiError(500, "VOICE_PROFILE_LIST_FAILED", error.message);
-  }
-
-  return attachVoiceProfileAssets(((data ?? []) as unknown as VoiceProfileRow[]).map(mapVoiceProfile));
+  return attachVoiceProfileAssets(result.rows.map(mapVoiceProfile));
 }
 
 export async function createVoiceProfile(input: {
@@ -129,82 +109,15 @@ export async function createVoiceProfile(input: {
     );
   }
 
-  const refAudioAsset = await assertVoiceProfileAudioAsset({
-    merchantId: input.merchantId,
-    createdByUserId: input.createdByUserId,
-    voiceProfileId: id,
-    assetId: input.request.refAudioAssetId,
-  });
-
-  if (isPostgresVideoChainEnabled()) {
-    const profile = await withAppDbTransaction(async (client) => {
-      const existingResult = await client.query<VoiceProfileRow>(
-        `
-        select ${voiceProfileSelect}
-        from public.voice_profiles
-        where id = $1
-        for update
-        `,
-        [id],
-      );
-      const existing = existingResult.rows[0];
-
-      if (existing) {
-        if (
-          existing.merchant_id !== input.merchantId ||
-          existing.created_by_user_id !== input.createdByUserId ||
-          existing.ref_audio_asset_id !== input.request.refAudioAssetId ||
-          existing.status !== "ready"
-        ) {
-          throw new ApiError(409, "VOICE_PROFILE_ID_CONFLICT", "Voice profile id is already used.");
-        }
-
-        return mapVoiceProfile(existing);
-      }
-
-      await client.query(
-        `
-        update public.voice_profiles
-        set status = 'archived',
-            updated_at = timezone('utc', now())
-        where merchant_id = $1
-          and created_by_user_id = $2
-          and status = 'ready'
-        `,
-        [input.merchantId, input.createdByUserId],
-      );
-
-      const result = await client.query<VoiceProfileRow>(
-        `
-        insert into public.voice_profiles (
-          id,
-          merchant_id,
-          created_by_user_id,
-          display_name,
-          status,
-          provider,
-          ref_audio_asset_id,
-          authorization_accepted_at
-        ) values ($1, $2, $3, $4, 'ready', 'aliyun_cosyvoice_clone', $5, timezone('utc', now()))
-        returning ${voiceProfileSelect}
-        `,
-        [
-          id,
-          input.merchantId,
-          input.createdByUserId,
-          input.request.displayName.trim(),
-          input.request.refAudioAssetId,
-        ],
-      );
-
-      return mapVoiceProfile(result.rows[0]);
+  if (isLocalDemoRuntime()) {
+    const now = new Date().toISOString();
+    const refAudioAsset = createLocalDemoVoiceProfileAudioAsset({
+      merchantId: input.merchantId,
+      voiceProfileId: id,
+      assetId: input.request.refAudioAssetId,
+      now,
     });
 
-    return { ...profile, refAudioAsset };
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    const now = new Date().toISOString();
     for (const profile of localVoiceProfileStore.voiceProfiles.values()) {
       if (
         profile.merchantId === input.merchantId &&
@@ -238,26 +151,104 @@ export async function createVoiceProfile(input: {
     return profile;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .rpc("replace_current_voice_profile", {
-      p_profile_id: id,
-      p_merchant_id: input.merchantId,
-      p_created_by_user_id: input.createdByUserId,
-      p_display_name: input.request.displayName.trim(),
-      p_ref_audio_asset_id: input.request.refAudioAssetId,
-      p_provider: "aliyun_cosyvoice_clone",
-    })
-    .single();
+  const refAudioAsset = await assertVoiceProfileAudioAsset({
+    merchantId: input.merchantId,
+    createdByUserId: input.createdByUserId,
+    voiceProfileId: id,
+    assetId: input.request.refAudioAssetId,
+  });
 
-  if (error || !data) {
-    throw new ApiError(500, "VOICE_PROFILE_CREATE_FAILED", error?.message ?? "Create voice profile failed.");
-  }
+  const profile = await withAppDbTransaction(async (client) => {
+    const existingResult = await client.query<VoiceProfileRow>(
+      `
+      select ${voiceProfileSelect}
+      from public.voice_profiles
+      where id = $1
+      for update
+      `,
+      [id],
+    );
+    const existing = existingResult.rows[0];
 
-  return {
-    ...mapVoiceProfile(data as unknown as VoiceProfileRow),
-    refAudioAsset,
+    if (existing) {
+      if (
+        existing.merchant_id !== input.merchantId ||
+        existing.created_by_user_id !== input.createdByUserId ||
+        existing.ref_audio_asset_id !== input.request.refAudioAssetId ||
+        existing.status !== "ready"
+      ) {
+        throw new ApiError(409, "VOICE_PROFILE_ID_CONFLICT", "Voice profile id is already used.");
+      }
+
+      return mapVoiceProfile(existing);
+    }
+
+    await client.query(
+      `
+      update public.voice_profiles
+      set status = 'archived',
+          updated_at = timezone('utc', now())
+      where merchant_id = $1
+        and created_by_user_id = $2
+        and status = 'ready'
+      `,
+      [input.merchantId, input.createdByUserId],
+    );
+
+    const result = await client.query<VoiceProfileRow>(
+      `
+      insert into public.voice_profiles (
+        id,
+        merchant_id,
+        created_by_user_id,
+        display_name,
+        status,
+        provider,
+        ref_audio_asset_id,
+        authorization_accepted_at
+      ) values ($1, $2, $3, $4, 'ready', 'aliyun_cosyvoice_clone', $5, timezone('utc', now()))
+      returning ${voiceProfileSelect}
+      `,
+      [
+        id,
+        input.merchantId,
+        input.createdByUserId,
+        input.request.displayName.trim(),
+        input.request.refAudioAssetId,
+      ],
+    );
+
+    return mapVoiceProfile(result.rows[0]);
+  });
+
+  return { ...profile, refAudioAsset };
+}
+
+function createLocalDemoVoiceProfileAudioAsset(input: {
+  merchantId: string;
+  voiceProfileId: string;
+  assetId: string;
+  now: string;
+}): MediaAssetDto {
+  const asset: MediaAssetDto = {
+    id: input.assetId,
+    ownerType: "voice_profile",
+    ownerId: input.voiceProfileId,
+    assetType: "audio",
+    storageProvider: "aliyun_oss",
+    bucketName: null,
+    storageKey: `voice-profiles/${input.merchantId}/${input.voiceProfileId}/local-demo-ref-audio.wav`,
+    originUrl: null,
+    mimeType: "audio/wav",
+    fileSizeBytes: null,
+    etag: null,
+    sortOrder: 0,
+    createdAt: input.now,
+    updatedAt: input.now,
   };
+
+  assertVoiceProfileAudioStorageKey(input, asset);
+  return asset;
 }
 
 export async function assertVoiceProfileAccess(input: {
@@ -265,27 +256,7 @@ export async function assertVoiceProfileAccess(input: {
   createdByUserId: string;
   voiceProfileId: string;
 }): Promise<VoiceProfileDto> {
-  if (isPostgresVideoChainEnabled()) {
-    const result = await queryAppDb<VoiceProfileRow>(
-      `
-      select ${voiceProfileSelect}
-      from public.voice_profiles
-      where id = $1
-        and merchant_id = $2
-        and created_by_user_id = $3
-        and status = 'ready'
-      limit 1
-      `,
-      [input.voiceProfileId, input.merchantId, input.createdByUserId],
-    );
-    const row = result.rows[0];
-    if (!row) {
-      throw new ApiError(404, "VOICE_PROFILE_NOT_FOUND", "Voice profile not found.");
-    }
-    return mapVoiceProfile(row);
-  }
-
-  if (!isSupabaseAdminConfigured()) {
+  if (isLocalDemoRuntime()) {
     const profile = localVoiceProfileStore.voiceProfiles.get(input.voiceProfileId);
     if (
       !profile ||
@@ -298,21 +269,24 @@ export async function assertVoiceProfileAccess(input: {
     return profile;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("voice_profiles")
-    .select(voiceProfileSelect)
-    .eq("id", input.voiceProfileId)
-    .eq("merchant_id", input.merchantId)
-    .eq("created_by_user_id", input.createdByUserId)
-    .eq("status", "ready")
-    .single();
-
-  if (error || !data) {
+  const result = await queryAppDb<VoiceProfileRow>(
+    `
+    select ${voiceProfileSelect}
+    from public.voice_profiles
+    where id = $1
+      and merchant_id = $2
+      and created_by_user_id = $3
+      and status = 'ready'
+    limit 1
+    `,
+    [input.voiceProfileId, input.merchantId, input.createdByUserId],
+  );
+  const row = result.rows[0];
+  if (!row) {
     throw new ApiError(404, "VOICE_PROFILE_NOT_FOUND", "Voice profile not found.");
   }
 
-  return mapVoiceProfile(data as unknown as VoiceProfileRow);
+  return mapVoiceProfile(row);
 }
 
 export async function assertVoiceProfileAudioAsset(input: {
@@ -321,63 +295,24 @@ export async function assertVoiceProfileAudioAsset(input: {
   voiceProfileId: string;
   assetId: string;
 }): Promise<MediaAssetDto> {
-  if (isPostgresVideoChainEnabled() || isAppPostgresConfigured()) {
-    const result = await queryAppDb<VoiceProfileAssetRow>(
-      `
-      select ${assetObjectSelect}
-      from public.asset_objects
-      where id = $1
-        and owner_type = 'voice_profile'
-        and owner_id = $2
-        and asset_type = 'audio'
-        and storage_provider in ('tencent_cos', 'aliyun_oss')
-      limit 1
-      `,
-      [input.assetId, input.voiceProfileId],
-    );
-    const row = result.rows[0];
-    if (!row) {
-      throw new ApiError(400, "VOICE_PROFILE_AUDIO_ASSET_INVALID", "Reference audio asset is invalid.");
-    }
-    const asset = mapAssetObject(row);
-    assertVoiceProfileAudioStorageKey(input, asset);
-    return asset;
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    const asset = (await listAssetObjectsByOwner({
-      ownerType: "voice_profile",
-      ownerId: input.voiceProfileId,
-    })).find((item) => item.id === input.assetId && item.assetType === "audio");
-
-    if (!asset) {
-      throw new ApiError(400, "VOICE_PROFILE_AUDIO_ASSET_INVALID", "Reference audio asset is invalid.");
-    }
-
-    assertVoiceProfileAudioStorageKey(input, asset);
-    return asset;
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("asset_objects")
-    .select(assetObjectSelect)
-    .eq("id", input.assetId)
-    .eq("owner_type", "voice_profile")
-    .eq("owner_id", input.voiceProfileId)
-    .eq("asset_type", "audio")
-    .in("storage_provider", ["tencent_cos", "aliyun_oss"])
-    .maybeSingle();
-
-  if (error) {
-    throw new ApiError(500, "VOICE_PROFILE_AUDIO_LOOKUP_FAILED", error.message);
-  }
-
-  if (!data) {
+  const result = await queryAppDb<VoiceProfileAssetRow>(
+    `
+    select ${assetObjectSelect}
+    from public.asset_objects
+    where id = $1
+      and owner_type = 'voice_profile'
+      and owner_id = $2
+      and asset_type = 'audio'
+      and storage_provider = 'aliyun_oss'
+    limit 1
+    `,
+    [input.assetId, input.voiceProfileId],
+  );
+  const row = result.rows[0];
+  if (!row) {
     throw new ApiError(400, "VOICE_PROFILE_AUDIO_ASSET_INVALID", "Reference audio asset is invalid.");
   }
-
-  const asset = mapAssetObject(data as unknown as VoiceProfileAssetRow);
+  const asset = mapAssetObject(row);
   assertVoiceProfileAudioStorageKey(input, asset);
   return asset;
 }
@@ -387,54 +322,18 @@ async function attachVoiceProfileAssets(profiles: VoiceProfileDto[]): Promise<Vo
     return profiles;
   }
 
-  if (isPostgresVideoChainEnabled() || isAppPostgresConfigured()) {
-    const result = await queryAppDb<VoiceProfileAssetRow>(
-      `
-      select ${assetObjectSelect}
-      from public.asset_objects
-      where id = any($1::uuid[])
-      `,
-      [profiles.map((profile) => profile.refAudioAssetId)],
-    );
-    const assetsById = new Map(result.rows.map((row) => {
-      const asset = mapAssetObject(row);
-      return [asset.id, asset] as const;
-    }));
-    return profiles.map((profile) => ({
-      ...profile,
-      refAudioAsset: assetsById.get(profile.refAudioAssetId) ?? null,
-    }));
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    const assets = await Promise.all(
-      profiles.map((profile) =>
-        listAssetObjectsByOwner({ ownerType: "voice_profile", ownerId: profile.id }),
-      ),
-    );
-    const assetsById = new Map(assets.flat().map((asset) => [asset.id, asset] as const));
-    return profiles.map((profile) => ({
-      ...profile,
-      refAudioAsset: assetsById.get(profile.refAudioAssetId) ?? null,
-    }));
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("asset_objects")
-    .select(assetObjectSelect)
-    .in("id", profiles.map((profile) => profile.refAudioAssetId));
-
-  if (error) {
-    throw new ApiError(500, "VOICE_PROFILE_AUDIO_LIST_FAILED", error.message);
-  }
-
-  const assetsById = new Map(
-    ((data ?? []) as unknown as VoiceProfileAssetRow[]).map((row) => {
-      const asset = mapAssetObject(row);
-      return [asset.id, asset] as const;
-    }),
+  const result = await queryAppDb<VoiceProfileAssetRow>(
+    `
+    select ${assetObjectSelect}
+    from public.asset_objects
+    where id = any($1::uuid[])
+    `,
+    [profiles.map((profile) => profile.refAudioAssetId)],
   );
+  const assetsById = new Map(result.rows.map((row) => {
+    const asset = mapAssetObject(row);
+    return [asset.id, asset] as const;
+  }));
 
   return profiles.map((profile) => ({
     ...profile,

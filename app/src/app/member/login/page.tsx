@@ -5,6 +5,7 @@ import { LogIn, UserRound } from "lucide-react";
 import { getOptionalMemberAccess } from "@/lib/auth/member-page-guard";
 
 const errorMessages: Record<string, string> = {
+  "auth-not-configured": "成员登录服务暂不可用，请联系平台管理员检查数据库会话配置。",
   "invalid-credentials": "用户名或密码不正确，请重新输入。",
   unauthenticated: "请先登录成员账号，再进入成员端。",
   "no-member-workspace": "这个账号还没有可用团队，请使用邀请码加入团队。",

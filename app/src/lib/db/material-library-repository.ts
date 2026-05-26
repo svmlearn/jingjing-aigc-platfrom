@@ -12,18 +12,16 @@ import type {
   MaterialWorkbenchReferenceDto,
   MaterialWorkbenchTarget,
 } from "@/contracts/material";
+import { isLocalDemoRuntime } from "@/lib/demo/local-demo-runtime";
+import { upsertImportedComments } from "@/lib/db/import-repository";
 import { normalizeMaterialRouting } from "@/lib/material-routing";
 import { rankMaterialLibraryItemsForRetrieval } from "@/lib/material-retrieval";
-import { upsertImportedComments } from "@/lib/db/import-repository";
 import {
-  isAppPostgresConfigured,
-  isAppPostgresPreferred,
   mapPostgresError,
   queryAppDb,
   withAppDbTransaction,
   type DatabaseClient,
 } from "@/lib/server-db/postgres";
-import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 import type { NormalizedComment } from "@/server/import-providers/types";
 
@@ -132,37 +130,7 @@ export async function listMaterialLibraryItems(input: {
   retrievalTarget?: MaterialRetrievalTarget;
   query?: string | null;
 }): Promise<MaterialLibraryItemDto[]> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const candidateLimit =
-        input.retrievalTarget || input.query
-          ? Math.max(input.limit ?? 50, 160)
-          : input.limit ?? 50;
-      const result = await queryAppDb<SourceItemMaterialRow>(
-        `
-        select ${sourceItemMaterialSelect}
-        from public.source_items
-        where merchant_id = $1
-          and trace_payload @> $2::jsonb
-        order by created_at desc
-        limit $3
-        `,
-        [input.merchantId, JSON.stringify({ materialLibrary: true }), candidateLimit],
-      );
-      const materials = result.rows.map(mapSourceItemToMaterial);
-
-      return rankMaterialLibraryItemsForRetrieval({
-        materials,
-        retrievalTarget: input.retrievalTarget,
-        query: input.query,
-        limit: input.limit ?? 50,
-      });
-    } catch (error) {
-      throw mapPostgresError(error, "MATERIAL_LIBRARY_LIST_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const materials = Array.from(demoMaterialItems.values()).filter(
       (item) => item.merchantId === input.merchantId && item.status !== "archived",
     );
@@ -175,51 +143,40 @@ export async function listMaterialLibraryItems(input: {
     });
   }
 
-  const supabase = createSupabaseAdminClient();
-  const candidateLimit =
-    input.retrievalTarget || input.query
-      ? Math.max(input.limit ?? 50, 160)
-      : input.limit ?? 50;
-  const { data, error } = await supabase
-    .from("source_items")
-    .select(sourceItemMaterialSelect)
-    .eq("merchant_id", input.merchantId)
-    .contains("trace_payload", { materialLibrary: true })
-    .order("created_at", { ascending: false })
-    .limit(candidateLimit);
+  try {
+    const candidateLimit =
+      input.retrievalTarget || input.query
+        ? Math.max(input.limit ?? 50, 160)
+        : input.limit ?? 50;
+    const result = await queryAppDb<SourceItemMaterialRow>(
+      `
+      select ${sourceItemMaterialSelect}
+      from public.source_items
+      where merchant_id = $1
+        and trace_payload @> $2::jsonb
+      order by created_at desc
+      limit $3
+      `,
+      [input.merchantId, JSON.stringify({ materialLibrary: true }), candidateLimit],
+    );
+    const materials = result.rows.map(mapSourceItemToMaterial);
 
-  if (error) {
-    throw new ApiError(500, "MATERIAL_LIBRARY_LIST_FAILED", error.message);
+    return rankMaterialLibraryItemsForRetrieval({
+      materials,
+      retrievalTarget: input.retrievalTarget,
+      query: input.query,
+      limit: input.limit ?? 50,
+    });
+  } catch (error) {
+    throw mapPostgresError(error, "MATERIAL_LIBRARY_LIST_FAILED");
   }
-
-  const materials = ((data ?? []) as unknown as SourceItemMaterialRow[]).map(mapSourceItemToMaterial);
-
-  return rankMaterialLibraryItemsForRetrieval({
-    materials,
-    retrievalTarget: input.retrievalTarget,
-    query: input.query,
-    limit: input.limit ?? 50,
-  });
 }
 
 export async function getMaterialLibraryItemById(input: {
   merchantId: string;
   materialItemId: string;
 }): Promise<MaterialLibraryItemDto> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const row = await pgGetMaterialLibraryItemRow(input);
-      if (!row) {
-        throw new ApiError(404, "MATERIAL_ITEM_NOT_FOUND", "Material item not found.");
-      }
-
-      return mapSourceItemToMaterial(row);
-    } catch (error) {
-      throw mapPostgresError(error, "MATERIAL_ITEM_FETCH_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const item = demoMaterialItems.get(input.materialItemId);
 
     if (!item || item.merchantId !== input.merchantId) {
@@ -229,20 +186,16 @@ export async function getMaterialLibraryItemById(input: {
     return item;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("source_items")
-    .select(sourceItemMaterialSelect)
-    .eq("id", input.materialItemId)
-    .eq("merchant_id", input.merchantId)
-    .contains("trace_payload", { materialLibrary: true })
-    .single();
+  try {
+    const row = await pgGetMaterialLibraryItemRow(input);
+    if (!row) {
+      throw new ApiError(404, "MATERIAL_ITEM_NOT_FOUND", "Material item not found.");
+    }
 
-  if (error || !data) {
-    throw new ApiError(404, "MATERIAL_ITEM_NOT_FOUND", "Material item not found.");
+    return mapSourceItemToMaterial(row);
+  } catch (error) {
+    throw mapPostgresError(error, "MATERIAL_ITEM_FETCH_FAILED");
   }
-
-  return mapSourceItemToMaterial(data as unknown as SourceItemMaterialRow);
 }
 
 export async function createMaterialLibraryItem(input: {
@@ -310,32 +263,7 @@ export async function createMaterialLibraryItem(input: {
     is_selected_for_rewrite: false,
   };
 
-  if (shouldUseAppPostgres()) {
-    try {
-      const row = await pgInsertMaterialLibraryItem(insertPayload);
-
-      if (row) {
-        return mapSourceItemToMaterial(row);
-      }
-
-      if (input.originalUrl) {
-        const existing = await findExistingMaterialByUrl({
-          merchantId: input.merchantId,
-          originalUrl: input.originalUrl,
-        });
-
-        if (existing) {
-          return existing;
-        }
-      }
-
-      throw new ApiError(500, "MATERIAL_LIBRARY_CREATE_FAILED", "Create failed.");
-    } catch (error) {
-      throw mapPostgresError(error, "MATERIAL_LIBRARY_CREATE_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const now = new Date().toISOString();
     const item: MaterialLibraryItemDto = {
       id: randomUUID(),
@@ -361,15 +289,14 @@ export async function createMaterialLibraryItem(input: {
     return item;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("source_items")
-    .insert(insertPayload)
-    .select(sourceItemMaterialSelect)
-    .single();
+  try {
+    const row = await pgInsertMaterialLibraryItem(insertPayload);
 
-  if (error || !data) {
-    if (error?.code === "23505" && input.originalUrl) {
+    if (row) {
+      return mapSourceItemToMaterial(row);
+    }
+
+    if (input.originalUrl) {
       const existing = await findExistingMaterialByUrl({
         merchantId: input.merchantId,
         originalUrl: input.originalUrl,
@@ -380,10 +307,10 @@ export async function createMaterialLibraryItem(input: {
       }
     }
 
-    throw new ApiError(500, "MATERIAL_LIBRARY_CREATE_FAILED", error?.message ?? "Create failed.");
+    throw new ApiError(500, "MATERIAL_LIBRARY_CREATE_FAILED", "Create failed.");
+  } catch (error) {
+    throw mapPostgresError(error, "MATERIAL_LIBRARY_CREATE_FAILED");
   }
-
-  return mapSourceItemToMaterial(data as unknown as SourceItemMaterialRow);
 }
 
 export async function listCachedMaterialProviderItems(input: {
@@ -393,38 +320,7 @@ export async function listCachedMaterialProviderItems(input: {
   maxAgeMs: number;
   limit?: number;
 }): Promise<MaterialProviderLibraryItemInput[]> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const cutoff = new Date(Date.now() - input.maxAgeMs).toISOString();
-      const result = await queryAppDb<SourceItemMaterialRow>(
-        `
-        select ${sourceItemMaterialSelect}
-        from public.source_items
-        where platform = $1
-          and created_at >= $2
-          and trace_payload @> $3::jsonb
-        order by created_at desc
-        limit $4
-        `,
-        [
-          input.platform,
-          cutoff,
-          JSON.stringify({
-            materialLibrary: true,
-            materialProvider: input.provider,
-            materialProviderCacheKey: input.cacheKey,
-          }),
-          input.limit ?? 20,
-        ],
-      );
-
-      return result.rows.map(rowToProviderInput);
-    } catch (error) {
-      throw mapPostgresError(error, "MATERIAL_PROVIDER_CACHE_READ_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const cutoff = Date.now() - input.maxAgeMs;
 
     return Array.from(demoMaterialItems.values())
@@ -461,26 +357,34 @@ export async function listCachedMaterialProviderItems(input: {
       });
   }
 
-  const cutoff = new Date(Date.now() - input.maxAgeMs).toISOString();
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("source_items")
-    .select(sourceItemMaterialSelect)
-    .eq("platform", input.platform)
-    .gte("created_at", cutoff)
-    .contains("trace_payload", {
-      materialLibrary: true,
-      materialProvider: input.provider,
-      materialProviderCacheKey: input.cacheKey,
-    })
-    .order("created_at", { ascending: false })
-    .limit(input.limit ?? 20);
+  try {
+    const cutoff = new Date(Date.now() - input.maxAgeMs).toISOString();
+    const result = await queryAppDb<SourceItemMaterialRow>(
+      `
+      select ${sourceItemMaterialSelect}
+      from public.source_items
+      where platform = $1
+        and created_at >= $2
+        and trace_payload @> $3::jsonb
+      order by created_at desc
+      limit $4
+      `,
+      [
+        input.platform,
+        cutoff,
+        JSON.stringify({
+          materialLibrary: true,
+          materialProvider: input.provider,
+          materialProviderCacheKey: input.cacheKey,
+        }),
+        input.limit ?? 20,
+      ],
+    );
 
-  if (error) {
-    throw new ApiError(500, "MATERIAL_PROVIDER_CACHE_READ_FAILED", error.message);
+    return result.rows.map(rowToProviderInput);
+  } catch (error) {
+    throw mapPostgresError(error, "MATERIAL_PROVIDER_CACHE_READ_FAILED");
   }
-
-  return ((data ?? []) as unknown as SourceItemMaterialRow[]).map(rowToProviderInput);
 }
 
 export async function upsertMaterialLibraryItemsFromProvider(input: {
@@ -488,7 +392,7 @@ export async function upsertMaterialLibraryItemsFromProvider(input: {
   createdByUserId: string;
   items: MaterialProviderLibraryItemInput[];
 }): Promise<MaterialLibraryItemDto[]> {
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const now = new Date().toISOString();
     const savedItems = input.items.map((item) => {
       const material: MaterialLibraryItemDto = {
@@ -563,101 +467,38 @@ export async function upsertMaterialLibraryItemsFromProvider(input: {
     return [];
   }
 
-  if (shouldUseAppPostgres()) {
-    try {
-      const savedWithComments = await withAppDbTransaction(async (client) => {
-        const saved: Array<{ material: MaterialLibraryItemDto; comments: NormalizedComment[] }> = [];
+  try {
+    const savedWithComments = await withAppDbTransaction(async (client) => {
+      const saved: Array<{ material: MaterialLibraryItemDto; comments: NormalizedComment[] }> = [];
 
-        for (const [index, row] of rows.entries()) {
-          const existingId = await pgFindExistingProviderMaterialId(client, row);
-          const savedRow = existingId
-            ? await pgUpdateMaterialLibraryItem(client, existingId, row)
-            : await pgInsertMaterialLibraryItem(row, client);
+      for (const [index, row] of rows.entries()) {
+        const existingId = await pgFindExistingProviderMaterialId(client, row);
+        const savedRow = existingId
+          ? await pgUpdateMaterialLibraryItem(client, existingId, row)
+          : await pgInsertMaterialLibraryItem(row, client);
 
-          if (!savedRow) {
-            throw new ApiError(
-              500,
-              "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED",
-              "Provider material save failed.",
-            );
-          }
-
-          saved.push({
-            material: mapSourceItemToMaterial(savedRow),
-            comments: input.items[index]?.comments ?? [],
-          });
+        if (!savedRow) {
+          throw new ApiError(
+            500,
+            "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED",
+            "Provider material save failed.",
+          );
         }
 
-        return saved;
-      });
-
-      await persistProviderComments(savedWithComments);
-      return savedWithComments.map((item) => item.material);
-    } catch (error) {
-      throw mapPostgresError(error, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED");
-    }
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const saved: Array<{ material: MaterialLibraryItemDto; comments: NormalizedComment[] }> = [];
-
-  for (const [index, row] of rows.entries()) {
-    let existingId: string | null = null;
-
-    if (row.external_item_id) {
-      const { data, error } = await supabase
-        .from("source_items")
-        .select("id")
-        .eq("merchant_id", row.merchant_id)
-        .eq("platform", row.platform)
-        .eq("external_item_id", row.external_item_id)
-        .maybeSingle();
-
-      if (error) {
-        throw new ApiError(500, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED", error.message);
+        saved.push({
+          material: mapSourceItemToMaterial(savedRow),
+          comments: input.items[index]?.comments ?? [],
+        });
       }
 
-      existingId = typeof data?.id === "string" ? data.id : null;
-    } else if (row.source_url) {
-      const { data, error } = await supabase
-        .from("source_items")
-        .select("id")
-        .eq("merchant_id", row.merchant_id)
-        .eq("source_url", row.source_url)
-        .maybeSingle();
-
-      if (error) {
-        throw new ApiError(500, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED", error.message);
-      }
-
-      existingId = typeof data?.id === "string" ? data.id : null;
-    }
-
-    const { data, error } = existingId
-      ? await supabase
-          .from("source_items")
-          .update(row)
-          .eq("id", existingId)
-          .select(sourceItemMaterialSelect)
-          .single()
-      : await supabase
-          .from("source_items")
-          .insert(row)
-          .select(sourceItemMaterialSelect)
-          .single();
-
-    if (error || !data) {
-      throw new ApiError(500, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED", error.message);
-    }
-
-    saved.push({
-      material: mapSourceItemToMaterial(data as unknown as SourceItemMaterialRow),
-      comments: input.items[index]?.comments ?? [],
+      return saved;
     });
-  }
 
-  await persistProviderComments(saved);
-  return saved.map((item) => item.material);
+    await persistProviderComments(savedWithComments);
+    return savedWithComments.map((item) => item.material);
+  } catch (error) {
+    throw mapPostgresError(error, "MATERIAL_PROVIDER_ITEMS_SAVE_FAILED");
+  }
 }
 
 export async function createMaterialWorkbenchReference(input: {
@@ -666,50 +507,7 @@ export async function createMaterialWorkbenchReference(input: {
   targetWorkbench: MaterialWorkbenchTarget;
   createdByUserId: string;
 }): Promise<MaterialWorkbenchReferenceDto> {
-  if (shouldUseAppPostgres()) {
-    try {
-      return await withAppDbTransaction(async (client) => {
-        if (!(await pgGetMaterialLibraryItemRow(input, client))) {
-          throw new ApiError(404, "MATERIAL_ITEM_NOT_FOUND", "Material item not found.");
-        }
-
-        const result = await client.query<MaterialWorkbenchReferenceRow>(
-          `
-          insert into public.material_workbench_references (
-            merchant_id,
-            material_item_id,
-            target_workbench,
-            status,
-            created_by_user_id,
-            trace_payload
-          ) values ($1, $2, $3, 'pending', $4, $5::jsonb)
-          returning ${materialWorkbenchReferenceSelect}
-          `,
-          [
-            input.merchantId,
-            input.materialItemId,
-            input.targetWorkbench,
-            input.createdByUserId,
-            JSON.stringify({
-              createdByUserId: input.createdByUserId,
-              createdFrom: "material_library_repository",
-            }),
-          ],
-        );
-
-        await pgMarkMaterialSelectedForRewrite(client, {
-          merchantId: input.merchantId,
-          materialItemId: input.materialItemId,
-        });
-
-        return mapWorkbenchReference(result.rows[0]);
-      });
-    } catch (error) {
-      throw mapPostgresError(error, "MATERIAL_WORKBENCH_REFERENCE_CREATE_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const item = demoMaterialItems.get(input.materialItemId);
 
     if (!item || item.merchantId !== input.merchantId) {
@@ -721,42 +519,46 @@ export async function createMaterialWorkbenchReference(input: {
     return reference;
   }
 
-  await getMaterialLibraryItemById({
-    merchantId: input.merchantId,
-    materialItemId: input.materialItemId,
-  });
+  try {
+    return await withAppDbTransaction(async (client) => {
+      if (!(await pgGetMaterialLibraryItemRow(input, client))) {
+        throw new ApiError(404, "MATERIAL_ITEM_NOT_FOUND", "Material item not found.");
+      }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("material_workbench_references")
-    .insert({
-      merchant_id: input.merchantId,
-      material_item_id: input.materialItemId,
-      target_workbench: input.targetWorkbench,
-      status: "pending",
-      created_by_user_id: input.createdByUserId,
-    })
-    .select(materialWorkbenchReferenceSelect)
-    .single();
+      const result = await client.query<MaterialWorkbenchReferenceRow>(
+        `
+        insert into public.material_workbench_references (
+          merchant_id,
+          material_item_id,
+          target_workbench,
+          status,
+          created_by_user_id,
+          trace_payload
+        ) values ($1, $2, $3, 'pending', $4, $5::jsonb)
+        returning ${materialWorkbenchReferenceSelect}
+        `,
+        [
+          input.merchantId,
+          input.materialItemId,
+          input.targetWorkbench,
+          input.createdByUserId,
+          JSON.stringify({
+            createdByUserId: input.createdByUserId,
+            createdFrom: "material_library_repository",
+          }),
+        ],
+      );
 
-  if (error || !data) {
-    if (isMissingMaterialReferenceTable(error)) {
-      return createTracePayloadWorkbenchReference(input);
-    }
+      await pgMarkMaterialSelectedForRewrite(client, {
+        merchantId: input.merchantId,
+        materialItemId: input.materialItemId,
+      });
 
-    throw new ApiError(
-      500,
-      "MATERIAL_WORKBENCH_REFERENCE_CREATE_FAILED",
-      error?.message ?? "Create failed.",
-    );
+      return mapWorkbenchReference(result.rows[0]);
+    });
+  } catch (error) {
+    throw mapPostgresError(error, "MATERIAL_WORKBENCH_REFERENCE_CREATE_FAILED");
   }
-
-  await markMaterialSelectedForRewrite({
-    merchantId: input.merchantId,
-    materialItemId: input.materialItemId,
-  });
-
-  return mapWorkbenchReference(data as unknown as MaterialWorkbenchReferenceRow);
 }
 
 export async function getMaterialWorkbenchReference(input: {
@@ -764,34 +566,7 @@ export async function getMaterialWorkbenchReference(input: {
   referenceId: string;
   targetWorkbench?: MaterialWorkbenchTarget;
 }): Promise<MaterialWorkbenchReferenceDto | null> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const params: unknown[] = [input.referenceId, input.merchantId];
-      const targetSql = input.targetWorkbench
-        ? `and target_workbench = $${params.length + 1}`
-        : "";
-      if (input.targetWorkbench) {
-        params.push(input.targetWorkbench);
-      }
-      const result = await queryAppDb<MaterialWorkbenchReferenceRow>(
-        `
-        select ${materialWorkbenchReferenceSelect}
-        from public.material_workbench_references
-        where id = $1
-          and merchant_id = $2
-          ${targetSql}
-        limit 1
-        `,
-        params,
-      );
-
-      return result.rows[0] ? mapWorkbenchReference(result.rows[0]) : null;
-    } catch (error) {
-      throw mapPostgresError(error, "MATERIAL_WORKBENCH_REFERENCE_READ_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const reference = demoWorkbenchReferences.get(input.referenceId);
 
     if (!reference || reference.merchantId !== input.merchantId) {
@@ -805,28 +580,30 @@ export async function getMaterialWorkbenchReference(input: {
     return reference;
   }
 
-  const supabase = createSupabaseAdminClient();
-  let query = supabase
-    .from("material_workbench_references")
-    .select(materialWorkbenchReferenceSelect)
-    .eq("id", input.referenceId)
-    .eq("merchant_id", input.merchantId);
-
-  if (input.targetWorkbench) {
-    query = query.eq("target_workbench", input.targetWorkbench);
-  }
-
-  const { data, error } = await query.maybeSingle();
-
-  if (error) {
-    if (isMissingMaterialReferenceTable(error)) {
-      return null;
+  try {
+    const params: unknown[] = [input.referenceId, input.merchantId];
+    const targetSql = input.targetWorkbench
+      ? `and target_workbench = $${params.length + 1}`
+      : "";
+    if (input.targetWorkbench) {
+      params.push(input.targetWorkbench);
     }
+    const result = await queryAppDb<MaterialWorkbenchReferenceRow>(
+      `
+      select ${materialWorkbenchReferenceSelect}
+      from public.material_workbench_references
+      where id = $1
+        and merchant_id = $2
+        ${targetSql}
+      limit 1
+      `,
+      params,
+    );
 
-    throw new ApiError(500, "MATERIAL_WORKBENCH_REFERENCE_READ_FAILED", error.message);
+    return result.rows[0] ? mapWorkbenchReference(result.rows[0]) : null;
+  } catch (error) {
+    throw mapPostgresError(error, "MATERIAL_WORKBENCH_REFERENCE_READ_FAILED");
   }
-
-  return data ? mapWorkbenchReference(data as unknown as MaterialWorkbenchReferenceRow) : null;
 }
 
 export async function listMaterialWorkbenchReferencesByDraft(input: {
@@ -834,34 +611,7 @@ export async function listMaterialWorkbenchReferencesByDraft(input: {
   draftId: string;
   targetWorkbench?: MaterialWorkbenchTarget;
 }): Promise<MaterialWorkbenchReferenceDto[]> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const params: unknown[] = [input.merchantId, input.draftId];
-      const targetSql = input.targetWorkbench
-        ? `and target_workbench = $${params.length + 1}`
-        : "";
-      if (input.targetWorkbench) {
-        params.push(input.targetWorkbench);
-      }
-      const result = await queryAppDb<MaterialWorkbenchReferenceRow>(
-        `
-        select ${materialWorkbenchReferenceSelect}
-        from public.material_workbench_references
-        where merchant_id = $1
-          and draft_id = $2
-          ${targetSql}
-        order by created_at asc
-        `,
-        params,
-      );
-
-      return result.rows.map(mapWorkbenchReference);
-    } catch (error) {
-      throw mapPostgresError(error, "MATERIAL_WORKBENCH_REFERENCE_LIST_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     return Array.from(demoWorkbenchReferences.values()).filter(
       (reference) =>
         reference.merchantId === input.merchantId &&
@@ -870,28 +620,30 @@ export async function listMaterialWorkbenchReferencesByDraft(input: {
     );
   }
 
-  const supabase = createSupabaseAdminClient();
-  let query = supabase
-    .from("material_workbench_references")
-    .select(materialWorkbenchReferenceSelect)
-    .eq("merchant_id", input.merchantId)
-    .eq("draft_id", input.draftId);
-
-  if (input.targetWorkbench) {
-    query = query.eq("target_workbench", input.targetWorkbench);
-  }
-
-  const { data, error } = await query.order("created_at", { ascending: true });
-
-  if (error) {
-    if (isMissingMaterialReferenceTable(error)) {
-      return [];
+  try {
+    const params: unknown[] = [input.merchantId, input.draftId];
+    const targetSql = input.targetWorkbench
+      ? `and target_workbench = $${params.length + 1}`
+      : "";
+    if (input.targetWorkbench) {
+      params.push(input.targetWorkbench);
     }
+    const result = await queryAppDb<MaterialWorkbenchReferenceRow>(
+      `
+      select ${materialWorkbenchReferenceSelect}
+      from public.material_workbench_references
+      where merchant_id = $1
+        and draft_id = $2
+        ${targetSql}
+      order by created_at asc
+      `,
+      params,
+    );
 
-    throw new ApiError(500, "MATERIAL_WORKBENCH_REFERENCE_LIST_FAILED", error.message);
+    return result.rows.map(mapWorkbenchReference);
+  } catch (error) {
+    throw mapPostgresError(error, "MATERIAL_WORKBENCH_REFERENCE_LIST_FAILED");
   }
-
-  return ((data ?? []) as unknown as MaterialWorkbenchReferenceRow[]).map(mapWorkbenchReference);
 }
 
 export async function consumeMaterialWorkbenchReference(input: {
@@ -901,44 +653,15 @@ export async function consumeMaterialWorkbenchReference(input: {
   draftId: string;
   materialItemId?: string | null;
 }): Promise<MaterialWorkbenchReferenceDto | null> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const params: unknown[] = [
-        input.draftId,
-        new Date().toISOString(),
-        input.referenceId,
-        input.merchantId,
-        input.targetWorkbench,
-      ];
-      const materialSql = input.materialItemId ? `and material_item_id = $${params.length + 1}` : "";
-      if (input.materialItemId) {
-        params.push(input.materialItemId);
-      }
-      const result = await queryAppDb<MaterialWorkbenchReferenceRow>(
-        `
-        update public.material_workbench_references
-        set status = 'consumed',
-            draft_id = $1,
-            consumed_at = $2
-        where id = $3
-          and merchant_id = $4
-          and target_workbench = $5
-          ${materialSql}
-        returning ${materialWorkbenchReferenceSelect}
-        `,
-        params,
-      );
-
-      return result.rows[0] ? mapWorkbenchReference(result.rows[0]) : null;
-    } catch (error) {
-      throw mapPostgresError(error, "MATERIAL_WORKBENCH_REFERENCE_CONSUME_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const reference = demoWorkbenchReferences.get(input.referenceId);
 
-    if (!reference || reference.merchantId !== input.merchantId) {
+    if (
+      !reference ||
+      reference.merchantId !== input.merchantId ||
+      reference.targetWorkbench !== input.targetWorkbench ||
+      (input.materialItemId && reference.materialItemId !== input.materialItemId)
+    ) {
       return null;
     }
 
@@ -953,175 +676,44 @@ export async function consumeMaterialWorkbenchReference(input: {
     return consumedReference;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("material_workbench_references")
-    .update({
-      status: "consumed",
-      draft_id: input.draftId,
-      consumed_at: new Date().toISOString(),
-    })
-    .eq("id", input.referenceId)
-    .eq("merchant_id", input.merchantId)
-    .eq("target_workbench", input.targetWorkbench)
-    .select(materialWorkbenchReferenceSelect)
-    .maybeSingle();
-
-  if (error) {
-    if (isMissingMaterialReferenceTable(error)) {
-      if (input.materialItemId) {
-        await appendTracePayloadReferenceConsumption({
-          merchantId: input.merchantId,
-          materialItemId: input.materialItemId,
-          referenceId: input.referenceId,
-          draftId: input.draftId,
-        });
-      }
-
-      return null;
+  try {
+    const params: unknown[] = [
+      input.draftId,
+      new Date().toISOString(),
+      input.referenceId,
+      input.merchantId,
+      input.targetWorkbench,
+    ];
+    const materialSql = input.materialItemId ? `and material_item_id = $${params.length + 1}` : "";
+    if (input.materialItemId) {
+      params.push(input.materialItemId);
     }
+    const result = await queryAppDb<MaterialWorkbenchReferenceRow>(
+      `
+      update public.material_workbench_references
+      set status = 'consumed',
+          draft_id = $1,
+          consumed_at = $2
+      where id = $3
+        and merchant_id = $4
+        and target_workbench = $5
+        ${materialSql}
+      returning ${materialWorkbenchReferenceSelect}
+      `,
+      params,
+    );
 
-    throw new ApiError(500, "MATERIAL_WORKBENCH_REFERENCE_CONSUME_FAILED", error.message);
+    return result.rows[0] ? mapWorkbenchReference(result.rows[0]) : null;
+  } catch (error) {
+    throw mapPostgresError(error, "MATERIAL_WORKBENCH_REFERENCE_CONSUME_FAILED");
   }
-
-  return data ? mapWorkbenchReference(data as unknown as MaterialWorkbenchReferenceRow) : null;
-}
-
-async function createTracePayloadWorkbenchReference(input: {
-  merchantId: string;
-  materialItemId: string;
-  targetWorkbench: MaterialWorkbenchTarget;
-}): Promise<MaterialWorkbenchReferenceDto> {
-  const supabase = createSupabaseAdminClient();
-  const { data: itemData, error: itemError } = await supabase
-    .from("source_items")
-    .select(sourceItemMaterialSelect)
-    .eq("id", input.materialItemId)
-    .eq("merchant_id", input.merchantId)
-    .contains("trace_payload", { materialLibrary: true })
-    .single();
-
-  if (itemError || !itemData) {
-    throw new ApiError(404, "MATERIAL_ITEM_NOT_FOUND", "Material item not found.");
-  }
-
-  const item = itemData as unknown as SourceItemMaterialRow;
-  const tracePayload = toRecord(item.trace_payload);
-  const currentReferences = Array.isArray(tracePayload.materialWorkbenchReferences)
-    ? tracePayload.materialWorkbenchReferences
-    : [];
-  const reference = buildWorkbenchReference(input);
-
-  const { error: updateError } = await supabase
-    .from("source_items")
-    .update({
-      is_selected_for_rewrite: true,
-      trace_payload: {
-        ...tracePayload,
-        materialWorkbenchReferences: [...currentReferences, reference],
-      },
-    })
-    .eq("id", input.materialItemId)
-    .eq("merchant_id", input.merchantId);
-
-  if (updateError) {
-    throw new ApiError(500, "MATERIAL_WORKBENCH_REFERENCE_CREATE_FAILED", updateError.message);
-  }
-
-  return reference;
-}
-
-async function markMaterialSelectedForRewrite(input: {
-  merchantId: string;
-  materialItemId: string;
-}) {
-  if (shouldUseAppPostgres()) {
-    try {
-      await pgMarkMaterialSelectedForRewrite(undefined, input);
-      return;
-    } catch (error) {
-      throw mapPostgresError(error, "MATERIAL_SELECTED_FOR_REWRITE_UPDATE_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
-    return;
-  }
-
-  const supabase = createSupabaseAdminClient();
-  await supabase
-    .from("source_items")
-    .update({
-      is_selected_for_rewrite: true,
-    })
-    .eq("id", input.materialItemId)
-    .eq("merchant_id", input.merchantId);
-}
-
-async function appendTracePayloadReferenceConsumption(input: {
-  merchantId: string;
-  materialItemId: string;
-  referenceId: string;
-  draftId: string;
-}) {
-  const supabase = createSupabaseAdminClient();
-  const { data } = await supabase
-    .from("source_items")
-    .select("trace_payload")
-    .eq("id", input.materialItemId)
-    .eq("merchant_id", input.merchantId)
-    .maybeSingle();
-
-  const tracePayload = toRecord((data as { trace_payload?: unknown } | null)?.trace_payload);
-  const currentConsumptions = Array.isArray(tracePayload.materialReferenceConsumptions)
-    ? tracePayload.materialReferenceConsumptions
-    : [];
-
-  await supabase
-    .from("source_items")
-    .update({
-      is_selected_for_rewrite: true,
-      trace_payload: {
-        ...tracePayload,
-        materialReferenceConsumptions: [
-          ...currentConsumptions,
-          {
-            referenceId: input.referenceId,
-            draftId: input.draftId,
-            consumedAt: new Date().toISOString(),
-          },
-        ],
-      },
-    })
-    .eq("id", input.materialItemId)
-    .eq("merchant_id", input.merchantId);
 }
 
 async function findExistingMaterialByUrl(input: {
   merchantId: string;
   originalUrl: string;
 }): Promise<MaterialLibraryItemDto | null> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<SourceItemMaterialRow>(
-        `
-        select ${sourceItemMaterialSelect}
-        from public.source_items
-        where merchant_id = $1
-          and source_url = $2
-          and trace_payload @> $3::jsonb
-        limit 1
-        `,
-        [input.merchantId, input.originalUrl, JSON.stringify({ materialLibrary: true })],
-      );
-
-      return result.rows[0] ? mapSourceItemToMaterial(result.rows[0]) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     return (
       Array.from(demoMaterialItems.values()).find(
         (item) =>
@@ -1130,20 +722,23 @@ async function findExistingMaterialByUrl(input: {
     );
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("source_items")
-    .select(sourceItemMaterialSelect)
-    .eq("merchant_id", input.merchantId)
-    .eq("source_url", input.originalUrl)
-    .contains("trace_payload", { materialLibrary: true })
-    .maybeSingle();
+  try {
+    const result = await queryAppDb<SourceItemMaterialRow>(
+      `
+      select ${sourceItemMaterialSelect}
+      from public.source_items
+      where merchant_id = $1
+        and source_url = $2
+        and trace_payload @> $3::jsonb
+      limit 1
+      `,
+      [input.merchantId, input.originalUrl, JSON.stringify({ materialLibrary: true })],
+    );
 
-  if (error || !data) {
+    return result.rows[0] ? mapSourceItemToMaterial(result.rows[0]) : null;
+  } catch {
     return null;
   }
-
-  return mapSourceItemToMaterial(data as unknown as SourceItemMaterialRow);
 }
 
 async function pgGetMaterialLibraryItemRow(
@@ -1502,21 +1097,6 @@ function toRecord(value: unknown): Record<string, unknown> {
   return {};
 }
 
-function shouldUseAppPostgres() {
-  return isAppPostgresConfigured() && isAppPostgresPreferred();
-}
-
-function shouldUseDemoFallback() {
-  return !isAppPostgresConfigured() && !isSupabaseAdminConfigured();
-}
-
 function toIsoString(value: Timestamp) {
   return value instanceof Date ? value.toISOString() : value;
-}
-
-function isMissingMaterialReferenceTable(error: { code?: string; message?: string } | null) {
-  return (
-    error?.code === "42P01" ||
-    Boolean(error?.message?.includes("material_workbench_references"))
-  );
 }

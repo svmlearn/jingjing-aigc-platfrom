@@ -7,6 +7,7 @@ import OSS from "ali-oss";
 import { ApiError } from "@/server/api/errors";
 import {
   assertObjectRefMatchesPrefix,
+  buildBrowserUploadIntentStorageKeys,
   buildStandardKnowledgeUploadKey,
   buildStandardMediaUploadKeyPrefix,
   defaultMediaUploadMaxBytes,
@@ -127,14 +128,12 @@ export const aliyunOssProvider: ObjectStorageProvider = {
       bucket: config.bucket,
       region: config.region,
       endpoint: config.endpoint,
-      storageKey: input.storageKey,
-      uploadKey: input.storageKey,
+      ...buildBrowserUploadIntentStorageKeys(input.storageKey),
       uploadUrl: ensureHttpsUrl(uploadUrl),
       uploadMethod: "PUT",
       uploadHeaders: {
         "Content-Type": contentType,
       },
-      cosKey: input.storageKey,
       expiredTime: Math.floor(expiresAt.getTime() / 1000),
       expiresAt: expiresAt.toISOString(),
       credentials: {

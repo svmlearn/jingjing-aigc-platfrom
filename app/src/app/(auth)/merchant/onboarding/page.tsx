@@ -1,10 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { MerchantProfileForm } from "@/components/dashboard/merchant-profile-form";
-import {
-  createSupabaseServerClient,
-  isSupabasePublicConfigured,
-} from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/auth/current-user";
+import { ApiError } from "@/server/api/errors";
 
 export default async function MerchantOnboardingPage() {
   await requireSignedInMerchantOwner();
@@ -27,14 +25,17 @@ export default async function MerchantOnboardingPage() {
 }
 
 async function requireSignedInMerchantOwner() {
-  if (!isSupabasePublicConfigured()) {
-    redirect("/login?error=supabase-not-configured&next=/merchant/onboarding");
-  }
+  try {
+    await getAuthenticatedUser();
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      (error.code === "APP_DATABASE_NOT_CONFIGURED" ||
+        error.code === "APP_SESSION_NOT_CONFIGURED")
+    ) {
+      redirect("/login?error=auth-not-configured&next=/merchant/onboarding");
+    }
 
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.getUser();
-
-  if (error || !data.user) {
     redirect("/login?error=unauthenticated&next=/merchant/onboarding");
   }
 }

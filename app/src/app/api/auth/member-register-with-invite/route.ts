@@ -10,11 +10,6 @@ import {
   listOperationalMerchantWorkspacesByUserId,
 } from "@/lib/db/merchant-repository";
 import { queryAppDb } from "@/lib/server-db/postgres";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import {
-  createSupabaseServerClient,
-  isSupabasePublicConfigured,
-} from "@/lib/supabase/server";
 import { ApiError } from "@/server/api/errors";
 import { memberRegisterWithInviteSchema } from "@/server/api/schemas";
 
@@ -139,95 +134,38 @@ export async function POST(request: NextRequest) {
     const username = payload.username.trim().toLowerCase();
     const displayName = payload.displayName?.trim() || null;
 
-    if (isDomesticSessionEnabled()) {
-      createdUserId = await createDomesticMemberUser({
-        username,
-        password: payload.password,
-        displayName,
-      });
-
-      await acceptMemberInvitationCode({
-        code: payload.inviteCode,
-        userId: createdUserId,
-        displayName,
-      });
-      invitationAccepted = true;
-
-      const user = await signInDomesticUser({ email: username, password: payload.password });
-      const workspaces = await listOperationalMerchantWorkspacesByUserId(user.id);
-      const nextPath = resolveMemberNextPath(workspaces.length);
-
-      if (wantsJson(request)) {
-        return Response.json(
-          {
-            userId: user.id,
-            workspaces,
-            nextPath,
-            sessionEstablished: true,
-          },
-          { status: 201 },
-        );
-      }
-
-      return redirectToPath(request, nextPath);
-    }
-
-    if (!isSupabasePublicConfigured()) {
-      return redirectToPath(request, "/member/calendar");
-    }
-
-    if (!username.includes("@")) {
+    if (!isDomesticSessionEnabled()) {
       throw new ApiError(
-        400,
-        "EMAIL_USERNAME_REQUIRED",
-        "This environment only supports email usernames.",
+        503,
+        "AUTH_SERVICE_NOT_CONFIGURED",
+        "Member registration service is not configured.",
       );
     }
 
-    const supabaseAdmin = createSupabaseAdminClient();
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email: username,
+    createdUserId = await createDomesticMemberUser({
+      username,
       password: payload.password,
-      email_confirm: true,
-      user_metadata: {
-        display_name: displayName,
-      },
-      app_metadata: {
-        role: "merchant_member",
-      },
+      displayName,
     });
 
-    if (error || !data.user) {
-      throw new ApiError(
-        error?.status ?? 500,
-        "AUTH_USER_CREATE_FAILED",
-        error?.message ?? "Failed to create member user.",
-      );
-    }
-
-    createdUserId = data.user.id;
     await acceptMemberInvitationCode({
       code: payload.inviteCode,
-      userId: data.user.id,
+      userId: createdUserId,
       displayName,
     });
     invitationAccepted = true;
 
-    const supabaseServer = await createSupabaseServerClient();
-    const { error: signInError } = await supabaseServer.auth.signInWithPassword({
-      email: username,
-      password: payload.password,
-    });
-    const workspaces = await listOperationalMerchantWorkspacesByUserId(data.user.id);
+    const user = await signInDomesticUser({ email: username, password: payload.password });
+    const workspaces = await listOperationalMerchantWorkspacesByUserId(user.id);
     const nextPath = resolveMemberNextPath(workspaces.length);
 
     if (wantsJson(request)) {
       return Response.json(
         {
-          userId: data.user.id,
+          userId: user.id,
           workspaces,
           nextPath,
-          sessionEstablished: !signInError,
+          sessionEstablished: true,
         },
         { status: 201 },
       );
@@ -236,11 +174,7 @@ export async function POST(request: NextRequest) {
     return redirectToPath(request, nextPath);
   } catch (error) {
     if (createdUserId && !invitationAccepted) {
-      if (isDomesticSessionEnabled()) {
-        await deleteDomesticMemberUser(createdUserId);
-      } else if (isSupabasePublicConfigured()) {
-        await createSupabaseAdminClient().auth.admin.deleteUser(createdUserId).catch(() => undefined);
-      }
+      await deleteDomesticMemberUser(createdUserId);
     }
 
     if (wantsJson(request)) {

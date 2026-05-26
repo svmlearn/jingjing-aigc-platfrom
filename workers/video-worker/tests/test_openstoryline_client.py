@@ -18,11 +18,7 @@ from worker.app.openstoryline_client import OpenStorylineClient
 def _settings() -> Settings:
     return Settings(
         database_url="postgresql://example",
-        storage_provider="tencent_cos",
-        cos_secret_id="",
-        cos_secret_key="",
-        cos_bucket="",
-        cos_region="",
+        storage_provider="aliyun_oss",
         aliyun_oss_access_key_id="",
         aliyun_oss_access_key_secret="",
         aliyun_oss_bucket="",
@@ -36,6 +32,9 @@ def _settings() -> Settings:
         worker_temp_root=Path("/tmp/worker"),
         worker_models_root=Path("/tmp/models"),
         worker_output_root=Path("/tmp/outputs"),
+        dashscope_api_key="",
+        aliyun_cosyvoice_clone_model="cosyvoice-v3.5-plus",
+        aliyun_cosyvoice_clone_customization_url="https://dashscope.example/customization",
         openstoryline_base_url="http://openstoryline-engine:8000",
         openstoryline_timeout_seconds=2700,
         log_level="INFO",

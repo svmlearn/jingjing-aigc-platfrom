@@ -4,8 +4,8 @@ import logging
 from pathlib import Path
 
 from .config import Settings
-from .cos_client import ObjectStorageClient
 from .db import VideoJobRepository
+from .object_storage_client import ObjectStorageClient
 from .openstoryline_client import OpenStorylineClient
 from .poller import VideoWorkerPoller
 from .processor import JobProcessor
@@ -34,13 +34,13 @@ def main() -> None:
         ]
     )
     repository = VideoJobRepository(settings.database_url, worker_id=settings.worker_id)
-    cos_client = ObjectStorageClient(settings)
+    storage_client = ObjectStorageClient(settings)
     openstoryline_client = OpenStorylineClient(settings)
     logging.getLogger("video-worker").info(
         "OpenStoryline healthcheck: %s",
         openstoryline_client.healthcheck(),
     )
-    processor = JobProcessor(settings, repository, cos_client, openstoryline_client)
+    processor = JobProcessor(settings, repository, storage_client, openstoryline_client)
     poller = VideoWorkerPoller(settings, repository, processor)
     poller.run_forever()
 

@@ -2,12 +2,12 @@
 
 import { redirect } from "next/navigation";
 
-import { isDomesticSessionEnabled, signInDomesticUser } from "@/lib/auth/domestic-session";
-import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 import {
-  createSupabaseServerClient,
-  isSupabasePublicConfigured,
-} from "@/lib/supabase/server";
+  isDomesticSessionEnabled,
+  signInDomesticUser,
+  signOutDomesticUser,
+} from "@/lib/auth/domestic-session";
+import { getOperationalMerchantProfileByOwnerUserId } from "@/lib/db/merchant-repository";
 
 function getSafeNextPath(value: FormDataEntryValue | null) {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
@@ -26,42 +26,26 @@ export async function signInToMerchant(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const next = getSafeNextPath(formData.get("next"));
 
-  if (!isSupabasePublicConfigured()) {
-    redirect(`/login?error=supabase-not-configured&next=${encodeURIComponent(next)}`);
-  }
-
   if (!email || !password) {
     redirect(`/login?error=invalid-credentials&next=${encodeURIComponent(next)}`);
   }
 
   if (isDomesticSessionEnabled()) {
+    const user = await signInDomesticUser({ email, password }).catch(() => null);
+
+    if (!user) {
+      redirect(`/login?error=invalid-credentials&next=${encodeURIComponent(next)}`);
+    }
+
     try {
-      const user = await signInDomesticUser({ email, password });
       await getOperationalMerchantProfileByOwnerUserId(user.id);
     } catch {
-      redirect(`/login?error=invalid-credentials&next=${encodeURIComponent(next)}`);
+      await signOutDomesticUser();
+      redirect(`/login?error=no-merchant-profile&next=${encodeURIComponent(next)}`);
     }
 
     redirect(next);
   }
 
-  if (!isSupabasePublicConfigured()) {
-    redirect("/dashboard");
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error || !data.user) {
-    redirect(`/login?error=invalid-credentials&next=${encodeURIComponent(next)}`);
-  }
-
-  try {
-    await getOperationalMerchantProfileByOwnerUserId(data.user.id);
-  } catch {
-    await supabase.auth.signOut();
-    redirect("/login?error=no-merchant-profile");
-  }
-
-  redirect(next);
+  redirect(`/login?error=auth-not-configured&next=${encodeURIComponent(next)}`);
 }

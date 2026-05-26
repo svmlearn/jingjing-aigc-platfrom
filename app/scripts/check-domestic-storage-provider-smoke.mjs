@@ -3,7 +3,6 @@ import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 
 import OSS from "ali-oss";
-import COS from "cos-nodejs-sdk-v5";
 
 import { loadEnvFileFromArgs } from "./lib/env-file.mjs";
 
@@ -12,9 +11,7 @@ loadEnvFileFromArgs();
 const provider = getArgValue("--provider") || process.env.STORAGE_PROVIDER?.trim() || "aliyun_oss";
 const runRoundtrip = process.argv.includes("--roundtrip");
 
-if (provider === "tencent_cos") {
-  await smokeTencentCos();
-} else if (provider === "aliyun_oss") {
+if (provider === "aliyun_oss") {
   await smokeAliyunOss();
 } else {
   writeReport(
@@ -22,114 +19,10 @@ if (provider === "tencent_cos") {
       status: "failed",
       provider,
       code: "STORAGE_PROVIDER_UNSUPPORTED",
-      message: "Provider must be tencent_cos or aliyun_oss.",
+      message: "Provider must be aliyun_oss.",
     },
     1,
   );
-}
-
-async function smokeTencentCos() {
-  const required = ["COS_SECRET_ID", "COS_SECRET_KEY", "COS_BUCKET", "COS_REGION"];
-  const missing = required.filter((name) => !process.env[name]?.trim());
-
-  if (missing.length > 0) {
-    writeReport(
-      {
-        status: "missing_environment",
-        provider: "tencent_cos",
-        missing,
-        expectedErrorCode: "COS_NOT_CONFIGURED",
-      },
-      2,
-    );
-    return;
-  }
-
-  const bucket = process.env.COS_BUCKET.trim();
-  const region = process.env.COS_REGION.trim();
-  const sample = buildSamples();
-  const client = new COS({
-    SecretId: process.env.COS_SECRET_ID.trim(),
-    SecretKey: process.env.COS_SECRET_KEY.trim(),
-  });
-  const signedUrl = client.getObjectUrl({
-    Bucket: bucket,
-    Region: region,
-    Key: sample.mediaStorageKey,
-    Sign: true,
-    Method: "GET",
-    Expires: 60,
-    Protocol: "https:",
-  });
-
-  if (!runRoundtrip) {
-    writeReport({
-      status: "ok",
-      provider: "tencent_cos",
-      bucket,
-      region,
-      storageProviderDefault: process.env.STORAGE_PROVIDER?.trim() || "aliyun_oss",
-      keyPrefixCompatible: sample.mediaStorageKey.startsWith(`${sample.mediaPrefix}/`),
-      signedReadUrlGenerated: /^https:\/\//.test(signedUrl),
-      roundtrip: "skipped",
-      aliyunOssRoundtrip: "pending_no_real_env",
-      sample,
-    });
-    return;
-  }
-
-  const key = `app-storage-provider-smoke/${randomUUID()}.txt`;
-  const body = Buffer.from("jingjing domestic storage provider smoke\n", "utf8");
-  let uploaded = false;
-
-  try {
-    const putResult = await putCosObject({ client, bucket, region, key, body });
-    uploaded = true;
-    const readUrl = client.getObjectUrl({
-      Bucket: bucket,
-      Region: region,
-      Key: key,
-      Sign: true,
-      Method: "GET",
-      Expires: 60,
-      Protocol: "https:",
-    });
-    const response = await fetch(readUrl);
-    const downloaded = Buffer.from(await response.arrayBuffer());
-    await deleteCosObject({ client, bucket, region, key });
-    uploaded = false;
-
-    writeReport(
-      {
-        status: response.ok && downloaded.equals(body) ? "ok" : "failed",
-        provider: "tencent_cos",
-        bucket,
-        region,
-        key,
-        putEtag: putResult.etag,
-        signedDownloadStatus: response.status,
-        signedDownloadMatched: downloaded.equals(body),
-        deleted: true,
-        sample,
-      },
-      response.ok && downloaded.equals(body) ? 0 : 1,
-    );
-  } catch (error) {
-    if (uploaded) {
-      await deleteCosObject({ client, bucket, region, key }).catch(() => undefined);
-    }
-    writeReport(
-      {
-        status: "error",
-        provider: "tencent_cos",
-        bucket,
-        region,
-        key,
-        message: error instanceof Error ? error.message : "Tencent COS roundtrip failed.",
-      },
-      1,
-    );
-  }
 }
 
 async function smokeAliyunOss() {
@@ -262,48 +155,6 @@ function buildSamples() {
     mediaStorageKey,
     knowledgeStorageKey,
   };
-}
-
-function putCosObject(input) {
-  return new Promise((resolve, reject) => {
-    input.client.putObject(
-      {
-        Bucket: input.bucket,
-        Region: input.region,
-        Key: input.key,
-        Body: input.body,
-        ContentType: "text/plain",
-      },
-      (error, data) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve({ etag: data?.ETag ?? null });
-      },
-    );
-  });
-}
-
-function deleteCosObject(input) {
-  return new Promise((resolve, reject) => {
-    input.client.deleteObject(
-      {
-        Bucket: input.bucket,
-        Region: input.region,
-        Key: input.key,
-      },
-      (error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve();
-      },
-    );
-  });
 }
 
 function getArgValue(name) {

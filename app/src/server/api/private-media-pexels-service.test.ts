@@ -160,7 +160,7 @@ function assertNoInternalFields(serialized: string) {
   assert.equal(serialized.includes("merchantId"), false);
   assert.equal(serialized.includes("merchant-a"), false);
   assert.equal(serialized.includes("merchant-b"), false);
-  assert.equal(serialized.includes("cosKey"), false);
+  assert.equal(serialized.includes("storageKey"), false);
   assert.equal(serialized.includes("bucketName"), false);
   assert.equal(serialized.includes("merchant-media/"), false);
   assert.equal(serialized.includes("tags"), false);
@@ -179,8 +179,8 @@ const clips: PrivateMediaClipRecord[] = [
     description: "Project entrance with nearby shops and readable signage.",
     tags: ["project", "entrance", "shops"],
     bucketName: "private-bucket",
-    cosKey: "merchant-media/merchant-a/clips/video-a-1.mp4",
-    thumbCosKey: "merchant-media/merchant-a/thumbs/video-a-1.jpg",
+    storageKey: "merchant-media/merchant-a/clips/video-a-1.mp4",
+    thumbStorageKey: "merchant-media/merchant-a/thumbs/video-a-1.jpg",
     mimeType: "video/mp4",
     createdAt: "2026-05-15T00:00:00.000Z",
   },
@@ -196,8 +196,8 @@ const clips: PrivateMediaClipRecord[] = [
     description: "Warehouse corridor private material with no thumbnail.",
     tags: ["warehouse", "corridor"],
     bucketName: "private-bucket",
-    cosKey: "merchant-media/merchant-a/clips/video-a-no-thumb.mp4",
-    thumbCosKey: null,
+    storageKey: "merchant-media/merchant-a/clips/video-a-no-thumb.mp4",
+    thumbStorageKey: null,
     mimeType: "video/mp4",
     createdAt: "2026-05-15T00:00:00.000Z",
   },
@@ -213,8 +213,8 @@ const clips: PrivateMediaClipRecord[] = [
     description: "Other merchant entrance.",
     tags: ["project", "entrance"],
     bucketName: "private-bucket",
-    cosKey: "merchant-media/merchant-b/clips/video-b-1.mp4",
-    thumbCosKey: "merchant-media/merchant-b/thumbs/video-b-1.jpg",
+    storageKey: "merchant-media/merchant-b/clips/video-b-1.mp4",
+    thumbStorageKey: "merchant-media/merchant-b/thumbs/video-b-1.jpg",
     mimeType: "video/mp4",
     createdAt: "2026-05-15T00:00:00.000Z",
   },
@@ -229,8 +229,8 @@ const clips: PrivateMediaClipRecord[] = [
     description: "Living room with daylight.",
     tags: ["living", "room", "daylight"],
     bucketName: "private-bucket",
-    cosKey: "merchant-media/merchant-a/clips/photo-a-1.jpg",
-    thumbCosKey: "merchant-media/merchant-a/thumbs/photo-a-1.jpg",
+    storageKey: "merchant-media/merchant-a/clips/photo-a-1.jpg",
+    thumbStorageKey: "merchant-media/merchant-a/thumbs/photo-a-1.jpg",
     mimeType: "image/jpeg",
     createdAt: "2026-05-15T00:00:00.000Z",
   },

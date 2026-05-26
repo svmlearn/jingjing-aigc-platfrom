@@ -33,6 +33,9 @@ app/supabase/.temp/
 app/supabase/supabase/
 .codex/long-task/
 .codex/branch-events/
+.codex/skills/jingjing-video-edit-run/
+.codex/skills/server-time-test/
+deploy/
 
 # Editor
 .idea/
@@ -51,6 +54,9 @@ temp/
 # Example: references/open-source/圆桌访谈/ stores the 18 multi-agent
 # reference repos used for the roundtable consultation PRD research.
 /references/
+/references/毒舌产品经理herness/
+/references/我自己用claudecode构建的内容营销系统/
+/references/script-to-video-prompts_副本/
 
 # Local private/legal/admin working materials.
 docs/其他/

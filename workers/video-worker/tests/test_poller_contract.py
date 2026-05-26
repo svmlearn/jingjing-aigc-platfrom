@@ -2,11 +2,6 @@ import sys
 import types
 import unittest
 
-qcloud_cos = types.ModuleType("qcloud_cos")
-qcloud_cos.CosConfig = object
-qcloud_cos.CosS3Client = object
-sys.modules.setdefault("qcloud_cos", qcloud_cos)
-
 psycopg = types.ModuleType("psycopg")
 psycopg.Connection = object
 psycopg_rows = types.ModuleType("psycopg.rows")

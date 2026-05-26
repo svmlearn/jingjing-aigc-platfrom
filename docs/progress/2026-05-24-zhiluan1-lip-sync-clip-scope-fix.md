@@ -232,4 +232,3 @@ clip_0007 group_0006 talking_head: no lip_sync cache target in that failed run
 ```
 
 So the observed consequence was: group-level expansion sent `clip_0009` into lip sync because it shared `group_0006` with the talking-head `clip_0007`. The released fix prevents that expansion. No new post-release video job had been created yet at the time of this note, so a fresh run is still needed to observe final render success.
-

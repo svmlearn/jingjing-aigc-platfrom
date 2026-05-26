@@ -50,9 +50,7 @@ export type KnowledgeDocumentStatus =
   | "failed";
 
 export type KnowledgeStorageProvider =
-  | "tencent_cos"
   | "aliyun_oss"
-  | "supabase_storage"
   | "inline_seed";
 
 export type KnowledgeDocumentDto = {

@@ -4,7 +4,7 @@ create or replace function public.replace_current_voice_profile(
   p_created_by_user_id uuid,
   p_display_name text,
   p_ref_audio_asset_id uuid,
-  p_provider text default 'aliyun_cosyvoice_clone'
+  p_provider text default 'pixelle_clone'
 )
 returns public.voice_profiles
 language plpgsql
@@ -35,7 +35,7 @@ begin
     raise exception 'VOICE_PROFILE_DISPLAY_NAME_TOO_LONG' using errcode = 'P0001';
   end if;
 
-  if p_provider not in ('pixelle_clone', 'aliyun_cosyvoice_clone') then
+  if p_provider <> 'pixelle_clone' then
     raise exception 'VOICE_PROFILE_PROVIDER_UNSUPPORTED' using errcode = 'P0001';
   end if;
 
@@ -46,7 +46,7 @@ begin
       and ao.owner_type = 'voice_profile'
       and ao.owner_id = p_profile_id
       and ao.asset_type = 'audio'
-      and ao.storage_provider in ('tencent_cos', 'aliyun_oss')
+      and ao.storage_provider = 'tencent_cos'
   ) then
     raise exception 'VOICE_PROFILE_AUDIO_ASSET_INVALID' using errcode = 'P0001';
   end if;

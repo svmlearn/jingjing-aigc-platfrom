@@ -14,10 +14,3 @@ alter table public.asset_objects
 alter table public.asset_objects
   add constraint asset_objects_asset_type_check
   check (asset_type in ('image', 'video', 'cover', 'subtitle', 'audio'));
-
-alter table public.asset_objects
-  drop constraint if exists asset_objects_storage_provider_check;
-
-alter table public.asset_objects
-  add constraint asset_objects_storage_provider_check
-  check (storage_provider in ('tencent_cos', 'aliyun_oss', 'supabase_storage'));

@@ -2,12 +2,12 @@
 
 `workers/video-worker/` is the Docker-first execution runtime for the current four-layer media architecture:
 
-- `Vercel`: frontend and business APIs
-- `Supabase`: database and job source of truth
-- `Tencent COS`: source and generated media storage
-- `Tencent Lighthouse`: private worker runtime for video execution
+- `Next.js app APIs`: frontend and business APIs on the current app deployment target
+- `PostgreSQL`: app-owned database and job source of truth
+- `Aliyun OSS`: source and generated media object storage
+- `Private Docker runtime`: isolated worker host for video execution
 
-This directory intentionally owns only the worker-side responsibilities. It does not expose any public OpenStoryline endpoint and it does not depend on Next.js routes or Supabase migrations living elsewhere in the repo.
+This directory intentionally owns only the worker-side responsibilities. It does not expose any public OpenStoryline endpoint and it does not depend on Next.js routes or app migrations living elsewhere in the repo.
 
 ## Services
 
@@ -50,7 +50,8 @@ should run the real FireRed OpenStoryline engine:
 
 ```bash
 cp firered.env.example .env
-# Set SUPABASE_DB_URL, COS_*, FIRERED_PROVIDER_KEY,
+# Set WORKER_DATABASE_URL, WORKER_STORAGE_PROVIDER=aliyun_oss,
+# WORKER_ALIYUN_OSS_*, FIRERED_PROVIDER_KEY,
 # OPENSTORYLINE_LLM_*, OPENSTORYLINE_VLM_*, and selected TTS_* secrets.
 sudo mkdir -p /srv/jingjing-video-worker/{tmp,models,outputs}
 sudo mkdir -p /srv/jingjing-video-worker/firered/{.storyline,resource/bgms,resource/tts,outputs}
@@ -58,8 +59,8 @@ docker compose -f docker-compose.yml -f docker-compose.firered.yml --profile fir
 ```
 
 The main app still writes `video_edit_jobs`; it does not call FireRed directly.
-That keeps merchant permissions, script locking, retries, COS upload, and result
-metadata in the platform contract while the real rendering engine runs in
+That keeps merchant permissions, script locking, retries, object storage upload,
+and result metadata in the platform contract while the real rendering engine runs in
 Docker.
 
 The FireRed source is now vendored under `openstoryline/firered/` so the server
@@ -133,9 +134,9 @@ the requested `/srv/jingjing-video-worker/outputs/...` job directory.
 
 1. sweeps stale jobs on boot and before each polling pass
 2. claims only the oldest `pending` job
-3. downloads input media from Tencent COS
+3. downloads input media from configured object storage
 4. calls the local `openstoryline-engine`
-5. uploads generated outputs back to Tencent COS
+5. uploads generated outputs back to configured object storage
 6. updates `video_edit_jobs` and inserts output `asset_objects`
 
 `failed_retryable` is intentionally not auto-claimed by the worker. The later retry API contract should:
@@ -183,8 +184,8 @@ locked video script and may include input assets:
   "input_assets": [
     {
       "asset_type": "video",
-      "storage_provider": "tencent_cos",
-      "bucket_name": "jj-content-staging-1341668543",
+      "storage_provider": "aliyun_oss",
+      "bucket_name": "jingjing-domestic-phase1-hz",
       "storage_key": "draft-inputs/merchant-1/draft-1/demo.mp4",
       "file_name": "demo.mp4"
     }
@@ -201,17 +202,18 @@ underspecified task to the engine. Legacy script text inside
 
 Input asset `file_name` values must be plain file names only. Path fragments,
 absolute paths, Windows drive prefixes, and directory separators are rejected as
-`failed_manual` contract errors before COS download. If `storage_provider` is
-present, it must be `tencent_cos`; unsupported providers are rejected before COS
-download. If `bucket_name` is present, it must be a non-empty string; otherwise
-the worker uses its configured default COS bucket.
+`failed_manual` contract errors before object storage download. If
+`storage_provider` is present, it must be a supported object storage provider;
+unsupported providers are rejected before download. If `bucket_name` is present,
+it must be a non-empty string; otherwise the worker uses the configured default
+bucket for Aliyun OSS. The current worker runtime only accepts `aliyun_oss`.
 
 `productionDirective` is intentionally lightweight in this stage. It records the
 parts of the upstream content decision that the worker and engine must not
 silently rewrite. The worker currently normalizes it into an internal directive
 and forwards the normalized directive to `openstoryline-engine`.
 
-The worker also derives output object keys from `WORKER_COS_RESULT_PREFIX`:
+The worker also derives output object keys from `WORKER_STORAGE_RESULT_PREFIX`:
 
 - `{prefix}/{merchantId}/{jobId}/final.mp4`
 - `{prefix}/{merchantId}/{jobId}/cover.jpg`
@@ -238,14 +240,14 @@ as `failed_manual`. Current examples:
 Runtime or infrastructure failures stay `failed_retryable` through the existing
 processor path. Current examples:
 
-- COS download failures
+- object storage download failures
 - temporary engine failures
 - missing files in requested engine outputs
 - upload failures
 - worker runtime exceptions
 
 Download, engine, and upload failures are recorded with stage-specific
-diagnostics: `downloading_inputs_failed` for COS input download failures,
+diagnostics: `downloading_inputs_failed` for object storage input download failures,
 `openstoryline_rendering_failed` for engine invocation failures, and
 `uploading_outputs_failed` for generated output upload failures. If generated
 files upload but `asset_objects` cannot be persisted, the job is marked
@@ -256,7 +258,7 @@ failure reason.
 The normalized directive is also written into the engine request so the skeleton
 engine and future real OpenStoryline adapter share the same contract surface.
 After engine execution, the worker checks the requested output files before any
-COS upload. Successful jobs include `engine_adapter`, storage-key `outputs`, and
+object storage upload. Successful jobs include `engine_adapter`, storage-key `outputs`, and
 persisted `asset_objects.id` values in `result_payload.uploaded_assets`.
 Only requested `desiredOutputs` are uploaded and written back; for example,
 `["final_video"]` ignores any cover or subtitle files produced by the engine.
@@ -264,7 +266,7 @@ Only requested `desiredOutputs` are uploaded and written back; for example,
 ## Local setup
 
 1. Copy `.env.example` to `.env`.
-2. Set `WORKER_DATABASE_URL`, `WORKER_COS_SECRET_ID`, `WORKER_COS_SECRET_KEY`, `WORKER_COS_BUCKET`, `WORKER_COS_REGION`, `OPENAI_API_KEY`, and any extra provider keys you need. `SUPABASE_DB_URL` and shared `COS_*` keys remain compatibility fallbacks.
+2. Set `WORKER_DATABASE_URL`, `WORKER_STORAGE_PROVIDER=aliyun_oss`, `WORKER_ALIYUN_OSS_ACCESS_KEY_ID`, `WORKER_ALIYUN_OSS_ACCESS_KEY_SECRET`, `WORKER_ALIYUN_OSS_BUCKET`, `WORKER_ALIYUN_OSS_REGION`, `WORKER_ALIYUN_OSS_ENDPOINT`, `OPENAI_API_KEY`, and any extra provider keys you need.
 3. Make sure the host directories exist on the worker machine:
 
 ```bash
@@ -281,20 +283,18 @@ This local command uses `.env.example`, which explicitly sets
 `OPENSTORYLINE_ENGINE_ADAPTER=skeleton`. Server rendering should use
 `firered.env.example` and `docker-compose.firered.yml` instead.
 
-To verify real database and COS dependencies without printing secrets, run:
+To verify real database and object storage dependencies without printing secrets, run:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path -LiteralPath '.').Path
 python -m worker.app.real_io_smoke --env-file .env
 ```
 
-The smoke prefers `WORKER_DATABASE_URL` and `WORKER_COS_*`. `SUPABASE_DB_URL`
-and shared `COS_*` remain compatibility fallbacks. It performs a read-only
+The smoke requires `WORKER_DATABASE_URL` and `WORKER_ALIYUN_OSS_*`. It performs a read-only
 database check for `video_edit_jobs` and `asset_objects`, enforces
 `WORKER_MAX_CONCURRENCY=1` for domestic phase1, then uploads, downloads,
-verifies, and deletes one small object under `worker-real-smoke/` in Tencent
-COS. Missing environment variables are reported by name only; secret values are
-never echoed.
+verifies, and deletes one small object under `worker-real-smoke/` in Aliyun OSS.
+Missing environment variables are reported by name only; secret values are never echoed.
 
 ## Current scope
 
@@ -303,7 +303,7 @@ This is a PoC execution skeleton, not the final production runtime. Today it giv
 - a readable Compose layout
 - a complete worker env template
 - a real polling loop structure
-- Tencent COS download/upload wrappers
+- Aliyun OSS download/upload wrappers behind an object storage client
 - an internal OpenStoryline HTTP contract we can swap for the real engine later
 
 It now bundles a trimmed `FireRed-OpenStoryline` source copy for server deployment

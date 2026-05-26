@@ -5,7 +5,7 @@ import socket
 from dataclasses import dataclass
 from pathlib import Path
 
-SUPPORTED_STORAGE_PROVIDERS = frozenset({"tencent_cos", "aliyun_oss"})
+SUPPORTED_STORAGE_PROVIDERS = frozenset({"aliyun_oss"})
 
 
 def _read_int(name: str, default: int) -> int:
@@ -31,10 +31,6 @@ def _read_storage_provider() -> str:
 class Settings:
     database_url: str
     storage_provider: str
-    cos_secret_id: str
-    cos_secret_key: str
-    cos_bucket: str
-    cos_region: str
     aliyun_oss_access_key_id: str
     aliyun_oss_access_key_secret: str
     aliyun_oss_bucket: str
@@ -56,60 +52,34 @@ class Settings:
     log_level: str
 
     @property
-    def cos_result_prefix(self) -> str:
-        return self.storage_result_prefix
-
-    @property
     def default_input_buckets(self) -> dict[str, str]:
         return {
-            "tencent_cos": self.cos_bucket,
             "aliyun_oss": self.aliyun_oss_bucket,
         }
 
     @property
     def output_storage_configured(self) -> bool:
-        if self.storage_provider == "aliyun_oss":
-            return all(
-                [
-                    self.aliyun_oss_access_key_id,
-                    self.aliyun_oss_access_key_secret,
-                    self.aliyun_oss_bucket,
-                    self.aliyun_oss_region,
-                    self.aliyun_oss_endpoint,
-                ]
-            )
         return all(
             [
-                self.cos_secret_id,
-                self.cos_secret_key,
-                self.cos_bucket,
-                self.cos_region,
+                self.aliyun_oss_access_key_id,
+                self.aliyun_oss_access_key_secret,
+                self.aliyun_oss_bucket,
+                self.aliyun_oss_region,
+                self.aliyun_oss_endpoint,
             ]
         )
 
-    @property
-    def cos_output_configured(self) -> bool:
-        return self.output_storage_configured
-
     @classmethod
     def from_env(cls) -> "Settings":
-        database_url = os.getenv("WORKER_DATABASE_URL") or os.getenv("SUPABASE_DB_URL")
+        database_url = os.getenv("WORKER_DATABASE_URL")
         if not database_url:
             raise RuntimeError(
-                "WORKER_DATABASE_URL is required; SUPABASE_DB_URL is accepted only as a compatibility fallback"
+                "WORKER_DATABASE_URL is required for PostgreSQL worker mode"
             )
         storage_provider = _read_storage_provider()
         settings = cls(
             database_url=database_url,
             storage_provider=storage_provider,
-            cos_secret_id=os.getenv("WORKER_COS_SECRET_ID")
-            or os.getenv("COS_SECRET_ID", ""),
-            cos_secret_key=os.getenv("WORKER_COS_SECRET_KEY")
-            or os.getenv("COS_SECRET_KEY", ""),
-            cos_bucket=os.getenv("WORKER_COS_BUCKET")
-            or os.getenv("COS_BUCKET", ""),
-            cos_region=os.getenv("WORKER_COS_REGION")
-            or os.getenv("COS_REGION", ""),
             aliyun_oss_access_key_id=os.getenv("WORKER_ALIYUN_OSS_ACCESS_KEY_ID")
             or os.getenv("ALIYUN_OSS_ACCESS_KEY_ID", ""),
             aliyun_oss_access_key_secret=os.getenv("WORKER_ALIYUN_OSS_ACCESS_KEY_SECRET")
@@ -122,12 +92,7 @@ class Settings:
             or os.getenv("ALIYUN_OSS_ENDPOINT", ""),
             storage_result_prefix=(
                 os.getenv("WORKER_STORAGE_RESULT_PREFIX")
-                or (
-                    os.getenv("WORKER_ALIYUN_OSS_RESULT_PREFIX")
-                    if storage_provider == "aliyun_oss"
-                    else None
-                )
-                or os.getenv("WORKER_COS_RESULT_PREFIX")
+                or os.getenv("WORKER_ALIYUN_OSS_RESULT_PREFIX")
                 or "video-results"
             ).strip("/")
             or "video-results",

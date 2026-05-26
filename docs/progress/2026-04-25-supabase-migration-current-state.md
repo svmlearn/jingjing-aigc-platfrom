@@ -1,14 +1,18 @@
-# 2026-04-25 Supabase Migration 当前状态总账
+# 2026-04-25 Supabase Migration 历史状态总账
+
+> 状态：历史文档 / 已废弃架构口径。
+>
+> 本文件只记录 `2026-04-25` 前后 Supabase staging 的历史状态。Supabase 是本项目过往架构，当前运行主线已经完全改为自建 / 国内 PostgreSQL、国内云服务器自托管和 Aliyun OSS，新开发和正式运行不再使用 Supabase。处理当前数据库、登录、部署、对象存储问题时，先读 `docs/README.md`、`app/db/README.md`、`docs/progress/2026-05-20-main-domestic-infra-merge.md` 和 `docs/progress/2026-05-21-voice-fix-main-release.md`。
 
 ## 目的
 
-本文件用于收敛截至 `2026-04-25` 的 staging Supabase migration 真实状态，避免旧 progress / handoff 里“当时还没执行”的记录误导后续接手。
+本文件用于收敛截至 `2026-04-25` 的 staging Supabase migration 真实状态，避免旧 progress / handoff 里“当时还没执行”的记录误导后续追溯。
 
 原则：
 
 - 不删除历史记录。
 - 历史文档保留“当时发生了什么”。
-- 本文件作为当前 staging Supabase 状态的总账。
+- 本文件仅作为截至 `2026-04-25` 的 staging Supabase 历史状态总账。
 
 ## 环境
 
@@ -18,7 +22,7 @@
 - 复核方式：通过已登录 Supabase Dashboard 浏览器会话调用 Supabase Management API，执行只读验证 SQL。
 - 安全说明：未输出、未落盘 Supabase token 或数据库连接密码。
 
-## 当前结论
+## 当时结论
 
 截至本次复核，仓库当前 `app/supabase/migrations/` 下 7 个 migration 对应的核心表、字段、索引、策略或函数均已在 staging 生效。
 

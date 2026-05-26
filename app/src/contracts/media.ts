@@ -6,7 +6,7 @@ export type MediaOwnerType =
 
 export type MediaAssetType = "image" | "video" | "cover" | "subtitle" | "audio";
 
-export type MediaStorageProvider = "tencent_cos" | "aliyun_oss" | "supabase_storage";
+export type MediaStorageProvider = "aliyun_oss";
 
 export type MediaAssetDto = {
   id: string;
@@ -37,17 +37,16 @@ export type MediaUploadIntentRequest = {
 };
 
 export type MediaUploadIntentDto = {
-  provider?: Extract<MediaStorageProvider, "tencent_cos" | "aliyun_oss">;
+  provider?: MediaStorageProvider;
   bucket: string;
   region: string;
   endpoint?: string | null;
-  storageKey?: string;
-  uploadKey?: string;
+  storageKey: string;
+  uploadKey: string;
   uploadUrl?: string;
   uploadMethod?: "PUT";
   uploadHeaders?: Record<string, string>;
   expiresAt?: string;
-  cosKey?: string;
   TmpSecretId?: string;
   TmpSecretKey?: string;
   Token?: string;

@@ -814,8 +814,9 @@ export async function pgCreateDraftWithVariants(input: {
           script_text,
           hashtags,
           cta_text,
+          production_scenes,
           review_status
-        ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
+        ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11)
         returning ${contentVariantSelect}
         `,
         [
@@ -828,6 +829,7 @@ export async function pgCreateDraftWithVariants(input: {
           variant.scriptText ?? null,
           JSON.stringify(variant.hashtags ?? []),
           variant.ctaText ?? null,
+          JSON.stringify(variant.productionScenes ?? []),
           variant.reviewStatus ?? "editing",
         ],
       );
@@ -1004,8 +1006,9 @@ export async function pgAppendContentVariantToDraft(input: {
         script_text,
         hashtags,
         cta_text,
+        production_scenes,
         review_status
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10::jsonb, $11)
       returning ${contentVariantSelect}
       `,
       [
@@ -1018,6 +1021,7 @@ export async function pgAppendContentVariantToDraft(input: {
         input.scriptText ?? null,
         JSON.stringify(input.hashtags ?? []),
         input.ctaText ?? null,
+        JSON.stringify(input.productionScenes ?? []),
         input.reviewStatus ?? "review_pending",
       ],
     );
@@ -1959,14 +1963,14 @@ function toNullableBooleanValue(value: unknown) {
   return typeof value === "boolean" ? value : null;
 }
 
-function toPositiveInteger(value: unknown) {
-  const numeric = Number(value);
-  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
-}
-
 function toNullablePositiveNumber(value: unknown) {
   const numeric = Number(value);
   return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function toPositiveInteger(value: unknown) {
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
 }
 
 function toIsoString(value: Timestamp) {

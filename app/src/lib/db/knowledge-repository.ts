@@ -10,14 +10,12 @@ import type {
   KnowledgeIngestionJobDto,
   KnowledgeSearchMatchDto,
 } from "@/contracts/knowledge";
+import { isLocalDemoRuntime } from "@/lib/demo/local-demo-runtime";
 import {
-  isAppPostgresConfigured,
-  isAppPostgresPreferred,
   mapPostgresError,
   queryAppDb,
   withAppDbTransaction,
 } from "@/lib/server-db/postgres";
-import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
 type KnowledgeDocumentRow = {
@@ -49,10 +47,6 @@ type KnowledgeChunkRow = {
   created_at: string | Date;
 };
 
-type KnowledgeVectorMatchRow = KnowledgeChunkRow & {
-  score: number;
-};
-
 type KnowledgeIngestionJobRow = {
   id: string;
   document_id: string | null;
@@ -76,45 +70,7 @@ export async function listKnowledgeDocuments(input: {
   merchantId?: string | null;
   limit?: number;
 } = {}): Promise<KnowledgeDocumentWithStatsDto[]> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const filters: string[] = [];
-      const values: unknown[] = [];
-
-      if (input.scope) {
-        values.push(input.scope);
-        filters.push(`scope = $${values.length}`);
-      }
-
-      if (input.merchantId !== undefined) {
-        if (input.merchantId === null) {
-          filters.push("merchant_id is null");
-        } else {
-          values.push(input.merchantId);
-          filters.push(`merchant_id = $${values.length}`);
-        }
-      }
-
-      values.push(input.limit ?? 100);
-      const result = await queryAppDb<KnowledgeDocumentRow>(
-        `
-        select ${knowledgeDocumentSelect}
-        from public.knowledge_documents
-        ${filters.length ? `where ${filters.join(" and ")}` : ""}
-        order by created_at desc
-        limit $${values.length}
-        `,
-        values,
-      );
-      const documents = result.rows.map(mapKnowledgeDocument);
-
-      return attachKnowledgeDocumentStats(documents);
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_DOCUMENTS_LIST_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const documents = Array.from(demoKnowledgeDocuments.values())
       .filter((document) => !input.scope || document.scope === input.scope)
       .filter((document) => {
@@ -132,61 +88,47 @@ export async function listKnowledgeDocuments(input: {
     return attachKnowledgeDocumentStats(documents);
   }
 
-  const supabase = createSupabaseAdminClient();
-  let query = supabase
-    .from("knowledge_documents")
-    .select(knowledgeDocumentSelect)
-    .order("created_at", { ascending: false })
-    .limit(input.limit ?? 100);
+  try {
+    const filters: string[] = [];
+    const values: unknown[] = [];
 
-  if (input.scope) {
-    query = query.eq("scope", input.scope);
+    if (input.scope) {
+      values.push(input.scope);
+      filters.push(`scope = $${values.length}`);
+    }
+
+    if (input.merchantId !== undefined) {
+      if (input.merchantId === null) {
+        filters.push("merchant_id is null");
+      } else {
+        values.push(input.merchantId);
+        filters.push(`merchant_id = $${values.length}`);
+      }
+    }
+
+    values.push(input.limit ?? 100);
+    const result = await queryAppDb<KnowledgeDocumentRow>(
+      `
+      select ${knowledgeDocumentSelect}
+      from public.knowledge_documents
+      ${filters.length ? `where ${filters.join(" and ")}` : ""}
+      order by created_at desc
+      limit $${values.length}
+      `,
+      values,
+    );
+    const documents = result.rows.map(mapKnowledgeDocument);
+
+    return attachKnowledgeDocumentStats(documents);
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_DOCUMENTS_LIST_FAILED");
   }
-
-  if (input.merchantId !== undefined) {
-    query =
-      input.merchantId === null ? query.is("merchant_id", null) : query.eq("merchant_id", input.merchantId);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    throw new ApiError(500, "KNOWLEDGE_DOCUMENTS_LIST_FAILED", error.message);
-  }
-
-  const documents = ((data ?? []) as unknown as KnowledgeDocumentRow[]).map(mapKnowledgeDocument);
-
-  return attachKnowledgeDocumentStats(documents);
 }
 
 export async function getKnowledgeDocumentById(
   documentId: string,
 ): Promise<KnowledgeDocumentWithStatsDto> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<KnowledgeDocumentRow>(
-        `
-        select ${knowledgeDocumentSelect}
-        from public.knowledge_documents
-        where id = $1
-        limit 1
-        `,
-        [documentId],
-      );
-      const row = result.rows[0];
-
-      if (!row) {
-        throw new ApiError(404, "KNOWLEDGE_DOCUMENT_NOT_FOUND", "Knowledge document not found.");
-      }
-
-      const [document] = await attachKnowledgeDocumentStats([mapKnowledgeDocument(row)]);
-      return document;
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_DOCUMENT_FETCH_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const document = demoKnowledgeDocuments.get(documentId);
 
     if (!document) {
@@ -197,22 +139,27 @@ export async function getKnowledgeDocumentById(
     return documentWithStats;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("knowledge_documents")
-    .select(knowledgeDocumentSelect)
-    .eq("id", documentId)
-    .single();
+  try {
+    const result = await queryAppDb<KnowledgeDocumentRow>(
+      `
+      select ${knowledgeDocumentSelect}
+      from public.knowledge_documents
+      where id = $1
+      limit 1
+      `,
+      [documentId],
+    );
+    const row = result.rows[0];
 
-  if (error || !data) {
-    throw new ApiError(404, "KNOWLEDGE_DOCUMENT_NOT_FOUND", "Knowledge document not found.");
+    if (!row) {
+      throw new ApiError(404, "KNOWLEDGE_DOCUMENT_NOT_FOUND", "Knowledge document not found.");
+    }
+
+    const [document] = await attachKnowledgeDocumentStats([mapKnowledgeDocument(row)]);
+    return document;
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_DOCUMENT_FETCH_FAILED");
   }
-
-  const [document] = await attachKnowledgeDocumentStats([
-    mapKnowledgeDocument(data as unknown as KnowledgeDocumentRow),
-  ]);
-
-  return document;
 }
 
 export async function createKnowledgeDocument(input: {
@@ -230,51 +177,7 @@ export async function createKnowledgeDocument(input: {
   metadata?: Record<string, unknown>;
   createdByUserId?: string | null;
 }): Promise<KnowledgeDocumentDto> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<KnowledgeDocumentRow>(
-        `
-        insert into public.knowledge_documents (
-          id,
-          scope,
-          merchant_id,
-          title,
-          source_name,
-          storage_provider,
-          bucket_name,
-          storage_key,
-          mime_type,
-          status,
-          summary_text,
-          metadata,
-          created_by_user_id
-        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13)
-        returning ${knowledgeDocumentSelect}
-        `,
-        [
-          input.id,
-          input.scope,
-          input.merchantId ?? null,
-          input.title,
-          input.sourceName ?? null,
-          input.storageProvider,
-          input.bucketName ?? null,
-          input.storageKey ?? null,
-          input.mimeType ?? null,
-          input.status ?? "uploaded",
-          input.summaryText ?? null,
-          JSON.stringify(input.metadata ?? {}),
-          input.createdByUserId ?? null,
-        ],
-      );
-
-      return mapKnowledgeDocument(result.rows[0]);
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_DOCUMENT_CREATE_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const now = new Date().toISOString();
     const document: KnowledgeDocumentDto = {
       id: input.id,
@@ -300,32 +203,47 @@ export async function createKnowledgeDocument(input: {
     return document;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("knowledge_documents")
-    .insert({
-      id: input.id,
-      scope: input.scope,
-      merchant_id: input.merchantId ?? null,
-      title: input.title,
-      source_name: input.sourceName ?? null,
-      storage_provider: input.storageProvider,
-      bucket_name: input.bucketName ?? null,
-      storage_key: input.storageKey ?? null,
-      mime_type: input.mimeType ?? null,
-      status: input.status ?? "uploaded",
-      summary_text: input.summaryText ?? null,
-      metadata: input.metadata ?? {},
-      created_by_user_id: input.createdByUserId ?? null,
-    })
-    .select(knowledgeDocumentSelect)
-    .single();
+  try {
+    const result = await queryAppDb<KnowledgeDocumentRow>(
+      `
+      insert into public.knowledge_documents (
+        id,
+        scope,
+        merchant_id,
+        title,
+        source_name,
+        storage_provider,
+        bucket_name,
+        storage_key,
+        mime_type,
+        status,
+        summary_text,
+        metadata,
+        created_by_user_id
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13)
+      returning ${knowledgeDocumentSelect}
+      `,
+      [
+        input.id,
+        input.scope,
+        input.merchantId ?? null,
+        input.title,
+        input.sourceName ?? null,
+        input.storageProvider,
+        input.bucketName ?? null,
+        input.storageKey ?? null,
+        input.mimeType ?? null,
+        input.status ?? "uploaded",
+        input.summaryText ?? null,
+        JSON.stringify(input.metadata ?? {}),
+        input.createdByUserId ?? null,
+      ],
+    );
 
-  if (error || !data) {
-    throw new ApiError(500, "KNOWLEDGE_DOCUMENT_CREATE_FAILED", error?.message ?? "Create failed.");
+    return mapKnowledgeDocument(result.rows[0]);
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_DOCUMENT_CREATE_FAILED");
   }
-
-  return mapKnowledgeDocument(data as unknown as KnowledgeDocumentRow);
 }
 
 export async function updateKnowledgeDocument(input: {
@@ -338,37 +256,7 @@ export async function updateKnowledgeDocument(input: {
   bucketName?: string | null;
   storageKey?: string | null;
 }): Promise<KnowledgeDocumentDto> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const patch = buildKnowledgeDocumentPostgresPatch(input);
-
-      if (patch.assignments.length === 0) {
-        return getKnowledgeDocumentById(input.documentId);
-      }
-
-      const result = await queryAppDb<KnowledgeDocumentRow>(
-        `
-        update public.knowledge_documents
-        set ${patch.assignments.join(", ")},
-            updated_at = timezone('utc', now())
-        where id = $${patch.values.length + 1}
-        returning ${knowledgeDocumentSelect}
-        `,
-        [...patch.values, input.documentId],
-      );
-      const row = result.rows[0];
-
-      if (!row) {
-        throw new ApiError(404, "KNOWLEDGE_DOCUMENT_NOT_FOUND", "Knowledge document not found.");
-      }
-
-      return mapKnowledgeDocument(row);
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_DOCUMENT_UPDATE_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const current = demoKnowledgeDocuments.get(input.documentId);
 
     if (!current) {
@@ -392,48 +280,37 @@ export async function updateKnowledgeDocument(input: {
     return updated;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const patch: Record<string, unknown> = {};
+  try {
+    const patch = buildKnowledgeDocumentPostgresPatch(input);
 
-  if (input.status !== undefined) patch.status = input.status;
-  if (input.title !== undefined) patch.title = input.title;
-  if (input.sourceName !== undefined) patch.source_name = input.sourceName;
-  if (input.summaryText !== undefined) patch.summary_text = input.summaryText;
-  if (input.metadata !== undefined) patch.metadata = input.metadata;
-  if (input.bucketName !== undefined) patch.bucket_name = input.bucketName;
-  if (input.storageKey !== undefined) patch.storage_key = input.storageKey;
+    if (patch.assignments.length === 0) {
+      return getKnowledgeDocumentById(input.documentId);
+    }
 
-  const { data, error } = await supabase
-    .from("knowledge_documents")
-    .update(patch)
-    .eq("id", input.documentId)
-    .select(knowledgeDocumentSelect)
-    .single();
+    const result = await queryAppDb<KnowledgeDocumentRow>(
+      `
+      update public.knowledge_documents
+      set ${patch.assignments.join(", ")},
+          updated_at = timezone('utc', now())
+      where id = $${patch.values.length + 1}
+      returning ${knowledgeDocumentSelect}
+      `,
+      [...patch.values, input.documentId],
+    );
+    const row = result.rows[0];
 
-  if (error || !data) {
-    throw new ApiError(500, "KNOWLEDGE_DOCUMENT_UPDATE_FAILED", error?.message ?? "Update failed.");
+    if (!row) {
+      throw new ApiError(404, "KNOWLEDGE_DOCUMENT_NOT_FOUND", "Knowledge document not found.");
+    }
+
+    return mapKnowledgeDocument(row);
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_DOCUMENT_UPDATE_FAILED");
   }
-
-  return mapKnowledgeDocument(data as unknown as KnowledgeDocumentRow);
 }
 
 export async function deleteKnowledgeDocument(documentId: string): Promise<void> {
-  if (shouldUseAppPostgres()) {
-    try {
-      await queryAppDb(
-        `
-        delete from public.knowledge_documents
-        where id = $1
-        `,
-        [documentId],
-      );
-      return;
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_DOCUMENT_DELETE_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     demoKnowledgeDocuments.delete(documentId);
     demoKnowledgeChunks.delete(documentId);
 
@@ -446,11 +323,16 @@ export async function deleteKnowledgeDocument(documentId: string): Promise<void>
     return;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { error } = await supabase.from("knowledge_documents").delete().eq("id", documentId);
-
-  if (error) {
-    throw new ApiError(500, "KNOWLEDGE_DOCUMENT_DELETE_FAILED", error.message);
+  try {
+    await queryAppDb(
+      `
+      delete from public.knowledge_documents
+      where id = $1
+      `,
+      [documentId],
+    );
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_DOCUMENT_DELETE_FAILED");
   }
 }
 
@@ -461,35 +343,7 @@ export async function createKnowledgeIngestionJob(input: {
   inputPayload?: Record<string, unknown>;
   logPayload?: Record<string, unknown>;
 }): Promise<KnowledgeIngestionJobDto> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<KnowledgeIngestionJobRow>(
-        `
-        insert into public.knowledge_ingestion_jobs (
-          document_id,
-          merchant_id,
-          status,
-          input_payload,
-          log_payload
-        ) values ($1, $2, $3, $4::jsonb, $5::jsonb)
-        returning ${knowledgeIngestionJobSelect}
-        `,
-        [
-          input.documentId,
-          input.merchantId ?? null,
-          input.status ?? "pending",
-          JSON.stringify(input.inputPayload ?? {}),
-          JSON.stringify(input.logPayload ?? {}),
-        ],
-      );
-
-      return mapKnowledgeIngestionJob(result.rows[0]);
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_INGESTION_JOB_CREATE_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const now = new Date().toISOString();
     const job: KnowledgeIngestionJobDto = {
       id: randomUUID(),
@@ -510,24 +364,31 @@ export async function createKnowledgeIngestionJob(input: {
     return job;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("knowledge_ingestion_jobs")
-    .insert({
-      document_id: input.documentId,
-      merchant_id: input.merchantId ?? null,
-      status: input.status ?? "pending",
-      input_payload: input.inputPayload ?? {},
-      log_payload: input.logPayload ?? {},
-    })
-    .select(knowledgeIngestionJobSelect)
-    .single();
+  try {
+    const result = await queryAppDb<KnowledgeIngestionJobRow>(
+      `
+      insert into public.knowledge_ingestion_jobs (
+        document_id,
+        merchant_id,
+        status,
+        input_payload,
+        log_payload
+      ) values ($1, $2, $3, $4::jsonb, $5::jsonb)
+      returning ${knowledgeIngestionJobSelect}
+      `,
+      [
+        input.documentId,
+        input.merchantId ?? null,
+        input.status ?? "pending",
+        JSON.stringify(input.inputPayload ?? {}),
+        JSON.stringify(input.logPayload ?? {}),
+      ],
+    );
 
-  if (error || !data) {
-    throw new ApiError(500, "KNOWLEDGE_INGESTION_JOB_CREATE_FAILED", error?.message ?? "Create failed.");
+    return mapKnowledgeIngestionJob(result.rows[0]);
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_INGESTION_JOB_CREATE_FAILED");
   }
-
-  return mapKnowledgeIngestionJob(data as unknown as KnowledgeIngestionJobRow);
 }
 
 export async function updateKnowledgeIngestionJob(input: {
@@ -537,33 +398,7 @@ export async function updateKnowledgeIngestionJob(input: {
   errorSummary?: string | null;
   finishedAt?: string | null;
 }): Promise<KnowledgeIngestionJobDto> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const patch = buildKnowledgeIngestionJobPostgresPatch(input);
-      const assignments = [...patch.assignments, "updated_at = timezone('utc', now())"];
-
-      const result = await queryAppDb<KnowledgeIngestionJobRow>(
-        `
-        update public.knowledge_ingestion_jobs
-        set ${assignments.join(", ")}
-        where id = $${patch.values.length + 1}
-        returning ${knowledgeIngestionJobSelect}
-        `,
-        [...patch.values, input.jobId],
-      );
-      const row = result.rows[0];
-
-      if (!row) {
-        throw new ApiError(404, "KNOWLEDGE_INGESTION_JOB_NOT_FOUND", "Knowledge job not found.");
-      }
-
-      return mapKnowledgeIngestionJob(row);
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_INGESTION_JOB_UPDATE_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const current = demoKnowledgeJobs.get(input.jobId);
 
     if (!current) {
@@ -585,26 +420,29 @@ export async function updateKnowledgeIngestionJob(input: {
     return updated;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const patch: Record<string, unknown> = {};
+  try {
+    const patch = buildKnowledgeIngestionJobPostgresPatch(input);
+    const assignments = [...patch.assignments, "updated_at = timezone('utc', now())"];
 
-  if (input.status !== undefined) patch.status = input.status;
-  if (input.logPayload !== undefined) patch.log_payload = input.logPayload;
-  if (input.errorSummary !== undefined) patch.error_summary = input.errorSummary;
-  if (input.finishedAt !== undefined) patch.finished_at = input.finishedAt;
+    const result = await queryAppDb<KnowledgeIngestionJobRow>(
+      `
+      update public.knowledge_ingestion_jobs
+      set ${assignments.join(", ")}
+      where id = $${patch.values.length + 1}
+      returning ${knowledgeIngestionJobSelect}
+      `,
+      [...patch.values, input.jobId],
+    );
+    const row = result.rows[0];
 
-  const { data, error } = await supabase
-    .from("knowledge_ingestion_jobs")
-    .update(patch)
-    .eq("id", input.jobId)
-    .select(knowledgeIngestionJobSelect)
-    .single();
+    if (!row) {
+      throw new ApiError(404, "KNOWLEDGE_INGESTION_JOB_NOT_FOUND", "Knowledge job not found.");
+    }
 
-  if (error || !data) {
-    throw new ApiError(500, "KNOWLEDGE_INGESTION_JOB_UPDATE_FAILED", error?.message ?? "Update failed.");
+    return mapKnowledgeIngestionJob(row);
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_INGESTION_JOB_UPDATE_FAILED");
   }
-
-  return mapKnowledgeIngestionJob(data as unknown as KnowledgeIngestionJobRow);
 }
 
 export async function replaceKnowledgeChunks(input: {
@@ -617,53 +455,7 @@ export async function replaceKnowledgeChunks(input: {
     embedding?: number[] | null;
   }>;
 }): Promise<KnowledgeChunkDto[]> {
-  if (shouldUseAppPostgres()) {
-    try {
-      return await withAppDbTransaction(async (client) => {
-        await client.query("delete from public.knowledge_chunks where document_id = $1", [
-          input.documentId,
-        ]);
-
-        if (input.chunks.length === 0) {
-          return [];
-        }
-
-        const inserted: KnowledgeChunkRow[] = [];
-        for (const chunk of input.chunks) {
-          const result = await client.query<KnowledgeChunkRow>(
-            `
-            insert into public.knowledge_chunks (
-              document_id,
-              chunk_index,
-              content,
-              token_count,
-              metadata,
-              embedding_dimensions,
-              embedding_json
-            ) values ($1, $2, $3, $4, $5::jsonb, $6, $7::double precision[])
-            returning ${knowledgeChunkSelect}
-            `,
-            [
-              input.documentId,
-              chunk.chunkIndex,
-              chunk.content,
-              chunk.tokenCount,
-              JSON.stringify(chunk.metadata ?? {}),
-              chunk.embedding?.length ?? null,
-              chunk.embedding ?? null,
-            ],
-          );
-          inserted.push(result.rows[0]);
-        }
-
-        return inserted.sort((a, b) => a.chunk_index - b.chunk_index).map(mapKnowledgeChunk);
-      });
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_CHUNKS_REPLACE_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     const now = new Date().toISOString();
     const chunks = input.chunks.map((chunk) => ({
       id: randomUUID(),
@@ -680,81 +472,75 @@ export async function replaceKnowledgeChunks(input: {
     return chunks;
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { error: deleteError } = await supabase
-    .from("knowledge_chunks")
-    .delete()
-    .eq("document_id", input.documentId);
+  try {
+    return await withAppDbTransaction(async (client) => {
+      await client.query("delete from public.knowledge_chunks where document_id = $1", [
+        input.documentId,
+      ]);
 
-  if (deleteError) {
-    throw new ApiError(500, "KNOWLEDGE_CHUNKS_REPLACE_FAILED", deleteError.message);
+      if (input.chunks.length === 0) {
+        return [];
+      }
+
+      const inserted: KnowledgeChunkRow[] = [];
+      for (const chunk of input.chunks) {
+        const result = await client.query<KnowledgeChunkRow>(
+          `
+          insert into public.knowledge_chunks (
+            document_id,
+            chunk_index,
+            content,
+            token_count,
+            metadata,
+            embedding_dimensions,
+            embedding_json
+          ) values ($1, $2, $3, $4, $5::jsonb, $6, $7::double precision[])
+          returning ${knowledgeChunkSelect}
+          `,
+          [
+            input.documentId,
+            chunk.chunkIndex,
+            chunk.content,
+            chunk.tokenCount,
+            JSON.stringify(chunk.metadata ?? {}),
+            chunk.embedding?.length ?? null,
+            chunk.embedding ?? null,
+          ],
+        );
+        inserted.push(result.rows[0]);
+      }
+
+      return inserted.sort((a, b) => a.chunk_index - b.chunk_index).map(mapKnowledgeChunk);
+    });
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_CHUNKS_REPLACE_FAILED");
   }
-
-  if (input.chunks.length === 0) {
-    return [];
-  }
-
-  const { data, error } = await supabase
-    .from("knowledge_chunks")
-    .insert(
-      input.chunks.map((chunk) => ({
-        document_id: input.documentId,
-        chunk_index: chunk.chunkIndex,
-        content: chunk.content,
-        token_count: chunk.tokenCount,
-        metadata: chunk.metadata ?? {},
-        embedding: chunk.embedding ? toPgVector(chunk.embedding) : null,
-      })),
-    )
-    .select(knowledgeChunkSelect)
-    .order("chunk_index", { ascending: true });
-
-  if (error) {
-    throw new ApiError(500, "KNOWLEDGE_CHUNKS_REPLACE_FAILED", error.message);
-  }
-
-  return ((data ?? []) as unknown as KnowledgeChunkRow[]).map(mapKnowledgeChunk);
 }
 
 export async function listKnowledgeChunksByDocumentId(
   documentId: string,
 ): Promise<KnowledgeChunkDto[]> {
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<KnowledgeChunkRow>(
-        `
-        select ${knowledgeChunkSelect}
-        from public.knowledge_chunks
-        where document_id = $1
-        order by chunk_index asc
-        `,
-        [documentId],
-      );
-
-      return result.rows.map(mapKnowledgeChunk);
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_CHUNKS_LIST_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     return [...(demoKnowledgeChunks.get(documentId) ?? [])].sort(
       (a, b) => a.chunkIndex - b.chunkIndex,
     );
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("knowledge_chunks")
-    .select(knowledgeChunkSelect)
-    .eq("document_id", documentId)
-    .order("chunk_index", { ascending: true });
+  try {
+    const result = await queryAppDb<KnowledgeChunkRow>(
+      `
+      select ${knowledgeChunkSelect}
+      from public.knowledge_chunks
+      where document_id = $1
+      order by chunk_index asc
+      `,
+      [documentId],
+    );
 
-  if (error) {
-    throw new ApiError(500, "KNOWLEDGE_CHUNKS_LIST_FAILED", error.message);
+    return result.rows.map(mapKnowledgeChunk);
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_CHUNKS_LIST_FAILED");
   }
-
-  return ((data ?? []) as unknown as KnowledgeChunkRow[]).map(mapKnowledgeChunk);
 }
 
 export async function searchKnowledgeChunks(input: {
@@ -783,51 +569,7 @@ export async function searchKnowledgeChunks(input: {
   const terms = buildSearchTerms(input.query);
   const matches: KnowledgeSearchMatchDto[] = [];
 
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<KnowledgeChunkRow>(
-        `
-        select ${knowledgeChunkSelect}
-        from public.knowledge_chunks
-        where document_id = any($1::uuid[])
-        order by document_id, chunk_index asc
-        limit 1000
-        `,
-        [documentIds],
-      );
-
-      for (const row of result.rows) {
-        const document = documentById.get(row.document_id);
-
-        if (!document) {
-          continue;
-        }
-
-        const contentScore = scoreText(row.content, terms);
-        const titleScore = scoreText(document.title, terms) * 0.5;
-        const score = contentScore + titleScore;
-
-        matches.push({
-          chunkId: row.id,
-          documentId: document.id,
-          documentTitle: document.title,
-          sourceName: document.sourceName,
-          scope: document.scope,
-          merchantId: document.merchantId,
-          content: row.content,
-          score,
-          chunkIndex: row.chunk_index,
-          metadata: toRecord(row.metadata),
-        });
-      }
-
-      return rankKnowledgeMatches(matches, input.limit);
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_SEARCH_FAILED");
-    }
-  }
-
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     for (const documentId of documentIds) {
       const document = documentById.get(documentId);
 
@@ -858,75 +600,47 @@ export async function searchKnowledgeChunks(input: {
     return rankKnowledgeMatches(matches, input.limit);
   }
 
-  const supabase = createSupabaseAdminClient();
-
-  if (input.queryEmbedding) {
-    const { data: vectorData, error: vectorError } = await supabase.rpc(
-      "match_knowledge_chunks",
-      {
-        query_embedding: toPgVector(input.queryEmbedding),
-        match_count: input.limit,
-        document_ids: documentIds,
-      },
+  try {
+    const result = await queryAppDb<KnowledgeChunkRow>(
+      `
+      select ${knowledgeChunkSelect}
+      from public.knowledge_chunks
+      where document_id = any($1::uuid[])
+      order by document_id, chunk_index asc
+      limit 1000
+      `,
+      [documentIds],
     );
 
-    if (!vectorError && Array.isArray(vectorData) && vectorData.length > 0) {
-      return (vectorData as unknown as KnowledgeVectorMatchRow[]).map((row) => {
-        const document = documentById.get(row.document_id);
+    for (const row of result.rows) {
+      const document = documentById.get(row.document_id);
 
-        return {
-          chunkId: row.id,
-          documentId: row.document_id,
-          documentTitle: document?.title ?? "Unknown document",
-          sourceName: document?.sourceName ?? null,
-          scope: document?.scope ?? "platform",
-          merchantId: document?.merchantId ?? null,
-          content: row.content,
-          score: typeof row.score === "number" ? row.score : 0,
-          chunkIndex: row.chunk_index,
-          metadata: toRecord(row.metadata),
-        };
+      if (!document) {
+        continue;
+      }
+
+      const contentScore = scoreText(row.content, terms);
+      const titleScore = scoreText(document.title, terms) * 0.5;
+      const score = contentScore + titleScore;
+
+      matches.push({
+        chunkId: row.id,
+        documentId: document.id,
+        documentTitle: document.title,
+        sourceName: document.sourceName,
+        scope: document.scope,
+        merchantId: document.merchantId,
+        content: row.content,
+        score,
+        chunkIndex: row.chunk_index,
+        metadata: toRecord(row.metadata),
       });
     }
+
+    return rankKnowledgeMatches(matches, input.limit);
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_SEARCH_FAILED");
   }
-
-  const { data, error } = await supabase
-    .from("knowledge_chunks")
-    .select(knowledgeChunkSelect)
-    .in("document_id", documentIds)
-    .order("chunk_index", { ascending: true })
-    .limit(1000);
-
-  if (error) {
-    throw new ApiError(500, "KNOWLEDGE_SEARCH_FAILED", error.message);
-  }
-
-  for (const row of (data ?? []) as unknown as KnowledgeChunkRow[]) {
-    const document = documentById.get(row.document_id);
-
-    if (!document) {
-      continue;
-    }
-
-    const contentScore = scoreText(row.content, terms);
-    const titleScore = scoreText(document.title, terms) * 0.5;
-    const score = contentScore + titleScore;
-
-    matches.push({
-      chunkId: row.id,
-      documentId: document.id,
-      documentTitle: document.title,
-      sourceName: document.sourceName,
-      scope: document.scope,
-      merchantId: document.merchantId,
-      content: row.content,
-      score,
-      chunkIndex: row.chunk_index,
-      metadata: toRecord(row.metadata),
-    });
-  }
-
-  return rankKnowledgeMatches(matches, input.limit);
 }
 
 async function attachKnowledgeDocumentStats(
@@ -936,7 +650,7 @@ async function attachKnowledgeDocumentStats(
     return [];
   }
 
-  if (shouldUseDemoFallback()) {
+  if (isLocalDemoRuntime()) {
     return documents.map((document) => ({
       ...document,
       chunkCount: demoKnowledgeChunks.get(document.id)?.length ?? 0,
@@ -981,46 +695,28 @@ async function countKnowledgeChunksByDocumentIds(documentIds: string[]) {
     return counts;
   }
 
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<{
-        document_id: string;
-        count: string;
-      }>(
-        `
-        select document_id, count(*)::text as count
-        from public.knowledge_chunks
-        where document_id = any($1::uuid[])
-        group by document_id
-        `,
-        [documentIds],
-      );
+  try {
+    const result = await queryAppDb<{
+      document_id: string;
+      count: string;
+    }>(
+      `
+      select document_id, count(*)::text as count
+      from public.knowledge_chunks
+      where document_id = any($1::uuid[])
+      group by document_id
+      `,
+      [documentIds],
+    );
 
-      for (const row of result.rows) {
-        counts.set(row.document_id, Number.parseInt(row.count, 10) || 0);
-      }
-
-      return counts;
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_CHUNKS_COUNT_FAILED");
+    for (const row of result.rows) {
+      counts.set(row.document_id, Number.parseInt(row.count, 10) || 0);
     }
+
+    return counts;
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_CHUNKS_COUNT_FAILED");
   }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("knowledge_chunks")
-    .select("document_id")
-    .in("document_id", documentIds);
-
-  if (error) {
-    throw new ApiError(500, "KNOWLEDGE_CHUNKS_COUNT_FAILED", error.message);
-  }
-
-  for (const row of (data ?? []) as Array<{ document_id: string }>) {
-    counts.set(row.document_id, (counts.get(row.document_id) ?? 0) + 1);
-  }
-
-  return counts;
 }
 
 async function listLatestKnowledgeJobsByDocumentIds(documentIds: string[]) {
@@ -1030,53 +726,30 @@ async function listLatestKnowledgeJobsByDocumentIds(documentIds: string[]) {
     return jobs;
   }
 
-  if (shouldUseAppPostgres()) {
-    try {
-      const result = await queryAppDb<KnowledgeIngestionJobRow>(
-        `
-        select distinct on (document_id)
-          ${knowledgeIngestionJobSelect}
-        from public.knowledge_ingestion_jobs
-        where document_id = any($1::uuid[])
-        order by document_id, created_at desc, id desc
-        `,
-        [documentIds],
-      );
+  try {
+    const result = await queryAppDb<KnowledgeIngestionJobRow>(
+      `
+      select distinct on (document_id)
+        ${knowledgeIngestionJobSelect}
+      from public.knowledge_ingestion_jobs
+      where document_id = any($1::uuid[])
+      order by document_id, created_at desc, id desc
+      `,
+      [documentIds],
+    );
 
-      for (const row of result.rows) {
-        const job = mapKnowledgeIngestionJob(row);
+    for (const row of result.rows) {
+      const job = mapKnowledgeIngestionJob(row);
 
-        if (job.documentId) {
-          jobs.set(job.documentId, job);
-        }
+      if (job.documentId) {
+        jobs.set(job.documentId, job);
       }
-
-      return jobs;
-    } catch (error) {
-      throw mapPostgresError(error, "KNOWLEDGE_JOBS_LIST_FAILED");
     }
+
+    return jobs;
+  } catch (error) {
+    throw mapPostgresError(error, "KNOWLEDGE_JOBS_LIST_FAILED");
   }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("knowledge_ingestion_jobs")
-    .select(knowledgeIngestionJobSelect)
-    .in("document_id", documentIds)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    throw new ApiError(500, "KNOWLEDGE_JOBS_LIST_FAILED", error.message);
-  }
-
-  for (const row of (data ?? []) as unknown as KnowledgeIngestionJobRow[]) {
-    const job = mapKnowledgeIngestionJob(row);
-
-    if (job.documentId && !jobs.has(job.documentId)) {
-      jobs.set(job.documentId, job);
-    }
-  }
-
-  return jobs;
 }
 
 function mapKnowledgeDocument(row: KnowledgeDocumentRow): KnowledgeDocumentDto {
@@ -1181,14 +854,6 @@ function buildKnowledgeIngestionJobPostgresPatch(input: {
   return { assignments, values };
 }
 
-function shouldUseAppPostgres() {
-  return isAppPostgresConfigured() && isAppPostgresPreferred();
-}
-
-function shouldUseDemoFallback() {
-  return !shouldUseAppPostgres() && !isSupabaseAdminConfigured();
-}
-
 function toIsoString(value: string | Date) {
   return value instanceof Date ? value.toISOString() : value;
 }
@@ -1247,10 +912,6 @@ function countTermOccurrences(text: string, term: string) {
   }
 
   return count;
-}
-
-function toPgVector(embedding: number[]) {
-  return `[${embedding.map((value) => Number(value).toFixed(8)).join(",")}]`;
 }
 
 function normalizeText(value: string) {

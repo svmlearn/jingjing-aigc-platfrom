@@ -1,4 +1,0 @@
-interface:
-  display_name: "Jingjing Video Edit Run"
-  short_description: "Run or watch Jingjing OSS video jobs"
-  default_prompt: "Use $jingjing-video-edit-run to run, rerun, monitor, verify, or package a Jingjing video-edit job through systemd video-worker services, FireRed/OpenStoryline, deployed database state, and Aliyun OSS outputs without fallback."

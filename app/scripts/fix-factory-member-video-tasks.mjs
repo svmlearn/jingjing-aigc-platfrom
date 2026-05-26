@@ -719,17 +719,6 @@ function isTalkingHeadScene(scene) {
   return /口播|真人|成员|出镜|talking/i.test(text);
 }
 
-function splitMaterialSlot(value) {
-  if (typeof value !== "string") {
-    return [];
-  }
-
-  return value
-    .split(/[、,，;；/]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 function normalizePositiveInteger(value) {
   const numeric = Number(value);
   return Number.isInteger(numeric) && numeric > 0 ? numeric : null;

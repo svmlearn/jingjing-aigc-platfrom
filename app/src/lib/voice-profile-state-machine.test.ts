@@ -20,7 +20,7 @@ test("replaceCurrentVoiceProfile keeps only one ready profile for a merchant use
     merchantId: merchantA,
     createdByUserId: userA,
     refAudioAssetId: "audio-old",
-      externalVoiceId: "aliyun-old",
+    externalVoiceId: "aliyun-old",
   });
   const otherUserProfile = profile({
     id: "voice-other-user",

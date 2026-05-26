@@ -4,6 +4,7 @@ import { MerchantLoginForm } from "@/components/app/merchant-login-form";
 const errorMessages: Record<string, string> = {
   "invalid-credentials": "邮箱或密码不正确，请重新输入。",
   "no-merchant-profile": "这个账号还没有绑定用户信息，请使用邀请码注册，或联系平台管理员处理。",
+  "auth-not-configured": "登录服务暂不可用，请联系平台管理员检查数据库会话配置。",
   unauthenticated: "请先登录账号，再进入工作台。",
 };
 

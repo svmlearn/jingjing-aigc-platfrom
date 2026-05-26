@@ -1,30 +1,20 @@
 import "server-only";
 
 import type { MerchantMediaAssetRecord } from "@/lib/merchant-media-library-contract";
-import type { MerchantMediaRepository } from "@/lib/merchant-media-repository-contract";
+import {
+  assertMerchantMediaRepositoryAsset,
+  assertMerchantMediaRepositoryReadyClip,
+  type MerchantMediaRepository,
+} from "@/lib/merchant-media-repository-contract";
 import type { PrivateMediaClipRecord } from "@/lib/private-media-pexels-adapter";
 import type { PrivateMediaClipRepository } from "@/lib/private-media-fixture-repository";
-import { cloudSupabaseRequiredError } from "@/lib/db/cloud-supabase-required";
 import {
-  isAppPostgresConfigured,
-  isAppPostgresPreferred,
+  type DatabaseClient,
   mapPostgresError,
   queryAppDb,
+  withAppDbTransaction,
 } from "@/lib/server-db/postgres";
-import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
-
-type SupabaseTable = ReturnType<typeof createSupabaseAdminClient> extends {
-  from: (table: infer Table) => unknown;
-}
-  ? Table
-  : string;
-
-const merchantMediaAssetsTable = "merchant_media_assets" as SupabaseTable;
-const merchantMediaClipsTable = "merchant_media_clips" as SupabaseTable;
-const sourceItemsTable = "source_items" as SupabaseTable;
-const assetObjectsTable = "asset_objects" as SupabaseTable;
-const legacyMaterialClipIdPrefix = "source-item-asset-";
 
 type MerchantMediaAssetRow = {
   id: string;
@@ -32,7 +22,7 @@ type MerchantMediaAssetRow = {
   uploaded_by_user_id: string;
   media_type: "image" | "video";
   source: "merchant_upload" | "merchant_confirmed";
-  source_cos_key: string;
+  source_storage_key: string;
   status: MerchantMediaAssetRecord["status"];
   created_at: string;
 };
@@ -61,13 +51,13 @@ type MerchantMediaClipRow = {
   tag_confidence: number | null;
   tag_source: string | null;
   bucket_name: string;
-  cos_key: string;
-  thumb_cos_key: string | null;
+  storage_key: string;
+  thumb_storage_key: string | null;
   mime_type: string;
   created_at: string;
 };
 
-type LegacyMaterialSourceItemRow = {
+type LegacyMaterialClipRow = {
   id: string;
   merchant_id: string;
   title: string | null;
@@ -77,22 +67,6 @@ type LegacyMaterialSourceItemRow = {
   engagement_snapshot: unknown;
   trace_payload: unknown;
   created_at: string | Date;
-};
-
-type LegacyMaterialAssetObjectRow = {
-  id: string;
-  owner_id: string;
-  asset_type: "image" | "video" | "cover" | "subtitle";
-  storage_provider: string | null;
-  bucket_name: string | null;
-  storage_key: string;
-  mime_type: string | null;
-  file_size_bytes?: number | null;
-  sort_order?: number | null;
-  created_at: string | Date;
-};
-
-type LegacyMaterialClipRow = LegacyMaterialSourceItemRow & {
   asset_object_id: string;
   asset_type: "image" | "video" | "cover" | "subtitle";
   storage_provider: string | null;
@@ -104,58 +78,61 @@ type LegacyMaterialClipRow = LegacyMaterialSourceItemRow & {
   asset_created_at: string | Date;
 };
 
-export function getMerchantMediaRepository(): MerchantMediaRepository {
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
-  }
+const legacyMaterialClipIdPrefix = "source-item-asset-";
 
-  return new SupabaseMerchantMediaRepository();
+export function getMerchantMediaRepository(): MerchantMediaRepository {
+  return new PostgresMerchantMediaRepository();
 }
 
 export function getPrivateMediaRepository(): PrivateMediaClipRepository {
-  if (isAppPostgresPreferred() && isAppPostgresConfigured()) {
-    return new SupabaseMerchantMediaPrivateClipRepository();
-  }
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
-  }
-
-  return new SupabaseMerchantMediaPrivateClipRepository();
+  return new PostgresMerchantMediaPrivateClipRepository();
 }
 
-export class SupabaseMerchantMediaRepository implements MerchantMediaRepository {
+export class PostgresMerchantMediaRepository implements MerchantMediaRepository {
   async upsertAsset(input: {
     asset: MerchantMediaAssetRecord;
     idempotencyKey: string;
   }) {
-    const supabase = createSupabaseAdminClient();
-    const { data, error } = await supabase
-      .from(merchantMediaAssetsTable)
-      .upsert(
-        {
-          id: input.asset.id,
-          merchant_id: input.asset.merchantId,
-          uploaded_by_user_id: input.asset.uploadedByUserId,
-          media_type: input.asset.mediaType,
-          source: input.asset.source,
-          source_cos_key: input.asset.sourceCosKey,
-          status: input.asset.status,
-          idempotency_key: input.idempotencyKey,
-        },
-        { onConflict: "merchant_id,idempotency_key" },
-      )
-      .select(merchantMediaAssetSelect)
-      .single();
+    const asset = input.asset;
+    assertMerchantMediaRepositoryAsset(asset);
 
-    if (error || !data) {
-      throw new ApiError(
-        500,
-        "MERCHANT_MEDIA_ASSET_UPSERT_FAILED",
-        error?.message ?? "Failed to upsert merchant media asset.",
+    try {
+      const result = await queryAppDb<MerchantMediaAssetRow>(
+        `
+        insert into public.merchant_media_assets (
+          id,
+          merchant_id,
+          uploaded_by_user_id,
+          media_type,
+          source,
+          source_storage_key,
+          status,
+          idempotency_key
+        ) values ($1, $2, $3, $4, $5, $6, $7, $8)
+        on conflict (merchant_id, idempotency_key)
+        do update set uploaded_by_user_id = excluded.uploaded_by_user_id,
+                      media_type = excluded.media_type,
+                      source = excluded.source,
+                      source_storage_key = excluded.source_storage_key,
+                      status = excluded.status
+        returning ${merchantMediaAssetSelect}
+        `,
+        [
+          asset.id,
+          asset.merchantId,
+          asset.uploadedByUserId,
+          asset.mediaType,
+          asset.source,
+          asset.sourceStorageKey,
+          asset.status,
+          input.idempotencyKey,
+        ],
       );
-    }
 
-    return mapMerchantMediaAsset(data as unknown as MerchantMediaAssetRow);
+      return mapMerchantMediaAsset(result.rows[0]);
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_MEDIA_ASSET_UPSERT_FAILED");
+    }
   }
 
   async upsertReadyClip(input: {
@@ -163,71 +140,133 @@ export class SupabaseMerchantMediaRepository implements MerchantMediaRepository 
     assetId: string;
     clip: PrivateMediaClipRecord;
   }) {
-    const supabase = createSupabaseAdminClient();
-    const { data, error } = await supabase
-      .from(merchantMediaClipsTable)
-      .upsert(
-        {
-          id: input.clip.id,
-          asset_id: input.assetId,
-          merchant_id: input.merchantId,
-          media_type: input.clip.mediaType,
-          status: input.clip.status,
-          clip_index: input.clip.clipIndex ?? 0,
-          clip_type: input.clip.clipType ?? (input.clip.mediaType === "video" ? "full_video" : "image"),
-          start_time_seconds: input.clip.startTimeSeconds ?? null,
-          end_time_seconds: input.clip.endTimeSeconds ?? null,
-          width: input.clip.width,
-          height: input.clip.height,
-          duration_seconds: input.clip.durationSeconds ?? null,
-          orientation: input.clip.orientation,
-          description: input.clip.description,
-          tags: input.clip.tags,
-          industry_tags: input.clip.industryTags ?? [],
-          scene_tags: input.clip.sceneTags ?? [],
-          shot_tags: input.clip.shotTags ?? [],
-          people_tags: input.clip.peopleTags ?? [],
-          quality_tags: input.clip.qualityTags ?? [],
-          tag_confidence: input.clip.tagConfidence ?? null,
-          tag_source: input.clip.tagSource ?? "manual",
-          bucket_name: input.clip.bucketName,
-          cos_key: input.clip.cosKey,
-          thumb_cos_key: input.clip.thumbCosKey ?? null,
-          mime_type: input.clip.mimeType,
-        },
-        { onConflict: "asset_id,clip_index" },
-      )
-      .select(merchantMediaClipSelect)
-      .single();
+    const clip = input.clip;
+    const normalizedInput = {
+      ...input,
+      clip,
+    };
 
-    if (error || !data) {
-      throw new ApiError(
-        500,
-        "MERCHANT_MEDIA_CLIP_UPSERT_FAILED",
-        error?.message ?? "Failed to upsert merchant media clip.",
-      );
+    assertMerchantMediaRepositoryReadyClip(normalizedInput);
+
+    try {
+      return await withAppDbTransaction(async (client) => {
+        await assertMerchantMediaAssetExists(client, {
+          merchantId: normalizedInput.merchantId,
+          assetId: normalizedInput.assetId,
+        });
+
+        const result = await client.query<MerchantMediaClipRow>(
+          `
+          insert into public.merchant_media_clips (
+            id,
+            asset_id,
+            merchant_id,
+            media_type,
+            status,
+            clip_index,
+            clip_type,
+            start_time_seconds,
+            end_time_seconds,
+            width,
+            height,
+            duration_seconds,
+            orientation,
+            description,
+            tags,
+            industry_tags,
+            scene_tags,
+            shot_tags,
+            people_tags,
+            quality_tags,
+            tag_confidence,
+            tag_source,
+            bucket_name,
+            storage_key,
+            thumb_storage_key,
+            mime_type
+          ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb, $21, $22, $23, $24, $25, $26)
+          on conflict (asset_id, clip_index)
+          do update set media_type = excluded.media_type,
+                        status = excluded.status,
+                        clip_type = excluded.clip_type,
+                        start_time_seconds = excluded.start_time_seconds,
+                        end_time_seconds = excluded.end_time_seconds,
+                        width = excluded.width,
+                        height = excluded.height,
+                        duration_seconds = excluded.duration_seconds,
+                        orientation = excluded.orientation,
+                        description = excluded.description,
+                        tags = excluded.tags,
+                        industry_tags = excluded.industry_tags,
+                        scene_tags = excluded.scene_tags,
+                        shot_tags = excluded.shot_tags,
+                        people_tags = excluded.people_tags,
+                        quality_tags = excluded.quality_tags,
+                        tag_confidence = excluded.tag_confidence,
+                        tag_source = excluded.tag_source,
+                        bucket_name = excluded.bucket_name,
+                        storage_key = excluded.storage_key,
+                        thumb_storage_key = excluded.thumb_storage_key,
+                        mime_type = excluded.mime_type
+          returning ${merchantMediaClipSelect}
+          `,
+          [
+            clip.id,
+            normalizedInput.assetId,
+            normalizedInput.merchantId,
+            clip.mediaType,
+            clip.status,
+            clip.clipIndex ?? 0,
+            clip.clipType ?? (clip.mediaType === "video" ? "full_video" : "image"),
+            clip.startTimeSeconds ?? null,
+            clip.endTimeSeconds ?? null,
+            clip.width,
+            clip.height,
+            clip.durationSeconds ?? null,
+            clip.orientation,
+            clip.description,
+            JSON.stringify(clip.tags),
+            JSON.stringify(clip.industryTags ?? []),
+            JSON.stringify(clip.sceneTags ?? []),
+            JSON.stringify(clip.shotTags ?? []),
+            JSON.stringify(clip.peopleTags ?? []),
+            JSON.stringify(clip.qualityTags ?? []),
+            clip.tagConfidence ?? null,
+            clip.tagSource ?? "manual",
+            clip.bucketName,
+            clip.storageKey,
+            clip.thumbStorageKey ?? null,
+            clip.mimeType,
+          ],
+        );
+
+        return mapMerchantMediaClip(result.rows[0]);
+      });
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_MEDIA_CLIP_UPSERT_FAILED");
     }
-
-    return mapMerchantMediaClip(data as unknown as MerchantMediaClipRow);
   }
 
   async listAssetsByMerchant(input: { merchantId: string }) {
-    const supabase = createSupabaseAdminClient();
-    const { data, error } = await supabase
-      .from(merchantMediaAssetsTable)
-      .select(merchantMediaAssetSelect)
-      .eq("merchant_id", input.merchantId)
-      .order("created_at", { ascending: false });
+    try {
+      const result = await queryAppDb<MerchantMediaAssetRow>(
+        `
+        select ${merchantMediaAssetSelect}
+        from public.merchant_media_assets
+        where merchant_id = $1
+        order by created_at desc
+        `,
+        [input.merchantId],
+      );
 
-    if (error) {
-      throw new ApiError(500, "MERCHANT_MEDIA_ASSET_LIST_FAILED", error.message);
+      return result.rows.map(mapMerchantMediaAsset);
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_MEDIA_ASSET_LIST_FAILED");
     }
-
-    return ((data ?? []) as unknown as MerchantMediaAssetRow[]).map(mapMerchantMediaAsset);
   }
 
   async listReadyClipsByMerchant(input: { merchantId: string }) {
-    const repository = new SupabaseMerchantMediaPrivateClipRepository();
+    const repository = new PostgresMerchantMediaPrivateClipRepository();
     return repository.listClipsByMerchant(input);
   }
 
@@ -235,162 +274,107 @@ export class SupabaseMerchantMediaRepository implements MerchantMediaRepository 
     merchantId: string;
     clipId: string;
   }) {
-    const repository = new SupabaseMerchantMediaPrivateClipRepository();
-    const clip = await repository.getClipById({ clipId: input.clipId });
+    try {
+      const result = await queryAppDb<MerchantMediaClipRow>(
+        `
+        select ${merchantMediaClipSelect}
+        from public.merchant_media_clips
+        where id = $1
+          and merchant_id = $2
+          and status = 'ready'
+        limit 1
+        `,
+        [input.clipId, input.merchantId],
+      );
 
-    return clip?.merchantId === input.merchantId && clip.status === "ready" ? clip : null;
+      return result.rows[0] ? mapMerchantMediaClip(result.rows[0]) : null;
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_MEDIA_CLIP_LOOKUP_FAILED");
+    }
   }
 }
 
-export class SupabaseMerchantMediaPrivateClipRepository implements PrivateMediaClipRepository {
+export class PostgresMerchantMediaPrivateClipRepository implements PrivateMediaClipRepository {
   async listClipsByMerchant(input: { merchantId: string }) {
-    const legacyClips = await this.listLegacyMaterialClipsByMerchant(input);
-    if (isAppPostgresPreferred() && isAppPostgresConfigured()) {
-      return dedupePrivateMediaClips(legacyClips);
-    }
-    const readyClips = await this.listReadyMerchantMediaClipsByMerchant(input);
+    try {
+      const result = await queryAppDb<MerchantMediaClipRow>(
+        `
+        select ${merchantMediaClipSelect}
+        from public.merchant_media_clips
+        where merchant_id = $1
+          and status = 'ready'
+        order by created_at desc
+        `,
+        [input.merchantId],
+      );
 
-    return dedupePrivateMediaClips([...legacyClips, ...readyClips]);
+      const readyClips = result.rows.map(mapMerchantMediaClip);
+      const legacyClips = await listLegacyMaterialClipsByMerchantFromPostgres(input);
+      return dedupePrivateMediaClips([...legacyClips, ...readyClips]);
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_MEDIA_CLIP_LIST_FAILED");
+    }
   }
 
   async getClipById(input: { clipId: string }) {
-    const legacyAssetObjectId = legacyMaterialAssetObjectIdFromClipId(input.clipId);
-    if (legacyAssetObjectId) {
-      return this.getLegacyMaterialClipByAssetObjectId({ assetObjectId: legacyAssetObjectId });
-    }
+    try {
+      const legacyAssetObjectId = legacyMaterialAssetObjectIdFromClipId(input.clipId);
+      if (legacyAssetObjectId) {
+        const legacyRows = await listLegacyMaterialClipsByAssetObjectIdFromPostgres({
+          assetObjectId: legacyAssetObjectId,
+        });
+        return legacyRows[0] ?? null;
+      }
 
-    if (isAppPostgresPreferred() && isAppPostgresConfigured()) {
-      return this.getLegacyMaterialClipByAssetObjectId({ assetObjectId: input.clipId });
-    }
+      const result = await queryAppDb<MerchantMediaClipRow>(
+        `
+        select ${merchantMediaClipSelect}
+        from public.merchant_media_clips
+        where id = $1
+        limit 1
+        `,
+        [input.clipId],
+      );
 
-    const clip = await this.getReadyMerchantMediaClipById(input);
-    return clip ?? this.getLegacyMaterialClipByAssetObjectId({ assetObjectId: input.clipId });
+      const readyClip = result.rows[0] ? mapMerchantMediaClip(result.rows[0]) : null;
+      if (readyClip) {
+        return readyClip;
+      }
+
+      const legacyRows = await listLegacyMaterialClipsByAssetObjectIdFromPostgres({
+        assetObjectId: input.clipId,
+      });
+      return legacyRows[0] ?? null;
+    } catch (error) {
+      throw mapPostgresError(error, "MERCHANT_MEDIA_CLIP_LOOKUP_FAILED");
+    }
   }
+}
 
-  private async listReadyMerchantMediaClipsByMerchant(input: { merchantId: string }) {
-    const supabase = createSupabaseAdminClient();
-    const { data, error } = await supabase
-      .from(merchantMediaClipsTable)
-      .select(merchantMediaClipSelect)
-      .eq("merchant_id", input.merchantId)
-      .eq("status", "ready")
-      .order("created_at", { ascending: false });
+async function assertMerchantMediaAssetExists(
+  client: DatabaseClient,
+  input: {
+    merchantId: string;
+    assetId: string;
+  },
+) {
+  const result = await client.query<{ id: string }>(
+    `
+    select id
+    from public.merchant_media_assets
+    where id = $1
+      and merchant_id = $2
+    limit 1
+    `,
+    [input.assetId, input.merchantId],
+  );
 
-    if (error) {
-      throw new ApiError(500, "MERCHANT_MEDIA_CLIP_LIST_FAILED", error.message);
-    }
-
-    return ((data ?? []) as unknown as MerchantMediaClipRow[]).map(mapMerchantMediaClip);
-  }
-
-  private async getReadyMerchantMediaClipById(input: { clipId: string }) {
-    const supabase = createSupabaseAdminClient();
-    const { data, error } = await supabase
-      .from(merchantMediaClipsTable)
-      .select(merchantMediaClipSelect)
-      .eq("id", input.clipId)
-      .maybeSingle();
-
-    if (error) {
-      throw new ApiError(500, "MERCHANT_MEDIA_CLIP_LOOKUP_FAILED", error.message);
-    }
-
-    return data ? mapMerchantMediaClip(data as unknown as MerchantMediaClipRow) : null;
-  }
-
-  private async listLegacyMaterialClipsByMerchant(input: { merchantId: string }) {
-    if (isAppPostgresPreferred() && isAppPostgresConfigured()) {
-      return listLegacyMaterialClipsByMerchantFromPostgres(input);
-    }
-
-    const supabase = createSupabaseAdminClient();
-    const { data: itemData, error: itemError } = await supabase
-      .from(sourceItemsTable)
-      .select(legacyMaterialSourceItemSelect)
-      .eq("merchant_id", input.merchantId)
-      .contains("trace_payload", { materialLibrary: true })
-      .order("created_at", { ascending: false })
-      .limit(160);
-
-    if (itemError) {
-      throw new ApiError(500, "PRIVATE_MEDIA_LEGACY_SOURCE_ITEM_LIST_FAILED", itemError.message);
-    }
-
-    const itemRows = ((itemData ?? []) as unknown as LegacyMaterialSourceItemRow[])
-      .filter(isReadyLegacyMaterialSourceItem);
-    const itemById = new Map(itemRows.map((row) => [row.id, row]));
-    const itemIds = Array.from(itemById.keys());
-    if (itemIds.length === 0) {
-      return [];
-    }
-
-    const { data: assetData, error: assetError } = await supabase
-      .from(assetObjectsTable)
-      .select(legacyMaterialAssetObjectSelect)
-      .eq("owner_type", "source_item")
-      .eq("asset_type", "video")
-      .in("owner_id", itemIds)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true });
-
-    if (assetError) {
-      throw new ApiError(500, "PRIVATE_MEDIA_LEGACY_ASSET_OBJECT_LIST_FAILED", assetError.message);
-    }
-
-    return ((assetData ?? []) as unknown as LegacyMaterialAssetObjectRow[])
-      .map((assetRow) => {
-        const itemRow = itemById.get(assetRow.owner_id);
-        return itemRow ? mapLegacyMaterialClip({ ...itemRow, ...assetRow, asset_object_id: assetRow.id, asset_created_at: assetRow.created_at }) : null;
-      })
-      .filter((clip): clip is PrivateMediaClipRecord => Boolean(clip));
-  }
-
-  private async getLegacyMaterialClipByAssetObjectId(input: { assetObjectId: string }) {
-    if (isAppPostgresPreferred() && isAppPostgresConfigured()) {
-      const rows = await listLegacyMaterialClipsByAssetObjectIdFromPostgres(input);
-      return rows[0] ?? null;
-    }
-
-    const supabase = createSupabaseAdminClient();
-    const { data: assetData, error: assetError } = await supabase
-      .from(assetObjectsTable)
-      .select(legacyMaterialAssetObjectSelect)
-      .eq("id", input.assetObjectId)
-      .eq("owner_type", "source_item")
-      .eq("asset_type", "video")
-      .maybeSingle();
-
-    if (assetError) {
-      throw new ApiError(500, "PRIVATE_MEDIA_LEGACY_ASSET_OBJECT_LOOKUP_FAILED", assetError.message);
-    }
-
-    const assetRow = assetData as unknown as LegacyMaterialAssetObjectRow | null;
-    if (!assetRow) {
-      return null;
-    }
-
-    const { data: itemData, error: itemError } = await supabase
-      .from(sourceItemsTable)
-      .select(legacyMaterialSourceItemSelect)
-      .eq("id", assetRow.owner_id)
-      .contains("trace_payload", { materialLibrary: true })
-      .maybeSingle();
-
-    if (itemError) {
-      throw new ApiError(500, "PRIVATE_MEDIA_LEGACY_SOURCE_ITEM_LOOKUP_FAILED", itemError.message);
-    }
-
-    const itemRow = itemData as unknown as LegacyMaterialSourceItemRow | null;
-    if (!itemRow || !isReadyLegacyMaterialSourceItem(itemRow)) {
-      return null;
-    }
-
-    return mapLegacyMaterialClip({
-      ...itemRow,
-      ...assetRow,
-      asset_object_id: assetRow.id,
-      asset_created_at: assetRow.created_at,
-    });
+  if (!result.rows[0]) {
+    throw new ApiError(
+      404,
+      "MERCHANT_MEDIA_ASSET_NOT_FOUND",
+      "Ready clip asset must exist in the same merchant.",
+    );
   }
 }
 
@@ -401,7 +385,7 @@ function mapMerchantMediaAsset(row: MerchantMediaAssetRow): MerchantMediaAssetRe
     uploadedByUserId: row.uploaded_by_user_id,
     mediaType: row.media_type,
     source: row.source,
-    sourceCosKey: row.source_cos_key,
+    sourceStorageKey: row.source_storage_key,
     status: row.status,
     createdAt: row.created_at,
   };
@@ -416,11 +400,11 @@ function mapMerchantMediaClip(row: MerchantMediaClipRow): PrivateMediaClipRecord
     status: row.status,
     clipIndex: row.clip_index,
     clipType: row.clip_type,
-    startTimeSeconds: row.start_time_seconds,
-    endTimeSeconds: row.end_time_seconds,
+    startTimeSeconds: toNullableNumber(row.start_time_seconds),
+    endTimeSeconds: toNullableNumber(row.end_time_seconds),
     width: row.width,
     height: row.height,
-    durationSeconds: row.duration_seconds,
+    durationSeconds: toNullableNumber(row.duration_seconds),
     orientation: row.orientation,
     description: row.description,
     tags: toStringArray(row.tags),
@@ -429,14 +413,22 @@ function mapMerchantMediaClip(row: MerchantMediaClipRow): PrivateMediaClipRecord
     shotTags: toStringArray(row.shot_tags),
     peopleTags: toStringArray(row.people_tags),
     qualityTags: toStringArray(row.quality_tags),
-    tagConfidence: row.tag_confidence,
+    tagConfidence: toNullableNumber(row.tag_confidence),
     tagSource: row.tag_source,
     bucketName: row.bucket_name,
-    cosKey: row.cos_key,
-    thumbCosKey: row.thumb_cos_key,
+    storageKey: row.storage_key,
+    thumbStorageKey: row.thumb_storage_key,
     mimeType: row.mime_type,
     createdAt: row.created_at,
   };
+}
+
+function toNullableNumber(value: number | string | null): number | null {
+  if (value === null) {
+    return null;
+  }
+
+  return typeof value === "number" ? value : Number(value);
 }
 
 function toStringArray(value: unknown): string[] {
@@ -448,98 +440,92 @@ function toStringArray(value: unknown): string[] {
 async function listLegacyMaterialClipsByMerchantFromPostgres(input: {
   merchantId: string;
 }) {
-  try {
-    const result = await queryAppDb<LegacyMaterialClipRow>(
-      `
-      select
-        si.id,
-        si.merchant_id,
-        si.title,
-        si.body_text,
-        si.script_text,
-        si.structure_summary,
-        si.engagement_snapshot,
-        si.trace_payload,
-        si.created_at,
-        ao.id as asset_object_id,
-        ao.asset_type,
-        ao.storage_provider,
-        ao.bucket_name,
-        ao.storage_key,
-        ao.mime_type,
-        ao.file_size_bytes,
-        ao.sort_order,
-        ao.created_at as asset_created_at
-      from public.source_items si
-      join public.asset_objects ao
-        on ao.owner_type = 'source_item'
-       and ao.owner_id = si.id
-       and ao.asset_type = 'video'
-      where si.merchant_id = $1
-        and si.trace_payload @> '{"materialLibrary": true}'::jsonb
-        and coalesce(si.structure_summary->>'materialStatus', 'ready') = 'ready'
-        and ao.bucket_name is not null
-        and ao.storage_key is not null
-      order by si.created_at desc, ao.sort_order asc, ao.created_at asc
-      limit 160
-      `,
-      [input.merchantId],
-    );
+  const result = await queryAppDb<LegacyMaterialClipRow>(
+    `
+    select
+      si.id,
+      si.merchant_id,
+      si.title,
+      si.body_text,
+      si.script_text,
+      si.structure_summary,
+      si.engagement_snapshot,
+      si.trace_payload,
+      si.created_at,
+      ao.id as asset_object_id,
+      ao.asset_type,
+      ao.storage_provider,
+      ao.bucket_name,
+      ao.storage_key,
+      ao.mime_type,
+      ao.file_size_bytes,
+      ao.sort_order,
+      ao.created_at as asset_created_at
+    from public.source_items si
+    join public.asset_objects ao
+      on ao.owner_type = 'source_item'
+     and ao.owner_id = si.id
+     and ao.asset_type = 'video'
+    where si.merchant_id = $1
+      and si.trace_payload @> '{"materialLibrary": true}'::jsonb
+      and coalesce(si.structure_summary->>'materialStatus', 'ready') = 'ready'
+      and ao.storage_provider = 'aliyun_oss'
+      and ao.bucket_name is not null
+      and ao.storage_key is not null
+    order by si.created_at desc, ao.sort_order asc, ao.created_at asc
+    limit 160
+    `,
+    [input.merchantId],
+  );
 
-    return result.rows
-      .map(mapLegacyMaterialClip)
-      .filter((clip): clip is PrivateMediaClipRecord => Boolean(clip));
-  } catch (error) {
-    throw mapPostgresError(error, "PRIVATE_MEDIA_LEGACY_MATERIAL_LIST_FAILED");
-  }
+  return result.rows
+    .map(mapLegacyMaterialClip)
+    .filter((clip): clip is PrivateMediaClipRecord => Boolean(clip));
 }
 
 async function listLegacyMaterialClipsByAssetObjectIdFromPostgres(input: {
   assetObjectId: string;
 }) {
-  try {
-    const result = await queryAppDb<LegacyMaterialClipRow>(
-      `
-      select
-        si.id,
-        si.merchant_id,
-        si.title,
-        si.body_text,
-        si.script_text,
-        si.structure_summary,
-        si.engagement_snapshot,
-        si.trace_payload,
-        si.created_at,
-        ao.id as asset_object_id,
-        ao.asset_type,
-        ao.storage_provider,
-        ao.bucket_name,
-        ao.storage_key,
-        ao.mime_type,
-        ao.file_size_bytes,
-        ao.sort_order,
-        ao.created_at as asset_created_at
-      from public.asset_objects ao
-      join public.source_items si
-        on ao.owner_type = 'source_item'
-       and ao.owner_id = si.id
-      where ao.id = $1
-        and ao.asset_type = 'video'
-        and si.trace_payload @> '{"materialLibrary": true}'::jsonb
-        and coalesce(si.structure_summary->>'materialStatus', 'ready') = 'ready'
-        and ao.bucket_name is not null
-        and ao.storage_key is not null
-      limit 1
-      `,
-      [input.assetObjectId],
-    );
+  const result = await queryAppDb<LegacyMaterialClipRow>(
+    `
+    select
+      si.id,
+      si.merchant_id,
+      si.title,
+      si.body_text,
+      si.script_text,
+      si.structure_summary,
+      si.engagement_snapshot,
+      si.trace_payload,
+      si.created_at,
+      ao.id as asset_object_id,
+      ao.asset_type,
+      ao.storage_provider,
+      ao.bucket_name,
+      ao.storage_key,
+      ao.mime_type,
+      ao.file_size_bytes,
+      ao.sort_order,
+      ao.created_at as asset_created_at
+    from public.asset_objects ao
+    join public.source_items si
+      on ao.owner_type = 'source_item'
+     and ao.owner_id = si.id
+    where ao.id = $1
+      and ao.asset_type = 'video'
+      and si.trace_payload @> '{"materialLibrary": true}'::jsonb
+      and coalesce(si.structure_summary->>'materialStatus', 'ready') = 'ready'
+      and ao.storage_provider = 'aliyun_oss'
+      and ao.bucket_name is not null
+      and ao.storage_key is not null
+    limit 1
+    `,
+    [input.assetObjectId],
+  );
 
-    return result.rows
-      .map(mapLegacyMaterialClip)
-      .filter((clip): clip is PrivateMediaClipRecord => Boolean(clip));
-  } catch (error) {
-    throw mapPostgresError(error, "PRIVATE_MEDIA_LEGACY_MATERIAL_LOOKUP_FAILED");
-  }
+  return result.rows
+    .map(mapLegacyMaterialClip)
+    .filter((clip): clip is PrivateMediaClipRecord => Boolean(clip));
 }
 
 function mapLegacyMaterialClip(row: LegacyMaterialClipRow): PrivateMediaClipRecord | null {
@@ -553,9 +539,10 @@ function mapLegacyMaterialClip(row: LegacyMaterialClipRow): PrivateMediaClipReco
   const engagementSnapshot = toRecord(row.engagement_snapshot);
   const tracePayload = toRecord(row.trace_payload);
   const traceMaterialAnalysis = toRecord(tracePayload.materialAnalysis);
-  const materialAnalysis = Object.keys(traceMaterialAnalysis).length > 0
-    ? traceMaterialAnalysis
-    : toRecord(structureSummary.materialAnalysis);
+  const materialAnalysis =
+    Object.keys(traceMaterialAnalysis).length > 0
+      ? traceMaterialAnalysis
+      : toRecord(structureSummary.materialAnalysis);
   const width = firstPositiveNumber(
     materialAnalysis.width,
     structureSummary.width,
@@ -576,14 +563,15 @@ function mapLegacyMaterialClip(row: LegacyMaterialClipRow): PrivateMediaClipReco
     ),
   });
   const dimensions = dimensionsForOrientation({ width, height, orientation });
-  const durationSeconds = firstPositiveNumber(
-    materialAnalysis.durationSeconds,
-    materialAnalysis.duration_seconds,
-    structureSummary.durationSeconds,
-    structureSummary.duration_seconds,
-    tracePayload.durationSeconds,
-    tracePayload.duration_seconds,
-  ) ?? 8;
+  const durationSeconds =
+    firstPositiveNumber(
+      materialAnalysis.durationSeconds,
+      materialAnalysis.duration_seconds,
+      structureSummary.durationSeconds,
+      structureSummary.duration_seconds,
+      tracePayload.durationSeconds,
+      tracePayload.duration_seconds,
+    ) ?? 8;
   const tags = uniqueStrings([
     ...toStringArray(materialAnalysis.tags),
     ...toStringArray(materialAnalysis.sceneTags),
@@ -621,20 +609,15 @@ function mapLegacyMaterialClip(row: LegacyMaterialClipRow): PrivateMediaClipReco
     shotTags: toStringArray(materialAnalysis.shotTags),
     peopleTags: toStringArray(materialAnalysis.peopleTags),
     qualityTags: toStringArray(materialAnalysis.qualityTags),
-    tagConfidence: firstPositiveNumber(materialAnalysis.tagConfidence, materialAnalysis.tag_confidence) ?? null,
+    tagConfidence:
+      firstPositiveNumber(materialAnalysis.tagConfidence, materialAnalysis.tag_confidence) ?? null,
     tagSource: firstString(materialAnalysis.tagSource, materialAnalysis.tag_source) ?? "source_items",
     bucketName,
-    cosKey: storageKey,
-    thumbCosKey: null,
+    storageKey,
+    thumbStorageKey: null,
     mimeType: firstString(row.mime_type) ?? "video/mp4",
-    createdAt: toIsoString(row.created_at),
+    createdAt: toIsoString(row.asset_created_at),
   };
-}
-
-function isReadyLegacyMaterialSourceItem(row: LegacyMaterialSourceItemRow) {
-  const structureSummary = toRecord(row.structure_summary);
-  const status = firstString(structureSummary.materialStatus);
-  return !status || status === "ready";
 }
 
 function legacyMaterialClipId(assetObjectId: string) {
@@ -652,11 +635,7 @@ function dedupePrivateMediaClips(clips: PrivateMediaClipRecord[]) {
   const seen = new Set<string>();
   const result: PrivateMediaClipRecord[] = [];
   for (const clip of clips) {
-    const key = [
-      clip.bucketName,
-      clip.cosKey,
-      clip.mediaType,
-    ].join("\n");
+    const key = [clip.bucketName, clip.storageKey, clip.mediaType].join("\n");
     if (seen.has(key)) {
       continue;
     }
@@ -668,7 +647,7 @@ function dedupePrivateMediaClips(clips: PrivateMediaClipRecord[]) {
 
 function toRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
+    ? (value as Record<string, unknown>)
     : {};
 }
 
@@ -746,33 +725,8 @@ const merchantMediaAssetSelect = [
   "uploaded_by_user_id",
   "media_type",
   "source",
-  "source_cos_key",
+  "source_storage_key",
   "status",
-  "created_at",
-].join(", ");
-
-const legacyMaterialSourceItemSelect = [
-  "id",
-  "merchant_id",
-  "title",
-  "body_text",
-  "script_text",
-  "structure_summary",
-  "engagement_snapshot",
-  "trace_payload",
-  "created_at",
-].join(", ");
-
-const legacyMaterialAssetObjectSelect = [
-  "id",
-  "owner_id",
-  "asset_type",
-  "storage_provider",
-  "bucket_name",
-  "storage_key",
-  "mime_type",
-  "file_size_bytes",
-  "sort_order",
   "created_at",
 ].join(", ");
 
@@ -800,8 +754,8 @@ const merchantMediaClipSelect = [
   "tag_confidence",
   "tag_source",
   "bucket_name",
-  "cos_key",
-  "thumb_cos_key",
+  "storage_key",
+  "thumb_storage_key",
   "mime_type",
   "created_at",
 ].join(", ");

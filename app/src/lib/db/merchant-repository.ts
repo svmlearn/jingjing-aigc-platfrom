@@ -11,25 +11,22 @@ import type {
   MerchantTeamInvitationCodeDto,
   MerchantTeamManagementDto,
   MerchantTeamMemberDto,
-  MerchantTeamRole,
   MerchantWorkspaceDto,
 } from "@/contracts/merchant";
 import {
-  isPostgresVideoChainEnabled,
   pgAcceptMemberInvitationCode,
   pgCreateInvitationCode,
   pgCreateMemberInvitationCodeForOwner,
   pgGetMerchantProfileById,
   pgGetMerchantProfileByOwnerUserId,
   pgGetMerchantWorkspaceByUserId,
-  pgListMerchantWorkspacesByUserId,
   pgListActiveMerchantTeamMembersByMerchant,
   pgListMerchantTeamInvitationCodesByMerchant,
+  pgListMerchantWorkspacesByUserId,
   pgRedeemInvitationCode,
   pgSelectMerchantWorkspaceForUser,
   pgUpdateMerchantProfile,
 } from "@/lib/db/postgres-video-chain-repository";
-import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin";
 import { ApiError } from "@/server/api/errors";
 
 type MerchantProfileRow = {
@@ -52,125 +49,13 @@ type MerchantProfileRow = {
   updated_at: string;
 };
 
-type InvitationCodeRow = {
-  id: string;
-  code: string;
-  purpose: "merchant_signup";
-  status: "active" | "redeemed" | "expired" | "disabled";
-  max_redemptions: number;
-  redemption_count: number;
-  expires_at: string | null;
-  note: string | null;
-  created_at: string;
-};
-
-type MerchantTeamMemberRow = {
-  id: string;
-  merchant_id: string;
-  user_id: string;
-  role: MerchantTeamRole;
-  status: "active" | "disabled";
-  display_name: string | null;
-  invited_by_user_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type MerchantTeamInvitationCodeRow = {
-  id: string;
-  merchant_id: string;
-  code: string;
-  status: "active" | "disabled" | "expired";
-  max_redemptions: number;
-  redemption_count: number;
-  expires_at: string | null;
-  note: string | null;
-  created_by_user_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-const merchantProfileSelect = [
-  "id",
-  "owner_user_id",
-  "name",
-  "industry",
-  "contact_name",
-  "contact_phone",
-  "address",
-  "service_items",
-  "brand_summary",
-  "region_summary",
-  "tone_style",
-  "default_cta",
-  "forbidden_words",
-  "status",
-  "plan",
-  "created_at",
-  "updated_at",
-].join(", ");
-
-const merchantTeamMemberSelect = [
-  "id",
-  "merchant_id",
-  "user_id",
-  "role",
-  "status",
-  "display_name",
-  "invited_by_user_id",
-  "created_at",
-  "updated_at",
-].join(", ");
-
-const merchantTeamInvitationCodeSelect = [
-  "id",
-  "merchant_id",
-  "code",
-  "status",
-  "max_redemptions",
-  "redemption_count",
-  "expires_at",
-  "note",
-  "created_by_user_id",
-  "created_at",
-  "updated_at",
-].join(", ");
-
 export async function createInvitationCode(input: {
   code?: string;
   maxRedemptions?: number;
   expiresAt?: string | null;
   note?: string | null;
 }): Promise<InvitationCodeDto> {
-  if (isPostgresVideoChainEnabled()) {
-    return pgCreateInvitationCode(input);
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const code = input.code?.trim() || generateInvitationCode();
-
-  const { data, error } = await supabase
-    .from("invitation_codes")
-    .insert({
-      code,
-      max_redemptions: input.maxRedemptions ?? 1,
-      expires_at: input.expiresAt ?? null,
-      note: input.note ?? null,
-    })
-    .select(
-      "id, code, purpose, status, max_redemptions, redemption_count, expires_at, note, created_at",
-    )
-    .single();
-
-  if (error) {
-    if (error.code === "23505") {
-      throw new ApiError(409, "INVITATION_CODE_EXISTS", "Invitation code already exists.");
-    }
-
-    throw new ApiError(500, "INVITATION_CODE_CREATE_FAILED", error.message);
-  }
-
-  return mapInvitationCode(data as unknown as InvitationCodeRow);
+  return pgCreateInvitationCode(input);
 }
 
 export async function redeemInvitationCode(input: {
@@ -178,214 +63,23 @@ export async function redeemInvitationCode(input: {
   ownerUserId: string;
   merchantProfile: MerchantProfileInput;
 }): Promise<MerchantProfileDto> {
-  if (isPostgresVideoChainEnabled()) {
-    return pgRedeemInvitationCode(input);
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const profile = input.merchantProfile;
-
-  const { data: merchantId, error } = await supabase.rpc("redeem_invitation_code", {
-    p_code: input.code.trim(),
-    p_owner_user_id: input.ownerUserId,
-    p_merchant_name: profile.name,
-    p_contact_name: profile.contactName ?? null,
-    p_contact_phone: profile.contactPhone ?? null,
-    p_address: profile.address ?? null,
-    p_service_items: profile.serviceItems ?? [],
-    p_industry: profile.industry ?? null,
-    p_brand_summary: profile.brandSummary ?? null,
-    p_region_summary: profile.regionSummary ?? null,
-    p_tone_style: profile.toneStyle ?? null,
-    p_default_cta: profile.defaultCta ?? [],
-    p_forbidden_words: profile.forbiddenWords ?? [],
-  });
-
-  if (error) {
-    throw mapInviteRedemptionError(error.message);
-  }
-
-  return getMerchantProfileById(String(merchantId));
+  return pgRedeemInvitationCode(input);
 }
 
 export async function getMerchantProfileById(id: string): Promise<MerchantProfileDto> {
-  if (isPostgresVideoChainEnabled()) {
-    return pgGetMerchantProfileById(id);
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("merchant_profiles")
-    .select(
-      [
-        "id",
-        "owner_user_id",
-        "name",
-        "industry",
-        "contact_name",
-        "contact_phone",
-        "address",
-        "service_items",
-        "brand_summary",
-        "region_summary",
-        "tone_style",
-        "default_cta",
-        "forbidden_words",
-        "status",
-        "plan",
-        "created_at",
-        "updated_at",
-      ].join(", "),
-    )
-    .eq("id", id)
-    .single();
-
-  if (error || !data) {
-    throw new ApiError(404, "MERCHANT_PROFILE_NOT_FOUND", "Merchant profile not found.");
-  }
-
-  return mapMerchantProfile(data as unknown as MerchantProfileRow);
+  return pgGetMerchantProfileById(id);
 }
 
 export async function getMerchantProfileByOwnerUserId(
   ownerUserId: string,
 ): Promise<MerchantProfileDto> {
-  if (isPostgresVideoChainEnabled()) {
-    return pgGetMerchantProfileByOwnerUserId(ownerUserId);
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("merchant_profiles")
-    .select(
-      [
-        "id",
-        "owner_user_id",
-        "name",
-        "industry",
-        "contact_name",
-        "contact_phone",
-        "address",
-        "service_items",
-        "brand_summary",
-        "region_summary",
-        "tone_style",
-        "default_cta",
-        "forbidden_words",
-        "status",
-        "plan",
-        "created_at",
-        "updated_at",
-      ].join(", "),
-    )
-    .eq("owner_user_id", ownerUserId)
-    .single();
-
-  if (error || !data) {
-    const membershipProfile = await getMerchantProfileByTeamMemberUserId(ownerUserId);
-
-    if (membershipProfile) {
-      return membershipProfile;
-    }
-
-    throw new ApiError(404, "MERCHANT_PROFILE_NOT_FOUND", "Merchant profile not found.");
-  }
-
-  return mapMerchantProfile(data as unknown as MerchantProfileRow);
-}
-
-async function getMerchantProfileByOwnerUserIdStrict(
-  ownerUserId: string,
-): Promise<MerchantProfileDto> {
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("merchant_profiles")
-    .select(merchantProfileSelect)
-    .eq("owner_user_id", ownerUserId)
-    .single();
-
-  if (error || !data) {
-    throw new ApiError(404, "MERCHANT_PROFILE_NOT_FOUND", "Merchant profile not found.");
-  }
-
-  return mapMerchantProfile(data as unknown as MerchantProfileRow);
-}
-
-async function getMerchantProfileByTeamMemberUserId(
-  userId: string,
-): Promise<MerchantProfileDto | null> {
-  const membership = await getActiveMerchantTeamMemberByUserId(userId);
-  return membership ? getMerchantProfileById(membership.merchant_id) : null;
-}
-
-async function getActiveMerchantTeamMemberByUserId(
-  userId: string,
-  merchantId?: string | null,
-): Promise<MerchantTeamMemberRow | null> {
-  const supabase = createSupabaseAdminClient();
-  let query = supabase
-    .from("merchant_team_members")
-    .select(merchantTeamMemberSelect)
-    .eq("user_id", userId)
-    .eq("status", "active");
-
-  if (merchantId) {
-    query = query.eq("merchant_id", merchantId);
-  }
-
-  const { data, error } = await query
-    .order("updated_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    if (isMissingRelationError(error.message)) {
-      return null;
-    }
-
-    throw new ApiError(500, "MERCHANT_TEAM_MEMBER_LOOKUP_FAILED", error.message);
-  }
-
-  return (data as unknown as MerchantTeamMemberRow | null) ?? null;
+  return pgGetMerchantProfileByOwnerUserId(ownerUserId);
 }
 
 export async function listActiveMerchantTeamMembersByMerchant(
   merchantId: string,
 ): Promise<MerchantTeamMemberDto[]> {
-  if (isPostgresVideoChainEnabled()) {
-    return pgListActiveMerchantTeamMembersByMerchant(merchantId);
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("merchant_team_members")
-    .select(merchantTeamMemberSelect)
-    .eq("merchant_id", merchantId)
-    .eq("status", "active")
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    if (isMissingRelationError(error.message)) {
-      return [];
-    }
-
-    throw new ApiError(500, "MERCHANT_TEAM_MEMBER_LIST_FAILED", error.message);
-  }
-
-  return ((data ?? []) as unknown as MerchantTeamMemberRow[]).map(mapMerchantTeamMember);
+  return pgListActiveMerchantTeamMembersByMerchant(merchantId);
 }
 
 export async function getMerchantTeamManagementForOwner(
@@ -413,284 +107,43 @@ export async function createMemberInvitationCodeForOwner(input: {
   const workspace = await getOperationalMerchantWorkspaceByUserId(input.ownerUserId);
   assertMerchantTeamOwner(workspace);
 
-  const code = normalizeMemberInvitationCode(input.code ?? generateMemberInvitationCode());
-
-  if (isPostgresVideoChainEnabled()) {
-    return pgCreateMemberInvitationCodeForOwner({
-      merchantId: workspace.merchantProfile.id,
-      createdByUserId: input.ownerUserId,
-      code,
-      maxRedemptions: input.maxRedemptions,
-      expiresAt: input.expiresAt,
-      note: input.note,
-    });
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("merchant_team_invitation_codes")
-    .insert({
-      merchant_id: workspace.merchantProfile.id,
-      code,
-      max_redemptions: input.maxRedemptions ?? 20,
-      expires_at: input.expiresAt ?? null,
-      note: input.note ?? null,
-      created_by_user_id: input.ownerUserId,
-    })
-    .select(merchantTeamInvitationCodeSelect)
-    .single();
-
-  if (error) {
-    if (isMissingMemberInvitationCodesRelationError(error.message)) {
-      throw new ApiError(
-        500,
-        "MEMBER_INVITATION_CODES_NOT_READY",
-        "Member invitation table is not migrated yet.",
-      );
-    }
-
-    if (error.code === "23505") {
-      throw new ApiError(
-        409,
-        "MEMBER_INVITATION_CODE_EXISTS",
-        "Member invitation code already exists.",
-      );
-    }
-
-    throw new ApiError(500, "MEMBER_INVITATION_CODE_CREATE_FAILED", error.message);
-  }
-
-  return mapMerchantTeamInvitationCode(data as unknown as MerchantTeamInvitationCodeRow);
+  return pgCreateMemberInvitationCodeForOwner({
+    merchantId: workspace.merchantProfile.id,
+    createdByUserId: input.ownerUserId,
+    code: normalizeMemberInvitationCode(input.code ?? generateMemberInvitationCode()),
+    maxRedemptions: input.maxRedemptions,
+    expiresAt: input.expiresAt,
+    note: input.note,
+  });
 }
 
 async function listMerchantTeamInvitationCodesByMerchant(
   merchantId: string,
 ): Promise<MerchantTeamInvitationCodeDto[]> {
-  if (isPostgresVideoChainEnabled()) {
-    return pgListMerchantTeamInvitationCodesByMerchant(merchantId);
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("merchant_team_invitation_codes")
-    .select(merchantTeamInvitationCodeSelect)
-    .eq("merchant_id", merchantId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    if (isMissingMemberInvitationCodesRelationError(error.message)) {
-      return [];
-    }
-
-    throw new ApiError(500, "MEMBER_INVITATION_CODE_LIST_FAILED", error.message);
-  }
-
-  return ((data ?? []) as unknown as MerchantTeamInvitationCodeRow[]).map(
-    mapMerchantTeamInvitationCode,
-  );
-}
-
-async function ensureMerchantOwnerMembership(input: {
-  merchantId: string;
-  userId: string;
-  displayName?: string | null;
-}): Promise<MerchantTeamMemberRow | null> {
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("merchant_team_members")
-    .upsert(
-      {
-        merchant_id: input.merchantId,
-        user_id: input.userId,
-        role: "owner",
-        status: "active",
-        display_name: input.displayName ?? null,
-      },
-      { onConflict: "merchant_id,user_id" },
-    )
-    .select(merchantTeamMemberSelect)
-    .single();
-
-  if (error) {
-    if (isMissingRelationError(error.message)) {
-      return null;
-    }
-
-    throw new ApiError(500, "MERCHANT_TEAM_OWNER_MEMBERSHIP_FAILED", error.message);
-  }
-
-  return data as unknown as MerchantTeamMemberRow;
+  return pgListMerchantTeamInvitationCodesByMerchant(merchantId);
 }
 
 export async function getMerchantWorkspaceByUserId(
   userId: string,
   merchantId?: string | null,
 ): Promise<MerchantWorkspaceDto> {
-  if (isPostgresVideoChainEnabled()) {
-    return pgGetMerchantWorkspaceByUserId(userId, merchantId);
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
-  }
-
-  const ownerProfile = await getMerchantProfileByOwnerUserIdStrict(userId).catch(() => null);
-
-  if (ownerProfile) {
-    const membership = await ensureMerchantOwnerMembership({
-      merchantId: ownerProfile.id,
-      userId,
-      displayName: ownerProfile.name,
-    });
-
-    return {
-      merchantProfile: ownerProfile,
-      role: "owner",
-      membershipId: membership?.id ?? null,
-    };
-  }
-
-  const membership = await getActiveMerchantTeamMemberByUserId(userId, merchantId);
-
-  if (!membership) {
-    throw new ApiError(404, "MERCHANT_PROFILE_NOT_FOUND", "Merchant profile not found.");
-  }
-
-  return {
-    merchantProfile: await getMerchantProfileById(membership.merchant_id),
-    role: membership.role,
-    membershipId: membership.id,
-  };
+  return pgGetMerchantWorkspaceByUserId(userId, merchantId);
 }
 
 export async function listOperationalMerchantWorkspacesByUserId(
   userId: string,
 ): Promise<MerchantWorkspaceDto[]> {
-  if (isPostgresVideoChainEnabled()) {
-    const workspaces = await pgListMerchantWorkspacesByUserId(userId);
-    return workspaces.filter((workspace) => workspace.merchantProfile.status === "active");
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    return [await getMerchantWorkspaceByUserId(userId)];
-  }
-
-  const workspaces: MerchantWorkspaceDto[] = [];
-  const ownerProfile = await getMerchantProfileByOwnerUserIdStrict(userId).catch(() => null);
-
-  if (ownerProfile) {
-    const membership = await ensureMerchantOwnerMembership({
-      merchantId: ownerProfile.id,
-      userId,
-      displayName: ownerProfile.name,
-    });
-
-    workspaces.push({
-      merchantProfile: ownerProfile,
-      role: "owner",
-      membershipId: membership?.id ?? null,
-    });
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("merchant_team_members")
-    .select(merchantTeamMemberSelect)
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .order("updated_at", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    if (!isMissingRelationError(error.message)) {
-      throw new ApiError(500, "MERCHANT_TEAM_MEMBER_LOOKUP_FAILED", error.message);
-    }
-
-    return workspaces;
-  }
-
-  const seenMerchantIds = new Set(workspaces.map((workspace) => workspace.merchantProfile.id));
-  for (const membership of ((data ?? []) as unknown as MerchantTeamMemberRow[])) {
-    if (seenMerchantIds.has(membership.merchant_id)) {
-      continue;
-    }
-
-    const merchantProfile = await getMerchantProfileById(membership.merchant_id);
-    if (merchantProfile.status !== "active") {
-      continue;
-    }
-
-    workspaces.push({
-      merchantProfile,
-      role: membership.role,
-      membershipId: membership.id,
-    });
-    seenMerchantIds.add(membership.merchant_id);
-  }
-
-  return workspaces;
+  const workspaces = await pgListMerchantWorkspacesByUserId(userId);
+  return workspaces.filter((workspace) => workspace.merchantProfile.status === "active");
 }
 
 export async function selectOperationalMerchantWorkspaceForUser(input: {
   userId: string;
   merchantId: string;
 }): Promise<MerchantWorkspaceDto> {
-  if (isPostgresVideoChainEnabled()) {
-    const workspace = await pgSelectMerchantWorkspaceForUser(input);
-    assertMerchantOperational(workspace.merchantProfile);
-    return workspace;
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    return getMerchantWorkspaceByUserId(input.userId);
-  }
-
-  const ownerProfile = await getMerchantProfileByOwnerUserIdStrict(input.userId).catch(() => null);
-  if (ownerProfile?.id === input.merchantId) {
-    const membership = await ensureMerchantOwnerMembership({
-      merchantId: ownerProfile.id,
-      userId: input.userId,
-      displayName: ownerProfile.name,
-    });
-    assertMerchantOperational(ownerProfile);
-    return {
-      merchantProfile: ownerProfile,
-      role: "owner",
-      membershipId: membership?.id ?? null,
-    };
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("merchant_team_members")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("user_id", input.userId)
-    .eq("merchant_id", input.merchantId)
-    .eq("status", "active")
-    .select(merchantTeamMemberSelect)
-    .maybeSingle();
-
-  if (error || !data) {
-    throw new ApiError(
-      404,
-      "MEMBER_WORKSPACE_NOT_FOUND",
-      error?.message ?? "Member workspace not found.",
-    );
-  }
-
-  const membership = data as unknown as MerchantTeamMemberRow;
-  const merchantProfile = await getMerchantProfileById(membership.merchant_id);
-  assertMerchantOperational(merchantProfile);
-
-  return {
-    merchantProfile,
-    role: membership.role,
-    membershipId: membership.id,
-  };
+  const workspace = await pgSelectMerchantWorkspaceForUser(input);
+  assertMerchantOperational(workspace.merchantProfile);
+  return workspace;
 }
 
 export async function acceptMemberInvitationCode(input: {
@@ -698,149 +151,14 @@ export async function acceptMemberInvitationCode(input: {
   userId: string;
   displayName?: string | null;
 }): Promise<MemberInvitationAcceptResultDto> {
-  if (isPostgresVideoChainEnabled()) {
-    return pgAcceptMemberInvitationCode(input);
-  }
-
-  const normalizedCode = normalizeMemberInvitationCode(input.code);
-
-  if (!normalizedCode) {
-    throw new ApiError(400, "MEMBER_INVITATION_CODE_REQUIRED", "Member invitation code is required.");
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("merchant_team_invitation_codes")
-    .select(merchantTeamInvitationCodeSelect)
-    .eq("code", normalizedCode)
-    .maybeSingle();
-
-  if (error) {
-    if (isMissingMemberInvitationCodesRelationError(error.message)) {
-      throw new ApiError(
-        500,
-        "MEMBER_INVITATION_CODES_NOT_READY",
-        "Member invitation table is not migrated yet.",
-      );
-    }
-
-    throw new ApiError(500, "MEMBER_INVITATION_LOOKUP_FAILED", error.message);
-  }
-
-  const invitation = (data as unknown as MerchantTeamInvitationCodeRow | null) ?? null;
-
-  assertMemberInvitationUsable(invitation);
-
-  const { data: membership, error: upsertError } = await supabase
-    .from("merchant_team_members")
-    .upsert(
-      {
-        merchant_id: invitation.merchant_id,
-        user_id: input.userId,
-        role: "member",
-        status: "active",
-        display_name: input.displayName ?? null,
-        invited_by_user_id: invitation.created_by_user_id,
-      },
-      { onConflict: "merchant_id,user_id" },
-    )
-    .select(merchantTeamMemberSelect)
-    .single();
-
-  if (upsertError || !membership) {
-    throw new ApiError(
-      500,
-      "MEMBER_INVITATION_MEMBERSHIP_FAILED",
-      upsertError?.message ?? "Failed to bind member to team.",
-    );
-  }
-
-  const { error: updateError } = await supabase
-    .from("merchant_team_invitation_codes")
-    .update({
-      redemption_count: invitation.redemption_count + 1,
-    })
-    .eq("id", invitation.id);
-
-  if (updateError) {
-    throw new ApiError(500, "MEMBER_INVITATION_UPDATE_FAILED", updateError.message);
-  }
-
-  const workspace = await getMerchantWorkspaceByUserId(input.userId);
-
-  return {
-    ...workspace,
-    invitationCode: normalizedCode,
-  };
+  return pgAcceptMemberInvitationCode(input);
 }
 
 export async function updateMerchantProfile(
   ownerUserId: string,
   input: Partial<MerchantProfileInput>,
 ): Promise<MerchantProfileDto> {
-  if (isPostgresVideoChainEnabled()) {
-    return pgUpdateMerchantProfile(ownerUserId, input);
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    throw cloudSupabaseRequiredError();
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const update: Record<string, unknown> = {};
-
-  if (input.name !== undefined) update.name = input.name;
-  if (input.industry !== undefined) update.industry = input.industry;
-  if (input.contactName !== undefined) update.contact_name = input.contactName;
-  if (input.contactPhone !== undefined) update.contact_phone = input.contactPhone;
-  if (input.address !== undefined) update.address = input.address;
-  if (input.serviceItems !== undefined) update.service_items = input.serviceItems;
-  if (input.brandSummary !== undefined) update.brand_summary = input.brandSummary;
-  if (input.regionSummary !== undefined) update.region_summary = input.regionSummary;
-  if (input.toneStyle !== undefined) update.tone_style = input.toneStyle;
-  if (input.defaultCta !== undefined) update.default_cta = input.defaultCta;
-  if (input.forbiddenWords !== undefined) update.forbidden_words = input.forbiddenWords;
-
-  if (Object.keys(update).length === 0) {
-    return getMerchantProfileByOwnerUserId(ownerUserId);
-  }
-
-  const { data, error } = await supabase
-    .from("merchant_profiles")
-    .update(update)
-    .eq("owner_user_id", ownerUserId)
-    .select(
-      [
-        "id",
-        "owner_user_id",
-        "name",
-        "industry",
-        "contact_name",
-        "contact_phone",
-        "address",
-        "service_items",
-        "brand_summary",
-        "region_summary",
-        "tone_style",
-        "default_cta",
-        "forbidden_words",
-        "status",
-        "plan",
-        "created_at",
-        "updated_at",
-      ].join(", "),
-    )
-    .single();
-
-  if (error || !data) {
-    throw new ApiError(500, "MERCHANT_PROFILE_UPDATE_FAILED", error?.message ?? "Update failed.");
-  }
-
-  return mapMerchantProfile(data as unknown as MerchantProfileRow);
+  return pgUpdateMerchantProfile(ownerUserId, input);
 }
 
 export function mapMerchantProfile(row: MerchantProfileRow): MerchantProfileDto {
@@ -862,20 +180,6 @@ export function mapMerchantProfile(row: MerchantProfileRow): MerchantProfileDto 
     plan: row.plan,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
-}
-
-function mapInvitationCode(row: InvitationCodeRow): InvitationCodeDto {
-  return {
-    id: row.id,
-    code: row.code,
-    purpose: row.purpose,
-    status: row.status,
-    maxRedemptions: row.max_redemptions,
-    redemptionCount: row.redemption_count,
-    expiresAt: row.expires_at,
-    note: row.note,
-    createdAt: row.created_at,
   };
 }
 
@@ -913,65 +217,6 @@ export function assertMerchantOperational(profile: Pick<MerchantProfileDto, "sta
   }
 }
 
-function mapInviteRedemptionError(message: string): ApiError {
-  if (message.includes("INVITATION_CODE_NOT_FOUND")) {
-    return new ApiError(404, "INVITATION_CODE_NOT_FOUND", "Invitation code was not found.");
-  }
-
-  if (message.includes("INVITATION_CODE_EXPIRED")) {
-    return new ApiError(410, "INVITATION_CODE_EXPIRED", "Invitation code has expired.");
-  }
-
-  if (
-    message.includes("INVITATION_CODE_NOT_ACTIVE") ||
-    message.includes("INVITATION_CODE_REDEEMED")
-  ) {
-    return new ApiError(409, "INVITATION_CODE_UNAVAILABLE", "Invitation code is unavailable.");
-  }
-
-  if (message.includes("MERCHANT_NAME_REQUIRED")) {
-    return new ApiError(400, "MERCHANT_NAME_REQUIRED", "Merchant name is required.");
-  }
-
-  if (message.includes("duplicate key")) {
-    return new ApiError(409, "MERCHANT_OWNER_EXISTS", "This user already owns a merchant.");
-  }
-
-  return new ApiError(500, "INVITATION_CODE_REDEEM_FAILED", message);
-}
-
-function mapMerchantTeamMember(row: MerchantTeamMemberRow): MerchantTeamMemberDto {
-  return {
-    id: row.id,
-    merchantId: row.merchant_id,
-    userId: row.user_id,
-    role: row.role,
-    status: row.status,
-    displayName: row.display_name,
-    invitedByUserId: row.invited_by_user_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function mapMerchantTeamInvitationCode(
-  row: MerchantTeamInvitationCodeRow,
-): MerchantTeamInvitationCodeDto {
-  return {
-    id: row.id,
-    merchantId: row.merchant_id,
-    code: row.code,
-    status: row.status,
-    maxRedemptions: row.max_redemptions,
-    redemptionCount: row.redemption_count,
-    expiresAt: row.expires_at,
-    note: row.note,
-    createdByUserId: row.created_by_user_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
 function assertMerchantTeamOwner(workspace: Pick<MerchantWorkspaceDto, "role">) {
   if (workspace.role !== "owner") {
     throw new ApiError(
@@ -982,48 +227,8 @@ function assertMerchantTeamOwner(workspace: Pick<MerchantWorkspaceDto, "role">) 
   }
 }
 
-function cloudSupabaseRequiredError() {
-  return new ApiError(
-    503,
-    "SUPABASE_NOT_CONFIGURED",
-    "Cloud Supabase environment variables are required.",
-  );
-}
-
-function isMissingRelationError(message: string) {
-  return message.includes("merchant_team_members") && message.includes("does not exist");
-}
-
-function isMissingMemberInvitationCodesRelationError(message: string) {
-  return message.includes("merchant_team_invitation_codes") && message.includes("does not exist");
-}
-
 function normalizeMemberInvitationCode(code: string) {
   return code.trim().toUpperCase();
-}
-
-function assertMemberInvitationUsable(
-  invitation: MerchantTeamInvitationCodeRow | null,
-): asserts invitation is MerchantTeamInvitationCodeRow {
-  if (!invitation) {
-    throw new ApiError(404, "MEMBER_INVITATION_CODE_NOT_FOUND", "Member invitation code was not found.");
-  }
-
-  if (invitation.status !== "active") {
-    throw new ApiError(409, "MEMBER_INVITATION_CODE_UNAVAILABLE", "Member invitation code is unavailable.");
-  }
-
-  if (invitation.expires_at && new Date(invitation.expires_at).getTime() < Date.now()) {
-    throw new ApiError(410, "MEMBER_INVITATION_CODE_EXPIRED", "Member invitation code has expired.");
-  }
-
-  if (invitation.redemption_count >= invitation.max_redemptions) {
-    throw new ApiError(409, "MEMBER_INVITATION_CODE_UNAVAILABLE", "Member invitation code has been fully redeemed.");
-  }
-}
-
-function generateInvitationCode() {
-  return `JJ-${randomBytes(6).toString("hex").toUpperCase()}`;
 }
 
 function generateMemberInvitationCode() {

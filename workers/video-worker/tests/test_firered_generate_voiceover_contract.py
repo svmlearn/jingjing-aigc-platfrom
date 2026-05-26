@@ -259,7 +259,7 @@ class GenerateVoiceoverContractTests(unittest.TestCase):
                 secrets={
                     "base_url": "https://www.runninghub.cn",
                     "api_key": "clone-key",
-                    "ref_audio": "cos://voice-profiles/customer/ref.wav",
+                    "ref_audio": "oss://voice-profiles/customer/ref.wav",
                     "workflow_id": "1983718528991862786",
                 },
                 tts_params={},
@@ -272,7 +272,7 @@ class GenerateVoiceoverContractTests(unittest.TestCase):
         self.assertEqual(1, len(module.PixelleTTSAdapter.clone_calls))
         call = module.PixelleTTSAdapter.clone_calls[0]
         self.assertEqual("clone tts", call["text"])
-        self.assertEqual("cos://voice-profiles/customer/ref.wav", call["ref_audio"])
+        self.assertEqual("oss://voice-profiles/customer/ref.wav", call["ref_audio"])
         self.assertEqual(
             "1983718528991862786",
             call["clone_cfg"]["runninghub_tts_clone_workflow_id"],

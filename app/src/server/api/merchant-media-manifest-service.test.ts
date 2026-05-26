@@ -24,7 +24,10 @@ test("merchant media manifest stores ready segment clips and keeps them searchab
   });
 
   assert.equal(result.asset.id, assetId);
+  assert.equal(result.asset.sourceStorageKey, `merchant-media/${merchantId}/originals/${assetId}/source.mp4`);
   assert.deepEqual(result.clips.map((clip) => clip.id), [clipOneId, clipTwoId]);
+  assert.equal(result.clips[0]?.storageKey, `merchant-media/${merchantId}/clips/${assetId}/entrance.mp4`);
+  assert.equal(result.clips[0]?.thumbStorageKey, `merchant-media/${merchantId}/thumbs/${assetId}/entrance.jpg`);
 
   const searchable = searchPrivateMediaClips({
     merchantId,
@@ -36,7 +39,113 @@ test("merchant media manifest stores ready segment clips and keeps them searchab
   assert.deepEqual(searchable.map((clip) => clip.id), [clipOneId]);
 });
 
-test("merchant media manifest rejects cross-merchant COS keys", async () => {
+test("merchant media manifest accepts provider-neutral storage keys", async () => {
+  const repository = new InMemoryMerchantMediaRepository();
+  const result = await receiveMerchantMediaManifest({
+    userId,
+    merchantId,
+    repository,
+    now,
+    defaultBucketName: "jj-private-bucket",
+    request: validManifest(),
+  });
+
+  assert.equal(result.asset.sourceStorageKey, `merchant-media/${merchantId}/originals/${assetId}/source.mp4`);
+  assert.equal(result.clips[0]?.storageKey, `merchant-media/${merchantId}/clips/${assetId}/entrance.mp4`);
+  assert.equal(result.clips[0]?.thumbStorageKey, `merchant-media/${merchantId}/thumbs/${assetId}/entrance.jpg`);
+});
+
+test("merchant media manifest persists current storage key fields", async () => {
+  const repository = new InMemoryMerchantMediaRepository();
+  const manifest = validManifest();
+
+  await receiveMerchantMediaManifest({
+    userId,
+    merchantId,
+    repository,
+    now,
+    defaultBucketName: "jj-private-bucket",
+    request: manifest,
+  });
+
+  assert.equal((await repository.listReadyClipsByMerchant({ merchantId })).length, 2);
+});
+
+test("merchant media manifest rejects missing storage keys", async () => {
+  const manifest = validManifest();
+
+  await assert.rejects(
+    () =>
+      receiveMerchantMediaManifest({
+        userId,
+        merchantId,
+        repository: new InMemoryMerchantMediaRepository(),
+        now,
+        defaultBucketName: "jj-private-bucket",
+        request: {
+          ...manifest,
+          asset: {
+            ...manifest.asset,
+            sourceStorageKey: "",
+          },
+        },
+      }),
+    (error) =>
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "MERCHANT_MEDIA_SOURCE_KEY_REQUIRED",
+  );
+
+  await assert.rejects(
+    () =>
+      receiveMerchantMediaManifest({
+        userId,
+        merchantId,
+        repository: new InMemoryMerchantMediaRepository(),
+        now,
+        defaultBucketName: "jj-private-bucket",
+        request: {
+          ...manifest,
+          clips: [
+            {
+              ...manifest.clips[0]!,
+              storageKey: "",
+            },
+          ],
+        },
+      }),
+    (error) =>
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "MERCHANT_MEDIA_CLIP_KEY_REQUIRED",
+  );
+
+  await assert.rejects(
+    () =>
+      receiveMerchantMediaManifest({
+        userId,
+        merchantId,
+        repository: new InMemoryMerchantMediaRepository(),
+        now,
+        defaultBucketName: "jj-private-bucket",
+        request: {
+          ...manifest,
+          clips: [
+            {
+              ...manifest.clips[0]!,
+              thumbStorageKey: "",
+            },
+          ],
+        },
+      }),
+    (error) =>
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "MERCHANT_MEDIA_THUMB_KEY_REQUIRED",
+  );
+});
+
+test("merchant media manifest rejects cross-merchant storage keys", async () => {
   await assert.rejects(
     () =>
       receiveMerchantMediaManifest({
@@ -49,7 +158,7 @@ test("merchant media manifest rejects cross-merchant COS keys", async () => {
           ...validManifest(),
           asset: {
             ...validManifest().asset,
-            sourceCosKey: `merchant-media/other-merchant/originals/${assetId}/source.mp4`,
+            sourceStorageKey: `merchant-media/other-merchant/originals/${assetId}/source.mp4`,
           },
         },
       }),
@@ -94,7 +203,7 @@ function validManifest() {
       mediaType: "video" as const,
       source: "merchant_upload" as const,
       bucketName: "jj-private-bucket",
-      sourceCosKey: `merchant-media/${merchantId}/originals/${assetId}/source.mp4`,
+      sourceStorageKey: `merchant-media/${merchantId}/originals/${assetId}/source.mp4`,
       mimeType: "video/mp4",
       idempotencyKey: "manifest-source-a",
     },
@@ -108,8 +217,8 @@ function validManifest() {
         endTimeSeconds: 5,
         durationSeconds: 5,
         bucketName: "jj-private-bucket",
-        cosKey: `merchant-media/${merchantId}/clips/${assetId}/entrance.mp4`,
-        thumbCosKey: `merchant-media/${merchantId}/thumbs/${assetId}/entrance.jpg`,
+        storageKey: `merchant-media/${merchantId}/clips/${assetId}/entrance.mp4`,
+        thumbStorageKey: `merchant-media/${merchantId}/thumbs/${assetId}/entrance.jpg`,
         mimeType: "video/mp4",
         width: 1080,
         height: 1920,
@@ -130,8 +239,8 @@ function validManifest() {
         endTimeSeconds: 10,
         durationSeconds: 5,
         bucketName: "jj-private-bucket",
-        cosKey: `merchant-media/${merchantId}/clips/${assetId}/lobby.mp4`,
-        thumbCosKey: `merchant-media/${merchantId}/thumbs/${assetId}/lobby.jpg`,
+        storageKey: `merchant-media/${merchantId}/clips/${assetId}/lobby.mp4`,
+        thumbStorageKey: `merchant-media/${merchantId}/thumbs/${assetId}/lobby.jpg`,
         mimeType: "video/mp4",
         width: 1080,
         height: 1920,

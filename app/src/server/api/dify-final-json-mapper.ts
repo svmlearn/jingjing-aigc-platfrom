@@ -173,8 +173,8 @@ export function mapDifyVideoToMemberPackage(input: {
   };
 }
 
-export function buildDifyImageRenderUrl(cosPath: string): string {
-  const value = cosPath.trim();
+export function buildDifyImageRenderUrl(storagePath: string): string {
+  const value = storagePath.trim();
 
   if (!value) {
     return "";
@@ -184,7 +184,7 @@ export function buildDifyImageRenderUrl(cosPath: string): string {
     return value;
   }
 
-  return `/api/media/cos-preview?path=${encodeURIComponent(value)}`;
+  return `/api/media/object-preview?path=${encodeURIComponent(value)}`;
 }
 
 function mapDifySceneToMemberScene(scene: DifyFinalVideoScene): DailyVideoScriptSceneDto {

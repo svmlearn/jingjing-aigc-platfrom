@@ -9,7 +9,6 @@ from typing import Any
 import httpx
 
 from .config import Settings
-from .cos_client import ObjectStorageClient
 from .db import VideoJobRepository
 from .directive import (
     DirectiveValidationError,
@@ -17,6 +16,7 @@ from .directive import (
     build_production_directive,
 )
 from .models import EngineRunResult, InputAsset, InputAssetContractError, UploadedAsset, VideoJob
+from .object_storage_client import ObjectStorageClient
 from .openstoryline_client import OpenStorylineClient
 
 
@@ -103,6 +103,36 @@ def _nested_dict(source: dict[str, Any], *keys: str) -> dict[str, Any]:
         if isinstance(value, dict):
             return value
     return {}
+
+
+def _material_library_query(directive: ProductionDirective) -> str:
+    values: list[str] = []
+    scene_queries = directive.material_context.get(
+        "sceneAssetQueries"
+    ) or directive.material_context.get("scene_asset_queries")
+    if isinstance(scene_queries, list):
+        for item in scene_queries:
+            if not isinstance(item, dict):
+                continue
+            for key in (
+                "query",
+                "visualRequirement",
+                "visual_requirement",
+                "fallbackShot",
+                "fallback_shot",
+            ):
+                value = item.get(key)
+                if isinstance(value, str) and value.strip():
+                    values.append(value.strip())
+
+    material_context_hints = directive.material_context.get("missingVideoAssetHints") or []
+    if isinstance(material_context_hints, list):
+        values.extend(str(item).strip() for item in material_context_hints if str(item).strip())
+
+    if directive.script_text.strip():
+        values.append(directive.script_text.strip())
+
+    return "\n".join(dict.fromkeys(values))[:12_000]
 
 
 def _extract_first_string(value: Any, keys: tuple[str, ...]) -> str:
@@ -1290,12 +1320,12 @@ class JobProcessor:
         self,
         settings: Settings,
         repository: VideoJobRepository,
-        cos_client: ObjectStorageClient,
+        storage_client: ObjectStorageClient,
         openstoryline_client: OpenStorylineClient,
     ) -> None:
         self._settings = settings
         self._repository = repository
-        self._cos_client = cos_client
+        self._storage_client = storage_client
         self._openstoryline_client = openstoryline_client
 
     def _workspace_for(self, job: VideoJob) -> tuple[Path, Path, Path]:
@@ -1311,7 +1341,7 @@ class JobProcessor:
         default_buckets = getattr(
             self._settings,
             "default_input_buckets",
-            getattr(self._settings, "cos_bucket", ""),
+            getattr(self._settings, "aliyun_oss_bucket", ""),
         )
         default_storage_provider = getattr(self._settings, "storage_provider", "aliyun_oss")
         for asset in job.input_assets(
@@ -1321,10 +1351,44 @@ class JobProcessor:
             downloaded_assets.append(self._download_input_asset(asset, input_dir))
         return downloaded_assets
 
+    def _download_material_library_inputs(
+        self,
+        job: VideoJob,
+        directive: ProductionDirective,
+        input_dir: Path,
+    ) -> list[dict[str, Any]]:
+        query = _material_library_query(directive)
+        if not query:
+            return []
+
+        default_buckets = getattr(
+            self._settings,
+            "default_input_buckets",
+            getattr(self._settings, "aliyun_oss_bucket", ""),
+        )
+        raw_assets = self._repository.list_video_material_input_assets(
+            job.merchant_id,
+            query=query,
+            limit=8,
+        )
+        material_dir = input_dir / "merchant-materials"
+        default_storage_provider = getattr(self._settings, "storage_provider", "aliyun_oss")
+        return [
+            self._download_input_asset(
+                InputAsset.from_payload(
+                    raw_asset,
+                    default_buckets,
+                    default_storage_provider=default_storage_provider,
+                ),
+                material_dir,
+            )
+            for raw_asset in raw_assets
+        ]
+
     def _download_input_asset(self, asset: InputAsset, input_dir: Path) -> dict[str, Any]:
         local_path = input_dir / asset.file_name
         try:
-            self._cos_client.download_file(
+            self._storage_client.download_file(
                 storage_key=asset.storage_key,
                 destination=local_path,
                 bucket_name=asset.bucket_name,
@@ -1379,7 +1443,7 @@ class JobProcessor:
 
         local_path = input_dir / "voice_profile_ref_audio" / Path(storage_key).name
         try:
-            self._cos_client.download_file(
+            self._storage_client.download_file(
                 storage_key=storage_key,
                 destination=local_path,
                 bucket_name=bucket_name or None,
@@ -1390,7 +1454,7 @@ class JobProcessor:
 
         ref_audio_url = ""
         try:
-            ref_audio_url = self._cos_client.create_signed_read_url(
+            ref_audio_url = self._storage_client.create_signed_read_url(
                 storage_key=storage_key,
                 bucket_name=bucket_name or None,
                 storage_provider=storage_provider,
@@ -1516,10 +1580,10 @@ class JobProcessor:
         def upload(local_path: Path, asset_type: str) -> UploadedAsset:
             storage_key = job.output_object_key(
                 asset_type,
-                getattr(self._settings, "storage_result_prefix", self._settings.cos_result_prefix),
+                getattr(self._settings, "storage_result_prefix", "video-results"),
             )
             try:
-                return self._cos_client.upload_file(
+                return self._storage_client.upload_file(
                     local_path=local_path,
                     storage_key=storage_key,
                     asset_type=asset_type,
@@ -1562,12 +1626,12 @@ class JobProcessor:
                 )
             raise OutputValidationError(missing_outputs)
 
-    def _cos_output_configured(self) -> bool:
+    def _output_storage_configured(self) -> bool:
         return bool(
             getattr(
                 self._settings,
                 "output_storage_configured",
-                getattr(self._settings, "cos_output_configured", True),
+                True,
             )
         )
 
@@ -1699,7 +1763,12 @@ class JobProcessor:
         try:
             stage_started_at = time.monotonic()
             user_input_assets = self._download_inputs(job, input_dir)
-            input_assets = list(user_input_assets)
+            material_input_assets = self._download_material_library_inputs(
+                job,
+                directive,
+                input_dir,
+            )
+            input_assets = [*user_input_assets, *material_input_assets]
             directive_production_config = self._prepare_voice_profile_reference(
                 directive.production_config,
                 input_dir,
@@ -1724,7 +1793,12 @@ class JobProcessor:
                     "stage": "downloading_inputs",
                     "inputs_downloaded": len(input_assets),
                     "user_inputs_downloaded": len(user_input_assets),
-                    "material_library_prefetch": "disabled_openstoryline_search_media",
+                    "material_library_inputs_downloaded": len(material_input_assets),
+                    "material_library_asset_ids": [
+                        str(_nested_dict(asset, "metadata").get("asset_object_id"))
+                        for asset in material_input_assets
+                        if _nested_dict(asset, "metadata").get("asset_object_id")
+                    ],
                     "voice_profile_ref_audio_prepared": (
                         directive.production_config.get("voiceover", {}).get("mode")
                         == "voice_profile"
@@ -1878,7 +1952,7 @@ class JobProcessor:
             )
             local_outputs = self._local_outputs_payload(run_result)
             upload_mode = "local_only"
-            if self._cos_output_configured():
+            if self._output_storage_configured():
                 self._repository.update_stage(
                     job.id,
                     status="running",

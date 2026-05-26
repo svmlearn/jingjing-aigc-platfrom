@@ -14,14 +14,6 @@ except ModuleNotFoundError:
     sys.modules.setdefault("httpx", httpx)
 
 try:
-    import qcloud_cos  # noqa: F401
-except ModuleNotFoundError:
-    qcloud_cos = types.ModuleType("qcloud_cos")
-    qcloud_cos.CosConfig = object
-    qcloud_cos.CosS3Client = object
-    sys.modules.setdefault("qcloud_cos", qcloud_cos)
-
-try:
     import psycopg  # noqa: F401
     import psycopg.rows  # noqa: F401
     import psycopg.types.json  # noqa: F401
@@ -44,12 +36,10 @@ from worker.app.processor import JobProcessor, _validate_timeline_quality_for_di
 
 
 class Settings:
-    storage_provider = "tencent_cos"
-    cos_bucket = "default-bucket"
-    cos_result_prefix = "video-results"
+    storage_provider = "aliyun_oss"
+    aliyun_oss_bucket = "default-aliyun-bucket"
     storage_result_prefix = "video-results"
     default_input_buckets = {
-        "tencent_cos": "default-bucket",
         "aliyun_oss": "default-aliyun-bucket",
     }
 
@@ -62,7 +52,6 @@ class AliyunSettings(Settings):
     storage_provider = "aliyun_oss"
     storage_result_prefix = "video-results"
     default_input_buckets = {
-        "tencent_cos": "default-bucket",
         "aliyun_oss": "default-aliyun-bucket",
     }
 
@@ -168,7 +157,7 @@ class FakeRepository:
         )
 
 
-class FakeCosClient:
+class FakeObjectStorageClient:
     def __init__(self, fail_download=False, fail_upload_asset_type=None) -> None:
         self.downloads = []
         self.uploads = []
@@ -176,7 +165,7 @@ class FakeCosClient:
         self.fail_download = fail_download
         self.fail_upload_asset_type = fail_upload_asset_type
 
-    def download_file(self, storage_key, destination, bucket_name=None, storage_provider="tencent_cos"):
+    def download_file(self, storage_key, destination, bucket_name=None, storage_provider="aliyun_oss"):
         self.downloads.append(
             {
                 "storage_key": storage_key,
@@ -196,7 +185,7 @@ class FakeCosClient:
         *,
         storage_key,
         bucket_name=None,
-        storage_provider="tencent_cos",
+        storage_provider="aliyun_oss",
         expires_seconds=3600,
     ):
         self.signed_urls.append(
@@ -223,14 +212,14 @@ class FakeCosClient:
                 "storage_key": storage_key,
                 "asset_type": asset_type,
                 "bucket_name": bucket_name,
-                "storage_provider": storage_provider or "tencent_cos",
+                "storage_provider": storage_provider or "aliyun_oss",
             }
         )
         if self.fail_upload_asset_type == asset_type:
             raise RuntimeError(f"upload failed for {storage_key}")
         return UploadedAsset(
             asset_type=asset_type,
-            storage_provider=storage_provider or "tencent_cos",
+            storage_provider=storage_provider or "aliyun_oss",
             bucket_name=bucket_name or "output-bucket",
             storage_key=storage_key,
             mime_type="video/mp4" if asset_type == "video" else "application/octet-stream",
@@ -334,11 +323,11 @@ class ProcessorContractTests(unittest.TestCase):
     def test_non_object_input_payload_marks_failed_manual_without_download(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(),
             )
 
@@ -346,17 +335,17 @@ class ProcessorContractTests(unittest.TestCase):
 
         self.assertEqual("failed_manual", repository.failed["status"])
         self.assertIn("invalid_input_payload", repository.failed["failure_reason"])
-        self.assertEqual([], cos_client.downloads)
+        self.assertEqual([], storage_client.downloads)
 
     def test_invalid_input_asset_contract_marks_failed_manual_without_engine_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             engine_client = FakeOpenStorylineClient()
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 engine_client,
             )
             job = make_job(
@@ -371,12 +360,12 @@ class ProcessorContractTests(unittest.TestCase):
 
         self.assertEqual("failed_manual", repository.failed["status"])
         self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
-        self.assertEqual([], cos_client.downloads)
+        self.assertEqual([], storage_client.downloads)
 
     def test_voice_profile_reference_audio_is_downloaded_and_summarized(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             engine_client = FakeOpenStorylineClient(
                 voiceover_payload={
                     "provider": "pixelle_clone",
@@ -394,7 +383,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 engine_client,
             )
             job = make_job(
@@ -411,7 +400,7 @@ class ProcessorContractTests(unittest.TestCase):
                             "refAudioAsset": {
                                 "storage_key": "voice-profiles/merchant/profile/ref.wav",
                                 "bucket_name": "voice-bucket",
-                                "storage_provider": "tencent_cos",
+                                "storage_provider": "aliyun_oss",
                             },
                         }
                     },
@@ -423,13 +412,13 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertIsNone(repository.failed)
         self.assertEqual(
             "voice-profiles/merchant/profile/ref.wav",
-            cos_client.downloads[0]["storage_key"],
+            storage_client.downloads[0]["storage_key"],
         )
+        self.assertEqual("voice-bucket", storage_client.downloads[0]["bucket_name"])
         self.assertEqual(
             "voice-profiles/merchant/profile/ref.wav",
-            cos_client.signed_urls[0]["storage_key"],
+            storage_client.signed_urls[0]["storage_key"],
         )
-        self.assertEqual("voice-bucket", cos_client.downloads[0]["bucket_name"])
         self.assertEqual(
             "voice_profile",
             repository.succeeded["result_payload"]["voiceover_artifacts"]["mode"],
@@ -446,7 +435,7 @@ class ProcessorContractTests(unittest.TestCase):
     def test_aliyun_voice_profile_uses_cached_external_voice_id_and_signed_url(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             engine_client = FakeOpenStorylineClient(
                 voiceover_payload={
                     "provider": "aliyun_cosyvoice_clone",
@@ -464,7 +453,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 engine_client,
             )
             job = make_job(
@@ -498,7 +487,7 @@ class ProcessorContractTests(unittest.TestCase):
 
         self.assertIsNone(repository.failed)
         self.assertEqual([], repository.voice_profile_updates)
-        self.assertEqual("aliyun_oss", cos_client.signed_urls[0]["storage_provider"])
+        self.assertEqual("aliyun_oss", storage_client.signed_urls[0]["storage_provider"])
         sent_voiceover = engine_client.last_production_config["voiceover"]
         self.assertEqual("voice-aliyun-1", sent_voiceover["external_voice_id"])
         self.assertEqual("https://signed.example/voice-profiles/merchant/profile/ref.wav", sent_voiceover["ref_audio_url"])
@@ -506,7 +495,7 @@ class ProcessorContractTests(unittest.TestCase):
     def test_aliyun_voice_profile_creates_external_voice_id_when_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             engine_client = FakeOpenStorylineClient(
                 voiceover_payload={
                     "provider": "aliyun_cosyvoice_clone",
@@ -528,7 +517,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 settings,
                 repository,
-                cos_client,
+                storage_client,
                 engine_client,
             )
 
@@ -605,7 +594,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 engine_client,
             )
             job = make_job(
@@ -616,7 +605,7 @@ class ProcessorContractTests(unittest.TestCase):
                         {
                             "asset_id": "member-upload-1",
                             "asset_type": "video",
-                            "storage_provider": "tencent_cos",
+                            "storage_provider": "aliyun_oss",
                             "bucket_name": "input-bucket",
                             "storage_key": "draft-inputs/merchant-1/draft-1/member-upload.mp4",
                             "file_name": "member-upload.mp4",
@@ -832,7 +821,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(
                     raw_response_overrides={
                         "openstoryline": {
@@ -884,7 +873,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(
                     voiceover_payload=voiceover_payload,
                     raw_response_overrides={
@@ -948,7 +937,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(voiceover_payload={"provider": "minimax"}),
             )
             job = make_job(
@@ -964,7 +953,7 @@ class ProcessorContractTests(unittest.TestCase):
                             "refAudioAssetId": "asset-1",
                             "refAudioAsset": {
                                 "storage_key": "voice-profiles/merchant/profile/ref.wav",
-                                "storage_provider": "tencent_cos",
+                                "storage_provider": "aliyun_oss",
                             },
                         }
                     },
@@ -984,7 +973,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(
                     voiceover_payload={
                         "provider": "minimax",
@@ -1007,7 +996,7 @@ class ProcessorContractTests(unittest.TestCase):
                             "refAudioAssetId": "asset-1",
                             "refAudioAsset": {
                                 "storage_key": "voice-profiles/merchant/profile/ref.wav",
-                                "storage_provider": "tencent_cos",
+                                "storage_provider": "aliyun_oss",
                             },
                         }
                     },
@@ -1026,7 +1015,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(
                     voiceover_payload={
                         "provider": "pixelle_clone",
@@ -1051,7 +1040,7 @@ class ProcessorContractTests(unittest.TestCase):
                             "refAudioAssetId": "asset-1",
                             "refAudioAsset": {
                                 "storage_key": "voice-profiles/merchant/profile/ref.wav",
-                                "storage_provider": "tencent_cos",
+                                "storage_provider": "aliyun_oss",
                             },
                         },
                         "render": {
@@ -1076,7 +1065,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(
                     voiceover_payload={
                         "provider": "pixelle_clone",
@@ -1125,7 +1114,7 @@ class ProcessorContractTests(unittest.TestCase):
                             "refAudioAssetId": "asset-1",
                             "refAudioAsset": {
                                 "storage_key": "voice-profiles/merchant/profile/ref.wav",
-                                "storage_provider": "tencent_cos",
+                                "storage_provider": "aliyun_oss",
                             },
                         },
                         "subtitles": {
@@ -1139,7 +1128,7 @@ class ProcessorContractTests(unittest.TestCase):
                     "input_assets": [
                         {
                             "asset_type": "video",
-                            "storage_provider": "tencent_cos",
+                            "storage_provider": "aliyun_oss",
                             "storage_key": "draft-inputs/talking-head.mp4",
                             "file_name": "talking-head.mp4",
                             "role": "talking_head",
@@ -1175,7 +1164,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(
                     voiceover_payload={
                         "provider": "pixelle_clone",
@@ -1203,7 +1192,7 @@ class ProcessorContractTests(unittest.TestCase):
                             "refAudioAssetId": "asset-1",
                             "refAudioAsset": {
                                 "storage_key": "voice-profiles/merchant/profile/ref.wav",
-                                "storage_provider": "tencent_cos",
+                                "storage_provider": "aliyun_oss",
                             },
                         },
                         "subtitles": {
@@ -1217,7 +1206,7 @@ class ProcessorContractTests(unittest.TestCase):
                     "input_assets": [
                         {
                             "asset_type": "video",
-                            "storage_provider": "tencent_cos",
+                            "storage_provider": "aliyun_oss",
                             "storage_key": "draft-inputs/talking-head.mp4",
                             "file_name": "talking-head.mp4",
                             "role": "talking_head",
@@ -1243,7 +1232,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(
                     voiceover_payload={
                         "provider": "pixelle_clone",
@@ -1272,7 +1261,7 @@ class ProcessorContractTests(unittest.TestCase):
                             "refAudioAssetId": "asset-1",
                             "refAudioAsset": {
                                 "storage_key": "voice-profiles/merchant/profile/ref.wav",
-                                "storage_provider": "tencent_cos",
+                                "storage_provider": "aliyun_oss",
                             },
                         },
                         "subtitles": {
@@ -1286,7 +1275,7 @@ class ProcessorContractTests(unittest.TestCase):
                     "input_assets": [
                         {
                             "asset_type": "video",
-                            "storage_provider": "tencent_cos",
+                            "storage_provider": "aliyun_oss",
                             "storage_key": "draft-inputs/talking-head.mp4",
                             "file_name": "talking-head.mp4",
                             "role": "talking_head",
@@ -1316,7 +1305,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(
                     voiceover_payload={
                         "provider": "pixelle_clone",
@@ -1344,7 +1333,7 @@ class ProcessorContractTests(unittest.TestCase):
                             "refAudioAssetId": "asset-1",
                             "refAudioAsset": {
                                 "storage_key": "voice-profiles/merchant/profile/ref.wav",
-                                "storage_provider": "tencent_cos",
+                                "storage_provider": "aliyun_oss",
                             },
                         },
                         "subtitles": {
@@ -1358,7 +1347,7 @@ class ProcessorContractTests(unittest.TestCase):
                     "input_assets": [
                         {
                             "asset_type": "video",
-                            "storage_provider": "tencent_cos",
+                            "storage_provider": "aliyun_oss",
                             "storage_key": "draft-inputs/talking-head.webm",
                             "file_name": "talking-head.webm",
                             "role": "talking_head",
@@ -1379,11 +1368,11 @@ class ProcessorContractTests(unittest.TestCase):
             with self.subTest(input_assets=input_assets):
                 with tempfile.TemporaryDirectory() as tmp:
                     repository = FakeRepository()
-                    cos_client = FakeCosClient()
+                    storage_client = FakeObjectStorageClient()
                     processor = JobProcessor(
                         Settings(Path(tmp)),
                         repository,
-                        cos_client,
+                        storage_client,
                         FakeOpenStorylineClient(),
                     )
                     job = make_job(
@@ -1398,16 +1387,16 @@ class ProcessorContractTests(unittest.TestCase):
 
                 self.assertEqual("failed_manual", repository.failed["status"])
                 self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
-                self.assertEqual([], cos_client.downloads)
+                self.assertEqual([], storage_client.downloads)
 
     def test_download_failure_marks_failed_retryable_with_diagnostic_stage(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient(fail_download=True)
+            storage_client = FakeObjectStorageClient(fail_download=True)
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(),
             )
 
@@ -1425,7 +1414,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 FakeRepository(),
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 engine_client,
             )
             job = make_job(
@@ -1435,7 +1424,7 @@ class ProcessorContractTests(unittest.TestCase):
                     "input_assets": [
                         {
                             "asset_type": "video",
-                            "storage_provider": "tencent_cos",
+                            "storage_provider": "aliyun_oss",
                             "storage_key": "draft-inputs/demo.mp4",
                             "file_name": "demo.mp4",
                             "role": "talking_head",
@@ -1457,7 +1446,7 @@ class ProcessorContractTests(unittest.TestCase):
             engine_client.last_input_assets[0]["metadata"],
         )
 
-    def test_material_library_prefetch_is_not_used_in_worker(self):
+    def test_material_library_prefetch_downloads_private_materials_for_worker(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
             repository.material_input_assets = [
@@ -1476,12 +1465,12 @@ class ProcessorContractTests(unittest.TestCase):
                     },
                 }
             ]
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             engine_client = FakeOpenStorylineClient()
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 engine_client,
             )
             job = make_job(
@@ -1511,26 +1500,30 @@ class ProcessorContractTests(unittest.TestCase):
             processor.process(job)
 
         self.assertIsNone(repository.failed)
-        self.assertEqual([], repository.material_queries)
-        self.assertEqual(1, len(engine_client.last_input_assets))
+        self.assertIn("建筑外立面", repository.material_queries[0]["query"])
+        self.assertEqual(2, len(engine_client.last_input_assets))
         self.assertEqual("talking_head", engine_client.last_input_assets[0]["role"])
-        self.assertEqual(1, len(cos_client.downloads))
-        self.assertEqual("draft-inputs/member-selfie.mp4", cos_client.downloads[0]["storage_key"])
+        self.assertEqual("project_material", engine_client.last_input_assets[1]["role"])
+        self.assertEqual("aliyun_oss", storage_client.downloads[1]["storage_provider"])
         self.assertEqual(
-            "disabled_openstoryline_search_media",
+            "merchant-media/merchant/clips/asset/clip.mp4",
+            storage_client.downloads[1]["storage_key"],
+        )
+        self.assertEqual(
+            1,
             repository.succeeded["log_payload"]["steps"][1][
-                "material_library_prefetch"
+                "material_library_inputs_downloaded"
             ],
         )
 
     def test_engine_run_failure_marks_failed_retryable_with_diagnostic_stage(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(fail_run=True),
             )
 
@@ -1541,12 +1534,12 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual("openstoryline_rendering_failed", repository.failed["current_stage"])
         self.assertIn("engine_run_failed", repository.failed["failure_reason"])
         self.assertIsNone(repository.succeeded)
-        self.assertEqual([], cos_client.uploads)
+        self.assertEqual([], storage_client.uploads)
 
     def test_engine_run_failure_after_render_event_marks_render_module_failed(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             engine_client = FakeOpenStorylineClient(
                 fail_run=True,
                 progress_events=[
@@ -1567,7 +1560,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 engine_client,
             )
 
@@ -1586,7 +1579,7 @@ class ProcessorContractTests(unittest.TestCase):
     def test_engine_run_failure_after_voiceover_event_marks_voiceover_module_failed(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             engine_client = FakeOpenStorylineClient(
                 fail_run=True,
                 progress_events=[
@@ -1607,7 +1600,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 engine_client,
             )
 
@@ -1624,11 +1617,11 @@ class ProcessorContractTests(unittest.TestCase):
     def test_unsafe_input_asset_file_name_marks_failed_manual_without_download(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(),
             )
             job = make_job(
@@ -1649,16 +1642,16 @@ class ProcessorContractTests(unittest.TestCase):
 
         self.assertEqual("failed_manual", repository.failed["status"])
         self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
-        self.assertEqual([], cos_client.downloads)
+        self.assertEqual([], storage_client.downloads)
 
     def test_unsupported_input_asset_storage_provider_marks_failed_manual_without_download(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(),
             )
             job = make_job(
@@ -1681,18 +1674,18 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertIsNotNone(repository.failed)
         self.assertEqual("failed_manual", repository.failed["status"])
         self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
-        self.assertEqual([], cos_client.downloads)
+        self.assertEqual([], storage_client.downloads)
 
     def test_malformed_input_asset_bucket_name_marks_failed_manual_without_download(self):
         for bucket_name in ("", " ", 123):
             with self.subTest(bucket_name=bucket_name):
                 with tempfile.TemporaryDirectory() as tmp:
                     repository = FakeRepository()
-                    cos_client = FakeCosClient()
+                    storage_client = FakeObjectStorageClient()
                     processor = JobProcessor(
                         Settings(Path(tmp)),
                         repository,
-                        cos_client,
+                        storage_client,
                         FakeOpenStorylineClient(),
                     )
                     job = make_job(
@@ -1702,7 +1695,7 @@ class ProcessorContractTests(unittest.TestCase):
                             "input_assets": [
                                 {
                                     "asset_type": "video",
-                                    "storage_provider": "tencent_cos",
+                                    "storage_provider": "aliyun_oss",
                                     "bucket_name": bucket_name,
                                     "storage_key": "draft-inputs/demo.mp4",
                                     "file_name": "demo.mp4",
@@ -1716,16 +1709,16 @@ class ProcessorContractTests(unittest.TestCase):
                 self.assertIsNotNone(repository.failed)
                 self.assertEqual("failed_manual", repository.failed["status"])
                 self.assertIn("invalid_input_assets", repository.failed["failure_reason"])
-                self.assertEqual([], cos_client.downloads)
+                self.assertEqual([], storage_client.downloads)
 
     def test_missing_requested_output_marks_failed_retryable_before_upload(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(missing_outputs={"subtitles"}),
             )
 
@@ -1734,7 +1727,7 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual("failed_retryable", repository.failed["status"])
         self.assertIn("missing_output_files", repository.failed["failure_reason"])
         self.assertIsNone(repository.succeeded)
-        self.assertEqual([], cos_client.uploads)
+        self.assertEqual([], storage_client.uploads)
 
     def test_success_result_payload_records_outputs_and_engine_adapter(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1742,7 +1735,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(),
             )
 
@@ -1789,11 +1782,11 @@ class ProcessorContractTests(unittest.TestCase):
     def test_aliyun_input_and_output_provider_are_preserved(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             processor = JobProcessor(
                 AliyunSettings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(),
             )
             job = make_job(
@@ -1825,8 +1818,8 @@ class ProcessorContractTests(unittest.TestCase):
 
             processor.process(job)
 
-        self.assertEqual("aliyun_oss", cos_client.downloads[0]["storage_provider"])
-        self.assertEqual("aliyun_oss", cos_client.uploads[0]["storage_provider"])
+        self.assertEqual("aliyun_oss", storage_client.downloads[0]["storage_provider"])
+        self.assertEqual("aliyun_oss", storage_client.uploads[0]["storage_provider"])
         result_payload = repository.succeeded["result_payload"]
         self.assertEqual("aliyun_oss", result_payload["upload_mode"])
         self.assertEqual(
@@ -1837,35 +1830,35 @@ class ProcessorContractTests(unittest.TestCase):
     def test_missing_input_asset_provider_uses_configured_aliyun_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             processor = JobProcessor(
                 AliyunSettings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(),
             )
 
             processor.process(make_job_without_input_bucket())
 
-        self.assertEqual("aliyun_oss", cos_client.downloads[0]["storage_provider"])
-        self.assertEqual("default-aliyun-bucket", cos_client.downloads[0]["bucket_name"])
-        self.assertEqual("aliyun_oss", cos_client.uploads[0]["storage_provider"])
+        self.assertEqual("aliyun_oss", storage_client.downloads[0]["storage_provider"])
+        self.assertEqual("default-aliyun-bucket", storage_client.downloads[0]["bucket_name"])
+        self.assertEqual("aliyun_oss", storage_client.uploads[0]["storage_provider"])
 
-    def test_missing_input_asset_provider_keeps_legacy_cos_when_configured(self):
+    def test_missing_input_asset_provider_uses_worker_aliyun_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(),
             )
 
             processor.process(make_job_without_input_bucket())
 
-        self.assertEqual("tencent_cos", cos_client.downloads[0]["storage_provider"])
-        self.assertEqual("default-bucket", cos_client.downloads[0]["bucket_name"])
+        self.assertEqual("aliyun_oss", storage_client.downloads[0]["storage_provider"])
+        self.assertEqual("default-aliyun-bucket", storage_client.downloads[0]["bucket_name"])
 
     def test_stage_updates_include_progress_modules(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1873,7 +1866,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(),
             )
 
@@ -1907,7 +1900,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 engine_client,
             )
 
@@ -1935,7 +1928,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(root),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(),
             )
 
@@ -1952,7 +1945,7 @@ class ProcessorContractTests(unittest.TestCase):
             processor = JobProcessor(
                 Settings(root),
                 repository,
-                FakeCosClient(),
+                FakeObjectStorageClient(),
                 FakeOpenStorylineClient(missing_outputs={"subtitles"}),
             )
 
@@ -1965,11 +1958,11 @@ class ProcessorContractTests(unittest.TestCase):
     def test_upload_failure_marks_failed_retryable_with_diagnostic_stage(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient(fail_upload_asset_type="cover")
+            storage_client = FakeObjectStorageClient(fail_upload_asset_type="cover")
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(),
             )
 
@@ -1984,11 +1977,11 @@ class ProcessorContractTests(unittest.TestCase):
     def test_asset_object_insert_failure_marks_failed_retryable_with_diagnostic_stage(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository(fail_insert_output_assets=True)
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(),
             )
 
@@ -1999,16 +1992,16 @@ class ProcessorContractTests(unittest.TestCase):
         self.assertEqual("asset_objects_persistence_failed", repository.failed["current_stage"])
         self.assertIn("asset_objects_insert_failed", repository.failed["failure_reason"])
         self.assertIsNone(repository.succeeded)
-        self.assertEqual(["video", "cover", "subtitle"], [upload["asset_type"] for upload in cos_client.uploads])
+        self.assertEqual(["video", "cover", "subtitle"], [upload["asset_type"] for upload in storage_client.uploads])
 
     def test_final_video_only_job_does_not_upload_unrequested_cover_or_subtitles(self):
         with tempfile.TemporaryDirectory() as tmp:
             repository = FakeRepository()
-            cos_client = FakeCosClient()
+            storage_client = FakeObjectStorageClient()
             processor = JobProcessor(
                 Settings(Path(tmp)),
                 repository,
-                cos_client,
+                storage_client,
                 FakeOpenStorylineClient(),
             )
             job = make_job(
@@ -2032,7 +2025,7 @@ class ProcessorContractTests(unittest.TestCase):
 
             processor.process(job)
 
-        uploaded_asset_types = [upload["asset_type"] for upload in cos_client.uploads]
+        uploaded_asset_types = [upload["asset_type"] for upload in storage_client.uploads]
         inserted_asset_types = [asset.asset_type for asset in repository.inserted_assets]
         result_payload = repository.succeeded["result_payload"]
 

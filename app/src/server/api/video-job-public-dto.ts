@@ -1,6 +1,8 @@
 import type { MediaAssetDto } from "@/contracts/media";
 import type { PublicVideoEditJobDto, VideoEditJobDto } from "@/contracts/video";
 
+const currentDefaultPayloadStorageProvider: MediaAssetDto["storageProvider"] = "aliyun_oss";
+
 export function toPublicVideoEditJob(job: VideoEditJobDto): PublicVideoEditJobDto {
   const resultAssets =
     job.resultAssets && job.resultAssets.length > 0
@@ -96,11 +98,11 @@ export function extractPayloadResultAssets(
 function normalizePayloadStorageProvider(asset: Record<string, unknown>): MediaAssetDto["storageProvider"] {
   const storageProvider = asset.storageProvider ?? asset.storage_provider;
 
-  if (storageProvider === "tencent_cos" || storageProvider === "aliyun_oss") {
+  if (storageProvider === "aliyun_oss") {
     return storageProvider;
   }
 
-  return "supabase_storage";
+  return currentDefaultPayloadStorageProvider;
 }
 
 function normalizePayloadAssetType(asset: Record<string, unknown>): MediaAssetDto["assetType"] {
