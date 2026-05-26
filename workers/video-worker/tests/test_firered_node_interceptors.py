@@ -247,6 +247,13 @@ class Request:
         return self
 
 
+class RequestWithRuntime(Request):
+    def __init__(self, name, args, runtime):
+        self.name = name
+        self.args = args
+        self.runtime = runtime
+
+
 class ArtifactMeta:
     def __init__(self, artifact_id, node_id="search_media", session_id="session-1", created_at=0):
         self.artifact_id = artifact_id
@@ -357,7 +364,17 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
             asyncio.run(self.ToolInterceptor.inject_pexels_api_key(request, handler))
 
     def test_worker_pexels_injection_requires_merchant_scoped_base_url(self):
-        request = Request("search_media", {}, context=WorkerPrivatePexelsContext())
+        request = Request(
+            "search_media",
+            {
+                "orientation": "portrait",
+                "min_video_duration": 5,
+                "max_video_duration": 20,
+                "video_number": 3,
+                "photo_number": 4,
+            },
+            context=WorkerPrivatePexelsContext(),
+        )
 
         async def handler(req):
             return dict(req.args)
@@ -368,6 +385,68 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
         self.assertEqual(
             "https://app.example.com/api/private-media/pexels/merchants/merchant-1",
             result["pexels_base_url"],
+        )
+        self.assertNotIn("orientation", result)
+        self.assertNotIn("min_video_duration", result)
+        self.assertNotIn("max_video_duration", result)
+        self.assertEqual(10, result["video_number"])
+        self.assertEqual(0, result["photo_number"])
+
+    def test_worker_pexels_injection_blocks_third_scene_search_attempt(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+
+        class ContextWithSceneSearch(WorkerPrivatePexelsContext):
+            session_id = "session-1"
+            worker_payload = {
+                "merchant_id": "merchant-1",
+                "script_text": "locked script",
+                "materialContext": {
+                    "sceneAssetQueries": [
+                        {
+                            "sceneNo": 5,
+                            "query": "消防疏散图 楼层索引 货梯入口 电梯轿厢 管理服务站 管理处",
+                            "sourceRole": "merchant_broll",
+                        },
+                    ],
+                },
+            }
+
+        class Store:
+            def get_metas(self, *, node_id, session_id):
+                return [
+                    ArtifactMeta("search-1", created_at=1),
+                    ArtifactMeta("search-2", created_at=2),
+                ]
+
+            def load_result(self, artifact_id):
+                return ArtifactMeta(artifact_id), {
+                    "payload": {
+                        "search_keyword": "管理服务站",
+                        "search_media": [{"path": f"/tmp/{artifact_id}.mp4"}],
+                    }
+                }
+
+        runtime = types.SimpleNamespace(context=ContextWithSceneSearch(), store=Store())
+        request = RequestWithRuntime(
+            "search_media",
+            {"search_keyword": "管理处", "video_number": 10},
+            runtime,
+        )
+
+        async def handler(_req):
+            raise AssertionError("handler must not run after retry limit")
+
+        with self.assertRaisesRegex(Exception, "scene_material_insufficient.*sceneNo=5.*candidate_count=2.*search_attempts=2"):
+            asyncio.run(self.ToolInterceptor.inject_pexels_api_key(request, handler))
+
+    def test_scene_search_matching_accepts_keyword_overlap(self):
+        module = sys.modules["firered_node_interceptors_under_test"]
+
+        self.assertTrue(
+            module._scene_queries_match(
+                "消防疏散图 楼层索引 货梯入口 电梯轿厢 管理服务站 管理处",
+                "管理服务站",
+            )
         )
 
     def test_load_media_merges_all_search_media_results_for_session(self):
