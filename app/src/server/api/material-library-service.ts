@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  MaterialLibraryFilter,
   MaterialLibraryItemDto,
   MaterialPlatform,
   MaterialRetrievalTarget,
@@ -36,21 +37,32 @@ export async function listMaterialLibraryForUser(input: {
   limit?: number;
   retrievalTarget?: MaterialRetrievalTarget;
   query?: string | null;
-}): Promise<MaterialLibraryItemDto[]> {
+} & MaterialLibraryFilter): Promise<MaterialLibraryItemDto[]> {
   const merchant = await getOperationalMerchantProfileByOwnerUserId(input.userId);
+  const includePrivateMedia =
+    input.usageType !== "viral_reference" &&
+    (!input.usageType || input.usageType === "image_asset" || input.usageType === "video_asset");
   const [materials, privateMediaMaterials] = await Promise.all([
     listMaterialLibraryItems({
       merchantId: merchant.id,
       limit: input.limit,
       retrievalTarget: input.retrievalTarget,
       query: input.query,
+      platform: input.platform,
+      materialType: input.materialType,
+      usageType: input.usageType,
     }),
-    listMerchantMediaProjectMaterials({
-      merchantId: merchant.id,
-      limit: input.limit,
-      retrievalTarget: input.retrievalTarget,
-      query: input.query,
-    }),
+    includePrivateMedia
+      ? listMerchantMediaProjectMaterials({
+          merchantId: merchant.id,
+          limit: input.limit,
+          retrievalTarget: input.retrievalTarget,
+          query: input.query,
+          platform: input.platform,
+          materialType: input.materialType,
+          usageType: input.usageType,
+        })
+      : Promise.resolve([]),
   ]);
 
   return attachMaterialMediaAssets([...privateMediaMaterials, ...materials]);
@@ -368,11 +380,17 @@ async function listMerchantMediaProjectMaterials(input: {
   limit?: number;
   retrievalTarget?: MaterialRetrievalTarget;
   query?: string | null;
-}): Promise<MaterialLibraryItemDto[]> {
+} & MaterialLibraryFilter): Promise<MaterialLibraryItemDto[]> {
   const clips = await getPrivateMediaRepository().listClipsByMerchant({
     merchantId: input.merchantId,
   });
-  const materials = clips.map(mapMerchantMediaClipToProjectMaterial);
+  const materials = clips
+    .map(mapMerchantMediaClipToProjectMaterial)
+    .filter((item) =>
+      (!input.platform || item.platform === input.platform) &&
+      (!input.materialType || item.materialType === input.materialType) &&
+      (!input.usageType || item.usageType === input.usageType),
+    );
 
   if (!input.retrievalTarget && !input.query?.trim()) {
     return materials;

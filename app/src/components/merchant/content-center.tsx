@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
   FileText,
@@ -19,12 +19,18 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { MaterialLibraryItemDto, MaterialPlatform } from "@/contracts/material";
+import type { MaterialLibraryItemDto, MaterialPlatform, MaterialType } from "@/contracts/material";
 
 const platforms = ["xiaohongshu", "douyin"] as const;
+const platformFilterOptions = ["all", ...platforms] as const;
+const materialTypeFilterOptions = ["all", "article", "video"] as const;
 const platformLabels: Record<MaterialPlatform, string> = {
   xiaohongshu: "小红书",
   douyin: "抖音",
+};
+const materialTypeLabels: Record<MaterialType, string> = {
+  article: "图文",
+  video: "视频",
 };
 const sourceKindLabels = {
   uploaded: "单条解析",
@@ -33,6 +39,8 @@ const sourceKindLabels = {
 
 type FindMethod = "keyword" | "profile" | "detail";
 type FindCount = "5" | "20" | "50" | "all";
+type PlatformFilter = (typeof platformFilterOptions)[number];
+type MaterialTypeFilter = (typeof materialTypeFilterOptions)[number];
 
 const materialTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
   month: "2-digit",
@@ -45,6 +53,8 @@ export function MerchantContentCenter() {
   const [materials, setMaterials] = useState<MaterialLibraryItemDto[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
+  const [materialTypeFilter, setMaterialTypeFilter] = useState<MaterialTypeFilter>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -89,12 +99,23 @@ export function MerchantContentCenter() {
   const selectedProviderSummary = selectedItem ? getProviderSummary(selectedItem) : [];
   const selectedMediaAssets = selectedItem ? getPreviewableMediaAssets(selectedItem) : [];
 
-  async function loadMaterials() {
+  const loadMaterials = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch("/api/materials?limit=80", {
+      const params = new URLSearchParams({
+        limit: "100",
+        usageType: "viral_reference",
+      });
+      if (platformFilter !== "all") {
+        params.set("platform", platformFilter);
+      }
+      if (materialTypeFilter !== "all") {
+        params.set("materialType", materialTypeFilter);
+      }
+
+      const response = await fetch(`/api/materials?${params.toString()}`, {
         cache: "no-store",
       });
       const data = (await response.json()) as {
@@ -120,12 +141,12 @@ export function MerchantContentCenter() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [materialTypeFilter, platformFilter]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadMaterials();
-  }, []);
+  }, [loadMaterials]);
 
   async function handleUploadParse() {
     const nextLink = uploadLink.trim();
@@ -156,6 +177,8 @@ export function MerchantContentCenter() {
         throw new Error(data.error?.message ?? "素材提交失败");
       }
 
+      setPlatformFilter(data.material.platform);
+      setMaterialTypeFilter(data.material.materialType);
       setMaterials((current) => [data.material!, ...current]);
       setSelectedId(data.material.id);
       setShowUploadModal(false);
@@ -211,6 +234,8 @@ export function MerchantContentCenter() {
         throw new Error(data.error?.message ?? "社媒爆款内容检索失败");
       }
 
+      setPlatformFilter(findPlatform);
+      setMaterialTypeFilter("all");
       setMaterials((current) => [...data.materials!, ...current]);
       setSelectedId(data.materials[0]?.id ?? null);
       setShowFindModal(false);
@@ -300,24 +325,41 @@ export function MerchantContentCenter() {
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
           <aside className="flex h-[340px] shrink-0 flex-col border-b border-white/10 bg-[#0a0a0a] lg:h-full lg:w-[400px] lg:border-b-0 lg:border-r">
-            <div className="flex gap-3 border-b border-white/5 p-5">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  type="text"
-                  placeholder="搜索标题、正文、作者..."
-                  className="h-10 w-full rounded-xl border border-white/10 bg-[#050505] pl-11 pr-4 text-xs text-[#e0e0e0] outline-none placeholder:text-white/25 focus:border-amber-500/50"
-                />
+            <div className="space-y-3 border-b border-white/5 p-5">
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    type="text"
+                    placeholder="搜索标题、正文、作者..."
+                    className="h-10 w-full rounded-xl border border-white/10 bg-[#050505] pl-11 pr-4 text-xs text-[#e0e0e0] outline-none placeholder:text-white/25 focus:border-amber-500/50"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlatformFilter("all");
+                    setMaterialTypeFilter("all");
+                    setQuery("");
+                  }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-[#050505] text-white/55 transition-colors hover:bg-white/5 hover:text-white"
+                  aria-label="重置筛选"
+                >
+                  <Filter className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-[#050505] text-white/55 transition-colors hover:bg-white/5 hover:text-white"
-                aria-label="筛选素材"
-              >
-                <Filter className="h-4 w-4" />
-              </button>
+              <InlineFilterGroup
+                options={platformFilterOptions}
+                value={platformFilter}
+                onChange={setPlatformFilter}
+              />
+              <InlineFilterGroup
+                options={materialTypeFilterOptions}
+                value={materialTypeFilter}
+                onChange={setMaterialTypeFilter}
+              />
             </div>
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
@@ -345,6 +387,9 @@ export function MerchantContentCenter() {
                       <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em]">
                         <span className="rounded border border-white/10 bg-white/5 px-2 py-1 text-white/55">
                           {platformLabels[item.platform]}
+                        </span>
+                        <span className="rounded border border-white/10 bg-white/5 px-2 py-1 text-white/55">
+                          {materialTypeLabels[item.materialType]}
                         </span>
                         <span className="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-amber-500">
                           {item.engagementLabel ?? "待分析"}
@@ -380,6 +425,9 @@ export function MerchantContentCenter() {
                       <div className="mt-4 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.2em]">
                         <span className="rounded border border-white/10 bg-white/5 px-2 py-1 text-white/55">
                           {platformLabels[selectedItem.platform]}
+                        </span>
+                        <span className="rounded border border-white/10 bg-white/5 px-2 py-1 text-white/55">
+                          {materialTypeLabels[selectedItem.materialType]}
                         </span>
                         <span className="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-amber-500">
                           {selectedItem.engagementLabel ?? "待分析"}
@@ -1004,6 +1052,37 @@ function ModalHeader({ title, onClose }: { title: string; onClose: () => void })
   );
 }
 
+function InlineFilterGroup<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly T[];
+  value: T;
+  onChange: (nextValue: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          aria-pressed={value === option}
+          onClick={() => onChange(option)}
+          className={cn(
+            "h-8 rounded-lg border px-3 text-[10px] uppercase tracking-[0.16em] transition-colors",
+            value === option
+              ? "border-amber-500/40 bg-amber-500/10 text-amber-500"
+              : "border-white/10 bg-white/[0.03] text-white/50 hover:bg-white/5 hover:text-white/75",
+          )}
+        >
+          {formatOptionLabel(option)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function OptionGroup<T extends string>({
   label,
   options,
@@ -1046,6 +1125,7 @@ function OptionGroup<T extends string>({
 
 function formatOptionLabel(option: string) {
   if (option === "all") return "全量";
+  if (option in materialTypeLabels) return materialTypeLabels[option as MaterialType];
   return option in platformLabels ? platformLabels[option as MaterialPlatform] : option;
 }
 

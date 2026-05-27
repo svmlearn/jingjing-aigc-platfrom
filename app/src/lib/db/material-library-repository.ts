@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import type {
   MaterialLibraryItemDto,
+  MaterialLibraryFilter,
   MaterialPlatform,
   MaterialRetrievalTarget,
   MaterialSourceKind,
@@ -129,10 +130,13 @@ export async function listMaterialLibraryItems(input: {
   limit?: number;
   retrievalTarget?: MaterialRetrievalTarget;
   query?: string | null;
-}): Promise<MaterialLibraryItemDto[]> {
+} & MaterialLibraryFilter): Promise<MaterialLibraryItemDto[]> {
   if (isLocalDemoRuntime()) {
-    const materials = Array.from(demoMaterialItems.values()).filter(
-      (item) => item.merchantId === input.merchantId && item.status !== "archived",
+    const materials = filterMaterialLibraryItems(
+      Array.from(demoMaterialItems.values()).filter(
+        (item) => item.merchantId === input.merchantId && item.status !== "archived",
+      ),
+      input,
     );
 
     return rankMaterialLibraryItemsForRetrieval({
@@ -148,17 +152,42 @@ export async function listMaterialLibraryItems(input: {
       input.retrievalTarget || input.query
         ? Math.max(input.limit ?? 50, 160)
         : input.limit ?? 50;
+    const params: unknown[] = [input.merchantId, JSON.stringify({ materialLibrary: true })];
+    const whereClauses = [
+      "merchant_id = $1",
+      "trace_payload @> $2::jsonb",
+      "coalesce(structure_summary->>'materialStatus', 'ready') not in ('archived', 'failed')",
+    ];
+
+    if (input.platform) {
+      params.push(input.platform);
+      whereClauses.push(`platform = $${params.length}`);
+    }
+
+    if (input.materialType) {
+      params.push(input.materialType);
+      whereClauses.push(
+        `coalesce(structure_summary->>'materialType', case when script_text is not null then 'video' else 'article' end) = $${params.length}`,
+      );
+    }
+
+    if (input.usageType) {
+      params.push(input.usageType);
+      whereClauses.push(
+        `coalesce(structure_summary->>'materialUsageType', trace_payload->>'materialUsageType') = $${params.length}`,
+      );
+    }
+
+    params.push(candidateLimit);
     const result = await queryAppDb<SourceItemMaterialRow>(
       `
       select ${sourceItemMaterialSelect}
       from public.source_items
-      where merchant_id = $1
-        and trace_payload @> $2::jsonb
-        and coalesce(structure_summary->>'materialStatus', 'ready') not in ('archived', 'failed')
+      where ${whereClauses.join("\n        and ")}
       order by created_at desc
-      limit $3
+      limit $${params.length}
       `,
-      [input.merchantId, JSON.stringify({ materialLibrary: true }), candidateLimit],
+      params,
     );
     const materials = result.rows.map(mapSourceItemToMaterial);
 
@@ -197,6 +226,17 @@ export async function getMaterialLibraryItemById(input: {
   } catch (error) {
     throw mapPostgresError(error, "MATERIAL_ITEM_FETCH_FAILED");
   }
+}
+
+function filterMaterialLibraryItems(
+  materials: MaterialLibraryItemDto[],
+  filters: MaterialLibraryFilter,
+) {
+  return materials.filter((item) =>
+    (!filters.platform || item.platform === filters.platform) &&
+    (!filters.materialType || item.materialType === filters.materialType) &&
+    (!filters.usageType || item.usageType === filters.usageType),
+  );
 }
 
 export async function createMaterialLibraryItem(input: {

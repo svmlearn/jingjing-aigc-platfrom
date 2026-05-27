@@ -16,6 +16,12 @@ export type MaterialUsageType =
   | "image_asset"
   | "video_asset";
 
+export type MaterialLibraryFilter = {
+  platform?: MaterialPlatform;
+  materialType?: MaterialType;
+  usageType?: MaterialUsageType;
+};
+
 export type MaterialRetrievalTarget =
   | "copy_context"
   | "script_context"

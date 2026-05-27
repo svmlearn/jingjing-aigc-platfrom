@@ -22,6 +22,9 @@ export async function GET(request: Request) {
       limit: payload.limit,
       retrievalTarget: payload.retrievalTarget,
       query: payload.query,
+      platform: payload.platform,
+      materialType: payload.materialType,
+      usageType: payload.usageType,
     });
 
     return Response.json({ materials });

@@ -634,10 +634,20 @@ export const listContentRecordsQuerySchema = z.object({
 });
 
 const materialPlatformSchema = z.enum(["xiaohongshu", "douyin"]);
+const materialTypeSchema = z.enum(["article", "video"]);
+const materialUsageTypeSchema = z.enum([
+  "text_knowledge",
+  "viral_reference",
+  "image_asset",
+  "video_asset",
+]);
 
 export const listMaterialLibraryQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
   query: z.string().trim().max(300).optional(),
+  platform: materialPlatformSchema.optional(),
+  materialType: materialTypeSchema.optional(),
+  usageType: materialUsageTypeSchema.optional(),
   retrievalTarget: z
     .enum(["copy_context", "script_context", "article_image_asset", "video_edit_asset"])
     .optional(),
