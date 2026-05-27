@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>咨询 Agent Runtime 与 Claude Code 对照</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #101211;
+        --panel: #171a19;
+        --panel-2: #1f2321;
+        --line: #333937;
+        --line-soft: #262b29;
+        --text: #eef2ee;
+        --muted: #aab3ae;
+        --weak: #76817b;
+        --amber: #d89517;
+        --amber-soft: rgba(216, 149, 23, 0.14);
+        --green: #54b77a;
+        --green-soft: rgba(84, 183, 122, 0.13);
+        --blue: #69a8d8;
+        --blue-soft: rgba(105, 168, 216, 0.13);
+        --red: #e05f55;
+        --red-soft: rgba(224, 95, 85, 0.14);
+        --violet: #a98bdc;
+        --violet-soft: rgba(169, 139, 220, 0.12);
+        --radius: 8px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        line-height: 1.65;
+      }
+
+      .page {
+        width: min(1280px, calc(100vw - 48px));
+        margin: 0 auto;
+        padding: 40px 0 64px;
+      }
+
+      header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 24px;
+        align-items: end;
+        padding: 0 0 28px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        max-width: 900px;
+        font-size: clamp(32px, 4vw, 58px);
+        line-height: 1.08;
+        font-weight: 720;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        font-size: 24px;
+        line-height: 1.2;
+        margin-bottom: 16px;
+      }
+
+      h3 {
+        font-size: 16px;
+        line-height: 1.35;
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        margin-top: 18px;
+        max-width: 860px;
+        color: var(--muted);
+        font-size: 17px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        padding: 6px 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        background: var(--panel);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .badge strong {
+        color: var(--text);
+        font-weight: 680;
+      }
+
+      section {
+        padding: 32px 0 0;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .grid-4 {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+        padding: 18px;
+      }
+
+      .card.tight {
+        padding: 14px;
+      }
+
+      .card p,
+      .card li {
+        color: var(--muted);
+      }
+
+      .card ul {
+        margin: 10px 0 0;
+        padding-left: 18px;
+      }
+
+      .callout {
+        border: 1px solid var(--line);
+        border-left-width: 4px;
+        border-radius: var(--radius);
+        padding: 16px 18px;
+        background: var(--panel);
+      }
+
+      .callout.red {
+        border-left-color: var(--red);
+        background: var(--red-soft);
+      }
+
+      .callout.green {
+        border-left-color: var(--green);
+        background: var(--green-soft);
+      }
+
+      .callout.amber {
+        border-left-color: var(--amber);
+        background: var(--amber-soft);
+      }
+
+      .callout.blue {
+        border-left-color: var(--blue);
+        background: var(--blue-soft);
+      }
+
+      .callout strong {
+        color: var(--text);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .step {
+        position: relative;
+        min-height: 132px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+      }
+
+      .step::after {
+        content: ">";
+        position: absolute;
+        right: -10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--weak);
+        font-weight: 700;
+      }
+
+      .step:last-child::after {
+        display: none;
+      }
+
+      .step .num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        margin-bottom: 10px;
+        border-radius: 50%;
+        background: var(--panel-2);
+        color: var(--amber);
+        font-size: 13px;
+        font-weight: 720;
+      }
+
+      .step p {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .swimlane {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: var(--panel);
+      }
+
+      .lane-row {
+        display: grid;
+        grid-template-columns: 190px minmax(0, 1fr);
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .lane-row:first-child {
+        border-top: 0;
+      }
+
+      .lane-title {
+        padding: 16px;
+        border-right: 1px solid var(--line-soft);
+        background: var(--panel-2);
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      .lane-body {
+        padding: 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 5px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        background: #121514;
+        font-size: 13px;
+      }
+
+      .pill.green {
+        border-color: rgba(84, 183, 122, 0.45);
+        color: #bde8ce;
+        background: var(--green-soft);
+      }
+
+      .pill.blue {
+        border-color: rgba(105, 168, 216, 0.45);
+        color: #c9e4f7;
+        background: var(--blue-soft);
+      }
+
+      .pill.amber {
+        border-color: rgba(216, 149, 23, 0.45);
+        color: #f1d293;
+        background: var(--amber-soft);
+      }
+
+      .pill.red {
+        border-color: rgba(224, 95, 85, 0.45);
+        color: #f0beb9;
+        background: var(--red-soft);
+      }
+
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .table th,
+      .table td {
+        vertical-align: top;
+        padding: 14px 16px;
+        border-top: 1px solid var(--line-soft);
+        color: var(--muted);
+        text-align: left;
+      }
+
+      .table th {
+        color: var(--text);
+        background: var(--panel-2);
+        border-top: 0;
+        font-weight: 720;
+      }
+
+      .table strong {
+        color: var(--text);
+      }
+
+      code {
+        padding: 2px 6px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #0b0d0c;
+        color: #f4d690;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+          monospace;
+        font-size: 0.92em;
+      }
+
+      .mono {
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+          monospace;
+      }
+
+      .small {
+        color: var(--weak);
+        font-size: 13px;
+      }
+
+      .timeline {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 0;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: var(--panel);
+      }
+
+      .time,
+      .event {
+        padding: 14px 16px;
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .time:nth-child(1),
+      .event:nth-child(2) {
+        border-top: 0;
+      }
+
+      .time {
+        color: var(--weak);
+        background: var(--panel-2);
+        font-weight: 700;
+      }
+
+      .event {
+        color: var(--muted);
+      }
+
+      .event strong {
+        color: var(--text);
+      }
+
+      footer {
+        margin-top: 36px;
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
+        color: var(--weak);
+        font-size: 13px;
+      }
+
+      @media (max-width: 980px) {
+        .page {
+          width: min(100vw - 28px, 760px);
+        }
+
+        header,
+        .grid-2,
+        .grid-3,
+        .grid-4,
+        .flow {
+          grid-template-columns: 1fr;
+        }
+
+        .step::after {
+          content: "v";
+          right: 50%;
+          top: auto;
+          bottom: -16px;
+          transform: translateX(50%);
+        }
+
+        .lane-row,
+        .timeline {
+          grid-template-columns: 1fr;
+        }
+
+        .lane-title {
+          border-right: 0;
+          border-bottom: 1px solid var(--line-soft);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <div>
+          <h1>咨询 Agent Runtime 与 Claude Code 对照</h1>
+          <p class="subtitle">
+            结论先放前面：runtime 不应该识别“你有什么工具”这种自然语言意图。
+            它应该只接收模型输出，判断是否是结构化 tool call，然后执行、回填 tool result。
+            工具目录问题应由 LLM 基于可见工具 schema 和系统上下文自然回答。
+          </p>
+        </div>
+        <div class="badge">置信度：<strong>高</strong></div>
+      </header>
+
+      <section>
+        <div class="grid-2">
+          <div class="callout red">
+            <h3>刚才那个修法是错的</h3>
+            <p>
+              在 runtime 层加 <code>isToolInventoryQuestion</code> 这类硬识别，
+              本质是把自然语言意图分类塞进执行器。它会继续扩大规则表，也会制造新的边界问题。
+              这个提交已在本地 main 上用 revert 撤掉，服务器没有发布它。
+            </p>
+          </div>
+          <div class="callout green">
+            <h3>这次异常更像上下文污染</h3>
+            <p>
+              同一个老会话里，前序 assistant 回复和 <code>expertTurnNotes</code>
+              已经带入“园区工友、独家腌料、15分钟夜宵战、408厂”等内容。
+              新开会话能正常回答，说明不是账号串库的主问题，而是旧会话上下文和工具结果边界失真。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Claude Code 的设计骨架</h2>
+        <div class="flow">
+          <div class="step">
+            <span class="num">1</span>
+            <h3>用户输入</h3>
+            <p>普通文本、slash command、附件、上下文提示都先进入统一消息处理。</p>
+          </div>
+          <div class="step">
+            <span class="num">2</span>
+            <h3>QueryEngine</h3>
+            <p>持有会话状态，拼装 system prompt、user context、tools、权限上下文和历史消息。</p>
+          </div>
+          <div class="step">
+            <span class="num">3</span>
+            <h3>LLM</h3>
+            <p>模型看到工具 schema 后自行决定输出自然语言，还是输出 <code>tool_use</code> block。</p>
+          </div>
+          <div class="step">
+            <span class="num">4</span>
+            <h3>Tool Registry</h3>
+            <p>runtime 只按 tool 名称找到工具，做 input schema、权限和可用性检查。</p>
+          </div>
+          <div class="step">
+            <span class="num">5</span>
+            <h3>Tool Result</h3>
+            <p>工具结果以 <code>tool_result</code> block 回到消息流，和用户文本严格分开。</p>
+          </div>
+          <div class="step">
+            <span class="num">6</span>
+            <h3>下一轮模型</h3>
+            <p>模型基于结构化工具结果继续回答或再次调用工具。runtime 不替模型解释语义。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Claude Code 谁负责什么</h2>
+        <div class="swimlane">
+          <div class="lane-row">
+            <div class="lane-title">LLM</div>
+            <div class="lane-body">
+              <span class="pill green">理解自然语言意图</span>
+              <span class="pill green">决定 answer 或 tool_use</span>
+              <span class="pill green">填写工具参数</span>
+              <span class="pill green">读取 tool_result 后组织回复</span>
+            </div>
+          </div>
+          <div class="lane-row">
+            <div class="lane-title">Runtime</div>
+            <div class="lane-body">
+              <span class="pill blue">拼 prompt 和消息</span>
+              <span class="pill blue">提交模型请求</span>
+              <span class="pill blue">识别结构化 tool_use</span>
+              <span class="pill blue">权限和 schema 校验</span>
+              <span class="pill blue">执行工具</span>
+              <span class="pill blue">回填 tool_result</span>
+              <span class="pill blue">记录 transcript</span>
+              <span class="pill blue">压缩上下文边界</span>
+            </div>
+          </div>
+          <div class="lane-row">
+            <div class="lane-title">Tools</div>
+            <div class="lane-body">
+              <span class="pill amber">声明 name</span>
+              <span class="pill amber">声明 description</span>
+              <span class="pill amber">声明 inputSchema</span>
+              <span class="pill amber">执行 call</span>
+              <span class="pill amber">映射 tool_result</span>
+              <span class="pill amber">渲染工具使用和结果</span>
+            </div>
+          </div>
+          <div class="lane-row">
+            <div class="lane-title">Context</div>
+            <div class="lane-body">
+              <span class="pill">CLAUDE.md / memory</span>
+              <span class="pill">system context</span>
+              <span class="pill">user context</span>
+              <span class="pill">message selection</span>
+              <span class="pill">compact boundary</span>
+              <span class="pill">tool_result 不混成用户话</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>我们现在的咨询 Runtime</h2>
+        <div class="flow">
+          <div class="step">
+            <span class="num">1</span>
+            <h3>Consultation Service</h3>
+            <p>加载商家、策略资产、会话历史、专家容器、知识库设置和工具设置。</p>
+          </div>
+          <div class="step">
+            <span class="num">2</span>
+            <h3>Slim Context Pack</h3>
+            <p>拼 <code>merchantIdentity</code>、策略快照、日历、检索命中、工具结果、专家白板。</p>
+          </div>
+          <div class="step">
+            <span class="num">3</span>
+            <h3>Runtime Loop</h3>
+            <p>优先 native tool calling；失败或未启用时走 JSON tool loop；最后可能回到 bounded planner。</p>
+          </div>
+          <div class="step">
+            <span class="num">4</span>
+            <h3>Business Tools</h3>
+            <p>模型可见工具包含知识库检索、视频素材检索、保存爆款检索、策略编辑、日历更新。</p>
+          </div>
+          <div class="step">
+            <span class="num">5</span>
+            <h3>Tool Cards</h3>
+            <p>工具执行后写事件、payload、summary，并用于可见工具卡和后续上下文。</p>
+          </div>
+          <div class="step">
+            <span class="num">6</span>
+            <h3>Expert Turn Notes</h3>
+            <p>每轮生成短期专家白板，供下一轮或下一个专家接续。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>当前工具目录</h2>
+        <div class="grid-3">
+          <div class="card tight">
+            <h3>检索平台方法论与用户知识库</h3>
+            <p>读取平台方法论、用户资料和咨询知识片段。返回受控知识匹配，不写业务资产。</p>
+          </div>
+          <div class="card tight">
+            <h3>检索当前商家视频素材库</h3>
+            <p>读取当前商家的 ready 视频素材、clip、标签、时长、方向、缩略图和描述。不跨商家。</p>
+          </div>
+          <div class="card tight">
+            <h3>检索本地已保存爆款库</h3>
+            <p>读取已沉淀到本地库的小红书/抖音参考内容。它不是外部实时采集工具。</p>
+          </div>
+          <div class="card tight">
+            <h3>编辑策略资产</h3>
+            <p>写入定位、卖点、客群、场景、策略标签和策略正文。</p>
+          </div>
+          <div class="card tight">
+            <h3>更新内容日历</h3>
+            <p>把咨询结论和受控依据转成图文/视频混合营销日历。</p>
+          </div>
+          <div class="card tight">
+            <h3>隐藏 brief 工具</h3>
+            <p><code>generate_article_brief</code> 和 <code>generate_video_brief</code> 存在于 registry，但默认不暴露给 LLM。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>这次异常链路</h2>
+        <div class="timeline">
+          <div class="time">前序轮次</div>
+          <div class="event">
+            会话里已经出现“园区工友、独家腌料、15分钟夜宵战、408厂”等表达。
+            其中 <strong>408厂</strong> 不是已确认用户事实，更像模型生成的示例被后续上下文重新吸收。
+          </div>
+          <div class="time">用户问工具</div>
+          <div class="event">
+            老会话里用户问“你现在能用什么工具了”。模型没有直接回答工具目录，而是错误调用
+            <code>search_saved_viral_materials</code>，runtime 按模型 tool call 执行。
+          </div>
+          <div class="time">工具检索</div>
+          <div class="event">
+            检索仍然 scoped 到 <strong>shaokao@163.com 对应商家</strong>，不是账号串库。
+            但查询词被旧上下文和商家行业扩展成烧烤/餐饮方向，命中了夜宵类保存内容。
+          </div>
+          <div class="time">下一次追问</div>
+          <div class="event">
+            用户追问“我是问，你能用什么工具”。这一轮没有工具调用，但模型继续借用了旧
+            <code>expertTurnNotes</code> 和上一轮素材检索语境，于是输出了过度具体的“园区场景/产品操作类视频”和“夜宵/工友模板”。
+          </div>
+          <div class="time">新会话正常</div>
+          <div class="event">
+            新开会话没有污染的专家白板、错误示例和前序工具上下文，所以模型能自然列出工具。
+            这支持“上下文工程问题”而不是“runtime 缺一个元问题硬门禁”。
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>差距对照</h2>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>维度</th>
+              <th>Claude Code 倾向</th>
+              <th>我们现在的问题</th>
+              <th>应改方向</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>工具目录</strong></td>
+              <td>工具 schema 和 prompt 自然暴露给模型。模型可直接用自然语言回答“我有什么工具”。</td>
+              <td>工具目录、工具结果、业务建议混在同一咨询语境里，模型容易把“能用工具”说成“刚检索到什么”。</td>
+              <td>把 capability catalog 作为稳定上下文提供给 LLM，不在 runtime 做用户意图分流。</td>
+            </tr>
+            <tr>
+              <td><strong>tool_use</strong></td>
+              <td>只有模型输出结构化 <code>tool_use</code> block 才执行工具。</td>
+              <td>JSON loop 和 native loop 已有这个形态，但 fallback planner 仍保留历史痕迹，容易让人误以为 runtime 会主动规划。</td>
+              <td>默认只走 native/model JSON 工具循环；planner 作为兼容降级单独记录，后续再删。</td>
+            </tr>
+            <tr>
+              <td><strong>tool_result</strong></td>
+              <td><code>tool_result</code> 是结构化 user block，和用户原话、assistant 自由文本分开。</td>
+              <td>我们的 <code>summary</code>、<code>visibleSummary</code>、<code>expertTurnNotes</code> 会把工具结果和 assistant 表述揉在一起。</td>
+              <td>区分当前轮工具结果、历史工具结果、assistant 推断。没有当前轮 tool_result 就不能说“我检索到”。</td>
+            </tr>
+            <tr>
+              <td><strong>上下文压缩</strong></td>
+              <td>有 compact boundary、message selector、tool result 专门处理。</td>
+              <td>短期专家白板把“下一位专家继续围绕定位推进”这类接续语放进后续上下文，错误示例会被强化。</td>
+              <td>白板只能保留 fact、decision、open question、actual tool result，不保留营销文案式示例。</td>
+            </tr>
+            <tr>
+              <td><strong>失败处理</strong></td>
+              <td>工具失败以 tool_result error 进入下一轮，模型据此恢复或说明。</td>
+              <td>错误修法想在 runtime 根据用户文本短路。这会绕开模型，也绕开工具协议。</td>
+              <td>失败只按结构化调用处理：schema 不合格、权限不够、结果为空、query 过泛，都由工具结果表达。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>正确改法，不是硬门禁</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h3>1. 给 LLM 一个清楚的能力目录</h3>
+            <p>
+              从 <code>getConsultationBusinessToolCatalog()</code> 派生一段稳定
+              <code>toolCapabilityCatalog</code>，放进 system/context。
+              规则是：用户问“你能做什么/有什么工具”时，模型直接基于目录回答；
+              只有用户要求“检索、更新、写入、参考素材”时才调用工具。
+            </p>
+          </div>
+          <div class="card">
+            <h3>2. 清理 expertTurnNotes 的值域</h3>
+            <p>
+              <code>whatIUnderstood</code> 只能来自用户原话、策略资产、真实工具结果。
+              <code>whatIChanged</code> 只能来自 completed tool result。
+              <code>handoffForNextExpert</code> 不应把 assistant 自由发挥的例子变成下轮事实。
+            </p>
+          </div>
+          <div class="card">
+            <h3>3. 当前轮证据和历史语境分层</h3>
+            <p>
+              Claude Code 的关键不是“证据门禁”，而是消息角色清楚。
+              我们也应把 current-turn tool results、history tool results、strategy snapshot、
+              assistant conversation 分开标注。模型可以参考历史，但不能把历史推断说成当前检索。
+            </p>
+          </div>
+          <div class="card">
+            <h3>4. 工具只做参数质量校验</h3>
+            <p>
+              runtime 不判断“这是不是元问题”。但工具可以拒绝不合格参数，比如 query 为空、过泛、
+              与素材检索无关，返回 skipped/failed tool_result 和修正建议。这是工具契约，不是语义门禁。
+            </p>
+          </div>
+          <div class="card">
+            <h3>5. 给老会话一个污染隔离策略</h3>
+            <p>
+              对已经出现“408厂”等错误示例的会话，下一轮应通过 context preflight 标注
+              <code>assistant_generated_example</code> 或从 expert 白板移除，而不是让它继续进入事实上下文。
+            </p>
+          </div>
+          <div class="card">
+            <h3>6. 测试应该覆盖上下文，而不是硬触发词</h3>
+            <p>
+              测试目标不是“问工具时 runtime 返回固定文案”，而是验证：
+              模型消息里有工具目录、没有旧工具结果冒充当前结果、expertTurnNotes 不携带 assistant 编造事实。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>源文件索引</h2>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>系统</th>
+              <th>文件</th>
+              <th>用于判断的事实</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Claude Code</td>
+              <td class="mono">references/open-source/claude-code项目/claude-code-main/src/QueryEngine.ts</td>
+              <td>会话生命周期、system prompt 拼装、processUserInput、query 调用、transcript、compact boundary。</td>
+            </tr>
+            <tr>
+              <td>Claude Code</td>
+              <td class="mono">references/open-source/claude-code项目/claude-code-main/src/query.ts</td>
+              <td>模型流式输出、<code>tool_use</code> block 收集、<code>runTools</code> 执行、<code>tool_result</code> 回填。</td>
+            </tr>
+            <tr>
+              <td>Claude Code</td>
+              <td class="mono">references/open-source/claude-code项目/claude-code-main/src/Tool.ts</td>
+              <td>工具接口：name、description、inputSchema、call、validateInput、checkPermissions、render、mapToolResult。</td>
+            </tr>
+            <tr>
+              <td>Claude Code</td>
+              <td class="mono">references/open-source/claude-code项目/claude-code-main/src/remote/sdkMessageAdapter.ts</td>
+              <td>tool_result 与普通用户消息的区分和渲染转换。</td>
+            </tr>
+            <tr>
+              <td>本项目</td>
+              <td class="mono">app/src/server/api/consultation-runtime/runtime.ts</td>
+              <td>native tool calling、JSON tool loop、planner fallback、tool result 汇总。</td>
+            </tr>
+            <tr>
+              <td>本项目</td>
+              <td class="mono">app/src/server/api/consultation-runtime/tools.ts</td>
+              <td>咨询业务工具 registry、LLM 可见工具过滤、参数 schema、默认参数构造。</td>
+            </tr>
+            <tr>
+              <td>本项目</td>
+              <td class="mono">app/src/server/api/consultation-runtime/context.ts</td>
+              <td>slim context pack、expertTraffic、expertTurnNotes、context budget。</td>
+            </tr>
+            <tr>
+              <td>本项目</td>
+              <td class="mono">app/src/server/api/consultation-service.ts</td>
+              <td>模型消息拼装、业务规则、会话历史进入 LLM 的方式。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <footer>
+        <p>
+          本页是 2026-05-27 的结构化分析稿。它不是实现提交说明，也不是发布记录。
+          下一步实现应围绕 context engineering 和工具协议边界，而不是在 runtime 增加自然语言硬判断。
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>
