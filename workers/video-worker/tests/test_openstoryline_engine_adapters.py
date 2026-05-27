@@ -396,6 +396,15 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
                     production_directive={
                         "script_locked": True,
                         "desired_outputs": ["final_video"],
+                        "material_context": {
+                            "sceneAssetQueries": [
+                                {
+                                    "sceneNo": 1,
+                                    "query": "一楼厂房 空间 层高",
+                                    "sourceRole": "merchant_broll",
+                                }
+                            ]
+                        },
                     },
                     production_config={
                         "voiceover": {
@@ -446,6 +455,8 @@ class OpenStorylineEngineAdapterTests(unittest.TestCase):
             self.assertIn("视频剪辑任务调度 Agent", payload["prompt"])
             self.assertIn("search_media", payload["prompt"])
             self.assertIn("search_media.search_keyword", payload["prompt"])
+            self.assertIn("不要把中文检索词翻译成英文", payload["prompt"])
+            self.assertIn("sceneNo=1: search_keyword=一楼厂房 空间 层高", payload["prompt"])
             self.assertIn("load_media", payload["prompt"])
             self.assertIn("generate_voiceover", payload["prompt"])
             self.assertIn("select_bgm", payload["prompt"])

@@ -19,12 +19,11 @@ test("video job creation auto-locks a non-empty script before building payload",
   );
 });
 
-test("video job payload uses structured scene upload signal and includes merchant clips", () => {
-  assert.match(
-    source,
-    /getPrivateMediaRepository\(\)\.listClipsByMerchant\(\{ merchantId: input\.merchantId \}\)/,
-  );
-  assert.match(source, /merchantMediaClips,/);
+test("video job payload uses structured scene upload signal without preselecting merchant clips", () => {
+  assert.doesNotMatch(source, /getPrivateMediaRepository\(\)\.listClipsByMerchant/);
+  assert.doesNotMatch(source, /listMaterialWorkbenchReferencesByDraft/);
+  assert.doesNotMatch(source, /merchantMediaClips,/);
+  assert.doesNotMatch(source, /materialReferences:/);
   assert.match(source, /requireUserTalkingHead: variantRequiresUserTalkingHead\(input\.variant\)/);
   assert.match(
     source,

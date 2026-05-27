@@ -836,6 +836,7 @@ def _build_fire_red_prompt(
     )
     script_text = (request.script_text or "").strip()
     instruction_text = (request.instruction_text or "").strip()
+    scene_search_queries = _fire_red_scene_search_queries_text(request)
     return "\n".join(
         [
             "你是视频剪辑任务调度 Agent。",
@@ -849,6 +850,10 @@ def _build_fire_red_prompt(
             "最终步骤必须产出 render_video artifact；render_video 成功后立即停止。",
             "需要配音时调用 generate_voiceover，需要 BGM 时调用 select_bgm。",
             "需要 lip_sync 时先运行 plan_timeline，再运行 lip_sync，最后 render_video。",
+            "素材检索规则：",
+            "1. search_media.search_keyword 必须原样使用 ProductionDirective.material_context.sceneAssetQueries[].query 中的中文词。",
+            "2. 不要把中文检索词翻译成英文，不要改写成英文类目、英文标签或英文同义词。",
+            "3. 不要使用 tags/category/filter/filter_include/filter_exclude 参数；素材库已经按中文标签分类。",
             f"Desired outputs: {', '.join(desired_outputs)}",
             "",
             "Locked script:",
@@ -857,6 +862,9 @@ def _build_fire_red_prompt(
             "Worker instruction:",
             instruction_text or "(empty)",
             "",
+            "Canonical scene search queries:",
+            scene_search_queries or "(none)",
+            "",
             "Input assets:",
             assets_json,
             "",
@@ -864,6 +872,33 @@ def _build_fire_red_prompt(
             directive_json,
         ]
     )
+
+
+def _fire_red_scene_search_queries_text(request: RunRequest) -> str:
+    directive = request.production_directive or {}
+    material_context = _nested_first_dict(
+        directive,
+        ("material_context",),
+        ("materialContext",),
+    )
+    scene_queries = material_context.get("sceneAssetQueries") or material_context.get("scene_asset_queries")
+    if not isinstance(scene_queries, list):
+        return ""
+    lines: list[str] = []
+    for index, item in enumerate(scene_queries):
+        if not isinstance(item, dict):
+            continue
+        query = str(
+            item.get("query")
+            or item.get("search_keyword")
+            or item.get("searchKeyword")
+            or ""
+        ).strip()
+        if not query:
+            continue
+        scene_no = item.get("sceneNo") or item.get("scene_no") or index + 1
+        lines.append(f"sceneNo={scene_no}: search_keyword={query}")
+    return "\n".join(lines)
 
 
 def _compact_dict(payload: dict[str, object]) -> dict[str, object]:

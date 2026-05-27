@@ -392,6 +392,54 @@ class FireRedNodeInterceptorTests(unittest.TestCase):
         self.assertEqual(10, result["video_number"])
         self.assertEqual(0, result["photo_number"])
 
+    def test_worker_search_media_uses_chinese_scene_query_and_strips_filters(self):
+        class ContextWithSceneSearch(WorkerPrivatePexelsContext):
+            session_id = "session-1"
+            worker_payload = {
+                "merchant_id": "merchant-1",
+                "script_text": "locked script",
+                "materialContext": {
+                    "sceneAssetQueries": [
+                        {
+                            "sceneNo": 1,
+                            "query": "一楼厂房 空间 层高",
+                            "sourceRole": "merchant_broll",
+                        },
+                    ],
+                },
+            }
+
+        class Store:
+            def get_metas(self, *, node_id, session_id):
+                return []
+
+        runtime = types.SimpleNamespace(context=ContextWithSceneSearch(), store=Store())
+        request = RequestWithRuntime(
+            "search_media",
+            {
+                "query": "factory workshop",
+                "tags": ["factory"],
+                "category": "industrial",
+                "filter_include": {"tags": ["factory"]},
+                "orientation": "landscape",
+            },
+            runtime,
+        )
+
+        async def handler(req):
+            return dict(req.args)
+
+        result = asyncio.run(self.ToolInterceptor.inject_pexels_api_key(request, handler))
+
+        self.assertEqual("一楼厂房 空间 层高", result["search_keyword"])
+        self.assertNotIn("query", result)
+        self.assertNotIn("tags", result)
+        self.assertNotIn("category", result)
+        self.assertNotIn("filter_include", result)
+        self.assertNotIn("orientation", result)
+        self.assertEqual(10, result["video_number"])
+        self.assertEqual(0, result["photo_number"])
+
     def test_worker_pexels_injection_blocks_third_scene_search_attempt(self):
         module = sys.modules["firered_node_interceptors_under_test"]
 

@@ -5,7 +5,6 @@ import {
   VideoJobPayloadValidationError,
   buildVideoEditJobInputPayload,
 } from "./video-job-payload.ts";
-import type { PrivateMediaClipRecord } from "../../lib/private-media-pexels-adapter.ts";
 
 const approvedVariant = {
   contentVariantId: "variant-1",
@@ -94,17 +93,10 @@ test("buildVideoEditJobInputPayload creates the worker contract from an approved
     assetPlanId: null,
     assetMatchReportId: null,
     scriptBindingId: "variant-1",
-    materialIds: ["material-1"],
-    materialReferenceIds: ["reference-1"],
-    selectionMode: "user_confirmed",
-    fallbackMode: null,
     excludedAssetIds: [],
     userTalkingHeadAssetIds: [],
-    merchantMediaCandidateCount: 0,
-    merchantMediaMatches: [],
     missingVideoAssetHints: [],
     sceneAssetQueries: [],
-    assetMatchPlan: [],
   });
   assert.deepEqual(payload.input_assets, [
     {
@@ -248,7 +240,6 @@ test("buildVideoEditJobInputPayload requires at least one user talking-head draf
         variant: approvedVariant,
         materialReferences: [],
         assets: [],
-        merchantMediaClips: [merchantClip],
         requireUserTalkingHead: true,
       }),
     (error) =>
@@ -258,7 +249,7 @@ test("buildVideoEditJobInputPayload requires at least one user talking-head draf
   );
 });
 
-test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merchant clips in materialContext", () => {
+test("buildVideoEditJobInputPayload keeps user uploads without preselected merchant clips", () => {
   const payload = buildVideoEditJobInputPayload({
     draftId: "draft-1",
     variant: {
@@ -288,7 +279,6 @@ test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merch
         sortOrder: 0,
       },
     ],
-    merchantMediaClips: [merchantClip],
     requireUserTalkingHead: true,
   });
 
@@ -306,79 +296,21 @@ test("buildVideoEditJobInputPayload keeps user uploads in input_assets and merch
     aspectRatio: "9:16",
     includeOriginalAudio: false,
   });
-  assert.equal(payload.materialContext.merchantMediaCandidateCount, 1);
-  assert.deepEqual(payload.materialContext.merchantMediaMatches, [
+  assert.deepEqual(payload.materialContext.sceneAssetQueries, [
     {
       sceneNo: 2,
-      query: "Project entrance with nearby shops Show entrance and shops entrance shops",
-      clipIds: ["merchant-clip-entrance"],
-      clips: [
-        {
-          clipId: "merchant-clip-entrance",
-          assetId: "merchant-asset-1",
-          mediaType: "video",
-          clipType: "segment",
-          bucketName: "jj-private-bucket",
-          storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
-          thumbStorageKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
-          mimeType: "video/mp4",
-          durationSeconds: 5,
-          startTimeSeconds: 0,
-          endTimeSeconds: 5,
-          tags: ["project", "entrance", "shops"],
-          sceneTags: ["exterior"],
-          shotTags: ["wide"],
-          description: "Project entrance with nearby shops.",
-        },
-      ],
+      timeRange: "00:05-00:12",
+      query: "entrance shops Use lobby if entrance unavailable",
+      visualRequirement: "Project entrance with nearby shops",
+      fallbackShot: "Use lobby if entrance unavailable",
+      sourceRole: "merchant_broll",
     },
   ]);
-  assert.deepEqual(payload.materialContext.assetMatchPlan, [
-    {
-      sceneNo: 2,
-      query: "Project entrance with nearby shops Show entrance and shops entrance shops",
-      matchedAssetIds: [],
-      missing: true,
-      reason: "no_video_asset",
-    },
-  ]);
+  assert.equal(Object.hasOwn(payload.materialContext, "merchantMediaMatches"), false);
+  assert.equal(Object.hasOwn(payload.materialContext, "assetMatchPlan"), false);
   const rawPayload = payload as Record<string, unknown>;
   assert.equal(rawPayload.difyFinalJson, undefined);
   assert.equal(rawPayload.difyRawOutputs, undefined);
-});
-
-test("buildVideoEditJobInputPayload matches merchant media clips by provider-neutral storage key", () => {
-  const payload = buildVideoEditJobInputPayload({
-    draftId: "draft-1",
-    variant: {
-      ...approvedVariant,
-      productionScenes: [
-        {
-          sceneNo: 2,
-          timeRange: "00:05-00:12",
-          shotRequirement: "unique-storage-token",
-          visual: "",
-          materials: [],
-          fallbackShot: null,
-        },
-      ],
-    },
-    materialReferences: [],
-    assets: [],
-    merchantMediaClips: [
-      {
-        ...merchantClip,
-        storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/unique-storage-token.mp4",
-        thumbStorageKey: merchantClip.thumbStorageKey,
-      },
-    ],
-  });
-
-  assert.deepEqual(payload.materialContext.merchantMediaMatches[0]?.clipIds, ["merchant-clip-entrance"]);
-  assert.equal(
-    payload.materialContext.merchantMediaMatches[0]?.clips[0]?.storageKey,
-    "merchant-media/merchant-1/clips/merchant-asset-1/unique-storage-token.mp4",
-  );
 });
 
 test("buildVideoEditJobInputPayload marks intro/outro scenes as user talking head", () => {
@@ -421,7 +353,6 @@ test("buildVideoEditJobInputPayload marks intro/outro scenes as user talking hea
         sortOrder: 0,
       },
     ],
-    merchantMediaClips: [merchantClip],
     requireUserTalkingHead: true,
   });
 
@@ -435,16 +366,7 @@ test("buildVideoEditJobInputPayload marks intro/outro scenes as user talking hea
       { sceneNo: 2, sourceRole: "merchant_broll" },
     ],
   );
-  assert.deepEqual(
-    payload.materialContext.merchantMediaMatches.map((match) => ({
-      sceneNo: match.sceneNo,
-      clipIds: match.clipIds,
-    })),
-    [
-      { sceneNo: 1, clipIds: [] },
-      { sceneNo: 2, clipIds: ["merchant-clip-entrance"] },
-    ],
-  );
+  assert.equal(Object.hasOwn(payload.materialContext, "merchantMediaMatches"), false);
 });
 
 test("buildVideoEditJobInputPayload treats requiresUserUpload as member talking-head even without talking-head words", () => {
@@ -486,7 +408,6 @@ test("buildVideoEditJobInputPayload treats requiresUserUpload as member talking-
         sortOrder: 0,
       },
     ],
-    merchantMediaClips: [merchantClip],
   });
 
   assert.deepEqual(payload.materialContext.userTalkingHeadAssetIds, ["member-upload-1"]);
@@ -913,25 +834,22 @@ test("buildVideoEditJobInputPayload rejects unsupported input asset providers", 
   );
 });
 
-test("buildVideoEditJobInputPayload rejects confirmed material references without input assets", () => {
-  assert.throws(
-    () =>
-      buildVideoEditJobInputPayload({
-        draftId: "draft-1",
-        variant: approvedVariant,
-        materialReferences: [
-          {
-            id: "reference-1",
-            materialItemId: "material-1",
-          },
-        ],
-        assets: [],
-      }),
-    (error) =>
-      error instanceof VideoJobPayloadValidationError &&
-      error.code === "VIDEO_CONFIRMED_MATERIAL_ASSET_REQUIRED" &&
-      error.status === 409,
-  );
+test("buildVideoEditJobInputPayload ignores legacy material references without input assets", () => {
+  const payload = buildVideoEditJobInputPayload({
+    draftId: "draft-1",
+    variant: approvedVariant,
+    materialReferences: [
+      {
+        id: "reference-1",
+        materialItemId: "material-1",
+      },
+    ],
+    assets: [],
+  });
+
+  assert.deepEqual(payload.input_assets, []);
+  assert.equal(Object.hasOwn(payload.materialContext, "materialReferenceIds"), false);
+  assert.equal(Object.hasOwn(payload.materialContext, "materialIds"), false);
 });
 
 test("buildVideoEditJobInputPayload exposes missing video hints from scene asset queries", () => {
@@ -955,16 +873,8 @@ test("buildVideoEditJobInputPayload exposes missing video hints from scene asset
       sourceRole: "merchant_broll",
     },
   ]);
-  assert.deepEqual(payload.materialContext.assetMatchPlan, [
-    {
-      sceneNo: 1,
-      query: "项目外立面远景",
-      matchedAssetIds: [],
-      missing: true,
-      reason: "no_video_asset",
-    },
-  ]);
-  assert.deepEqual(payload.materialContext.missingVideoAssetHints, ["项目外立面远景"]);
+  assert.equal(Object.hasOwn(payload.materialContext, "assetMatchPlan"), false);
+  assert.deepEqual(payload.materialContext.missingVideoAssetHints, []);
 });
 
 test("buildVideoEditJobInputPayload sends structured visual descriptions to backend scene queries", () => {
@@ -999,18 +909,8 @@ test("buildVideoEditJobInputPayload sends structured visual descriptions to back
       sourceRole: "merchant_broll",
     },
   ]);
-  assert.deepEqual(payload.materialContext.assetMatchPlan, [
-    {
-      sceneNo: 1,
-      query: "呈现厂房主体空间和层高感。",
-      matchedAssetIds: [],
-      missing: true,
-      reason: "no_video_asset",
-    },
-  ]);
-  assert.deepEqual(payload.materialContext.missingVideoAssetHints, [
-    "呈现厂房主体空间和层高感。",
-  ]);
+  assert.equal(Object.hasOwn(payload.materialContext, "assetMatchPlan"), false);
+  assert.deepEqual(payload.materialContext.missingVideoAssetHints, []);
 });
 
 test("buildVideoEditJobInputPayload only sends video assets to worker and orders input assets", () => {
@@ -1105,44 +1005,11 @@ test("buildVideoEditJobInputPayload builds scene asset queries from production s
     {
       sceneNo: 2,
       timeRange: "00:05-00:10",
-      query: "样板间客厅横移 客厅空间感和采光 样板间 客厅",
+      query: "样板间 客厅 用同户型空间细节替代",
       visualRequirement: "样板间客厅横移",
       fallbackShot: "用同户型空间细节替代",
       sourceRole: "merchant_broll",
     },
   ]);
-  assert.deepEqual(payload.materialContext.assetMatchPlan, [
-    {
-      sceneNo: 2,
-      query: "样板间客厅横移 客厅空间感和采光 样板间 客厅",
-      matchedAssetIds: [],
-      missing: true,
-      reason: "no_video_asset",
-    },
-  ]);
+  assert.equal(Object.hasOwn(payload.materialContext, "assetMatchPlan"), false);
 });
-
-const merchantClip: PrivateMediaClipRecord = {
-  id: "merchant-clip-entrance",
-  assetId: "merchant-asset-1",
-  merchantId: "merchant-1",
-  mediaType: "video",
-  status: "ready",
-  clipIndex: 0,
-  clipType: "segment",
-  startTimeSeconds: 0,
-  endTimeSeconds: 5,
-  width: 1080,
-  height: 1920,
-  durationSeconds: 5,
-  orientation: "portrait",
-  description: "Project entrance with nearby shops.",
-  tags: ["project", "entrance", "shops"],
-  sceneTags: ["exterior"],
-  shotTags: ["wide"],
-  bucketName: "jj-private-bucket",
-  storageKey: "merchant-media/merchant-1/clips/merchant-asset-1/entrance.mp4",
-  thumbStorageKey: "merchant-media/merchant-1/thumbs/merchant-asset-1/entrance.jpg",
-  mimeType: "video/mp4",
-  createdAt: "2026-05-15T00:00:00.000Z",
-} as const;
