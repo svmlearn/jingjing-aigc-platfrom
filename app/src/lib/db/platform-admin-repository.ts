@@ -145,6 +145,8 @@ const defaultConsultationAgent: ConsultationAgentSettingsDto = {
   enabledTools: [
     "retrieve_knowledge_base",
     "search_benchmark_materials",
+    "search_project_video_materials",
+    "search_saved_viral_materials",
     "update_strategy_snapshot",
     "update_content_calendar",
   ],
@@ -169,6 +171,12 @@ const defaultKnowledgeRuntime: KnowledgeRuntimeSettingsDto = {
   embeddingModel: "Qwen/Qwen3-Embedding-4B",
   queryRewriteEnabled: true,
 };
+
+const consultationAgentEnabledToolDefaultsVersion = "2026-05-27-material-search-tools";
+const consultationAgentMaterialSearchToolKeys: ConsultationAgentSettingsDto["enabledTools"] = [
+  "search_project_video_materials",
+  "search_saved_viral_materials",
+];
 
 const invitationCodeExpiringSoonWindowDays = 7;
 
@@ -767,7 +775,10 @@ function buildPlatformSettingsRows(next: PlatformSettingsDto) {
     {
       key: "consultation_agent",
       category: "consultation",
-      value: next.consultationAgent,
+      value: {
+        ...next.consultationAgent,
+        enabledToolDefaultsVersion: consultationAgentEnabledToolDefaultsVersion,
+      },
       description: "Platform-level consultation agent settings.",
     },
     {
@@ -1228,7 +1239,7 @@ function toConsultationAgentSettings(value: unknown): ConsultationAgentSettingsD
 
   return {
     systemPrompt: getString(record.systemPrompt, defaultConsultationAgent.systemPrompt),
-    enabledTools: toConsultationToolArray(record.enabledTools),
+    enabledTools: toConsultationToolArray(record.enabledTools, record),
     visibleExecutionMode:
       getString(
         record.visibleExecutionMode,
@@ -1350,7 +1361,10 @@ function getBoolean(value: unknown, fallback: boolean) {
   return typeof value === "boolean" ? value : fallback;
 }
 
-function toConsultationToolArray(value: unknown): ConsultationAgentSettingsDto["enabledTools"] {
+function toConsultationToolArray(
+  value: unknown,
+  sourceRecord?: Record<string, unknown>,
+): ConsultationAgentSettingsDto["enabledTools"] {
   if (!Array.isArray(value)) {
     return defaultConsultationAgent.enabledTools;
   }
@@ -1376,7 +1390,22 @@ function toConsultationToolArray(value: unknown): ConsultationAgentSettingsDto["
     next.push(toolKey);
   }
 
-  return next.length > 0 ? next : defaultConsultationAgent.enabledTools;
+  if (next.length === 0) {
+    return defaultConsultationAgent.enabledTools;
+  }
+
+  if (
+    sourceRecord?.enabledToolDefaultsVersion !== consultationAgentEnabledToolDefaultsVersion
+  ) {
+    for (const toolKey of consultationAgentMaterialSearchToolKeys) {
+      if (allowed.has(toolKey) && !seen.has(toolKey)) {
+        seen.add(toolKey);
+        next.push(toolKey);
+      }
+    }
+  }
+
+  return next;
 }
 
 function generateInvitationCode() {

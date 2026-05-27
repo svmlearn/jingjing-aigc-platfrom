@@ -162,6 +162,24 @@ const benchmarkArgsSchema = z
   })
   .strict();
 
+const projectVideoMaterialsArgsSchema = z
+  .object({
+    query: z.string().trim().max(120).optional(),
+    limit: z.number().int().min(1).max(12).optional(),
+    orientation: z.enum(["landscape", "portrait"]).optional(),
+    minDurationSeconds: z.number().min(0).max(60 * 60).optional(),
+    maxDurationSeconds: z.number().min(0).max(60 * 60).optional(),
+  })
+  .strict();
+
+const savedViralMaterialsArgsSchema = z
+  .object({
+    query: z.string().trim().max(120).optional(),
+    platform: z.enum(["douyin", "xiaohongshu"]).optional(),
+    limit: z.number().int().min(1).max(12).optional(),
+  })
+  .strict();
+
 export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDefinition[] {
   return [
     {
@@ -290,6 +308,107 @@ export function getConsultationRuntimeToolRegistry(): ConsultationRuntimeToolDef
       },
     },
     {
+      key: "search_project_video_materials",
+      label: "检索当前商家视频素材库",
+      purpose:
+        "只读检索当前商家已经 ready 的已上传/已打标视频素材；当用户明确要求参考已上传视频素材、已有视频库或询问检索了哪些视频素材时使用。",
+      writes: "只读：merchant_media_clips / legacy source_items + asset_objects，不写入",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          query: {
+            type: "string",
+            description: "用于匹配素材描述、标签、场景、镜头、人物或质量标签的关键词。省略时返回最近 ready 视频素材。",
+          },
+          limit: {
+            type: "number",
+            description: "返回条数上限，1 到 12，默认 8。",
+          },
+          orientation: {
+            type: "string",
+            enum: ["landscape", "portrait"],
+            description: "可选视频方向过滤。",
+          },
+          minDurationSeconds: {
+            type: "number",
+            description: "可选最短时长，单位秒。",
+          },
+          maxDurationSeconds: {
+            type: "number",
+            description: "可选最长时长，单位秒。",
+          },
+        },
+      },
+      validate: (args, state) => {
+        const parsed = projectVideoMaterialsArgsSchema.safeParse(args);
+
+        if (!parsed.success) {
+          return { ok: false, error: formatSchemaError("search_project_video_materials", parsed.error) };
+        }
+
+        const minDurationSeconds =
+          typeof parsed.data.minDurationSeconds === "number"
+            ? Math.max(0, parsed.data.minDurationSeconds)
+            : undefined;
+        const maxDurationSeconds =
+          typeof parsed.data.maxDurationSeconds === "number"
+            ? Math.max(0, parsed.data.maxDurationSeconds)
+            : undefined;
+
+        return {
+          ok: true,
+          args: {
+            ...buildConsultationToolArgs("search_project_video_materials", state),
+            ...parsed.data,
+            minDurationSeconds,
+            maxDurationSeconds,
+          },
+        };
+      },
+    },
+    {
+      key: "search_saved_viral_materials",
+      label: "检索本地已保存爆款库",
+      purpose:
+        "只读检索当前商家已经沉淀在本地素材库里的小红书/抖音爆款参考内容；不调用外部 provider，不新增社媒结果。",
+      writes: "只读：source_items / imported_comments / asset_objects，不写入",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          query: {
+            type: "string",
+            description: "用于匹配标题、正文、脚本、描述、标签、评论或 provider 元数据的关键词。省略时返回最近 ready 爆款参考。",
+          },
+          platform: {
+            type: "string",
+            enum: ["douyin", "xiaohongshu"],
+            description: "可选平台过滤。",
+          },
+          limit: {
+            type: "number",
+            description: "返回条数上限，1 到 12，默认 8。",
+          },
+        },
+      },
+      validate: (args, state) => {
+        const parsed = savedViralMaterialsArgsSchema.safeParse(args);
+
+        if (!parsed.success) {
+          return { ok: false, error: formatSchemaError("search_saved_viral_materials", parsed.error) };
+        }
+
+        return {
+          ok: true,
+          args: {
+            ...buildConsultationToolArgs("search_saved_viral_materials", state),
+            ...parsed.data,
+          },
+        };
+      },
+    },
+    {
       key: "update_strategy_snapshot",
       label: "编辑策略资产",
       purpose: "把定位、核心卖点、目标客群、关键场景、策略标签和策略正文作为一个整体资产编辑。",
@@ -412,7 +531,11 @@ function buildRuntimeToolDescription(
 }
 
 export function isRepeatableConsultationReadTool(toolName: ConsultationAgentToolKey) {
-  return toolName === "retrieve_knowledge_base";
+  return (
+    toolName === "retrieve_knowledge_base" ||
+    toolName === "search_project_video_materials" ||
+    toolName === "search_saved_viral_materials"
+  );
 }
 
 export function parseNativeConsultationToolCall(
@@ -531,6 +654,20 @@ export function buildConsultationToolArgs(
       detailUrl: benchmarkUrl && !isProfileUrl ? benchmarkUrl : "",
       count: 5,
       cachePolicy: "provider_cache_first",
+    };
+  }
+
+  if (
+    toolName === "search_project_video_materials" ||
+    toolName === "search_saved_viral_materials"
+  ) {
+    return {
+      query: buildMaterialSearchQuery({
+        userContent: state.userContent,
+        merchant: state.merchant,
+        previousSnapshot: state.session.strategySnapshot,
+      }),
+      limit: 8,
     };
   }
 
@@ -742,6 +879,31 @@ function buildBenchmarkKeyword(input: {
   const candidate = content || [industry, service].filter(Boolean).join(" ");
 
   return candidate.slice(0, 80) || "用户提供的方向";
+}
+
+function buildMaterialSearchQuery(input: {
+  merchant: ConsultationAgentLoopState["merchant"];
+  userContent: string;
+  previousSnapshot: ConsultationAgentLoopState["strategySnapshot"];
+}) {
+  return uniqueStrings([
+    input.userContent
+      .replace(/^@[^\s@，,：:]+[\s，,：:]*/, "")
+      .replace(/https?:\/\/[^\s，。)）]+/gi, "")
+      .replace(/[，。！？、,.!?;；:：()[\]{}"'`]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+    input.merchant.industry ?? "",
+    ...input.merchant.serviceItems,
+    input.previousSnapshot.positioning,
+    ...input.previousSnapshot.coreSellingPoints,
+    ...input.previousSnapshot.targetAudiences,
+    ...input.previousSnapshot.keyScenes,
+    ...input.previousSnapshot.strategyTags,
+  ])
+    .join(" ")
+    .trim()
+    .slice(0, 120);
 }
 
 function buildKnowledgeQuery(input: {
