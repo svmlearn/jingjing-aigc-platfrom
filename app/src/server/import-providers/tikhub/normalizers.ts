@@ -249,7 +249,42 @@ function normalizeXiaohongshuItem(
 }
 
 function collectDouyinAwemeItems(payload: unknown): Record<string, unknown>[] {
-  return collectObjects(payload).filter((record) => Boolean(record.aweme_id || record.awemeId));
+  const root = toRecord(payload);
+  const directItems = [
+    getPath(root, ["data", "aweme_detail"]),
+    getPath(root, ["data", "awemeDetail"]),
+    getPath(root, ["aweme_detail"]),
+    getPath(root, ["awemeDetail"]),
+    ...toArray(getPath(root, ["data", "aweme_list"])),
+    ...toArray(getPath(root, ["data", "awemeList"])),
+    ...toArray(getPath(root, ["aweme_list"])),
+    ...toArray(getPath(root, ["awemeList"])),
+  ].filter(isDouyinAwemeMaterialRecord);
+
+  if (directItems.length > 0) {
+    return directItems;
+  }
+
+  return collectObjects(payload).filter(isDouyinAwemeMaterialRecord);
+}
+
+function isDouyinAwemeMaterialRecord(record: unknown): record is Record<string, unknown> {
+  if (!isRecord(record) || !Boolean(record.aweme_id || record.awemeId || record.id)) {
+    return false;
+  }
+
+  // TikHub detail responses also contain small objects such as
+  // params/status/statistics with aweme_id. Those are identifiers or metadata,
+  // not material records, and choosing them loses cover/video URLs.
+  return Boolean(
+    record.video ||
+      record.desc ||
+      record.author ||
+      record.share_url ||
+      record.shareUrl ||
+      record.item_title ||
+      record.itemTitle,
+  );
 }
 
 function dedupeTikHubMaterialItems(items: TikHubMaterialItem[]) {

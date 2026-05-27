@@ -181,6 +181,45 @@ test("normalizes Douyin video media urls for later source item OSS persistence",
   assert.deepEqual(item.structureSummary.videoUrls, ["https://example.com/video.mp4"]);
 });
 
+test("normalizes Douyin detail payloads without choosing params-only aweme id objects", () => {
+  const [item] = normalizeTikHubMaterialItems({
+    platform: "douyin",
+    findMethod: "detail",
+    target: "https://www.douyin.com/video/123456",
+    cacheKey: "test-cache-key",
+    limit: 1,
+    payload: {
+      params: {
+        aweme_id: "params-only-id",
+      },
+      data: {
+        aweme_detail: {
+          aweme_id: "123456",
+          desc: "工业园烧烤夜宵高赞视频",
+          author: { nickname: "烧烤摊主" },
+          statistics: {
+            digg_count: 3200,
+            comment_count: 88,
+          },
+          video: {
+            duration: 18000,
+            cover: { url_list: ["https://example.com/real-cover.webp"] },
+            play_addr_h264: { url_list: ["https://api-play.amemv.com/aweme/v1/play/?video_id=real"] },
+          },
+        },
+      },
+    },
+  });
+
+  assert.ok(item);
+  assert.equal(item.externalItemId, "123456");
+  assert.equal(item.title, "工业园烧烤夜宵高赞视频");
+  assert.equal(item.creatorName, "烧烤摊主");
+  assert.equal(item.structureSummary.coverUrl, "https://example.com/real-cover.webp");
+  assert.deepEqual(item.structureSummary.videoUrls, ["https://api-play.amemv.com/aweme/v1/play/?video_id=real"]);
+  assert.notEqual(item.externalItemId, "params-only-id");
+});
+
 test("normalizes TikHub comment payloads for storage", () => {
   const comments = normalizeTikHubComments({
     platform: "douyin",
