@@ -1,6 +1,8 @@
 export const consultationAgentToolKeys = [
   "retrieve_knowledge_base",
   "search_benchmark_materials",
+  "search_project_video_materials",
+  "search_saved_viral_materials",
   "update_strategy_snapshot",
   "update_content_calendar",
   "generate_article_brief",

@@ -35,6 +35,16 @@ const consultationSkillOptions: Array<{
     description: "按关键词、主页或单条链接检索小红书/抖音对标内容。",
   },
   {
+    key: "search_project_video_materials",
+    label: "检索当前商家视频素材库",
+    description: "只读检索当前商家已上传且 ready 的视频素材，不暴露存储地址。",
+  },
+  {
+    key: "search_saved_viral_materials",
+    label: "检索本地已保存爆款库",
+    description: "只读检索当前商家已沉淀的爆款参考，不调用外部 provider。",
+  },
+  {
     key: "update_strategy_snapshot",
     label: "编辑策略资产",
     description: "把定位、卖点、客群、场景和建议作为一个整体资产写入。",

@@ -161,12 +161,31 @@ function buildToolValidationState() {
       enabledTools: [
         "retrieve_knowledge_base",
         "search_benchmark_materials",
+        "search_project_video_materials",
+        "search_saved_viral_materials",
         "update_strategy_snapshot",
         "update_content_calendar",
       ],
       container: null,
       retrievalTopK: 5,
       activeSkills: [],
+    },
+    merchant: {
+      id: "merchant-tool-validation",
+      industry: "餐饮",
+      serviceItems: ["烧烤"],
+    },
+    userContent: "参考我上传的视频素材和已有爆款库，规划夜宵内容",
+    session: {
+      strategySnapshot: {
+        positioning: "工业园烧烤小摊",
+        coreSellingPoints: ["独家酱料"],
+        targetAudiences: ["工厂下班人群"],
+        keyScenes: ["下班夜宵"],
+        contentPillars: [],
+        strategyTags: ["夜宵", "工业园"],
+        contentCalendarDraft: [],
+      },
     },
   } as unknown as ConsultationAgentLoopState;
 }
@@ -598,8 +617,13 @@ test("consultation visible tools exclude runtime context pseudo read tools", () 
   assert.doesNotMatch(platformAdminRepositorySource, /"read_history"/);
   assert.match(platformAdminRepositorySource, /consultationAgentToolKeys/);
   assert.match(platformAdminRepositorySource, /search_benchmark_materials/);
+  assert.match(platformAdminRepositorySource, /search_project_video_materials/);
+  assert.match(platformAdminRepositorySource, /search_saved_viral_materials/);
+  assert.match(platformAdminRepositorySource, /enabledToolDefaultsVersion/);
   assert.doesNotMatch(platformSettingsEditorSource, /key: "read_merchant_profile"/);
   assert.doesNotMatch(platformSettingsEditorSource, /key: "read_history"/);
+  assert.match(platformSettingsEditorSource, /key: "search_project_video_materials"/);
+  assert.match(platformSettingsEditorSource, /key: "search_saved_viral_materials"/);
   assert.match(platformSettingsEditorSource, /用户资料与历史会话由 runtime 自动纳入上下文/);
   assert.doesNotMatch(consultationRuntimeSource, /key: "read_merchant_profile"/);
   assert.doesNotMatch(consultationRuntimeSource, /key: "read_history"/);
@@ -618,6 +642,164 @@ test("consultation planner no longer orders or depends on pseudo read tools", ()
   assert.doesNotMatch(consultationRuntimeSource, /return \["read_merchant_profile"/);
   assert.doesNotMatch(consultationRuntimeSource, /"read_merchant_profile", "retrieve_knowledge_base"/);
   assert.match(consultationRuntimeSource, /用户资料、会话摘要和最近历史消息已经由 runtime context 自动提供/);
+});
+
+test("consultation runtime exposes local material search as read-only registry tools", () => {
+  assert.match(knowledgeContractSource, /"search_project_video_materials"/);
+  assert.match(knowledgeContractSource, /"search_saved_viral_materials"/);
+  assert.match(consultationRuntimeSource, /key: "search_project_video_materials"/);
+  assert.match(consultationRuntimeSource, /key: "search_saved_viral_materials"/);
+  assert.match(consultationRuntimeSource, /projectVideoMaterialsArgsSchema/);
+  assert.match(consultationRuntimeSource, /savedViralMaterialsArgsSchema/);
+  assert.match(consultationRuntimeSource, /toolName === "search_project_video_materials"/);
+  assert.match(consultationRuntimeSource, /toolName === "search_saved_viral_materials"/);
+  assert.match(serviceSource, /dispatchProjectVideoMaterialsTool/);
+  assert.match(serviceSource, /dispatchSavedViralMaterialsTool/);
+  assert.match(serviceSource, /getPrivateMediaRepository\(\)\.listClipsByMerchant/);
+  assert.match(serviceSource, /listMaterialLibraryItems/);
+  assert.match(serviceSource, /listImportedComments/);
+  assert.match(serviceSource, /listAssetObjectsByOwner/);
+  assert.match(serviceSource, /structureMetadata/);
+  assert.doesNotMatch(serviceSource, /textSummary/);
+  assert.doesNotMatch(serviceSource, /creative structure|structure breakdown/i);
+});
+
+test("project video material search scrubs legacy storage metadata from model-visible result", async () => {
+  const { buildProjectVideoMaterialsResultFromClips } = await import(
+    "./consultation-runtime/material-search-tools.ts"
+  );
+  const result = buildProjectVideoMaterialsResultFromClips({
+    call: {
+      id: "tool-legacy-video-search",
+      toolName: "search_project_video_materials",
+      args: {
+        query: "烧烤",
+        limit: 1,
+      },
+    },
+    merchantId: "merchant-legacy-video",
+    clips: [
+      {
+        id: "source-item-asset-legacy-video",
+        merchantId: "merchant-legacy-video",
+        mediaType: "video",
+        status: "ready",
+        width: 1080,
+        height: 1920,
+        durationSeconds: 12,
+        orientation: "portrait",
+        description: JSON.stringify({
+          structureSummary: {
+            title: "烧烤摊夜宵素材",
+            sourceStorageKey: "merchant-media/shaokao/private-source.mp4",
+            bucketName: "secret-bucket",
+          },
+          tracePayload: {
+            signedDownloadUrl: "https://signed.example.com/private.mp4?token=abc",
+            downloadToken: "tok_live_secret_1234567890",
+            originalStoragePath: "oss://secret-bucket/merchant-media/shaokao/private-source.mp4",
+          },
+        }),
+        tags: ["烧烤", "夜宵"],
+        sceneTags: ["工业园"],
+        shotTags: ["近景"],
+        peopleTags: ["工友"],
+        qualityTags: ["可用"],
+        bucketName: "secret-bucket",
+        storageKey: "merchant-media/shaokao/private-source.mp4",
+        thumbStorageKey: "merchant-media/shaokao/private-thumb.jpg",
+        mimeType: "video/mp4",
+        createdAt: "2026-05-27T00:00:00.000Z",
+      },
+    ],
+  });
+  const serialized = JSON.stringify(result);
+
+  assert.equal(result.status, "completed");
+  assert.doesNotMatch(serialized, /sourceStorageKey/i);
+  assert.doesNotMatch(serialized, /bucketName/i);
+  assert.doesNotMatch(serialized, /signedDownloadUrl/i);
+  assert.doesNotMatch(serialized, /downloadToken/i);
+  assert.doesNotMatch(serialized, /storageKey/i);
+  assert.doesNotMatch(serialized, /structureSummary/i);
+  assert.doesNotMatch(serialized, /tracePayload/i);
+  assert.doesNotMatch(serialized, /oss:\/\//i);
+  assert.doesNotMatch(serialized, /https:\/\/signed\.example\.com/i);
+  assert.doesNotMatch(serialized, /secret-bucket/i);
+  assert.doesNotMatch(serialized, /merchant-media\/shaokao\/private-source\.mp4/i);
+  assert.doesNotMatch(serialized, /tok_live_secret_1234567890/i);
+});
+
+test("project video material search never returns raw legacy metadata description", async () => {
+  const { buildProjectVideoMaterialsResultFromClips } = await import(
+    "./consultation-runtime/material-search-tools.ts"
+  );
+  const result = buildProjectVideoMaterialsResultFromClips({
+    call: {
+      id: "tool-legacy-video-raw-metadata-search",
+      toolName: "search_project_video_materials",
+      args: {
+        query: "烧烤 https://example.com/private-reference",
+        limit: 1,
+      },
+    },
+    merchantId: "merchant-legacy-video",
+    clips: [
+      {
+        id: "source-item-asset-legacy-video-raw-metadata",
+        merchantId: "merchant-legacy-video",
+        mediaType: "video",
+        status: "ready",
+        width: 1080,
+        height: 1920,
+        durationSeconds: 18,
+        orientation: "portrait",
+        description: [
+          "烧烤摊夜宵素材",
+          JSON.stringify({
+            structureSummary: {
+              title: "raw-structure-title",
+              importedForEmail: "shaokao-owner@example.internal",
+            },
+            tracePayload: {
+              importBatch: "batch-secret-20260527",
+              providerPayload: {
+                rawRank: 7,
+              },
+            },
+            engagementSnapshot: {
+              label: "raw-engagement-label",
+            },
+          }),
+        ].join("\n"),
+        tags: ["烧烤", "夜宵"],
+        sceneTags: ["工业园"],
+        shotTags: ["近景"],
+        peopleTags: ["工友"],
+        qualityTags: ["可用"],
+        bucketName: "safe-test-bucket",
+        storageKey: "safe-test-key",
+        mimeType: "video/mp4",
+        createdAt: "2026-05-27T00:00:00.000Z",
+      },
+    ],
+  });
+  const serialized = JSON.stringify(result);
+
+  assert.equal(result.status, "completed");
+  assert.doesNotMatch(serialized, /structureSummary/i);
+  assert.doesNotMatch(serialized, /tracePayload/i);
+  assert.doesNotMatch(serialized, /engagementSnapshot/i);
+  assert.doesNotMatch(serialized, /importedForEmail/i);
+  assert.doesNotMatch(serialized, /importBatch/i);
+  assert.doesNotMatch(serialized, /providerPayload/i);
+  assert.doesNotMatch(serialized, /raw-structure-title/i);
+  assert.doesNotMatch(serialized, /shaokao-owner@example\.internal/i);
+  assert.doesNotMatch(serialized, /batch-secret-20260527/i);
+  assert.doesNotMatch(serialized, /raw-engagement-label/i);
+  assert.doesNotMatch(serialized, /https?:\/\//i);
+  assert.match(serialized, /标签：烧烤、夜宵/);
+  assert.match(serialized, /尺寸：1080x1920/);
 });
 
 test("consultation model messages split runtime context from current user message", () => {
@@ -933,6 +1115,44 @@ test("consultation write tool argument validation returns concrete failure reaso
   assert.equal(calendarResult.rawToolName, "update_content_calendar");
   assert.match(calendarResult.error, /update_content_calendar failed/);
   assert.match(calendarResult.error, /The required parameter `calendar` is missing/);
+
+  const projectVideoResult = parseNativeConsultationToolCall(
+    {
+      id: "tool-project-video-extra-args",
+      type: "function",
+      function: {
+        name: "search_project_video_materials",
+        arguments: JSON.stringify({ query: "夜宵", downloadToken: "must-not-pass" }),
+      },
+    },
+    state,
+  );
+
+  if (projectVideoResult.ok) {
+    assert.fail("search_project_video_materials should reject unexpected model arguments");
+  }
+
+  assert.equal(projectVideoResult.rawToolName, "search_project_video_materials");
+  assert.match(projectVideoResult.error, /An unexpected parameter `downloadToken` was provided/);
+
+  const savedViralResult = parseNativeConsultationToolCall(
+    {
+      id: "tool-saved-viral-valid",
+      type: "function",
+      function: {
+        name: "search_saved_viral_materials",
+        arguments: JSON.stringify({ query: "烧烤 夜宵", platform: "douyin", limit: 6 }),
+      },
+    },
+    state,
+  );
+
+  if (!savedViralResult.ok) {
+    assert.fail(`search_saved_viral_materials should accept compact read args: ${savedViralResult.error}`);
+  }
+
+  assert.equal(savedViralResult.call.toolName, "search_saved_viral_materials");
+  assert.equal(savedViralResult.call.args.platform, "douyin");
 });
 
 test("consultation runtime wraps tool execution exceptions as failed tool results", () => {

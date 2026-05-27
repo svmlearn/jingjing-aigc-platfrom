@@ -14,7 +14,11 @@ import type {
   StrategySnapshotDto,
 } from "@/contracts/consultation";
 import type { MerchantProfileDto } from "@/contracts/merchant";
-import type { MaterialLibraryItemDto } from "@/contracts/material";
+import type {
+  MaterialLibraryItemDto,
+  MaterialPlatform,
+} from "@/contracts/material";
+import type { MediaAssetDto } from "@/contracts/media";
 import type {
   ConsultationAgentSettingsDto,
   KnowledgeRuntimeSettingsDto,
@@ -88,7 +92,17 @@ import {
   buildBusinessToolPrompt,
   getConsultationBusinessToolCatalog,
 } from "@/server/api/consultation-runtime/tools";
+import { buildProjectVideoMaterialsResultFromClips } from "@/server/api/consultation-runtime/material-search-tools";
 import { createBenchmarkMaterialsForMerchant } from "@/server/api/material-library-service";
+import { listImportedComments } from "@/lib/db/import-repository";
+import { listAssetObjectsByOwner } from "@/lib/db/media-repository";
+import { getPrivateMediaRepository } from "@/lib/db/merchant-media-repository";
+import { listMaterialLibraryItems } from "@/lib/db/material-library-repository";
+import {
+  buildMaterialSearchIndexText,
+  readMaterialRetrievalTrace,
+  tokenizeMaterialRetrievalQuery,
+} from "@/lib/material-retrieval";
 import { retrieveConsultationKnowledge } from "@/server/api/consultation-runtime/rag";
 import {
   runConsultationRuntime,
@@ -1396,6 +1410,14 @@ async function dispatchConsultationTool(
     return dispatchBenchmarkMaterialTool(call, state);
   }
 
+  if (call.toolName === "search_project_video_materials") {
+    return dispatchProjectVideoMaterialsTool(call, state);
+  }
+
+  if (call.toolName === "search_saved_viral_materials") {
+    return dispatchSavedViralMaterialsTool(call, state);
+  }
+
   if (call.toolName === "update_strategy_snapshot") {
     const assetEdit = await resolveStrategyAssetEditorPatch({
       state,
@@ -1608,6 +1630,92 @@ function mergeLoopKnowledgeMatches(matches: KnowledgeSearchMatchDto[]) {
   return merged.slice(0, 24);
 }
 
+async function dispatchProjectVideoMaterialsTool(
+  call: ConsultationAgentToolCall,
+  state: ConsultationAgentLoopState,
+): Promise<ConsultationAgentToolResult> {
+  try {
+    const clips = await getPrivateMediaRepository().listClipsByMerchant({
+      merchantId: state.merchant.id,
+    });
+
+    return buildProjectVideoMaterialsResultFromClips({
+      call,
+      merchantId: state.merchant.id,
+      clips,
+    });
+  } catch (error) {
+    return buildSearchToolFailure({
+      call,
+      summary: "当前商家 ready 视频素材检索失败。",
+      errorType: "material_search_failed",
+      error: error instanceof Error ? error.message : "Unknown project video material search error.",
+    });
+  }
+}
+
+async function dispatchSavedViralMaterialsTool(
+  call: ConsultationAgentToolCall,
+  state: ConsultationAgentLoopState,
+): Promise<ConsultationAgentToolResult> {
+  const query = typeof call.args.query === "string" ? call.args.query.trim() : "";
+  const platform = parseOptionalMaterialPlatform(call.args.platform);
+  const limit = normalizeSearchLimit(call.args.limit, 8);
+
+  try {
+    const materials = await listMaterialLibraryItems({
+      merchantId: state.merchant.id,
+      limit: 160,
+      query: query || null,
+    });
+    const scopedCandidates = materials
+      .filter((material) => material.status === "ready")
+      .filter((material) => material.usageType === "viral_reference")
+      .filter((material) => !platform || material.platform === platform);
+    const candidates = await filterSavedViralCandidatesByQuery(scopedCandidates, query);
+    const returnedMaterials = candidates.slice(0, limit);
+
+    if (candidates.length === 0) {
+      return {
+        callId: call.id,
+        toolName: call.toolName,
+        status: "skipped",
+        summary: "本地爆款库没有命中，未找到可用于本轮参考的已保存 ready 爆款内容。",
+        payload: {
+          query,
+          platform: platform ?? null,
+          matchCount: 0,
+          materials: [],
+        },
+      };
+    }
+
+    const compactMaterials = await Promise.all(
+      returnedMaterials.map((material) => buildSavedViralMaterialPayload(material, query)),
+    );
+
+    return {
+      callId: call.id,
+      toolName: call.toolName,
+      status: "completed",
+      summary: `本地爆款库命中 ${candidates.length} 条 ready 爆款内容，返回 ${compactMaterials.length} 条紧凑参考。`,
+      payload: {
+        query,
+        platform: platform ?? null,
+        matchCount: candidates.length,
+        materials: compactMaterials,
+      },
+    };
+  } catch (error) {
+    return buildSearchToolFailure({
+      call,
+      summary: "本地爆款库检索失败。",
+      errorType: "saved_viral_material_search_failed",
+      error: error instanceof Error ? error.message : "Unknown saved viral material search error.",
+    });
+  }
+}
+
 async function dispatchBenchmarkMaterialTool(
   call: ConsultationAgentToolCall,
   state: ConsultationAgentLoopState,
@@ -1699,6 +1807,353 @@ async function dispatchBenchmarkMaterialTool(
       },
     };
   }
+}
+
+function normalizeSearchLimit(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(Math.max(Math.trunc(value), 1), 12)
+    : fallback;
+}
+
+function parseOptionalMaterialPlatform(value: unknown): MaterialPlatform | null {
+  return value === "douyin" || value === "xiaohongshu" ? value : null;
+}
+
+function savedViralMaterialMatchesQuery(material: MaterialLibraryItemDto, query: string) {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const indexText = normalizeSearchText(buildMaterialSearchIndexText(material));
+
+  if (indexText.includes(normalizedQuery)) {
+    return true;
+  }
+
+  const terms = tokenizeMaterialRetrievalQuery(query).filter((term) => term.length >= 2);
+
+  return terms.some((term) => indexText.includes(normalizeSearchText(term)));
+}
+
+async function filterSavedViralCandidatesByQuery(
+  materials: MaterialLibraryItemDto[],
+  query: string,
+) {
+  if (!query.trim()) {
+    return materials;
+  }
+
+  const filtered: MaterialLibraryItemDto[] = [];
+
+  for (const material of materials) {
+    if (savedViralMaterialMatchesQuery(material, query)) {
+      filtered.push(material);
+      continue;
+    }
+
+    if (await savedViralImportedCommentsMatchQuery(material, query)) {
+      filtered.push(material);
+    }
+  }
+
+  return filtered;
+}
+
+async function savedViralImportedCommentsMatchQuery(
+  material: MaterialLibraryItemDto,
+  query: string,
+) {
+  if (!material.sourceItemId) {
+    return false;
+  }
+
+  const comments = await listImportedComments({
+    merchantId: material.merchantId,
+    sourceItemId: material.sourceItemId,
+    limit: 20,
+  });
+  const indexText = normalizeSearchText(comments.map((comment) => comment.content).join("\n"));
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (normalizedQuery && indexText.includes(normalizedQuery)) {
+    return true;
+  }
+
+  return tokenizeMaterialRetrievalQuery(query)
+    .filter((term) => term.length >= 2)
+    .some((term) => indexText.includes(normalizeSearchText(term)));
+}
+
+async function buildSavedViralMaterialPayload(
+  material: MaterialLibraryItemDto,
+  query: string,
+) {
+  const mediaAssets = material.sourceItemId
+    ? await listAssetObjectsByOwner({
+        ownerType: "source_item",
+        ownerId: material.sourceItemId,
+      })
+    : [];
+  const mediaSummary = buildSavedViralMediaSummary(material, mediaAssets);
+  const text = clipText(getSavedViralMaterialText(material), 900);
+  const topComments = await getSavedViralTopComments(material);
+
+  return {
+    materialId: material.id,
+    platform: material.platform,
+    materialType: material.materialType,
+    title: clipText(material.title, 120),
+    text,
+    textPreview: clipText(text, 180),
+    engagementLabel: material.engagementLabel ?? null,
+    topComments,
+    mediaSummary,
+    structureMetadata: buildSavedViralStructureMetadata(material, mediaSummary),
+    originalUrl: material.originalUrl ?? null,
+    matchReason: buildSavedViralMatchReason(material, query),
+  };
+}
+
+function getSavedViralMaterialText(material: MaterialLibraryItemDto) {
+  return (material.description ?? material.title).trim();
+}
+
+async function getSavedViralTopComments(material: MaterialLibraryItemDto) {
+  const traceComments = compactSavedViralComments(getMaterialCommentsForAgent(material));
+
+  if (traceComments.length > 0 || !material.sourceItemId) {
+    return traceComments.slice(0, 5);
+  }
+
+  const importedComments = await listImportedComments({
+    merchantId: material.merchantId,
+    sourceItemId: material.sourceItemId,
+    limit: 5,
+  });
+
+  return compactSavedViralComments(importedComments).slice(0, 5);
+}
+
+function compactSavedViralComments(
+  comments: Array<{
+    authorName?: string | null;
+    content: string;
+    likeCount?: number | null;
+    replyCount?: number | null;
+    publishedAt?: string | null;
+  }>,
+) {
+  return comments.flatMap((comment) => {
+    const content = comment.content.trim();
+
+    if (!content) {
+      return [];
+    }
+
+    return [{
+      authorName: comment.authorName ?? null,
+      content: clipText(content, 180),
+      likeCount: typeof comment.likeCount === "number" ? comment.likeCount : null,
+      replyCount: typeof comment.replyCount === "number" ? comment.replyCount : null,
+      publishedAt: comment.publishedAt ?? null,
+    }];
+  });
+}
+
+function buildSavedViralMediaSummary(
+  material: MaterialLibraryItemDto,
+  mediaAssets: MediaAssetDto[],
+) {
+  const structureCounts = countStructureMediaHints(material);
+  const assetImageCount = mediaAssets.filter((asset) => asset.assetType === "image").length;
+  const assetVideoCount = mediaAssets.filter((asset) => asset.assetType === "video").length;
+  const assetCoverCount = mediaAssets.filter((asset) => asset.assetType === "cover").length;
+  const imageCount = Math.max(assetImageCount, structureCounts.imageUrlCount);
+  const videoCount = Math.max(assetVideoCount, structureCounts.videoUrlCount);
+  const coverCount = Math.max(assetCoverCount, structureCounts.coverUrlCount);
+
+  return {
+    imageCount,
+    videoCount,
+    coverCount,
+    mediaUrlCount: structureCounts.mediaUrlCount,
+    hasVideo: videoCount > 0 || material.materialType === "video",
+    hasImages: imageCount > 0 || coverCount > 0,
+  };
+}
+
+function buildSavedViralStructureMetadata(
+  material: MaterialLibraryItemDto,
+  mediaSummary: ReturnType<typeof buildSavedViralMediaSummary>,
+) {
+  const structureSummary = toRecord(material.analysisPayload.structureSummary);
+  const tracePayload = toRecord(material.analysisPayload.tracePayload);
+  const materialAnalysis = toRecord(tracePayload.materialAnalysis);
+  const structureCounts = countStructureMediaHints(material);
+  const durationMs = firstNumber([
+    structureSummary.durationMs,
+    materialAnalysis.durationMs,
+    structureSummary.duration,
+    materialAnalysis.duration,
+  ]);
+  const durationSeconds = firstNumber([
+    structureSummary.durationSeconds,
+    materialAnalysis.durationSeconds,
+    durationMs != null && durationMs > 1000 ? Number((durationMs / 1000).toFixed(2)) : null,
+  ]);
+
+  return stripNullishRecord({
+    materialType: material.materialType,
+    materialStatus: material.status,
+    materialSourceKind: material.sourceKind,
+    materialUsageType: material.usageType,
+    retrievalTargets: material.retrievalTargets,
+    provider: firstString([
+      structureSummary.provider,
+      materialAnalysis.provider,
+      tracePayload.materialProvider,
+    ]),
+    providerStatus: firstString([
+      structureSummary.providerStatus,
+      materialAnalysis.providerStatus,
+      tracePayload.providerStatus,
+    ]),
+    sourceType: firstString([structureSummary.sourceType, materialAnalysis.sourceType]),
+    rank: firstNumber([structureSummary.rank, materialAnalysis.rank]),
+    durationSeconds,
+    tags: compactStringArray([
+      ...toStringArrayValue(structureSummary.tags),
+      ...toStringArrayValue(materialAnalysis.tags),
+      ...toStringArrayValue(structureSummary.hashtags),
+      ...toStringArrayValue(materialAnalysis.hashtags),
+    ], 12, 40),
+    mediaUrlCount: structureCounts.mediaUrlCount,
+    imageUrlCount: structureCounts.imageUrlCount,
+    videoUrlCount: structureCounts.videoUrlCount,
+    coverUrlCount: structureCounts.coverUrlCount,
+    persistedAssetCounts: {
+      imageCount: mediaSummary.imageCount,
+      videoCount: mediaSummary.videoCount,
+      coverCount: mediaSummary.coverCount,
+    },
+  });
+}
+
+function countStructureMediaHints(material: MaterialLibraryItemDto) {
+  const structureSummary = toRecord(material.analysisPayload.structureSummary);
+  const materialAnalysis = toRecord(toRecord(material.analysisPayload.tracePayload).materialAnalysis);
+  const imageUrlCount = Math.max(
+    countArrayValue(structureSummary.imageUrls),
+    countArrayValue(materialAnalysis.imageUrls),
+    countNumberValue(structureSummary.imageCount),
+    countNumberValue(materialAnalysis.imageCount),
+  );
+  const videoUrlCount = Math.max(
+    countArrayValue(structureSummary.videoUrls),
+    countArrayValue(materialAnalysis.videoUrls),
+    countNumberValue(structureSummary.videoCount),
+    countNumberValue(materialAnalysis.videoCount),
+  );
+  const coverUrlCount = Math.max(
+    countArrayValue(structureSummary.coverUrls),
+    countArrayValue(materialAnalysis.coverUrls),
+    countNumberValue(structureSummary.coverCount),
+    countNumberValue(materialAnalysis.coverCount),
+    typeof structureSummary.coverUrl === "string" ? 1 : 0,
+    typeof materialAnalysis.coverUrl === "string" ? 1 : 0,
+  );
+  const mediaUrlCount = Math.max(
+    countArrayValue(structureSummary.mediaUrls),
+    countArrayValue(materialAnalysis.mediaUrls),
+    imageUrlCount + videoUrlCount + coverUrlCount,
+  );
+
+  return {
+    imageUrlCount,
+    videoUrlCount,
+    coverUrlCount,
+    mediaUrlCount,
+  };
+}
+
+function buildSavedViralMatchReason(material: MaterialLibraryItemDto, query: string) {
+  const trace = readMaterialRetrievalTrace(material);
+  const reasons =
+    trace?.matchReasons
+      .filter((reason) => reason.code === "exact_query" || reason.code === "keyword_match")
+      .map((reason) =>
+        reason.evidence ? `${reason.label}：${reason.evidence}` : reason.label,
+      ) ?? [];
+
+  if (reasons.length > 0) {
+    return clipText(reasons.join("；"), 180);
+  }
+
+  if (query.trim()) {
+    return "命中本地爆款库文本、评论或 provider 元数据。";
+  }
+
+  return "最近 ready 本地爆款参考内容。";
+}
+
+function buildSearchToolFailure(input: {
+  call: ConsultationAgentToolCall;
+  summary: string;
+  errorType: string;
+  error: string;
+}): ConsultationAgentToolResult {
+  return {
+    callId: input.call.id,
+    toolName: input.call.toolName,
+    status: "failed",
+    summary: input.summary,
+    payload: {
+      errorType: input.errorType,
+      error: clipText(input.error, 240),
+    },
+  };
+}
+
+function compactStringArray(values: string[], maxItems: number, maxLength: number) {
+  return uniqueStrings(values)
+    .map((value) => clipText(value, maxLength))
+    .slice(0, maxItems);
+}
+
+function normalizeSearchText(value: string) {
+  return value.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function countArrayValue(value: unknown) {
+  return Array.isArray(value) ? value.length : 0;
+}
+
+function countNumberValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.trunc(value)
+    : 0;
+}
+
+function firstString(values: unknown[]) {
+  return values.find((value): value is string => typeof value === "string" && value.trim().length > 0)?.trim() ?? null;
+}
+
+function firstNumber(values: unknown[]) {
+  return values.find((value): value is number => typeof value === "number" && Number.isFinite(value)) ?? null;
+}
+
+function stripNullishRecord(record: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(record).filter(([, value]) => {
+      if (value === null || value === undefined) {
+        return false;
+      }
+
+      return !(Array.isArray(value) && value.length === 0);
+    }),
+  );
 }
 
 function parseBenchmarkPlatform(value: unknown): "xiaohongshu" | "douyin" {
@@ -1829,6 +2284,7 @@ function buildPhaseRuntimeRules(phase: ConsultationModelMessagePhase) {
     "当前用户消息是消息数组最后一条 role=user；runtime context 只是自动上下文，不是用户原话。",
     "回答时可以使用 merchantIdentityContext、merchantBusinessFactsContext、outputStyleConstraints、safetyLanguageConstraints、strategySnapshotContext、contentCalendarContext 和 selectedRetrievalContext 里的受控信息；如果信息不足，可以提出一个最关键的追问。",
     "当 selectedRetrievalContext 已包含用户知识库或素材片段时，由你结合用户问题判断如何引用；不要声称无法查看用户知识库或上传文件。",
+    "search_project_video_materials 和 search_saved_viral_materials 是可选只读依据工具，不是 update_content_calendar 的强制门禁；用户明确要求参考已上传视频素材或已有爆款库时应优先调用对应工具，用户追问你检索了什么时只能依据真实 tool_result 回答，没调用就承认没检索。",
     "当你列出目标客群、核心卖点或核心场景时，只能逐字使用 strategySnapshotContext 中已经存在的条目；不要补充未写入右侧策略资产的新条目。",
   ];
 
