@@ -322,7 +322,7 @@ async function loadContextsForTaskDate(taskDate) {
     where merchant_id = $1
       and user_id = $2
       and status = 'video_script_created'
-      and task_date::date = $3::date
+      and (task_date at time zone 'Asia/Shanghai')::date = $3::date
       and theme = '一楼厂房主推'
       and (
         video_task->>'title' = $4
