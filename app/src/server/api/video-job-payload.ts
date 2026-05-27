@@ -859,5 +859,11 @@ function normalizePositiveInteger(value: number | null | undefined) {
 }
 
 function uniqueStrings(values: string[]) {
-  return Array.from(new Set(values.filter((value) => value.trim().length > 0)));
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0),
+    ),
+  );
 }
