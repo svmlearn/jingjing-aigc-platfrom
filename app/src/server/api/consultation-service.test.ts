@@ -664,17 +664,6 @@ test("consultation runtime exposes local material search as read-only registry t
   assert.doesNotMatch(serviceSource, /creative structure|structure breakdown/i);
 });
 
-test("consultation tool inventory questions return catalog without calling business tools", () => {
-  assert.match(consultationRuntimeSource, /function isToolInventoryQuestion/);
-  assert.match(consultationRuntimeSource, /function buildToolInventoryReply/);
-  assert.match(consultationRuntimeSource, /agent\.response\.deterministic/);
-  assert.match(consultationRuntimeSource, /不触发业务工具/);
-  assert.match(consultationRuntimeSource, /这些是能力清单，不代表我已经调用过/);
-  assert.match(consultationRuntimeSource, /isLlmVisibleConsultationTool/);
-  assert.match(consultationRuntimeSource, /当前商家已上传且 ready 的视频素材/);
-  assert.match(consultationRuntimeSource, /本地已保存的社媒爆款参考内容/);
-});
-
 test("project video material search scrubs legacy storage metadata from model-visible result", async () => {
   const { buildProjectVideoMaterialsResultFromClips } = await import(
     "./consultation-runtime/material-search-tools.ts"

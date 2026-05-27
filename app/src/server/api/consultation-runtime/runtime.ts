@@ -26,9 +26,7 @@ import {
 } from "@/server/api/consultation-runtime/context";
 import {
   buildConsultationAiRuntimeTools,
-  getConsultationBusinessToolCatalog,
   isConsultationAgentToolKey,
-  isLlmVisibleConsultationTool,
   isRepeatableConsultationReadTool,
   parseNativeConsultationToolCall,
 } from "@/server/api/consultation-runtime/tools";
@@ -48,7 +46,7 @@ import {
 
 export type ConsultationRuntimeAssistantReply = {
   content: string;
-  mode: "llm" | "deterministic" | "fallback_no_key" | "fallback_error";
+  mode: "llm" | "fallback_no_key" | "fallback_error";
   model?: string;
   error?: string;
 };
@@ -133,23 +131,7 @@ export async function runConsultationRuntime(input: RunConsultationRuntimeInput)
     }),
   });
 
-  if (isToolInventoryQuestion(input.state.userContent)) {
-    assistantReply = buildToolInventoryReply(input.state);
-    input.state.plannerTrace.push({
-      turn: 1,
-      mode:
-        requestedPlannerMode === "deterministic"
-          ? "deterministic"
-          : requestedPlannerMode === "native_tool_calling"
-            ? "native_tool_calling"
-            : "model_tool_json",
-      status: "stopped",
-      toolName: null,
-      reason: "用户询问当前可用工具清单，直接返回已启用工具目录，不触发业务工具。",
-    });
-  }
-
-  if (!assistantReply && requestedPlannerMode === "native_tool_calling") {
+  if (requestedPlannerMode === "native_tool_calling") {
     const nativeResult = await runNativeToolCallingLoop({
       input,
       toolResults,
@@ -209,8 +191,6 @@ export async function runConsultationRuntime(input: RunConsultationRuntimeInput)
     eventType:
       assistantReply.mode === "llm"
         ? "llm.response.completed"
-        : assistantReply.mode === "deterministic"
-          ? "agent.response.deterministic"
         : "llm.response.fallback",
     payload: {
       mode: assistantReply.mode,
@@ -613,64 +593,6 @@ async function runModelJsonToolLoop(input: {
   } catch (error) {
     return buildNativeFallbackResult(formatAiRuntimeError(error));
   }
-}
-
-function isToolInventoryQuestion(userContent: string) {
-  const compact = userContent
-    .normalize("NFKC")
-    .replace(/\s+/g, "")
-    .toLowerCase();
-
-  if (!compact.includes("工具")) {
-    return false;
-  }
-
-  return (
-    /(能用|可用|有|支持|开放).{0,8}(什么|哪些|几个|工具)/u.test(compact) ||
-    /(什么|哪些|几个).{0,8}工具/u.test(compact) ||
-    /工具.{0,8}(列出|列出来|清单|列表|都|有什么|有哪些)/u.test(compact) ||
-    /把.*工具.*列/u.test(compact) ||
-    /我是问.*工具/u.test(compact)
-  );
-}
-
-function buildToolInventoryReply(state: ConsultationAgentLoopState): ConsultationRuntimeAssistantReply {
-  const enabled = new Set(state.consultationAgent.enabledTools);
-  const visibleTools = getConsultationBusinessToolCatalog()
-    .filter((tool) => enabled.has(tool.key) && isLlmVisibleConsultationTool(tool.key))
-    .map((tool) => {
-      const note = getToolInventoryNote(tool.key);
-      return `- ${tool.label}：${note ?? tool.purpose}`;
-    });
-
-  const content = visibleTools.length > 0
-    ? [
-        "当前我能用的业务工具是：",
-        ...visibleTools,
-        "这些是能力清单，不代表我已经调用过。只有对话里出现对应工具结果时，我才会说已经检索或已经更新。",
-      ].join("\n")
-    : "当前没有启用可由我直接调用的业务工具；我只能基于已注入的商家资料、策略资产和会话上下文回答。";
-
-  return {
-    content,
-    mode: "deterministic",
-  };
-}
-
-function getToolInventoryNote(toolName: ConsultationAgentToolKey) {
-  if (toolName === "search_project_video_materials") {
-    return "只读检索当前商家已上传且 ready 的视频素材，返回已解析的标题、标签、场景、镜头等紧凑引用，不直接暴露原始存储地址。";
-  }
-
-  if (toolName === "search_saved_viral_materials") {
-    return "只读检索当前商家本地已保存的社媒爆款参考内容，不调用外部 provider，也不新增素材。";
-  }
-
-  if (toolName === "search_benchmark_materials") {
-    return "按关键词、主页或单条链接检索小红书/抖音爆款内容，并沉淀到社媒爆款内容库。";
-  }
-
-  return null;
 }
 
 async function runNativeToolCallingLoop(input: {
